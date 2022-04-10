@@ -34,6 +34,9 @@ repos:
     hooks:
       - id: prettier
         types_or: [javascript, jsx, ts, tsx, vue]
+        additional_dependencies:
+          - prettier@2.6.2
+          - prettier-plugin-tailwindcss@0.1.8
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v1.2.0
     hooks:
