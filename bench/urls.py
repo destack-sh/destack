@@ -13,8 +13,20 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from collections import Callable
+from typing import Optional
+
 from django.contrib import admin
-from django.urls import path
+from django.urls import URLPattern, path, re_path
+
+
+def path_with_opt_slash(
+    route: str, view: Callable, name: Optional[str] = None
+) -> URLPattern:
+    """Catches path with or without trailing slash, taking into account query param and hash."""
+    # Ignoring the type because while name can be optional on re_path, mypy doesn't agree
+    return re_path(rf"^{route}/?(?:[?#].*)?$", view, name=name)  # type: ignore
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
