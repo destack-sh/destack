@@ -1,6 +1,6 @@
 from typing import Iterator
 
-from bench.function.base import Map, ModelRunner, Predicate, Record, Supplier
+from bench.function.base import Map, ModelRunner, Multiplier, Predicate, Record
 
 
 class BackTranslation(Map):
@@ -18,12 +18,17 @@ class BackTranslation(Map):
         return backtranslated_record
 
 
-class TemplatedSuggester(Supplier):
+class SpellingAugmentation(Map):
+    def __call__(self, record: Record) -> Record:
+        raise NotImplementedError
+
+
+class TemplatedModelSuggester(Multiplier):
     def __init__(self, mlm: ModelRunner):
         self.mlm = mlm
 
     def __call__(self, record: Record) -> Iterator[Record]:
-        return super().__call__(record)
+        yield self.mlm(record["text"])
 
 
 class SentenceLengthConstraint(Predicate):
@@ -31,10 +36,5 @@ class SentenceLengthConstraint(Predicate):
         self.sentence_key = sentence_key
         self.max_length = max_length
 
-    def __call__(self, record: Record, reference_record: Record) -> bool:
+    def __call__(self, record: Record) -> bool:
         return len(record[self.sentence_key]) <= self.max_length
-
-
-class SpellcheckConstraint(Predicate):
-    def __call__(self, record, reference_record):
-        pass

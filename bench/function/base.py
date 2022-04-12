@@ -7,7 +7,13 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 Record = Dict[str, Any]
 
 
-class FeatureType:
+# Interface inspired by HF's Dataset object, allowing for column-based and streaming DS.
+class RecordBatch:
+    def __getitem__(self, index: Union[int, str]) -> Union[Record, RecordBatch]:
+        raise NotImplementedError
+
+
+class FieldType:
     pass
 
 
@@ -15,7 +21,7 @@ class FeatureType:
 class FeatureSpec:
     name: str
     description: str
-    type: FeatureType
+    type: FieldType
 
 
 @dataclass
@@ -81,16 +87,30 @@ class Map(Function, ABC):
         raise NotImplementedError
 
 
+class ModelRunner(Map, ABC):
+    model: Model
+
+
 class Supplier(Function, ABC):
+    def __call__(self) -> Iterator[Record]:
+        raise NotImplementedError
+
+
+class Multiplier(Function, ABC):
     def __call__(self, record: Record) -> Iterator[Record]:
         raise NotImplementedError
 
 
 class Predicate(Function, ABC):
     @property
-    def input_spec(self) -> Optional[RecordSpec]:
+    def output_spec(self) -> Optional[RecordSpec]:
+        return None
+
+    def __call__(self, record: Record) -> bool:
         raise NotImplementedError
 
+
+class BiPredicate(Function, ABC):
     @property
     def output_spec(self) -> Optional[RecordSpec]:
         return None
@@ -99,18 +119,36 @@ class Predicate(Function, ABC):
         raise NotImplementedError
 
 
-@dataclass
-class ModelRunner(Map, ABC):
-    model: Model
+class Reducer(Function, ABC):
+    def __call__(self, records: RecordBatch) -> Record:
+        raise NotImplementedError
+
+
+class BatchMap(Function, ABC):
+    def __call__(self, records: RecordBatch) -> RecordBatch:
+        raise NotImplementedError
+
+
+class Capability:
+    sub_capabilities: List[Capability]
+    related_tests: List[Test]
+    related_maps: List[Map]
+
+
+class Metric:
+    data: Record
 
 
 @dataclass
-class Lexicon(Dataset):
-    pass
+class Run:
+    inputs: RecordBatch
+    outputs: RecordBatch
+    metrics: List[Metric]
 
 
 @dataclass
 class Attack:
+    attack_method: Any  # ?
     tests: List[Test]
 
 
@@ -131,9 +169,14 @@ class Test:
 @dataclass
 class TestRun:
     test: Test
+    run: Run
 
 
-class Capability:
-    sub_capabilities: List[Capability]
-    related_tests: List[Test]
-    related_augmentations: List[Map]
+@dataclass
+class TestSuite:
+    tests: List[Test]
+
+
+@dataclass
+class TestSuiteRun:
+    test_runs: List[TestRun]
