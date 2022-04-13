@@ -1,5 +1,5 @@
 # Django Database settings
-# https://docs.djangoproject.com/en/3.1/ref/settings/#databases
+# https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 import os
 
 from bench.settings import BASE_DIR
