@@ -26,6 +26,7 @@ charset-normalizer==2.0.12
     #   requests
 click==8.1.2
     # via
+    #   -c requirements.txt
     #   black
     #   pip-tools
 coreapi==2.3.3
@@ -33,7 +34,9 @@ coreapi==2.3.3
 coreschema==0.0.4
     # via coreapi
 distlib==0.3.4
-    # via virtualenv
+    # via
+    #   -c requirements.txt
+    #   virtualenv
 django==4.0.3
     # via
     #   -c requirements.txt
@@ -48,7 +51,9 @@ django-stubs-ext==0.4.0
 djangorestframework-stubs==1.5.0
     # via -r requirements-dev.in
 filelock==3.6.0
-    # via virtualenv
+    # via
+    #   -c requirements.txt
+    #   virtualenv
 flake8==4.0.1
     # via -r requirements-dev.in
 flake8-import-order==0.18.1
@@ -83,7 +88,9 @@ mypy-extensions==0.4.3
 nodeenv==1.6.0
     # via pre-commit
 packaging==21.3
-    # via pytest
+    # via
+    #   -c requirements.txt
+    #   pytest
 pathspec==0.9.0
     # via black
 pep517==0.12.0
@@ -92,6 +99,7 @@ pip-tools==6.6.0
     # via -r requirements-dev.in
 platformdirs==2.5.1
     # via
+    #   -c requirements.txt
     #   black
     #   virtualenv
 pluggy==1.0.0
@@ -107,7 +115,9 @@ pycodestyle==2.8.0
 pyflakes==2.4.0
     # via flake8
 pyparsing==3.0.8
-    # via packaging
+    # via
+    #   -c requirements.txt
+    #   packaging
 pytest==7.1.1
     # via
     #   -r requirements-dev.in
@@ -154,6 +164,7 @@ types-urllib3==1.26.11
     # via types-requests
 typing-extensions==4.1.1
     # via
+    #   -c requirements.txt
     #   black
     #   django-stubs
     #   django-stubs-ext
@@ -167,8 +178,10 @@ urllib3==1.26.9
     # via
     #   -c requirements.txt
     #   requests
-virtualenv==20.14.0
-    # via pre-commit
+virtualenv==20.14.1
+    # via
+    #   -c requirements.txt
+    #   pre-commit
 wheel==0.37.1
     # via pip-tools
 

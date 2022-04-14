@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 Record = Dict[str, Any]
 
 
-# Interface inspired by HF's Dataset object, allowing for column-based and streaming DS.
+# Interface inspired by Ray's Dataset and HF's Dataset
+#  need to allow for column-based and streaming dataset processing.
 class RecordBatch:
     def __getitem__(self, index: Union[int, str]) -> Union[Record, RecordBatch]:
         raise NotImplementedError
@@ -26,16 +27,12 @@ class FeatureSpec:
 
 @dataclass
 class ModelSpec:
-    name: str
-    description: str
     input_spec: RecordSpec
     output_spec: RecordSpec
 
 
 @dataclass
 class DatasetSpec:
-    name: str
-    description: str
     record_spec: RecordSpec
 
 
@@ -46,12 +43,13 @@ ConfigSpec = Dict[str, Union[FeatureSpec, ModelSpec, DatasetSpec]]
 @dataclass
 class Dataset:
     spec: Dict[str, FeatureSpec]
-    records: List[Record]
+    records: RecordBatch  # virtual, this will just be a link
 
 
 @dataclass
-class DatasetView:
+class DatasetSlice:  # or DatasetFacet
     dataset: Dataset
+    filter: Union[Tuple[int], Predicate]
 
 
 @dataclass
@@ -74,7 +72,7 @@ class Function(ABC):
         raise NotImplementedError
 
 
-class Map(Function, ABC):
+class Transform(Function, ABC):
     @property
     def input_spec(self) -> RecordSpec:
         raise NotImplementedError
@@ -87,7 +85,12 @@ class Map(Function, ABC):
         raise NotImplementedError
 
 
-class ModelRunner(Map, ABC):
+class BatchTransform(Function, ABC):
+    def __call__(self, records: RecordBatch) -> RecordBatch:
+        raise NotImplementedError
+
+
+class ModelRunner(Transform, ABC):
     model: Model
 
 
@@ -124,15 +127,10 @@ class Reducer(Function, ABC):
         raise NotImplementedError
 
 
-class BatchMap(Function, ABC):
-    def __call__(self, records: RecordBatch) -> RecordBatch:
-        raise NotImplementedError
-
-
 class Capability:
     sub_capabilities: List[Capability]
     related_tests: List[Test]
-    related_maps: List[Map]
+    related_transforms: List[Transform]
 
 
 class Metric:
@@ -160,7 +158,7 @@ class AttackRun:
 
 @dataclass
 class Test:
-    supplier: Union[Supplier, DatasetView]
+    supplier: Union[Supplier, DatasetSlice]
     model: Model
     evaluator: Predicate
     expressed_capabilities: List[Capability]
