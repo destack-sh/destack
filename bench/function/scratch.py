@@ -1,12 +1,11 @@
 from typing import Iterator
 
-from bench.function.base import Map, ModelRunner, Multiplier, Predicate, Record
+from bench.function.base import Multiplier, Predicate, Record, Transform
+from bench.models import Model
 
 
-class BackTranslation(Map):
-    def __init__(
-        self, text_key: str, forward_model: ModelRunner, backward_model: ModelRunner
-    ):
+class BackTranslation(Transform):
+    def __init__(self, text_key: str, forward_model: Model, backward_model: Model):
         self.text_key = text_key
         self.forward_model = forward_model
         self.backward_model = backward_model
@@ -18,13 +17,13 @@ class BackTranslation(Map):
         return backtranslated_record
 
 
-class SpellingAugmentation(Map):
+class SpellingAugmentation(Transform):
     def __call__(self, record: Record) -> Record:
         raise NotImplementedError
 
 
 class TemplatedModelSuggester(Multiplier):
-    def __init__(self, mlm: ModelRunner):
+    def __init__(self, mlm: Model):
         self.mlm = mlm
 
     def __call__(self, record: Record) -> Iterator[Record]:

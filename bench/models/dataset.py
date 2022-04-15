@@ -3,7 +3,7 @@ import hub
 from django.db import models
 
 from bench.function.base import Record, RecordBatch
-from bench.models.utils import UUIDModel
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
 
 class DatasetManager(models.Manager):
@@ -11,7 +11,8 @@ class DatasetManager(models.Manager):
 
 
 class Dataset(UUIDModel):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
     spec = models.JSONField()
 
     def append(self, record: Record):
@@ -36,7 +37,7 @@ class Dataset(UUIDModel):
 
 
 class ActiveloopDataset(Dataset):
-    path = models.CharField(max_length=200)
+    path = models.CharField(max_length=MAX_NAME_LENGTH)
 
     _hub_dataset_unsafe: hub.Dataset
 
@@ -77,8 +78,8 @@ class HuggingFaceDataset(Dataset):
 
 class DatasetVersion(models.Model):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
-    version = models.CharField(max_length=100, blank=True)
-    branch = models.CharField(max_length=100, null=True, blank=True)
+    version = models.CharField(max_length=256, blank=True)
+    branch = models.CharField(max_length=256, null=True, blank=True)
 
     @property
     def records(self) -> RecordBatch:

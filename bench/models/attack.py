@@ -1,5 +1,9 @@
-from django.db import models
+from bench.models.utils import UUIDModel
 
 
-class Attack(models.Model):
+class Attack(UUIDModel):
+    pass
+
+
+class AttackRun(UUIDModel):
     pass
