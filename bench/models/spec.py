@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, Union
 
 
+@dataclass
 class FieldType:
     pass
 

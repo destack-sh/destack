@@ -1,7 +1,7 @@
 # To add, delete or modify a dependency, please update
 # the reference .in file and then run the following to
 # update the corresponding locked .txt file:
-#  `pip-compile --rebuild requirements.in`
+#  `pip-compile requirements.in`
 # Then - optionally - update your installed packages:
 #  `pip-sync requirements.txt requirements-dev.txt`
 
@@ -20,3 +20,4 @@ posthoganalytics==1.4.6
 hub==2.3.3
 datasets==2.1.0
 ray==1.12.0
+click<8.1.0 # for spacy in compute

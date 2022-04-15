@@ -24,7 +24,7 @@ charset-normalizer==2.0.12
     # via
     #   -c requirements.txt
     #   requests
-click==8.1.2
+click==8.0.4
     # via
     #   -c requirements.txt
     #   black

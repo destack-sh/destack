@@ -1,0 +1,14 @@
+# To add, delete or modify a dependency, please update
+# the reference .in file and then run the following to
+# update the corresponding locked .txt file:
+#  `pip-compile requirements-compute.in`
+# Then - optionally - update your installed packages:
+#  `pip-sync requirements.txt requirements-compute.txt requirements-dev.txt`
+
+-c requirements.txt
+
+transformers==4.18.0
+spacy==3.2.4
+scikit-learn==1.0.2
+numpy==1.22.3
+torch==1.11.0

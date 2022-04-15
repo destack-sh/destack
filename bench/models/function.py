@@ -8,7 +8,7 @@ class FunctionManager(models.Manager):
 
 
 class Function(UUIDModel):
-    registered_id = models.CharField(max_length=512)
+    registered_name = models.CharField(max_length=512)
     arguments = models.JSONField()
     datasets = models.ManyToManyField("Dataset", through="FunctionDatasetArgument")
     models = models.ManyToManyField("Model", through="FunctionModelArgument")
