@@ -14,9 +14,8 @@ class Model(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
 
-    framework = models.CharField(max_length=256)
-    storage_type = models.CharField(max_length=256)
-    managed_by = models.CharField(max_length=256)
+    framework_id = models.CharField(max_length=256)
+    storage_id = models.CharField(max_length=256)
 
     # possibilities:
     # HF transformers model, remote

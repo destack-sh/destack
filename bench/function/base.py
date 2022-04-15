@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC
 from typing import Iterator, Optional
 
-from bench.models.record import Record, RecordBatch
-from bench.models.spec import ConfigSpec, RecordSpec
+from bench.utils.record import Record, RecordBatch
+from bench.utils.spec import ConfigSpec, RecordSpec
 
 
 class FunctionBase(ABC):
