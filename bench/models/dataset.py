@@ -14,6 +14,8 @@ class Dataset(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
     spec = models.JSONField()
+    storage_uri = models.CharField(max_length=512)
+    controller_id = models.CharField(max_length=256, null=True)
 
     # where is it stored?
     # how do we load/stream/edit it?

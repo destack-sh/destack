@@ -1,5 +1,3 @@
-from typing import List
-
 from django.db import models
 
 from bench.model.base import ModelBase
@@ -14,8 +12,9 @@ class Model(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
 
-    framework_id = models.CharField(max_length=256)
-    storage_id = models.CharField(max_length=256)
+    model_base_id = models.CharField(max_length=256)
+    storage_uri = models.CharField(max_length=512, null=True)
+    controller_id = models.CharField(max_length=256, null=True)
 
     # possibilities:
     # HF transformers model, remote
@@ -41,7 +40,4 @@ class Model(UUIDModel):
 
     @property
     def handle(self) -> ModelBase:
-        raise NotImplementedError
-
-    def versions(self) -> List[str]:
         raise NotImplementedError

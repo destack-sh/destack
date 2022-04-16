@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+
+import numpy
 
 # TODO @Feature: come up with proper spec system
 #  Should be used for fields (of records and functions), datasets and models.
@@ -9,21 +11,19 @@ from typing import Any, Dict, Optional, Union
 
 
 @dataclass
-class ComplexType:
-    pass
+class Span:
+    start: int
+    end: int
 
 
-@dataclass
-class Category(ComplexType):
-    categories: Dict[Any, str]
-
-
-@dataclass
-class Span(ComplexType):
-    pass
-
-
-FieldType = Union[int, str]
+if TYPE_CHECKING:
+    # TODO @Cleanup: mypy can't handle recursive FieldType definition
+    #  We will probably change how field types are defined anyway, so fix this later.
+    FieldType = Any
+else:
+    FieldType = Type[
+        Union[str, int, Span, numpy.ndarray, List["FieldType"], Dict[str, "FieldType"]]
+    ]
 
 
 @dataclass

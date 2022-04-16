@@ -32,6 +32,8 @@ cymem==2.0.6
     #   preshed
     #   spacy
     #   thinc
+et-xmlfile==1.1.0
+    # via openpyxl
 filelock==3.6.0
     # via
     #   -c requirements.txt
@@ -65,17 +67,28 @@ numpy==1.22.3
     #   -c requirements.txt
     #   -r requirements-compute.in
     #   blis
+    #   pandas
     #   scikit-learn
     #   scipy
     #   spacy
     #   thinc
     #   transformers
+openai==0.18.1
+    # via -r requirements-compute.in
+openpyxl==3.0.9
+    # via openai
 packaging==21.3
     # via
     #   -c requirements.txt
     #   huggingface-hub
     #   spacy
     #   transformers
+pandas==1.4.2
+    # via
+    #   -c requirements.txt
+    #   openai
+pandas-stubs==1.2.0.58
+    # via openai
 pathy==0.6.1
     # via spacy
 preshed==3.0.6
@@ -90,6 +103,14 @@ pyparsing==3.0.8
     # via
     #   -c requirements.txt
     #   packaging
+python-dateutil==2.8.2
+    # via
+    #   -c requirements.txt
+    #   pandas
+pytz==2022.1
+    # via
+    #   -c requirements.txt
+    #   pandas
 pyyaml==6.0
     # via
     #   -c requirements.txt
@@ -103,6 +124,7 @@ requests==2.27.1
     # via
     #   -c requirements.txt
     #   huggingface-hub
+    #   openai
     #   spacy
     #   transformers
 sacremoses==0.0.49
@@ -114,6 +136,7 @@ scipy==1.8.0
 six==1.16.0
     # via
     #   -c requirements.txt
+    #   python-dateutil
     #   sacremoses
 smart-open==5.2.1
     # via pathy
@@ -139,6 +162,7 @@ tqdm==4.64.0
     # via
     #   -c requirements.txt
     #   huggingface-hub
+    #   openai
     #   sacremoses
     #   spacy
     #   transformers
