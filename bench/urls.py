@@ -8,6 +8,9 @@ from typing import Optional
 
 from django.contrib import admin
 from django.urls import URLPattern, path, re_path
+from drf_spectacular.views import SpectacularAPIView
+
+from bench.api import model
 
 
 def path_with_opt_slash(
@@ -20,4 +23,6 @@ def path_with_opt_slash(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/model/predict", model.predict),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
 ]

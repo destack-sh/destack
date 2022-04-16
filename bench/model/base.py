@@ -26,10 +26,10 @@ class ModelBase(abc.ABC):
 
         return self.spec
 
-    def forward(self, record: Record) -> Union[Record, RecordBatch]:
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
-    def forward_batch(self, records: RecordBatch) -> RecordBatch:
+    def predict_batch(self, records: RecordBatch) -> RecordBatch:
         raise NotImplementedError
 
 
@@ -38,10 +38,10 @@ class BatchModelBase(ModelBase, abc.ABC):
     A naive ModelBase.forward_batch implementation that just iterates over forward.
     """
 
-    def forward_batch(self, records: RecordBatch) -> RecordBatch:
+    def predict_batch(self, records: RecordBatch) -> RecordBatch:
         output_records: List[Record] = []
         for record in records:
-            output = self.forward(record)
+            output = self.predict(record)
             # if we're getting batches, flatten them into output
             if isinstance(output, RecordBatch):
                 output_records.extend(output)

@@ -17,7 +17,7 @@ if __name__ == "__main__":
         arguments={"model_name": "en_core_web_sm"},
         model_spec=None,
     )
-    print(spacy_model.forward(record))
+    print(spacy_model.predict(record))
 
     # openai_model = OpenAIModel(
     #     api_key=get_from_env("OPENAI_API_KEY"),

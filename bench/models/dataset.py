@@ -48,5 +48,5 @@ class Dataset(UUIDModel):
     objects: DatasetManager = DatasetManager()
 
 
-class DatasetSlice(models.Model):
+class DatasetSlice(UUIDModel):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)

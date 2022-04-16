@@ -54,7 +54,7 @@ class OpenAIModel(BatchModelBase, abc.ABC):
 class OpenAIModelForCompletion(OpenAIModel):
     spec = ModelSpec(input_spec={"text": str}, output_spec={"text": str})
 
-    def forward(self, record: Record) -> Union[Record, RecordBatch]:
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
         output = openai.Completion.create(
             prompt=record["text"],
             **self._get_params(),
@@ -77,7 +77,7 @@ class OpenAIModelForClassification(OpenAIModel):
         output_spec={"text": str, "categories": Dict[str, float]},
     )
 
-    def forward(self, record: Record) -> Union[Record, RecordBatch]:
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
         output = openai.Completion.create(
             prompt=record["text"],
             **self._get_params(),

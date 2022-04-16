@@ -14,7 +14,7 @@ class HuggingFaceModelForSequenceClassification(BatchModelBase):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
-    def forward(self, record: Record) -> Union[Record, RecordBatch]:
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
         # TODO @Feature: HuggingFaceModel only works for sequence classification
 
         tokenized_record = self.tokenizer(record["text"], return_tensors="pt")

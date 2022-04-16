@@ -25,12 +25,12 @@ class SpacyModelBase(ModelBase, abc.ABC):
             output["categories"] = doc.cats
         return output
 
-    def forward(self, record: Record) -> Union[Record, RecordBatch]:
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
         doc = self.nlp(record["text"])
         output = self._map_doc_to_record(doc)
         return output
 
-    def forward_batch(self, records: RecordBatch) -> RecordBatch:
+    def predict_batch(self, records: RecordBatch) -> RecordBatch:
         docs = list(self.nlp.pipe(records["text"]))
         output_records = [self._map_doc_to_record(doc) for doc in docs]
         return ListRecordBatch(output_records)
