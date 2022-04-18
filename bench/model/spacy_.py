@@ -3,11 +3,11 @@ from typing import Union
 
 import spacy
 
-from bench.model.base import ModelBase, models
+from bench.model.base import ModelHandler, models
 from bench.utils.record import ListRecordBatch, Record, RecordBatch
 
 
-class SpacyModelBase(ModelBase, abc.ABC):
+class SpacyModelBase(ModelHandler, abc.ABC):
     def __init__(self, nlp: spacy.language.Language):
         self.nlp = nlp
         self.has_categories = self.nlp.has_pipe("textcat") or self.nlp.has_pipe(

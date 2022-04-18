@@ -19,12 +19,12 @@ class Function(UUIDModel):
 class FunctionModelArgument(UUIDModel):
     arguments = models.JSONField()
     version = models.CharField(max_length=256, null=True)
-    function = models.ForeignKey("Function", on_delete=models.CASCADE)
-    model = models.ForeignKey("Model", on_delete=models.CASCADE)
+    function = models.ForeignKey("Function", on_delete=models.RESTRICT)
+    model = models.ForeignKey("Model", on_delete=models.RESTRICT)
 
 
 class FunctionDatasetArgument(UUIDModel):
     arguments = models.JSONField()
     version = models.CharField(max_length=256, null=True)
-    function = models.ForeignKey("Function", on_delete=models.CASCADE)
-    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
+    function = models.ForeignKey("Function", on_delete=models.RESTRICT)
+    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT)

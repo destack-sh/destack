@@ -3,12 +3,15 @@ from typing import Union
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from bench.model.base import BatchModelBase, models
+from bench.model.base import BatchModelHandler, models
 from bench.utils.record import Record, RecordBatch
+from bench.utils.spec import ModelSpec
 
 
 @models.register("bench.huggingface.sequence_classification")
-class HuggingFaceModelForSequenceClassification(BatchModelBase):
+class HuggingFaceModelForSequenceClassification(BatchModelHandler):
+    spec = ModelSpec(input_spec={"text": str}, output_spec={"text": str})
+
     def __init__(self, model_name: str):
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)

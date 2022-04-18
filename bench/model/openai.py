@@ -4,12 +4,12 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import openai
 
-from bench.model.base import BatchModelBase, models
+from bench.model.base import BatchModelHandler, models
 from bench.utils.record import ListRecordBatch, Record, RecordBatch
 from bench.utils.spec import ModelSpec
 
 
-class OpenAIModel(BatchModelBase, abc.ABC):
+class OpenAIModel(BatchModelHandler, abc.ABC):
     class Engine(enum.Enum):
         Ada = "text-ada-001"
         Babbage = "text-babbage-001"
@@ -78,8 +78,10 @@ class OpenAIModelForClassification(OpenAIModel):
     )
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        output = openai.Completion.create(
+        output = openai.Classification.create(
             prompt=record["text"],
+            examples=record["examples"],
+            labels=record["labels"],
             **self._get_params(),
         )
         output_records = [choice for choice in output["choices"]]

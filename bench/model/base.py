@@ -7,12 +7,15 @@ from bench.utils.record import ListRecordBatch, Record, RecordBatch
 from bench.utils.spec import ConfigSpec, ModelSpec
 
 
-class ModelBase(abc.ABC):
+# TODO @Cleanup: Model"Handler" is not a great name not descriptive enough
+class ModelHandler(abc.ABC):
     """
     Base for other model implementations that can load and run a model from some source.
+    TODO @Feature: specify model affordances for different tasks
+    TODO @Feature: define common task/model specs
     """
 
-    spec: Optional[ModelSpec]
+    spec: Optional[ModelSpec] = None
     config_spec: ConfigSpec
 
     def get_spec(self) -> ModelSpec:
@@ -21,7 +24,7 @@ class ModelBase(abc.ABC):
         """
         if self.spec is None:
             raise ValueError(
-                "model must define either Model.model_spec or dynamic property model.model_spec"
+                "ModelHandler must define either static `spec` or dynamic `get_spec`"
             )
 
         return self.spec
@@ -33,7 +36,7 @@ class ModelBase(abc.ABC):
         raise NotImplementedError
 
 
-class BatchModelBase(ModelBase, abc.ABC):
+class BatchModelHandler(ModelHandler, abc.ABC):
     """
     A naive ModelBase.forward_batch implementation that just iterates over forward.
     """
@@ -58,11 +61,11 @@ import bench.model.spacy_  # noqa
 
 
 def load_model(
-    model_base_id: str,
+    handler_id: str,
     storage_uri: Optional[str],
     arguments: Dict[str, Any],
     model_spec: Optional[ModelSpec],
-) -> ModelBase:
-    model_cls = models.get(model_base_id)
+) -> ModelHandler:
+    model_cls = models.get(handler_id)
     model = model_cls(**arguments)
     return model
