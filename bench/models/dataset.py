@@ -13,6 +13,7 @@ class DatasetManager(models.Manager):
 class Dataset(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
+    created_at = models.DateTimeField(auto_now_add=True)
     spec = models.JSONField()
     storage_uri = models.CharField(max_length=512)
     controller_id = models.CharField(max_length=256, null=True)
