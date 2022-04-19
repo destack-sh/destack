@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -16,7 +17,7 @@ else:
 
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": False,
+    "disable_existing_loggers": True,
     "formatters": {
         "json_formatter": {
             "()": structlog.stdlib.ProcessorFormatter,
@@ -24,7 +25,7 @@ LOGGING = {
         },
         "plain_console": {
             "()": structlog.stdlib.ProcessorFormatter,
-            "processor": structlog.dev.ConsoleRenderer(),
+            "processor": structlog.dev.ConsoleRenderer(pad_event=0),
         },
         "key_value": {
             "()": structlog.stdlib.ProcessorFormatter,
@@ -56,6 +57,7 @@ LOGGING = {
     },
 }
 
+# use structlog logging only
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -70,6 +72,6 @@ structlog.configure(
     ],
     context_class=structlog.threadlocal.wrap_dict(dict),
     logger_factory=structlog.stdlib.LoggerFactory(),
-    wrapper_class=structlog.stdlib.BoundLogger,
+    wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
     cache_logger_on_first_use=True,
 )
