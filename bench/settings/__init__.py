@@ -10,3 +10,4 @@ from bench.settings.access import *  # noqa: F401,F403
 from bench.settings.databases import *  # noqa: F401,F403
 from bench.settings.web import *  # noqa: F401,F403
 from bench.settings.logging import *  # noqa: F401,F403
+from bench.settings.executor import *  # noqa: F401,F403

@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union, cast
 import structlog
 
 from bench.executor.base import ResourceRequirements, UncoordinatedExecutor
-from bench.executor.utils import get_versioned_model_id
+from bench.executor.utils import get_model_iid
 from bench.model.base import ModelHandler, load_model
 from bench.models import Model
 from bench.utils.record import Record, RecordBatch, is_record
@@ -17,18 +17,18 @@ class LocalExecutor(UncoordinatedExecutor):
     """
 
     def __init__(self):
-        self._loaded_models: Dict[str, ModelHandler] = {}
+        self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
 
     async def _get_prepared_model(
         self, model: Model, version: Optional[str], prepare_if_needed: bool
     ) -> ModelHandler:
-        model_vid = get_versioned_model_id(model_id=model.id, version=version)
-        if model_vid not in self._loaded_models:
+        model_iid = get_model_iid(model, version)
+        if model_iid not in self._loaded_models_by_iid:
             if not prepare_if_needed:
-                raise RuntimeError("model " + model_vid + " is not prepared")
+                raise RuntimeError("model " + model_iid + " is not prepared")
             else:
                 await self.prepare_model(model, version)
-        return self._loaded_models[model_vid]
+        return self._loaded_models_by_iid[model_iid]
 
     async def prepare_model(
         self,
@@ -36,12 +36,18 @@ class LocalExecutor(UncoordinatedExecutor):
         version: Optional[str] = None,
         requirements: Optional[ResourceRequirements] = None,
     ):
-        model_vid = get_versioned_model_id(model_id=model.id, version=version)
-        if model_vid in self._loaded_models:
+        model_iid = get_model_iid(model=model, version=version)
+        if model_iid in self._loaded_models_by_iid:
             return
 
-        log = logger.bind(model_id=model.id, version=version, requirements=requirements)
-        log.info("executor.model.load")
+        log = logger.bind(
+            model_id=model.id,
+            model_iid=model_iid,
+            arguments=model.arguments,
+            version=version,
+            requirements=requirements,
+        )
+        log.info("model_load")
         model_handler: ModelHandler = load_model(
             model.handler_id,
             storage_uri=model.storage_uri,
@@ -49,8 +55,8 @@ class LocalExecutor(UncoordinatedExecutor):
             version=version,
             spec=model.spec,
         )
-        self._loaded_models[model_vid] = model_handler
-        log.info("executor.model.loaded")
+        self._loaded_models_by_iid[model_iid] = model_handler
+        log.info("model_loaded")
 
     async def run_model(
         self,

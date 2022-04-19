@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Type, Union
 
 import catalogue
 
@@ -13,10 +13,15 @@ class ModelHandler(abc.ABC):
     Base for other model implementations that can load and run a model from some source.
     TODO @Feature: specify model affordances for different tasks
     TODO @Feature: define common task/model specs
+    test
     """
 
+    # Static model spec for all models of this handler.
     spec: Optional[ModelSpec] = None
+    # Config spec to configure this handler.
     config_spec: ConfigSpec
+    # Config values that must be static once loaded. If not set, defaults to all keys.
+    config_static_keys: Set[str]
 
     def __init__(self, spec: Optional[ModelSpec] = None, version: Optional[str] = None):
         if spec is None and self.spec is None:
@@ -26,6 +31,9 @@ class ModelHandler(abc.ABC):
         elif spec is not None:
             self.spec = spec
         self.version = version
+
+    def update_config(self, **kwargs):
+        pass
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
@@ -58,6 +66,24 @@ import bench.model.openai  # noqa
 import bench.model.spacy_  # noqa
 
 
+def get_model_cls(handler_id: str) -> Type[ModelHandler]:
+    model_cls: Type[ModelHandler] = models.get(handler_id)
+    return model_cls
+
+
+def get_variable_config_keys(handler_id: str) -> Set[str]:
+    model_cls = get_model_cls(handler_id)
+    all_keys = model_cls.config_spec.keys()
+    static_keys = model_cls.config_static_keys or set()
+    variable_keys = all_keys - static_keys
+    return variable_keys
+
+
+def get_static_config_keys(handler_id: str) -> Set[str]:
+    model_cls = get_model_cls(handler_id)
+    return model_cls.config_static_keys
+
+
 def load_model(
     handler_id: str,
     storage_uri: Optional[str],
@@ -65,6 +91,6 @@ def load_model(
     arguments: Dict[str, Any],
     spec: Optional[ModelSpec],
 ) -> ModelHandler:
-    model_cls = models.get(handler_id)
+    model_cls = get_model_cls(handler_id)
     model = model_cls(version=version, spec=spec, **arguments)
     return model

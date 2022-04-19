@@ -43,6 +43,8 @@ class SpacyModelBundled(SpacyModelBase):
     Spacy model wrapper for models pre-bundled with spacy.
     """
 
+    config_static_keys = {"model_name"}
+
     def __init__(self, model_name: str, **kwargs):
         try:
             nlp = spacy.load(model_name)
@@ -60,6 +62,8 @@ class SpacyModelCustom(SpacyModelBase):
     """
     Spacy model wrapper for custom models (model + config).
     """
+
+    config_static_keys = {"model_path", "config_path"}
 
     def __init__(self, model_path: str, config_path: str, **kwargs):
         config = spacy.Config().from_disk(config_path)
