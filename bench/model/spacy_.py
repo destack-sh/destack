@@ -8,7 +8,8 @@ from bench.utils.record import ListRecordBatch, Record, RecordBatch
 
 
 class SpacyModelBase(ModelHandler, abc.ABC):
-    def __init__(self, nlp: spacy.language.Language):
+    def __init__(self, nlp: spacy.language.Language, **kwargs):
+        super().__init__(**kwargs)
         self.nlp = nlp
         self.has_categories = self.nlp.has_pipe("textcat") or self.nlp.has_pipe(
             "textcat_multilabel"
@@ -42,7 +43,7 @@ class SpacyModelBundled(SpacyModelBase):
     Spacy model wrapper for models pre-bundled with spacy.
     """
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, **kwargs):
         try:
             nlp = spacy.load(model_name)
         except OSError:
@@ -51,7 +52,7 @@ class SpacyModelBundled(SpacyModelBase):
 
             download(model_name)
             nlp = spacy.load(model_name)
-        super().__init__(nlp)
+        super().__init__(nlp, **kwargs)
 
 
 @models.register("bench.spacy.custom")
@@ -60,9 +61,9 @@ class SpacyModelCustom(SpacyModelBase):
     Spacy model wrapper for custom models (model + config).
     """
 
-    def __init__(self, model_path: str, config_path: str):
+    def __init__(self, model_path: str, config_path: str, **kwargs):
         config = spacy.Config().from_disk(config_path)
         lang_cls = spacy.util.get_lang_class(config["nlp"]["lang"])
         nlp = lang_cls.from_config(config)
         nlp.from_disk(model_path)
-        super().__init__(nlp)
+        super().__init__(nlp, **kwargs)

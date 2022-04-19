@@ -1,7 +1,7 @@
 from django.db import models
 
-from bench.model.base import ModelHandler
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.utils.spec import ModelSpec
 
 
 class ModelManager(models.Manager):
@@ -9,6 +9,18 @@ class ModelManager(models.Manager):
 
 
 class Model(UUIDModel):
+    """
+    A model describes a distinct trained machine learning model with multiple versions.
+    Access, control and storage of the model may be delegated to external services.
+
+    The flexible framework of handlers, storages and managers lets us run or delegate
+    each portion of the model lifecycle to accommodate different workflows. For example,
+    we can run pre-trained HuggingFace models, local custom PyTorch models, hosted OpenAI
+    models, and any combination of storages (e.g., S3, disk) or managers (e.g., DVC, Mlflow).
+
+    The actual model execution is wrapped by the ModelHandler.
+    """
+
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -17,25 +29,6 @@ class Model(UUIDModel):
     storage_uri = models.CharField(max_length=512, null=True)
     manager_id = models.CharField(max_length=256, null=True)
 
-    # possibilities:
-    # HF transformers model, remote
-    # HF transformers model, owned, unmanaged
-    # HF inference API, owned, model
-    # Spacy model, owned, managed by DVC
-    # OpenAI api, remote,
-    # Azure Cognitive Services, remote, managed
-
-    # current concerns:
-    # how can we provide inference?
-    # what framework does it use?
-    # who manages it (e.g. DVC, Mlflow)?
-    # if not remotely executed, where is it stored (e.g. S3, disk)?
-    # is it metered (e.g. commercial API)?
-    # is it throttled/should it be throttled?
-    # can we get gradients/embeddings/etc.?
-    # future concerns:
-    # is it trainable?
-
     arguments = models.JSONField()
     input_spec = models.JSONField()
     output_spec = models.JSONField()
@@ -43,5 +36,5 @@ class Model(UUIDModel):
     objects = ModelManager()
 
     @property
-    def handle(self) -> ModelHandler:
-        raise NotImplementedError
+    def spec(self) -> ModelSpec:
+        return ModelSpec(input_spec=self.input_spec, output_spec=self.output_spec)

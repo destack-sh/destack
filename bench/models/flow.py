@@ -12,13 +12,11 @@ class Flow(UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # nodes = models.ManyToManyField("FlowNode")
-
     objects = FlowManager()
 
 
 class FlowNode(UUIDModel):
-    flow = models.ForeignKey(Flow, on_delete=models.CASCADE)
+    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="nodes")
     function = models.ForeignKey("Function", on_delete=models.RESTRICT)
     # TODO @Cleanup: define input_nodes on FlowNode as well as on FlowNodeEdge
     # input_nodes = models.ManyToManyField(

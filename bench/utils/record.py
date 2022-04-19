@@ -6,6 +6,10 @@ from typing import Any, Dict, List, Union
 Record = Dict[str, Any]
 
 
+def is_record(obj: Any) -> bool:
+    return isinstance(obj, dict)
+
+
 class RecordBatch(abc.ABC):
     """
     An ordered list of Records for unified Record batch processing.

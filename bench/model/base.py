@@ -18,16 +18,14 @@ class ModelHandler(abc.ABC):
     spec: Optional[ModelSpec] = None
     config_spec: ConfigSpec
 
-    def get_spec(self) -> ModelSpec:
-        """
-        Dynamic model spec if model schema can only be fully determined after loading.
-        """
-        if self.spec is None:
+    def __init__(self, spec: Optional[ModelSpec] = None, version: Optional[str] = None):
+        if spec is None and self.spec is None:
             raise ValueError(
                 "ModelHandler must define either static `spec` or dynamic `get_spec`"
             )
-
-        return self.spec
+        elif spec is not None:
+            self.spec = spec
+        self.version = version
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
@@ -63,9 +61,10 @@ import bench.model.spacy_  # noqa
 def load_model(
     handler_id: str,
     storage_uri: Optional[str],
+    version: Optional[str],
     arguments: Dict[str, Any],
-    model_spec: Optional[ModelSpec],
+    spec: Optional[ModelSpec],
 ) -> ModelHandler:
     model_cls = models.get(handler_id)
-    model = model_cls(**arguments)
+    model = model_cls(version=version, spec=spec, **arguments)
     return model

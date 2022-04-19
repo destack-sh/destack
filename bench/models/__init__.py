@@ -1,4 +1,3 @@
-from .attack import Attack
 from .capability import Capability
 from .dataset import Dataset, DatasetSlice
 from .flow import Flow, FlowNode, FlowNodeEdge
@@ -7,7 +6,6 @@ from .model import Model
 from .test import Test
 
 __all__ = [
-    "Attack",
     "Capability",
     "Dataset",
     "DatasetSlice",

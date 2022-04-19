@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -8,17 +8,20 @@ from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import ModelSpec
 
 
+# TODO @Feature: HuggingFaceModel only works for sequence classification
 @models.register("bench.huggingface.sequence_classification")
 class HuggingFaceModelForSequenceClassification(BatchModelHandler):
     spec = ModelSpec(input_spec={"text": str}, output_spec={"text": str})
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, version: Optional[str], **kwargs):
         self.model_name = model_name
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, revision=version)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_name, revision=version
+        )
+        super().__init__(**kwargs)
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        # TODO @Feature: HuggingFaceModel only works for sequence classification
 
         tokenized_record = self.tokenizer(record["text"], return_tensors="pt")
         tokens = self.tokenizer.convert_ids_to_tokens(
