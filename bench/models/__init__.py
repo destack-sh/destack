@@ -1,6 +1,6 @@
 from .capability import Capability
 from .dataset import Dataset, DatasetSlice
-from .flow import Flow, FlowNode, FlowNodeEdge
+from .flow import Flow, FlowEdge, FlowNode
 from .function import Function, FunctionDatasetArgument, FunctionModelArgument
 from .model import Model
 from .test import Test
@@ -14,7 +14,7 @@ __all__ = [
     "FunctionModelArgument",
     "Flow",
     "FlowNode",
-    "FlowNodeEdge",
+    "FlowEdge",
     "Model",
     "Test",
 ]

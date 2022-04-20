@@ -10,15 +10,13 @@ class ModelManager(models.Manager):
 
 class Model(UUIDModel):
     """
-    A model describes a distinct trained machine learning model with multiple versions.
-    Access, control and storage of the model may be delegated to external services.
+    A model describes a specific machine learning model, which may have multiple versions.
+    Handling, storage and management of the model may be delegated to external services.
 
     The flexible framework of handlers, storages and managers lets us run or delegate
     each portion of the model lifecycle to accommodate different workflows. For example,
-    we can run pre-trained HuggingFace models, local custom PyTorch models, hosted OpenAI
-    models, and any combination of storages (e.g., S3, disk) or managers (e.g., DVC, Mlflow).
-
-    The actual model execution is wrapped by the ModelHandler.
+    we can run pre-trained HuggingFace models, local custom PyTorch models, hosted LLM
+    models, any combination of storages (e.g., S3, disk) or managers (e.g., DVC, Mlflow).
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)

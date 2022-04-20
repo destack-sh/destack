@@ -8,6 +8,10 @@ class FlowManager(models.Manager):
 
 
 class Flow(UUIDModel):
+    """
+    A directed acyclic graph of Functions represented as Nodes connected by Edges.
+    """
+
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -16,7 +20,12 @@ class Flow(UUIDModel):
 
 
 class FlowNode(UUIDModel):
+    """
+    A node representing an atomic unit in a Flow (i.e. an execution unit).
+    """
+
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="nodes")
+    # TODO @Feature: version function reference
     function = models.ForeignKey("Function", on_delete=models.RESTRICT)
     # TODO @Cleanup: define input_nodes on FlowNode as well as on FlowNodeEdge
     # input_nodes = models.ManyToManyField(
@@ -27,7 +36,11 @@ class FlowNode(UUIDModel):
     # )
 
 
-class FlowNodeEdge(UUIDModel):
+class FlowEdge(UUIDModel):
+    """
+    An edge connecting two Nodes.
+    """
+
     input_node = models.ForeignKey(
         FlowNode, on_delete=models.CASCADE, related_name="output_nodes"
     )
