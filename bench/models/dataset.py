@@ -1,5 +1,6 @@
 from django.db import models
 
+from bench.models.artifact import Artifact
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.utils.spec import DatasetSpec
 
@@ -8,19 +9,17 @@ class DatasetManager(models.Manager):
     pass
 
 
-class Dataset(UUIDModel):
+class Dataset(Artifact):
     """
-    A dataset describes a data artefact of an arbitrary format with optional versioning,
-    including machine learning datasets, function inputs/outputs, lexicons, and more.
+    A dataset describes a set of records of arbitrary format, which may be versioned.
+    Datasets include machine learning datasets, function inputs/outputs, lexicons.
     Handling, storage and management of the dataset may be delegated to external services.
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     handler_id = models.CharField(max_length=256)
-    storage_uri = models.CharField(max_length=512, null=True)
     manager_id = models.CharField(max_length=256, null=True)
 
     arguments = models.JSONField()
