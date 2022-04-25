@@ -1,6 +1,7 @@
 from django.db import models
 
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.artifact import Artifact
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from bench.utils.spec import ModelSpec
 
 
@@ -8,7 +9,7 @@ class ModelManager(models.Manager):
     pass
 
 
-class Model(UUIDModel):
+class Model(Artifact):
     """
     A model describes a specific machine learning model, which may have multiple versions.
     Handling, storage and management of the model may be delegated to external services.
@@ -21,10 +22,8 @@ class Model(UUIDModel):
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     handler_id = models.CharField(max_length=256)
-    storage_uri = models.CharField(max_length=512, null=True)
     manager_id = models.CharField(max_length=256, null=True)
 
     arguments = models.JSONField()

@@ -1,25 +1,24 @@
 from django.db import models
 
-from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
+from bench.models import Function
+from bench.models.execution import Execution, FunctionExecution
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 
-class Test(UUIDModel):
+class Test(Function):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
 
 
-class TestRun(UUIDModel):
-    created_at = models.DateTimeField(auto_now_add=True)
-    test = models.ForeignKey("Test", on_delete=models.CASCADE)
+class TestRun(FunctionExecution):
     test_suite_run = models.ForeignKey("TestRun", on_delete=models.CASCADE, null=True)
 
 
-class TestSuite(UUIDModel):
+class TestSuite(Function):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
     tests = models.ManyToManyField("Test")
 
 
-class TestSuiteRun(UUIDModel):
-    created_at = models.DateTimeField(auto_now_add=True)
+class TestSuiteRun(Execution):
     test_suite = models.ForeignKey("TestSuite", on_delete=models.CASCADE)
