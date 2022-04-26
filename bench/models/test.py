@@ -9,16 +9,23 @@ class Test(Function):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
 
+    class Meta:
+        proxy = True
 
-class TestRun(FunctionExecution):
-    test_suite_run = models.ForeignKey("TestRun", on_delete=models.CASCADE, null=True)
+
+class TestExecution(FunctionExecution):
+    test_suite_run = models.ForeignKey(
+        "TestExecution", on_delete=models.CASCADE, blank=True, null=True
+    )
 
 
 class TestSuite(Function):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
-    tests = models.ManyToManyField("Test")
+
+    class Meta:
+        proxy = True
 
 
-class TestSuiteRun(Execution):
+class TestSuiteExecution(Execution):
     test_suite = models.ForeignKey("TestSuite", on_delete=models.CASCADE)
