@@ -1,7 +1,7 @@
 from django.db import models
 
 from bench.models.artifact import Artifact
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import UUIDModel
 from bench.utils.spec import DatasetSpec
 
 
@@ -15,9 +15,6 @@ class Dataset(Artifact):
     Datasets include machine learning datasets, function inputs/outputs, lexicons.
     Handling, storage and management of the dataset may be delegated to external services.
     """
-
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH)
 
     handler_id = models.CharField(max_length=256)
     manager_id = models.CharField(max_length=256, null=True)
@@ -38,5 +35,6 @@ class DatasetSlice(UUIDModel):
     """
 
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
+    dataset_artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
     dataset_version = models.CharField(max_length=256, null=True)
     dataset_arguments = models.JSONField()
