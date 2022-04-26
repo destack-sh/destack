@@ -20,13 +20,22 @@ class Model(Artifact):
     """
 
     handler_id = models.CharField(max_length=256)
-    manager_id = models.CharField(max_length=256, null=True)
-
     arguments = models.JSONField()
     input_spec = models.JSONField()
     output_spec = models.JSONField()
 
     objects = ModelManager()
+
+    def save(self, *args, **kwargs) -> None:
+        # expose model-specific metadata in generic Artifact metadata
+        self.metadata = {
+            **self.metadata,
+            "handler_id": self.handler_id,
+            "arguments": self.arguments,
+            "input_spec": self.input_spec,
+            "output_spec": self.output_spec,
+        }
+        super().save(*args, **kwargs)
 
     @property
     def spec(self) -> ModelSpec:

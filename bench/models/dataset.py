@@ -17,12 +17,20 @@ class Dataset(Artifact):
     """
 
     handler_id = models.CharField(max_length=256)
-    manager_id = models.CharField(max_length=256, null=True)
-
     arguments = models.JSONField()
     record_spec = models.JSONField()
 
     objects: DatasetManager = DatasetManager()
+
+    def save(self, *args, **kwargs) -> None:
+        # expose model-specific metadata in generic Artifact metadata
+        self.metadata = {
+            **self.metadata,
+            "handler_id": self.handler_id,
+            "arguments": self.arguments,
+            "record_spec": self.record_spec,
+        }
+        super().save(*args, **kwargs)
 
     @property
     def spec(self) -> DatasetSpec:
@@ -36,5 +44,5 @@ class DatasetSlice(UUIDModel):
 
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
     dataset_artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
-    dataset_version = models.CharField(max_length=256, null=True)
+    dataset_version = models.CharField(max_length=256, blank=True, null=True)
     dataset_arguments = models.JSONField()

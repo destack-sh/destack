@@ -4,6 +4,10 @@ from bench.function.base import Multiplier, Predicate, Record, Transform
 from bench.models import Model
 
 
+def normalize_case():
+    pass
+
+
 class BackTranslation(Transform):
     def __init__(self, text_key: str, forward_model: Model, backward_model: Model):
         self.text_key = text_key

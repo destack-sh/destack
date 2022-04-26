@@ -10,12 +10,18 @@ class FunctionManager(models.Manager):
 class Function(UUIDModel):
     """
     A function is a curried variant of a registered data function with given arguments,
-    including any required datasets and models.
+    including any required "init-time" artifacts like datasets and models.
+
+    A function may be managed by or dependent on an external Controller, who can provide
+    additional configuration arguments and control the function execution.
     """
 
-    registered_name = models.CharField(max_length=512)
+    registered_id = models.CharField(max_length=256)
     arguments = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+    controller = models.ForeignKey(
+        "Controller", on_delete=models.RESTRICT, blank=True, null=True
+    )
 
     # TODO @Cleanup: should function arguments not be in Flow?
     functions = models.ManyToManyField("Function", through="FunctionFunctionArgument")
@@ -33,16 +39,10 @@ class FunctionFunctionArgument(UUIDModel):
 class FunctionModelArgument(UUIDModel):
     function = models.ForeignKey("Function", on_delete=models.RESTRICT)
     model = models.ForeignKey("Model", on_delete=models.RESTRICT)
-    model_artifact = models.ForeignKey(
-        "ArtifactVersion", on_delete=models.RESTRICT, null=True
-    )
-    model_version = models.CharField(max_length=256, null=True)
-    model_arguments = models.JSONField()
+    model_version = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)
 
 
 class FunctionDatasetArgument(UUIDModel):
     function = models.ForeignKey("Function", on_delete=models.RESTRICT)
     dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT)
-    dataset_artifact = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)
-    dataset_version = models.CharField(max_length=256, null=True)
-    dataset_arguments = models.JSONField()
+    dataset_version = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)

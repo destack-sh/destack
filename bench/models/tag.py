@@ -11,7 +11,9 @@ class Tag(UUIDModel):
 
     type = models.CharField(max_length=256)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
+    description = models.CharField(
+        max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
