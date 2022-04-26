@@ -14,8 +14,9 @@ if __name__ == "__main__":
     spacy_model = load_model(
         "bench.spacy.bundled",
         storage_uri=None,
+        version=None,
         arguments={"model_name": "en_core_web_sm"},
-        model_spec=None,
+        spec=None,
     )
     print(spacy_model.predict(record))
 

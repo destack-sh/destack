@@ -2,8 +2,10 @@ import abc
 from typing import Dict, Optional, Union
 
 from bench.executor.utils import collect_functions
-from bench.models import Function, Model
+from bench.models import ArtifactVersion, Function, Model
 from bench.models.flow import Flow
+from bench.models.function import FunctionVersion
+from bench.models.model import ModelVersion
 from bench.utils.record import Record, RecordBatch
 
 Resource = str
@@ -15,65 +17,63 @@ class Executor(abc.ABC):
     Base executor for hosting and routing between consumers, functions and models.
     """
 
-    async def prepare_model(
+    async def load_model(
         self,
-        model: Model,
-        version: Optional[str] = None,
+        model: ModelVersion,
         requirements: Optional[ResourceRequirements] = None,
     ):
         """
-        Make model available in this executor with the given requirements.
+        Make the model available in this executor with the given resources.
         """
         raise NotImplementedError
 
-    async def prepare_function(
-        self, function: Function, requirements: Optional[ResourceRequirements]
+    async def load_function(
+        self, function: FunctionVersion, requirements: Optional[ResourceRequirements]
     ):
         """
-        Make arguments to the function available in this executor with the given requirements.
+        Make the function available in this executor with the given resources.
         """
         raise NotImplementedError
 
-    async def prepare_flow(self, flow: Flow, requirements: ResourceRequirements):
+    async def load_flow(self, flow: Flow, requirements: ResourceRequirements):
         """
-        Make arguments to the flow available in this executor with the given requirements.
+        Make the flow available in this executor with the given resources.
         """
         raise NotImplementedError
 
     async def run_model(
         self,
-        model: Model,
-        version: Optional[str],
+        model: ModelVersion,
         record: Union[Record, RecordBatch],
-        prepare_if_needed: bool = False,
+        load_if_needed: bool = False,
     ) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
     async def run_function(
-        self, function: Function, record: Union[Record, RecordBatch]
+        self,
+        function: FunctionVersion,
+        inputs: Union[Record, RecordBatch, ArtifactVersion],
     ) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
     async def run_flow(
-        self, flow: Flow, record: Union[Record, RecordBatch]
+        self, flow: Flow, inputs: Union[None, Record, RecordBatch, ArtifactVersion]
     ) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
 
-class UncoordinatedExecutor(Executor):
+class SimpleExecutor(Executor, abc.ABC):
     """
-    An executor that does not coordinate allocation of models/datasets to workers.
+    An executor that does not coordinate allocation of artifacts to workers.
     """
 
-    async def prepare_function(
-        self, function: Function, requirements: Optional[ResourceRequirements]
+    async def load_function(
+        self, function: FunctionVersion, requirements: Optional[ResourceRequirements]
     ):
         for model in function.models:
-            await self.prepare_model(model)
+            await self.load_model(model)
 
-    async def prepare_flow(
-        self, flow: Flow, requirements: Optional[ResourceRequirements]
-    ):
+    async def load_flow(self, flow: Flow, requirements: Optional[ResourceRequirements]):
         flow_functions = collect_functions(flow)
         for function in flow_functions:
-            await self.prepare_function(function, requirements)
+            await self.load_function(function, requirements)

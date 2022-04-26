@@ -1,3 +1,6 @@
+# type: ignore
+# TODO @Cleanup: remove scratch file
+
 from typing import Iterator
 
 from bench.function.base import Multiplier, Predicate, Record, Transform
