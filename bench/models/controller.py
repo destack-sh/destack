@@ -6,13 +6,13 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 class Controller(UUIDModel):
     """
     A controller is an external entity that manages some part of the ML lifecycle,
-    for instance by creating, hosting, serving or gating certain artifacts. Depending on the
-    controller, we may just use their artefacts, synchronize with them, or even
-    subsume them by importing their artifacts/functions/flows/etc.
+    for instance by creating, hosting, serving or gating certain artifacts.
 
-    Generally, if no controller is set on an instance, we control that instance directly.
+    Depending on the controller we may just use its artefacts, synchronize/mirror it,
+    or even subsume it by importing its artifacts/functions/flows/etc. Generally,
+    if no controller is set on an instance, we control that instance directly.
 
-    Examples of Controllers: Mlflow, Comet, HuggingFace hub, TF hub, OpenAI, AI21 Labs.
+    Examples: Mlflow, Comet, HuggingFace hub, TF hub, OpenAI, AI21 Labs.
     """
 
     registered_id = models.CharField(max_length=256)

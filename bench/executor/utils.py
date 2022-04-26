@@ -4,15 +4,17 @@ from typing import List, Optional
 from uuid import UUID
 
 from bench.model.base import get_static_config_keys
-from bench.models import Flow, Function, Model
+from bench.models import Flow, Model
+from bench.models.function import FunctionVersion
+from bench.models.model import ModelVersion
 from bench.settings import MODEL_IID_HASH_LENGTH
 
 
-def collect_functions(flow: Flow) -> List[Function]:
+def collect_functions(flow: Flow) -> List[FunctionVersion]:
     return [node.function for node in flow.nodes.all()]
 
 
-def get_model_iid(model: Model, version: Optional[str]) -> str:
+def get_model_iid(model: ModelVersion) -> str:
     """
     Gets the model instance identifier used for distinguishing loaded models.
     If the iids match, the same ModelHandler instance may be used.
@@ -29,7 +31,7 @@ def get_model_iid(model: Model, version: Optional[str]) -> str:
     static_config_hash = hashlib.sha3_256(static_config_str.encode()).hexdigest()
     return format_model_iid(
         model_id=model.id,
-        version=version,
+        version=model.version,
         arguments_hash=static_config_hash[:MODEL_IID_HASH_LENGTH],
     )
 

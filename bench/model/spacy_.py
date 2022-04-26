@@ -23,7 +23,9 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         if self.has_entities:
             output["entities"] = doc.ents
         if self.has_categories:
-            output["categories"] = doc.cats
+            output["categories"] = [
+                {"label": label, "score": score} for label, score in doc.cats.items()
+            ]
         return output
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:

@@ -1,26 +1,29 @@
 from .artifact import Artifact, ArtifactVersion
 from .controller import Controller
-from .dataset import Dataset, DatasetSlice
+from .dataset import Dataset, DatasetSlice, DatasetVersion
 from .execution import Execution, FlowExecution, FunctionExecution, ModelExecution
 from .flow import Flow, FlowEdge, FlowNode
-from .function import Function, FunctionDatasetArgument, FunctionModelArgument
-from .model import Model
+from .function import Function, FunctionArtifactArgument, FunctionFunctionArgument
+from .model import Model, ModelVersion
 from .tag import Alias, Capability, Stage, Tag
 from .test import Test, TestExecution, TestSuite, TestSuiteExecution
 
 __all__ = [
     "Artifact",
     "ArtifactVersion",
+    "Dataset",
+    "DatasetVersion",
+    "DatasetSlice",
+    "Model",
+    "ModelVersion",
     "Controller",
     "Tag",
     "Capability",
     "Stage",
     "Alias",
-    "Dataset",
-    "DatasetSlice",
     "Function",
-    "FunctionDatasetArgument",
-    "FunctionModelArgument",
+    "FunctionFunctionArgument",
+    "FunctionArtifactArgument",
     "Flow",
     "FlowNode",
     "FlowEdge",
@@ -28,7 +31,6 @@ __all__ = [
     "FunctionExecution",
     "FlowExecution",
     "ModelExecution",
-    "Model",
     "Test",
     "TestExecution",
     "TestSuite",
