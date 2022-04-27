@@ -17,21 +17,22 @@ class Execution(UUIDModel):
         Scheduled = "SCHEDULED"
         Queued = "QUEUED"
         Running = "RUNNING"
-        Succeeded = "SUCCEEDED"
-        Failed = "FAILED"
         Aborting = "ABORTING"
+        # terminal states
         Aborted = "ABORTED"
+        Failed = "FAILED"
+        Completed = "COMPLETED"
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(
         blank=True, null=True, help_text="Time of transition to RUNNING state."
     )
-    completed_at = models.DateTimeField(
+    terminated_at = models.DateTimeField(
         blank=True, null=True, help_text="Time of transition to a terminal state."
     )
     state = models.CharField(
-        max_length=256, choices=State.choices, default=State.Created
+        max_length=32, choices=State.choices, default=State.Created
     )
 
     objects = ExecutionManager()

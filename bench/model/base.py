@@ -7,29 +7,28 @@ from bench.utils.record import ListRecordBatch, Record, RecordBatch
 from bench.utils.spec import ConfigSpec, ModelSpec
 
 
-# TODO @Cleanup: Model"Handler" is not a great name not descriptive enough
+# TODO @Cleanup: Model"Handler" is not a great name (not descriptive enough)
 class ModelHandler(abc.ABC):
     """
-    Base for other model implementations that can load and run a model from some source.
+    Base for model implementations that can load and run a model from some source.
     TODO @Feature: specify model affordances for different tasks
     TODO @Feature: define common task/model specs
-    test
     """
 
-    # Static model spec for all models of this handler.
-    spec: Optional[ModelSpec] = None
+    # Known base model spec for all models of this handler.
+    base_spec: Optional[ModelSpec] = None
     # Config spec to configure this handler.
     config_spec: ConfigSpec
-    # Config values that must be static once loaded. If not set, defaults to all keys.
+    # Config values that are immutable after init. If not set, defaults to all keys.
     config_static_keys: Set[str]
 
     def __init__(self, spec: Optional[ModelSpec] = None, version: Optional[str] = None):
-        if spec is None and self.spec is None:
+        if spec is None and self.base_spec is None:
             raise ValueError(
                 "ModelHandler must define either static `spec` or dynamic `get_spec`"
             )
         elif spec is not None:
-            self.spec = spec
+            self.base_spec = spec
         self.version = version
 
     def update_config(self, **kwargs):
@@ -42,9 +41,9 @@ class ModelHandler(abc.ABC):
         raise NotImplementedError
 
 
-class BatchModelHandler(ModelHandler, abc.ABC):
+class UnbatchedModelHandler(ModelHandler, abc.ABC):
     """
-    A naive ModelBase.forward_batch implementation that just iterates over forward.
+    A naive ModelBase.forward_batch implementation that just iterates over predict.
     """
 
     def predict_batch(self, records: RecordBatch) -> RecordBatch:

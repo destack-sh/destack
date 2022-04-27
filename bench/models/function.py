@@ -49,6 +49,7 @@ class FunctionVersion(UUIDModel):
     registered_id = models.CharField(max_length=256)
     config_arguments = models.JSONField()
     # TODO @Cleanup: simplify function to function references w.r.t. versioning?
+    #  Or maybe make all function compositions flows?
     functions = models.ManyToManyField(
         "FunctionVersion", through="FunctionFunctionArgument"
     )
