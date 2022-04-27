@@ -27,7 +27,7 @@ class Artifact(UUIDModel):
     stored directly in the DB where appropriate or convenient (e.g., metrics, logs).
     """
 
-    type = models.CharField(max_length=256)
+    type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

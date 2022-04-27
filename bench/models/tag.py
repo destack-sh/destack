@@ -5,15 +5,16 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDMode
 
 class Tag(UUIDModel):
     """
-    A generic tag for labeling and associating groups and/or parts of primitives like
-    artifacts and executions.
+    A generic label for associating groups and/or parts of primitives like
+    artifacts, functions and executions with some metadata.
     """
 
-    type = models.CharField(max_length=256)
+    type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    metadata = models.JSONField(default={})
 
 
 class Alias(Tag):

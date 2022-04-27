@@ -4,12 +4,12 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import openai
 
-from bench.model.base import BatchModelHandler, models
+from bench.model.base import UnbatchedModelHandler, models
 from bench.utils.record import ListRecordBatch, Record, RecordBatch
 from bench.utils.spec import ModelSpec
 
 
-class OpenAIModel(BatchModelHandler, abc.ABC):
+class OpenAIModel(UnbatchedModelHandler, abc.ABC):
     class Engine(enum.Enum):
         Ada = "text-ada-001"
         Babbage = "text-babbage-001"
