@@ -46,6 +46,8 @@ click==8.0.4
     #   -r requirements.in
     #   hub
     #   ray
+commonmark==0.9.1
+    # via rich
 datasets==2.1.0
     # via -r requirements.in
 dill==0.3.4
@@ -78,6 +80,8 @@ djangorestframework==3.13.1
     #   -r requirements.in
     #   drf-exceptions-hog
     #   drf-spectacular
+docarray==0.13.3
+    # via -r requirements.in
 drf-exceptions-hog==0.2.0
     # via -r requirements.in
 drf-spectacular==0.22.0
@@ -135,6 +139,7 @@ numcodecs==0.9.1
 numpy==1.22.3
     # via
     #   datasets
+    #   docarray
     #   hub
     #   numcodecs
     #   pandas
@@ -162,6 +167,8 @@ protobuf==3.20.0
     # via ray
 pyarrow==7.0.0
     # via datasets
+pygments==2.12.0
+    # via rich
 pyparsing==3.0.8
     # via packaging
 pyrsistent==0.18.1
@@ -194,6 +201,8 @@ requests==2.27.1
     #   responses
 responses==0.18.0
     # via datasets
+rich==12.3.0
+    # via docarray
 s3transfer==0.5.2
     # via boto3
 sentry-sdk==1.5.8
