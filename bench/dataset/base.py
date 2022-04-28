@@ -3,10 +3,11 @@ import abc
 # TODO @Cleanup: Dataset"Handler" is not a great name (not descriptive enough)
 from typing import Any, Dict, Optional, Set, Type
 
+from bench.utils.record import RecordBatch
 from bench.utils.spec import ConfigSpec, DatasetSpec
 
 
-class DatasetHandler(abc.ABC):
+class DatasetHandler(RecordBatch, abc.ABC):
     """
     Base for dataset implementations that can load and parse a dataset from some source.
     """

@@ -21,5 +21,6 @@ hub==2.3.3
 datasets==2.1.0
 ray==1.12.0
 catalogue==2.0.7
+docarray==0.13.3
 # compatibility
 click<8.1.0 # for spacy in compute

@@ -1,9 +1,8 @@
 import abc
 from typing import Any, Dict, List, Optional, Set, Type, Union
 
-import catalogue
-
 from bench.utils.record import ListRecordBatch, Record, RecordBatch
+from bench.utils.registry import Registry
 from bench.utils.spec import ConfigSpec, ModelSpec
 
 
@@ -58,15 +57,15 @@ class UnbatchedModelHandler(ModelHandler, abc.ABC):
         return ListRecordBatch(output_records)
 
 
-models = catalogue.create("bench", "models", entry_points=True)
-# TODO @Feature: figure out better registration mechanism for models/datasets/functions
+models: Registry[Type[ModelHandler]] = Registry(("bench", "models"))
+# TODO @Feature: figure out better registration mechanism for registered objects
 import bench.model.huggingface  # noqa
 import bench.model.openai  # noqa
 import bench.model.spacy_  # noqa
 
 
 def get_model_cls(handler_id: str) -> Type[ModelHandler]:
-    model_cls: Type[ModelHandler] = models.get(handler_id)
+    model_cls: Type[ModelHandler] = models[handler_id]
     return model_cls
 
 
