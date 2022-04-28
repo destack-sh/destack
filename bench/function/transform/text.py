@@ -1,15 +1,17 @@
 from typing import Optional
 
+from bench.dataset.base import DatasetHandler
 from bench.function.base import Predicate, Record, Transform, functions
-from bench.models import Dataset
+from bench.utils.spec import DatasetType
 
 
 @functions.register("named_entity_imputer")
 class NamedEntityImputer(Transform):
+    config_spec = {"dataset": DatasetType(record_spec={})}
     input_spec = {"text": str, "entities": dict}
     output_spec = {"text": str, "entities": dict}
 
-    def __init__(self, dataset: Dataset):
+    def __init__(self, dataset: DatasetHandler):
         self.dataset = dataset
 
     def __call__(self, record: Record) -> Record:

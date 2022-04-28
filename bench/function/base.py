@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Optional, Type, Union
+from typing import Any, Optional, Type, Union, cast
 
 from bench.utils.record import Record
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
-from bench.utils.spec import ArtifactSetSpec, ConfigSpec, RecordSpec
+from bench.utils.spec import (
+    ArtifactSetSpec,
+    ConfigSpec,
+    RecordSpec,
+    convert_to_spec,
+    infer_config_spec,
+)
 
 
 class FunctionBase(ABC):
@@ -93,7 +99,7 @@ def map_to_function(
     @param impl: The intended type of the Function, required for Python functions
     @return: The full Function type
     """
-    if isinstance(func, type):
+    if isinstance(func, type):  # func is a class
         if impl is not None and not issubclass(impl, FunctionBase):
             raise RegistryError(
                 f"registered function class {get_qualified_name(func)}"
@@ -105,13 +111,19 @@ def map_to_function(
                 f" given type {get_qualified_name(type)}, remove or change impl=<...>"
             )
 
+        func = cast(Type[FunctionBase], func)
+        declared_config_spec = convert_to_spec(func.config_spec)
+        inferred_config_spec = infer_config_spec(func.__init__)
+
         return func
-    else:  # func is Python function and must be mapped to FunctionBase subtype
+    else:  # func is a Python function and must be mapped to FunctionBase subtype
         if type is None:
             raise RegistryError(
                 f"non-class function {get_qualified_name(func)} must specify its type"
                 f" via register, like with register(..., impl=Transform)"
             )
+
+        inferred_config_spec = infer_config_spec(func.__init__)
 
         return func
 
