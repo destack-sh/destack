@@ -3,7 +3,9 @@ from __future__ import annotations
 import abc
 from typing import Any, Dict, List, Union
 
-Record = Dict[str, Any]
+from bench.utils.spec import FieldType
+
+Record = Dict[str, FieldType]
 
 
 def is_record(obj: Any) -> bool:

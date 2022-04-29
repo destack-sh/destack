@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Optional, Type, Union, cast
+from typing import Any, Callable, Optional, Type, Union, cast
 
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
@@ -13,6 +13,9 @@ from bench.utils.spec import (
     RecordSpec,
     RecordType,
     convert_to_config_spec,
+    convert_to_record_spec,
+    infer_config_spec,
+    reduce_to_record_type,
 )
 
 
@@ -92,23 +95,80 @@ def map_to_function_cls(
             )
 
         func = cast(Type[FunctionBase], func)
-        declared_config_spec = convert_to_config_spec(func.config_spec)
-        # inferred_config_spec = infer_config_spec(func.__init__)
-
-        # overwrite config spec with cleaned and merged config
-        func.config_spec = declared_config_spec
-
-        return func
+        return map_cls_to_function_cls(func)
     else:  # func is a Python function and must be mapped to FunctionBase subtype
-        if type is None:
+        if impl is None:
             raise RegistryError(
                 f"non-class function {get_qualified_name(func)} must specify its type"
                 f" via register, like with register(..., impl=Transform)"
             )
 
-        # inferred_config_spec = infer_config_spec(func.__init__)
+        func = cast(Callable, func)
+        return map_callable_to_function_cls(func, impl)
 
-        return func
+
+def map_cls_to_function_cls(func: Type[FunctionBase]) -> Type[FunctionBase]:
+    if hasattr(func, "config_spec"):
+        declared_config_spec = convert_to_config_spec(func.config_spec)
+    else:
+        declared_config_spec = None
+    # TODO @Robustness: check declared_config_spec against inferred_config_spec
+    inferred_config_spec = infer_config_spec(func.__init__)  # noqa
+
+    # overwrite config spec with clean config
+    config_spec = declared_config_spec or inferred_config_spec
+    func.config_spec = config_spec
+    return func
+
+
+def map_callable_to_function_cls(
+    func: Callable, impl: Type[FunctionBase]
+) -> Type[FunctionBase]:
+    """Maps a callable representing a Function to an actual FunctionBase type
+
+    Implementation is basic right now and cannot construct any complex functions.
+    """
+
+    inferred_config_spec = infer_config_spec(func)
+    try:
+        inferred_input_type = reduce_to_record_type(inferred_config_spec.type)
+    except ValueError as e:
+        raise ValueError(
+            "callable function definition has non-FieldType parameters"
+        ) from e
+    inferred_input_spec = convert_to_record_spec(inferred_input_type)
+
+    actual_config_spec = ConfigSpec(
+        name=inferred_config_spec.name,
+        description=inferred_config_spec.description,
+        type={},  # actual config is empty
+    )
+    attrs: dict = {
+        "__call__": func,
+        "config_spec": actual_config_spec,
+    }
+    # We currently only support one input type, one output type for
+    # callable RecordFunctions and assume that the spec is equal. This is
+    # very simplistic and we may want more complex behavior later.
+    if issubclass(impl, RecordFunction):
+        attrs["input_spec"] = inferred_input_spec
+        if issubclass(impl, Predicate):
+            attrs["output_spec"] = None
+        elif issubclass(impl, Transform):
+            if len(inferred_config_spec.type) != 1:
+                raise ValueError(
+                    f"mapping callable {get_qualified_name(func)} with !=1 arguments is not supported"
+                )
+            attrs["output_spec"] = inferred_input_spec
+    else:
+        raise ValueError(
+            f"mapping callable {get_qualified_name(func)} to non-Record functions it not supported"
+        )
+
+    func_cls: Type[FunctionBase] = cast(
+        Type[FunctionBase], type(inferred_config_spec.name, (impl,), attrs)
+    )
+    return func_cls
 
 
 functions: Registry[Type[FunctionBase]] = Registry(

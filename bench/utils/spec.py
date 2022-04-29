@@ -11,6 +11,7 @@ from typing import (
     Mapping,
     NewType,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -116,7 +117,7 @@ ArtifactSetType = Mapping[str, ArtifactType]
 ArtifactSetSpec = Mapping[str, ArtifactSpec]
 
 
-def reduce_to_record_spec(
+def reduce_to_record_type(
     spec: Mapping[str, AnySpec], ignore_invalid: bool = False
 ) -> RecordTypeStrict:
     record_spec = {
@@ -135,7 +136,7 @@ def convert_to_record_type(
     spec: Mapping[str, Union[AnyType, AnySpec]]
 ) -> RecordTypeStrict:
     spec = convert_to_spec(spec)
-    spec = reduce_to_record_spec(spec)
+    spec = reduce_to_record_type(spec)
     return spec
 
 
@@ -182,28 +183,31 @@ def convert_to_spec(
 ) -> Mapping[str, AnySpec]:
     converted_spec: dict[str, AnySpec] = {}
     for key, value in spec.items():
-        converted_spec[key] = _type_to_spec(key=key, description="", value=value)
+        converted_spec[key] = _type_to_spec(
+            key=key, description="", value=value, ignore_spec=True
+        )
     return converted_spec
 
 
 def _impl_type_to_type(value: Type, ignore_unknown: bool = False) -> AnyType:
     from bench.dataset.base import DatasetHandler
     from bench.model.base import ModelHandler
-    from bench.utils.record import Record
+    from bench.utils.record import RecordBatch
 
     # default implementation types to their generic spec types
-    impl_type_to_type: Mapping[Type, AnyType] = {
-        DatasetHandler: DatasetType(record_spec={}),
-        ModelHandler: ModelType(input_spec={}, output_spec={}),
-        Record: {},
-    }
-    mapped_type = impl_type_to_type.get(value)
+    impl_type_to_type: List[Tuple[Type, AnyType]] = [
+        (DatasetHandler, DatasetType(record_spec={})),
+        (ModelHandler, ModelType(input_spec={}, output_spec={})),
+        (RecordBatch, {}),
+    ]
+    for impl_type, spec_type in impl_type_to_type:
+        if value == impl_type or issubclass(value, impl_type):
+            return spec_type
+
     if ignore_unknown:
-        return mapped_type or value
+        return value
     else:
-        if mapped_type is None:
-            raise ValueError(f"unknown type {value}")
-        return mapped_type
+        raise ValueError(f"unknown type {value}")
 
 
 def _type_to_spec(
@@ -212,12 +216,18 @@ def _type_to_spec(
     value: Union[AnyType, AnySpec],
     ignore_spec: bool = False,
 ) -> AnySpec:
+    # Some value types may be referred to by their implementation types rather than
+    # by their spec/type types (e.g. DatasetHandler instead of DatasetType/DatasetSpec).
+    # This maps implementation types to the spec types we expect here.
+    if isinstance(value, type):
+        value = _impl_type_to_type(value, ignore_unknown=True)
+
     if isinstance(value, _Spec):
         if ignore_spec:
             # mypy thinks this is a redundant cast, but also complains if it's not here
             return cast(AnySpec, value)  # type: ignore
         else:
-            raise ValueError(f"type {value} is not a spec type")
+            raise ValueError(f"type {value} is already a spec type")
     elif isinstance(value, dict):  # RecordType
         return RecordSpec(
             name=key, description=description, type=convert_to_record_type(value)
@@ -239,8 +249,14 @@ def _type_to_spec(
         # At this point, we can't be sure that 'value' is an appropriate type.
         # But as validation for specs is separate from conversion,
         # we will just ignore this potential error here to be caught later.
-        value = _impl_type_to_type(value, ignore_unknown=True)  # type: ignore
         return FieldSpec(name=key, description=description, type=value)  # type: ignore
+
+
+def infer_name(func: Callable) -> str:
+    name: str = func.__qualname__
+    if name.endswith(".__init__"):
+        name = name.split(".")[0]
+    return name
 
 
 def infer_description(func: Callable) -> Optional[str]:
@@ -251,9 +267,18 @@ def infer_description(func: Callable) -> Optional[str]:
     return parsed_docstring.short_description
 
 
+def infer_output_type(func: Callable) -> Optional[Type]:
+    signature: inspect.Signature = _get_typed_signature(func)
+    return_type = signature.return_annotation
+    if return_type == signature.empty:
+        return None
+    else:
+        return return_type
+
+
 def infer_config_spec(func: Callable) -> ConfigSpec:
     """Infers the full spec from the given callable's signature and docs"""
-    name = func.__name__
+    name = infer_name(func)
     description = infer_description(func) or ""
     config_type = infer_config_type(func)
     return ConfigSpec(name=name, description=description, type=config_type)

@@ -5,7 +5,7 @@ from bench.function.base import Predicate, Record, Transform, functions
 from bench.utils.spec import DatasetType, Json
 
 
-@functions.register("named_entity_imputer")
+@functions.register("text.named_entity_imputer")
 class NamedEntityImputer(Transform):
     config_spec = {"dataset": DatasetType(record_spec={})}
     input_spec = {"text": str, "entities": Json}
@@ -20,16 +20,29 @@ class NamedEntityImputer(Transform):
 
 @functions.register("text.upper_case", impl=Transform)
 def upper_case(text: str) -> str:
+    """Transforms text to uppercase"""
     return text.upper()
 
 
-@functions.register("text.swap_characters", impl=Transform)
-def swap_characters(record: Record) -> Record:
-    return record
+@functions.register("text.swap_characters")
+class SwapCharacters(Transform):
+    def __init__(self, max_distance: int = 2):
+        self.max_distance = max_distance
+
+    def __call__(self, record: Record) -> Record:
+        text: str = record["text"]
+        # TODO @Feature: support random state in functions
+        return {**record, "text": text}
 
 
-@functions.register("text.check_length", impl=Predicate)
-def check_text_length(
-    text: str, min_length: int = 0, max_length: Optional[int] = None
-) -> bool:
-    return min_length <= len(text) <= (max_length or float("inf"))
+@functions.register("text.check_length")
+class CheckTextLength(Predicate):
+    """Checks whether text length is in the specified bounds"""
+
+    def __init__(self, min_length: int = 0, max_length: Optional[int] = None):
+        self.min_length = min_length
+        self.max_length = max_length
+
+    def __call__(self, record: Record) -> bool:
+        text: str = record["text"]
+        return self.min_length <= len(text) <= (self.max_length or float("inf"))
