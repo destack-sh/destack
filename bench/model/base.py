@@ -1,9 +1,15 @@
 import abc
-from typing import Any, Dict, List, Optional, Set, Type, Union
+from typing import AbstractSet, Any, Dict, List, Optional, Set, Type, Union
 
 from bench.utils.record import ListRecordBatch, Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import ConfigSpec, ModelSpec
+from bench.utils.spec import (
+    ConfigSpec,
+    ConfigType,
+    ModelSpec,
+    ModelType,
+    convert_to_config_spec,
+)
 
 
 # TODO @Cleanup: Model"Handler" is not a great name (not descriptive enough)
@@ -15,16 +21,20 @@ class ModelHandler(abc.ABC):
     """
 
     # Known base model spec for all models of this handler.
-    base_spec: Optional[ModelSpec] = None
-    # Config spec to configure this handler.
-    config_spec: ConfigSpec
+    base_spec: Union[None, ModelType, ModelSpec] = None
+    # Config spec for configuring this handler.
+    config_spec: Union[ConfigType, ConfigSpec]
     # Config values that are immutable after init. If not set, defaults to all keys.
     config_static_keys: Set[str]
 
-    def __init__(self, spec: Optional[ModelSpec] = None, version: Optional[str] = None):
+    def __init__(
+        self,
+        spec: Union[None, ModelType, ModelSpec] = None,
+        version: Optional[str] = None,
+    ):
         if spec is None and self.base_spec is None:
             raise ValueError(
-                "ModelHandler must define either static `spec` or dynamic `get_spec`"
+                "ModelHandler must define either `base_spec` or get `spec` argument"
             )
         elif spec is not None:
             self.base_spec = spec
@@ -57,7 +67,7 @@ class UnbatchedModelHandler(ModelHandler, abc.ABC):
         return ListRecordBatch(output_records)
 
 
-models: Registry[Type[ModelHandler]] = Registry(("bench", "models"))
+models: Registry[Type[ModelHandler]] = Registry(("models",))
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.model.huggingface  # noqa
 import bench.model.openai  # noqa
@@ -69,15 +79,16 @@ def get_model_cls(handler_id: str) -> Type[ModelHandler]:
     return model_cls
 
 
-def get_variable_config_keys(handler_id: str) -> Set[str]:
+def get_variable_config_keys(handler_id: str) -> AbstractSet[str]:
     model_cls = get_model_cls(handler_id)
-    all_keys = model_cls.config_spec.keys()
+    config_spec = convert_to_config_spec(model_cls.config_spec)
+    all_keys = config_spec.type.keys()
     static_keys = model_cls.config_static_keys or set()
     variable_keys = all_keys - static_keys
     return variable_keys
 
 
-def get_static_config_keys(handler_id: str) -> Set[str]:
+def get_static_config_keys(handler_id: str) -> set[str]:
     model_cls = get_model_cls(handler_id)
     return model_cls.config_static_keys
 
@@ -90,5 +101,5 @@ def load_model(
     spec: Optional[ModelSpec],
 ) -> ModelHandler:
     model_cls = get_model_cls(handler_id)
-    model = model_cls(version=version, spec=spec, **arguments)
+    model = model_cls(spec=spec, **arguments)
     return model

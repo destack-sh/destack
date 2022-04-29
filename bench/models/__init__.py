@@ -1,6 +1,6 @@
 from .artifact import Artifact, ArtifactVersion
 from .controller import Controller
-from .dataset import Dataset, DatasetSlice, DatasetVersion
+from .dataset import Dataset, DatasetVersion
 from .execution import Execution, FlowExecution, FunctionExecution, ModelExecution
 from .flow import Flow, FlowEdge, FlowNode
 from .function import Function, FunctionArtifactArgument, FunctionFunctionArgument
@@ -13,7 +13,6 @@ __all__ = [
     "ArtifactVersion",
     "Dataset",
     "DatasetVersion",
-    "DatasetSlice",
     "Model",
     "ModelVersion",
     "Controller",

@@ -1,10 +1,11 @@
 import abc
 
 # TODO @Cleanup: Dataset"Handler" is not a great name (not descriptive enough)
-from typing import Any, Dict, Optional, Set, Type
+from typing import Any, Dict, Optional, Set, Type, Union
 
 from bench.utils.record import RecordBatch
-from bench.utils.spec import ConfigSpec, DatasetSpec
+from bench.utils.registry import Registry
+from bench.utils.spec import ConfigSpec, DatasetSpec, DatasetType
 
 
 class DatasetHandler(RecordBatch, abc.ABC):
@@ -13,18 +14,20 @@ class DatasetHandler(RecordBatch, abc.ABC):
     """
 
     # Known base dataset spec for all datasets of this handler.
-    base_spec: Optional[DatasetSpec] = None
+    base_spec: Union[None, DatasetType, DatasetSpec] = None
     # Config spec to configure this handler.
     config_spec: ConfigSpec
     # Config values are immutable after init. If not set, defaults to all keys.
     config_static_keys: Set[str]
 
     def __init__(
-        self, spec: Optional[DatasetSpec] = None, version: Optional[str] = None
+        self,
+        spec: Union[None, DatasetType, DatasetSpec] = None,
+        version: Optional[str] = None,
     ):
         if spec is None and self.base_spec is None:
             raise ValueError(
-                "DatasetHandler must define either static `spec` or dynamic `get_spec`"
+                "DatasetHandler must define static `base_spec` or get `spec` argument"
             )
         elif spec is not None:
             self.spec = spec
@@ -34,8 +37,19 @@ class DatasetHandler(RecordBatch, abc.ABC):
         pass
 
 
-def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
+def map_to_dataset_cls(
+    func: Any, impl: Optional[Type[DatasetHandler]]
+) -> Type[DatasetHandler]:
     raise NotImplementedError
+
+
+datasets: Registry[Type[DatasetHandler]] = Registry(
+    ("datasets",), mapper=map_to_dataset_cls
+)
+
+
+def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
+    return datasets[handler_id]
 
 
 def load_dataset(
