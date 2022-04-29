@@ -61,4 +61,4 @@ class Registry(Generic[T]):
 
 
 def get_qualified_name(obj: Any) -> str:
-    return ".".join([obj.__module__, obj.__name__])
+    return ".".join([obj.__module__, obj.__qualname__])

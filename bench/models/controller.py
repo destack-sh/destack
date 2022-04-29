@@ -6,7 +6,8 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 class Controller(UUIDModel):
     """
     A controller is an external entity that manages some part of the ML lifecycle,
-    for instance by creating, hosting, serving or gating certain artifacts.
+    for instance by creating, hosting, serving or gating certain artifacts. Note that
+    'external' entity means external to Bench - the user may still control it directly.
 
     Depending on the controller we may just use its artefacts, synchronize/mirror it,
     or even subsume it by importing its artifacts/functions/flows/etc. Generally,

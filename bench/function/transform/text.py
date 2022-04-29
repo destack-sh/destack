@@ -2,14 +2,14 @@ from typing import Optional
 
 from bench.dataset.base import DatasetHandler
 from bench.function.base import Predicate, Record, Transform, functions
-from bench.utils.spec import DatasetType
+from bench.utils.spec import DatasetType, Json
 
 
 @functions.register("named_entity_imputer")
 class NamedEntityImputer(Transform):
     config_spec = {"dataset": DatasetType(record_spec={})}
-    input_spec = {"text": str, "entities": dict}
-    output_spec = {"text": str, "entities": dict}
+    input_spec = {"text": str, "entities": Json}
+    output_spec = {"text": str, "entities": Json}
 
     def __init__(self, dataset: DatasetHandler):
         self.dataset = dataset

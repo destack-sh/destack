@@ -3,14 +3,16 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any, Optional, Type, Union, cast
 
-from bench.utils.record import Record
+from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
     ArtifactSetSpec,
+    ArtifactSetType,
     ConfigSpec,
+    ConfigType,
     RecordSpec,
-    convert_to_spec,
-    infer_config_spec,
+    RecordType,
+    convert_to_config_spec,
 )
 
 
@@ -20,15 +22,7 @@ class FunctionBase(ABC):
     """
 
     # could auto-infer this from function constructor in some cases via inspect
-    config_spec: ConfigSpec
-
-    @property
-    def input_spec(self) -> Union[None, RecordSpec, ArtifactSetSpec]:
-        raise NotImplementedError
-
-    @property
-    def output_spec(self) -> Union[None, RecordSpec, ArtifactSetSpec]:
-        raise NotImplementedError
+    config_spec: Union[ConfigType, ConfigSpec]
 
 
 class ArtifactFunction(FunctionBase, ABC):
@@ -36,16 +30,8 @@ class ArtifactFunction(FunctionBase, ABC):
     A pure function that operates on artifacts.
     """
 
-    @property
-    def input_spec(self) -> Optional[ArtifactSetSpec]:
-        raise NotImplementedError
-
-    @property
-    def output_spec(self) -> Optional[ArtifactSetSpec]:
-        raise NotImplementedError
-
-    def __call__(self):
-        raise NotImplementedError
+    input_spec: Union[None, ArtifactSetType, ArtifactSetSpec]
+    output_spec: Union[None, ArtifactSetType, ArtifactSetSpec]
 
 
 class RecordFunction(FunctionBase, ABC):
@@ -53,13 +39,8 @@ class RecordFunction(FunctionBase, ABC):
     A pure function that operates on records/batches.
     """
 
-    @property
-    def input_spec(self) -> Optional[RecordSpec]:
-        raise NotImplementedError
-
-    @property
-    def output_spec(self) -> Optional[RecordSpec]:
-        raise NotImplementedError
+    input_spec: Union[None, RecordType, RecordSpec]
+    output_spec: Union[None, RecordType, RecordSpec]
 
 
 class Transform(RecordFunction, ABC):
@@ -67,28 +48,27 @@ class Transform(RecordFunction, ABC):
     A transformation function mapping input records to output records
     """
 
-    @property
-    def input_spec(self) -> RecordSpec:
-        raise NotImplementedError
-
-    @property
-    def output_spec(self) -> RecordSpec:
-        raise NotImplementedError
-
     def __call__(self, record: Record) -> Record:
         raise NotImplementedError
 
 
+class BatchTransform(RecordFunction, ABC):
+    """
+    A transformation function mapping input records to output records in batches
+    """
+
+    def __call__(self, records: RecordBatch) -> RecordBatch:
+        raise NotImplementedError
+
+
 class Predicate(RecordFunction, ABC):
-    @property
-    def output_spec(self) -> None:
-        return None
+    output_spec = None
 
     def __call__(self, record: Record) -> bool:
         raise NotImplementedError
 
 
-def map_to_function(
+def map_to_function_cls(
     func: Any, impl: Optional[Type[FunctionBase]]
 ) -> Type[FunctionBase]:
     """
@@ -112,8 +92,11 @@ def map_to_function(
             )
 
         func = cast(Type[FunctionBase], func)
-        declared_config_spec = convert_to_spec(func.config_spec)
-        inferred_config_spec = infer_config_spec(func.__init__)
+        declared_config_spec = convert_to_config_spec(func.config_spec)
+        # inferred_config_spec = infer_config_spec(func.__init__)
+
+        # overwrite config spec with cleaned and merged config
+        func.config_spec = declared_config_spec
 
         return func
     else:  # func is a Python function and must be mapped to FunctionBase subtype
@@ -123,13 +106,13 @@ def map_to_function(
                 f" via register, like with register(..., impl=Transform)"
             )
 
-        inferred_config_spec = infer_config_spec(func.__init__)
+        # inferred_config_spec = infer_config_spec(func.__init__)
 
         return func
 
 
 functions: Registry[Type[FunctionBase]] = Registry(
-    ("bench", "functions"), mapper=map_to_function
+    ("functions",), mapper=map_to_function_cls
 )
 
 # TODO @Feature: figure out better registration mechanism for registered objects

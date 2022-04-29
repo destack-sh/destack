@@ -5,13 +5,13 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from bench.model.base import UnbatchedModelHandler, models
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ModelSpec
+from bench.utils.spec import ModelType
 
 
 # TODO @Feature: HuggingFaceModel only works for sequence classification
 @models.register("bench.huggingface.sequence_classification")
 class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
-    base_spec = ModelSpec(input_spec={"text": str}, output_spec={"text": str})
+    base_spec = ModelType(input_spec={"text": str}, output_spec={"text": str})
     config_static_keys = {"model_name", "version"}
 
     def __init__(self, model_name: str, version: Optional[str], **kwargs):

@@ -6,7 +6,7 @@ import openai
 
 from bench.model.base import UnbatchedModelHandler, models
 from bench.utils.record import ListRecordBatch, Record, RecordBatch
-from bench.utils.spec import ModelSpec
+from bench.utils.spec import ModelType
 
 
 class OpenAIModel(UnbatchedModelHandler, abc.ABC):
@@ -52,7 +52,7 @@ class OpenAIModel(UnbatchedModelHandler, abc.ABC):
 
 @models.register("bench.openai.completion")
 class OpenAIModelForCompletion(OpenAIModel):
-    spec = ModelSpec(input_spec={"text": str}, output_spec={"text": str})
+    spec = ModelType(input_spec={"text": str}, output_spec={"text": str})
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         output = openai.Completion.create(
@@ -68,7 +68,7 @@ class OpenAIModelForCompletion(OpenAIModel):
 
 @models.register("bench.openai.classification")
 class OpenAIModelForClassification(OpenAIModel):
-    spec = ModelSpec(
+    spec = ModelType(
         input_spec={
             "text": str,
             "examples": List[Tuple[str, str]],

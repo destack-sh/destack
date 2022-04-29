@@ -6,15 +6,14 @@ from typing import Any, Dict
 
 from django.db.models import QuerySet
 
-import bench.function.utils
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import MODEL_TYPE
-from bench.utils.spec import ModelSpec
+from bench.utils.spec import ModelSpec, RecordSpec
 
 
 class ModelManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Model]:
-        return bench.function.utils.filter(type__exact=MODEL_TYPE)
+        return super().get_queryset().filter(type__exact=MODEL_TYPE)
 
 
 class Model(Artifact):
@@ -38,8 +37,8 @@ class Model(Artifact):
 class ModelMetadata:
     handler_id: str
     arguments: Dict[str, Any]
-    input_spec: Dict[str, Any]
-    output_spec: Dict[str, Any]
+    input_spec: RecordSpec
+    output_spec: RecordSpec
 
 
 class ModelVersion(ArtifactVersion):

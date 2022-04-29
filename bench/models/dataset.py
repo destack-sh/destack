@@ -4,15 +4,15 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict
 
-from django.db import models
+from django.db.models import QuerySet
 
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
-from bench.models.utils import DATASET_TYPE, MAX_NAME_LENGTH, UUIDModel
-from bench.utils.spec import DatasetSpec
+from bench.models.utils import DATASET_TYPE
+from bench.utils.spec import DatasetSpec, RecordSpec
 
 
 class DatasetManager(ArtifactManager):
-    def get_queryset(self) -> models.QuerySet[Dataset]:
+    def get_queryset(self) -> QuerySet[Dataset]:
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
 
@@ -34,7 +34,7 @@ class Dataset(Artifact):
 class DatasetMetadata:
     handler_id: str
     arguments: Dict[str, Any]
-    record_spec: Dict[str, Any]
+    record_spec: RecordSpec
 
     class Config:
         allow_mutation = False
@@ -64,17 +64,11 @@ class DatasetVersion(ArtifactVersion):
 
     @property
     def spec(self) -> DatasetSpec:
-        return DatasetSpec(record_spec=self._metadata.record_spec)
+        return DatasetSpec(
+            name=self.artifact.name,
+            description=self.artifact.description,
+            record_spec=self._metadata.record_spec,
+        )
 
     class Meta:
         proxy = True
-
-
-class DatasetSlice(UUIDModel):
-    """
-    A dataset slice is a point-in-time view of a dataset with certain filters.
-    """
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    dataset = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
