@@ -19,7 +19,8 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         )
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:
-        output = {"text": doc.text, "tokens": list(doc)}
+        tokens: list[str] = list(doc)
+        output = {"text": doc.text, "tokens": tokens}
         if self.has_entities:
             output["entities"] = doc.ents
         if self.has_categories:
