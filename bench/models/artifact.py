@@ -69,3 +69,15 @@ class ArtifactVersion(UUIDModel):
                 name="bench_artifact_version_ak", fields=["artifact", "version"]
             )
         ]
+
+
+class ArtifactView(UUIDModel):
+    """
+    A view of some part of an artefact.
+    """
+
+    artifact = models.ForeignKey(
+        ArtifactVersion, on_delete=models.CASCADE, related_name="views"
+    )
+    metadata = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)

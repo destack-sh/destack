@@ -15,35 +15,74 @@ class Flow(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    # TODO @Feature: version Flow
 
     objects = FlowManager()
 
 
+# TODO @Feature: version Flows better
+#  Currently using a whole copy of the entire Flow graph for every version, which
+#  seems both cumbersome and inefficient. Maybe only store changed nodes with pointers?
+class FlowVersion(UUIDModel):
+    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
+    version = models.CharField(max_length=256)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class FlowNode(UUIDModel):
     """
-    A node representing an atomic unit in a Flow (i.e. an execution unit).
+    A node representing a curried variant of a registered function with given arguments,
+    including any required configured "init-time" artifacts like datasets and models.
+
+    A function may be managed by or dependent on an external Controller, which provides
+    additional configuration arguments and/or augments the function config & execution.
     """
 
-    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="nodes")
-    function = models.ForeignKey("FunctionVersion", on_delete=models.RESTRICT)
-    # TODO @Cleanup: define input_nodes on FlowNode as well as on FlowNodeEdge
-    # input_nodes = models.ManyToManyField(
-    #     "FlowNode",
-    #     through="FlowNodeEdge",
-    #     symmetrical=False,
-    #     related_name="output_nodes",
-    # )
-
-
-class FlowEdge(UUIDModel):
-    """
-    An edge connecting two Nodes.
-    """
-
-    input_node = models.ForeignKey(
-        FlowNode, on_delete=models.CASCADE, related_name="output_nodes"
+    flow = models.ForeignKey(
+        FlowVersion, on_delete=models.CASCADE, related_name="nodes"
     )
-    output_node = models.ForeignKey(
-        FlowNode, on_delete=models.CASCADE, related_name="input_nodes"
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    function_id = models.CharField(max_length=256)
+    config_arguments = models.JSONField()
+    connected_artifacts = models.ManyToManyField("Artifact", through="FlowArtifactEdge")
+    depended_nodes = models.ManyToManyField(
+        "FlowNode",
+        through="FlowNodeEdge",
+        related_name="dependent_nodes",
     )
+    controller = models.ForeignKey(
+        "Controller", on_delete=models.RESTRICT, blank=True, null=True
+    )
+
+
+class FlowNodeEdge(UUIDModel):
+    """
+    An edge connecting two Flow Nodes in some way.
+    """
+
+    class ConnectionType(models.TextChoices):
+        Argument = "argument"
+        Input = "input"
+
+    connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
+    dependent_node = models.ForeignKey(
+        FlowNode, on_delete=models.CASCADE, related_name="dependency_nodes"
+    )
+    dependency_node = models.ForeignKey(
+        FlowNode, on_delete=models.CASCADE, related_name="dependent_nodes"
+    )
+
+
+class FlowArtifactEdge(UUIDModel):
+    """
+    An edge connecting two Flow Nodes in some way.
+    """
+
+    class ConnectionType(models.TextChoices):
+        Argument = "argument"
+        Input = "input"
+        Output = "output"
+
+    connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
+    dependent_node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
+    artifact = models.ForeignKey("Artifact", on_delete=models.RESTRICT)
