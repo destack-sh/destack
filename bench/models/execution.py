@@ -13,15 +13,15 @@ class Execution(UUIDModel):
     """
 
     class State(models.TextChoices):
-        Created = "CREATED"
-        Scheduled = "SCHEDULED"
-        Queued = "QUEUED"
-        Running = "RUNNING"
-        Aborting = "ABORTING"
+        Created = "created"
+        Scheduled = "scheduled"
+        Queued = "queued"
+        Running = "running"
+        Aborting = "aborting"
         # terminal states
-        Aborted = "ABORTED"
-        Failed = "FAILED"
-        Completed = "COMPLETED"
+        Aborted = "aborted"
+        Failed = "failed"
+        Completed = "completed"
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -38,12 +38,16 @@ class Execution(UUIDModel):
     objects = ExecutionManager()
 
 
-class FunctionExecution(Execution):
-    function = models.ForeignKey("Function", on_delete=models.CASCADE)
-
-
 class FlowExecution(Execution):
     flow = models.ForeignKey("Flow", on_delete=models.CASCADE)
+
+
+class FlowNodeExecution(Execution):
+    flow_node = models.ForeignKey("FlowNode", on_delete=models.CASCADE)
+    config_arguments = models.JSONField()
+    connected_artifacts = models.ManyToManyField(
+        "ArtifactVersion", related_name="source_execution"
+    )
 
 
 class ModelExecution(Execution):
