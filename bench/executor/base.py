@@ -1,15 +1,15 @@
 import abc
 from typing import Dict, Optional, Union
 
-from bench.executor.utils import collect_functions
-from bench.models import ArtifactVersion, Function, Model
-from bench.models.flow import Flow
-from bench.models.function import FunctionVersion
+from bench.models import ArtifactVersion
+from bench.models.flow import Flow, FlowNode, FlowVersion
 from bench.models.model import ModelVersion
+from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
 
 Resource = str
 ResourceRequirements = Dict[Resource, Union[int, float]]
+PerNodeResourceRequirements = Dict[UUIDT, ResourceRequirements]
 
 
 class Executor(abc.ABC):
@@ -27,15 +27,15 @@ class Executor(abc.ABC):
         """
         raise NotImplementedError
 
-    async def load_function(
-        self, function: FunctionVersion, requirements: Optional[ResourceRequirements]
-    ):
+    async def load_flow_node(self, flow: FlowNode, requirements: ResourceRequirements):
         """
-        Make the function available in this executor with the given resources.
+        Make the flow available in this executor with the given resources.
         """
         raise NotImplementedError
 
-    async def load_flow(self, flow: Flow, requirements: ResourceRequirements):
+    async def load_flow(
+        self, flow: FlowVersion, requirements: PerNodeResourceRequirements
+    ):
         """
         Make the flow available in this executor with the given resources.
         """
@@ -49,9 +49,9 @@ class Executor(abc.ABC):
     ) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
-    async def run_function(
+    async def run_flow_node(
         self,
-        function: FunctionVersion,
+        node: FlowNode,
         inputs: Union[Record, RecordBatch, ArtifactVersion],
     ) -> Union[Record, RecordBatch]:
         raise NotImplementedError
@@ -67,13 +67,4 @@ class SimpleExecutor(Executor, abc.ABC):
     An executor that does not coordinate allocation of artifacts to workers.
     """
 
-    async def load_function(
-        self, function: FunctionVersion, requirements: Optional[ResourceRequirements]
-    ):
-        for model in function.models:
-            await self.load_model(model)
-
-    async def load_flow(self, flow: Flow, requirements: Optional[ResourceRequirements]):
-        flow_functions = collect_functions(flow)
-        for function in flow_functions:
-            await self.load_function(function, requirements)
+    pass

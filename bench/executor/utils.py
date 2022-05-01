@@ -1,17 +1,11 @@
 import hashlib
 import json
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from bench.model.base import get_static_config_keys
-from bench.models import Flow, Model
-from bench.models.function import FunctionVersion
 from bench.models.model import ModelVersion
 from bench.settings import MODEL_IID_HASH_LENGTH
-
-
-def collect_functions(flow: Flow) -> List[FunctionVersion]:
-    return [node.function for node in flow.nodes.all()]
 
 
 def get_model_iid(model: ModelVersion) -> str:
@@ -21,7 +15,7 @@ def get_model_iid(model: ModelVersion) -> str:
     """
     static_keys = get_static_config_keys(model.handler_id)
     static_config = {
-        key: val for key, val in model.arguments.items() if key in static_keys
+        key: val for key, val in model.config_arguments.items() if key in static_keys
     }
     if model.storage_uri is not None:
         # Include storage uri in static config since it's not part of the config

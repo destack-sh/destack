@@ -36,7 +36,7 @@ class Model(Artifact):
 @dataclass(frozen=True)
 class ModelMetadata:
     handler_id: str
-    arguments: Dict[str, Any]
+    config_arguments: Dict[str, Any]
     input_spec: RecordSpec
     output_spec: RecordSpec
 
@@ -55,8 +55,8 @@ class ModelVersion(ArtifactVersion):
         return self._metadata.handler_id
 
     @cached_property
-    def arguments(self):
-        return self._metadata.arguments
+    def config_arguments(self):
+        return self._metadata.config_arguments
 
     @cached_property
     def input_spec(self):
@@ -70,7 +70,7 @@ class ModelVersion(ArtifactVersion):
     def spec(self) -> ModelSpec:
         return ModelSpec(
             name=self.artifact.name,
-            description=self.artifact.description,
+            description=self.artifact.description or "",
             input_spec=self.input_spec,
             output_spec=self.output_spec,
         )

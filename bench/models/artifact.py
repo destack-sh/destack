@@ -29,7 +29,9 @@ class Artifact(UUIDModel):
 
     type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, blank=True)
+    description = models.CharField(
+        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     controller = models.ForeignKey(
         "Controller", on_delete=models.SET_NULL, blank=True, null=True
@@ -42,13 +44,9 @@ class Artifact(UUIDModel):
         return self.controller is None
 
 
-class ArtifactVersionManager(models.Manager):
-    pass
-
-
 class ArtifactVersion(UUIDModel):
     """
-    An artifact version defines a specific immutable snapshot of an artifact.
+    An artifact version is a specific (generally) immutable snapshot of an artifact.
     """
 
     artifact = models.ForeignKey(
@@ -61,8 +59,6 @@ class ArtifactVersion(UUIDModel):
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
     metadata = models.JSONField()
 
-    objects = ArtifactVersionManager()
-
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -73,11 +69,21 @@ class ArtifactVersion(UUIDModel):
 
 class ArtifactView(UUIDModel):
     """
-    A view of some part of an artefact.
+    A pass-through (generally) immutable view of an Artifact. The data remains in the
+    Artifact (or, rather, a specific version) and is only accessed through the view.
+
+    If this view works only with specific versions (e.g. because it has dataset indices),
+    then it must specify the compatible versions in 'compatible_versions'.
     """
 
+    type = models.CharField(max_length=64)
     artifact = models.ForeignKey(
-        ArtifactVersion, on_delete=models.CASCADE, related_name="views"
+        Artifact, on_delete=models.CASCADE, related_name="views"
     )
-    metadata = models.JSONField()
+    compatible_versions = models.ManyToManyField(ArtifactVersion, related_name="views")
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    description = models.CharField(
+        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField()
