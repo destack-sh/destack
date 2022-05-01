@@ -19,7 +19,7 @@ from bench.utils.spec import (
 )
 
 
-class FunctionBase(ABC):
+class Function(ABC):
     """
     A generic pure function that operates either on records/batches or on artifacts.
     """
@@ -28,7 +28,7 @@ class FunctionBase(ABC):
     config_spec: Union[ConfigType, ConfigSpec]
 
 
-class ArtifactFunction(FunctionBase, ABC):
+class ArtifactFunction(Function, ABC):
     """
     A pure function that operates on artifacts.
     """
@@ -37,7 +37,7 @@ class ArtifactFunction(FunctionBase, ABC):
     output_spec: Union[None, ArtifactSetType, ArtifactSetSpec]
 
 
-class RecordFunction(FunctionBase, ABC):
+class RecordFunction(Function, ABC):
     """
     A pure function that operates on records/batches.
     """
@@ -71,9 +71,7 @@ class Predicate(RecordFunction, ABC):
         raise NotImplementedError
 
 
-def map_to_function_cls(
-    func: Any, impl: Optional[Type[FunctionBase]]
-) -> Type[FunctionBase]:
+def map_to_function_cls(func: Any, impl: Optional[Type[Function]]) -> Type[Function]:
     """
     Map the given class or function-based Function into a full Function type,
     type-checking and filling in spec information as needed.
@@ -83,7 +81,7 @@ def map_to_function_cls(
     @return: The full Function type
     """
     if isinstance(func, type):  # func is a class
-        if impl is not None and not issubclass(impl, FunctionBase):
+        if impl is not None and not issubclass(impl, Function):
             raise RegistryError(
                 f"registered function class {get_qualified_name(func)}"
                 f" is not a subclass of FunctionBase"
@@ -94,7 +92,7 @@ def map_to_function_cls(
                 f" given type {get_qualified_name(type)}, remove or change impl=<...>"
             )
 
-        func = cast(Type[FunctionBase], func)
+        func = cast(Type[Function], func)
         return map_cls_to_function_cls(func)
     else:  # func is a Python function and must be mapped to FunctionBase subtype
         if impl is None:
@@ -107,7 +105,7 @@ def map_to_function_cls(
         return map_callable_to_function_cls(func, impl)
 
 
-def map_cls_to_function_cls(func: Type[FunctionBase]) -> Type[FunctionBase]:
+def map_cls_to_function_cls(func: Type[Function]) -> Type[Function]:
     if hasattr(func, "config_spec"):
         declared_config_spec = convert_to_config_spec(func.config_spec)
     else:
@@ -122,8 +120,8 @@ def map_cls_to_function_cls(func: Type[FunctionBase]) -> Type[FunctionBase]:
 
 
 def map_callable_to_function_cls(
-    func: Callable, impl: Type[FunctionBase]
-) -> Type[FunctionBase]:
+    func: Callable, impl: Type[Function]
+) -> Type[Function]:
     """Maps a callable representing a Function to an actual FunctionBase type
 
     Implementation is basic right now and cannot construct any complex functions.
@@ -165,13 +163,13 @@ def map_callable_to_function_cls(
             f"mapping callable {get_qualified_name(func)} to non-Record functions it not supported"
         )
 
-    func_cls: Type[FunctionBase] = cast(
-        Type[FunctionBase], type(inferred_config_spec.name, (impl,), attrs)
+    func_cls: Type[Function] = cast(
+        Type[Function], type(inferred_config_spec.name, (impl,), attrs)
     )
     return func_cls
 
 
-functions: Registry[Type[FunctionBase]] = Registry(
+functions: Registry[Type[Function]] = Registry(
     ("functions",), mapper=map_to_function_cls
 )
 

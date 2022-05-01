@@ -1,15 +1,15 @@
 from typing import Optional
 
-from bench.function.base import FunctionBase, Predicate, Transform, functions
+from bench.function.base import Function, Predicate, Transform, functions
 from bench.utils.record import Record
 
 
-class Router(FunctionBase):
+class Router(Function):
     input_spec = None
     output_spec = None
 
     def __init__(
-        self, predicate: Predicate, function_a: FunctionBase, function_b: FunctionBase
+        self, predicate: Predicate, function_a: Function, function_b: Function
     ):
         self.predicate = predicate
         self.function_a = function_a

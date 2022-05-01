@@ -6,7 +6,12 @@ from typing import Any, Dict
 
 from django.db.models import QuerySet
 
-from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
+from bench.models.artifact import (
+    Artifact,
+    ArtifactManager,
+    ArtifactVersion,
+    ArtifactView,
+)
 from bench.models.utils import DATASET_TYPE
 from bench.utils.spec import DatasetSpec, RecordSpec
 
@@ -33,7 +38,7 @@ class Dataset(Artifact):
 @dataclass(frozen=True)
 class DatasetMetadata:
     handler_id: str
-    arguments: Dict[str, Any]
+    config_arguments: Dict[str, Any]
     record_spec: RecordSpec
 
     class Config:
@@ -55,8 +60,8 @@ class DatasetVersion(ArtifactVersion):
         return self._metadata.handler_id
 
     @cached_property
-    def arguments(self):
-        return self._metadata.arguments
+    def config_arguments(self):
+        return self._metadata.config_arguments
 
     @cached_property
     def record_spec(self):
@@ -66,9 +71,18 @@ class DatasetVersion(ArtifactVersion):
     def spec(self) -> DatasetSpec:
         return DatasetSpec(
             name=self.artifact.name,
-            description=self.artifact.description,
+            description=self.artifact.description or "",
             record_spec=self._metadata.record_spec,
         )
+
+    class Meta:
+        proxy = True
+
+
+class DatasetView(ArtifactView):
+    """
+    A Dataset-specific thin proxy of ArtifactView exposing typed attributes.
+    """
 
     class Meta:
         proxy = True

@@ -42,7 +42,7 @@ class LocalExecutor(SimpleExecutor):
         log = logger.bind(
             model_id=model.id,
             model_iid=model_iid,
-            arguments=model.arguments,
+            arguments=model.config_arguments,
             requirements=requirements,
         )
         log.info("model_load")
@@ -50,7 +50,7 @@ class LocalExecutor(SimpleExecutor):
             model.handler_id,
             version=model.version,
             storage_uri=model.storage_uri,
-            arguments=model.arguments,
+            arguments=model.config_arguments,
             spec=model.spec,
         )
         self._loaded_models_by_iid[model_iid] = model_handler

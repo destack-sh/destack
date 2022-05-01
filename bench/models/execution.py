@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.db import models
 
 from bench.models.utils import UUIDModel
@@ -34,21 +36,82 @@ class Execution(UUIDModel):
     state = models.CharField(
         max_length=32, choices=State.choices, default=State.Created
     )
+    parent = models.ForeignKey(
+        "Execution", on_delete=models.CASCADE, related_name="children"
+    )
 
     objects = ExecutionManager()
 
 
 class FlowExecution(Execution):
+    """
+    The execution of an entire Flow.
+    """
+
     flow = models.ForeignKey("Flow", on_delete=models.CASCADE)
 
 
 class FlowNodeExecution(Execution):
+    """
+    The parameterised execution of a specific node in a Flow.
+    """
+
     flow_node = models.ForeignKey("FlowNode", on_delete=models.CASCADE)
     config_arguments = models.JSONField()
     connected_artifacts = models.ManyToManyField(
-        "ArtifactVersion", related_name="source_execution"
+        "ArtifactVersion",
+        through="FlowNodeExecutionArtifactConnection",
+        related_name="related_executions",
+    )
+
+
+class FlowNodeExecutionArtifactConnection(UUIDModel):
+    """
+    The runtime connection between an executed flow node and its related artifacts.
+
+    We specify how the connection is made via the connection parameters.
+    If the node is directly connected to an artifact, we specify the relevant 'edge'.
+    If the execution refers to a part of the artifact, we specify the relevant 'view'.
+    """
+
+    class ConnectionType(models.TextChoices):
+        Argument = "argument"
+        Input = "input"
+        Output = "output"
+
+    execution = models.ForeignKey(FlowNodeExecution, on_delete=models.CASCADE)
+    edge = models.ForeignKey("FlowArtifactEdge", null=True, on_delete=models.CASCADE)
+    connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
+    connection_name = models.CharField(max_length=64, null=True, blank=True)
+    artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
+    view = models.ForeignKey(
+        "ArtifactView", on_delete=models.CASCADE, null=True, blank=True
     )
 
 
 class ModelExecution(Execution):
-    model = models.ForeignKey("Model", on_delete=models.CASCADE)
+    """
+    The execution of an individual model artifact (also called a 'prediction').
+    """
+
+    model = models.ForeignKey("ModelVersion", on_delete=models.CASCADE)
+    input_artifact = models.ForeignKey(
+        "ArtifactVersion", on_delete=models.CASCADE, null=True, related_name="+"
+    )
+    input_artifact_view = models.ForeignKey(
+        "ArtifactView",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    output_artifact = models.ForeignKey(
+        "ArtifactVersion", on_delete=models.CASCADE, null=True, related_name="+"
+    )
+    output_artifact_view = models.ForeignKey(
+        "ArtifactView",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
+    )

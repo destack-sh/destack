@@ -10,14 +10,20 @@ class Tag(UUIDModel):
     """
 
     # TODO @Feature: version (some) tags?
-    #  Seems necessary if we want tags in functions, but also quite confusing. Hmm.
+    #  Where would versioned tags be needed? Is copy-on-write enough?
 
     type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, blank=True)
+    description = models.CharField(
+        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     metadata = models.JSONField(default=lambda: {})
+
+
+class TaggedItem(UUIDModel):
+    pass
 
 
 class Alias(Tag):

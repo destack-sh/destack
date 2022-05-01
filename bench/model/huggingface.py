@@ -8,7 +8,7 @@ from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import ModelType
 
 
-# TODO @Feature: HuggingFaceModel only works for sequence classification
+# TODO @Feature: HuggingFaceModel only works for sequence classification task
 @models.register("bench.huggingface.sequence_classification")
 class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
     base_spec = ModelType(input_spec={"text": str}, output_spec={"text": str})
@@ -30,4 +30,8 @@ class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
         output_logits = self.model(**tokenized_record).logits
         categories = torch.softmax(output_logits, dim=1).tolist()[0]
         # TODO @Broken: remap outputs to proper categories using output spec
-        return {"text": record["text"], "tokens": tokens, "categories": categories}
+        return {
+            **record,
+            "tokens": tokens,
+            "categories": categories,
+        }
