@@ -36,7 +36,7 @@ class Registry(Generic[T]):
                 f"name {name} is already registered in {self.namespace}"
             )
         self._registered_objects[key] = obj
-        self.logger.info("register", name=name, obj=obj, impl=impl)
+        self.logger.debug("register", name=name, obj=obj, impl=impl)
         return obj
 
     def register(

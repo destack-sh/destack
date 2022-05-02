@@ -40,7 +40,10 @@ class DatasetHandler(RecordBatch, abc.ABC):
 def map_to_dataset_cls(
     func: Any, impl: Optional[Type[DatasetHandler]]
 ) -> Type[DatasetHandler]:
-    raise NotImplementedError
+    if impl is not None:
+        raise ValueError("specifying impl type is not supported")
+
+    return func
 
 
 datasets: Registry[Type[DatasetHandler]] = Registry(

@@ -1,8 +1,13 @@
+import abc
 from typing import Optional
 
 from bench.dataset.base import DatasetHandler
 from bench.function.base import Predicate, Record, Transform, functions
 from bench.utils.spec import DatasetType, Json
+
+
+class TextTransform(Transform, abc.ABC):
+    pass
 
 
 @functions.register("text.named_entity_imputer")
