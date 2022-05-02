@@ -19,10 +19,18 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         )
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:
-        tokens: list[str] = list(doc)
+        tokens: list[dict] = [{"text": token.text} for token in doc]
         output = {"text": doc.text, "tokens": tokens}
         if self.has_entities:
-            output["entities"] = doc.ents
+            output["entities"] = [
+                {
+                    "text": span.text,
+                    "start": span.start,
+                    "end": span.end,
+                    "label": span.label_,
+                }
+                for span in doc.ents
+            ]
         if self.has_categories:
             output["categories"] = [
                 {"label": label, "score": score} for label, score in doc.cats.items()

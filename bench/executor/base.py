@@ -1,8 +1,8 @@
 import abc
-from typing import Dict, Optional, Union
+from typing import Dict, Mapping, Optional, Union
 
 from bench.models import ArtifactVersion
-from bench.models.flow import Flow, FlowNode, FlowVersion
+from bench.models.flow import FlowNode, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
@@ -52,13 +52,15 @@ class Executor(abc.ABC):
     async def run_flow_node(
         self,
         node: FlowNode,
-        inputs: Union[Record, RecordBatch, ArtifactVersion],
-    ) -> Union[Record, RecordBatch]:
+        inputs: Union[Record, RecordBatch, Mapping[str, ArtifactVersion]],
+    ) -> Union[Record, RecordBatch, Mapping[str, ArtifactVersion]]:
         raise NotImplementedError
 
     async def run_flow(
-        self, flow: Flow, inputs: Union[None, Record, RecordBatch, ArtifactVersion]
-    ) -> Union[Record, RecordBatch]:
+        self,
+        flow: FlowVersion,
+        inputs: Union[None, Record, RecordBatch, Mapping[str, ArtifactVersion]],
+    ) -> Union[Record, RecordBatch, Mapping[str, ArtifactVersion]]:
         raise NotImplementedError
 
 

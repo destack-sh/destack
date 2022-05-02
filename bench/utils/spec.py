@@ -346,6 +346,8 @@ def _get_typed_annotation(
     param: inspect.Parameter, global_namespace: dict[str, Any]
 ) -> Any:
     """Gets resolved type annotations for a parameter"""
+    # Note: In Python 3.10, we should be able to replace this resoluton logic
+    #  with https://docs.python.org/3/library/inspect.html#inspect.get_annotations
     annotation = param.annotation
     if isinstance(annotation, str):
         forward_ref = ForwardRef(annotation)

@@ -18,7 +18,7 @@ class ArtifactManager(models.Manager):
 
 class Artifact(UUIDModel):
     """
-    A data artifact of any type produced by an owned or an external process.
+    A data artifact of any type with a unique name, produced by some process.
 
     Artifacts may be versioned. Known versions are available in 'versions'. If we own
     the artifact (i.e. it is not externally controlled), 'versions' is exhaustive.
@@ -43,6 +43,15 @@ class Artifact(UUIDModel):
     def owned(self):
         return self.controller is None
 
+    class Meta:
+        indexes = [
+            models.Index(name="bench_artifact_type_idx", fields=["type"]),
+            models.Index(name="bench_artifact_name_idx", fields=["name"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(name="bench_artifact_name_ak", fields=["name"])
+        ]
+
 
 class ArtifactVersion(UUIDModel):
     """
@@ -60,6 +69,7 @@ class ArtifactVersion(UUIDModel):
     metadata = models.JSONField()
 
     class Meta:
+        indexes = [models.Index(name="bench_artifact_version_idx", fields=["version"])]
         constraints = [
             models.UniqueConstraint(
                 name="bench_artifact_version_ak", fields=["artifact", "version"]

@@ -19,7 +19,7 @@ class Tag(UUIDModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    metadata = models.JSONField(default=lambda: {})
+    metadata = models.JSONField(default=dict)
 
 
 class TaggedItem(UUIDModel):

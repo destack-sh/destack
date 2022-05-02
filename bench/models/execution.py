@@ -98,20 +98,10 @@ class ModelExecution(Execution):
     input_artifact = models.ForeignKey(
         "ArtifactVersion", on_delete=models.CASCADE, null=True, related_name="+"
     )
-    input_artifact_view = models.ForeignKey(
-        "ArtifactView",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="+",
-    )
+    input_artifact_view_type = models.CharField(null=True, blank=True, max_length=64)
+    input_artifact_view_metadata = models.JSONField(null=True, blank=True)
     output_artifact = models.ForeignKey(
         "ArtifactVersion", on_delete=models.CASCADE, null=True, related_name="+"
     )
-    output_artifact_view = models.ForeignKey(
-        "ArtifactView",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="+",
-    )
+    output_artifact_view_type = models.CharField(null=True, blank=True, max_length=64)
+    output_artifact_view_metadata = models.JSONField(null=True, blank=True)

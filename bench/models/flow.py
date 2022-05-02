@@ -31,7 +31,7 @@ class FlowVersion(UUIDModel):
 
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     version = models.CharField(max_length=256)
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
     description = models.CharField(
         max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
     )
@@ -40,7 +40,7 @@ class FlowVersion(UUIDModel):
 
 class FlowNode(UUIDModel):
     """
-    A node representing a curried variant of a registered function with given arguments,
+    A node represents a curried variant of a registered function with given arguments,
     including any required configured "init-time" artifacts like datasets and models.
 
     A function may be managed by or dependent on an external Controller, which provides
@@ -85,7 +85,7 @@ class FlowNodeEdge(UUIDModel):
 
 class FlowArtifactEdge(UUIDModel):
     """
-    An edge connecting two Flow Nodes in some way.
+    An edge connecting a flow node to an artifact in some way.
     """
 
     class ConnectionType(models.TextChoices):
