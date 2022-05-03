@@ -1,7 +1,7 @@
 import abc
 from typing import AbstractSet, Any, Dict, List, Optional, Set, Type, Union
 
-from bench.utils.record import ListRecordBatch, Record, RecordBatch
+from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
 from bench.utils.spec import (
     ConfigSpec,
@@ -64,7 +64,7 @@ class UnbatchedModelHandler(ModelHandler, abc.ABC):
                 output_records.extend(output)
             else:
                 output_records.append(output)
-        return ListRecordBatch(output_records)
+        return RecordList(output_records)
 
 
 models: Registry[Type[ModelHandler]] = Registry(("models",))
@@ -101,5 +101,5 @@ def load_model(
     spec: Optional[ModelSpec],
 ) -> ModelHandler:
     model_cls = get_model_cls(handler_id)
-    model = model_cls(spec=spec, **arguments)
+    model = model_cls(spec=spec, version=version, **arguments)  # noqa
     return model

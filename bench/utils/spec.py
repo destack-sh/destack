@@ -3,40 +3,17 @@ from __future__ import annotations
 import abc
 import inspect
 from dataclasses import dataclass
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    List,
-    Mapping,
-    NewType,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from functools import cached_property
+from typing import Any, Callable, List, Mapping, Optional, Tuple, Type, Union, cast
 
 import docstring_parser
 import numpy as np
-from PIL.Image import Image as PILImage
+import PIL.Image
 from pydantic.typing import ForwardRef, evaluate_forwardref
 
 from bench.utils.registry import get_qualified_name
 
-if TYPE_CHECKING:
-    NDArray = np.ndarray
-else:
-    NDArray = Any
-
-Text = NewType("Text", str)
-Audio = TypeVar("Audio", bytes, NDArray)
-Image = TypeVar("Image", bytes, NDArray, PILImage)
-Video = TypeVar("Video", bytes, NDArray)
-Json = NewType("Json", dict)
-
-FieldTypePrimitive = Union[str, int, float, Text, Audio, Image, Video, Json]
+FieldTypePrimitive = Union[str, int, float, bytes, np.ndarray, PIL.Image.Image]
 FieldType = Type[
     Union[
         FieldTypePrimitive, List[FieldTypePrimitive], Mapping[str, FieldTypePrimitive]
@@ -44,8 +21,34 @@ FieldType = Type[
 ]
 
 
-@dataclass
 class _Type(abc.ABC):
+    @cached_property
+    def impl_types(self) -> List[Type]:
+        return []
+
+
+@dataclass
+class ValueType(_Type):
+    dtype: str
+
+
+@dataclass
+class ClassLabelType(_Type):
+    names: Optional[List[str]] = None
+
+
+@dataclass
+class AudioType(_Type):
+    pass
+
+
+@dataclass
+class ImageType(_Type):
+    pass
+
+
+@dataclass
+class VideoType(_Type):
     pass
 
 

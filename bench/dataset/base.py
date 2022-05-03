@@ -49,6 +49,8 @@ def map_to_dataset_cls(
 datasets: Registry[Type[DatasetHandler]] = Registry(
     ("datasets",), mapper=map_to_dataset_cls
 )
+# TODO @Feature: figure out better registration mechanism for registered objects
+import bench.dataset.huggingface  # noqa
 
 
 def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
@@ -58,9 +60,10 @@ def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
 def load_dataset(
     handler_id: str,
     storage_uri: Optional[str],
+    version: Optional[str],
     arguments: Dict[str, Any],
     spec: Optional[DatasetSpec],
 ) -> DatasetHandler:
     dataset_cls = get_dataset_cls(handler_id)
-    dataset = dataset_cls(spec=spec, **arguments)
+    dataset = dataset_cls(spec=spec, version=version, **arguments)  # noqa
     return dataset
