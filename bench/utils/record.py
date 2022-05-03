@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, List, Union
+import typing
+from typing import Any, Dict, Iterator, List, Union
 
 from bench.utils.spec import FieldType
 
@@ -17,35 +18,73 @@ class RecordBatch(abc.ABC):
     An ordered list of Records for unified Record batch processing.
     """
 
-    def __getitem__(self, item: Union[int, slice, str]) -> Union[Record, RecordBatch]:
+    @typing.overload
+    def __getitem__(self, index: int) -> Record:
+        ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> RecordBatch:
+        ...
+
+    @typing.overload
+    def __getitem__(self, index: str) -> List[FieldType]:
+        ...
+
+    def __getitem__(
+        self, index: Union[int, slice, str]
+    ) -> Union[Record, RecordBatch, List[FieldType]]:
         raise NotImplementedError
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Record]:
         raise NotImplementedError
 
-    def __len__(self):
+    def __len__(self) -> int:
         raise NotImplementedError
 
 
-class ListRecordBatch(RecordBatch):
+class RecordList(RecordBatch):
+    """
+    An immutable list-backed implementation of a RecordBatch.
+    """
+
     def __init__(self, records: List[Record]):
         self._records = records
 
-    def __getitem__(self, item: Union[int, slice, str]) -> Union[Record, RecordBatch]:
-        # TODO @Performance: improve ListRecordBatch indexing and views.
+    def __str__(self) -> str:
+        return str(self._records)
+
+    def __repr__(self) -> str:
+        return repr(self._records)
+
+    @typing.overload
+    def __getitem__(self, index: int) -> Record:
+        ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> RecordBatch:
+        ...
+
+    @typing.overload
+    def __getitem__(self, index: str) -> List[FieldType]:
+        ...
+
+    def __getitem__(
+        self, index: Union[int, slice, str]
+    ) -> Union[Record, RecordBatch, List[FieldType]]:
+        # TODO @Performance: improve RecordList __getitem__.
         #  There are probably a thousand better ways of doing this,
         #  see e.g. numpy views, Activeloop Datasets, HuggingFace Datasets, etc.
-        if isinstance(item, str):
-            return ListRecordBatch([record[item] for record in self])
-        elif isinstance(item, slice):
-            return ListRecordBatch(self._records[item])
-        elif isinstance(item, int):
-            return self._records[item]
+        if isinstance(index, int):
+            return self._records[index]
+        elif isinstance(index, slice):
+            return RecordList(self._records[index])
+        elif isinstance(index, str):
+            return [record[index] for record in self._records]
         else:
-            raise TypeError(item)
+            raise TypeError(index)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Record]:
         return iter(self._records)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._records)

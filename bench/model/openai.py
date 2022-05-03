@@ -5,11 +5,13 @@ from typing import Dict, List, Optional, Tuple, Union
 import openai
 
 from bench.model.base import UnbatchedModelHandler, models
-from bench.utils.record import ListRecordBatch, Record, RecordBatch
+from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import ModelType
 
 
 class OpenAIModel(UnbatchedModelHandler, abc.ABC):
+    config_static_keys: set[str] = set()  # entire config can be changed dynamically
+
     class Engine(enum.Enum):
         Ada = "text-ada-001"
         Babbage = "text-babbage-001"
@@ -63,7 +65,7 @@ class OpenAIModelForCompletion(OpenAIModel):
         if self.n == 1:
             return output_records[0]
         else:
-            return ListRecordBatch(output_records)
+            return RecordList(output_records)
 
 
 @models.register("bench.openai.classification")
@@ -88,4 +90,4 @@ class OpenAIModelForClassification(OpenAIModel):
         if self.n == 1:
             return output_records[0]
         else:
-            return ListRecordBatch(output_records)
+            return RecordList(output_records)

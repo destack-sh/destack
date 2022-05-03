@@ -4,7 +4,7 @@ from typing import Union
 import spacy
 
 from bench.model.base import ModelHandler, models
-from bench.utils.record import ListRecordBatch, Record, RecordBatch
+from bench.utils.record import Record, RecordBatch, RecordList
 
 
 class SpacyModelBase(ModelHandler, abc.ABC):
@@ -45,7 +45,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
     def predict_batch(self, records: RecordBatch) -> RecordBatch:
         docs = list(self.nlp.pipe(records["text"]))
         output_records = [self._map_doc_to_record(doc) for doc in docs]
-        return ListRecordBatch(output_records)
+        return RecordList(output_records)
 
 
 @models.register("bench.spacy.bundled")

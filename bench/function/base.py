@@ -46,6 +46,28 @@ class RecordFunction(Function, ABC):
     output_spec: Union[None, RecordType, RecordSpec]
 
 
+class RecordProvider(RecordFunction):
+    """
+    A record function that provides a single record.
+    """
+
+    input_spec = None
+
+    def __call__(self) -> Record:
+        raise NotImplementedError
+
+
+class RecordBatchProvider(RecordFunction):
+    """
+    A record function that provides a batch of records.
+    """
+
+    input_spec = None
+
+    def __call__(self) -> RecordBatch:
+        raise NotImplementedError
+
+
 class Transform(RecordFunction, ABC):
     """
     A transformation function mapping input records to output records
