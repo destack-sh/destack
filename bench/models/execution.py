@@ -36,8 +36,36 @@ class Execution(UUIDModel):
     state = models.CharField(
         max_length=32, choices=State.choices, default=State.Created
     )
+    metadata = models.JSONField()
+
     parent = models.ForeignKey(
-        "Execution", on_delete=models.CASCADE, related_name="children"
+        "Execution",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+    )
+    # relation to executable units (must be one of)
+    flow = models.ForeignKey(
+        "FlowVersion",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions",
+    )
+    flow_node = models.ForeignKey(
+        "FlowNode",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions",
+    )
+    model = models.ForeignKey(
+        "ModelVersion",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions",
     )
 
     objects = ExecutionManager()
@@ -48,7 +76,8 @@ class FlowExecution(Execution):
     The execution of an entire Flow.
     """
 
-    flow = models.ForeignKey("Flow", on_delete=models.CASCADE)
+    class Meta:
+        proxy = True
 
 
 class FlowNodeExecution(Execution):
@@ -56,18 +85,22 @@ class FlowNodeExecution(Execution):
     The parameterised execution of a specific node in a Flow.
     """
 
-    flow_node = models.ForeignKey("FlowNode", on_delete=models.CASCADE)
-    config_arguments = models.JSONField()
-    connected_artifacts = models.ManyToManyField(
-        "ArtifactVersion",
-        through="FlowNodeExecutionArtifactConnection",
-        related_name="related_executions",
-    )
+    class Meta:
+        proxy = True
 
 
-class FlowNodeExecutionArtifactConnection(UUIDModel):
+class ModelExecution(Execution):
     """
-    The runtime connection between an executed flow node and its related artifacts.
+    The execution of an individual model artifact (also called a 'prediction').
+    """
+
+    class Meta:
+        proxy = True
+
+
+class ExecutionArtifactConnection(UUIDModel):
+    """
+    The runtime connection between an execution and its related artifacts.
 
     We specify how the connection is made via the connection parameters.
     If the node is directly connected to an artifact, we specify the relevant 'edge'.
@@ -79,29 +112,21 @@ class FlowNodeExecutionArtifactConnection(UUIDModel):
         Input = "input"
         Output = "output"
 
-    execution = models.ForeignKey(FlowNodeExecution, on_delete=models.CASCADE)
-    edge = models.ForeignKey("FlowArtifactEdge", null=True, on_delete=models.CASCADE)
+    execution = models.ForeignKey(
+        Execution, on_delete=models.CASCADE, related_name="connected_artifacts"
+    )
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64, null=True, blank=True)
+    # optional FlowArtifactEdge reference when used for disambiguation
+    flow_artifact_edge = models.ForeignKey(
+        "FlowArtifactEdge", blank=True, null=True, on_delete=models.CASCADE
+    )
+
     artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
+    # regular ArtifactView relation where appropriate
     view = models.ForeignKey(
         "ArtifactView", on_delete=models.CASCADE, null=True, blank=True
     )
-
-
-class ModelExecution(Execution):
-    """
-    The execution of an individual model artifact (also called a 'prediction').
-    """
-
-    model = models.ForeignKey("ModelVersion", on_delete=models.CASCADE)
-    input_artifact = models.ForeignKey(
-        "ArtifactVersion", on_delete=models.CASCADE, null=True, related_name="+"
-    )
-    input_artifact_view_type = models.CharField(null=True, blank=True, max_length=64)
-    input_artifact_view_metadata = models.JSONField(null=True, blank=True)
-    output_artifact = models.ForeignKey(
-        "ArtifactVersion", on_delete=models.CASCADE, null=True, related_name="+"
-    )
-    output_artifact_view_type = models.CharField(null=True, blank=True, max_length=64)
-    output_artifact_view_metadata = models.JSONField(null=True, blank=True)
+    # inlined ArtifactView if we don't want a full-blown ArtifactView
+    view_type = models.CharField(null=True, blank=True, max_length=64)
+    view_metadata = models.JSONField(null=True, blank=True)
