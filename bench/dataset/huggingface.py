@@ -3,7 +3,7 @@ from typing import Iterator, List, Optional, Union
 
 import datasets as hf_datasets
 
-from bench.dataset.base import DatasetHandler, datasets
+from bench.dataset.base import DatasetReader, datasets
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import (
     DatasetSpec,
@@ -15,7 +15,7 @@ from bench.utils.spec import (
 
 
 @datasets.register("bench.huggingface")
-class HuggingFaceDatasetHandler(DatasetHandler):
+class HuggingFaceDatasetHandler(DatasetReader):
     def __init__(
         self,
         dataset_name: str,

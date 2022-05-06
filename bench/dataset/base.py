@@ -1,16 +1,14 @@
 import abc
-
-# TODO @Cleanup: Dataset"Handler" is not a great name (not descriptive enough)
 from typing import Any, Dict, Optional, Set, Type, Union
 
-from bench.utils.record import RecordBatch
+from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import ConfigSpec, DatasetSpec, DatasetType
+from bench.utils.spec import ConfigSpec, DatasetSpec, DatasetType, RecordSpec
 
 
-class DatasetHandler(RecordBatch, abc.ABC):
+class DatasetHandler(abc.ABC):
     """
-    Base for dataset implementations that can load and parse a dataset from some source.
+    Base for dataset implementations.
     """
 
     # Known base dataset spec for all datasets of this handler.
@@ -25,16 +23,50 @@ class DatasetHandler(RecordBatch, abc.ABC):
         spec: Union[None, DatasetType, DatasetSpec] = None,
         version: Optional[str] = None,
     ):
-        if spec is None and self.base_spec is None:
-            raise ValueError(
-                "DatasetHandler must define static `base_spec` or get `spec` argument"
-            )
-        elif spec is not None:
+        if spec is None:
+            if self.base_spec is None:
+                raise ValueError(
+                    "DatasetHandler must define `base_spec` or get `spec` argument"
+                )
+            else:
+                self.spec = self.base_spec
+        else:
             self.spec = spec
         self.version = version
 
     def update_config(self, **kwargs):
         pass
+
+
+class DatasetReader(DatasetHandler, RecordBatch, abc.ABC):
+    """
+    Base for dataset implementations that can read their data in a common format.
+    """
+
+    pass
+
+
+class DatasetWriter(DatasetHandler, abc.ABC):
+    """
+    Base for dataset implementations that can modify their data locally.
+    """
+
+    # -- Modify schema --
+    def set_spec(self, spec: RecordSpec):
+        pass
+
+    # -- Modify data ---
+    def append(self, record: Record):
+        raise NotImplementedError
+
+    def extend(self, records: RecordBatch):
+        raise NotImplementedError
+
+    def update(self, index: int, record: Record):
+        raise NotImplementedError
+
+    def delete(self, index: int):
+        raise NotImplementedError
 
 
 def map_to_dataset_cls(

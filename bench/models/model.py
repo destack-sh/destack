@@ -51,6 +51,7 @@ class Model(Artifact):
     delegate parts of the model lifecycle to accommodate different workflows. For example,
     we can run pre-trained HuggingFace models, local custom PyTorch models, hosted LLM
     models, from any storages (e.g., S3, disk) or controllers (e.g., DVC, Mlflow).
+    TODO @Feature: specify model affordances for different tasks, define common task/model specs
     """
 
     models = ModelManager()

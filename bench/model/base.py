@@ -12,12 +12,9 @@ from bench.utils.spec import (
 )
 
 
-# TODO @Cleanup: Model"Handler" is not a great name (not descriptive enough)
 class ModelHandler(abc.ABC):
     """
     Base for model implementations that can load and run a model from some source.
-    TODO @Feature: specify model affordances for different tasks
-    TODO @Feature: define common task/model specs
     """
 
     # Known base model spec for all models of this handler.
@@ -32,12 +29,15 @@ class ModelHandler(abc.ABC):
         spec: Union[None, ModelType, ModelSpec] = None,
         version: Optional[str] = None,
     ):
-        if spec is None and self.base_spec is None:
-            raise ValueError(
-                "ModelHandler must define either `base_spec` or get `spec` argument"
-            )
-        elif spec is not None:
-            self.base_spec = spec
+        if spec is None:
+            if self.base_spec is None:
+                raise ValueError(
+                    "ModelHandler must define `base_spec` or get `spec` argument"
+                )
+            else:
+                self.spec = self.base_spec
+        else:
+            self.spec = spec
         self.version = version
 
     def update_config(self, **kwargs):
