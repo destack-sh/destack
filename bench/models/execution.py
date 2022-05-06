@@ -45,7 +45,7 @@ class Execution(UUIDModel):
         blank=True,
         related_name="children",
     )
-    # relation to executable units (must be one of)
+    # relation to executable units
     flow = models.ForeignKey(
         "FlowVersion",
         null=True,
@@ -129,4 +129,4 @@ class ExecutionArtifactConnection(UUIDModel):
     )
     # inlined ArtifactView if we don't want a full-blown ArtifactView
     view_type = models.CharField(null=True, blank=True, max_length=64)
-    view_metadata = models.JSONField(null=True, blank=True)
+    view_data = models.JSONField(null=True, blank=True)

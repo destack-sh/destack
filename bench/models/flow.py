@@ -1,15 +1,18 @@
 from django.db import models
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.versioning import VersionedCommit, VersionedRepository
 
 
 class FlowManager(models.Manager):
     pass
 
 
-class Flow(UUIDModel):
+class Flow(UUIDModel, VersionedRepository):
     """
     A directed acyclic graph of Functions represented as Nodes connected by Edges.
+
+    Flows are versioned. All versions are available in 'versions'.
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -21,21 +24,17 @@ class Flow(UUIDModel):
     objects = FlowManager()
 
 
-# TODO @Feature: version Flows better
+# TODO @Performance: version Flows on node-level
 #  Storing a complete copy of the entire Flow graph for every version
-#  seems both cumbersome and inefficient. Maybe only store changed nodes with pointers?
-class FlowVersion(UUIDModel):
+#  seems both cumbersome and inefficient. But node-level versioning for graphs is
+#  quite complex and the complexity does not seem worthwhile at this time.
+class FlowVersion(UUIDModel, VersionedCommit):
     """
-    A flow version is a specific (generally) immutable snapshot of a flow.
+    A flow version is a specific (generally) immutable specification of a flow.
     """
 
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
-    version = models.CharField(max_length=256)
-    name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
-    description = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
+    parents = models.ManyToManyField("FlowVersion", symmetrical=False)
 
 
 class FlowNode(UUIDModel):

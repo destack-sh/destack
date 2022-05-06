@@ -9,9 +9,6 @@ class Tag(UUIDModel):
     artifacts, functions and executions with some metadata.
     """
 
-    # TODO @Feature: version (some) tags?
-    #  Where would versioned tags be needed? Is copy-on-write enough?
-
     type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(
@@ -23,7 +20,24 @@ class Tag(UUIDModel):
 
 
 class TaggedItem(UUIDModel):
-    pass
+    """
+    Tagged items track Tag<->Model relationships in a single place.
+    """
+
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="tagged_items")
+
+    artifact = models.ForeignKey(
+        "Artifact", on_delete=models.CASCADE, related_name="tagged_items"
+    )
+    artifact_version = models.ForeignKey(
+        "ArtifactVersion", on_delete=models.CASCADE, related_name="tagged_items"
+    )
+    flow = models.ForeignKey(
+        "Flow", on_delete=models.CASCADE, related_name="tagged_items"
+    )
+    flow_version = models.ForeignKey(
+        "FlowVersion", on_delete=models.CASCADE, related_name="tagged_items"
+    )
 
 
 class Alias(Tag):

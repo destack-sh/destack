@@ -17,7 +17,7 @@ def _load_model_version(name: str, version: str) -> ModelVersion:
         raise Http404()
 
 
-async def predict(request: HttpRequest):
+async def predict(request: HttpRequest) -> JsonResponse:
     model = await sync_to_async(_load_model_version)(
         name=request.GET["name"], version=request.GET["version"]
     )
