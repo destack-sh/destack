@@ -1,7 +1,7 @@
 import abc
 from typing import Dict, Mapping, Optional, Union
 
-from bench.models import ArtifactVersion, DatasetVersion
+from bench.models import ArtifactVersion
 from bench.models.flow import FlowNode, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
@@ -17,25 +17,14 @@ class Executor(abc.ABC):
     Base executor for orchestrating, routing and executing resources.
     """
 
-    async def load_model(
+    async def load_artifact(
         self,
-        model: ModelVersion,
+        model: ArtifactVersion,
         requirements: Optional[ResourceRequirements] = None,
     ):
         """
         Make the model available in this executor with the given resources.
         """
-        raise NotImplementedError
-
-    async def load_dataset(
-        self,
-        dataset: DatasetVersion,
-        requirements: Optional[ResourceRequirements] = None,
-    ):
-        """
-        Make the dataset available in this executor with the given resources
-        """
-
         raise NotImplementedError
 
     async def load_flow_node(

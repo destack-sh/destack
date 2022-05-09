@@ -1,28 +1,30 @@
 import abc
-from typing import Any, Dict, Optional, Set, Type, Union
+from typing import Any, Dict, Optional, Type, Union
 
+from fsspec import AbstractFileSystem
+
+from bench.artifact.base import ArtifactHandler
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import ConfigSpec, DatasetSpec, DatasetType, RecordSpec
+from bench.utils.spec import DatasetSpec, DatasetType, RecordSpec
 
 
-class DatasetHandler(abc.ABC):
+class DatasetHandler(ArtifactHandler):
     """
     Base for dataset implementations.
     """
 
     # Known base dataset spec for all datasets of this handler.
     base_spec: Union[None, DatasetType, DatasetSpec] = None
-    # Config spec to configure this handler.
-    config_spec: ConfigSpec
-    # Config values are immutable after init. If not set, defaults to all keys.
-    config_static_keys: Set[str]
 
     def __init__(
         self,
-        spec: Union[None, DatasetType, DatasetSpec] = None,
+        fs: AbstractFileSystem = None,
+        path: Optional[str] = None,
         version: Optional[str] = None,
+        spec: Union[None, DatasetType, DatasetSpec] = None,
     ):
+        super().__init__(fs=fs, path=path, version=version)
         if spec is None:
             if self.base_spec is None:
                 raise ValueError(
@@ -32,7 +34,6 @@ class DatasetHandler(abc.ABC):
                 self.spec = self.base_spec
         else:
             self.spec = spec
-        self.version = version
 
     def update_config(self, **kwargs):
         pass

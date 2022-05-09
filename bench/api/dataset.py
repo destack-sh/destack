@@ -21,6 +21,6 @@ async def get(request: HttpRequest) -> JsonResponse:
     dataset_version = await sync_to_async(_load_dataset_version)(
         name=request.GET["name"], version=request.GET["version"]
     )
-    await executor.load_dataset(dataset_version)
+    await executor.load_artifact(dataset_version)
 
     return JsonResponse()
