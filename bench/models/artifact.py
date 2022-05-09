@@ -62,11 +62,26 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     artifact = models.ForeignKey(
         Artifact, on_delete=models.CASCADE, related_name="versions"
     )
+    version = models.CharField(max_length=256)
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
     # snapshot data (may move into separate ArtifactSnapshot table at some point)
+    record_tree = models.ForeignKey(
+        "RecordTree", on_delete=models.RESTRICT, blank=True, null=True
+    )
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
     metadata = models.JSONField()
+
+    class Meta:
+        indexes = [
+            models.Index(name="bench_artifact_version_version_idx", fields=["version"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_artifact_version_artifact_version_ak",
+                fields=["artifact", "version"],
+            )
+        ]
 
 
 class ArtifactView(UUIDModel):

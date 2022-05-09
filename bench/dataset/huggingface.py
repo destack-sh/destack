@@ -15,7 +15,7 @@ from bench.utils.spec import (
 
 
 @datasets.register("bench.huggingface")
-class HuggingFaceDatasetHandler(DatasetReader):
+class HuggingFaceRemoteDatasetReader(DatasetReader):
     def __init__(
         self,
         dataset_name: str,

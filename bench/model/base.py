@@ -1,34 +1,30 @@
 import abc
-from typing import AbstractSet, Any, Dict, List, Optional, Set, Type, Union
+from typing import AbstractSet, Any, Dict, List, Optional, Type, Union
 
+from fsspec import AbstractFileSystem
+
+from bench.artifact.base import ArtifactHandler
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
-from bench.utils.spec import (
-    ConfigSpec,
-    ConfigType,
-    ModelSpec,
-    ModelType,
-    convert_to_config_spec,
-)
+from bench.utils.spec import ModelSpec, ModelType, convert_to_config_spec
 
 
-class ModelHandler(abc.ABC):
+class ModelHandler(ArtifactHandler):
     """
     Base for model implementations that can load and run a model from some source.
     """
 
     # Known base model spec for all models of this handler.
     base_spec: Union[None, ModelType, ModelSpec] = None
-    # Config spec for configuring this handler.
-    config_spec: Union[ConfigType, ConfigSpec]
-    # Config values that are immutable after init. If not set, defaults to all keys.
-    config_static_keys: Set[str]
 
     def __init__(
         self,
-        spec: Union[None, ModelType, ModelSpec] = None,
+        fs: Optional[AbstractFileSystem] = None,
+        path: Optional[str] = None,
         version: Optional[str] = None,
+        spec: Union[None, ModelType, ModelSpec] = None,
     ):
+        super().__init__(fs=fs, path=path, version=version)
         if spec is None:
             if self.base_spec is None:
                 raise ValueError(
@@ -38,7 +34,6 @@ class ModelHandler(abc.ABC):
                 self.spec = self.base_spec
         else:
             self.spec = spec
-        self.version = version
 
     def update_config(self, **kwargs):
         pass
