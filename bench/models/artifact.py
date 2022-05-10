@@ -24,7 +24,7 @@ class Artifact(UUIDModel, VersionedRepository):
     Artifacts are versioned. Known versions are available in 'versions'. If we own
     the artifact (i.e. it is not externally controlled), 'versions' is exhaustive.
 
-    Artifact data may be stored outside the DB (e.g., large models, images) and should be
+    Artifact data may be stored outside the DB (e.g., large models, images) and can be
     stored directly in the DB where appropriate/convenient (e.g., metadata, metrics).
     """
 
@@ -66,7 +66,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
     # snapshot data (may move into separate ArtifactSnapshot table at some point)
-    record_tree = models.ForeignKey(
+    records = models.ForeignKey(
         "RecordTree", on_delete=models.RESTRICT, blank=True, null=True
     )
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
@@ -74,7 +74,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
 
     class Meta:
         indexes = [
-            models.Index(name="bench_artifact_version_version_idx", fields=["version"]),
+            models.Index(name="bench_artifact_version_idx", fields=["version"]),
         ]
         constraints = [
             models.UniqueConstraint(
