@@ -28,11 +28,15 @@ class RecordTree(UUIDModel, VersionedTree):
     A tree referring to other records or subtrees.
     """
 
-    records = models.ManyToManyField(Record, through="RecordTreeReference")
-    subtrees = models.ManyToManyField("RecordTree", through="RecordTreeReference")
+    records = models.ManyToManyField(
+        Record, through="RecordTreeReference", through_fields=("tree", "record")
+    )
+    subtrees = models.ManyToManyField(
+        "RecordTree", through="RecordTreeReference", through_fields=("tree", "subtree")
+    )
 
 
-class RecordTreeReference(models.Model):
+class RecordTreeReference(UUIDModel):
     """
     A reference from a 'tree' to either a record or a subtree at a relative index.
     """
@@ -41,13 +45,18 @@ class RecordTreeReference(models.Model):
         RecordTree, on_delete=models.CASCADE, related_name="references"
     )
     index = models.IntegerField()
-    record = models.ForeignKey(Record, on_delete=models.CASCADE, null=True, blank=True)
-    subtree = models.ForeignKey(Record, on_delete=models.CASCADE, null=True, blank=True)
+    record = models.ForeignKey(
+        Record, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+    )
+    subtree = models.ForeignKey(
+        RecordTree, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+    )
 
     class Meta:
+        ordering = ["tree", "index"]
         constraints = [
             models.UniqueConstraint(
-                name="bench_record_tree_membership_index_ak", fields=["tree", "index"]
+                name="bench_record_tree_reference_index_ak", fields=["tree", "index"]
             ),
             models.CheckConstraint(
                 name="bench_record_tree_reference_set",
