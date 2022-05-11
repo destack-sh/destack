@@ -13,6 +13,7 @@ We deviate from Git in that:
  - We are effectively centralised, not distributed.
  - Objects are indexed by their hash, but primary/foreign keys use UUIDs.
  - Objects may contain metadata invisible to the versioning process.
+ - Objects may be marked 'mutable' before becoming immutable forever.
 """
 
 from django.db import models
@@ -22,7 +23,7 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 class VersionedRepository(models.Model):
     """
-    A versioned repository similar to Git.
+    A versioned repository containing versioned objects, similar to Git.
     """
 
     class Meta:
@@ -39,6 +40,7 @@ class VersionedObject(models.Model):
     # TODO @Robustness: hash object content in Postgres directly?
     #  See https://www.postgresql.org/docs/11/functions-binarystring.html
     content_hash = models.BinaryField(max_length=32)
+    mutable = models.BooleanField(default=False)
 
     class Meta:
         abstract = True

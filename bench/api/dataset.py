@@ -24,6 +24,8 @@ class DatasetVersionSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class RecordSerializer(serializers.ModelSerializer):
+    index = serializers.SerializerMethodField()
+
     class Meta:
         model = Record
         fields = ["data", "metadata"]

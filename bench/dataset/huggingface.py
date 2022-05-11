@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, List, Optional, Union
+from typing import Iterator, Optional, Union
 
 import datasets as hf_datasets
 
@@ -54,12 +54,12 @@ class HuggingFaceRemoteDatasetReader(DatasetReader):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> List[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldType]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, List[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldType]]:
         if isinstance(index, int):
             return self._dataset[index]
         elif isinstance(index, slice):

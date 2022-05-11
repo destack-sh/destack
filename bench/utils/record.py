@@ -27,12 +27,12 @@ class RecordBatch(abc.ABC):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> List[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldType]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, List[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldType]]:
         raise NotImplementedError
 
     def __iter__(self) -> Iterator[Record]:
@@ -65,12 +65,12 @@ class RecordList(RecordBatch):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> List[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldType]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, List[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldType]]:
         # TODO @Performance: improve RecordList __getitem__.
         #  There are probably a thousand better ways of doing this,
         #  see e.g. numpy views, Activeloop Datasets, HuggingFace Datasets, etc.
