@@ -1,9 +1,12 @@
+from typing import Iterator, Optional, cast
+
 from django.contrib.postgres.indexes import GinIndex
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 
 from bench.models.utils import UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedTree
+from bench.utils.spec import FieldType
 
 
 class Record(UUIDModel, VersionedBlob):
@@ -25,15 +28,10 @@ class Record(UUIDModel, VersionedBlob):
 
 class RecordTree(UUIDModel, VersionedTree):
     """
-    A tree referring to other records or subtrees.
+    A tree referring to other records or subtrees with contiguous indices.
     """
 
-    records = models.ManyToManyField(
-        Record, through="RecordTreeReference", through_fields=("tree", "record")
-    )
-    subtrees = models.ManyToManyField(
-        "RecordTree", through="RecordTreeReference", through_fields=("tree", "subtree")
-    )
+    max_index = models.IntegerField()
 
 
 class RecordTreeReference(UUIDModel):
@@ -64,3 +62,87 @@ class RecordTreeReference(UUIDModel):
                 | Q(record__isnull=False, subtree__isnull=True),
             ),
         ]
+
+
+def get_parent_tree(tree: RecordTree, index: int) -> RecordTree:
+    """
+    Gets the immediate parent tree for the given index (relative to this tree)
+
+    Record trees are .. trees, so we may need to dig down to get a parent tree:
+     - If index exists exactly on this tree and is a record
+       -> return record
+     - If index doesn't exist or points to a subtree
+       -> recurse and subtract relative index
+    """
+
+    if index < 0 or index > tree.max_index:
+        raise LookupError(f"tree [0, {tree.max_index}] does not contain index {index}")
+    reference: Optional[RecordTreeReference] = (
+        RecordTreeReference.objects.filter(tree=tree, index__gte=index)
+        .order_by("index")
+        .select_related("subtree")
+        .first()
+    )
+    if reference is None:
+        # Tree is not contiguous, this should never happen.
+        raise RuntimeError(f"tree [0, {tree.max_index}] is missing {index}")
+    elif reference.subtree:
+        return get_parent_tree(reference.subtree, index - reference.index)
+    else:
+        return tree
+
+
+def get_record(tree: RecordTree, index: int) -> Record:
+    """
+    Gets the Record at the given index within the tree
+    """
+    parent_tree = get_parent_tree(tree, index)
+    reference: RecordTreeReference = (
+        RecordTreeReference.objects.filter(tree=parent_tree, index=index)
+        .select_related("record")
+        .get()
+    )
+    # must be non-null because of get_parent_tree
+    return cast(Record, reference.record)
+
+
+def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
+    """
+    Gets the Records in the given range within the tree
+    """
+    records = []
+    for i in range(start, stop):
+        records.append(get_record(tree, i))
+    return records
+
+
+def get_records_field(tree: RecordTree, index: str) -> list[FieldType]:
+    """
+    Gets specific fields of the given tree within
+    """
+    raise NotImplementedError
+
+
+def append_to_tree(tree: RecordTree, record: Record):
+    """
+    Appends the given record to the "end" of the given tree.
+    Changes are immediately persisted to the DB.
+    """
+    with transaction.atomic():
+        insert_index = tree.max_index + 1
+        tree.references.append(RecordTreeReference(index=insert_index, record=record))
+        tree.max_index = insert_index
+        tree.save()
+
+
+def iter_record_tree(tree: RecordTree) -> Iterator[Record]:
+    """
+    Lazily iterates through all records in the given tree (and its subtrees).
+    """
+    for reference in tree.references.all():
+        if reference.subtree:
+            yield from iter_record_tree(reference.subtree)
+        elif reference.record:
+            yield reference.record
+        else:
+            raise RuntimeError(f"malformed reference: {reference}")

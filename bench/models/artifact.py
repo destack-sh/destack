@@ -62,11 +62,16 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     artifact = models.ForeignKey(
         Artifact, on_delete=models.CASCADE, related_name="versions"
     )
+    # TODO @Cleanup @Architecture: remove/rename ArtifactVersion.version
+    #  Having 'version' inside ArtifactVersion, which is a VersionedCommit,
+    #  is confusing. We need to synchronize with external VCS and we need internal
+    #  version identifiers, so we can't? just use the PK.
+    #  Similar logic applies to FlowVersion.version.
     version = models.CharField(max_length=256)
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
     # snapshot data (may move into separate ArtifactSnapshot table at some point)
-    records = models.ForeignKey(
+    records_root = models.ForeignKey(
         "RecordTree", on_delete=models.RESTRICT, blank=True, null=True
     )
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
@@ -91,7 +96,6 @@ class ArtifactView(UUIDModel):
 
     If this view works only with specific versions, then it must specify the compatible
     versions in 'compatible_versions'. If empty, this view is assumed to be general.
-    TODO @Feature: version artifact views
     """
 
     type = models.CharField(max_length=64)
