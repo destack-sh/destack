@@ -19,9 +19,7 @@ class LocalExecutor(SimpleExecutor):
     def __init__(self):
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
 
-    async def _get_loaded_model(
-        self, model: ModelVersion, load_if_needed: bool
-    ) -> ModelHandler:
+    async def _get_loaded_model(self, model: ModelVersion, load_if_needed: bool) -> ModelHandler:
         model_iid = get_model_iid(model)
         if model_iid not in self._loaded_models_by_iid:
             if not load_if_needed:

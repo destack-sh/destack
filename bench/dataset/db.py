@@ -37,17 +37,18 @@ class DbDataset(DatasetReader, DatasetWriter):
         ).get()
 
     @property
-    def root_tree(self) -> RecordTree:
-        if self._dataset.records_root is None:
+    def root(self) -> RecordTree:
+        if self._dataset.record_tree_root is None:
             raise ValueError(f"dataset has no records root {self._dataset}")
-        return self._dataset.records_root
+        return self._dataset.record_tree_root
 
     def set_spec(self, spec: RecordSpec):
-        raise NotImplementedError
+        # nothing special needs to be done
+        pass
 
     def append(self, record: Record):
         db_record = DbRecord(data=record)
-        append_to_tree(self.root_tree, db_record)
+        append_to_tree(self.root, db_record)
 
     def extend(self, records: RecordBatch):
         # TODO @Performance: batch DbDataset.extend insert
@@ -56,7 +57,7 @@ class DbDataset(DatasetReader, DatasetWriter):
                 self.append(record)
 
     def update(self, index: int, record: Record):
-        db_record = get_record(self.root_tree, index)
+        db_record = get_record(self.root, index)
         db_record.data = record
         db_record.save()
 
@@ -79,20 +80,18 @@ class DbDataset(DatasetReader, DatasetWriter):
         self, index: Union[int, slice, str]
     ) -> Union[Record, RecordBatch, list[FieldType]]:
         if isinstance(index, int):
-            db_record = get_record(self.root_tree, index)
+            db_record = get_record(self.root, index)
             return db_record.data
         elif isinstance(index, slice):
-            db_records = get_records_slice(
-                self.root_tree, index.start, index.stop or len(self)
-            )
+            db_records = get_records_slice(self.root, index.start, index.stop or len(self))
             return RecordList([record.data for record in db_records])
         elif isinstance(index, str):
-            return get_records_field(self.root_tree, index)
+            return get_records_field(self.root, index)
         else:
             raise ValueError(f"unexpected index type: {index}")
 
     def __iter__(self) -> Iterator[Record]:
-        return iter_record_tree(self.root_tree)
+        return iter_record_tree(self.root)
 
     def __len__(self) -> int:
-        return self.root_tree.max_index
+        return self.root.max_index

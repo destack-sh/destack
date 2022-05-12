@@ -16,9 +16,7 @@ class Flow(UUIDModel, VersionedRepository):
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
-    )
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = FlowManager()
@@ -46,9 +44,7 @@ class FlowNode(UUIDModel):
     additional configuration arguments and/or augments the function config & execution.
     """
 
-    flow = models.ForeignKey(
-        FlowVersion, on_delete=models.CASCADE, related_name="nodes"
-    )
+    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="nodes")
     created_at = models.DateTimeField(auto_now_add=True)
 
     function_id = models.CharField(max_length=256)
@@ -61,9 +57,7 @@ class FlowNode(UUIDModel):
         related_name="dependent_nodes",
         symmetrical=False,
     )
-    controller = models.ForeignKey(
-        "Controller", on_delete=models.RESTRICT, blank=True, null=True
-    )
+    controller = models.ForeignKey("Controller", on_delete=models.RESTRICT, blank=True, null=True)
 
 
 class FlowNodeEdge(UUIDModel):

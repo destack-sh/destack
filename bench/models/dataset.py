@@ -4,14 +4,10 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict
 
+from django.db import transaction
 from django.db.models import QuerySet
 
-from bench.models.artifact import (
-    Artifact,
-    ArtifactManager,
-    ArtifactVersion,
-    ArtifactView,
-)
+from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion, ArtifactView
 from bench.models.utils import DATASET_TYPE
 from bench.utils.spec import DatasetSpec, RecordSpec
 
@@ -19,6 +15,16 @@ from bench.utils.spec import DatasetSpec, RecordSpec
 class DatasetManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Dataset]:
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
+
+    def create_dataset_version_by_name(
+        self, name: str, version: str, metadata: DatasetMetadata
+    ) -> DatasetVersion:
+        """Creates dataset version and corresponding dataset if it doesn't exist"""
+        with transaction.atomic():
+            dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
+            dataset_version = DatasetVersion(artifact=dataset, version=version, metadata=metadata)
+            dataset_version.save()
+        return dataset_version
 
 
 class Dataset(Artifact):

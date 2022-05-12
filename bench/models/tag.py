@@ -11,9 +11,7 @@ class Tag(UUIDModel):
 
     type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
-    )
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     metadata = models.JSONField(default=dict)
@@ -26,15 +24,11 @@ class TaggedItem(UUIDModel):
 
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="tagged_items")
 
-    artifact = models.ForeignKey(
-        "Artifact", on_delete=models.CASCADE, related_name="tagged_items"
-    )
+    artifact = models.ForeignKey("Artifact", on_delete=models.CASCADE, related_name="tagged_items")
     artifact_version = models.ForeignKey(
         "ArtifactVersion", on_delete=models.CASCADE, related_name="tagged_items"
     )
-    flow = models.ForeignKey(
-        "Flow", on_delete=models.CASCADE, related_name="tagged_items"
-    )
+    flow = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="tagged_items")
     flow_version = models.ForeignKey(
         "FlowVersion", on_delete=models.CASCADE, related_name="tagged_items"
     )

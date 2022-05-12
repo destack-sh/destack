@@ -1,4 +1,13 @@
-from typing import Any, Callable, Dict, Generic, Optional, Sequence, Tuple, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 
 import structlog
 
@@ -32,16 +41,12 @@ class Registry(Generic[T]):
 
         key = self._get_key(name)
         if name in self._registered_objects:
-            raise RegistryError(
-                f"name {name} is already registered in {self.namespace}"
-            )
+            raise RegistryError(f"name {name} is already registered in {self.namespace}")
         self._registered_objects[key] = obj
         self.logger.debug("register", name=name, obj=obj, impl=impl)
         return obj
 
-    def register(
-        self, name: str, *, impl: Optional[T] = None, obj: Optional[Any] = None
-    ):
+    def register(self, name: str, *, impl: Optional[T] = None, obj: Optional[Any] = None):
         if obj is not None:
             return self._do_register(name, obj=obj, impl=impl)
 

@@ -8,9 +8,7 @@ class Router(Function):
     input_spec = None
     output_spec = None
 
-    def __init__(
-        self, predicate: Predicate, function_a: Function, function_b: Function
-    ):
+    def __init__(self, predicate: Predicate, function_a: Function, function_b: Function):
         self.predicate = predicate
         self.function_a = function_a
         self.function_b = function_b

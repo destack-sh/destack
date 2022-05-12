@@ -35,9 +35,7 @@ class ModelManager(ArtifactManager):
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)
-            model_version = ModelVersion(
-                artifact=model, version=version, metadata=metadata
-            )
+            model_version = ModelVersion(artifact=model, version=version, metadata=metadata)
             model_version.save()
         return model_version
 

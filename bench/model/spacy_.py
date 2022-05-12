@@ -14,9 +14,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         self.has_categories = self.nlp.has_pipe("textcat") or self.nlp.has_pipe(
             "textcat_multilabel"
         )
-        self.has_entities = self.nlp.has_pipe("ner") or self.nlp.has_pipe(
-            "entity_ruler"
-        )
+        self.has_entities = self.nlp.has_pipe("ner") or self.nlp.has_pipe("entity_ruler")
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:
         tokens: list[dict] = [{"text": token.text} for token in doc]

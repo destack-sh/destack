@@ -4,7 +4,17 @@ import abc
 import inspect
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Type, Union, cast
+from typing import (
+    Any,
+    Callable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import docstring_parser
 import numpy as np
@@ -15,9 +25,7 @@ from bench.utils.registry import get_qualified_name
 
 FieldTypePrimitive = Union[str, int, float, bytes, np.ndarray, PIL.Image.Image]
 FieldType = Type[
-    Union[
-        FieldTypePrimitive, List[FieldTypePrimitive], Mapping[str, FieldTypePrimitive]
-    ]
+    Union[FieldTypePrimitive, List[FieldTypePrimitive], Mapping[str, FieldTypePrimitive]]
 ]
 
 
@@ -123,21 +131,15 @@ ArtifactSetSpec = Mapping[str, ArtifactSpec]
 def reduce_to_record_type(
     spec: Mapping[str, AnySpec], ignore_invalid: bool = False
 ) -> RecordTypeStrict:
-    record_spec = {
-        value.name: value for value in spec.values() if isinstance(value, FieldSpec)
-    }
+    record_spec = {value.name: value for value in spec.values() if isinstance(value, FieldSpec)}
     if not ignore_invalid:
-        bad_specs = {
-            value for value in spec.values() if not isinstance(value, FieldSpec)
-        }
+        bad_specs = {value for value in spec.values() if not isinstance(value, FieldSpec)}
         if bad_specs:
             raise ValueError(f"invalid value spec for record spec: {bad_specs}")
     return record_spec
 
 
-def convert_to_record_type(
-    spec: Mapping[str, Union[AnyType, AnySpec]]
-) -> RecordTypeStrict:
+def convert_to_record_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> RecordTypeStrict:
     spec = convert_to_spec(spec)
     spec = reduce_to_record_type(spec)
     return spec
@@ -148,9 +150,7 @@ def convert_to_record_spec(
 ) -> RecordSpec:
     if isinstance(spec, RecordSpec):
         converted_spec = convert_to_record_type(spec.type)
-        spec = RecordSpec(
-            name=spec.name, description=spec.description, type=converted_spec
-        )
+        spec = RecordSpec(name=spec.name, description=spec.description, type=converted_spec)
         return spec
     else:
         converted_spec = convert_to_record_type(spec)
@@ -158,9 +158,7 @@ def convert_to_record_spec(
         return spec
 
 
-def convert_to_config_type(
-    spec: Mapping[str, Union[AnyType, AnySpec]]
-) -> ConfigTypeStrict:
+def convert_to_config_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> ConfigTypeStrict:
     spec = convert_to_spec(spec)
     # no special logic for config spec yet
     return spec
@@ -171,9 +169,7 @@ def convert_to_config_spec(
 ) -> ConfigSpec:
     if isinstance(spec, ConfigSpec):
         converted_spec = convert_to_spec(spec.type)
-        spec = ConfigSpec(
-            name=spec.name, description=spec.description, type=converted_spec
-        )
+        spec = ConfigSpec(name=spec.name, description=spec.description, type=converted_spec)
         return spec
     else:
         converted_spec = convert_to_spec(spec)
@@ -181,14 +177,10 @@ def convert_to_config_spec(
         return spec
 
 
-def convert_to_spec(
-    spec: Mapping[str, Union[AnyType, AnySpec]]
-) -> Mapping[str, AnySpec]:
+def convert_to_spec(spec: Mapping[str, Union[AnyType, AnySpec]]) -> Mapping[str, AnySpec]:
     converted_spec: dict[str, AnySpec] = {}
     for key, value in spec.items():
-        converted_spec[key] = _type_to_spec(
-            key=key, description="", value=value, ignore_spec=True
-        )
+        converted_spec[key] = _type_to_spec(key=key, description="", value=value, ignore_spec=True)
     return converted_spec
 
 
@@ -232,9 +224,7 @@ def _type_to_spec(
         else:
             raise ValueError(f"type {value} is already a spec type")
     elif isinstance(value, dict):  # RecordType
-        return RecordSpec(
-            name=key, description=description, type=convert_to_record_type(value)
-        )
+        return RecordSpec(name=key, description=description, type=convert_to_record_type(value))
     elif isinstance(value, DatasetType):
         return DatasetSpec(
             name=key,
@@ -345,16 +335,12 @@ def _get_typed_signature(func: Callable) -> inspect.Signature:
     return typed_signature
 
 
-def _get_typed_annotation(
-    param: inspect.Parameter, global_namespace: dict[str, Any]
-) -> Any:
+def _get_typed_annotation(param: inspect.Parameter, global_namespace: dict[str, Any]) -> Any:
     """Gets resolved type annotations for a parameter"""
     # Note: In Python 3.10, we should be able to replace this resoluton logic
     #  with https://docs.python.org/3/library/inspect.html#inspect.get_annotations
     annotation = param.annotation
     if isinstance(annotation, str):
         forward_ref = ForwardRef(annotation)
-        annotation = evaluate_forwardref(
-            forward_ref, global_namespace, global_namespace
-        )
+        annotation = evaluate_forwardref(forward_ref, global_namespace, global_namespace)
     return annotation

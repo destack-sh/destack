@@ -27,17 +27,13 @@ class Executor(abc.ABC):
         """
         raise NotImplementedError
 
-    async def load_flow_node(
-        self, flow_node: FlowNode, requirements: ResourceRequirements
-    ):
+    async def load_flow_node(self, flow_node: FlowNode, requirements: ResourceRequirements):
         """
         Make the flow available in this executor with the given resources.
         """
         raise NotImplementedError
 
-    async def load_flow(
-        self, flow: FlowVersion, requirements: PerNodeResourceRequirements
-    ):
+    async def load_flow(self, flow: FlowVersion, requirements: PerNodeResourceRequirements):
         """
         Make the flow available in this executor with the given resources.
         """

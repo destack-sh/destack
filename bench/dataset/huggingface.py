@@ -5,17 +5,11 @@ import datasets as hf_datasets
 
 from bench.dataset.base import DatasetReader, datasets
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import (
-    DatasetSpec,
-    FieldSpec,
-    FieldType,
-    RecordSpec,
-    RecordTypeStrict,
-)
+from bench.utils.spec import DatasetSpec, FieldSpec, FieldType, RecordSpec, RecordTypeStrict
 
 
-@datasets.register("bench.huggingface")
-class HuggingFaceRemoteDatasetReader(DatasetReader):
+@datasets.register("bench.huggingface.hub")
+class HuggingFaceHubDatasetReader(DatasetReader):
     def __init__(
         self,
         dataset_name: str,

@@ -14,9 +14,7 @@ def get_model_iid(model: ModelVersion) -> str:
     If the iids match, the same ModelHandler instance may be used.
     """
     static_keys = get_static_config_keys(model.handler_id)
-    static_config = {
-        key: val for key, val in model.config_arguments.items() if key in static_keys
-    }
+    static_config = {key: val for key, val in model.config_arguments.items() if key in static_keys}
     if model.storage_uri is not None:
         # Include storage uri in static config since it's not part of the config
         #  arguments given to the model but handled before loading it.
@@ -30,7 +28,5 @@ def get_model_iid(model: ModelVersion) -> str:
     )
 
 
-def format_model_iid(
-    model_id: UUID, version: Optional[str], arguments_hash: Optional[str]
-):
+def format_model_iid(model_id: UUID, version: Optional[str], arguments_hash: Optional[str]):
     return f"{str(model_id)}-{version or 'current'}-{arguments_hash or '0'}"
