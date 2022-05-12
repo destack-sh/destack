@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, cast
+from typing import Iterator, Optional, Tuple, cast
 
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
@@ -31,7 +31,7 @@ class RecordTree(UUIDModel, VersionedTree):
     A tree referring to other records or subtrees with contiguous indices.
     """
 
-    max_index = models.IntegerField()
+    max_index = models.IntegerField(default=-1)
 
 
 class RecordTreeReference(UUIDModel):
@@ -62,7 +62,7 @@ class RecordTreeReference(UUIDModel):
         ]
 
 
-def get_parent_tree(tree: RecordTree, index: int) -> RecordTree:
+def get_parent_tree(tree: RecordTree, index: int) -> Tuple[RecordTree, RecordTreeReference]:
     """
     Gets the immediate parent tree for the record at the index (relative to this tree)
 
@@ -87,19 +87,14 @@ def get_parent_tree(tree: RecordTree, index: int) -> RecordTree:
     elif reference.subtree:
         return get_parent_tree(reference.subtree, index - reference.index)
     else:
-        return tree
+        return tree, reference
 
 
 def get_record(tree: RecordTree, index: int) -> Record:
     """
     Gets the Record at the given index within the tree
     """
-    parent_tree = get_parent_tree(tree, index)
-    reference: RecordTreeReference = (
-        RecordTreeReference.objects.filter(tree=parent_tree, index=index)
-        .select_related("record")
-        .get()
-    )
+    parent_tree, reference = get_parent_tree(tree, index)
     # must be non-null because of get_parent_tree
     return cast(Record, reference.record)
 
@@ -129,7 +124,8 @@ def append_to_tree(tree: RecordTree, record: Record):
     """
     with transaction.atomic():
         insert_index = tree.max_index + 1
-        tree.references.append(RecordTreeReference(index=insert_index, record=record))
+        record.save()
+        tree.references.create(index=insert_index, record=record)
         tree.max_index = insert_index
         tree.save()
 

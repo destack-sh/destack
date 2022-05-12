@@ -4,7 +4,7 @@ from uuid import UUID
 
 from django.db import transaction
 
-from bench.dataset.base import DatasetReader, DatasetWriter
+from bench.dataset.base import DatasetReader, DatasetWriter, datasets
 from bench.models import DatasetVersion
 from bench.models import Record as DbRecord
 from bench.models.record import (
@@ -16,25 +16,30 @@ from bench.models.record import (
     iter_record_tree,
 )
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetSpec, DatasetType, FieldType, RecordSpec
+from bench.utils.spec import FieldType, RecordSpec
 
 
 # TODO @Architecture: what does DbDataset do? how does it relate to actual Dataset/DatasetVersion
 #  Clearly, DbDataset is special since it talks directly to our DB.
 #  Also, DbDataset should not deal with anything but DbRecord.data (e.g. its metadata).
 #  Generally, we probably want some higher level interface orchestrating our DB access.
+@datasets.register("bench.db")
 class DbDataset(DatasetReader, DatasetWriter):
     def __init__(
         self,
         artifact_id: UUID,
         version: str,
-        spec: Union[None, DatasetType, DatasetSpec] = None,
     ):
-        super().__init__(version=version, spec=spec)
-
         self._dataset: DatasetVersion = DatasetVersion.objects.filter(
             artifact_id=artifact_id, version=version
         ).get()
+
+        # TODO @Cleanup: move/guard record tree creation on write access?
+        if self._dataset.record_tree_root is None:
+            self._dataset.record_tree_root = RecordTree()
+            self._dataset.save()
+
+        super().__init__(version=version, spec=self._dataset.spec)
 
     @property
     def root(self) -> RecordTree:

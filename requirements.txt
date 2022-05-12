@@ -48,6 +48,8 @@ click==8.0.4
     #   ray
 commonmark==0.9.1
     # via rich
+dataclasses-json==0.5.7
+    # via -r requirements.in
 datasets==2.1.0
     # via -r requirements.in
 dill==0.3.4
@@ -126,6 +128,12 @@ jsonschema==4.4.0
     # via
     #   drf-spectacular
     #   ray
+marshmallow==3.15.0
+    # via
+    #   dataclasses-json
+    #   marshmallow-enum
+marshmallow-enum==1.5.1
+    # via dataclasses-json
 monotonic==1.6
     # via posthoganalytics
 msgpack==1.0.3
@@ -138,6 +146,8 @@ multiprocess==0.70.12.2
     # via
     #   datasets
     #   pathos
+mypy-extensions==0.4.3
+    # via typing-inspect
 numcodecs==0.9.1
     # via hub
 numpy==1.22.3
@@ -153,6 +163,7 @@ packaging==21.3
     # via
     #   datasets
     #   huggingface-hub
+    #   marshmallow
 pandas==1.4.2
     # via datasets
 pathos==0.2.8
@@ -228,7 +239,11 @@ tqdm==4.64.0
     #   hub
     #   huggingface-hub
 typing-extensions==4.1.1
-    # via huggingface-hub
+    # via
+    #   huggingface-hub
+    #   typing-inspect
+typing-inspect==0.7.1
+    # via dataclasses-json
 uritemplate==4.1.1
     # via drf-spectacular
 urllib3==1.26.9

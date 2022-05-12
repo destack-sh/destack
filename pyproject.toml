@@ -34,3 +34,5 @@ skip = "migrations"
 
 [tool.pytest.ini_options]
 addopts = "--ds=bench.settings"
+# use below for distributed pytest
+# addopts = "--ds=bench.settings -n=4 --dist=loadscope"
