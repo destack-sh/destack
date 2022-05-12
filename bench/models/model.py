@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, Optional
 
+from dataclasses_json import dataclass_json
 from django.db import transaction
 from django.db.models import QuerySet
 
@@ -25,7 +26,7 @@ class ModelManager(ArtifactManager):
     ) -> Model:
         """Creates the given model with an initial version"""
         model = Model(type=MODEL_TYPE, name=name, description=description)
-        model.versions.create(version=initial_version, metadata=metadata)
+        model.versions.create(version=initial_version, metadata=metadata.to_dict())
         model.save()
         return model
 
@@ -35,7 +36,9 @@ class ModelManager(ArtifactManager):
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)
-            model_version = ModelVersion(artifact=model, version=version, metadata=metadata)
+            model_version = ModelVersion(
+                artifact=model, version=version, metadata=metadata.to_dict()
+            )
             model_version.save()
         return model_version
 
@@ -58,6 +61,7 @@ class Model(Artifact):
         proxy = True
 
 
+@dataclass_json
 @dataclass(frozen=True)
 class ModelMetadata:
     handler_id: str
@@ -72,24 +76,24 @@ class ModelVersion(ArtifactVersion):
     """
 
     @cached_property
-    def _metadata(self) -> ModelMetadata:
-        return ModelMetadata(**self.metadata)
+    def _metadata_typed(self) -> ModelMetadata:
+        return ModelMetadata.from_dict(self.metadata)
 
     @cached_property
     def handler_id(self) -> str:
-        return self._metadata.handler_id
+        return self._metadata_typed.handler_id
 
     @cached_property
     def config_arguments(self):
-        return self._metadata.config_arguments
+        return self._metadata_typed.config_arguments
 
     @cached_property
     def input_spec(self):
-        return self._metadata.input_spec
+        return self._metadata_typed.input_spec
 
     @cached_property
     def output_spec(self):
-        return self._metadata.input_spec
+        return self._metadata_typed.input_spec
 
     @property
     def spec(self) -> ModelSpec:

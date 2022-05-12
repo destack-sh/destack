@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict
 
+from dataclasses_json import dataclass_json
 from django.db import transaction
 from django.db.models import QuerySet
 
@@ -22,7 +23,9 @@ class DatasetManager(ArtifactManager):
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
-            dataset_version = DatasetVersion(artifact=dataset, version=version, metadata=metadata)
+            dataset_version = DatasetVersion(
+                artifact=dataset, version=version, metadata=metadata.to_dict()
+            )
             dataset_version.save()
         return dataset_version
 
@@ -41,6 +44,7 @@ class Dataset(Artifact):
         proxy = True
 
 
+@dataclass_json
 @dataclass(frozen=True)
 class DatasetMetadata:
     handler_id: str
@@ -58,27 +62,27 @@ class DatasetVersion(ArtifactVersion):
     """
 
     @cached_property
-    def _metadata(self) -> DatasetMetadata:
-        return DatasetMetadata(**self.metadata)
+    def _metadata_typed(self) -> DatasetMetadata:
+        return DatasetMetadata.from_dict(self.metadata)
 
     @cached_property
     def handler_id(self) -> str:
-        return self._metadata.handler_id
+        return self._metadata_typed.handler_id
 
     @cached_property
     def config_arguments(self):
-        return self._metadata.config_arguments
+        return self._metadata_typed.config_arguments
 
     @cached_property
     def record_spec(self):
-        return self._metadata.record_spec
+        return self._metadata_typed.record_spec
 
     @property
     def spec(self) -> DatasetSpec:
         return DatasetSpec(
             name=self.artifact.name,
             description=self.artifact.description or "",
-            record_spec=self._metadata.record_spec,
+            record_spec=self._metadata_typed.record_spec,
         )
 
     class Meta:

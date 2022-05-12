@@ -24,9 +24,7 @@ from pydantic.typing import ForwardRef, evaluate_forwardref
 from bench.utils.registry import get_qualified_name
 
 FieldTypePrimitive = Union[str, int, float, bytes, np.ndarray, PIL.Image.Image]
-FieldType = Type[
-    Union[FieldTypePrimitive, List[FieldTypePrimitive], Mapping[str, FieldTypePrimitive]]
-]
+FieldType = Union[FieldTypePrimitive, List[FieldTypePrimitive], Mapping[str, FieldTypePrimitive]]
 
 
 class _Type(abc.ABC):
@@ -115,17 +113,17 @@ class ConfigSpec(_Spec):
     type: ConfigTypeStrict
 
 
-RecordType = Mapping[str, Union[FieldType, FieldSpec]]
-RecordTypeStrict = Mapping[str, FieldSpec]
+RecordType = dict[str, Union[FieldType, FieldSpec]]
+RecordTypeStrict = dict[str, FieldSpec]
 
 AnyType = Union[FieldType, RecordType, ModelType, DatasetType]
 AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]
 
-ConfigType = Mapping[str, Union[AnyType, AnySpec]]
-ConfigTypeStrict = Mapping[str, AnySpec]
+ConfigType = dict[str, Union[AnyType, AnySpec]]
+ConfigTypeStrict = dict[str, AnySpec]
 
-ArtifactSetType = Mapping[str, ArtifactType]
-ArtifactSetSpec = Mapping[str, ArtifactSpec]
+ArtifactSetType = dict[str, ArtifactType]
+ArtifactSetSpec = dict[str, ArtifactSpec]
 
 
 def reduce_to_record_type(

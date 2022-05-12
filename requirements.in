@@ -24,5 +24,6 @@ catalogue==2.0.7
 docarray==0.13.3
 docstring-parser==0.14.1
 fsspec==2022.3.0
+dataclasses_json==0.5.7
 # compatibility
 click<8.1.0 # for spacy in compute

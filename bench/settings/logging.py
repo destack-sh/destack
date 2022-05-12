@@ -8,10 +8,26 @@ from bench.settings import get_from_env
 from bench.settings.base import DEBUG, TEST
 
 LOGS_PATH: str = get_from_env("LOGS_PATH", "logs")
-if DEBUG or TEST:
+HANDLERS = {
+    "console": {
+        "class": "logging.StreamHandler",
+        "formatter": "plain_console",
+    },
+}
+
+if DEBUG and not TEST:
     # log to file and ensure corresponding directory exists
     logged_handlers = ["console", "flat_line_file"]
     Path(LOGS_PATH).mkdir(exist_ok=True)
+    # configure file handlers only if needed as all handlers are instantiated
+    #  and file handlers fail is their path does not exist
+    HANDLERS["flat_line_file"] = (
+        {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "flat_line.log"),
+            "formatter": "key_value",
+        },
+    )
 else:
     logged_handlers = ["console"]
 
@@ -34,17 +50,7 @@ LOGGING = {
             ),
         },
     },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "plain_console",
-        },
-        "flat_line_file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOGS_PATH, "flat_line.log"),
-            "formatter": "key_value",
-        },
-    },
+    "handlers": HANDLERS,
     "loggers": {
         "django_structlog": {
             "handlers": logged_handlers,

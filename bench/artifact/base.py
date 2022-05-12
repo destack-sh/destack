@@ -9,6 +9,8 @@ from bench.utils.spec import ConfigSpec
 class ArtifactHandler(abc.ABC):
     """
     Base for interacting with artifacts.
+
+    Artifacts are configured
     """
 
     # Config spec to configure this handler.
@@ -45,3 +47,25 @@ class ArtifactHandler(abc.ABC):
         if self._path is None:
             raise ValueError("path is not set")
         return self._path
+
+
+class ArtifactVersionHandler(ArtifactHandler):
+    """
+    Base for interacting with versioned artifacts.
+    """
+
+    @property
+    def version(self) -> str:
+        return self._version
+
+    def commit(self):
+        """
+        Commits the current version as immutable.
+        """
+        raise NotImplementedError
+
+    def checkout(self, version: str):
+        """
+        Checks out the given version.
+        """
+        raise NotImplementedError
