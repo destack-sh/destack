@@ -3,9 +3,10 @@ repos:
     rev: 3.8.4
     hooks:
       - id: flake8
+        name: flake8 (py)
         args:
           [
-            "--max-line-length=88",
+            "--max-line-length=100",
             "--select=C,E,F,W,B,B950",
             "--extend-ignore=E203,E501",
           ]
@@ -14,10 +15,17 @@ repos:
     rev: 20.8b1
     hooks:
       - id: black
+        name: black (py)
+  - repo: https://github.com/pycqa/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        name: isort (py)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v0.942
     hooks:
       - id: mypy
+        name: mypy (py)
         args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip]
         # TODO @Cleanup: specify additional_dependencies rather than using language: system
         #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
@@ -32,6 +40,7 @@ repos:
     rev: v8.13.0
     hooks:
       - id: eslint
+        name: eslint (js)
         files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
         types: [file]
         types_or: [javascript, jsx, ts, tsx, vue]
@@ -43,6 +52,7 @@ repos:
     rev: v2.6.2
     hooks:
       - id: prettier
+        name: prettier (js)
         types_or: [javascript, jsx, ts, tsx, vue]
         additional_dependencies:
           - prettier@2.6.2

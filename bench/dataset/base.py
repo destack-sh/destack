@@ -27,9 +27,7 @@ class DatasetHandler(ArtifactHandler):
         super().__init__(fs=fs, path=path, version=version)
         if spec is None:
             if self.base_spec is None:
-                raise ValueError(
-                    "DatasetHandler must define `base_spec` or get `spec` argument"
-                )
+                raise ValueError("DatasetHandler must define `base_spec` or get `spec` argument")
             else:
                 self.spec = self.base_spec
         else:
@@ -70,18 +68,14 @@ class DatasetWriter(DatasetHandler, abc.ABC):
         raise NotImplementedError
 
 
-def map_to_dataset_cls(
-    func: Any, impl: Optional[Type[DatasetHandler]]
-) -> Type[DatasetHandler]:
+def map_to_dataset_cls(func: Any, impl: Optional[Type[DatasetHandler]]) -> Type[DatasetHandler]:
     if impl is not None:
         raise ValueError("specifying impl type is not supported")
 
     return func
 
 
-datasets: Registry[Type[DatasetHandler]] = Registry(
-    ("datasets",), mapper=map_to_dataset_cls
-)
+datasets: Registry[Type[DatasetHandler]] = Registry(("datasets",), mapper=map_to_dataset_cls)
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.dataset.huggingface  # noqa
 

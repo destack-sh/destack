@@ -33,9 +33,7 @@ class UUIDT(uuid.UUID):
 
     current_series_per_ms: Dict[int, int] = defaultdict(int)
 
-    def __init__(
-        self, unix_time_ms: Optional[int] = None, uuid_str: Optional[str] = None
-    ) -> None:
+    def __init__(self, unix_time_ms: Optional[int] = None, uuid_str: Optional[str] = None) -> None:
         if uuid_str and self.is_valid_uuid(uuid_str):
             super().__init__(uuid_str)
             return

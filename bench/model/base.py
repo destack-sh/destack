@@ -27,9 +27,7 @@ class ModelHandler(ArtifactHandler):
         super().__init__(fs=fs, path=path, version=version)
         if spec is None:
             if self.base_spec is None:
-                raise ValueError(
-                    "ModelHandler must define `base_spec` or get `spec` argument"
-                )
+                raise ValueError("ModelHandler must define `base_spec` or get `spec` argument")
             else:
                 self.spec = self.base_spec
         else:

@@ -39,9 +39,7 @@ class RecordTreeReference(UUIDModel):
     A reference from a 'tree' to either a record or a subtree at a relative index.
     """
 
-    tree = models.ForeignKey(
-        RecordTree, on_delete=models.CASCADE, related_name="references"
-    )
+    tree = models.ForeignKey(RecordTree, on_delete=models.CASCADE, related_name="references")
     index = models.IntegerField()
     record = models.ForeignKey(
         Record, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
@@ -66,7 +64,7 @@ class RecordTreeReference(UUIDModel):
 
 def get_parent_tree(tree: RecordTree, index: int) -> RecordTree:
     """
-    Gets the immediate parent tree for the given index (relative to this tree)
+    Gets the immediate parent tree for the record at the index (relative to this tree)
 
     Record trees are .. trees, so we may need to dig down to get a parent tree:
      - If index exists exactly on this tree and is a record
@@ -109,6 +107,7 @@ def get_record(tree: RecordTree, index: int) -> Record:
 def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
     """
     Gets the Records in the given range within the tree
+    TODO @Performance: optimise get_records_slice to remove redundant queries
     """
     records = []
     for i in range(start, stop):

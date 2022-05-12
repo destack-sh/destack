@@ -9,9 +9,7 @@ from bench.models.versioning import VersionedCommit, VersionedRepository
 
 
 class ArtifactManager(models.Manager):
-    def create_artifact(
-        self, type: str, name: str, description: Optional[str]
-    ) -> Artifact:
+    def create_artifact(self, type: str, name: str, description: Optional[str]) -> Artifact:
         artifact = Artifact(type=type, name=name, description=description)
         artifact.save()
         return artifact
@@ -30,13 +28,9 @@ class Artifact(UUIDModel, VersionedRepository):
 
     type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
-    )
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    controller = models.ForeignKey(
-        "Controller", on_delete=models.SET_NULL, blank=True, null=True
-    )
+    controller = models.ForeignKey("Controller", on_delete=models.SET_NULL, blank=True, null=True)
 
     objects = ArtifactManager()
 
@@ -49,9 +43,7 @@ class Artifact(UUIDModel, VersionedRepository):
             models.Index(name="bench_artifact_type_idx", fields=["type"]),
             models.Index(name="bench_artifact_name_idx", fields=["name"]),
         ]
-        constraints = [
-            models.UniqueConstraint(name="bench_artifact_name_ak", fields=["name"])
-        ]
+        constraints = [models.UniqueConstraint(name="bench_artifact_name_ak", fields=["name"])]
 
 
 class ArtifactVersion(UUIDModel, VersionedCommit):
@@ -59,9 +51,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     An artifact version is a specific (generally) immutable state of an artifact.
     """
 
-    artifact = models.ForeignKey(
-        Artifact, on_delete=models.CASCADE, related_name="versions"
-    )
+    artifact = models.ForeignKey(Artifact, on_delete=models.CASCADE, related_name="versions")
     # TODO @Cleanup @Architecture: remove/rename ArtifactVersion.version
     #  Having 'version' inside ArtifactVersion, which is a VersionedCommit,
     #  is confusing. We need to synchronize with external VCS and we need internal
@@ -71,7 +61,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
     # snapshot data (may move into separate ArtifactSnapshot table at some point)
-    records_root = models.ForeignKey(
+    record_tree_root = models.ForeignKey(
         "RecordTree", on_delete=models.RESTRICT, blank=True, null=True
     )
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
@@ -99,13 +89,9 @@ class ArtifactView(UUIDModel):
     """
 
     type = models.CharField(max_length=64)
-    artifact = models.ForeignKey(
-        Artifact, on_delete=models.CASCADE, related_name="views"
-    )
+    artifact = models.ForeignKey(Artifact, on_delete=models.CASCADE, related_name="views")
     compatible_versions = models.ManyToManyField(ArtifactVersion, related_name="views")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
-    )
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()

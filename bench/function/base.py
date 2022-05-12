@@ -141,9 +141,7 @@ def map_cls_to_function_cls(func: Type[Function]) -> Type[Function]:
     return func
 
 
-def map_callable_to_function_cls(
-    func: Callable, impl: Type[Function]
-) -> Type[Function]:
+def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[Function]:
     """Maps a callable representing a Function to an actual FunctionBase type
 
     Implementation is basic right now and cannot construct any complex functions.
@@ -153,9 +151,7 @@ def map_callable_to_function_cls(
     try:
         inferred_input_type = reduce_to_record_type(inferred_config_spec.type)
     except ValueError as e:
-        raise ValueError(
-            "callable function definition has non-FieldType parameters"
-        ) from e
+        raise ValueError("callable function definition has non-FieldType parameters") from e
     inferred_input_spec = convert_to_record_spec(inferred_input_type)
 
     actual_config_spec = ConfigSpec(
@@ -185,15 +181,11 @@ def map_callable_to_function_cls(
             f"mapping callable {get_qualified_name(func)} to non-Record functions it not supported"
         )
 
-    func_cls: Type[Function] = cast(
-        Type[Function], type(inferred_config_spec.name, (impl,), attrs)
-    )
+    func_cls: Type[Function] = cast(Type[Function], type(inferred_config_spec.name, (impl,), attrs))
     return func_cls
 
 
-functions: Registry[Type[Function]] = Registry(
-    ("functions",), mapper=map_to_function_cls
-)
+functions: Registry[Type[Function]] = Registry(("functions",), mapper=map_to_function_cls)
 
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.function.transform.text  # noqa

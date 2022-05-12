@@ -13,7 +13,7 @@ We deviate from Git in that:
  - We are effectively centralised, not distributed.
  - Objects are indexed by their hash, but primary/foreign keys use UUIDs.
  - Objects may contain metadata invisible to the versioning process.
- - Objects may be marked 'mutable' before becoming immutable forever.
+ - Objects may be marked 'mutable' before becoming immutable (irreversibly).
 """
 
 from django.db import models
@@ -35,12 +35,14 @@ class VersionedObject(models.Model):
     Any object involved in versioning of a repository.
 
     Unlike in Git, objects may contain fields not related to their versioned state.
+    Immutability is a terminal state, but objects may be mutable before that.
     """
 
     # TODO @Robustness: hash object content in Postgres directly?
-    #  See https://www.postgresql.org/docs/11/functions-binarystring.html
+    #  See https://www.postgresql.org/docs/14/functions-binarystring.html
+    #  and https://docs.djangoproject.com/en/4.0/ref/models/database-functions/#sha1-sha224-sha256-sha384-and-sha512
     content_hash = models.BinaryField(max_length=32)
-    mutable = models.BooleanField(default=False)
+    immutable = models.BooleanField(default=True)
 
     class Meta:
         abstract = True
@@ -70,9 +72,7 @@ class VersionedCommit(VersionedObject):
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
-    description = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True
-    )
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

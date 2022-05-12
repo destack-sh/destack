@@ -33,9 +33,7 @@ class Execution(UUIDModel):
     terminated_at = models.DateTimeField(
         blank=True, null=True, help_text="Time of transition to a terminal state."
     )
-    state = models.CharField(
-        max_length=32, choices=State.choices, default=State.Created
-    )
+    state = models.CharField(max_length=32, choices=State.choices, default=State.Created)
     metadata = models.JSONField()
 
     parent = models.ForeignKey(
@@ -124,9 +122,7 @@ class ExecutionArtifactConnection(UUIDModel):
 
     artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
     # regular ArtifactView relation where appropriate
-    view = models.ForeignKey(
-        "ArtifactView", on_delete=models.CASCADE, null=True, blank=True
-    )
+    view = models.ForeignKey("ArtifactView", on_delete=models.CASCADE, null=True, blank=True)
     # inlined ArtifactView if we don't want a full-blown ArtifactView
     view_type = models.CharField(null=True, blank=True, max_length=64)
     view_data = models.JSONField(null=True, blank=True)

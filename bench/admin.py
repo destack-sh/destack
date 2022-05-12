@@ -1,13 +1,6 @@
 from django.contrib import admin
 
-from bench.models import (
-    Artifact,
-    ArtifactVersion,
-    Dataset,
-    DatasetVersion,
-    Model,
-    ModelVersion,
-)
+from bench.models import Artifact, ArtifactVersion, Dataset, DatasetVersion, Model, ModelVersion
 
 admin.site.register(Artifact)
 admin.site.register(ArtifactVersion)
