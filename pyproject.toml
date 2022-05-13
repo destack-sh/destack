@@ -1,14 +1,15 @@
 [tool.black]
 line-length = 100
 
+[tool.django-stubs]
+django_settings_module = "bench.settings"
+
 [tool.mypy]
 plugins = "mypy_django_plugin.main,mypy_drf_plugin.main"
 follow_imports = "normal"
 warn_redundant_casts = true
 warn_unused_ignores = true
-
-[tool.django-stubs]
-django_settings_module = "bench.settings"
+exclude = "migrations"
 
 [[tool.mypy.overrides]]
 module = "uvicorn"
@@ -20,6 +21,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "PIL"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fsspec"
 ignore_missing_imports = true
 
 [tool.isort]

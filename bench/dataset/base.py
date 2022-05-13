@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Iterable, Optional, Type, Union
 
 from fsspec import AbstractFileSystem
 
@@ -58,7 +58,7 @@ class DatasetWriter(DatasetHandler, abc.ABC):
     def append(self, record: Record):
         raise NotImplementedError
 
-    def extend(self, records: RecordBatch):
+    def extend(self, records: Iterable[Record]):
         raise NotImplementedError
 
     def update(self, index: int, record: Record):

@@ -60,7 +60,8 @@ class HuggingFaceHubDatasetReader(DatasetReader):
             # Convert dataset slice into expected record batch format for slices.
             # HF datasets do support slicing, but will return a dict of field lists.
             # TODO @Performance: creating record list from dataset slice is inefficient
-            indices = range(index.start or 0, index.stop or len(self), index.step or 1)
+            stop = index.stop if index.stop is not None else 0
+            indices = range(index.start or 0, stop, index.step or 1)
             records = [self._dataset[i] for i in indices]
             return RecordList(records)
         elif isinstance(index, str):

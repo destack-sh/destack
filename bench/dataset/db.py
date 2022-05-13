@@ -55,7 +55,7 @@ class DbDataset(DatasetReader, DatasetWriter):
         db_record = DbRecord(data=record)
         append_to_tree(self.root, db_record)
 
-    def extend(self, records: RecordBatch):
+    def extend(self, records: typing.Iterable[Record]):
         # TODO @Performance: batch DbDataset.extend insert
         with transaction.atomic():
             for record in records:
@@ -88,7 +88,8 @@ class DbDataset(DatasetReader, DatasetWriter):
             db_record = get_record(self.root, index)
             return db_record.data
         elif isinstance(index, slice):
-            db_records = get_records_slice(self.root, index.start, index.stop or len(self))
+            stop = index.stop if index.stop is not None else 0
+            db_records = get_records_slice(self.root, index.start, stop)
             return RecordList([record.data for record in db_records])
         elif isinstance(index, str):
             return get_records_field(self.root, index)
@@ -96,7 +97,8 @@ class DbDataset(DatasetReader, DatasetWriter):
             raise ValueError(f"unexpected index type: {index}")
 
     def __iter__(self) -> Iterator[Record]:
-        return iter_record_tree(self.root)
+        for db_record in iter_record_tree(self.root):
+            yield db_record.data
 
     def __len__(self) -> int:
         return self.root.max_index
