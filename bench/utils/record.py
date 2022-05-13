@@ -83,6 +83,9 @@ class RecordList(RecordBatch):
         else:
             raise TypeError(index)
 
+    def __eq__(self, o: object) -> bool:
+        return self._records == o
+
     def __iter__(self) -> Iterator[Record]:
         return iter(self._records)
 
