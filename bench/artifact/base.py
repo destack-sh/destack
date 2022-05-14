@@ -56,7 +56,17 @@ class ArtifactVersionHandler(ArtifactHandler):
 
     @property
     def version(self) -> str:
+        if self._version is None:
+            raise ValueError(f"artifact is not versioned: {self}")
         return self._version
+
+    @property
+    def history(self) -> list[str]:
+        """
+        Gets the linear log of versions
+        TODO @Feature: support branches in artifact version handler
+        """
+        raise NotImplementedError
 
     def commit(self):
         """

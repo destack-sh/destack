@@ -16,6 +16,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         version: Optional[str] = None,
         split: str = "train",
         use_auth_token: Optional[str] = None,
+        spec: Optional[DatasetSpec] = None,
     ):
         """
         A HuggingFace datasets-backed Dataset handler.
@@ -23,6 +24,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         @param version: The revision to load.
         @param split: The split to load.
         @param use_auth_token: The authentication token to use.
+        @param spec: Spec to use instead of default
         """
 
         self.dataset_name = dataset_name
@@ -32,7 +34,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         )
         record_type = _hf_features_to_record_type(self._dataset.features)
         record_spec = RecordSpec(type=record_type, name="", description="")
-        dataset_spec = DatasetSpec(
+        dataset_spec = spec or DatasetSpec(
             name=dataset_name,
             description=self._dataset.info.description,
             record_spec=record_spec,

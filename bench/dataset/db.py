@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, Union
+from typing import Iterator, Optional, Union
 from uuid import UUID
 
 from django.db import transaction
@@ -16,19 +16,21 @@ from bench.models.record import (
     iter_record_tree,
 )
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import FieldType, RecordSpec
+from bench.utils.spec import DatasetSpec, FieldType, RecordSpec
 
 
 # TODO @Architecture: what does DbDataset do? how does it relate to actual Dataset/DatasetVersion
 #  Clearly, DbDataset is special since it talks directly to our DB.
 #  Also, DbDataset should not deal with anything but DbRecord.data (e.g. its metadata).
 #  Generally, we probably want some higher level interface orchestrating our DB access.
+#  See DatasetAccessor for an attempt at abstracting this and further discussion.
 @datasets.register("bench.db")
 class DbDataset(DatasetReader, DatasetWriter):
     def __init__(
         self,
         artifact_id: UUID,
         version: str,
+        spec: Optional[DatasetSpec],
     ):
         self._dataset: DatasetVersion = DatasetVersion.objects.filter(
             artifact_id=artifact_id, version=version
@@ -39,7 +41,7 @@ class DbDataset(DatasetReader, DatasetWriter):
             self._dataset.record_tree_root = RecordTree()
             self._dataset.save()
 
-        super().__init__(version=version, spec=self._dataset.spec)
+        super().__init__(version=version, spec=spec or self._dataset.spec)
 
     @property
     def root(self) -> RecordTree:

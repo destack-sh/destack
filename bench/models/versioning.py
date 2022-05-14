@@ -46,6 +46,7 @@ class VersionedObject(models.Model):
 
     class Meta:
         abstract = True
+        indexes = [models.Index(name="bench_versioned_object_hash", fields=["content_hash"])]
 
 
 class VersionedBlob(VersionedObject):

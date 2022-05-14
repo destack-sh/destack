@@ -29,7 +29,7 @@ def dataset(dataset_version: DatasetVersion) -> DbDataset:
     return dataset
 
 
-def _compare_slices(dataset: DatasetReader, records: list):
+def _assert_slices_are_equal(dataset: DatasetReader, records: list):
     assert list(dataset) == records
     for i in range(0, len(records)):
         for j in range(i, len(records)):
@@ -45,7 +45,7 @@ def test_append_get(dataset: DbDataset):
         dataset.append(copy.deepcopy(records[i]))
 
     # compare all consecutive slices
-    _compare_slices(dataset, records)
+    _assert_slices_are_equal(dataset, records)
 
 
 @pytest.mark.django_db
@@ -62,4 +62,4 @@ def test_extend_update(dataset: DbDataset):
         dataset.update(i, copy.deepcopy(records[i]))
 
     # compare all consecutive slices
-    _compare_slices(dataset, records)
+    _assert_slices_are_equal(dataset, records)

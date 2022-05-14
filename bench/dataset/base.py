@@ -67,6 +67,9 @@ class DatasetWriter(DatasetHandler, abc.ABC):
     def delete(self, index: int):
         raise NotImplementedError
 
+    def clear(self):
+        raise NotImplementedError
+
 
 def map_to_dataset_cls(func: Any, impl: Optional[Type[DatasetHandler]]) -> Type[DatasetHandler]:
     if impl is not None:
@@ -75,8 +78,10 @@ def map_to_dataset_cls(func: Any, impl: Optional[Type[DatasetHandler]]) -> Type[
     return func
 
 
-datasets: Registry[Type[DatasetHandler]] = Registry(("datasets",), mapper=map_to_dataset_cls)
 # TODO @Feature: figure out better registration mechanism for registered objects
+datasets: Registry[Type[DatasetHandler]] = Registry(("datasets",), mapper=map_to_dataset_cls)
+import bench.dataset.activeloop  # noqa
+import bench.dataset.db  # noqa
 import bench.dataset.huggingface  # noqa
 
 
@@ -92,5 +97,44 @@ def load_dataset(
     spec: Optional[DatasetSpec],
 ) -> DatasetHandler:
     dataset_cls = get_dataset_cls(handler_id)
+    # TODO @Feature: parse storage_uri into fsspec's fs & path for ArtifactHandler
     dataset = dataset_cls(spec=spec, version=version, **arguments)  # noqa
     return dataset
+
+
+def get_dataset_reader(
+    handler_id: str,
+    storage_uri: Optional[str],
+    version: Optional[str],
+    arguments: Dict[str, Any],
+    spec: Optional[DatasetSpec],
+) -> DatasetReader:
+    dataset_handler = load_dataset(
+        handler_id=handler_id,
+        storage_uri=storage_uri,
+        version=version,
+        arguments=arguments,
+        spec=spec,
+    )
+    if not isinstance(dataset_handler, DatasetReader):
+        raise ValueError(f"dataset handler does not support reading: {dataset_handler}")
+    return dataset_handler
+
+
+def get_dataset_writer(
+    handler_id: str,
+    storage_uri: Optional[str],
+    version: Optional[str],
+    arguments: Dict[str, Any],
+    spec: Optional[DatasetSpec],
+) -> DatasetWriter:
+    dataset_handler = load_dataset(
+        handler_id=handler_id,
+        storage_uri=storage_uri,
+        version=version,
+        arguments=arguments,
+        spec=spec,
+    )
+    if not isinstance(dataset_handler, DatasetWriter):
+        raise ValueError(f"dataset handler does not support writing: {dataset_handler}")
+    return dataset_handler
