@@ -10,6 +10,7 @@ from bench.models import Record as DbRecord
 from bench.models.record import (
     RecordTree,
     append_to_tree,
+    clear_record_tree,
     get_record,
     get_records_field,
     get_records_slice,
@@ -54,6 +55,8 @@ class DbDataset(DatasetReader, DatasetWriter):
         pass
 
     def append(self, record: Record):
+        # TODO @Performance: use content hashes to avoid creating duplicates
+        #  Also will need to handle changing hashes in update.
         db_record = DbRecord(data=record)
         append_to_tree(self.root, db_record)
 
@@ -69,7 +72,12 @@ class DbDataset(DatasetReader, DatasetWriter):
         db_record.save()
 
     def delete(self, index: int):
+        # NOTE: trigger artifact-level record GC after delete
         raise NotImplementedError
+
+    def clear(self):
+        # NOTE: trigger artifact-level record GC after delete
+        clear_record_tree(self.root)
 
     @typing.overload
     def __getitem__(self, index: int) -> Record:

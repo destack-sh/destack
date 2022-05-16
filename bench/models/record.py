@@ -130,6 +130,17 @@ def append_to_tree(tree: RecordTree, record: Record):
         tree.save()
 
 
+def delete_record(tree: RecordTree, index: int):
+    raise NotImplementedError
+
+
+def clear_record_tree(tree: RecordTree):
+    """
+    Clears the given record tree (non-recursively!)
+    """
+    RecordTreeReference.objects.filter(tree=tree).delete()
+
+
 def iter_record_tree(tree: RecordTree) -> Iterator[Record]:
     """
     Lazily iterates through all records in the given tree (and its subtrees).
