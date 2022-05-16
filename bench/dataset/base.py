@@ -1,12 +1,19 @@
 import abc
-from typing import Any, Dict, Iterable, Optional, Type, Union
+import functools
+from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union
 
 from fsspec import AbstractFileSystem
 
 from bench.artifact.base import ArtifactHandler
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import DatasetSpec, DatasetType, RecordSpec
+from bench.utils.spec import (
+    ConfigTypeStrict,
+    DatasetSpec,
+    DatasetType,
+    RecordSpec,
+    infer_config_type,
+)
 
 
 class DatasetHandler(ArtifactHandler):
@@ -89,15 +96,49 @@ def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
     return datasets[handler_id]
 
 
+@functools.cache
+def _get_dataset_handler_config_type(cls: Type[DatasetHandler]) -> ConfigTypeStrict:
+    return infer_config_type(cls)
+
+
+def _get_file_system(storage_uri: str) -> Tuple[AbstractFileSystem, str]:
+    """
+    Parses the given storage uri into the corresponding file system & path
+    @param storage_uri: The storage URI
+    @return: A tuple of [fs, path]
+    """
+    # TODO @Feature: parse storage_uri into fsspec's fs & path for ArtifactHandler
+    #  Note: how will we get auth information in here?
+    raise NotImplementedError
+
+
 def load_dataset(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    arguments: Dict[str, Any],
     spec: Optional[DatasetSpec],
+    **kwargs,
 ) -> DatasetHandler:
+    """
+    Loads a handler for interacting with the given dataset
+    @param handler_id: The handler to use
+    @param storage_uri: The storage location of the dataset (if any)
+    @param version: The version of the dataset (if any)
+    @param spec: The known spec to use (if any)
+    @param kwargs: additional arguments passed to the handler
+    """
+
     dataset_cls = get_dataset_cls(handler_id)
-    # TODO @Feature: parse storage_uri into fsspec's fs & path for ArtifactHandler
+    if storage_uri:
+        fs, path = _get_file_system(storage_uri)
+    else:
+        fs, path = None, None
+
+    config_type = _get_dataset_handler_config_type(dataset_cls)
+    arguments = dict(fs=fs, path=path, **kwargs)
+    # filter arguments to only those listed
+    arguments = {key: value for key, value in arguments.items() if key in config_type}
+
     dataset = dataset_cls(spec=spec, version=version, **arguments)  # noqa
     return dataset
 
@@ -106,15 +147,15 @@ def get_dataset_reader(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    arguments: Dict[str, Any],
     spec: Optional[DatasetSpec],
+    **kwargs,
 ) -> DatasetReader:
     dataset_handler = load_dataset(
         handler_id=handler_id,
         storage_uri=storage_uri,
         version=version,
-        arguments=arguments,
         spec=spec,
+        **kwargs,
     )
     if not isinstance(dataset_handler, DatasetReader):
         raise ValueError(f"dataset handler does not support reading: {dataset_handler}")
@@ -125,15 +166,15 @@ def get_dataset_writer(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    arguments: Dict[str, Any],
     spec: Optional[DatasetSpec],
+    **kwargs,
 ) -> DatasetWriter:
     dataset_handler = load_dataset(
         handler_id=handler_id,
         storage_uri=storage_uri,
         version=version,
-        arguments=arguments,
         spec=spec,
+        **kwargs,
     )
     if not isinstance(dataset_handler, DatasetWriter):
         raise ValueError(f"dataset handler does not support writing: {dataset_handler}")

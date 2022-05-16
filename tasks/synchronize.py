@@ -4,11 +4,12 @@ from bench.models import DatasetVersion
 
 def _to_handler_opts(version: DatasetVersion) -> dict:
     return {
+        **version.config_arguments,
         "handler_id": version.handler_id,
         "storage_uri": version.storage_uri,
         "version": version.version,
-        "arguments": version.config_arguments,
         "spec": version.spec,
+        "artifact_id": version.artifact.id,
     }
 
 
