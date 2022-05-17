@@ -117,7 +117,7 @@ def get_records_field(tree: RecordTree, index: str) -> list[FieldType]:
     raise NotImplementedError
 
 
-def append_to_tree(tree: RecordTree, record: Record):
+def append_record(tree: RecordTree, record: Record):
     """
     Appends the given record to the "end" of the given tree.
     Changes are immediately persisted to the DB.
@@ -127,6 +127,23 @@ def append_to_tree(tree: RecordTree, record: Record):
         record.save()
         tree.references.create(index=insert_index, record=record)
         tree.max_index = insert_index
+        tree.save()
+
+
+def append_records(tree: RecordTree, records: list[Record]):
+    """
+    Appends the given records to the "end" of the given tree in order.
+    Changes are immediately persisted to the DB.
+    """
+    with transaction.atomic():
+        insert_offset = tree.max_index + 1
+        references = []
+        for i in range(0, len(records)):
+            references.append(
+                RecordTreeReference(tree=tree, index=insert_offset + i, record=records[i])
+            )
+        RecordTreeReference.objects.bulk_create(references)
+        tree.max_index = insert_offset
         tree.save()
 
 

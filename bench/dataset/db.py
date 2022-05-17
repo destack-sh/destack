@@ -9,7 +9,7 @@ from bench.models import DatasetVersion
 from bench.models import Record as DbRecord
 from bench.models.record import (
     RecordTree,
-    append_to_tree,
+    append_record,
     clear_record_tree,
     get_record,
     get_records_field,
@@ -58,7 +58,7 @@ class DbDataset(DatasetReader, DatasetWriter):
         # TODO @Performance: use content hashes to avoid creating duplicates
         #  Also will need to handle changing hashes in update.
         db_record = DbRecord(data=record)
-        append_to_tree(self.root, db_record)
+        append_record(self.root, db_record)
 
     def extend(self, records: typing.Iterable[Record]):
         # TODO @Performance: batch DbDataset.extend insert

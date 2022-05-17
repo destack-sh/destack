@@ -81,12 +81,15 @@ djangorestframework==3.13.1
     # via
     #   -r requirements.in
     #   drf-exceptions-hog
+    #   drf-extensions
     #   drf-spectacular
 docarray==0.13.3
     # via -r requirements.in
 docstring-parser==0.14.1
     # via -r requirements.in
 drf-exceptions-hog==0.2.0
+    # via -r requirements.in
+drf-extensions==0.7.1
     # via -r requirements.in
 drf-spectacular==0.22.0
     # via -r requirements.in

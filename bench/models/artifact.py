@@ -49,6 +49,9 @@ class Artifact(UUIDModel, VersionedRepository):
 class ArtifactVersion(UUIDModel, VersionedCommit):
     """
     An artifact version is a specific (generally) immutable state of an artifact.
+
+    If the version is owned by us, ArtifactVersion.version will equal ArtifactVersion.id.
+    If the version corresponds to an external artifact, the version may be set as needed.
     """
 
     artifact = models.ForeignKey(Artifact, on_delete=models.CASCADE, related_name="versions")
@@ -60,7 +63,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     version = models.CharField(max_length=256)
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
-    # snapshot data (may move into separate ArtifactSnapshot table at some point)
+    # snapshot data (may move into separate ArtifactSnapshot table/tree object at some point)
     record_tree_root = models.ForeignKey(
         "RecordTree", on_delete=models.RESTRICT, blank=True, null=True
     )

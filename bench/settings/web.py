@@ -85,6 +85,13 @@ STATIC_URL = "/static/"
 # Extra misc settings
 
 REST_FRAMEWORK = {
-    # YOUR SETTINGS
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "exceptions_hog.exception_handler",
+}
+
+EXCEPTIONS_HOG = {
+    "EXCEPTION_REPORTING": "exceptions_hog.handler.exception_reporter",
+    "ENABLE_IN_DEBUG": False,
+    "NESTED_KEY_SEPARATOR": "__",
+    "SUPPORT_MULTIPLE_EXCEPTIONS": True,
 }

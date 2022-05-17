@@ -41,7 +41,7 @@ class Dataset(Artifact):
     datasets = DatasetManager()
 
     class Meta:
-        proxy = True
+        proxy = True  # type: ignore
 
 
 @dataclass_json

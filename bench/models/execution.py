@@ -12,6 +12,8 @@ class ExecutionManager(models.Manager):
 class Execution(UUIDModel):
     """
     The execution of some executable unit, like a function or a flow.
+
+    An execution may be hierarchically nested inside other executions via the 'parent' field.
     """
 
     class State(models.TextChoices):
@@ -25,6 +27,7 @@ class Execution(UUIDModel):
         Failed = "failed"
         Completed = "completed"
 
+    type = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(
@@ -37,33 +40,17 @@ class Execution(UUIDModel):
     metadata = models.JSONField()
 
     parent = models.ForeignKey(
-        "Execution",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="children",
+        "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     # relation to executable units
     flow = models.ForeignKey(
-        "FlowVersion",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions",
+        "FlowVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
     flow_node = models.ForeignKey(
-        "FlowNode",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions",
+        "FlowNode", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
     model = models.ForeignKey(
-        "ModelVersion",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions",
+        "ModelVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
 
     objects = ExecutionManager()
@@ -123,6 +110,6 @@ class ExecutionArtifactConnection(UUIDModel):
     artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
     # regular ArtifactView relation where appropriate
     view = models.ForeignKey("ArtifactView", on_delete=models.CASCADE, null=True, blank=True)
-    # inlined ArtifactView if we don't want a full-blown ArtifactView
+    # inlined ArtifactView if we don't want/need a full ArtifactView
     view_type = models.CharField(null=True, blank=True, max_length=64)
     view_data = models.JSONField(null=True, blank=True)
