@@ -1,10 +1,10 @@
 import pytest
 
-from bench.dataset.base import get_dataset_reader
 from bench.models import Dataset
 from bench.models.dataset import DatasetMetadata
 from bench.utils.spec import RecordSpec
-from tasks.synchronize import _to_handler_opts, copy_dataset_version
+from dataset.accessor import get_dataset_version_reader
+from tasks.synchronize import copy_dataset_version
 
 
 @pytest.mark.django_db
@@ -28,6 +28,6 @@ def test_copy_dataset_version():
         ),
     )
     copy_dataset_version(source, target)
-    source_reader = get_dataset_reader(**_to_handler_opts(source))
-    target_reader = get_dataset_reader(**_to_handler_opts(target))
+    source_reader = get_dataset_version_reader(source)
+    target_reader = get_dataset_version_reader(target)
     assert list(source_reader) == list(target_reader), "source and target are equal"

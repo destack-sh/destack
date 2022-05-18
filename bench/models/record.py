@@ -104,6 +104,9 @@ def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
     Gets the Records in the given range within the tree
     TODO @Performance: optimise get_records_slice to remove redundant queries
     """
+    # map start/stop to bounds
+    start = max(start, 0)
+    stop = min(stop, tree.max_index)
     records = []
     for i in range(start, stop):
         records.append(get_record(tree, i))

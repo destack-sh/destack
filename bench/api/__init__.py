@@ -16,11 +16,11 @@ datasets_versions_router = datasets_router.register(
     "versions",
     DatasetVersionViewSet,
     "datasets_versions",
-    parents_query_lookups=["artifact_id"],
+    parents_query_lookups=["artifact_name"],
 )
 datasets_versions_router.register(
     "records",
     RecordViewSet,
     "datasets_versions_records",
-    parents_query_lookups=["artifact_id", "version"],
+    parents_query_lookups=["artifact_name", "version"],
 )

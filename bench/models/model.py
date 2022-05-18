@@ -21,7 +21,7 @@ class ModelManager(ArtifactManager):
         self,
         name: str,
         description: Optional[str],
-        initial_version: str,
+        initial_version: Optional[str],
         metadata: ModelMetadata,
     ) -> Model:
         """Creates the given model with an initial version"""
@@ -31,7 +31,7 @@ class ModelManager(ArtifactManager):
         return model
 
     def create_model_version_by_name(
-        self, name: str, version: str, metadata: ModelMetadata
+        self, name: str, version: Optional[str], metadata: ModelMetadata
     ) -> ModelVersion:
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():

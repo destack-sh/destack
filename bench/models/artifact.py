@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from typing import Optional
 
 from django.db import models
@@ -46,11 +47,15 @@ class Artifact(UUIDModel, VersionedRepository):
         constraints = [models.UniqueConstraint(name="bench_artifact_name_ak", fields=["name"])]
 
 
+def _generate_artifact_version(nbytes: int = 4) -> str:
+    return secrets.token_hex(nbytes)
+
+
 class ArtifactVersion(UUIDModel, VersionedCommit):
     """
     An artifact version is a specific (generally) immutable state of an artifact.
 
-    If the version is owned by us, ArtifactVersion.version will equal ArtifactVersion.id.
+    If the version is owned by us, ArtifactVersion.version is a generated short unique id.
     If the version corresponds to an external artifact, the version may be set as needed.
     """
 
@@ -58,9 +63,9 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     # TODO @Cleanup @Architecture: remove/rename ArtifactVersion.version
     #  Having 'version' inside ArtifactVersion, which is a VersionedCommit,
     #  is confusing. We need to synchronize with external VCS and we need internal
-    #  version identifiers, so we can't? just use the PK.
+    #  version identifiers, so we can't (?) just use ArtifactVersion.id only.
     #  Similar logic applies to FlowVersion.version.
-    version = models.CharField(max_length=256)
+    version = models.CharField(max_length=256, default=_generate_artifact_version)
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
     # snapshot data (may move into separate ArtifactSnapshot table/tree object at some point)
