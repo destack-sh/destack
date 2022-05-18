@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from dataclasses_json import dataclass_json
 from django.db import transaction
@@ -18,7 +18,7 @@ class DatasetManager(ArtifactManager):
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
     def create_dataset_version_by_name(
-        self, name: str, version: str, metadata: DatasetMetadata
+        self, name: str, version: Optional[str], metadata: DatasetMetadata
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():

@@ -39,7 +39,9 @@ class DbDataset(DatasetReader, DatasetWriter):
 
         # TODO @Cleanup: move/guard record tree creation on write access?
         if self._dataset.record_tree_root is None:
-            self._dataset.record_tree_root = RecordTree()
+            new_root = RecordTree()
+            new_root.save()
+            self._dataset.record_tree_root = new_root
             self._dataset.save()
 
         super().__init__(version=version, spec=spec or self._dataset.spec)
@@ -111,4 +113,4 @@ class DbDataset(DatasetReader, DatasetWriter):
             yield db_record.data
 
     def __len__(self) -> int:
-        return self.root.max_index
+        return self.root.max_index + 1

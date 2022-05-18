@@ -111,7 +111,7 @@ grpcio==1.43.0
     # via ray
 gunicorn==20.1.0
     # via -r requirements.in
-hub==2.4.1
+hub==2.5.0
     # via -r requirements.in
 huggingface-hub==0.5.1
     # via datasets

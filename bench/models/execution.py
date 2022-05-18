@@ -107,9 +107,17 @@ class ExecutionArtifactConnection(UUIDModel):
         "FlowArtifactEdge", blank=True, null=True, on_delete=models.CASCADE
     )
 
-    artifact = models.ForeignKey("ArtifactVersion", on_delete=models.CASCADE)
+    artifact = models.ForeignKey(
+        "ArtifactVersion", on_delete=models.CASCADE, related_name="execution_connections"
+    )
     # regular ArtifactView relation where appropriate
-    view = models.ForeignKey("ArtifactView", on_delete=models.CASCADE, null=True, blank=True)
+    view = models.ForeignKey(
+        "ArtifactView",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="execution_connections",
+    )
     # inlined ArtifactView if we don't want/need a full ArtifactView
     view_type = models.CharField(null=True, blank=True, max_length=64)
     view_data = models.JSONField(null=True, blank=True)
