@@ -54,7 +54,7 @@ else:
 
 LOGGING = {
     "version": 1,
-    "disable_existing_loggers": True,
+    "disable_existing_loggers": False,
     "formatters": FORMATTERS,
     "handlers": HANDLERS,
     "loggers": {

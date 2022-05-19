@@ -1,4 +1,12 @@
-from bench.models import Dataset
+from bench.dataset.base import (
+    DatasetHandler,
+    DatasetReader,
+    DatasetWriter,
+    get_dataset_reader,
+    get_dataset_writer,
+    load_dataset,
+)
+from bench.models import Dataset, DatasetVersion
 from bench.utils.record import Record, RecordBatch
 
 
@@ -23,3 +31,26 @@ class DatasetAccessor:
 
     def delete(self, index: int):
         raise NotImplementedError
+
+
+def _to_handler_opts(version: DatasetVersion) -> dict:
+    return {
+        **version.config_arguments,
+        "handler_id": version.handler_id,
+        "storage_uri": version.storage_uri,
+        "version": version.version,
+        "spec": version.spec,
+        "artifact_id": version.artifact.id,
+    }
+
+
+def get_dataset_version_handler(version: DatasetVersion) -> DatasetHandler:
+    return load_dataset(**_to_handler_opts(version))
+
+
+def get_dataset_version_reader(version: DatasetVersion) -> DatasetReader:
+    return get_dataset_reader(**_to_handler_opts(version))
+
+
+def get_dataset_version_writer(version: DatasetVersion) -> DatasetWriter:
+    return get_dataset_writer(**_to_handler_opts(version))

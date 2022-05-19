@@ -1,9 +1,9 @@
 import pytest
 
+from bench.dataset.accessor import get_dataset_version_reader
 from bench.models import Dataset
 from bench.models.dataset import DatasetMetadata
 from bench.utils.spec import RecordSpec
-from dataset.accessor import get_dataset_version_reader
 from tasks.synchronize import copy_dataset_version
 
 
