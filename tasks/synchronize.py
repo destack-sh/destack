@@ -1,5 +1,5 @@
+from bench.dataset.accessor import get_dataset_version_reader, get_dataset_version_writer
 from bench.models import DatasetVersion
-from dataset.accessor import get_dataset_version_reader, get_dataset_version_writer
 
 
 def copy_dataset_version(source: DatasetVersion, target: DatasetVersion):

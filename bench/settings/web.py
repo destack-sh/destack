@@ -26,6 +26,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "bench.urls"
+APPEND_SLASH = False
 
 TEMPLATES = [
     {

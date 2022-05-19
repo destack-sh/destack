@@ -79,6 +79,7 @@ def get_parent_tree(tree: RecordTree, index: int) -> Tuple[RecordTree, RecordTre
         RecordTreeReference.objects.filter(tree=tree, index__gte=index)
         .order_by("index")
         .select_related("subtree")
+        .select_related("record")
         .first()
     )
     if reference is None:
@@ -106,7 +107,7 @@ def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
     """
     # map start/stop to bounds
     start = max(start, 0)
-    stop = min(stop, tree.max_index)
+    stop = min(stop, tree.max_index + 1)
     records = []
     for i in range(start, stop):
         records.append(get_record(tree, i))
