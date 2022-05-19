@@ -2,7 +2,7 @@ from typing import Iterator, Optional, Tuple, cast
 
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import Q, Subquery
 
 from bench.models.utils import UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedTree
@@ -42,7 +42,7 @@ class RecordTreeReference(UUIDModel):
     tree = models.ForeignKey(RecordTree, on_delete=models.CASCADE, related_name="references")
     index = models.IntegerField()
     record = models.ForeignKey(
-        Record, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+        Record, on_delete=models.RESTRICT, null=True, blank=True, related_name="+"
     )
     subtree = models.ForeignKey(
         RecordTree, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
@@ -160,6 +160,35 @@ def clear_record_tree(tree: RecordTree):
     Clears the given record tree (non-recursively!)
     """
     RecordTreeReference.objects.filter(tree=tree).delete()
+
+
+def gc_record_tree(tree: RecordTree):
+    """
+    Deletes records referenced only in the given tree
+    This must be done in a transaction with the actual tree deletion/clear operation.
+    """
+    tree_records_ids = RecordTreeReference.objects.filter(tree=tree).values_list("record_id")
+    gc_unused_records(
+        Record.objects.filter(id__in=Subquery(tree_records_ids)),
+        references=RecordTreeReference.objects.exclude(tree=tree),
+    )
+
+
+def gc_unused_records_all():
+    """
+    Deletes unused records, considering all records and references
+    """
+    gc_unused_records(records=Record.objects.all(), references=RecordTreeReference.objects.all())
+
+
+def gc_unused_records(
+    records: models.QuerySet[Record], references: models.QuerySet[RecordTreeReference]
+):
+    """
+    Deletes unused records not referenced in the given references
+    """
+    used_records_ids = references.values_list("record_id")
+    records.exclude(id__in=Subquery(used_records_ids)).delete()
 
 
 def iter_record_tree(tree: RecordTree) -> Iterator[Record]:

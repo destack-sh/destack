@@ -74,11 +74,9 @@ class DbDataset(DatasetReader, DatasetWriter):
         db_record.save()
 
     def delete(self, index: int):
-        # NOTE: trigger artifact-level record GC after delete
         raise NotImplementedError
 
     def clear(self):
-        # NOTE: trigger artifact-level record GC after delete
         clear_record_tree(self.root)
 
     @typing.overload
