@@ -157,21 +157,11 @@ def delete_record(tree: RecordTree, index: int):
 
 def clear_record_tree(tree: RecordTree):
     """
-    Clears the given record tree (non-recursively!)
+    Clears the given record tree (non-recursively)
     """
     RecordTreeReference.objects.filter(tree=tree).delete()
-
-
-def gc_record_tree(tree: RecordTree):
-    """
-    Deletes records referenced only in the given tree
-    This must be done in a transaction with the actual tree deletion/clear operation.
-    """
-    tree_records_ids = RecordTreeReference.objects.filter(tree=tree).values_list("record_id")
-    gc_unused_records(
-        Record.objects.filter(id__in=Subquery(tree_records_ids)),
-        references=RecordTreeReference.objects.exclude(tree=tree),
-    )
+    # TODO @Performance: gc only recently de-referenced records when deleting record tree
+    gc_unused_records_all()
 
 
 def gc_unused_records_all():
