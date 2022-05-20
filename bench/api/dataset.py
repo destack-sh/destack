@@ -94,6 +94,19 @@ class DatasetVersionViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> models.QuerySet[DatasetVersion]:
         return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name"))
 
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        # auto-insert artifact_name provided by nested dataset versions route
+        if "artifact_name" in kwargs:
+            request.data["artifact"] = kwargs.pop("artifact_name")
+
+        # auto-insert parent metadata if not explicitly given and there is only one parent
+        parents_field_serializer = self.get_serializer().fields["parents"]
+        parents = parents_field_serializer.to_internal_value(request.data.get("parents"))
+        if len(parents) == 1 and "metadata" not in request.data:
+            request.data["metadata"] = parents[0].metadata.copy()
+
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # should also copy parent metadata here unless specified otherwise?
         instance: DatasetVersion = serializer.save()
