@@ -74,8 +74,9 @@ class ArtifactVersionHandler(ArtifactHandler):
         """
         raise NotImplementedError
 
-    def checkout(self, version: str):
+    def checkout(self, version: str) -> "ArtifactVersionHandler":
         """
-        Checks out the given version.
+        Returns a new handler with the given version checked out (creating it if necessary), where
+        the new version is based on the state of this version.
         """
         raise NotImplementedError

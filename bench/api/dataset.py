@@ -9,6 +9,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bench.artifact.base import ArtifactVersionHandler
 from bench.dataset.accessor import get_dataset_version_handler
 from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter
 from bench.models import Artifact, Dataset, DatasetVersion, Record
@@ -34,8 +35,11 @@ class DatasetSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "type", "created_at"]
 
 
-class DatasetVersionSerializer(serializers.HyperlinkedModelSerializer):
+class DatasetVersionSerializer(serializers.ModelSerializer):
     artifact = serializers.SlugRelatedField(queryset=Dataset.objects.all(), slug_field="name")
+    parents = serializers.SlugRelatedField(
+        queryset=DatasetVersion.objects.all(), slug_field="version", many=True
+    )
 
     class Meta:
         model = DatasetVersion
@@ -50,6 +54,14 @@ class DatasetVersionSerializer(serializers.HyperlinkedModelSerializer):
             "immutable",
         ]
         read_only_fields = ["id", "parents", "version", "content_hash", "immutable"]
+
+    def validate(self, data):
+        if len(data["parents"]) > 1:
+            # TODO @Feature: merge dataset versions with multiple parents
+            raise serializers.ValidationError(
+                "creating versions with multiple parents is not supported yet"
+            )
+        return data
 
     def validate_metadata(self, value: str):
         # guaranteed to be valid JSON because metadata is a JSONField
@@ -81,6 +93,29 @@ class DatasetVersionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self) -> models.QuerySet[DatasetVersion]:
         return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name"))
+
+    def perform_create(self, serializer: serializers.BaseSerializer) -> None:
+        # should also copy parent metadata here unless specified otherwise?
+        instance: DatasetVersion = serializer.save()
+        parents = instance.parents.all()
+        if parents:
+            # this should be caught in DatasetVersionSerializer validation
+            if len(parents) != 1:
+                raise ValueError("creating versions with multiple parents is not supported yet")
+
+            # create a new version of the dataset state based on the parent
+            # TODO @Architecture: creating new version logic should be in Dataset/ArtifactAccessor
+            #  because it is a shared concern and needs to drill down into (partial) sub-datasets.
+            parent = cast(DatasetVersion, parents[0])
+            parent_handler = _get_dataset_handler_by_instance(parent)
+            if not isinstance(parent_handler, ArtifactVersionHandler):
+                # TODO @Robustness: handle create new dataset version if version handler is not implemented
+                #  Could fall back to copying versions? Slow and inefficient but should work.
+                raise ValueError(
+                    f"panic: cannot create new version for {instance} on {parent} using {parent_handler}"
+                )
+            else:
+                parent_handler.checkout(instance.version)
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         instance: DatasetVersion = self.get_object()
