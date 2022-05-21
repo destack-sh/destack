@@ -11,7 +11,7 @@ from bench.utils.spec import FieldType
 
 class Record(UUIDModel, VersionedBlob):
     """
-    An individual record of a dataset-like Artifact.
+    An individual immutable record of a dataset-like Artifact.
 
     Data represents the in-DB part of the record's data corresponding to the artifact's
     schema, while metadata is additional data derived from the data, added by a user
@@ -21,7 +21,9 @@ class Record(UUIDModel, VersionedBlob):
 
     data = models.JSONField()
     metadata = models.JSONField(null=True, blank=True)
-    committed = models.BooleanField(default=True)
+
+    def is_committed(self) -> bool:
+        return True
 
     class Meta:
         indexes = [GinIndex(name="bench_record_metadata", fields=["metadata"])]
@@ -150,6 +152,22 @@ def append_records(tree: RecordTree, records: list[Record]):
         RecordTreeReference.objects.bulk_create(references)
         tree.max_index = insert_offset
         tree.save()
+
+
+def replace_record(tree: RecordTree, index: int, new_record: Record):
+    """
+    Replaces the current record at the given index in the tree with the new record
+    """
+    parent_tree, reference = get_parent_tree(tree, index)
+    with transaction.atomic():
+        old_record: Record = reference.record
+        reference.record = new_record
+        reference.save()
+
+    gc_unused_records(
+        records=Record.objects.filter(id=old_record.id),
+        references=RecordTreeReference.objects.all(),
+    )
 
 
 def delete_record(tree: RecordTree, index: int):

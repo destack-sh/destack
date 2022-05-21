@@ -6,6 +6,7 @@ from django.db import models
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, validators, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -65,6 +66,9 @@ class DatasetVersionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "creating versions with multiple parents is not supported yet"
             )
+        if any(not parent.committed for parent in data["parents"]):
+            raise serializers.ValidationError("all parent versions must be committed")
+
         return data
 
     def validate_metadata(self, value: Union[str, dict]):
@@ -115,7 +119,7 @@ class DatasetVersionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # should also copy parent metadata here unless specified otherwise?
-        instance: DatasetVersion = serializer.save()
+        instance: DatasetVersion = serializer.save(committed=False)
         parents: models.QuerySet[DatasetVersion] = proxies(instance.parents, DatasetVersion).all()
         if parents:
             # this should be caught in DatasetVersionSerializer validation
@@ -133,6 +137,18 @@ class DatasetVersionViewSet(viewsets.ModelViewSet):
                 copy_dataset_version(parent, instance)
             else:
                 parent_handler.checkout(instance.version)
+
+    @action(methods=["POST"], detail=True)
+    def commit(self, request: Request, *args, **kwargs) -> Response:
+        instance: DatasetVersion = self.get_object()
+        if instance.committed:
+            raise serializers.ValidationError("already committed")
+        writer = _to_dataset_writer(_get_dataset_handler_by_instance(instance))
+        if isinstance(writer, ArtifactVersionHandler):
+            writer.commit()
+        instance.committed = True
+        instance.save()
+        return Response(status=status.HTTP_200_OK)
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         instance: DatasetVersion = self.get_object()

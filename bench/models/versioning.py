@@ -44,7 +44,7 @@ class VersionedObject(models.Model):
     content_hash = models.BinaryField(max_length=32)
 
     @property
-    def committed(self) -> bool:
+    def is_committed(self) -> bool:
         raise NotImplementedError
 
     class Meta:
@@ -68,6 +68,10 @@ class VersionedTree(VersionedObject):
 
     committed = models.BooleanField(default=True)
 
+    @property
+    def is_committed(self) -> bool:
+        return self.committed
+
     class Meta:
         abstract = True
 
@@ -81,6 +85,9 @@ class VersionedCommit(VersionedObject):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     committed = models.BooleanField(default=True)
+
+    def is_committed(self) -> bool:
+        return self.committed
 
     class Meta:
         abstract = True
