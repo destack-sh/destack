@@ -39,6 +39,9 @@ class Artifact(UUIDModel, VersionedRepository):
     def owned(self):
         return self.controller is None
 
+    def __str__(self):
+        return f"{self.type}:{self.name}"
+
     class Meta:
         indexes = [
             models.Index(name="bench_artifact_type_idx", fields=["type"]),
@@ -75,6 +78,9 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
     metadata = models.JSONField()
 
+    def __str__(self):
+        return f"{self.name}/{self.version}"
+
     class Meta:
         indexes = [
             models.Index(name="bench_artifact_version_idx", fields=["version"]),
@@ -103,3 +109,6 @@ class ArtifactView(UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     data = models.JSONField()
+
+    def __str__(self):
+        return f"{self.name}[{self.name}]"

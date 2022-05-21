@@ -1,6 +1,7 @@
 import json
-from typing import cast
+from typing import Union, cast
 
+import structlog
 from django.db import models
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -14,7 +15,10 @@ from bench.dataset.accessor import get_dataset_version_handler
 from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter
 from bench.models import Artifact, Dataset, DatasetVersion, Record
 from bench.models.dataset import DatasetMetadata
-from bench.models.utils import DATASET_TYPE, MAX_NAME_LENGTH
+from bench.models.utils import DATASET_TYPE, MAX_NAME_LENGTH, proxies
+from tasks.synchronize import copy_dataset_version
+
+logger = structlog.stdlib.get_logger()
 
 
 class DatasetSerializer(serializers.ModelSerializer):
@@ -38,7 +42,7 @@ class DatasetSerializer(serializers.ModelSerializer):
 class DatasetVersionSerializer(serializers.ModelSerializer):
     artifact = serializers.SlugRelatedField(queryset=Dataset.objects.all(), slug_field="name")
     parents = serializers.SlugRelatedField(
-        queryset=DatasetVersion.objects.all(), slug_field="version", many=True
+        queryset=DatasetVersion.objects.all(), slug_field="version", many=True, default=[]
     )
 
     class Meta:
@@ -51,9 +55,9 @@ class DatasetVersionSerializer(serializers.ModelSerializer):
             "storage_uri",
             "metadata",
             "content_hash",
-            "immutable",
+            "committed",
         ]
-        read_only_fields = ["id", "parents", "version", "content_hash", "immutable"]
+        read_only_fields = ["id", "parents", "version", "content_hash", "committed"]
 
     def validate(self, data):
         if len(data["parents"]) > 1:
@@ -63,10 +67,11 @@ class DatasetVersionSerializer(serializers.ModelSerializer):
             )
         return data
 
-    def validate_metadata(self, value: str):
-        # guaranteed to be valid JSON because metadata is a JSONField
-        value = json.loads(value)
+    def validate_metadata(self, value: Union[str, dict]):
         try:
+            # should be valid JSON because metadata is a JSONField
+            if isinstance(value, str):
+                value = json.loads(value)
             DatasetMetadata.from_dict(value)
         except (ValueError, KeyError) as e:
             raise serializers.ValidationError(f"metadata is invalid: {e}")
@@ -81,7 +86,7 @@ class RecordSerializer(serializers.ModelSerializer):
 
 
 class DatasetViewSet(viewsets.ModelViewSet):
-    queryset = Dataset.datasets.all()
+    queryset = Dataset.objects.all()
     serializer_class = DatasetSerializer
     lookup_field = "name"
 
@@ -100,33 +105,32 @@ class DatasetVersionViewSet(viewsets.ModelViewSet):
             request.data["artifact"] = kwargs.pop("artifact_name")
 
         # auto-insert parent metadata if not explicitly given and there is only one parent
-        parents_field_serializer = self.get_serializer().fields["parents"]
-        parents = parents_field_serializer.to_internal_value(request.data.get("parents"))
-        if len(parents) == 1 and "metadata" not in request.data:
-            request.data["metadata"] = parents[0].metadata.copy()
+        if request.data.get("parents"):
+            parents_field_serializer = self.get_serializer().fields["parents"]  # type: ignore
+            parents = parents_field_serializer.to_internal_value(request.data.get("parents"))
+            if len(parents) == 1 and "metadata" not in request.data:
+                request.data["metadata"] = parents[0].metadata.copy()
 
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # should also copy parent metadata here unless specified otherwise?
         instance: DatasetVersion = serializer.save()
-        parents = instance.parents.all()
+        parents: models.QuerySet[DatasetVersion] = proxies(instance.parents, DatasetVersion).all()
         if parents:
             # this should be caught in DatasetVersionSerializer validation
             if len(parents) != 1:
                 raise ValueError("creating versions with multiple parents is not supported yet")
 
             # create a new version of the dataset state based on the parent
-            # TODO @Architecture: creating new version logic should be in Dataset/ArtifactAccessor
+            # TODO @Architecture: creating new version logic should be elsewhere (DatasetAccessor?)
             #  because it is a shared concern and needs to drill down into (partial) sub-datasets.
-            parent = cast(DatasetVersion, parents[0])
+            parent = parents[0]
             parent_handler = _get_dataset_handler_by_instance(parent)
             if not isinstance(parent_handler, ArtifactVersionHandler):
-                # TODO @Robustness: handle create new dataset version if version handler is not implemented
-                #  Could fall back to copying versions? Slow and inefficient but should work.
-                raise ValueError(
-                    f"panic: cannot create new version for {instance} on {parent} using {parent_handler}"
-                )
+                logger.info("create_version_fallback_copy", parent=parent, instance=instance)
+                # TODO @Performance: copy dataset version as background job
+                copy_dataset_version(parent, instance)
             else:
                 parent_handler.checkout(instance.version)
 

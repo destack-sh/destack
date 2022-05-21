@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, Optional
@@ -65,9 +66,9 @@ class Model(Artifact):
 @dataclass(frozen=True)
 class ModelMetadata:
     handler_id: str
-    config_arguments: Dict[str, Any]
-    input_spec: RecordSpec
-    output_spec: RecordSpec
+    config_arguments: Dict[str, Any] = dataclasses.field(default_factory=dict)
+    input_spec: RecordSpec = RecordSpec(name="", description="", type={})
+    output_spec: RecordSpec = RecordSpec(name="", description="", type={})
 
 
 class ModelVersion(ArtifactVersion):

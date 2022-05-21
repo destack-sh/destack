@@ -42,7 +42,10 @@ class VersionedObject(models.Model):
     #  See https://www.postgresql.org/docs/14/functions-binarystring.html
     #  and https://docs.djangoproject.com/en/4.0/ref/models/database-functions/#sha1-sha224-sha256-sha384-and-sha512
     content_hash = models.BinaryField(max_length=32)
-    immutable = models.BooleanField(default=True)
+
+    @property
+    def committed(self) -> bool:
+        raise NotImplementedError
 
     class Meta:
         abstract = True
@@ -63,6 +66,8 @@ class VersionedTree(VersionedObject):
     A listing of paths to blobs and subtrees.
     """
 
+    committed = models.BooleanField(default=True)
+
     class Meta:
         abstract = True
 
@@ -75,6 +80,7 @@ class VersionedCommit(VersionedObject):
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    committed = models.BooleanField(default=True)
 
     class Meta:
         abstract = True
