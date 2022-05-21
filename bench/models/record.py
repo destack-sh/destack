@@ -21,6 +21,7 @@ class Record(UUIDModel, VersionedBlob):
 
     data = models.JSONField()
     metadata = models.JSONField(null=True, blank=True)
+    committed = models.BooleanField(default=True)
 
     class Meta:
         indexes = [GinIndex(name="bench_record_metadata", fields=["metadata"])]

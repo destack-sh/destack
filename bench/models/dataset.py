@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, Optional
@@ -38,7 +39,7 @@ class Dataset(Artifact):
     Handling, storage and management of the dataset may be delegated to external services.
     """
 
-    datasets = DatasetManager()
+    objects = DatasetManager()  # type: ignore
 
     class Meta:
         proxy = True
@@ -48,8 +49,8 @@ class Dataset(Artifact):
 @dataclass(frozen=True)
 class DatasetMetadata:
     handler_id: str
-    config_arguments: Dict[str, Any]
-    record_spec: RecordSpec
+    config_arguments: Dict[str, Any] = dataclasses.field(default_factory=dict)
+    record_spec: RecordSpec = RecordSpec(name="", description="", type={})
 
     class Config:
         allow_mutation = False
