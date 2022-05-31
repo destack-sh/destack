@@ -1,5 +1,5 @@
 import json
-from typing import Union, cast
+from typing import Any, Union, cast
 
 import structlog
 from django.db import models
@@ -168,28 +168,42 @@ class RecordViewSet(viewsets.GenericViewSet):
     serializer_class = RecordSerializer
     pagination_class = RecordPagination
 
+    def list(self, request: Request, artifact_name: str, version_version: str) -> Response:
+        reader = _get_dataset_reader(artifact_name, version_version)
+        paginator = cast(RecordPagination, self.paginator)
+        offset: int = paginator.get_offset(request)
+        limit: int = cast(int, paginator.get_limit(request))
+        records = list(reader[offset : offset + limit])
+        return Response({"limit": limit, "offset": offset, "results": records})
+
     def create(self, request: Request, artifact_name: str, version_version: str) -> Response:
         writer = _get_dataset_writer(artifact_name, version_version)
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         record = serializer.save()
         # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
-        #  This includes RecordViewSet.create/list and any other record access.
         writer.append(record.data)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def list(self, request: Request, artifact_name: str, version_version: str) -> Response:
+    def update(
+        self, request: Request, index: Any, artifact_name: str, version_version: str
+    ) -> Response:
+        index: int = _positive_int(index)
+        writer = _get_dataset_writer(artifact_name, version_version)
+        serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
+        writer.update(index, serializer.validated_data["data"])
+
         reader = _get_dataset_reader(artifact_name, version_version)
-        limit: int = cast(RecordPagination, self.paginator).get_limit(request)
-        offset: int = cast(RecordPagination, self.paginator).get_offset(request)
-        records = list(reader[offset : offset + limit])
-        return Response({"limit": limit, "offset": offset, "results": records})
+        record = reader[index]
+        return Response(record)
 
     def retrieve(
-        self, request: Request, index: str, artifact_name: str, version_version: str
+        self, request: Request, index: Any, artifact_name: str, version_version: str
     ) -> Response:
-        index = _positive_int(index)
+        index: int = _positive_int(index)
         reader = _get_dataset_reader(artifact_name, version_version)
         try:
             record = reader[index]
