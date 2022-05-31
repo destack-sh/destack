@@ -7,7 +7,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, validators, viewsets
 from rest_framework.decorators import action
-from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.pagination import LimitOffsetPagination, _positive_int
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -43,7 +43,7 @@ class DatasetSerializer(serializers.ModelSerializer):
 class DatasetVersionSerializer(serializers.ModelSerializer):
     artifact = serializers.SlugRelatedField(queryset=Dataset.objects.all(), slug_field="name")
     parents = serializers.SlugRelatedField(
-        queryset=DatasetVersion.objects.all(), slug_field="version", many=True, default=[]
+        queryset=DatasetVersion.objects.all(), slug_field="version", many=True
     )
 
     class Meta:
@@ -181,15 +181,15 @@ class RecordViewSet(viewsets.GenericViewSet):
 
     def list(self, request: Request, artifact_name: str, version_version: str) -> Response:
         reader = _get_dataset_reader(artifact_name, version_version)
-        limit = cast(RecordPagination, self.paginator).get_limit(request)
-        offset = cast(RecordPagination, self.paginator).get_offset(request)
+        limit: int = cast(RecordPagination, self.paginator).get_limit(request)
+        offset: int = cast(RecordPagination, self.paginator).get_offset(request)
         records = list(reader[offset : offset + limit])
         return Response({"limit": limit, "offset": offset, "results": records})
 
     def retrieve(
         self, request: Request, index: str, artifact_name: str, version_version: str
     ) -> Response:
-        index = int(index)
+        index = _positive_int(index)
         reader = _get_dataset_reader(artifact_name, version_version)
         try:
             record = reader[index]
