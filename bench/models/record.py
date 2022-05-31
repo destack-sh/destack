@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Iterator, Optional, Tuple, cast
 
 from django.contrib.postgres.indexes import GinIndex
@@ -5,8 +7,14 @@ from django.db import models, transaction
 from django.db.models import Q, Subquery
 
 from bench.models.utils import UUIDModel
-from bench.models.versioning import VersionedBlob, VersionedTree
+from bench.models.versioning import VersionedBlob, VersionedObject, VersionedTree
 from bench.utils.spec import FieldType
+
+
+class RecordManager(models.Manager):
+    def create_record(self, data: dict, metadata: Optional[dict]) -> Record:
+        content_hash = VersionedObject.hash_content({"data": data})
+        return super().create(data=data, metadata=metadata, content_hash=content_hash)
 
 
 class Record(UUIDModel, VersionedBlob):
@@ -24,6 +32,12 @@ class Record(UUIDModel, VersionedBlob):
 
     def is_committed(self) -> bool:
         return True
+
+    def save(self, *args, **kwargs):
+        # set content hash if not yet set
+        if not self.content_hash and self._state.adding:
+            self.content_hash = VersionedObject.hash_content({"data": self.data})
+        super().save(*args, **kwargs)
 
     class Meta:
         indexes = [GinIndex(name="bench_record_metadata", fields=["metadata"])]
@@ -160,7 +174,7 @@ def replace_record(tree: RecordTree, index: int, new_record: Record):
     """
     parent_tree, reference = get_parent_tree(tree, index)
     with transaction.atomic():
-        old_record: Record = reference.record
+        old_record: Record = cast(Record, reference.record)
         reference.record = new_record
         reference.save()
 

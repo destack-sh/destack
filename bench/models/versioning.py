@@ -15,6 +15,8 @@ We deviate from Git in that:
  - Objects may contain metadata invisible to the versioning process.
  - Objects may be marked 'mutable' before becoming immutable (irreversibly).
 """
+import hashlib
+import json
 
 from django.db import models
 
@@ -38,10 +40,16 @@ class VersionedObject(models.Model):
     Immutability is a terminal state, but objects may be mutable before that.
     """
 
-    # TODO @Robustness: hash object content in Postgres directly?
-    #  See https://www.postgresql.org/docs/14/functions-binarystring.html
-    #  and https://docs.djangoproject.com/en/4.0/ref/models/database-functions/#sha1-sha224-sha256-sha384-and-sha512
     content_hash = models.BinaryField(max_length=32)
+
+    @staticmethod
+    def hash_content(content: dict) -> bytes:
+        # TODO @Robustness @Performance: hash object content in Postgres directly?
+        #  See https://www.postgresql.org/docs/14/functions-binarystring.html
+        #  and https://docs.djangoproject.com/en/4.0/ref/models/database-functions/#sha1-sha224-sha256-sha384-and-sha512
+        serialized_content = json.dumps(content, sort_keys=True)
+        content_hash = hashlib.sha3_256(serialized_content.encode()).digest()
+        return content_hash
 
     @property
     def is_committed(self) -> bool:
