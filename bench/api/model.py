@@ -21,7 +21,7 @@ async def predict(request: HttpRequest) -> JsonResponse:
     model = await sync_to_async(_load_model_version)(
         name=request.GET["name"], version=request.GET["version"]
     )
-    prediction = await executor.run_model(
+    execution, prediction = await executor.run_model(
         model,
         record={"text": request.GET["text"]},
         load_if_needed=True,

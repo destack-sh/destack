@@ -79,7 +79,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     metadata = models.JSONField()
 
     def __str__(self):
-        return f"{self.name}/{self.version}"
+        return f"{self.artifact.name}/{self.version}"
 
     class Meta:
         indexes = [

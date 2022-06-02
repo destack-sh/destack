@@ -1,17 +1,18 @@
-from typing import Dict, Optional, Union, cast
+from typing import Dict, Optional, Tuple, Union, cast
 
 import structlog
 
-from bench.executor.base import ResourceRequirements, SimpleExecutor
+from bench.executor.base import Executor, ResourceRequirements
 from bench.executor.utils import get_model_iid
 from bench.model.base import ModelHandler, load_model
+from bench.models import ModelExecution
 from bench.models.model import ModelVersion
 from bench.utils.record import Record, RecordBatch, is_record
 
 logger = structlog.stdlib.get_logger()
 
 
-class LocalExecutor(SimpleExecutor):
+class LocalExecutor(Executor):
     """
     A locally executed implementation of Executor without coordination or parallelism.
     """
@@ -58,10 +59,18 @@ class LocalExecutor(SimpleExecutor):
         self,
         model: ModelVersion,
         record: Union[Record, RecordBatch],
+        blocking: bool = True,
         load_if_needed: bool = False,
-    ) -> Union[Record, RecordBatch]:
+    ) -> Tuple[ModelExecution, Union[None, Record, RecordBatch]]:
+        if not blocking:
+            # TODO @Performance: run_model is always blocking
+            raise NotImplementedError("running non-blocking is not supported")
+        execution = ModelExecution.objects.create(model=model)
         model_handler = await self._get_loaded_model(model, load_if_needed)
+        execution.start()
         if is_record(record):
-            return model_handler.predict(cast(Record, record))
+            output = model_handler.predict(cast(Record, record))
         else:
-            return model_handler.predict_batch(cast(RecordBatch, record))
+            output = model_handler.predict_batch(cast(RecordBatch, record))
+        execution.terminate()
+        return execution, output

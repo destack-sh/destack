@@ -56,7 +56,7 @@ class Model(Artifact):
     TODO @Feature: specify model affordances for different tasks, define common task/model specs
     """
 
-    models = ModelManager()
+    objects = ModelManager()
 
     class Meta:
         proxy = True

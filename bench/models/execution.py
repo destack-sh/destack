@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from django.db import models
 
 from bench.models.utils import UUIDModel
@@ -7,6 +9,12 @@ from bench.models.utils import UUIDModel
 
 class ExecutionManager(models.Manager):
     pass
+
+
+FLOW_EXECUTION_TYPE = "flow"
+FLOW_NODE_EXECUTION_TYPE = "flow_node"
+MODEL_EXECUTION_TYPE = "model"
+JOB_EXECUTION_TYPE = "job"
 
 
 class Execution(UUIDModel):
@@ -55,6 +63,22 @@ class Execution(UUIDModel):
 
     objects = ExecutionManager()
 
+    def start(self, state: Execution.State = State.Running):
+        """
+        Marks this execution as started in the given state
+        """
+        self.started_at = datetime.utcnow()
+        self.state = state
+        self.save()
+
+    def terminate(self, state: Execution.State = State.Completed):
+        """
+        Marks this execution as terminated in the given state
+        """
+        self.terminated_at = datetime.utcnow()
+        self.state = state
+        self.save()
+
 
 class FlowExecution(Execution):
     """
@@ -102,7 +126,7 @@ class ExecutionArtifactConnection(UUIDModel):
     )
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64, null=True, blank=True)
-    # optional FlowArtifactEdge reference when used for disambiguation
+    # optional FlowArtifactEdge reference when defined or used for disambiguation
     flow_artifact_edge = models.ForeignKey(
         "FlowArtifactEdge", blank=True, null=True, on_delete=models.CASCADE
     )
