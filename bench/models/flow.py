@@ -39,9 +39,6 @@ class FlowNode(UUIDModel):
     """
     A node represents a curried variant of a registered function with given arguments,
     including any required configured "init-time" artifacts like datasets and models.
-
-    A function may be managed by or dependent on an external Controller, which provides
-    additional configuration arguments and/or augments the function config & execution.
     """
 
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="nodes")
@@ -72,8 +69,8 @@ class FlowNodeEdge(UUIDModel):
 
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64, null=True, blank=True)
-    dependency = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
     dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
+    dependency = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
 
 
 class FlowArtifactEdge(UUIDModel):

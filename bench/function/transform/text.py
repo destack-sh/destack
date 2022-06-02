@@ -3,7 +3,7 @@ from typing import Optional
 
 from bench.dataset.base import DatasetHandler
 from bench.function.base import Predicate, Record, Transform, functions
-from bench.utils.spec import DatasetType, Json
+from bench.utils.spec import DatasetType
 
 
 class TextTransform(Transform, abc.ABC):
@@ -13,8 +13,8 @@ class TextTransform(Transform, abc.ABC):
 @functions.register("text.named_entity_imputer")
 class NamedEntityImputer(Transform):
     config_spec = {"dataset": DatasetType(record_spec={})}
-    input_spec = {"text": str, "entities": Json}
-    output_spec = {"text": str, "entities": Json}
+    input_spec = {"text": str, "entities": dict}
+    output_spec = {"text": str, "entities": dict}
 
     def __init__(self, dataset: DatasetHandler):
         self.dataset = dataset
