@@ -22,7 +22,7 @@ class Executor(abc.ABC):
     Base executor for orchestrating, routing and executing resources.
     """
 
-    async def load_artifact(
+    def load_artifact(
         self,
         model: ArtifactVersion,
         requirements: Optional[ResourceRequirements] = None,
@@ -32,13 +32,13 @@ class Executor(abc.ABC):
         """
         raise NotImplementedError
 
-    async def load_flow(self, flow: FlowVersion, requirements: PerNodeResourceRequirements):
+    def load_flow(self, flow: FlowVersion, requirements: PerNodeResourceRequirements):
         """
         Make the flow available in this executor with the given resources.
         """
         raise NotImplementedError
 
-    async def run_model(
+    def run_model(
         self,
         model: ModelVersion,
         record: Union[Record, RecordBatch],
@@ -53,7 +53,7 @@ class Executor(abc.ABC):
         """
         raise NotImplementedError
 
-    async def run_flow(
+    def run_flow(
         self,
         flow: FlowVersion,
         inputs: Mapping[UUID, Mapping[str, FlowInput]],
