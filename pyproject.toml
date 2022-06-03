@@ -27,6 +27,10 @@ ignore_missing_imports = true
 module = "fsspec"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "rest_framework_nested"
+ignore_missing_imports = true
+
 [tool.isort]
 profile = "black"
 line_length = 100

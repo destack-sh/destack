@@ -8,14 +8,12 @@ from django.contrib import admin
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from bench.api import api_routers, model
+from bench.api import api_routers
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/schema", SpectacularAPIView.as_view(), name="schema"),
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/schema/swagger/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"),
-    # typing complains because model.predict is async and django-stubs doesn't handle that
-    path("api/models/predict", model.predict),  # type: ignore
     *[path("api/", include(r.urls)) for r in api_routers],
 ]

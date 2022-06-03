@@ -21,6 +21,12 @@ class Flow(UUIDModel, VersionedRepository):
 
     objects = FlowManager()
 
+    class Meta:
+        indexes = [
+            models.Index(name="bench_flow_name_idx", fields=["name"]),
+        ]
+        constraints = [models.UniqueConstraint(name="bench_flow_name_ak", fields=["name"])]
+
 
 # TODO @Performance: version Flows on node-level
 #  Storing a complete copy of the entire Flow graph for every version

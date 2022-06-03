@@ -5,60 +5,44 @@ import structlog
 from django.db import models
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from rest_framework import serializers, status, validators, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination, _positive_int
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bench.api.artifact import (
+    ArtifactSerializer,
+    ArtifactVersionSerializer,
+    ArtifactVersionViewSet,
+    ArtifactViewSet,
+)
 from bench.artifact.base import ArtifactVersionHandler
 from bench.dataset.accessor import get_dataset_version_handler
 from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter
-from bench.models import Artifact, Dataset, DatasetVersion, Record
+from bench.models import Dataset, DatasetVersion, Record
 from bench.models.dataset import DatasetMetadata
-from bench.models.utils import DATASET_TYPE, MAX_NAME_LENGTH, proxies
+from bench.models.utils import DATASET_TYPE, proxies
 from tasks.synchronize import copy_dataset_version
 
 logger = structlog.stdlib.get_logger()
 
 
-class DatasetSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(
-        max_length=MAX_NAME_LENGTH,
-        validators=[
-            validators.UniqueValidator(
-                queryset=Artifact.objects.all(),
-                message="There is already an artifact with the given name",
-            )
-        ],
-    )
+class DatasetSerializer(ArtifactSerializer):
     type = serializers.CharField(max_length=64, default=DATASET_TYPE)
 
-    class Meta:
+    class Meta(ArtifactSerializer.Meta):
         model = Dataset
-        fields = ["id", "type", "created_at", "name", "description"]
-        read_only_fields = ["id", "type", "created_at"]
 
 
-class DatasetVersionSerializer(serializers.ModelSerializer):
+class DatasetVersionSerializer(ArtifactVersionSerializer):
     artifact = serializers.SlugRelatedField(queryset=Dataset.objects.all(), slug_field="name")
     parents = serializers.SlugRelatedField(
         queryset=DatasetVersion.objects.all(), slug_field="version", many=True
     )
 
-    class Meta:
+    class Meta(ArtifactVersionSerializer.Meta):
         model = DatasetVersion
-        fields = [
-            "id",
-            "parents",
-            "version",
-            "artifact",
-            "storage_uri",
-            "metadata",
-            "content_hash",
-            "committed",
-        ]
-        read_only_fields = ["id", "parents", "version", "content_hash", "committed"]
 
     def validate(self, data):
         if len(data["parents"]) > 1:
@@ -89,33 +73,14 @@ class RecordSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "content_hash"]
 
 
-class DatasetViewSet(viewsets.ModelViewSet):
+class DatasetViewSet(ArtifactViewSet):
     queryset = Dataset.objects.all()
     serializer_class = DatasetSerializer
-    lookup_field = "name"
 
 
-class DatasetVersionViewSet(viewsets.ModelViewSet):
+class DatasetVersionViewSet(ArtifactVersionViewSet):
     queryset = DatasetVersion.objects.filter(artifact__type=DATASET_TYPE).all()
     serializer_class = DatasetVersionSerializer
-    lookup_field = "version"
-
-    def get_queryset(self) -> models.QuerySet[DatasetVersion]:
-        return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name"))
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
-        # auto-insert artifact_name provided by nested dataset versions route
-        if "artifact_name" in kwargs:
-            request.data["artifact"] = kwargs.pop("artifact_name")
-
-        # auto-insert parent metadata if not explicitly given and there is only one parent
-        if request.data.get("parents"):
-            parents_field_serializer = self.get_serializer().fields["parents"]  # type: ignore
-            parents = parents_field_serializer.to_internal_value(request.data.get("parents"))
-            if len(parents) == 1 and "metadata" not in request.data:
-                request.data["metadata"] = parents[0].metadata.copy()
-
-        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # should also copy parent metadata here unless specified otherwise?
