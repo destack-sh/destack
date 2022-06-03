@@ -1,5 +1,5 @@
 import json
-from typing import Any, Union, cast
+from typing import Union, cast
 
 import structlog
 from django.db import models
@@ -184,11 +184,9 @@ class RecordViewSet(viewsets.GenericViewSet):
         # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
         writer.append(record.data)
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(record.data, status=status.HTTP_201_CREATED)
 
-    def update(
-        self, request: Request, index: Any, artifact_name: str, version_version: str
-    ) -> Response:
+    def update(self, request: Request, index, artifact_name: str, version_version: str) -> Response:
         index: int = _positive_int(index)
         writer = _get_dataset_writer(artifact_name, version_version)
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
@@ -201,7 +199,7 @@ class RecordViewSet(viewsets.GenericViewSet):
         return Response(record)
 
     def retrieve(
-        self, request: Request, index: Any, artifact_name: str, version_version: str
+        self, request: Request, index, artifact_name: str, version_version: str
     ) -> Response:
         index: int = _positive_int(index)
         reader = _get_dataset_reader(artifact_name, version_version)
