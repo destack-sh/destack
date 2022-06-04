@@ -41,11 +41,12 @@ class ModelVersionViewSet(ArtifactVersionViewSet):
     serializer_class = ModelVersionSerializer
 
     @action(methods=["POST"], detail=True)
-    def predict(self, request: Request, artifact_name: str, version: str) -> Response:
+    def predict(self, request: Request, *args, **kwargs) -> Response:
         model = self.get_object()
+        input_record = {"text": request.data.get("text")}
         execution, prediction = executor.run_model(
             model,
-            record={"text": request.GET["text"]},
+            record=input_record,
             blocking=True,
             load_if_needed=True,
         )

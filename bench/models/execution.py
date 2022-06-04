@@ -6,15 +6,14 @@ from django.db import models
 
 from bench.models.utils import UUIDModel
 
-
-class ExecutionManager(models.Manager):
-    pass
-
-
 FLOW_EXECUTION_TYPE = "flow"
 FLOW_NODE_EXECUTION_TYPE = "flow_node"
 MODEL_EXECUTION_TYPE = "model"
 JOB_EXECUTION_TYPE = "job"
+
+
+class ExecutionManager(models.Manager):
+    pass
 
 
 class Execution(UUIDModel):
@@ -45,7 +44,7 @@ class Execution(UUIDModel):
         blank=True, null=True, help_text="Time of transition to a terminal state."
     )
     state = models.CharField(max_length=32, choices=State.choices, default=State.Created)
-    metadata = models.JSONField()
+    metadata = models.JSONField(null=True, blank=True)
 
     parent = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
