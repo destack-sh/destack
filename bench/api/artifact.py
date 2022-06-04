@@ -10,7 +10,7 @@ from bench.models.utils import MAX_NAME_LENGTH
 logger = structlog.stdlib.get_logger()
 
 
-class ArtifactSerializer(serializers.ModelSerializer):
+class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
         validators=[
@@ -20,11 +20,12 @@ class ArtifactSerializer(serializers.ModelSerializer):
             )
         ],
     )
+    versions = serializers.SlugRelatedField(many=True, read_only=True, slug_field="version")
 
     class Meta:
         model = Artifact
-        fields = ["id", "type", "created_at", "name", "description"]
-        read_only_fields = ["id", "type", "created_at"]
+        fields = ["id", "type", "created_at", "name", "versions", "description"]
+        read_only_fields = ["id", "created_at"]
 
 
 class ArtifactVersionSerializer(serializers.ModelSerializer):
