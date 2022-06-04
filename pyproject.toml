@@ -31,6 +31,10 @@ ignore_missing_imports = true
 module = "rest_framework_nested"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "hub"
+ignore_missing_imports = true
+
 [tool.isort]
 profile = "black"
 line_length = 100
