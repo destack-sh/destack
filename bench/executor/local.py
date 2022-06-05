@@ -7,6 +7,7 @@ from bench.executor.base import Executor, FlowArgument, FlowInput, ResourceRequi
 from bench.executor.utils import get_model_iid
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, FlowExecution, ModelExecution
+from bench.models.execution import MODEL_EXECUTION_TYPE
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.utils.record import Record, RecordBatch, is_record
@@ -67,14 +68,14 @@ class LocalExecutor(Executor):
         if not blocking:
             # TODO @Performance: run_model is always blocking
             raise NotImplementedError("running non-blocking is not supported")
-        execution = ModelExecution.objects.create(model=model)
-        model_handler = self._get_loaded_model(model, load_if_needed)
-        execution.start()
-        if is_record(record):
-            output = model_handler.predict(cast(Record, record))
-        else:
-            output = model_handler.predict_batch(cast(RecordBatch, record))
-        execution.terminate()
+        execution = ModelExecution.objects.create(type=MODEL_EXECUTION_TYPE, model=model)
+        with execution.capture(start=False):
+            model_handler = self._get_loaded_model(model, load_if_needed)
+            execution.start()
+            if is_record(record):
+                output = model_handler.predict(cast(Record, record))
+            else:
+                output = model_handler.predict_batch(cast(RecordBatch, record))
         return execution, output
 
     def run_flow(

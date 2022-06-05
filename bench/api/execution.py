@@ -24,5 +24,5 @@ class ExecutionSerializer(serializers.ModelSerializer):
 
 
 class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Execution.objects.order_by("-created_at").all()
     serializer_class = ExecutionSerializer
-    queryset = Execution.objects.all()

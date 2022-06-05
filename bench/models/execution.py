@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import traceback
+from contextlib import contextmanager
 from datetime import datetime
+from typing import Optional
 
 from django.db import models
 
@@ -62,21 +65,48 @@ class Execution(UUIDModel):
 
     objects = ExecutionManager()
 
-    def start(self, state: Execution.State = State.Running):
+    def _set_transition_metadata(self, state: Execution.State, transition_metadata: Optional[dict]):
+        if transition_metadata is None:
+            return
+        if self.metadata is None:
+            self.metadata = {}
+        self.metadata[state.value] = transition_metadata
+
+    def start(
+        self, state: Execution.State = State.Running, transition_metadata: Optional[dict] = None
+    ):
         """
         Marks this execution as started in the given state
         """
         self.started_at = datetime.utcnow()
         self.state = state
+        self._set_transition_metadata(state, transition_metadata)
         self.save()
 
-    def terminate(self, state: Execution.State = State.Completed):
+    def terminate(
+        self, state: Execution.State = State.Completed, transition_metadata: Optional[dict] = None
+    ):
         """
         Marks this execution as terminated in the given state
         """
         self.terminated_at = datetime.utcnow()
         self.state = state
+        self._set_transition_metadata(state, transition_metadata)
         self.save()
+
+    @contextmanager
+    def capture(self, start: bool = True):
+        try:
+            if start:
+                self.start()
+            yield
+            self.terminate()
+        except Exception as e:
+            self.terminate(
+                state=Execution.State.Failed,
+                transition_metadata={"error": str(e), "stacktrace": traceback.format_stack()},
+            )
+            raise
 
 
 class FlowExecution(Execution):
