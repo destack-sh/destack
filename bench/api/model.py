@@ -9,6 +9,7 @@ from bench.api.artifact import (
     ArtifactVersionViewSet,
     ArtifactViewSet,
 )
+from bench.api.execution import ExecutionSerializer
 from bench.executor import executor
 from bench.models import Model, ModelVersion
 from bench.models.utils import MODEL_TYPE
@@ -50,4 +51,5 @@ class ModelVersionViewSet(ArtifactVersionViewSet):
             blocking=True,
             load_if_needed=True,
         )
-        return Response(prediction)
+        serialized_execution = ExecutionSerializer(execution).data
+        return Response({"execution": serialized_execution, "result": prediction})
