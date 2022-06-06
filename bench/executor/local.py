@@ -84,4 +84,4 @@ class LocalExecutor(Executor):
         inputs: Mapping[UUID, Mapping[str, FlowInput]],
         arguments: Mapping[UUID, Mapping[str, FlowArgument]],
     ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
-        pass
+        nodes = {node.id: node for node in flow.nodes.all()}

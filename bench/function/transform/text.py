@@ -10,7 +10,7 @@ class TextTransform(Transform, abc.ABC):
     pass
 
 
-@functions.register("text.named_entity_imputer")
+@functions.register("bench.text.named_entity_imputer")
 class NamedEntityImputer(Transform):
     config_spec = {"dataset": DatasetType(record_spec={})}
     input_spec = {"text": str, "entities": dict}
@@ -23,13 +23,13 @@ class NamedEntityImputer(Transform):
         return record
 
 
-@functions.register("text.upper_case", impl=Transform)
+@functions.register("bench.text.upper_case", impl=Transform)
 def upper_case(text: str) -> str:
     """Transforms text to uppercase"""
     return text.upper()
 
 
-@functions.register("text.swap_characters")
+@functions.register("bench.text.swap_characters")
 class SwapCharacters(Transform):
     def __init__(self, max_distance: int = 2):
         self.max_distance = max_distance
@@ -40,7 +40,7 @@ class SwapCharacters(Transform):
         return {**record, "text": text}
 
 
-@functions.register("text.check_length")
+@functions.register("bench.text.check_length")
 class CheckTextLength(Predicate):
     """Checks whether text length is in the specified bounds"""
 
