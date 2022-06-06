@@ -12,8 +12,8 @@ Resource = str
 ResourceRequirements = Dict[Resource, Union[int, float]]
 PerNodeResourceRequirements = Dict[UUIDT, ResourceRequirements]
 
-FlowInput = Union[Record, RecordBatch, ArtifactVersion]
-FlowArgument = Union[FlowNode, ArtifactVersion]
+FlowInput = Union[RecordBatch, ArtifactVersion]
+FlowArgument = Union[FlowNode, RecordBatch, ArtifactVersion]
 FlowOutput = Union[ArtifactVersion]
 
 
@@ -28,13 +28,13 @@ class Executor(abc.ABC):
         requirements: Optional[ResourceRequirements] = None,
     ):
         """
-        Make the model available in this executor with the given resources.
+        Make the artifact available in this executor with the given resources.
         """
         raise NotImplementedError
 
     def load_flow(self, flow: FlowVersion, requirements: PerNodeResourceRequirements):
         """
-        Make the flow available in this executor with the given resources.
+        Prepare the flow in this executor with the given resources.
         """
         raise NotImplementedError
 

@@ -1,7 +1,7 @@
 from django.db import models
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
-from bench.models.versioning import VersionedCommit, VersionedRepository
+from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
 
 
 class FlowManager(models.Manager):
@@ -41,7 +41,7 @@ class FlowVersion(UUIDModel, VersionedCommit):
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
 
 
-class FlowNode(UUIDModel):
+class FlowNode(UUIDModel, VersionedBlob):
     """
     A node represents a curried variant of a registered function with given arguments,
     including any required configured "init-time" artifacts like datasets and models.
@@ -49,6 +49,7 @@ class FlowNode(UUIDModel):
 
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="nodes")
     created_at = models.DateTimeField(auto_now_add=True)
+    committed = models.BooleanField(default=True)
 
     function_id = models.CharField(max_length=256)
     config_arguments = models.JSONField()
@@ -61,6 +62,10 @@ class FlowNode(UUIDModel):
         symmetrical=False,
     )
     controller = models.ForeignKey("Controller", on_delete=models.RESTRICT, blank=True, null=True)
+
+    @property
+    def is_committed(self) -> bool:
+        return self.committed
 
 
 class FlowNodeEdge(UUIDModel):
