@@ -48,6 +48,7 @@ class FlowNode(UUIDModel, VersionedBlob):
     """
 
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="nodes")
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     committed = models.BooleanField(default=True)
 

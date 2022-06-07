@@ -54,3 +54,10 @@ def get_dataset_version_reader(version: DatasetVersion) -> DatasetReader:
 
 def get_dataset_version_writer(version: DatasetVersion) -> DatasetWriter:
     return get_dataset_writer(**_to_handler_opts(version))
+
+
+def write_to_dataset(version: DatasetVersion, records: RecordBatch, append: bool = True):
+    writer = get_dataset_version_writer(version)
+    if not append:
+        writer.clear()
+    writer.extend(records)

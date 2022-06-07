@@ -1,10 +1,15 @@
 from itertools import chain
+from typing import Mapping
+from uuid import UUID
 
 from rest_framework import serializers, validators, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bench.api.execution import ExecutionSerializer
+from bench.executor import executor
+from bench.executor.base import FlowRawArgument, FlowRawInput
 from bench.models import ArtifactVersion, Flow, FlowNode
 from bench.models.flow import FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
@@ -79,10 +84,42 @@ class FlowExecutionPlanSerializer(serializers.Serializer):
             chain(data["inputs"], data["arguments"]),
         )
         if bad_arguments:
-            raise serializers.ValidationError(f"argument flow nodes refer to different flow")
+            raise serializers.ValidationError("argument flow nodes refer to different flow")
 
 
 class FlowViewSet(viewsets.ModelViewSet):
     @action(methods=["POST"], detail=True)
     def execute(self, request: Request, *args, **kwargs) -> Response:
-        pass
+        serializer = FlowExecutionPlanSerializer(request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # assemble inputs into dict form
+        inputs: dict[UUID, Mapping[str, FlowRawInput]] = {}
+        for node_input in serializer.validated_data["inputs"]:
+            node_inputs: dict[str, FlowRawInput] = {}
+            for input_data in node_input["inputs"]:
+                # use first non-null data given
+                node_inputs[input_data["name"]] = input_data.get(
+                    "records", input_data.get("artifact")
+                )
+            inputs[node_input["node"].id] = node_inputs
+
+        # assemble arguments into dict form
+        arguments: dict[UUID, Mapping[str, FlowRawArgument]] = {}
+        for node_argument in serializer.validated_data["arguments"]:
+            node_arguments: dict[str, FlowRawArgument] = {}
+            for argument_data in node_argument["arguments"]:
+                # use first non-null data given
+                node_arguments[argument_data["name"]] = argument_data.get(
+                    "other_node", argument_data.get("records", argument_data.get("artifact"))
+                )
+            arguments[node_argument["node"].id] = node_arguments
+
+        flow: FlowVersion = serializer.validated_data["flow"]
+        execution, outputs = executor.run_flow(flow, inputs, arguments)
+        serialized_execution = ExecutionSerializer(execution).data
+        serialized_outputs: Mapping[UUID, Mapping[str, UUID]] = {
+            node_id: {name: artifact.id for name, artifact in artifacts.items()}
+            for node_id, artifacts in outputs.items()
+        }
+        return Response({"execution": serialized_execution, "outputs": serialized_outputs})

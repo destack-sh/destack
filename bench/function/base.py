@@ -187,5 +187,10 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
 
 functions: Registry[Type[Function]] = Registry(("functions",), mapper=map_to_function_cls)
 
+
+def load_function(function_id: str, **kwargs) -> Function:
+    raise NotImplementedError
+
+
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.function.transform.text  # noqa
