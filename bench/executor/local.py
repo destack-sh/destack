@@ -1,17 +1,15 @@
 import dataclasses
-from typing import Dict, Mapping, Optional, Tuple, Union, cast
+from typing import Callable, Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
 import structlog
+from django.db.models import QuerySet
 
 from bench.dataset.accessor import write_to_dataset
 from bench.executor.base import (
     Executor,
-    FlowArgument,
-    FlowInput,
-    FlowOutput,
+    FlowExecutionOptions,
     FlowRawArgument,
-    FlowRawInput,
     ResourceRequirements,
 )
 from bench.executor.utils import get_model_iid
@@ -20,7 +18,7 @@ from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, FlowExecution, ModelExecution
 from bench.models.dataset import Dataset, DatasetMetadata
 from bench.models.execution import FLOW_EXECUTION_TYPE, MODEL_EXECUTION_TYPE
-from bench.models.flow import FlowNode, FlowVersion
+from bench.models.flow import FlowNode, FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.utils.record import Record, RecordBatch, is_record
 
@@ -38,9 +36,12 @@ def _convert_records_to_dataset(name: str, data: RecordBatch) -> ArtifactVersion
 @dataclasses.dataclass
 class FlowExecutionPlan:
     nodes: Mapping[UUID, FlowNode]
-    inputs: Mapping[UUID, Mapping[str, FlowInput]]
-    outputs: Mapping[UUID, Mapping[str, FlowOutput]]
-    arguments: Mapping[UUID, Mapping[str, FlowArgument]]
+    static_inputs: Mapping[UUID, Mapping[str, ArtifactVersion]]
+    static_arguments: Mapping[UUID, Mapping[str, ArtifactVersion]]
+    connected_inputs: Mapping[UUID, Mapping[str, UUID]]
+    connected_arguments: Mapping[UUID, Mapping[str, UUID]]
+    intermediate_outputs: Mapping[UUID, ArtifactVersion]
+    final_outputs: Mapping[UUID, ArtifactVersion]
 
 
 class LocalExecutor(Executor):
@@ -109,48 +110,59 @@ class LocalExecutor(Executor):
     def run_flow(
         self,
         flow: FlowVersion,
-        inputs: Mapping[UUID, Mapping[str, FlowRawInput]],
+        inputs: Mapping[UUID, Mapping[str, FlowRawArgument]],
         arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
+        options: FlowExecutionOptions,
     ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
         execution = FlowExecution.objects.create(type=FLOW_EXECUTION_TYPE, flow=flow)
         nodes: Mapping[UUID, FlowNode] = {node.id: node for node in flow.nodes.all()}
 
-        # convert given inputs to persisted artifacts as needed
-        converted_inputs: dict[UUID, Mapping[str, FlowInput]] = {}
-        for node_id, node_inputs in inputs.items():
-            converted_node_inputs: dict[str, ArtifactVersion] = {}
-            for name, data in node_inputs.items():
-                node_input_id = f"{flow.name}/{nodes[node_id].name}/inputs/{name}"
-                if isinstance(data, RecordBatch):
-                    data = _convert_records_to_dataset(node_input_id, data)
-                elif not isinstance(data, ArtifactVersion):
-                    raise ValueError(f"node input {node_input_id} has unexpected type: {data}")
-                converted_node_inputs[name] = data
-            converted_inputs[node_id] = converted_node_inputs
+        # convert given inputs/arguments to persisted artifacts as needed
+        static_inputs = self._convert_arguments_to_artifacts(
+            inputs,
+            lambda node_id, name: f"{flow.name}/{nodes[node_id].name}/inputs/{name}",
+        )
+        static_arguments = self._convert_arguments_to_artifacts(
+            arguments,
+            lambda node_id, name: f"{flow.name}/{nodes[node_id].name}/arguments/{name}",
+        )
 
-        # convert given arguments to persisted artifacts as needed
-        converted_arguments: dict[UUID, Mapping[str, FlowArgument]] = {}
-        for node_id, node_arguments in arguments.items():
-            converted_node_arguments: dict[str, Union[ArtifactVersion, FlowNode]] = {}
-            for name, data in node_arguments.items():
-                node_argument_id = f"{flow.name}/{nodes[node_id].name}/arguments/{name}"
-                if isinstance(data, RecordBatch):
-                    data = _convert_records_to_dataset(node_argument_id, data)
-                elif not isinstance(data, (ArtifactVersion, FlowNode)):
-                    raise ValueError(
-                        f"node argument {node_argument_id} has unexpected type: {data}"
-                    )
-                converted_node_arguments[name] = data
-            converted_arguments[node_id] = converted_node_arguments
+        # define which nodes need to be connected (and how)
+        connected_inputs: dict[UUID, dict[str, UUID]] = {}
+        connected_arguments: dict[UUID, dict[str, UUID]] = {}
+        intermediate_outputs: dict[UUID, ArtifactVersion] = {}
+        final_outputs: dict[UUID, ArtifactVersion] = {}
+        for node in nodes.values():
+            connected_inputs[node.id] = {}
+            connected_arguments[node.id] = {}
+            dependency_edges: QuerySet[FlowNodeEdge] = FlowNodeEdge.objects.filter(dependent=node)
+            for edge in dependency_edges:
+                if edge.connection_type == FlowNodeEdge.ConnectionType.Input:
+                    connected_inputs[node.id][edge.connection_name] = edge.dependency.id
+                elif edge.connection_type == FlowNodeEdge.ConnectionType.Argument:
+                    connected_arguments[node.id][edge.connection_name] = edge.dependency.id
+                else:
+                    raise ValueError(f"unexpected connection type: {edge}")
+            is_intermediate = len(dependency_edges) > 1
+            output_id = f"{flow.name}/{node.name}/output"
+            if is_intermediate and options.capture_intermediate_outputs or not is_intermediate:
+                output_dataset = Dataset.objects.create_dataset_version_by_name(
+                    name=output_id, version=None, metadata=DatasetMetadata.default_db()
+                )
+                if is_intermediate:
+                    intermediate_outputs[node.id] = output_dataset
+                else:
+                    final_outputs[node.id] = output_dataset
 
-        defined_arguments: dict[UUID, Mapping[str, FlowArgument]] = {}
-        implied_outputs = {}
-        # define execution plan for piping flow data
+        # define execution plan for data flow
         plan = FlowExecutionPlan(
             nodes=nodes,
-            inputs=converted_inputs,
-            arguments={**defined_arguments, **converted_arguments},
-            outputs=implied_outputs,
+            static_inputs=static_inputs,
+            static_arguments=static_arguments,
+            connected_inputs=connected_inputs,
+            connected_arguments=connected_arguments,
+            intermediate_outputs=intermediate_outputs,
+            final_outputs=final_outputs,
         )
 
         # load functions and execute plan
@@ -158,4 +170,24 @@ class LocalExecutor(Executor):
         for node in plan.nodes.values():
             pass
 
-        return execution, plan.outputs
+        return execution, final_outputs
+
+    def _convert_arguments_to_artifacts(
+        self,
+        arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
+        argument_id_func: Callable[[UUID, str], str],
+    ):
+        converted_arguments: dict[UUID, Mapping[str, ArtifactVersion]] = {}
+        for node_id, node_arguments in arguments.items():
+            converted_node_arguments: dict[str, ArtifactVersion] = {}
+            for name, data in node_arguments.items():
+                node_argument_id = argument_id_func(node_id, name)
+                if isinstance(data, RecordBatch):
+                    data = _convert_records_to_dataset(node_argument_id, data)
+                elif not isinstance(data, ArtifactVersion):
+                    raise ValueError(
+                        f"node argument {node_argument_id} has unexpected type: {data}"
+                    )
+                converted_node_arguments[name] = data
+            converted_arguments[node_id] = converted_node_arguments
+        return converted_arguments

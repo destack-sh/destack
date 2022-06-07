@@ -80,7 +80,7 @@ class FlowNodeEdge(UUIDModel):
         # "Output" is unnecessary because flow node connections are asymmetric.
 
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
-    connection_name = models.CharField(max_length=64, null=True, blank=True)
+    connection_name = models.CharField(max_length=64)
     dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
     dependency = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
 
@@ -96,6 +96,6 @@ class FlowArtifactEdge(UUIDModel):
         Output = "output"
 
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
-    connection_name = models.CharField(max_length=64, null=True, blank=True)
+    connection_name = models.CharField(max_length=64)
     dependent_node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
     artifact = models.ForeignKey("Artifact", on_delete=models.RESTRICT)
