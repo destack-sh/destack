@@ -13,12 +13,12 @@ from bench.utils.spec import RecordSpec
 def dataset_version() -> DatasetVersion:
     dataset_version = Dataset.objects.create_dataset_version_by_name(
         name="test",
-        version="0",
         metadata=DatasetMetadata(
             handler_id="db",
             config_arguments={},
             record_spec=RecordSpec(name="", description="", type={}),
         ),
+        version="0",
     )
     return dataset_version
 

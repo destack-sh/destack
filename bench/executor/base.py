@@ -12,8 +12,11 @@ Resource = str
 ResourceRequirements = Dict[Resource, Union[int, float]]
 PerNodeResourceRequirements = Dict[UUIDT, ResourceRequirements]
 
-FlowInput = Union[RecordBatch, ArtifactVersion]
-FlowArgument = Union[FlowNode, RecordBatch, ArtifactVersion]
+FlowRawInput = Union[RecordBatch, ArtifactVersion]
+FlowInput = Union[ArtifactVersion]
+FlowOutput = Union[ArtifactVersion]
+FlowRawArgument = Union[FlowNode, RecordBatch, ArtifactVersion]
+FlowArgument = Union[FlowNode, ArtifactVersion]
 FlowOutput = Union[ArtifactVersion]
 
 
@@ -56,8 +59,8 @@ class Executor(abc.ABC):
     def run_flow(
         self,
         flow: FlowVersion,
-        inputs: Mapping[UUID, Mapping[str, FlowInput]],
-        arguments: Mapping[UUID, Mapping[str, FlowArgument]],
+        inputs: Mapping[UUID, Mapping[str, FlowRawInput]],
+        arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
     ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
         """
         Runs the given flow with the provided inputs and arguments to each node.

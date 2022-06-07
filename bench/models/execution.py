@@ -72,6 +72,11 @@ class Execution(UUIDModel):
             self.metadata = {}
         self.metadata[state.value] = transition_metadata
 
+    def update_state(self, state: Execution.State, transition_metadata: Optional[dict] = None):
+        self.state = state
+        self._set_transition_metadata(state, transition_metadata)
+        self.save()
+
     def start(
         self, state: Execution.State = State.Running, transition_metadata: Optional[dict] = None
     ):

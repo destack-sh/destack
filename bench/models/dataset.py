@@ -52,6 +52,10 @@ class DatasetMetadata:
     config_arguments: Dict[str, Any] = dataclasses.field(default_factory=dict)
     record_spec: RecordSpec = RecordSpec(name="", description="", type={})
 
+    @staticmethod
+    def default_db():
+        return DatasetMetadata(handler_id="bench.db")
+
     class Config:
         allow_mutation = False
         frozen = True
