@@ -1,9 +1,10 @@
 import abc
+import dataclasses
 from typing import Dict, Mapping, Optional, Tuple, Union
 from uuid import UUID
 
 from bench.models import ArtifactVersion, FlowExecution, ModelExecution
-from bench.models.flow import FlowNode, FlowVersion
+from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
@@ -12,12 +13,13 @@ Resource = str
 ResourceRequirements = Dict[Resource, Union[int, float]]
 PerNodeResourceRequirements = Dict[UUIDT, ResourceRequirements]
 
-FlowRawInput = Union[RecordBatch, ArtifactVersion]
-FlowInput = Union[ArtifactVersion]
-FlowOutput = Union[ArtifactVersion]
-FlowRawArgument = Union[FlowNode, RecordBatch, ArtifactVersion]
-FlowArgument = Union[FlowNode, ArtifactVersion]
-FlowOutput = Union[ArtifactVersion]
+FlowRawArgument = Union[RecordBatch, ArtifactVersion]
+FlowArgument = Union[ArtifactVersion]
+
+
+@dataclasses.dataclass
+class FlowExecutionOptions:
+    capture_intermediate_outputs: bool
 
 
 class Executor(abc.ABC):
@@ -59,8 +61,9 @@ class Executor(abc.ABC):
     def run_flow(
         self,
         flow: FlowVersion,
-        inputs: Mapping[UUID, Mapping[str, FlowRawInput]],
+        inputs: Mapping[UUID, Mapping[str, FlowRawArgument]],
         arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
+        options: FlowExecutionOptions,
     ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
         """
         Runs the given flow with the provided inputs and arguments to each node.
