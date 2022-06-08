@@ -19,7 +19,7 @@ class DatasetManager(ArtifactManager):
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
     def create_dataset_version_by_name(
-        self, name: str, version: Optional[str], metadata: DatasetMetadata
+        self, name: str, metadata: DatasetMetadata, version: Optional[str] = None
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
@@ -39,7 +39,7 @@ class Dataset(Artifact):
     Handling, storage and management of the dataset may be delegated to external services.
     """
 
-    objects = DatasetManager()  # type: ignore
+    objects = DatasetManager()
 
     class Meta:
         proxy = True

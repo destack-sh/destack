@@ -97,5 +97,5 @@ class FlowArtifactEdge(UUIDModel):
 
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64)
-    dependent_node = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
-    artifact = models.ForeignKey("Artifact", on_delete=models.RESTRICT)
+    dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
+    dependency = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)
