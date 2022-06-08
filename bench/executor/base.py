@@ -1,10 +1,10 @@
 import abc
 import dataclasses
-from typing import Dict, Mapping, Optional, Tuple, Union
+from typing import Dict, Mapping, Optional, Set, Tuple, Union
 from uuid import UUID
 
 from bench.models import ArtifactVersion, FlowExecution, ModelExecution
-from bench.models.flow import FlowVersion
+from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
@@ -19,7 +19,7 @@ FlowArgument = Union[ArtifactVersion]
 
 @dataclasses.dataclass
 class FlowExecutionOptions:
-    capture_intermediate_outputs: bool
+    capture_intermediate: Set[FlowNodeEdge.ConnectionType]
 
 
 class Executor(abc.ABC):

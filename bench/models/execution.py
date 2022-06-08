@@ -3,9 +3,10 @@ from __future__ import annotations
 import traceback
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TypeVar
 
 from django.db import models
+from django.db.models import QuerySet
 
 from bench.models.utils import UUIDModel
 
@@ -14,9 +15,24 @@ FLOW_NODE_EXECUTION_TYPE = "flow_node"
 MODEL_EXECUTION_TYPE = "model"
 JOB_EXECUTION_TYPE = "job"
 
+DEFAULT_CONNECTION_NAME = "main"
+
+ExecutionT = TypeVar("ExecutionT")
+
 
 class ExecutionManager(models.Manager):
-    pass
+    def __init__(self, default_type: Optional[str] = None):
+        super().__init__()
+        self.default_type = default_type
+
+    def get_queryset(self) -> QuerySet[Execution]:
+        if self.default_type is not None:
+            return super().get_queryset().filter(type=self.default_type)
+        else:
+            return super().get_queryset()
+
+    def create(self, **kwargs):
+        return super().create(type=self.default_type, **kwargs)
 
 
 class Execution(UUIDModel):
@@ -119,6 +135,8 @@ class FlowExecution(Execution):
     The execution of an entire Flow.
     """
 
+    objects = ExecutionManager(default_type=FLOW_EXECUTION_TYPE)
+
     class Meta:
         proxy = True
 
@@ -128,6 +146,8 @@ class FlowNodeExecution(Execution):
     The parameterised execution of a specific node in a Flow.
     """
 
+    objects = ExecutionManager(default_type=FLOW_NODE_EXECUTION_TYPE)
+
     class Meta:
         proxy = True
 
@@ -136,6 +156,8 @@ class ModelExecution(Execution):
     """
     The execution of an individual model artifact (also called a 'prediction').
     """
+
+    objects = ExecutionManager(default_type=MODEL_EXECUTION_TYPE)
 
     class Meta:
         proxy = True
