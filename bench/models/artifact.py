@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import secrets
-from typing import Optional
 
 from django.db import models
 
@@ -10,10 +9,7 @@ from bench.models.versioning import VersionedCommit, VersionedRepository
 
 
 class ArtifactManager(models.Manager):
-    def create_artifact(self, type: str, name: str, description: Optional[str]) -> Artifact:
-        artifact = Artifact(type=type, name=name, description=description)
-        artifact.save()
-        return artifact
+    pass
 
 
 class Artifact(UUIDModel, VersionedRepository):

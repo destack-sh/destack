@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any, Callable, Optional, Type, Union, cast
 
-from bench.utils.record import Record, RecordBatch
+from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
     ArtifactSetSpec,
@@ -46,51 +46,31 @@ class RecordFunction(Function, ABC):
     output_spec: Union[None, RecordType, RecordSpec]
 
 
-class RecordProvider(RecordFunction):
-    """
-    A record function that provides a single record.
-    """
-
-    input_spec = None
-
-    def __call__(self) -> Record:
-        raise NotImplementedError
-
-
-class RecordBatchProvider(RecordFunction):
-    """
-    A record function that provides a batch of records.
-    """
-
-    input_spec = None
-
-    def __call__(self) -> RecordBatch:
-        raise NotImplementedError
-
-
-class Transform(RecordFunction, ABC):
+class RecordTransform(RecordFunction, ABC):
     """
     A transformation function mapping input records to output records
     """
 
-    def __call__(self, record: Record) -> Record:
+    def transform(self, record: Record) -> Record:
+        raise NotImplementedError
+
+    def transform_batch(self, records: RecordBatch) -> RecordBatch:
         raise NotImplementedError
 
 
-class BatchTransform(RecordFunction, ABC):
-    """
-    A transformation function mapping input records to output records in batches
-    """
+class SingleRecordTransform(RecordTransform, ABC):
+    def transform_batch(self, records: RecordBatch) -> RecordBatch:
+        results = []
+        for record in records:
+            results.append(self.transform(record))
+        return RecordList(results)
 
-    def __call__(self, records: RecordBatch) -> RecordBatch:
-        raise NotImplementedError
 
-
-class Predicate(RecordFunction, ABC):
-    output_spec = None
-
-    def __call__(self, record: Record) -> bool:
-        raise NotImplementedError
+class BatchRecordTransform(RecordTransform, ABC):
+    def transform(self, record: Record) -> Record:
+        record_as_batch = RecordList([record])
+        result_batch = self.transform_batch(record_as_batch)
+        return result_batch[0]
 
 
 def map_to_function_cls(func: Any, impl: Optional[Type[Function]]) -> Type[Function]:
@@ -168,9 +148,7 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
     # very simplistic and we may want more complex behavior later.
     if issubclass(impl, RecordFunction):
         attrs["input_spec"] = inferred_input_spec
-        if issubclass(impl, Predicate):
-            attrs["output_spec"] = None
-        elif issubclass(impl, Transform):
+        if issubclass(impl, RecordTransform):
             if len(inferred_config_spec.type) != 1:
                 raise ValueError(
                     f"mapping callable {get_qualified_name(func)} with !=1 arguments is not supported"
@@ -186,6 +164,10 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
 
 
 functions: Registry[Type[Function]] = Registry(("functions",), mapper=map_to_function_cls)
+
+
+def get_config_spec(function_id: str) -> ConfigSpec:
+    return convert_to_config_spec(functions[function_id].config_spec)
 
 
 def load_function(function_id: str, **kwargs) -> Function:
