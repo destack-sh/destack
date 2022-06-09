@@ -1,11 +1,22 @@
-from django.db import models
+from __future__ import annotations
+
+from typing import Optional
+
+from django.db import models, transaction
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
 
 
 class FlowManager(models.Manager):
-    pass
+    def create_flow_version_by_name(
+        self, name: str, description: Optional[str] = None
+    ) -> FlowVersion:
+        """Creates dataset version and corresponding dataset if it doesn't exist"""
+        with transaction.atomic():
+            flow, _ = Flow.objects.get_or_create(name=name)
+            flow_version = FlowVersion.objects.create(flow=flow)
+        return flow_version
 
 
 class Flow(UUIDModel, VersionedRepository):
@@ -54,7 +65,7 @@ class FlowNode(UUIDModel, VersionedBlob):
 
     function_id = models.CharField(max_length=256)
     config_arguments = models.JSONField()
-    connected_artifacts = models.ManyToManyField("Artifact", through="FlowArtifactEdge")
+    connected_artifacts = models.ManyToManyField("ArtifactVersion", through="FlowArtifactEdge")
     depends_on_nodes = models.ManyToManyField(
         "FlowNode",
         through="FlowNodeEdge",
