@@ -310,7 +310,9 @@ def manifest_execution_plan(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowE
     execution = FlowExecution.objects.create(flow=flow)
     node_executions: dict[UUID, FlowNodeExecution] = {}
     for node in plan.nodes.values():
-        node_execution = FlowNodeExecution.objects.create(flow=flow, node=node, parent=execution)
+        node_execution = FlowNodeExecution.objects.create(
+            flow=flow, flow_node=node, parent=execution
+        )
 
         # static inputs
         for name, static_connection in plan.static(node_id=node.id):

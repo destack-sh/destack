@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
@@ -12,13 +13,13 @@ from bench.executor.base import (
     manifest_execution_plan,
 )
 from bench.executor.utils import get_model_iid
-from bench.function.base import Function, get_config_spec, load_function
+from bench.function.base import Function, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, FlowExecution, ModelExecution
 from bench.models.execution import MODEL_EXECUTION_TYPE
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
-from bench.utils.record import Record, RecordBatch, is_record
+from bench.utils.record import Record, RecordBatch, RecordList, is_record
 
 logger = structlog.stdlib.get_logger()
 
@@ -99,10 +100,29 @@ class LocalExecutor(Executor):
         # load functions, define execution process loop
         functions: dict[UUID, Function] = {}
         for node in plan.nodes.values():
-            config_spec = get_config_spec(node.function_id)
+            # config_spec = get_config_spec(node.function_id)
             config_arguments = node.config_arguments
-            function = load_function(node.function_id)
+            # TODO @Feature: pass artifact function arguments (model, dataset)
+            function = load_function(node.function_id, arguments=config_arguments)
+            functions[node.id] = function
 
         # start execution
+        for node_id, func in functions.items():
+            if not isinstance(func, RecordTransform):
+                raise ValueError(f"function is not supported at {node_id}: {func}")
+        record_transforms = cast(Mapping[UUID, RecordTransform], functions)
+        # TODO @Feature: actually populate intermediate/unprocessed data
+        intermediate_data: dict[UUID, list[Record]] = defaultdict(list)
+        while True:
+            for node_id, data in intermediate_data.values():
+                input_batch = RecordList(data)
+                output_batch = record_transforms[node_id].transform_batch(input_batch)
+
+            intermediate_data = {
+                node_id: data for node_id, data in intermediate_data.items() if len(data) == 0
+            }
+
+            if len(intermediate_data) == 0:
+                break
 
         return manifest.execution, plan.final_outputs
