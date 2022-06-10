@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from django.db import models, transaction
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
@@ -9,9 +7,7 @@ from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRep
 
 
 class FlowManager(models.Manager):
-    def create_flow_version_by_name(
-        self, name: str, description: Optional[str] = None
-    ) -> FlowVersion:
+    def create_flow_version_by_name(self, name: str) -> FlowVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             flow, _ = Flow.objects.get_or_create(name=name)
