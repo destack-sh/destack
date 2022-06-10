@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Callable, Optional, Type, Union, cast
+from typing import Any, Callable, Dict, Optional, Type, Union, cast
 
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
@@ -170,9 +170,17 @@ def get_config_spec(function_id: str) -> ConfigSpec:
     return convert_to_config_spec(functions[function_id].config_spec)
 
 
-def load_function(function_id: str, **kwargs) -> Function:
-    raise NotImplementedError
+def get_function_cls(handler_id: str) -> Type[Function]:
+    function_cls: Type[Function] = functions[handler_id]
+    return function_cls
+
+
+def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
+    function_cls = get_function_cls(function_id)
+    function = function_cls(**arguments)
+    return function
 
 
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.function.transform.text  # noqa
+import bench.function.utils  # noqa

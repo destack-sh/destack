@@ -1,5 +1,6 @@
 import pytest
 
+from bench.executor import LocalExecutor
 from bench.executor.base import FlowExecutionOptions, make_execution_plan
 from bench.models import Flow, FlowNode
 from bench.models.execution import DEFAULT_CONNECTION_NAME
@@ -34,3 +35,15 @@ def test_plan_identity_flow():
     assert plan.node_arguments == {}
     assert identity_node.id in plan.final_outputs
     assert DEFAULT_CONNECTION_NAME in plan.final_outputs[identity_node.id]
+
+
+@pytest.fixture()
+def local_executor() -> LocalExecutor:
+    return LocalExecutor()
+
+
+@pytest.mark.django_db
+def test_local_execute_empty_flow(local_executor: LocalExecutor):
+    flow = Flow.objects.create_flow_version_by_name("identity")
+    identity_node: FlowNode = flow.nodes.create(function_id="bench.identity", config_arguments={})
+    local_executor.run_flow(flow, inputs={}, arguments={}, options=FlowExecutionOptions.default())
