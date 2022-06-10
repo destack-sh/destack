@@ -183,7 +183,7 @@ def _convert_arguments_to_artifact_connections(
     return converted_arguments
 
 
-def _make_final_outputs(flow, nodes: Iterable[FlowNode]):
+def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
     final_outputs: dict[UUID, dict[str, ArtifactVersion]] = defaultdict(dict)
     for node in nodes:
         is_intermediate = FlowNodeEdge.objects.filter(dependency=node).exists()
@@ -193,7 +193,7 @@ def _make_final_outputs(flow, nodes: Iterable[FlowNode]):
         # TODO @Feature: get actual output names for multi-output nodes
         output_names = [DEFAULT_CONNECTION_NAME]
         for output_name in output_names:
-            output_id = f"{flow.name}/{node.name}/outputs/{output_name}"
+            output_id = f"{flow.flow.name}/{node.name}/outputs/{output_name}"
             output_dataset = Dataset.objects.create_dataset_version_by_name(
                 name=output_id, metadata=DatasetMetadata.default_db()
             )
@@ -266,12 +266,12 @@ def make_execution_plan(
     # convert given inputs/arguments to persisted artifacts as needed
     extra_inputs = _convert_arguments_to_artifact_connections(
         inputs,
-        lambda node_id, name: f"{flow.name}/{nodes[node_id].name}/inputs/{name}",
+        lambda node_id, name: f"{flow.flow.name}/{nodes[node_id].name}/inputs/{name}",
         connection_type=ExecutionArtifactConnection.ConnectionType.Input,
     )
     extra_arguments = _convert_arguments_to_artifact_connections(
         arguments,
-        lambda node_id, name: f"{flow.name}/{nodes[node_id].name}/arguments/{name}",
+        lambda node_id, name: f"{flow.flow.name}/{nodes[node_id].name}/arguments/{name}",
         connection_type=ExecutionArtifactConnection.ConnectionType.Argument,
     )
 
@@ -282,7 +282,7 @@ def make_execution_plan(
 
     # define node<->node connections (with corresponding artifacts as needed)
     node_inputs, node_arguments = _make_node_connections(
-        flow_name=flow.name,
+        flow_name=flow.flow.name,
         nodes=nodes.values(),
         captured_connection_types=options.capture_intermediate,
     )
