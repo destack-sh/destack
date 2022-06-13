@@ -46,4 +46,5 @@ def local_executor() -> LocalExecutor:
 def test_local_execute_empty_flow(local_executor: LocalExecutor):
     flow = Flow.objects.create_flow_version_by_name("identity")
     identity_node: FlowNode = flow.nodes.create(function_id="bench.identity", config_arguments={})
+
     local_executor.run_flow(flow, inputs={}, arguments={}, options=FlowExecutionOptions.default())

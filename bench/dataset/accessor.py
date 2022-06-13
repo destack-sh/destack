@@ -61,3 +61,8 @@ def write_to_dataset(version: DatasetVersion, records: RecordBatch, append: bool
     if not append:
         writer.clear()
     writer.extend(records)
+
+
+def read_dataset(version: DatasetVersion) -> RecordBatch:
+    reader = get_dataset_version_reader(version)
+    return reader[0 : len(reader)]
