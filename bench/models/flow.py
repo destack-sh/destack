@@ -71,6 +71,9 @@ class FlowNode(UUIDModel, VersionedBlob):
     )
     controller = models.ForeignKey("Controller", on_delete=models.RESTRICT, blank=True, null=True)
 
+    def __str__(self):
+        return f"{self.flow.name}/{self.name or self.id}"
+
     @property
     def is_committed(self) -> bool:
         return self.committed

@@ -5,7 +5,7 @@ import pytest
 from bench.dataset.accessor import read_dataset
 from bench.executor import LocalExecutor
 from bench.executor.base import FlowExecutionOptions, make_execution_plan
-from bench.models import DatasetVersion, Flow, FlowNode
+from bench.models import DatasetVersion, Flow, FlowNode, FlowNodeEdge
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution
 from bench.utils.record import RecordList
 
@@ -57,21 +57,49 @@ def test_local_execute_empty_flow(local_executor: LocalExecutor):
 
 
 @pytest.mark.django_db
-def test_local_execute_identity_flow(local_executor: LocalExecutor):
+def test_local_execute_one_node_identity_flow(local_executor: LocalExecutor):
     flow = Flow.objects.create_flow_version_by_name("identity")
     identity_node: FlowNode = flow.nodes.create(
         function_id="bench.identity", name="identity_1", config_arguments={}
     )
 
     input_records = RecordList([{"text": "test"}, {"abc": 123}, {"1": "bananas"}])
-    connection = DEFAULT_CONNECTION_NAME
-    inputs = {identity_node.id: {connection: input_records}}
+    inputs = {identity_node.id: {"main": input_records}}
     execution, outputs = local_executor.run_flow(
         flow, inputs=inputs, arguments={}, options=FlowExecutionOptions.default_blocking()
     )
 
     assert execution.state == Execution.State.Completed
-    assert len(outputs) == 1, "one node has outputs"
+    assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[identity_node.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, outputs[identity_node.id][connection]))
-    assert output_records == inputs[identity_node.id][connection], "outputs match inputs"
+    output_records = read_dataset(cast(DatasetVersion, outputs[identity_node.id]["main"]))
+    assert output_records == inputs[identity_node.id]["main"], "outputs match inputs"
+
+
+@pytest.mark.django_db
+def test_local_execute_two_node_identity_flow(local_executor: LocalExecutor):
+    flow = Flow.objects.create_flow_version_by_name("identity")
+    identity_node_1: FlowNode = flow.nodes.create(
+        function_id="bench.identity", name="identity_1", config_arguments={}
+    )
+    identity_node_2: FlowNode = flow.nodes.create(
+        function_id="bench.identity", name="identity_2", config_arguments={}
+    )
+    identity_node_2.depends_on_nodes.add(
+        identity_node_1,
+        through_defaults=dict(
+            connection_type=FlowNodeEdge.ConnectionType.Input, connection_name="main"
+        ),
+    )
+
+    input_records = RecordList([{"text": "test"}, {"abc": 123}, {"1": "bananas"}])
+    inputs = {identity_node_1.id: {"main": input_records}}
+    execution, outputs = local_executor.run_flow(
+        flow, inputs=inputs, arguments={}, options=FlowExecutionOptions.default_blocking()
+    )
+
+    assert execution.state == Execution.State.Completed
+    assert len(outputs) == 1, "one node has final outputs"
+    assert len(outputs[identity_node_2.id]) == 1, "node has one output key"
+    output_records = read_dataset(cast(DatasetVersion, outputs[identity_node_2.id]["main"]))
+    assert output_records == inputs[identity_node_1.id]["main"], "outputs match inputs"

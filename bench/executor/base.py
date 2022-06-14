@@ -207,7 +207,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
                 name=output_id, metadata=DatasetMetadata.default_db()
             )
             final_outputs[node.id][output_name] = output_dataset
-    return final_outputs
+    return {k: v for k, v in final_outputs.items()}  # convert to regular dict
 
 
 def _make_node_connections(
@@ -311,7 +311,7 @@ def make_execution_plan(
     return plan
 
 
-def manifest_execution_plan(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowExecutionManifest:
+def manifest_execution(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowExecutionManifest:
     """
     Makes the actual execution objects and links them together
     """
