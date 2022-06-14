@@ -27,7 +27,7 @@ from bench.models import (
     FlowNodeExecution,
     ModelExecution,
 )
-from bench.models.dataset import DatasetMetadata
+from bench.models.dataset import DatasetMetadata, DatasetVersion
 from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactConnection
 from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
@@ -44,11 +44,20 @@ FlowArgument = Union[ArtifactVersion]
 
 @dataclasses.dataclass
 class FlowExecutionOptions:
+    blocking: bool
     capture_intermediate: Set[FlowNodeEdge.ConnectionType]
 
     @staticmethod
     def default():
-        return FlowExecutionOptions(capture_intermediate=set(FlowNodeEdge.ConnectionType.Input))
+        return FlowExecutionOptions(
+            blocking=False, capture_intermediate=set(FlowNodeEdge.ConnectionType.Input)
+        )
+
+    @staticmethod
+    def default_blocking():
+        return FlowExecutionOptions(
+            blocking=True, capture_intermediate=set(FlowNodeEdge.ConnectionType.Input)
+        )
 
 
 class Executor(abc.ABC):
@@ -111,7 +120,7 @@ class ArtifactConnection:
 @dataclasses.dataclass
 class FlowNodeConnection:
     edge: FlowNodeEdge
-    intermediate_artifact: Optional[ArtifactVersion] = None
+    intermediate_artifact: Optional[DatasetVersion] = None
 
 
 @dataclasses.dataclass
@@ -153,7 +162,7 @@ class FlowExecutionManifest:
 
 def _convert_records_to_dataset(name: str, data: RecordBatch) -> ArtifactVersion:
     dataset = Dataset.objects.create_dataset_version_by_name(
-        name=name, metadata=DatasetMetadata.default_db(), version=None
+        name=name, metadata=DatasetMetadata.default_db()
     )
     write_to_dataset(dataset, data)
     return dataset

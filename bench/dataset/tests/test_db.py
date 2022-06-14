@@ -18,7 +18,6 @@ def dataset_version() -> DatasetVersion:
             config_arguments={},
             record_spec=RecordSpec(name="", description="", type={}),
         ),
-        version="0",
     )
     return dataset_version
 
