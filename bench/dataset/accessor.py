@@ -6,7 +6,8 @@ from bench.dataset.base import (
     get_dataset_writer,
     load_dataset,
 )
-from bench.models import Dataset, DatasetVersion
+from bench.models import ArtifactVersion, Dataset, DatasetVersion
+from bench.models.dataset import DatasetMetadata
 from bench.utils.record import Record, RecordBatch
 
 
@@ -66,3 +67,11 @@ def write_to_dataset(version: DatasetVersion, records: RecordBatch, append: bool
 def read_dataset(version: DatasetVersion) -> RecordBatch:
     reader = get_dataset_version_reader(version)
     return reader[0 : len(reader)]
+
+
+def convert_records_to_dataset(name: str, data: RecordBatch) -> ArtifactVersion:
+    dataset = Dataset.objects.create_dataset_version_by_name(
+        name=name, metadata=DatasetMetadata.default_db()
+    )
+    write_to_dataset(dataset, data)
+    return dataset

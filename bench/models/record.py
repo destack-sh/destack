@@ -131,11 +131,15 @@ def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
     return records
 
 
-def get_records_field(tree: RecordTree, index: str) -> list[FieldType]:
+def get_records_field(tree: RecordTree, field: str) -> list[FieldType]:
     """
     Gets specific fields of the given tree within
     """
-    raise NotImplementedError
+    # TODO @Performance: optimise get_records_field to perform query in DB
+    field_values: list[FieldType] = []
+    for record in iter_record_tree(tree):
+        field_values.append(record.data[field])
+    return field_values
 
 
 def append_record(tree: RecordTree, record: Record):
