@@ -2,7 +2,7 @@ from typing import cast
 
 import pytest
 
-from bench.dataset.accessor import read_dataset
+from bench.dataset.accessor import convert_records_to_dataset, read_dataset
 from bench.executor import LocalExecutor
 from bench.executor.base import FlowExecutionOptions, make_execution_plan
 from bench.models import DatasetVersion, Flow, FlowNode, FlowNodeEdge, Model
@@ -128,3 +128,32 @@ def test_local_execute_model_flow(local_executor: LocalExecutor):
     )
 
     assert execution.state == Execution.State.Completed
+
+
+@pytest.mark.django_db
+def test_local_execute_dataset_flow(local_executor: LocalExecutor):
+    flow = Flow.objects.create_flow_version_by_name("dataset")
+    swap_node_1: FlowNode = flow.nodes.create(
+        function_id="bench.text.swap", name="swap_1", config_arguments={}
+    )
+    dataset = convert_records_to_dataset(
+        "badword_replacements",
+        RecordList(
+            [
+                {"pattern": "fizz", "replacement": "buzz"},
+                {"pattern": "buzz", "replacement": "lightyear"},
+            ]
+        ),
+    )
+
+    input_records = RecordList([{"text": "1 2 fizz 4 buzz"}, {"text": "4 buzz 6"}])
+    execution, outputs = local_executor.run_flow(
+        flow,
+        inputs={swap_node_1.id: {"main": input_records}},
+        arguments={swap_node_1.id: {"swaps_dataset": dataset}},
+        options=FlowExecutionOptions.default_blocking(),
+    )
+
+    assert execution.state == Execution.State.Completed
+    output_records = read_dataset(outputs[swap_node_1.id]["main"])
+    assert output_records == [{"text": "1 2 buzz 4 buzz"}, {"text": "4 lightyear 6"}]

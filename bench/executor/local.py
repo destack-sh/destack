@@ -35,7 +35,7 @@ class LocalExecutor(Executor):
     def __init__(self):
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
 
-    def _get_loaded_model(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
+    def _get_model_handler(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
         model_iid = get_model_iid(model)
         if model_iid not in self._loaded_models_by_iid:
             if not load_if_needed:
@@ -43,6 +43,9 @@ class LocalExecutor(Executor):
             else:
                 self.load_model(model)
         return self._loaded_models_by_iid[model_iid]
+
+    def _get_dataset_handler(self, dataset: DatasetVersion) -> DatasetHandler:
+        return get_dataset_version_handler(dataset)
 
     def load_model(
         self,
@@ -82,7 +85,7 @@ class LocalExecutor(Executor):
             raise NotImplementedError("running non-blocking is not supported")
         execution = ModelExecution.objects.create(type=MODEL_EXECUTION_TYPE, model=model)
         with execution.capture(start=False):
-            model_handler = self._get_loaded_model(model, load_if_needed)
+            model_handler = self._get_model_handler(model, load_if_needed)
             execution.start()
             if is_record(record):
                 output = model_handler.predict(cast(Record, record))
@@ -116,13 +119,11 @@ class LocalExecutor(Executor):
             artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
             for name, artifact_connection in plan.artifact_arguments.get(node.id, {}).items():
                 if artifact_connection.artifact_type == MODEL_TYPE:
-                    artifact_arguments[name] = self._get_loaded_model(
-                        cast(ModelVersion, artifact_connection.artifact)
-                    )
+                    model = cast(ModelVersion, artifact_connection.artifact)
+                    artifact_arguments[name] = self._get_model_handler(model)
                 elif artifact_connection.artifact_type == DATASET_TYPE:
-                    artifact_arguments[name] = get_dataset_version_handler(
-                        cast(DatasetVersion, artifact_connection.artifact)
-                    )
+                    dataset = cast(DatasetVersion, artifact_connection.artifact)
+                    artifact_arguments[name] = self._get_dataset_handler(dataset)
                 else:
                     raise ValueError(f"unknown artifact type: {artifact_connection}")
 
@@ -175,7 +176,7 @@ class LocalExecutor(Executor):
                     if node_connection.intermediate_artifact is not None:
                         write_to_dataset(node_connection.intermediate_artifact, output_batch)
 
-                # write to final outputs (if there are any)
+                # write to final outputs (if any)
                 for input_key, artifact in plan.final_outputs.get(node_id, {}).items():
                     if artifact.artifact.type == DATASET_TYPE:
                         write_to_dataset(cast(DatasetVersion, artifact), output_batch)

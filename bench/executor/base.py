@@ -17,7 +17,7 @@ from uuid import UUID
 
 from django.db.models import QuerySet
 
-from bench.dataset.accessor import write_to_dataset
+from bench.dataset.accessor import convert_records_to_dataset
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -164,14 +164,6 @@ class FlowExecutionManifest:
     node_executions: Mapping[UUID, FlowNodeExecution]
 
 
-def _convert_records_to_dataset(name: str, data: RecordBatch) -> ArtifactVersion:
-    dataset = Dataset.objects.create_dataset_version_by_name(
-        name=name, metadata=DatasetMetadata.default_db()
-    )
-    write_to_dataset(dataset, data)
-    return dataset
-
-
 def _convert_arguments_to_artifact_connections(
     arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
     argument_id_func: Callable[[UUID, str], str],
@@ -183,7 +175,7 @@ def _convert_arguments_to_artifact_connections(
         for name, artifact in node_arguments.items():
             node_argument_id = argument_id_func(node_id, name)
             if isinstance(artifact, RecordBatch):
-                artifact = _convert_records_to_dataset(node_argument_id, artifact)
+                artifact = convert_records_to_dataset(node_argument_id, artifact)
             elif not isinstance(artifact, ArtifactVersion):
                 raise ValueError(
                     f"node argument {node_argument_id} has unexpected type: {artifact}"
