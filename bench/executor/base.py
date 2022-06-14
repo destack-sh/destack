@@ -116,6 +116,10 @@ class ArtifactConnection:
     artifact: ArtifactVersion
     edge: Optional[FlowArtifactEdge] = None
 
+    @property
+    def artifact_type(self) -> str:
+        return self.artifact.artifact.type
+
 
 @dataclasses.dataclass
 class FlowNodeConnection:

@@ -3,7 +3,8 @@ from uuid import UUID
 
 import structlog
 
-from bench.dataset.accessor import read_dataset, write_to_dataset
+from bench.dataset.accessor import get_dataset_version_handler, read_dataset, write_to_dataset
+from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
     Executor,
     FlowExecutionOptions,
@@ -20,7 +21,7 @@ from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelEx
 from bench.models.execution import DEFAULT_CONNECTION_NAME, MODEL_EXECUTION_TYPE
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
-from bench.models.utils import DATASET_TYPE
+from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.record import Record, RecordBatch, is_record
 
 logger = structlog.stdlib.get_logger()
@@ -34,7 +35,7 @@ class LocalExecutor(Executor):
     def __init__(self):
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
 
-    def _get_loaded_model(self, model: ModelVersion, load_if_needed: bool) -> ModelHandler:
+    def _get_loaded_model(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
         model_iid = get_model_iid(model)
         if model_iid not in self._loaded_models_by_iid:
             if not load_if_needed:
@@ -101,77 +102,88 @@ class LocalExecutor(Executor):
 
         if options.blocking:
             with manifest.execution.capture():
-                _do_execute(plan)
+                self._do_execute(plan)
         else:
             raise ValueError("non-blocking execution not supported")
 
         return manifest.execution, plan.final_outputs
 
+    def _do_execute(self, plan: FlowExecutionPlan):
+        # load functions with corresponding arguments
+        functions: dict[UUID, Function] = {}
+        for node in plan.nodes.values():
+            config_arguments = node.config_arguments
+            artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
+            for name, artifact_connection in plan.artifact_arguments.get(node.id, {}).items():
+                if artifact_connection.artifact_type == MODEL_TYPE:
+                    artifact_arguments[name] = self._get_loaded_model(
+                        cast(ModelVersion, artifact_connection.artifact)
+                    )
+                elif artifact_connection.artifact_type == DATASET_TYPE:
+                    artifact_arguments[name] = get_dataset_version_handler(
+                        cast(DatasetVersion, artifact_connection.artifact)
+                    )
+                else:
+                    raise ValueError(f"unknown artifact type: {artifact_connection}")
 
-def _do_execute(plan: FlowExecutionPlan):
-    # load functions
-    functions: dict[UUID, Function] = {}
-    for node in plan.nodes.values():
-        # config_spec = get_config_spec(node.function_id)
-        config_arguments = node.config_arguments
-        # TODO @Feature: pass artifact function arguments (model, dataset)
-        function = load_function(node.function_id, arguments=config_arguments)
-        functions[node.id] = function
+            arguments = {**config_arguments, **artifact_arguments}
+            function = load_function(node.function_id, arguments=arguments)
+            functions[node.id] = function
 
-    # start execution
-    for node_id, func in functions.items():
-        if not isinstance(func, RecordTransform):
-            # TODO @Feature: support functions other than record transforms
-            raise ValueError(f"function is not supported at {node_id}: {func}")
-    record_transforms = cast(Mapping[UUID, RecordTransform], functions)
+        # start execution
+        for node_id, func in functions.items():
+            if not isinstance(func, RecordTransform):
+                # TODO @Feature: support functions other than record transforms
+                raise ValueError(f"function is not supported at {node_id}: {func}")
+        record_transforms = cast(Mapping[UUID, RecordTransform], functions)
 
-    # keep track of not yet processed data by input node in `pending_data`
-    #  currently only supports one connection channel ("main")
-    pending_data: dict[UUID, RecordBatch] = dict()
-    for node_id, named_inputs in plan.artifact_inputs.items():
-        for input_key, artifact_connection in named_inputs.items():
-            if input_key != DEFAULT_CONNECTION_NAME:
-                raise ValueError(
-                    f"function with non-default connection is not supported: {input_key}"
-                )
-            if artifact_connection.artifact.artifact.type == DATASET_TYPE:
-                pending_data[node_id] = read_dataset(
-                    cast(DatasetVersion, artifact_connection.artifact)
-                )
-            else:
-                raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
-
-    # process all pending data until nothing is left
-    visited_node_ids: set[UUID] = set()
-    new_pending_data: dict[UUID, RecordBatch] = dict()
-    while True:
-        for node_id, input_batch in pending_data.items():
-            visited_node_ids.add(node_id)
-            output_batch = record_transforms[node_id].transform_batch(input_batch)
-
-            # write to next input nodes and intermediate output artifacts (if any)
-            for input_key, node_connection in plan.connected_inverse[node_id].items():
+        # keep track of not yet processed data by input node in `pending_data`
+        #  currently only supports one connection channel ("main")
+        pending_data: dict[UUID, RecordBatch] = dict()
+        for node_id, named_inputs in plan.artifact_inputs.items():
+            for input_key, artifact_connection in named_inputs.items():
                 if input_key != DEFAULT_CONNECTION_NAME:
                     raise ValueError(
                         f"function with non-default connection is not supported: {input_key}"
                     )
-                dependent_node_id = node_connection.edge.dependent.id
-                if dependent_node_id in visited_node_ids:
-                    raise RuntimeError(f"cycle between {node_id} and {dependent_node_id}")
-
-                new_pending_data[dependent_node_id] = output_batch
-                if node_connection.intermediate_artifact is not None:
-                    write_to_dataset(node_connection.intermediate_artifact, output_batch)
-
-            # write to final outputs (if there are any)
-            for input_key, artifact in plan.final_outputs.get(node_id, {}).items():
-                if artifact.artifact.type == DATASET_TYPE:
-                    write_to_dataset(cast(DatasetVersion, artifact), output_batch)
+                if artifact_connection.artifact.artifact.type == DATASET_TYPE:
+                    pending_data[node_id] = read_dataset(
+                        cast(DatasetVersion, artifact_connection.artifact)
+                    )
                 else:
-                    raise ValueError(f"non-dataset artifacts not supported: {artifact}")
+                    raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
 
-        # clear already processed nodes from pending and stop if everything is processed
-        if len(new_pending_data) == 0:
-            break
-        pending_data = new_pending_data
-        new_pending_data = dict()
+        # process all pending data until nothing is left
+        visited_node_ids: set[UUID] = set()
+        new_pending_data: dict[UUID, RecordBatch] = dict()
+        while True:
+            for node_id, input_batch in pending_data.items():
+                visited_node_ids.add(node_id)
+                output_batch = record_transforms[node_id].transform_batch(input_batch)
+
+                # write to next input nodes and intermediate output artifacts (if any)
+                for input_key, node_connection in plan.connected_inverse[node_id].items():
+                    if input_key != DEFAULT_CONNECTION_NAME:
+                        raise ValueError(
+                            f"function with non-default connection is not supported: {input_key}"
+                        )
+                    dependent_node_id = node_connection.edge.dependent.id
+                    if dependent_node_id in visited_node_ids:
+                        raise RuntimeError(f"cycle between {node_id} and {dependent_node_id}")
+
+                    new_pending_data[dependent_node_id] = output_batch
+                    if node_connection.intermediate_artifact is not None:
+                        write_to_dataset(node_connection.intermediate_artifact, output_batch)
+
+                # write to final outputs (if there are any)
+                for input_key, artifact in plan.final_outputs.get(node_id, {}).items():
+                    if artifact.artifact.type == DATASET_TYPE:
+                        write_to_dataset(cast(DatasetVersion, artifact), output_batch)
+                    else:
+                        raise ValueError(f"non-dataset artifacts not supported: {artifact}")
+
+            # clear already processed nodes from pending and stop if everything is processed
+            if len(new_pending_data) == 0:
+                break
+            pending_data = new_pending_data
+            new_pending_data = dict()

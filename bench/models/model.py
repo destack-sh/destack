@@ -31,15 +31,11 @@ class ModelManager(ArtifactManager):
         model.save()
         return model
 
-    def create_model_version_by_name(
-        self, name: str, version: Optional[str], metadata: ModelMetadata
-    ) -> ModelVersion:
+    def create_model_version_by_name(self, name: str, metadata: ModelMetadata) -> ModelVersion:
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)
-            model_version = ModelVersion(
-                artifact=model, version=version, metadata=metadata.to_dict()
-            )
+            model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())
             model_version.save()
         return model_version
 
