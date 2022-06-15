@@ -50,13 +50,14 @@ class FlowExecutionOptions:
     @staticmethod
     def default():
         return FlowExecutionOptions(
-            blocking=False, capture_intermediate=set(FlowNodeEdge.ConnectionType.Input)
+            blocking=False,
+            capture_intermediate={FlowNodeEdge.ConnectionType.Input},
         )
 
     @staticmethod
     def default_blocking():
         return FlowExecutionOptions(
-            blocking=True, capture_intermediate=set(FlowNodeEdge.ConnectionType.Input)
+            blocking=True, capture_intermediate={FlowNodeEdge.ConnectionType.Input}
         )
 
 
@@ -283,7 +284,7 @@ def make_execution_plan(
     # define node<->artifact connections (from given extra and defined in flow)
     static_arguments, static_inputs = _get_static_connections(nodes.values())
     static_inputs = {**static_inputs, **extra_inputs}
-    static_arguments = {**static_inputs, **extra_arguments}
+    static_arguments = {**static_arguments, **extra_arguments}
 
     # define node<->node connections (with corresponding artifacts as needed)
     node_inputs, node_arguments = _make_node_connections(

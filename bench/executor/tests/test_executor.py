@@ -107,6 +107,35 @@ def test_local_execute_two_node_identity_flow(local_executor: LocalExecutor):
 
 
 @pytest.mark.django_db
+def test_local_execute_two_node_augmented_flow(local_executor: LocalExecutor):
+    flow = Flow.objects.create_flow_version_by_name("augment")
+    identity_node_1: FlowNode = flow.nodes.create(
+        function_id="bench.identity", name="identity_1", config_arguments={}
+    )
+    augment_node_2: FlowNode = flow.nodes.create(
+        function_id="bench.text.upper_case", name="upper_case_2", config_arguments={}
+    )
+    augment_node_2.depends_on_nodes.add(
+        identity_node_1,
+        through_defaults=dict(
+            connection_type=FlowNodeEdge.ConnectionType.Input, connection_name="main"
+        ),
+    )
+
+    input_records = RecordList([{"text": "test"}])
+    inputs = {identity_node_1.id: {"main": input_records}}
+    execution, outputs = local_executor.run_flow(
+        flow, inputs=inputs, arguments={}, options=FlowExecutionOptions.default_blocking()
+    )
+
+    assert execution.state == Execution.State.Completed
+    assert len(outputs) == 1, "one node has final outputs"
+    assert len(outputs[augment_node_2.id]) == 1, "node has one output key"
+    output_records = read_dataset(cast(DatasetVersion, outputs[augment_node_2.id]["main"]))
+    assert output_records[0] == {"text": "TEST"}, "outputs match augmented inputs"
+
+
+@pytest.mark.django_db
 def test_local_execute_model_flow(local_executor: LocalExecutor):
     flow = Flow.objects.create_flow_version_by_name("model")
     model_node_1: FlowNode = flow.nodes.create(
