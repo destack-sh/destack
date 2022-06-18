@@ -49,16 +49,11 @@ class FlowExecutionOptions:
 
     @staticmethod
     def default():
-        return FlowExecutionOptions(
-            blocking=False,
-            capture_intermediate={FlowNodeEdge.ConnectionType.Input},
-        )
+        return FlowExecutionOptions(blocking=False, capture_intermediate=set())
 
     @staticmethod
     def default_blocking():
-        return FlowExecutionOptions(
-            blocking=True, capture_intermediate={FlowNodeEdge.ConnectionType.Input}
-        )
+        return FlowExecutionOptions(blocking=True, capture_intermediate=set())
 
 
 class Executor(abc.ABC):
@@ -121,11 +116,23 @@ class ArtifactConnection:
     def artifact_type(self) -> str:
         return self.artifact.artifact.type
 
+    @property
+    def name(self) -> str:
+        return self.edge.connection_name
+
 
 @dataclasses.dataclass
 class FlowNodeConnection:
     edge: FlowNodeEdge
     intermediate_artifact: Optional[DatasetVersion] = None
+
+    @property
+    def dependency_name(self) -> str:
+        return self.edge.connection_name_dependency
+
+    @property
+    def dependent_name(self) -> str:
+        return self.edge.connection_name_dependent
 
 
 @dataclasses.dataclass
@@ -227,9 +234,9 @@ def _make_node_connections(
                 connection = FlowNodeConnection(edge=edge, intermediate_artifact=None)
 
             if edge.connection_type == FlowNodeEdge.ConnectionType.Input:
-                node_inputs[node.id][edge.connection_name] = connection
+                node_inputs[node.id][edge.connection_name_dependent] = connection
             elif edge.connection_type == FlowNodeEdge.ConnectionType.Argument:
-                node_arguments[node.id][edge.connection_name] = connection
+                node_arguments[node.id][edge.connection_name_dependent] = connection
             else:
                 raise ValueError(f"unexpected connection type: {edge}")
     return node_inputs, node_arguments

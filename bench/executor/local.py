@@ -15,14 +15,14 @@ from bench.executor.base import (
     manifest_execution,
 )
 from bench.executor.utils import get_model_iid
-from bench.function.base import Function, RecordTransform, load_function
+from bench.function.base import Function, MetricFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.execution import DEFAULT_CONNECTION_NAME, MODEL_EXECUTION_TYPE
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
-from bench.utils.record import Record, RecordBatch, is_record
+from bench.utils.record import Record, RecordBatch, RecordList, is_record
 
 logger = structlog.stdlib.get_logger()
 
@@ -131,24 +131,26 @@ class LocalExecutor(Executor):
             function = load_function(node.function_id, arguments=arguments)
             functions[node.id] = function
 
-        # start execution
+        # organise functions
+        record_transforms: dict[UUID, RecordTransform] = {}
+        metric_functions: dict[UUID, MetricFunction] = {}
         for node_id, func in functions.items():
-            if not isinstance(func, RecordTransform):
-                # TODO @Feature: support functions other than record transforms
+            if isinstance(func, RecordTransform):
+                record_transforms[node_id] = func
+            elif isinstance(func, MetricFunction):
+                metric_functions[node_id] = func
+            else:
+                # TODO @Feature: support all function types
                 raise ValueError(f"function is not supported at {node_id}: {func}")
-        record_transforms = cast(Mapping[UUID, RecordTransform], functions)
 
+        # start actual execution
         # keep track of not yet processed data by input node in `pending_data`
-        #  currently only supports one connection channel ("main")
-        pending_data: dict[UUID, RecordBatch] = dict()
+        #  currently only supports one connection channel ("*")
+        pending_data: dict[UUID, dict[str, RecordBatch]] = dict()
         for node_id, named_inputs in plan.artifact_inputs.items():
             for input_key, artifact_connection in named_inputs.items():
-                if input_key != DEFAULT_CONNECTION_NAME:
-                    raise ValueError(
-                        f"function with non-default connection is not supported: {input_key}"
-                    )
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
-                    pending_data[node_id] = read_dataset(
+                    pending_data[node_id][artifact_connection.name] = read_dataset(
                         cast(DatasetVersion, artifact_connection.artifact)
                     )
                 else:
@@ -156,28 +158,37 @@ class LocalExecutor(Executor):
 
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
-        new_pending_data: dict[UUID, RecordBatch] = dict()
+        new_pending_data: dict[UUID, dict[str, RecordBatch]] = dict()
         while True:
-            for node_id, input_batch in pending_data.items():
+            for node_id, input_batches in pending_data.items():
                 visited_node_ids.add(node_id)
-                output_batch = record_transforms[node_id].transform_batch(input_batch)
+
+                function = functions[node_id]
+                if isinstance(function, RecordTransform):
+                    # assume record transforms have only one default connection in and out
+                    input_batch = input_batches[DEFAULT_CONNECTION_NAME]
+                    output_batch = record_transforms[node_id].transform_batch(input_batch)
+                    output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
+                elif isinstance(function, MetricFunction):
+                    output_record = metric_functions[node_id].compute(**input_batches)
+                    output_batch = RecordList([output_record])
+                    output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
+                else:
+                    raise RuntimeError(f"unexpected function: {function}")
 
                 # write to next input nodes and intermediate output artifacts (if any)
-                for input_key, node_connection in plan.connected_inverse[node_id].items():
-                    if input_key != DEFAULT_CONNECTION_NAME:
-                        raise ValueError(
-                            f"function with non-default connection is not supported: {input_key}"
-                        )
-                    dependent_node_id = node_connection.edge.dependent.id
-                    if dependent_node_id in visited_node_ids:
-                        raise RuntimeError(f"cycle between {node_id} and {dependent_node_id}")
+                for node_connection in plan.connected_inverse[node_id].values():
+                    dependent_id = node_connection.edge.dependent.id
+                    if dependent_id in visited_node_ids:
+                        raise RuntimeError(f"cycle between {node_id} and {dependent_id}")
 
-                    new_pending_data[dependent_node_id] = output_batch
+                    output_batch = output_batches[node_connection.dependent_name]
+                    new_pending_data[dependent_id][node_connection.dependent_name] = output_batch
                     if node_connection.intermediate_artifact is not None:
                         write_to_dataset(node_connection.intermediate_artifact, output_batch)
 
                 # write to final outputs (if any)
-                for input_key, artifact in plan.final_outputs.get(node_id, {}).items():
+                for artifact in plan.final_outputs.get(node_id, {}).values():
                     if artifact.artifact.type == DATASET_TYPE:
                         write_to_dataset(cast(DatasetVersion, artifact), output_batch)
                     else:
