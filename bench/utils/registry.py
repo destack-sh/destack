@@ -55,6 +55,11 @@ class Registry(Generic[T]):
 
         return _do_registration
 
+    def _unregister(self, name: str):
+        key = self._get_key(name)
+        if key in self._registered_objects:
+            del self._registered_objects[key]
+
     def get(self, name: str) -> Optional[T]:
         return self._registered_objects.get(self._get_key(name))
 

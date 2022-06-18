@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterator, List, Union
 
 from bench.utils.spec import FieldType
 
-Record = Dict[str, FieldType]
+Record = Union[FieldType, Dict[str, FieldType]]
 
 
 def is_record(obj: Any) -> bool:

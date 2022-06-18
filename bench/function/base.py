@@ -1,7 +1,18 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Callable, Dict, Optional, Type, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Mapping,
+    Optional,
+    OrderedDict,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
@@ -33,8 +44,8 @@ class ArtifactFunction(Function, ABC):
     A pure function that operates on artifacts.
     """
 
-    input_spec: Union[None, ArtifactSetType, ArtifactSetSpec]
-    output_spec: Union[None, ArtifactSetType, ArtifactSetSpec]
+    input_spec: OrderedDict[str, Union[ArtifactSetType, ArtifactSetSpec]]
+    output_spec: OrderedDict[str, Union[ArtifactSetType, ArtifactSetSpec]]
 
 
 class RecordFunction(Function, ABC):
@@ -42,8 +53,17 @@ class RecordFunction(Function, ABC):
     A pure function that operates on records/batches.
     """
 
-    input_spec: Union[None, RecordType, RecordSpec]
-    output_spec: Union[None, RecordType, RecordSpec]
+    input_spec: OrderedDict[str, Union[RecordType, RecordSpec]]
+    output_spec: OrderedDict[str, Union[RecordType, RecordSpec]]
+
+
+class MetricFunction(RecordFunction):
+    """
+    A metric computed over an arbitrary set of input record batches.
+    """
+
+    def compute(self, **kwargs: RecordBatch) -> Record:
+        raise NotImplementedError
 
 
 class RecordTransform(RecordFunction, ABC):
@@ -71,6 +91,14 @@ class BatchRecordTransform(RecordTransform, ABC):
         record_as_batch = RecordList([record])
         result_batch = self.transform_batch(record_as_batch)
         return result_batch[0]
+
+
+class Test(Function):
+    def __init__(self, result_key: str):
+        self.result_key = result_key
+
+    def passed(self, output: Record) -> bool:
+        return cast(bool, output[self.result_key])
 
 
 def map_to_function_cls(func: Any, impl: Optional[Type[Function]]) -> Type[Function]:
@@ -182,5 +210,6 @@ def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
 
 
 # TODO @Feature: figure out better registration mechanism for registered objects
+import bench.function.metrics  # noqa
 import bench.function.transform.text  # noqa
 import bench.function.utils  # noqa

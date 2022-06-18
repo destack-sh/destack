@@ -15,7 +15,7 @@ FLOW_NODE_EXECUTION_TYPE = "flow_node"
 MODEL_EXECUTION_TYPE = "model"
 JOB_EXECUTION_TYPE = "job"
 
-DEFAULT_CONNECTION_NAME = "main"
+DEFAULT_CONNECTION_NAME = "*"
 
 ExecutionT = TypeVar("ExecutionT")
 

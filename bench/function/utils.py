@@ -1,4 +1,6 @@
-from bench.function.base import RecordTransform, functions
+import sklearn.metrics
+
+from bench.function.base import MetricFunction, RecordTransform, functions
 from bench.model.base import ModelHandler
 from bench.utils.record import Record, RecordBatch
 
