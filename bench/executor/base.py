@@ -109,16 +109,13 @@ class Executor(abc.ABC):
 @dataclasses.dataclass
 class ArtifactConnection:
     type: ExecutionArtifactConnection.ConnectionType
+    name: str
     artifact: ArtifactVersion
     edge: Optional[FlowArtifactEdge] = None
 
     @property
     def artifact_type(self) -> str:
         return self.artifact.artifact.type
-
-    @property
-    def name(self) -> str:
-        return self.edge.connection_name
 
 
 @dataclasses.dataclass
@@ -189,7 +186,7 @@ def _convert_arguments_to_artifact_connections(
                     f"node argument {node_argument_id} has unexpected type: {artifact}"
                 )
             converted_node_arguments[name] = ArtifactConnection(
-                type=connection_type, edge=None, artifact=artifact
+                type=connection_type, name=name, edge=None, artifact=artifact
             )
 
         converted_arguments[node_id] = converted_node_arguments
@@ -252,7 +249,7 @@ def _get_static_connections(nodes: Iterable[FlowNode]):
         for edge in artifact_dependencies:
             connection_type = ExecutionArtifactConnection.ConnectionType(edge.connection_type)
             connection = ArtifactConnection(
-                type=connection_type, artifact=edge.dependency, edge=edge
+                type=connection_type, name=edge.connection_name, artifact=edge.dependency, edge=edge
             )
             if edge.connection_type == FlowArtifactEdge.ConnectionType.Input:
                 static_inputs[node.id][edge.connection_name] = connection
