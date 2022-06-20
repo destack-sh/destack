@@ -1,4 +1,4 @@
-from mypy.typeshed.stdlib._typeshed import SupportsAllComparisons
+from typing import Optional, Union
 
 from bench.function.base import SingleRecordTransform, Test, functions
 from bench.utils.record import Record
@@ -6,12 +6,16 @@ from bench.utils.record import Record
 
 @functions.register("bench.test.comparison_static")
 class TestStaticComparison(SingleRecordTransform, Test):
-    def __init__(self, operator: str, value: SupportsAllComparisons):
+    def __init__(self, operator: str, value: Union[float, int, str], key: Optional[str] = None):
         super().__init__(result_key="result")
         self.operator = operator
         self.value = value
+        self.key = key
 
     def _evaluate(self, record: Record) -> bool:
+        if self.key:
+            record = record[self.key]
+
         if self.operator == "eq":
             return record == self.value
         elif self.operator == "neq":
@@ -28,5 +32,5 @@ class TestStaticComparison(SingleRecordTransform, Test):
             raise ValueError(f"unexpected comparison operator: {self.operator}")
 
     def transform(self, record: Record) -> Record:
-        result = self._evaluate(record)
+        result = bool(self._evaluate(record))
         return {"result": result}
