@@ -204,12 +204,25 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
         name="metric_accuracy_2",
         config_arguments={"prediction_key": "score", "reference_key": "score"},
     )
+    test_node_3: FlowNode = flow.nodes.create(
+        function_id="bench.test.comparison_static",
+        name="test_3",
+        config_arguments={"operator": "gte", "value": 0.5, "key": "accuracy"},
+    )
     metric_node_2.depends_on_nodes.add(
         model_node_1,
         through_defaults=dict(
             connection_type=FlowNodeEdge.ConnectionType.Input,
             connection_name_dependent="*",
             connection_name_dependency="predictions",
+        ),
+    )
+    test_node_3.depends_on_nodes.add(
+        metric_node_2,
+        through_defaults=dict(
+            connection_type=FlowNodeEdge.ConnectionType.Input,
+            connection_name_dependent="*",
+            connection_name_dependency="*",
         ),
     )
 
@@ -235,5 +248,5 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
     models._unregister("test.stub")
 
     assert execution.state == Execution.State.Completed
-    output_records = read_dataset(outputs[metric_node_2.id]["*"])
-    assert output_records == [{"accuracy": 0.5}]
+    output_records = read_dataset(outputs[test_node_3.id]["*"])
+    assert output_records == [{"result": True}]

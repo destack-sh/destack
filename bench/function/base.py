@@ -212,5 +212,6 @@ def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
 
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.function.metrics  # noqa
+import bench.function.test  # noqa
 import bench.function.transform.text  # noqa
 import bench.function.utils  # noqa

@@ -160,15 +160,13 @@ class LocalExecutor(Executor):
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
         new_pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
-        max_iterations = len(plan.nodes) * len(plan.nodes)  # set arbitrarily high to catch loops
+        max_iterations = len(plan.nodes) ** 2  # set arbitrarily high to catch loops
         iteration = 0
         while True:
             if iteration > max_iterations:
                 # looks like we're stuck, abort
                 raise RuntimeError(f"reached maximum iteration {iteration} in plan: {plan}")
 
-            print(iteration)
-            print(pending_data)
             logger.debug("local_execute", iteration=iteration, pending_data=pending_data, plan=plan)
             for node_id, input_batches in pending_data.items():
                 function: Function = functions[node_id]
@@ -215,5 +213,5 @@ class LocalExecutor(Executor):
             if len(new_pending_data) == 0:
                 break
             pending_data = new_pending_data
-            new_pending_data = defaultdict()
+            new_pending_data = defaultdict(dict)
             iteration += 1
