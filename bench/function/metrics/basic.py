@@ -6,6 +6,9 @@ from bench.utils.record import Record, RecordBatch
 
 @functions.register("bench.metric.accuracy")
 class MetricAccuracy(MetricFunction):
+    input_spec = {"predictions": int, "references": int}
+
+    # TODO @Cleanup @Architecture: move input/output remapping to general connection/function wrapper
     def __init__(
         self,
         prediction_key: str = None,

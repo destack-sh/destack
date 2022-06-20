@@ -113,8 +113,8 @@ class ConfigSpec(_Spec):
     type: ConfigTypeStrict
 
 
-RecordType = dict[str, Union[FieldType, FieldSpec]]
-RecordTypeStrict = dict[str, FieldSpec]
+RecordType = Union[FieldType, FieldSpec, dict[str, Union[FieldType, FieldSpec]]]
+RecordTypeStrict = Union[FieldSpec, dict[str, FieldSpec]]
 
 AnyType = Union[FieldType, RecordType, ModelType, DatasetType]
 AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]

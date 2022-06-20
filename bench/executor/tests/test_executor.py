@@ -233,3 +233,7 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
         options=FlowExecutionOptions.default_blocking(),
     )
     models._unregister("test.stub")
+
+    assert execution.state == Execution.State.Completed
+    output_records = read_dataset(outputs[metric_node_2.id]["*"])
+    assert output_records == [{"accuracy": 0.5}]

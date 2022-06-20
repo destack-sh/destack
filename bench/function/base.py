@@ -5,10 +5,8 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Mapping,
     Optional,
     OrderedDict,
-    Tuple,
     Type,
     Union,
     cast,
@@ -44,7 +42,7 @@ class ArtifactFunction(Function, ABC):
     A pure function that operates on artifacts.
     """
 
-    input_spec: OrderedDict[str, Union[ArtifactSetType, ArtifactSetSpec]]
+    input_spec: dict[str, Union[ArtifactSetType, ArtifactSetSpec]]
     output_spec: OrderedDict[str, Union[ArtifactSetType, ArtifactSetSpec]]
 
 
@@ -53,7 +51,7 @@ class RecordFunction(Function, ABC):
     A pure function that operates on records/batches.
     """
 
-    input_spec: OrderedDict[str, Union[RecordType, RecordSpec]]
+    input_spec: dict[str, Union[RecordType, RecordSpec]]
     output_spec: OrderedDict[str, Union[RecordType, RecordSpec]]
 
 
@@ -70,6 +68,9 @@ class RecordTransform(RecordFunction, ABC):
     """
     A transformation function mapping input records to output records
     """
+
+    input_spec = {"*": Any}
+    output_spec = OrderedDict[str, Any]([("*", Any)])
 
     def transform(self, record: Record) -> Record:
         raise NotImplementedError

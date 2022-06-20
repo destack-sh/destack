@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
@@ -146,7 +147,7 @@ class LocalExecutor(Executor):
         # start actual execution
         # keep track of not yet processed data by input node in `pending_data`
         #  currently only supports one connection channel ("*")
-        pending_data: dict[UUID, dict[str, RecordBatch]] = dict()
+        pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
         for node_id, named_inputs in plan.artifact_inputs.items():
             for input_key, artifact_connection in named_inputs.items():
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
@@ -158,18 +159,34 @@ class LocalExecutor(Executor):
 
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
-        new_pending_data: dict[UUID, dict[str, RecordBatch]] = dict()
+        new_pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
+        max_iterations = len(plan.nodes) * len(plan.nodes)  # set arbitrarily high to catch loops
+        iteration = 0
         while True:
-            for node_id, input_batches in pending_data.items():
-                visited_node_ids.add(node_id)
+            if iteration > max_iterations:
+                # looks like we're stuck, abort
+                raise RuntimeError(f"reached maximum iteration {iteration} in plan: {plan}")
 
-                function = functions[node_id]
+            print(iteration)
+            print(pending_data)
+            logger.debug("local_execute", iteration=iteration, pending_data=pending_data, plan=plan)
+            for node_id, input_batches in pending_data.items():
+                function: Function = functions[node_id]
+                missing_input_keys = function.input_spec.keys() - input_batches.keys()
+                if missing_input_keys:
+                    # wait until all inputs are provided, skip this node in the current iteration
+                    new_pending_data[node_id].update(input_batches)
+                    # if inputs are never provided, terminate via the catch at the top
+                    continue
+
+                visited_node_ids.add(node_id)
                 if isinstance(function, RecordTransform):
                     # assume record transforms have only one default connection in and out
                     input_batch = input_batches[DEFAULT_CONNECTION_NAME]
                     output_batch = record_transforms[node_id].transform_batch(input_batch)
                     output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
                 elif isinstance(function, MetricFunction):
+                    # assume input batches contains all required inputs (for now)
                     output_record = metric_functions[node_id].compute(**input_batches)
                     output_batch = RecordList([output_record])
                     output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
@@ -183,7 +200,7 @@ class LocalExecutor(Executor):
                         raise RuntimeError(f"cycle between {node_id} and {dependent_id}")
 
                     output_batch = output_batches[node_connection.dependent_name]
-                    new_pending_data[dependent_id][node_connection.dependent_name] = output_batch
+                    new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
                     if node_connection.intermediate_artifact is not None:
                         write_to_dataset(node_connection.intermediate_artifact, output_batch)
 
@@ -198,4 +215,5 @@ class LocalExecutor(Executor):
             if len(new_pending_data) == 0:
                 break
             pending_data = new_pending_data
-            new_pending_data = dict()
+            new_pending_data = defaultdict()
+            iteration += 1
