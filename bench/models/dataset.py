@@ -18,9 +18,7 @@ class DatasetManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Dataset]:
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
-    def create_dataset_version_by_name(
-        self, name: str, metadata: DatasetMetadata
-    ) -> DatasetVersion:
+    def create_dataset_version(self, name: str, metadata: DatasetMetadata) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)

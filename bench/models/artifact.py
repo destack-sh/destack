@@ -91,11 +91,11 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
 
 class ArtifactView(UUIDModel):
     """
-    A pass-through (generally) immutable view of an Artifact. The data remains in the
-    Artifact (or, rather, a specific version) and is only accessed through the view.
+    A generally immutable view of an Artifact. The data remains with the
+    Artifact (or, rather, a specific version) and can be accessed through the view.
 
     If this view works only with specific versions, then it must specify the compatible
-    versions in 'compatible_versions'. If empty, this view is assumed to be general.
+    versions in 'compatible_versions'. If empty, this view is assumed to work with all versions.
     """
 
     type = models.CharField(max_length=64)

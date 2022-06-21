@@ -146,7 +146,7 @@ def test_local_execute_model_flow(local_executor: LocalExecutor):
     model_node_1: FlowNode = flow.nodes.create(
         function_id="bench.model", name="model_1", config_arguments={}
     )
-    model = Model.objects.create_model_version_by_name(
+    model = Model.objects.create_model_version(
         "spacy_en_core_web_sm",
         metadata=ModelMetadata(
             handler_id="bench.spacy.bundled", config_arguments={"model_name": "en_core_web_sm"}
@@ -233,7 +233,7 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
         def predict(self, record: Record) -> Union[Record, RecordBatch]:
             return {**record, "score": 1}
 
-    model = Model.objects.create_model_version_by_name(
+    model = Model.objects.create_model_version(
         "stub_model", metadata=ModelMetadata(handler_id="test.stub")
     )
     execution, outputs = local_executor.run_flow(

@@ -204,7 +204,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
         output_names = [DEFAULT_CONNECTION_NAME]
         for output_name in output_names:
             output_id = f"{flow.flow.name}/{node.name}/outputs/{output_name}"
-            output_dataset = Dataset.objects.create_dataset_version_by_name(
+            output_dataset = Dataset.objects.create_dataset_version(
                 name=output_id, metadata=DatasetMetadata.default_db()
             )
             final_outputs[node.id][output_name] = output_dataset
@@ -223,7 +223,7 @@ def _make_node_connections(
         for edge in node_dependencies:
             if edge.connection_type in captured_connection_types:
                 output_id = f"{flow_name}/{node.name}/outputs/{edge.connection_name}"
-                output_dataset = Dataset.objects.create_dataset_version_by_name(
+                output_dataset = Dataset.objects.create_dataset_version(
                     name=output_id, metadata=DatasetMetadata.default_db()
                 )
                 connection = FlowNodeConnection(edge=edge, intermediate_artifact=output_dataset)
