@@ -22,16 +22,15 @@ class ModelManager(ArtifactManager):
         self,
         name: str,
         description: Optional[str],
-        initial_version: Optional[str],
         metadata: ModelMetadata,
     ) -> Model:
         """Creates the given model with an initial version"""
         model = Model(type=MODEL_TYPE, name=name, description=description)
-        model.versions.create(version=initial_version, metadata=metadata.to_dict())
+        model.versions.create(metadata=metadata.to_dict())
         model.save()
         return model
 
-    def create_model_version_by_name(self, name: str, metadata: ModelMetadata) -> ModelVersion:
+    def create_model_version(self, name: str, metadata: ModelMetadata) -> ModelVersion:
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)

@@ -70,7 +70,7 @@ def read_dataset(version: DatasetVersion) -> RecordBatch:
 
 
 def convert_records_to_dataset(name: str, data: RecordBatch) -> ArtifactVersion:
-    dataset = Dataset.objects.create_dataset_version_by_name(
+    dataset = Dataset.objects.create_dataset_version(
         name=name, metadata=DatasetMetadata.default_db()
     )
     write_to_dataset(dataset, data)

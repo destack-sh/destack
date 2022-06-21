@@ -9,7 +9,7 @@ from tasks.synchronize import copy_dataset_version
 
 @pytest.mark.django_db
 def test_copy_dataset_version():
-    source = Dataset.objects.create_dataset_version_by_name(
+    source = Dataset.objects.create_dataset_version(
         "hfhub/rotten_tomatoes",
         metadata=DatasetMetadata(
             handler_id="bench.huggingface.hub",
@@ -17,7 +17,7 @@ def test_copy_dataset_version():
             record_spec=RecordSpec(name="", description="", type={}),
         ),
     )
-    target = Dataset.objects.create_dataset_version_by_name(
+    target = Dataset.objects.create_dataset_version(
         "rotten_tomatoes",
         metadata=DatasetMetadata(
             handler_id="bench.db",

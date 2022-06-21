@@ -11,7 +11,7 @@ from bench.utils.spec import RecordSpec
 
 @pytest.fixture()
 def dataset_version() -> DatasetVersion:
-    dataset_version = Dataset.objects.create_dataset_version_by_name(
+    dataset_version = Dataset.objects.create_dataset_version(
         name="test",
         metadata=DatasetMetadata(
             handler_id="db",
