@@ -1,9 +1,16 @@
 {
   "extends": "@vue/tsconfig/tsconfig.web.json",
-  "include": ["env.d.ts", "frontend/src/**/*", "frontend/src/**/*.vue"],
+  "include": [
+    "env.d.ts",
+    "package.json",
+    "frontend/src/**/*",
+    "frontend/src/**/*.vue"
+  ],
   "exclude": ["frontend/src/**/__tests__/*"],
   "compilerOptions": {
+    "resolveJsonModule": true,
     "composite": true,
+    "sourceMap": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./frontend/src/*"]
