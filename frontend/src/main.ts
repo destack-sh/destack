@@ -5,6 +5,7 @@ import { createApp } from "vue";
 import { version } from "../../package.json";
 
 import App from "./App.vue";
+import { hydrate } from "./hydrate";
 import router from "./router";
 
 const app = createApp(App);
@@ -26,3 +27,5 @@ console.groupEnd();
 // prevent opening files that are dragged over the window
 window.addEventListener("dragover", (e) => e.preventDefault(), false);
 window.addEventListener("drop", (e) => e.preventDefault(), false);
+
+await hydrate();
