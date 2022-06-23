@@ -38,11 +38,11 @@
             Sorry, we couldn’t find the page you’re looking for.
           </p>
           <div class="mt-6">
-            <a
-              href="#"
+            <router-link
+              to="/"
               class="text-base font-medium text-orange-600 hover:text-orange-500"
-              >Go back home<span aria-hidden="true"> &rarr;</span></a
-            >
+              >Go back home<span aria-hidden="true"> &rarr;</span>
+            </router-link>
           </div>
         </div>
       </div>

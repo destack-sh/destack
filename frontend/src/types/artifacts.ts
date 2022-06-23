@@ -3,7 +3,7 @@ export type Artifact = {
   type: string;
   name: string;
   description?: string;
-  versions?: string[];
+  versions?: string[]; // fk to ArtifactVersion.version
   created_at: string;
 };
 

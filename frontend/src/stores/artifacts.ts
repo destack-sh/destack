@@ -7,6 +7,15 @@ export const useArtifactsStore = defineStore("artifacts", {
     artifacts: [] as Artifact[],
     versions: new Map<string, ArtifactVersion[]>(),
   }),
+  getters: {
+    models(): Artifact[] {
+      return this.artifacts.filter((artifact) => artifact.type == "model");
+    },
+    datasets(): Artifact[] {
+      return this.artifacts.filter((artifact) => artifact.type == "dataset");
+    },
+  },
+
   actions: {
     async hydrate() {
       this.$state.artifacts = (await api.get<Artifact[]>("/artifacts")).data;
