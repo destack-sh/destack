@@ -4,6 +4,7 @@ import { createPinia } from "pinia";
 import { createApp } from "vue";
 import { version } from "../../package.json";
 
+import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import { hydrate } from "./hydrate";
 import router from "./router";
@@ -12,10 +13,11 @@ const app = createApp(App);
 
 app.use(createPinia());
 app.use(router);
+app.use(createMetaManager());
 
 app.mount("#app");
 
-console.group(`%c✨ Project Information`, "color:orangered"); // groupCollapsed
+console.group(`%cProject Information`, "color:orangered"); // groupCollapsed
 
 if (import.meta.env.DEV) {
   console.info(`%cVersion: v${version}`, "color:orangered");
@@ -28,4 +30,5 @@ console.groupEnd();
 window.addEventListener("dragover", (e) => e.preventDefault(), false);
 window.addEventListener("drop", (e) => e.preventDefault(), false);
 
+// start loading
 await hydrate();
