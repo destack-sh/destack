@@ -3,7 +3,8 @@ export type Artifact = {
   type: string;
   name: string;
   description?: string;
-  versions?: ArtifactVersion[];
+  versions?: string[];
+  created_at: string;
 };
 
 export type ArtifactVersion = {
@@ -11,4 +12,5 @@ export type ArtifactVersion = {
   version: string;
   name: string;
   description?: string;
+  created_at: string;
 };
