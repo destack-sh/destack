@@ -53,10 +53,10 @@
               </TransitionChild>
               <div class="h-0 flex-1 overflow-y-auto pt-5 pb-4">
                 <nav class="mt-5 space-y-1 px-2">
-                  <a
+                  <router-link
                     v-for="item in navigation"
                     :key="item.name"
-                    :href="item.href"
+                    :to="item.to"
                     :class="[
                       item.current
                         ? 'bg-orange-800 text-white'
@@ -70,29 +70,8 @@
                       aria-hidden="true"
                     />
                     {{ item.name }}
-                  </a>
+                  </router-link>
                 </nav>
-              </div>
-              <div class="flex flex-shrink-0 border-t border-orange-800 p-4">
-                <a href="#" class="group block flex-shrink-0">
-                  <div class="flex items-center">
-                    <div>
-                      <img
-                        class="inline-block h-10 w-10 rounded-full"
-                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                        alt=""
-                      />
-                    </div>
-                    <div class="ml-3">
-                      <p class="text-base font-medium text-white">Tom Cook</p>
-                      <p
-                        class="text-sm font-medium text-orange-200 group-hover:text-white"
-                      >
-                        View profile
-                      </p>
-                    </div>
-                  </div>
-                </a>
               </div>
             </DialogPanel>
           </TransitionChild>
@@ -111,15 +90,16 @@
           <div class="flex flex-shrink-0 items-center px-4">
             <img
               class="h-8 w-auto"
-              src="https://tailwindui.com/img/logos/workflow-logo-orange-300-mark-white-text.svg"
+              src="https://avatars.githubusercontent.com/u/92306917?s=200&v=4"
               alt="Workflow"
             />
+            <span class="pl-2 font-bold text-white"> bench </span>
           </div>
           <nav class="mt-5 flex-1 space-y-1 px-2">
-            <a
+            <router-link
               v-for="item in navigation"
               :key="item.name"
-              :href="item.href"
+              :to="item.to"
               :class="[
                 item.current
                   ? 'bg-orange-800 text-white'
@@ -133,29 +113,8 @@
                 aria-hidden="true"
               />
               {{ item.name }}
-            </a>
+            </router-link>
           </nav>
-        </div>
-        <div class="flex flex-shrink-0 border-t border-orange-800 p-4">
-          <a href="#" class="group block w-full flex-shrink-0">
-            <div class="flex items-center">
-              <div>
-                <img
-                  class="inline-block h-9 w-9 rounded-full"
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                  alt=""
-                />
-              </div>
-              <div class="ml-3">
-                <p class="text-sm font-medium text-white">Tom Cook</p>
-                <p
-                  class="text-xs font-medium text-orange-200 group-hover:text-white"
-                >
-                  View profile
-                </p>
-              </div>
-            </div>
-          </a>
         </div>
       </div>
     </div>
@@ -175,16 +134,71 @@
       <main class="flex-1">
         <div class="py-6">
           <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
-            <h1 class="text-2xl font-semibold text-gray-900">Dashboard</h1>
+            <h1 class="text-2xl font-semibold text-gray-900">Models</h1>
           </div>
           <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
-            <!-- Replace with your content -->
-            <div class="py-4">
-              <div
-                class="h-96 rounded-lg border-4 border-dashed border-gray-200"
-              />
-            </div>
-            <!-- /End replace -->
+            <ul
+              role="list"
+              class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <li
+                v-for="model in artifactsStore.models"
+                :key="model.id"
+                class="col-span-1 divide-y divide-gray-200 rounded-lg bg-white shadow"
+              >
+                <div
+                  class="flex w-full items-center justify-between space-x-6 p-6"
+                >
+                  <div class="flex-1 truncate">
+                    <div class="flex items-center space-x-3">
+                      <h3 class="truncate text-sm font-medium text-gray-900">
+                        {{ model.name }}
+                      </h3>
+                      <span
+                        class="inline-block flex-shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
+                        >{{ model.type }}</span
+                      >
+                    </div>
+                    <p class="mt-1 truncate text-sm text-gray-500">
+                      {{ model.description }}
+                    </p>
+                  </div>
+                  <component
+                    :is="getIconForModel(model)"
+                    class="h-10 w-10 flex-shrink-0 text-orange-300"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div>
+                  <div class="-mt-px flex divide-x divide-gray-200">
+                    <div class="flex w-0 flex-1">
+                      <router-link
+                        to="#"
+                        class="relative -mr-px inline-flex w-0 flex-1 items-center justify-center rounded-bl-lg border border-transparent py-4 text-sm font-medium text-gray-700 hover:text-gray-500"
+                      >
+                        <MailIcon
+                          class="h-5 w-5 text-gray-400"
+                          aria-hidden="true"
+                        />
+                        <span class="ml-3">View</span>
+                      </router-link>
+                    </div>
+                    <div class="-ml-px flex w-0 flex-1">
+                      <router-link
+                        to="#"
+                        class="relative inline-flex w-0 flex-1 items-center justify-center rounded-br-lg border border-transparent py-4 text-sm font-medium text-gray-700 hover:text-gray-500"
+                      >
+                        <PhoneIcon
+                          class="h-5 w-5 text-gray-400"
+                          aria-hidden="true"
+                        />
+                        <span class="ml-3">Test</span>
+                      </router-link>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            </ul>
           </div>
         </div>
       </main>
@@ -193,27 +207,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { Dialog, TransitionChild, TransitionRoot } from "@headlessui/vue";
+import { useArtifactsStore } from "@/stores/artifacts";
+import type { Artifact } from "@/types/artifacts";
 import {
-  CalendarIcon,
-  ChartBarIcon,
-  FolderIcon,
-  HomeIcon,
-  InboxIcon,
+  Dialog,
+  DialogPanel,
+  TransitionChild,
+  TransitionRoot,
+} from "@headlessui/vue";
+import {
+  BeakerIcon,
+  ChipIcon,
+  DatabaseIcon,
+  DocumentTextIcon,
+  MailIcon,
   MenuIcon,
-  UsersIcon,
+  PhoneIcon,
   XIcon,
 } from "@heroicons/vue/outline";
+import { ref } from "vue";
+const artifactsStore = useArtifactsStore();
 
 const navigation = [
-  { name: "Dashboard", href: "#", icon: HomeIcon, current: true },
-  { name: "Team", href: "#", icon: UsersIcon, current: false },
-  { name: "Projects", href: "#", icon: FolderIcon, current: false },
-  { name: "Calendar", href: "#", icon: CalendarIcon, current: false },
-  { name: "Documents", href: "#", icon: InboxIcon, current: false },
-  { name: "Reports", href: "#", icon: ChartBarIcon, current: false },
+  // { name: "Dashboards", to: "/dashboards", icon: ChartBarIcon, current: true },
+  // { name: "Projects", to: "/projects", icon: FolderIcon, current: false },
+  { name: "Models", to: "/models", icon: ChipIcon, current: false },
+  { name: "Datasets", to: "/datasets", icon: DatabaseIcon, current: false },
+  { name: "Tests", to: "/tests", icon: BeakerIcon, current: false },
+  // { name: "Resources", to: "/resources", icon: CloudIcon, current: false },
 ];
 
 const sidebarOpen = ref(false);
+
+function getIconForModel(model: Artifact) {
+  if (model.type == "model") {
+    return DocumentTextIcon;
+  }
+}
 </script>
