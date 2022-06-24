@@ -90,7 +90,7 @@
           <div class="flex flex-shrink-0 items-center px-4">
             <img
               class="h-8 w-auto"
-              src="https://avatars.githubusercontent.com/u/92306917?s=200&v=4"
+              src="/android-chrome-192x192.png"
               alt="Workflow"
             />
             <span class="pl-2 font-bold text-white"> bench </span>
@@ -176,11 +176,11 @@
                         to="#"
                         class="relative -mr-px inline-flex w-0 flex-1 items-center justify-center rounded-bl-lg border border-transparent py-4 text-sm font-medium text-gray-700 hover:text-gray-500"
                       >
-                        <MailIcon
+                        <GlobeIcon
                           class="h-5 w-5 text-gray-400"
                           aria-hidden="true"
                         />
-                        <span class="ml-3">View</span>
+                        <span class="ml-3">Explore</span>
                       </router-link>
                     </div>
                     <div class="-ml-px flex w-0 flex-1">
@@ -188,11 +188,11 @@
                         to="#"
                         class="relative inline-flex w-0 flex-1 items-center justify-center rounded-br-lg border border-transparent py-4 text-sm font-medium text-gray-700 hover:text-gray-500"
                       >
-                        <PhoneIcon
+                        <BeakerIcon
                           class="h-5 w-5 text-gray-400"
                           aria-hidden="true"
                         />
-                        <span class="ml-3">Test</span>
+                        <span class="ml-3">Analyse</span>
                       </router-link>
                     </div>
                   </div>
@@ -220,12 +220,12 @@ import {
   ChipIcon,
   DatabaseIcon,
   DocumentTextIcon,
-  MailIcon,
+  GlobeIcon,
   MenuIcon,
-  PhoneIcon,
   XIcon,
 } from "@heroicons/vue/outline";
 import { ref } from "vue";
+
 const artifactsStore = useArtifactsStore();
 
 const navigation = [
@@ -233,7 +233,7 @@ const navigation = [
   // { name: "Projects", to: "/projects", icon: FolderIcon, current: false },
   { name: "Models", to: "/models", icon: ChipIcon, current: false },
   { name: "Datasets", to: "/datasets", icon: DatabaseIcon, current: false },
-  { name: "Tests", to: "/tests", icon: BeakerIcon, current: false },
+  { name: "Analysis", to: "/analysis", icon: BeakerIcon, current: false },
   // { name: "Resources", to: "/resources", icon: CloudIcon, current: false },
 ];
 

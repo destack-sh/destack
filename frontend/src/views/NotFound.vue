@@ -1,25 +1,12 @@
-<!-- This example requires Tailwind CSS v2.0+ -->
 <template>
-  <!--
-    This example requires updating your template:
-
-    ```
-    <html class="h-full">
-    <body class="h-full">
-    ```
-  -->
   <div class="flex min-h-full flex-col bg-white pt-16 pb-12">
     <main
       class="mx-auto flex w-full max-w-7xl flex-grow flex-col justify-center px-4 sm:px-6 lg:px-8"
     >
       <div class="flex flex-shrink-0 justify-center">
         <a href="/" class="inline-flex">
-          <span class="sr-only">Workflow</span>
-          <img
-            class="h-12 w-auto"
-            src="https://tailwindui.com/img/logos/workflow-mark.svg?color=orange&shade=600"
-            alt=""
-          />
+          <span class="sr-only">Bench</span>
+          <img class="h-12 w-auto" src="/android-chrome-192x192.png" alt="" />
         </a>
       </div>
       <div class="py-16">
@@ -50,7 +37,7 @@
     <footer class="mx-auto w-full max-w-7xl flex-shrink-0 px-4 sm:px-6 lg:px-8">
       <nav class="flex justify-center space-x-4">
         <a
-          href="#"
+          href="mailto:support@symbolx.co"
           class="text-sm font-medium text-gray-500 hover:text-gray-600"
           >Contact Support</a
         >
@@ -59,16 +46,7 @@
           aria-hidden="true"
         />
         <a
-          href="#"
-          class="text-sm font-medium text-gray-500 hover:text-gray-600"
-          >Status</a
-        >
-        <span
-          class="inline-block border-l border-gray-300"
-          aria-hidden="true"
-        />
-        <a
-          href="#"
+          href="https://twitter.co/symbolx"
           class="text-sm font-medium text-gray-500 hover:text-gray-600"
           >Twitter</a
         >

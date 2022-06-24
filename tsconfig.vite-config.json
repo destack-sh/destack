@@ -3,6 +3,9 @@
   "include": ["vite.config.*"],
   "compilerOptions": {
     "composite": true,
+    "target": "esnext",
+    "module": "esnext",
+    "strict": true,
     "types": ["node", "vitest"]
-  }
+  },
 }
