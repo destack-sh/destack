@@ -17,5 +17,8 @@ export default defineConfig(({ command, mode }) => {
         "@": fileURLToPath(new URL("./frontend/src", import.meta.url)),
       },
     },
+    build: {
+      target: "esnext",
+    },
   };
 });

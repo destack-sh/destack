@@ -10,9 +10,7 @@ const appStore = useAppStore();
 
 <template>
   <div v-if="appStore.hydrating">loading</div>
-  <div v-else>
-    <RouterView />
-  </div>
+  <RouterView v-else />
 </template>
 
 <style>

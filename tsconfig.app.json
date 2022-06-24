@@ -11,6 +11,9 @@
     "resolveJsonModule": true,
     "composite": true,
     "sourceMap": true,
+    "target": "esnext",
+    "module": "esnext",
+    "strict": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./frontend/src/*"]

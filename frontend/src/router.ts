@@ -1,11 +1,11 @@
 import qs from "qs";
 import { createRouter, createWebHistory } from "vue-router";
-import ViewHome from "@/views/ViewHome.vue";
-import ViewNotFound from "@/views/ViewNotFound.vue";
+import Home from "@/views/Home.vue";
+import NotFound from "@/views/NotFound.vue";
 
 const routes = [
-  { path: "/", component: ViewHome },
-  { path: "/:pathMatch(.*)*", name: "NotFound", component: ViewNotFound },
+  { path: "/", component: Home },
+  { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];
 
 // use custom query string decode to auto-coerce bools & numbers
