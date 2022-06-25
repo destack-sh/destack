@@ -1,10 +1,29 @@
-import qs from "qs";
-import { createRouter, createWebHistory } from "vue-router";
 import Home from "@/views/Home.vue";
+import Models from "@/views/Models.vue";
+import ModelsDetail from "@/views/ModelsDetail.vue";
 import NotFound from "@/views/NotFound.vue";
+import qs from "qs";
+import {
+  createRouter,
+  createWebHistory,
+  type RouteLocationNormalized,
+} from "vue-router";
+
+const forwardQuery = (route: RouteLocationNormalized) => route.query;
+const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
+  ...route.query,
+  ...route.params,
+});
 
 const routes = [
   { path: "/", component: Home },
+  { path: "/models", component: Models },
+  { path: "/models/:modelName", component: ModelsDetail, props: true },
+  {
+    path: "/playground",
+    component: ModelsDetail,
+    props: forwardQueryAndParams,
+  },
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];
 

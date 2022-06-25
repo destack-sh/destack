@@ -15,7 +15,6 @@ export const useArtifactsStore = defineStore("artifacts", {
       return this.artifacts.filter((artifact) => artifact.type == "dataset");
     },
   },
-
   actions: {
     async hydrate() {
       this.$state.artifacts = (await api.get<Artifact[]>("/artifacts")).data;
