@@ -4,12 +4,7 @@ repos:
     hooks:
       - id: flake8
         name: flake8 (py)
-        args:
-          [
-            "--max-line-length=100",
-            "--select=C,E,F,W,B,B950",
-            "--extend-ignore=E203,E501",
-          ]
+        args: ["--max-line-length=100", "--select=C,E,F,W,B,B950", "--extend-ignore=E203,E501"]
         exclude: ^backend/notebooks/|^backend/alembic
   - repo: https://github.com/psf/black
     rev: 20.8b1
@@ -31,11 +26,11 @@ repos:
         #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
         #  so for now just run it in the system environment. This will probably fail in CI.
         language: system
-#        additional_dependencies:
-#          - "mypy==0.942"
-#           should match relevant stubs in requirements-dev.in
-#          - "djangorestframework-stubs==1.5.0"
-#          - "django-stubs==1.10.1"
+  #        additional_dependencies:
+  #          - "mypy==0.942"
+  #           should match relevant stubs in requirements-dev.in
+  #          - "djangorestframework-stubs==1.5.0"
+  #          - "django-stubs==1.10.1"
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.13.0
     hooks:

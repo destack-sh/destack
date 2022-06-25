@@ -10,9 +10,7 @@ type BaseStore = {
   [key: string]: any;
 };
 
-export function useStores(
-  stores = [useAppStore, useArtifactsStore]
-): BaseStore[] {
+export function useStores(stores = [useAppStore, useArtifactsStore]): BaseStore[] {
   return stores.map((useStore) => useStore()) as BaseStore[];
 }
 
@@ -25,9 +23,7 @@ export async function hydrate() {
   try {
     const hydratedStores = [] as string[];
     await Promise.all(
-      stores
-        .filter(({ $id }) => !hydratedStores.includes($id))
-        .map((store) => store.hydrate?.())
+      stores.filter(({ $id }) => !hydratedStores.includes($id)).map((store) => store.hydrate?.())
     );
   } catch (e) {
     console.log(e);

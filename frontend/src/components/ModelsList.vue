@@ -1,9 +1,6 @@
 <template>
   <div class="mx-auto max-w-7xl px-4 pt-4 sm:px-6 md:px-8">
-    <ul
-      role="list"
-      class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
-    >
+    <ul role="list" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       <li
         v-for="model in artifactsStore.models"
         :key="model.id"
@@ -63,11 +60,7 @@
 <script lang="ts" setup>
 import { useArtifactsStore } from "@/stores/artifacts";
 import type { Artifact } from "@/types/artifacts";
-import {
-  BeakerIcon,
-  DocumentTextIcon,
-  GlobeIcon,
-} from "@heroicons/vue/outline";
+import { BeakerIcon, DocumentTextIcon, GlobeIcon } from "@heroicons/vue/outline";
 
 const artifactsStore = useArtifactsStore();
 
