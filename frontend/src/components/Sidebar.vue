@@ -89,14 +89,17 @@
         class="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white"
       >
         <div class="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
-          <div class="flex flex-shrink-0 items-center gap-2 px-4">
+          <router-link
+            to="/"
+            class="flex flex-shrink-0 items-center gap-2 px-4"
+          >
             <img
               class="h-8 w-auto"
               src="/android-chrome-192x192.png"
-              alt="Workflow"
+              alt="Bench Logo"
             />
             <span class="text-xl font-bold text-orange-400">Bench</span>
-          </div>
+          </router-link>
           <nav class="mt-5 flex-1 space-y-1 bg-white px-2">
             <router-link
               v-for="item in navigation"
@@ -161,6 +164,7 @@ import {
 import {
   BeakerIcon,
   ChipIcon,
+  CubeIcon,
   DatabaseIcon,
   MenuIcon,
   XIcon,
@@ -172,6 +176,7 @@ const navigation = [
   //   { name: "Projects", to: "/projects", icon: FolderIcon, current: false },
   { name: "Models", to: "/models", icon: ChipIcon, current: false },
   { name: "Datasets", to: "/datasets", icon: DatabaseIcon, current: false },
+  { name: "Playground", to: "/playground", icon: CubeIcon, current: false },
   { name: "Laboratory", to: "/laboratory", icon: BeakerIcon, current: false },
   //   { name: "Resources", to: "/resources", icon: ServerIcon, current: false },
 ];
