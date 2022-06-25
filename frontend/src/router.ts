@@ -3,11 +3,7 @@ import Models from "@/views/Models.vue";
 import ModelsDetail from "@/views/ModelsDetail.vue";
 import NotFound from "@/views/NotFound.vue";
 import qs from "qs";
-import {
-  createRouter,
-  createWebHistory,
-  type RouteLocationNormalized,
-} from "vue-router";
+import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 
 const forwardQuery = (route: RouteLocationNormalized) => route.query;
 const forwardQueryAndParams = (route: RouteLocationNormalized) => ({

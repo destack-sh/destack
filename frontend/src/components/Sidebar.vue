@@ -1,11 +1,7 @@
 <template>
   <div>
     <TransitionRoot as="template" :show="sidebarOpen">
-      <Dialog
-        as="div"
-        class="relative z-40 md:hidden"
-        @close="sidebarOpen = false"
-      >
+      <Dialog as="div" class="relative z-40 md:hidden" @close="sidebarOpen = false">
         <TransitionChild
           as="template"
           enter="transition-opacity ease-linear duration-300"
@@ -28,9 +24,7 @@
             leave-from="translate-x-0"
             leave-to="-translate-x-full"
           >
-            <DialogPanel
-              class="relative flex w-full max-w-xs flex-1 flex-col bg-orange-700"
-            >
+            <DialogPanel class="relative flex w-full max-w-xs flex-1 flex-col bg-orange-700">
               <TransitionChild
                 as="template"
                 enter="ease-in-out duration-300"
@@ -85,19 +79,10 @@
     <!-- Static sidebar for desktop -->
     <div class="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
       <!-- Sidebar component, swap this element with another sidebar if you like -->
-      <div
-        class="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white"
-      >
+      <div class="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
         <div class="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
-          <router-link
-            to="/"
-            class="flex flex-shrink-0 items-center gap-2 px-4"
-          >
-            <img
-              class="h-8 w-auto"
-              src="/android-chrome-192x192.png"
-              alt="Bench Logo"
-            />
+          <router-link to="/" class="flex flex-shrink-0 items-center gap-2 px-4">
+            <img class="h-8 w-auto" src="/android-chrome-192x192.png" alt="Bench Logo" />
             <span class="text-xl font-bold text-orange-400">Bench</span>
           </router-link>
           <nav class="mt-5 flex-1 space-y-1 bg-white px-2">
@@ -115,9 +100,7 @@
               <component
                 :is="item.icon"
                 :class="[
-                  item.current
-                    ? 'text-gray-500'
-                    : 'text-gray-400 group-hover:text-gray-500',
+                  item.current ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
                   'mr-3 h-6 w-6 flex-shrink-0',
                 ]"
                 aria-hidden="true"
@@ -136,9 +119,7 @@
 
     <!-- Content container -->
     <div class="flex flex-1 flex-col md:pl-64">
-      <div
-        class="sticky top-0 z-10 bg-gray-100 pt-1 pl-1 sm:pl-3 sm:pt-3 md:hidden"
-      >
+      <div class="sticky top-0 z-10 bg-gray-100 pt-1 pl-1 sm:pl-3 sm:pt-3 md:hidden">
         <button
           type="button"
           class="-ml-0.5 -mt-0.5 inline-flex h-12 w-12 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500"
@@ -155,12 +136,7 @@
   </div>
 </template>
 <script lang="ts" setup>
-import {
-  Dialog,
-  DialogPanel,
-  TransitionChild,
-  TransitionRoot,
-} from "@headlessui/vue";
+import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
 import {
   BeakerIcon,
   ChipIcon,
