@@ -65,53 +65,55 @@
 import Sidebar from "@/components/Sidebar.vue";
 import {
   AcademicCapIcon,
-  BadgeCheckIcon,
-  CashIcon,
-  ClockIcon,
+  CheckCircleIcon,
+  PlusSmIcon,
   ReceiptRefundIcon,
-  UsersIcon,
+  ServerIcon,
+  TableIcon,
+  UserGroupIcon,
 } from "@heroicons/vue/outline";
 
+// TODO @Feature: replace placeholder actions in Home screen
 const actions = [
   {
     title: "Add model",
     to: "#",
-    icon: ClockIcon,
+    icon: PlusSmIcon,
     iconForeground: "text-teal-700",
     iconBackground: "bg-teal-50",
   },
   {
     title: "Add dataset",
     to: "#",
-    icon: CashIcon,
+    icon: PlusSmIcon,
     iconForeground: "text-yellow-700",
     iconBackground: "bg-yellow-50",
   },
   {
     title: "Test model",
     to: "#",
-    icon: BadgeCheckIcon,
+    icon: CheckCircleIcon,
     iconForeground: "text-purple-700",
     iconBackground: "bg-purple-50",
   },
   {
-    title: "View dataset",
+    title: "Curate dataset",
     to: "#",
-    icon: UsersIcon,
+    icon: TableIcon,
     iconForeground: "text-sky-700",
     iconBackground: "bg-sky-50",
   },
   {
     title: "Manage resources",
     to: "#",
-    icon: ReceiptRefundIcon,
+    icon: ServerIcon,
     iconForeground: "text-rose-700",
     iconBackground: "bg-rose-50",
   },
   {
     title: "Manage team",
     to: "#",
-    icon: AcademicCapIcon,
+    icon: UserGroupIcon,
     iconForeground: "text-orange-700",
     iconBackground: "bg-orange-50",
   },
