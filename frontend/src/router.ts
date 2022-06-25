@@ -2,6 +2,7 @@ import Home from "@/views/Home.vue";
 import Models from "@/views/Models.vue";
 import ModelsDetail from "@/views/ModelsDetail.vue";
 import NotFound from "@/views/NotFound.vue";
+import Playground from "@/views/Playground.vue";
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 
@@ -17,7 +18,7 @@ const routes = [
   { path: "/models/:modelName", component: ModelsDetail, props: true },
   {
     path: "/playground",
-    component: ModelsDetail,
+    component: Playground,
     props: forwardQueryAndParams,
   },
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },

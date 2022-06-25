@@ -1,3 +1,5 @@
+import type { FieldSpec } from "@/types/spec";
+
 export type Artifact = {
   id: string;
   type: string;
@@ -9,8 +11,26 @@ export type Artifact = {
 
 export type ArtifactVersion = {
   id: string;
+  artifact?: Artifact;
+  artifact_id: string; // fk to Artifact.id
   version: string;
-  name: string;
+  parents: string[]; // fk to ArtifactVersion.version
+  name?: string;
   description?: string;
   created_at: string;
+  storage_uri?: string;
+  metadata: Record<string, any>;
+};
+
+export type DatasetMetadata = {
+  handler_id: string;
+  config_arguments: Record<string, any>;
+  record_spec: Record<string, FieldSpec>;
+};
+
+export type ModelMetadata = {
+  handler_id: string;
+  config_arguments: Record<string, any>;
+  input_spec: Record<string, FieldSpec>;
+  output_spec: Record<string, FieldSpec>;
 };
