@@ -9,6 +9,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     define: {
       __APP_ENV__: env.APP_ENV,
+      __APP_VERSION__: env.APP_VERSION,
     },
     plugins: [vue()],
     root: "./frontend",

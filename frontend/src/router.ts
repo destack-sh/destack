@@ -1,6 +1,6 @@
 import Home from "@/views/Home.vue";
 import Models from "@/views/Models.vue";
-import ModelsDetail from "@/views/ModelsDetail.vue";
+import ModelDetail from "@/views/ModelDetail.vue";
 import NotFound from "@/views/NotFound.vue";
 import Playground from "@/views/Playground.vue";
 import qs from "qs";
@@ -15,9 +15,10 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 const routes = [
   { path: "/", component: Home },
   { path: "/models", component: Models },
-  { path: "/models/:modelName", component: ModelsDetail, props: true },
+  { path: "/models/:modelName", component: ModelDetail, props: true },
   {
     path: "/playground",
+    name: "playground",
     component: Playground,
     props: forwardQueryAndParams,
   },

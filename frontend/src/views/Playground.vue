@@ -1,18 +1,41 @@
 <template>
   <Sidebar>
-    <div class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:px-8">
+    <div class="mx-auto max-w-7xl px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
       <h1 class="text-2xl font-semibold text-gray-900">Playground</h1>
+      <button
+        type="submit"
+        class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+        @click.prevent=""
+      >
+        Run
+      </button>
     </div>
-    <!-- Model selection -->
-    <!-- This example requires Tailwind CSS v2.0+ -->
 
+    <!-- Input -->
+    <form class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
+      <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
+      </div>
+      <div v-for="field in fields" :key="field.name">
+        <label for="text" class="block text-sm font-medium text-gray-700">{{ field.name }}</label>
+        <textarea
+          rows="3"
+          :name="field.name"
+          :id="field.name"
+          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+          :placeholder="'Enter ' + field.name"
+        />
+      </div>
+    </form>
+
+    <!-- Select models -->
     <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
       <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Models</h3>
         <div class="mt-3 sm:mt-0 sm:ml-4">
           <button
             type="button"
-            class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             Add model
           </button>
@@ -25,9 +48,9 @@
           >
             <div class="flex-1 truncate px-4 py-2 text-sm">
               <router-link
-                :to="'/models/' + model.artifact?.name"
+                :to="'/models/' + artifactsStore.artifact(model.artifact)?.name"
                 class="font-medium text-gray-900 hover:text-gray-600"
-                >{{ model.artifact?.name }}</router-link
+                >{{ artifactsStore.artifact(model.artifact)?.name }}</router-link
               >
               <p class="text-gray-500">{{ model.version }}</p>
             </div>
@@ -44,66 +67,33 @@
         </li>
       </ul>
     </div>
-    <!-- Input -->
-    <form class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
-      <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
-        <div class="mt-3 sm:mt-0 sm:ml-4">
-          <button
-            type="submit"
-            class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-            @click.prevent=""
-          >
-            Run
-          </button>
-        </div>
-      </div>
-      <div v-for="field in fields" :key="field.name">
-        <label for="text" class="block text-sm font-medium text-gray-700">{{ field.name }}</label>
-        <textarea
-          rows="3"
-          :name="field.name"
-          :id="field.name"
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          :placeholder="'Enter ' + field.name"
-        />
-      </div>
-      <button
-        type="submit"
-        class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-        @click.prevent=""
-      >
-        Run
-      </button>
-    </form>
+
     <!-- Executions & output -->
+    <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
+      <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Outputs</h3>
+      </div>
+    </div>
     <!-- TODO @Feature: show executions/output -->
   </Sidebar>
 </template>
 <script lang="ts" setup>
 import Sidebar from "@/components/Sidebar.vue";
-import type { ArtifactVersion } from "@/types/artifacts";
+import { computedAsync, useArtifactsStore } from "@/stores";
 import type { FieldSpec } from "@/types/spec";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
+import type { PropType } from "vue";
 
-const props = defineProps({ models: Array });
-const models: Array<ArtifactVersion> = [
-  {
-    id: "123",
-    artifact: {
-      id: "123",
-      name: "spacy_ner",
-      type: "model",
-      created_at: "today",
-    },
-    artifact_id: "123",
-    version: "0",
-    parents: [],
-    created_at: "today",
-    metadata: {
-      handler_id: "bench.spacy.bundled",
-    },
-  },
-];
+const artifactsStore = useArtifactsStore();
+const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: true } });
+const { result: models } = computedAsync(() =>
+  Promise.all(
+    props.models.map((model: string) => {
+      const artifactId = model.split("@")[0];
+      const version = model.split("@")[1];
+      return artifactsStore.getVersionByTag(artifactId, version);
+    })
+  )
+);
 const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type: "string" }];
 </script>

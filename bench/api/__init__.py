@@ -3,7 +3,7 @@ from typing import List
 from rest_framework.routers import BaseRouter
 from rest_framework_nested import routers
 
-from bench.api.artifact import ArtifactVersionViewSet, ArtifactViewSet
+from bench.api.artifact import ArtifactTagsViewSet, ArtifactVersionViewSet, ArtifactViewSet
 from bench.api.dataset import DatasetVersionViewSet, DatasetViewSet, RecordViewSet
 from bench.api.execution import ExecutionViewSet
 from bench.api.model import ModelVersionViewSet, ModelViewSet
@@ -29,6 +29,7 @@ router.register("executions", ExecutionViewSet)
 router.register("artifacts", ArtifactViewSet)
 artifacts_router = ExtendedNestedRouter(router, "artifacts", lookup="artifact")
 artifacts_router.register("versions", ArtifactVersionViewSet, basename="artifacts_versions")
+artifacts_router.register("tags", ArtifactTagsViewSet, basename="artifacts_tags")
 
 router.register("datasets", DatasetViewSet)
 datasets_router = ExtendedNestedRouter(router, "datasets", lookup="artifact")
