@@ -5,7 +5,7 @@
       <button
         type="submit"
         class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-        @click.prevent=""
+        @click.prevent="run"
       >
         Run
       </button>
@@ -78,6 +78,7 @@
   </Sidebar>
 </template>
 <script lang="ts" setup>
+import { api } from "@/api";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore } from "@/stores";
 import type { FieldSpec } from "@/types/spec";
@@ -96,4 +97,12 @@ const { result: models } = computedAsync(() =>
   )
 );
 const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type: "string" }];
+
+async function run() {
+  const results = models.value?.map((model) =>
+    api
+      .post<Record<string, any>>(`/models/${model.artifact}/versions/${model.version}/predict`)
+      .then((result) => result.data)
+  );
+}
 </script>
