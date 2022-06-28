@@ -5,7 +5,7 @@ from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecuti
 from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge
 from .model import Model, ModelVersion
 from .record import Record, RecordTree, RecordTreeReference
-from .tag import Alias, Capability, Stage, Tag
+from .tag import TAG_ALIAS, TAG_BRANCH, TAG_CAPABILITY, TAG_STAGE, Tag
 
 __all__ = [
     "Artifact",
@@ -19,9 +19,10 @@ __all__ = [
     "ModelVersion",
     "Controller",
     "Tag",
-    "Capability",
-    "Stage",
-    "Alias",
+    "TAG_ALIAS",
+    "TAG_BRANCH",
+    "TAG_STAGE",
+    "TAG_CAPABILITY",
     "Flow",
     "FlowNode",
     "FlowNodeEdge",

@@ -11,8 +11,7 @@ export type Artifact = {
 
 export type ArtifactVersion = {
   id: string;
-  artifact?: Artifact;
-  artifact_id: string; // fk to Artifact.id
+  artifact: string; // fk to Artifact.name
   version: string;
   parents: string[]; // fk to ArtifactVersion.version
   name?: string;

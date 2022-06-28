@@ -2,6 +2,11 @@ from django.db import models
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
+TAG_BRANCH = "branch"
+TAG_STAGE = "stage"
+TAG_ALIAS = "alias"
+TAG_CAPABILITY = "capability"
+
 
 class Tag(UUIDModel):
     """
@@ -32,18 +37,3 @@ class TaggedItem(UUIDModel):
     flow_version = models.ForeignKey(
         "FlowVersion", on_delete=models.CASCADE, related_name="tagged_items"
     )
-
-
-class Alias(Tag):
-    class Meta:
-        proxy = True
-
-
-class Capability(Tag):
-    class Meta:
-        proxy = True
-
-
-class Stage(Tag):
-    class Meta:
-        proxy = True
