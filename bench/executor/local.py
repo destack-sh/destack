@@ -19,7 +19,7 @@ from bench.executor.utils import get_model_iid
 from bench.function.base import Function, MetricFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
-from bench.models.execution import DEFAULT_CONNECTION_NAME, MODEL_EXECUTION_TYPE
+from bench.models.execution import DEFAULT_CONNECTION_NAME
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
@@ -84,7 +84,7 @@ class LocalExecutor(Executor):
         if not blocking:
             # TODO @Performance: run_model is always blocking
             raise NotImplementedError("running non-blocking is not supported")
-        execution = ModelExecution.objects.create(type=MODEL_EXECUTION_TYPE, model=model)
+        execution = ModelExecution.objects.create(model=model)
         with execution.capture(start=False):
             model_handler = self._get_model_handler(model, load_if_needed)
             execution.start()
