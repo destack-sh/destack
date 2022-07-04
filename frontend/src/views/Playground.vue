@@ -16,10 +16,11 @@
       <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
       </div>
-      <div v-for="field in fields" :key="field.name">
+      <div v-for="(field, i) in fields" :key="field.name">
         <label for="text" class="block text-sm font-medium text-gray-700">{{ field.name }}</label>
         <textarea
           rows="3"
+          v-model="fieldValues[i]"
           :name="field.name"
           :id="field.name"
           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
@@ -97,12 +98,19 @@ const { result: models } = computedAsync(() =>
   )
 );
 const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type: "string" }];
+const fieldValues: Array<any> = [""];
 
 async function run() {
+  const modelInput = { text: fieldValues[0] };
+
   const results = models.value?.map((model) =>
     api
-      .post<Record<string, any>>(`/models/${model.artifact}/versions/${model.version}/predict`)
+      .post<Record<string, any>>(
+        `/models/${model.artifact}/versions/${model.version}/predict`,
+        modelInput
+      )
       .then((result) => result.data)
   );
+  console.log(results);
 }
 </script>
