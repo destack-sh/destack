@@ -66,6 +66,7 @@ django==4.0.3
     #   -r requirements.in
     #   django-axes
     #   django-cors-headers
+    #   django-filter
     #   django-structlog
     #   djangorestframework
     #   djangorestframework-dataclasses
@@ -74,6 +75,8 @@ django==4.0.3
 django-axes==5.32.0
     # via -r requirements.in
 django-cors-headers==3.11.0
+    # via -r requirements.in
+django-filter==22.1
     # via -r requirements.in
 django-ipware==4.0.2
     # via

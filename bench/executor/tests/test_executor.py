@@ -2,7 +2,7 @@ from typing import Union, cast
 
 import pytest
 
-from bench.dataset.accessor import convert_records_to_dataset, read_dataset
+from bench.dataset.accessor import read_dataset_version, write_to_dataset
 from bench.executor import LocalExecutor
 from bench.executor.base import FlowExecutionOptions, make_execution_plan
 from bench.model.base import UnbatchedModelHandler, models
@@ -74,7 +74,7 @@ def test_local_execute_one_node_identity_flow(local_executor: LocalExecutor):
     assert execution.state == Execution.State.Completed
     assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[identity_node.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, outputs[identity_node.id]["*"]))
+    output_records = read_dataset_version(cast(DatasetVersion, outputs[identity_node.id]["*"]))
     assert output_records == inputs[identity_node.id]["*"], "outputs match inputs"
 
 
@@ -105,7 +105,7 @@ def test_local_execute_two_node_identity_flow(local_executor: LocalExecutor):
     assert execution.state == Execution.State.Completed
     assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[identity_node_2.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, outputs[identity_node_2.id]["*"]))
+    output_records = read_dataset_version(cast(DatasetVersion, outputs[identity_node_2.id]["*"]))
     assert output_records == inputs[identity_node_1.id]["*"], "outputs match inputs"
 
 
@@ -136,7 +136,7 @@ def test_local_execute_two_node_augmented_flow(local_executor: LocalExecutor):
     assert execution.state == Execution.State.Completed
     assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[augment_node_2.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, outputs[augment_node_2.id]["*"]))
+    output_records = read_dataset_version(cast(DatasetVersion, outputs[augment_node_2.id]["*"]))
     assert output_records[0] == {"text": "TEST"}, "outputs match augmented inputs"
 
 
@@ -170,7 +170,7 @@ def test_local_execute_dataset_flow(local_executor: LocalExecutor):
     swap_node_1: FlowNode = flow.nodes.create(
         function_id="bench.text.swap", name="swap_1", config_arguments={}
     )
-    dataset = convert_records_to_dataset(
+    dataset = write_to_dataset(
         "badword_replacements",
         RecordList(
             [
@@ -189,7 +189,7 @@ def test_local_execute_dataset_flow(local_executor: LocalExecutor):
     )
 
     assert execution.state == Execution.State.Completed
-    output_records = read_dataset(outputs[swap_node_1.id]["*"])
+    output_records = read_dataset_version(outputs[swap_node_1.id]["*"])
     assert output_records == [{"text": "1 2 buzz 4 buzz"}, {"text": "4 lightyear 6"}]
 
 
@@ -248,5 +248,5 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
     models._unregister("test.stub")
 
     assert execution.state == Execution.State.Completed
-    output_records = read_dataset(outputs[test_node_3.id]["*"])
+    output_records = read_dataset_version(outputs[test_node_3.id]["*"])
     assert output_records == [{"result": True}]

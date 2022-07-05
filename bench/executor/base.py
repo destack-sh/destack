@@ -17,7 +17,7 @@ from uuid import UUID
 
 from django.db.models import QuerySet
 
-from bench.dataset.accessor import convert_records_to_dataset
+from bench.dataset.accessor import write_to_dataset
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -180,7 +180,7 @@ def _convert_arguments_to_artifact_connections(
         for name, artifact in node_arguments.items():
             node_argument_id = argument_id_func(node_id, name)
             if isinstance(artifact, RecordBatch):
-                artifact = convert_records_to_dataset(node_argument_id, artifact)
+                artifact = write_to_dataset(node_argument_id, artifact)
             elif not isinstance(artifact, ArtifactVersion):
                 raise ValueError(
                     f"node argument {node_argument_id} has unexpected type: {artifact}"

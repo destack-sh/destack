@@ -4,7 +4,12 @@ from uuid import UUID
 
 import structlog
 
-from bench.dataset.accessor import get_dataset_version_handler, read_dataset, write_to_dataset
+from bench.dataset.accessor import (
+    get_dataset_version_handler,
+    read_dataset_version,
+    write_to_dataset,
+    write_to_dataset_version,
+)
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
     Executor,
@@ -85,13 +90,22 @@ class LocalExecutor(Executor):
             # TODO @Performance: run_model is always blocking
             raise NotImplementedError("running non-blocking is not supported")
         execution = ModelExecution.objects.create(model=model)
+
         with execution.capture(start=False):
+            # write inputs
+            write_to_dataset(f"{model.artifact.name}/inputs", record)
+
+            # run model
             model_handler = self._get_model_handler(model, load_if_needed)
             execution.start()
             if is_record(record):
                 output = model_handler.predict(cast(Record, record))
             else:
                 output = model_handler.predict_batch(cast(RecordBatch, record))
+
+            # write outputs
+            write_to_dataset(f"{model.artifact.name}/outputs", output)
+
         return execution, output
 
     def run_flow(
@@ -101,14 +115,15 @@ class LocalExecutor(Executor):
         arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
         options: FlowExecutionOptions,
     ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
+        if not options.blocking:
+            # TODO @Performance: run_flow is always blocking
+            raise ValueError("non-blocking execution not supported")
+
         plan = make_execution_plan(flow, inputs, arguments, options)
         manifest = manifest_execution(flow, plan)
 
-        if options.blocking:
-            with manifest.execution.capture():
-                self._do_execute(plan)
-        else:
-            raise ValueError("non-blocking execution not supported")
+        with manifest.execution.capture():
+            self._do_execute(plan)
 
         return manifest.execution, plan.final_outputs
 
@@ -151,7 +166,7 @@ class LocalExecutor(Executor):
         for node_id, named_inputs in plan.artifact_inputs.items():
             for input_key, artifact_connection in named_inputs.items():
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
-                    pending_data[node_id][artifact_connection.name] = read_dataset(
+                    pending_data[node_id][artifact_connection.name] = read_dataset_version(
                         cast(DatasetVersion, artifact_connection.artifact)
                     )
                 else:
@@ -200,12 +215,14 @@ class LocalExecutor(Executor):
                     output_batch = output_batches[node_connection.dependent_name]
                     new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
                     if node_connection.intermediate_artifact is not None:
-                        write_to_dataset(node_connection.intermediate_artifact, output_batch)
+                        write_to_dataset_version(
+                            node_connection.intermediate_artifact, output_batch
+                        )
 
                 # write to final outputs (if any)
                 for artifact in plan.final_outputs.get(node_id, {}).values():
                     if artifact.artifact.type == DATASET_TYPE:
-                        write_to_dataset(cast(DatasetVersion, artifact), output_batch)
+                        write_to_dataset_version(cast(DatasetVersion, artifact), output_batch)
                     else:
                         raise ValueError(f"non-dataset artifacts not supported: {artifact}")
 
