@@ -1,12 +1,13 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 
+from bench.api.artifact import ArtifactVersionListingField
 from bench.models import Execution
 from bench.models.execution import ExecutionArtifactConnection
 
 
 class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
-    artifact = serializers.PrimaryKeyRelatedField(read_only=True)
+    artifact = ArtifactVersionListingField(read_only=True)
 
     class Meta:
         model = ExecutionArtifactConnection
@@ -16,7 +17,7 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
 class ExecutionSerializer(serializers.ModelSerializer):
     flow = serializers.PrimaryKeyRelatedField(read_only=True)
     flow_node = serializers.PrimaryKeyRelatedField(read_only=True)
-    model = serializers.PrimaryKeyRelatedField(read_only=True)
+    model = ArtifactVersionListingField(read_only=True)
     connected_artifacts = ExecutionArtifactConnectionSerializer(many=True)
 
     class Meta:

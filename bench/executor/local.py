@@ -24,7 +24,7 @@ from bench.executor.utils import get_model_iid
 from bench.function.base import Function, MetricFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
-from bench.models.execution import DEFAULT_CONNECTION_NAME
+from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
@@ -92,8 +92,13 @@ class LocalExecutor(Executor):
         execution = ModelExecution.objects.create(model=model)
 
         with execution.capture(start=False):
-            # write inputs
-            write_to_dataset(f"{model.artifact.name}/inputs", record)
+            # record inputs
+            input_dataset = write_to_dataset(f"{model.artifact.name}/inputs", record)
+            execution.connected_artifacts.create(
+                connection_type=ExecutionArtifactConnection.ConnectionType.Input,
+                connection_name=DEFAULT_CONNECTION_NAME,
+                artifact=input_dataset,
+            )
 
             # run model
             model_handler = self._get_model_handler(model, load_if_needed)
@@ -103,8 +108,13 @@ class LocalExecutor(Executor):
             else:
                 output = model_handler.predict_batch(cast(RecordBatch, record))
 
-            # write outputs
-            write_to_dataset(f"{model.artifact.name}/outputs", output)
+            # record outputs
+            output_dataset = write_to_dataset(f"{model.artifact.name}/outputs", output)
+            execution.connected_artifacts.create(
+                connection_type=ExecutionArtifactConnection.ConnectionType.Output,
+                connection_name=DEFAULT_CONNECTION_NAME,
+                artifact=output_dataset,
+            )
 
         return execution, output
 

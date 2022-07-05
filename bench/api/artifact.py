@@ -50,6 +50,11 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "parents", "version", "content_hash", "committed"]
 
 
+class ArtifactVersionListingField(serializers.RelatedField):
+    def to_representation(self, value: ArtifactVersion):
+        return f"{value.artifact.name}@{value.version}"
+
+
 class ArtifactViewSet(viewsets.ModelViewSet):
     queryset = Artifact.objects.all()
     serializer_class = ArtifactSerializer
