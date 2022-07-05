@@ -1,3 +1,5 @@
+from typing import Union
+
 from bench.dataset.base import (
     DatasetHandler,
     DatasetReader,
@@ -8,7 +10,7 @@ from bench.dataset.base import (
 )
 from bench.models import ArtifactVersion, Dataset, DatasetVersion
 from bench.models.dataset import DatasetMetadata
-from bench.utils.record import Record, RecordBatch
+from bench.utils.record import Record, RecordBatch, RecordList
 
 
 class DatasetAccessor:
@@ -57,21 +59,31 @@ def get_dataset_version_writer(version: DatasetVersion) -> DatasetWriter:
     return get_dataset_writer(**_to_handler_opts(version))
 
 
-def write_to_dataset(version: DatasetVersion, records: RecordBatch, append: bool = True):
+def records_to_batch(records: Union[Record, RecordBatch]) -> RecordBatch:
+    if isinstance(records, RecordBatch):
+        return records
+    else:
+        return RecordList([records])
+
+
+def write_to_dataset_version(
+    version: DatasetVersion, records: Union[Record, RecordBatch], append: bool = True
+):
     writer = get_dataset_version_writer(version)
     if not append:
         writer.clear()
-    writer.extend(records)
+    batch = records_to_batch(records)
+    writer.extend(batch)
 
 
-def read_dataset(version: DatasetVersion) -> RecordBatch:
+def read_dataset_version(version: DatasetVersion) -> RecordBatch:
     reader = get_dataset_version_reader(version)
     return reader[0 : len(reader)]
 
 
-def convert_records_to_dataset(name: str, data: RecordBatch) -> ArtifactVersion:
+def write_to_dataset(name: str, records: Union[Record, RecordBatch]) -> ArtifactVersion:
     dataset = Dataset.objects.create_dataset_version(
         name=name, metadata=DatasetMetadata.default_db()
     )
-    write_to_dataset(dataset, data)
+    write_to_dataset_version(dataset, records)
     return dataset

@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from bench.api.execution import ExecutionSerializer
 from bench.executor import executor
-from bench.executor.base import FlowRawArgument, FlowRawInput
+from bench.executor.base import FlowRawArgument
 from bench.models import ArtifactVersion, Flow, FlowNode
 from bench.models.flow import FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
@@ -30,6 +30,12 @@ class FlowSerializer(serializers.ModelSerializer):
         model = Flow
         fields = ["id", "name", "description", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+
+class FlowVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlowVersion
+        fields = "__all__"
 
 
 class FlowNodeInputDataSerializer(serializers.Serializer):
@@ -88,15 +94,23 @@ class FlowExecutionPlanSerializer(serializers.Serializer):
 
 
 class FlowViewSet(viewsets.ModelViewSet):
+    queryset = Flow.objects.order_by("-created_at").all()
+    serializer_class = FlowSerializer
+
+
+class FlowVersionViewSet(viewsets.ModelViewSet):
+    queryset = FlowVersion.objects.order_by("-created_at").all()
+    serializer_class = FlowVersionSerializer
+
     @action(methods=["POST"], detail=True)
     def execute(self, request: Request, *args, **kwargs) -> Response:
         serializer = FlowExecutionPlanSerializer(request.data)
         serializer.is_valid(raise_exception=True)
 
         # assemble inputs into dict form
-        inputs: dict[UUID, Mapping[str, FlowRawInput]] = {}
+        inputs: dict[UUID, Mapping[str, FlowRawArgument]] = {}
         for node_input in serializer.validated_data["inputs"]:
-            node_inputs: dict[str, FlowRawInput] = {}
+            node_inputs: dict[str, FlowRawArgument] = {}
             for input_data in node_input["inputs"]:
                 # use first non-null data given
                 node_inputs[input_data["name"]] = input_data.get(

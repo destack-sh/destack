@@ -10,7 +10,7 @@ Record = Union[FieldType, Dict[str, FieldType]]
 
 
 def is_record(obj: Any) -> bool:
-    return isinstance(obj, dict)
+    return isinstance(obj, (dict, FieldType))
 
 
 class RecordBatch(abc.ABC):

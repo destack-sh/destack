@@ -4,7 +4,7 @@
       <h1 class="text-2xl font-semibold text-gray-900">Playground</h1>
       <button
         type="submit"
-        class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+        class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
         @click.prevent="run"
       >
         Run
@@ -45,7 +45,7 @@
       <ul role="list" class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
         <li v-for="model in models" :key="model.name" class="col-span-1 flex rounded-md shadow-sm">
           <div
-            class="flex flex-1 items-center justify-between truncate rounded-r-md border-t border-r border-b border-gray-200 bg-white"
+            class="flex flex-1 items-center justify-between truncate rounded-r-md border-t border-b border-r border-gray-200 bg-white"
           >
             <div class="flex-1 truncate px-4 py-2 text-sm">
               <router-link
@@ -58,7 +58,7 @@
             <div class="flex-shrink-0 pr-2">
               <button
                 type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white bg-transparent text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-transparent bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <span class="sr-only">Open options</span>
                 <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
@@ -82,9 +82,10 @@
 import { api } from "@/api";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore } from "@/stores";
+import type { Execution } from "@/types";
 import type { FieldSpec } from "@/types/spec";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
-import type { PropType } from "vue";
+import { ref, type PropType, type Ref } from "vue";
 
 const artifactsStore = useArtifactsStore();
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: true } });
@@ -99,18 +100,30 @@ const { result: models } = computedAsync(() =>
 );
 const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type: "string" }];
 const fieldValues: Array<any> = [""];
+const executions: Ref<Array<Execution>> = ref([]);
 
 async function run() {
-  const modelInput = { text: fieldValues[0] };
+  const fieldValuesAsRecord: Record<string, any> = {};
+  for (const field of fields) {
+    fieldValuesAsRecord[field.name] = fieldValues[0];
+  }
 
-  const results = models.value?.map((model) =>
+  const outputs = models.value?.map((model) =>
     api
       .post<Record<string, any>>(
         `/models/${model.artifact}/versions/${model.version}/predict`,
-        modelInput
+        fieldValuesAsRecord
       )
       .then((result) => result.data)
+      .then((result) => console.log(result))
+      .then(() => getExecutions(model.id))
   );
-  console.log(results);
+}
+
+async function getExecutions(model?: string, flow?: string) {
+  api
+    .get<Array<Execution>>(`/executions`, { params: { model, flow } })
+    .then((result) => result.data)
+    .then((result) => (executions.value = result));
 }
 </script>
