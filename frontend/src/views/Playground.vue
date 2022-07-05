@@ -102,7 +102,7 @@ const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type:
 const fieldValues: Array<any> = [""];
 const executions: Ref<Array<Execution>> = ref([]);
 
-async function run() {
+function run() {
   const fieldValuesAsRecord: Record<string, any> = {};
   for (const field of fields) {
     fieldValuesAsRecord[field.name] = fieldValues[0];
@@ -120,10 +120,12 @@ async function run() {
   );
 }
 
-async function getExecutions(model?: string, flow?: string) {
+function getExecutions(model?: string, flow?: string) {
   api
     .get<Array<Execution>>(`/executions`, { params: { model, flow } })
     .then((result) => result.data)
     .then((result) => (executions.value = result));
 }
+
+function getDataset(dataset: string, version: string) {}
 </script>
