@@ -203,7 +203,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
         # TODO @Feature: get actual output names for multi-output nodes
         output_names = [DEFAULT_CONNECTION_NAME]
         for output_name in output_names:
-            output_id = f"{flow.flow.name}/{node.name}/outputs/{output_name}"
+            output_id = f"{flow.flow.name}.{node.name}.outputs.{output_name}"
             output_dataset = Dataset.objects.create_dataset_version(
                 name=output_id, metadata=DatasetMetadata.default_db()
             )
@@ -222,7 +222,7 @@ def _make_node_connections(
         node_dependencies: QuerySet[FlowNodeEdge] = FlowNodeEdge.objects.filter(dependent=node)
         for edge in node_dependencies:
             if edge.connection_type in captured_connection_types:
-                output_id = f"{flow_name}/{node.name}/outputs/{edge.connection_name}"
+                output_id = f"{flow_name}.{node.name}.outputs.{edge.connection_name}"
                 output_dataset = Dataset.objects.create_dataset_version(
                     name=output_id, metadata=DatasetMetadata.default_db()
                 )
@@ -276,12 +276,12 @@ def make_execution_plan(
     # convert given inputs/arguments to persisted artifacts as needed
     extra_inputs = _convert_arguments_to_artifact_connections(
         inputs,
-        lambda node_id, name: f"{flow.flow.name}/{nodes[node_id].name}/inputs/{name}",
+        lambda node_id, name: f"{flow.flow.name}.{nodes[node_id].name}.inputs.{name}",
         connection_type=ExecutionArtifactConnection.ConnectionType.Input,
     )
     extra_arguments = _convert_arguments_to_artifact_connections(
         arguments,
-        lambda node_id, name: f"{flow.flow.name}/{nodes[node_id].name}/arguments/{name}",
+        lambda node_id, name: f"{flow.flow.name}.{nodes[node_id].name}.arguments.{name}",
         connection_type=ExecutionArtifactConnection.ConnectionType.Argument,
     )
 

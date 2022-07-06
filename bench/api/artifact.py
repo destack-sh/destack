@@ -59,12 +59,14 @@ class ArtifactViewSet(viewsets.ModelViewSet):
     queryset = Artifact.objects.all()
     serializer_class = ArtifactSerializer
     lookup_field = "name"
+    lookup_value_regex = r"[\w.]+"
 
 
 class ArtifactVersionViewSet(viewsets.ModelViewSet):
     queryset = ArtifactVersion.objects.all()
     serializer_class = ArtifactVersionSerializer
     lookup_field = "version"
+    lookup_value_regex = r"[\w.]+"
 
     def get_queryset(self) -> models.QuerySet[ArtifactVersion]:
         return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name"))

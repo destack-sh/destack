@@ -33,3 +33,9 @@ export type ModelMetadata = {
   input_spec: Record<string, FieldSpec>;
   output_spec: Record<string, FieldSpec>;
 };
+
+export function plitArtifactVersion(artifact: string) {
+  // assumes schema artifactName@version
+  const parts = artifact.split("@");
+  return [parts[0], parts[1]];
+}

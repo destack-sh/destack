@@ -93,7 +93,7 @@ class LocalExecutor(Executor):
 
         with execution.capture(start=False):
             # record inputs
-            input_dataset = write_to_dataset(f"{model.artifact.name}/inputs", record)
+            input_dataset = write_to_dataset(f"{model.artifact.name}.inputs", record)
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Input,
                 connection_name=DEFAULT_CONNECTION_NAME,
@@ -109,7 +109,7 @@ class LocalExecutor(Executor):
                 output = model_handler.predict_batch(cast(RecordBatch, record))
 
             # record outputs
-            output_dataset = write_to_dataset(f"{model.artifact.name}/outputs", output)
+            output_dataset = write_to_dataset(f"{model.artifact.name}.outputs", output)
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
                 connection_name=DEFAULT_CONNECTION_NAME,
