@@ -1,5 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
+from rest_framework.pagination import LimitOffsetPagination
 
 from bench.api.artifact import ArtifactVersionListingField
 from bench.models import Execution
@@ -44,6 +45,7 @@ class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Execution.objects.order_by("-created_at").all()
     serializer_class = ExecutionSerializer
     filter_backends = [DjangoFilterBackend]
+    pagination_class = LimitOffsetPagination
     filterset_fields = [
         "type",
         "flow",
