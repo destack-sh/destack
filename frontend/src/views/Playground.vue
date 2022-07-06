@@ -76,6 +76,8 @@ plitArtifactVersion
         <h3 class="text-lg font-medium leading-6 text-gray-900">Outputs</h3>
       </div>
       <div v-for="execution in executions" :key="execution.id">
+        {{ execution.created_at }}
+        {{ execution.state }}
         {{ outputDatasets[execution.id] }}
       </div>
     </div>
@@ -87,12 +89,13 @@ import { api } from "@/api";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore } from "@/stores";
 import {
-  plitArtifactVersion as splitArtifactNameVersion,
+  splitArtifactNameVersion,
   type Execution,
   type FieldSpec,
+  type LimitPaginatedResult,
 } from "@/types";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
-import { ref, watch, type PropType, type Ref } from "vue";
+import { reactive, ref, watch, type PropType, type Ref } from "vue";
 
 const artifactsStore = useArtifactsStore();
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: true } });
@@ -108,7 +111,22 @@ const { result: models } = computedAsync(() =>
 const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type: "string" }];
 const fieldValues: Array<any> = [""];
 const executions: Ref<Array<Execution>> = ref([]);
-const outputDatasets: Record<string, Record<string, any>[]> = {};
+const outputDatasets: Record<string, Record<string, any>[]> = reactive({});
+
+watch(models, () => models.value?.forEach((model) => fetchExecutions(model.id)));
+watch(executions, (executions, _) => {
+  executions.forEach((execution) =>
+    execution.connected_artifacts
+      .filter((connection) => connection.connection_type == "output")
+      .slice(0, 1) // ignore all but first
+      .forEach((connection) => {
+        const [name, version] = splitArtifactNameVersion(connection.artifact);
+        readDataset(name, version).then((records) => {
+          outputDatasets[execution.id] = records;
+        });
+      })
+  );
+});
 
 function run() {
   const fieldValuesAsRecord: Record<string, any> = {};
@@ -116,37 +134,26 @@ function run() {
     fieldValuesAsRecord[field.name] = fieldValues[0];
   }
 
-  const outputs = models.value?.map((model) =>
+  models.value?.map((model) =>
     api
       .post<Record<string, any>>(
         `/models/${model.artifact}/versions/${model.version}/predict`,
         fieldValuesAsRecord
       )
       .then((result) => result.data)
-      .then(() => fetchExecutions(model.id))
+      .then((result) => {
+        executions.value = [result["execution"] as Execution, ...executions.value.slice(0, 9)];
+        fetchExecutions(model.id);
+      })
   );
 }
 
 function fetchExecutions(model?: string, flow?: string, limit = 10) {
   api
-    .get<Array<Execution>>(`/executions`, { params: { model, flow, limit } })
+    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
     .then((result) => result.data)
-    .then((result) => (executions.value = result));
+    .then((result) => (executions.value = result.results));
 }
-
-watch(executions, (executions, _) => {
-  executions.forEach((execution) =>
-    execution.connected_artifacts
-      .filter((connection) => connection.connection_type == "output")
-      .forEach((connection) => {
-        const [name, version] = splitArtifactNameVersion(connection.artifact);
-        readDataset(name, version).then((records) => {
-          console.log("receive output dataset for " + execution);
-          outputDatasets[execution.id] = records;
-        });
-      })
-  );
-});
 
 async function readDataset(
   dataset: string,
@@ -156,9 +163,12 @@ async function readDataset(
   dataset = encodeURIComponent(dataset);
   version = encodeURIComponent(version);
   return api
-    .get<Record<string, any>[]>(`/datasets/${dataset}/versions/${version}/records`, {
-      params: { limit },
-    })
-    .then((response) => response.data);
+    .get<LimitPaginatedResult<Record<string, any>>>(
+      `/datasets/${dataset}/versions/${version}/records`,
+      {
+        params: { limit },
+      }
+    )
+    .then((response) => response.data.results);
 }
 </script>
