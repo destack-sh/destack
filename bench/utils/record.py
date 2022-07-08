@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import abc
 import typing
-from typing import Any, Dict, Iterator, List, Union
+from typing import Any, Iterator, List, Union
 
-from bench.utils.spec import FieldType
+from bench.utils.spec import FieldValue
 
-Record = Union[FieldType, Dict[str, FieldType]]
+Record = Union[FieldValue, dict[str, FieldValue]]
 
 
 def is_record(obj: Any) -> bool:
-    return isinstance(obj, (dict, FieldType))
+    return isinstance(obj, (dict, FieldValue))
 
 
 class RecordBatch(abc.ABC):
@@ -27,12 +27,12 @@ class RecordBatch(abc.ABC):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> list[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldValue]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, list[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldValue]]:
         raise NotImplementedError
 
     def __iter__(self) -> Iterator[Record]:
@@ -65,12 +65,12 @@ class RecordList(RecordBatch):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> list[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldValue]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, list[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldValue]]:
         # TODO @Performance: improve RecordList __getitem__.
         #  There are probably a thousand better ways of doing this,
         #  see e.g. numpy views, Activeloop Datasets, HuggingFace Datasets, etc.

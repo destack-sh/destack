@@ -5,7 +5,7 @@ import datasets as hf_datasets
 
 from bench.dataset.base import DatasetReader, datasets
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetSpec, FieldSpec, FieldType, RecordSpec, RecordTypeStrict
+from bench.utils.spec import DatasetSpec, FieldSpec, FieldValue, RecordSpec, RecordTypeSpec
 
 
 @datasets.register("bench.huggingface.hub")
@@ -50,12 +50,12 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> list[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldValue]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, list[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldValue]]:
         if isinstance(index, int):
             return self._dataset[index]
         elif isinstance(index, slice):
@@ -78,7 +78,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         return len(self._dataset)
 
 
-def _hf_features_to_record_type(features: hf_datasets.Features) -> RecordTypeStrict:
+def _hf_features_to_record_type(features: hf_datasets.Features) -> RecordTypeSpec:
     record_type: dict[str, FieldSpec] = {}
 
     for feature_key, feature_type in features.items():

@@ -150,10 +150,11 @@ type ModelTemplate = {
 
 const availableTemplates = [
   { name: "No template", empty: true },
-  { name: "Spacy Bundled" },
-  { name: "Spacy Custom" },
+  { name: "spaCy Bundled" },
+  { name: "spaCy Custom" },
   { name: "HuggingFace Hub" },
   { name: "HuggingFace Custom" },
+  { name: "Python Custom" },
 ];
 const selectedTemplate: Ref<ModelTemplate> = ref(availableTemplates[0]);
 

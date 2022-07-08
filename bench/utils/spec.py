@@ -1,3 +1,15 @@
+"""
+The spec (short for 'specification') system defines machine- and human-readable schemas for the
+primitive types in our system (e.g., records, datasets, models).
+
+The core points are:
+ - A field has a value of a (Python) implementation type. Fields may be nested lists, tuples and dicts.
+ - The schema for a field type may be its implementation type (implicit), or an explicit
+   spec type describing the type with a _Type which includes description on the type.
+ - A record is an atomic unit of fields (field or dict[str, field]) that belong together.
+ - Records are the basic data unit: datasets are record lists, models and functions process records, etc.
+"""
+
 from __future__ import annotations
 
 import abc
@@ -23,14 +35,16 @@ from pydantic.typing import ForwardRef, evaluate_forwardref
 
 from bench.utils.registry import get_qualified_name
 
-FieldTypePrimitive = Union[str, int, float, bytes, np.ndarray, PIL.Image.Image]
-FieldType = Union[FieldTypePrimitive, List[FieldTypePrimitive], Mapping[str, FieldTypePrimitive]]
-
 
 class _Type(abc.ABC):
     @cached_property
     def impl_types(self) -> List[Type]:
         return []
+
+
+# ===========
+# Field types
+# ===========
 
 
 @dataclass
@@ -40,7 +54,20 @@ class ValueType(_Type):
 
 @dataclass
 class ClassLabelType(_Type):
+    num_classes: int = None
     names: Optional[List[str]] = None
+
+
+@dataclass
+class Array1dType(_Type):
+    shape: tuple[int]
+    dtype: str
+
+
+@dataclass
+class Array2dType(_Type):
+    shape: tuple[int]
+    dtype: str
 
 
 @dataclass
@@ -58,8 +85,28 @@ class VideoType(_Type):
     pass
 
 
+# The (Python) implementation type of a field.
+FieldValuePrimitive = Union[str, int, float, np.ndarray, PIL.Image.Image]
+FieldValue = Union[
+    FieldValuePrimitive,
+    Tuple[FieldValuePrimitive],
+    List[FieldValuePrimitive],
+    Mapping[str, FieldValuePrimitive],
+]
+
+# The schema type of a field.
+FieldType = Union[
+    ValueType, ClassLabelType, Array1dType, Array2dType, AudioType, ImageType, VideoType
+]
+
+
+# =============
+# Complex types
+# =============
+
+
 @dataclass
-class ArtifactType:
+class ArtifactType(_Type):
     type: str
 
 
@@ -105,30 +152,32 @@ class DatasetSpec(_Spec):
 
 @dataclass
 class RecordSpec(_Spec):
-    type: RecordTypeStrict
+    type: RecordTypeSpec
 
 
 @dataclass
 class ConfigSpec(_Spec):
-    type: ConfigTypeStrict
+    type: ConfigTypeSpec
 
 
-RecordType = Union[FieldType, FieldSpec, dict[str, Union[FieldType, FieldSpec]]]
-RecordTypeStrict = Union[FieldSpec, dict[str, FieldSpec]]
+RecordType = Union[
+    FieldType, FieldValue, FieldSpec, dict[str, Union[FieldValue, FieldType, FieldSpec]]
+]
+RecordTypeSpec = Union[FieldSpec, dict[str, FieldSpec]]
 
-AnyType = Union[FieldType, RecordType, ModelType, DatasetType]
+AnyType = Union[FieldValue, FieldType, RecordType, ModelType, DatasetType]
 AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]
 
 ConfigType = dict[str, Union[AnyType, AnySpec]]
-ConfigTypeStrict = dict[str, AnySpec]
+ConfigTypeSpec = dict[str, AnySpec]
 
 ArtifactSetType = dict[str, ArtifactType]
 ArtifactSetSpec = dict[str, ArtifactSpec]
 
 
-def reduce_to_record_type(
+def reduce_to_record_type_spec(
     spec: Mapping[str, AnySpec], ignore_invalid: bool = False
-) -> RecordTypeStrict:
+) -> RecordTypeSpec:
     record_spec = {value.name: value for value in spec.values() if isinstance(value, FieldSpec)}
     if not ignore_invalid:
         bad_specs = {value for value in spec.values() if not isinstance(value, FieldSpec)}
@@ -137,26 +186,25 @@ def reduce_to_record_type(
     return record_spec
 
 
-def convert_to_record_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> RecordTypeStrict:
+def convert_to_record_type_spec(spec: Mapping[str, Union[AnyType, AnySpec]]) -> RecordTypeSpec:
     spec = convert_to_spec(spec)
-    spec = reduce_to_record_type(spec)
-    return spec
+    return reduce_to_record_type_spec(spec)
 
 
 def convert_to_record_spec(
     spec: Union[RecordSpec, Mapping[str, Union[AnyType, AnySpec]]]
 ) -> RecordSpec:
     if isinstance(spec, RecordSpec):
-        converted_spec = convert_to_record_type(spec.type)
+        converted_spec = convert_to_record_type_spec(spec.type)
         spec = RecordSpec(name=spec.name, description=spec.description, type=converted_spec)
         return spec
     else:
-        converted_spec = convert_to_record_type(spec)
+        converted_spec = convert_to_record_type_spec(spec)
         spec = RecordSpec(name="", description="", type=converted_spec)
         return spec
 
 
-def convert_to_config_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> ConfigTypeStrict:
+def convert_to_config_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> ConfigTypeSpec:
     spec = convert_to_spec(spec)
     # no special logic for config spec yet
     return spec
@@ -203,6 +251,10 @@ def _impl_type_to_type(value: Type, ignore_unknown: bool = False) -> AnyType:
         raise ValueError(f"unknown type {value}")
 
 
+def _impl_type_to_spec_type(value: Type) -> FieldType:
+    raise NotImplementedError
+
+
 def _type_to_spec(
     key: str,
     description: str,
@@ -215,6 +267,9 @@ def _type_to_spec(
     if isinstance(value, type):
         value = _impl_type_to_type(value, ignore_unknown=True)
 
+    if isinstance(value, type):
+        value = _impl_type_to_spec_type(value)
+
     if isinstance(value, _Spec):
         if ignore_spec:
             # mypy thinks this is a redundant cast, but also complains if it's not here
@@ -222,7 +277,9 @@ def _type_to_spec(
         else:
             raise ValueError(f"type {value} is already a spec type")
     elif isinstance(value, dict):  # RecordType
-        return RecordSpec(name=key, description=description, type=convert_to_record_type(value))
+        return RecordSpec(
+            name=key, description=description, type=convert_to_record_type_spec(value)
+        )
     elif isinstance(value, DatasetType):
         return DatasetSpec(
             name=key,
@@ -275,7 +332,7 @@ def infer_config_spec(func: Callable) -> ConfigSpec:
     return ConfigSpec(name=name, description=description, type=config_type)
 
 
-def infer_config_type(func: Callable) -> ConfigTypeStrict:
+def infer_config_type(func: Callable) -> ConfigTypeSpec:
     """Infers the config type from the given callable's signature and docs"""
     signature: inspect.Signature = _get_typed_signature(func)
     spec: dict[str, AnySpec] = {}
