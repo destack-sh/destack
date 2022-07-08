@@ -1,19 +1,13 @@
 import abc
 import functools
-from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union
+from typing import Any, Iterable, Optional, Tuple, Type, Union
 
 from fsspec import AbstractFileSystem
 
 from bench.artifact.base import ArtifactHandler
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import (
-    ConfigTypeStrict,
-    DatasetSpec,
-    DatasetType,
-    RecordSpec,
-    infer_config_type,
-)
+from bench.utils.spec import ConfigTypeSpec, DatasetSpec, DatasetType, RecordSpec, infer_config_type
 
 
 class DatasetHandler(ArtifactHandler):
@@ -97,7 +91,7 @@ def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
 
 
 @functools.cache
-def _get_dataset_handler_config_type(cls: Type[DatasetHandler]) -> ConfigTypeStrict:
+def _get_dataset_handler_config_type(cls: Type[DatasetHandler]) -> ConfigTypeSpec:
     return infer_config_type(cls)
 
 

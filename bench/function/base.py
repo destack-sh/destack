@@ -24,7 +24,7 @@ from bench.utils.spec import (
     convert_to_config_spec,
     convert_to_record_spec,
     infer_config_spec,
-    reduce_to_record_type,
+    reduce_to_record_type_spec,
 )
 
 
@@ -158,7 +158,7 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
 
     inferred_config_spec = infer_config_spec(func)
     try:
-        inferred_input_type = reduce_to_record_type(inferred_config_spec.type)
+        inferred_input_type = reduce_to_record_type_spec(inferred_config_spec.type)
     except ValueError as e:
         raise ValueError("callable function definition has non-FieldType parameters") from e
     inferred_input_spec = convert_to_record_spec(inferred_input_type)

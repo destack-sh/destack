@@ -21,7 +21,7 @@ from bench.models.record import (
     replace_record,
 )
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetSpec, FieldType, RecordSpec
+from bench.utils.spec import DatasetSpec, FieldValue, RecordSpec
 
 
 # TODO @Architecture: what does DbDataset do? how does it relate to actual Dataset/DatasetVersion
@@ -97,12 +97,12 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> list[FieldType]:
+    def __getitem__(self, index: str) -> list[FieldValue]:
         ...
 
     def __getitem__(
         self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, list[FieldType]]:
+    ) -> Union[Record, RecordBatch, list[FieldValue]]:
         if isinstance(index, int):
             db_record = get_record(self.root, index)
             return db_record.data

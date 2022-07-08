@@ -8,7 +8,7 @@ from django.db.models import Q, Subquery
 
 from bench.models.utils import UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedObject, VersionedTree
-from bench.utils.spec import FieldType
+from bench.utils.spec import FieldValue
 
 
 class RecordManager(models.Manager):
@@ -131,12 +131,12 @@ def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
     return records
 
 
-def get_records_field(tree: RecordTree, field: str) -> list[FieldType]:
+def get_records_field(tree: RecordTree, field: str) -> list[FieldValue]:
     """
     Gets specific fields of the given tree within
     """
     # TODO @Performance: optimise get_records_field to perform query in DB
-    field_values: list[FieldType] = []
+    field_values: list[FieldValue] = []
     for record in iter_record_tree(tree):
         field_values.append(record.data[field])
     return field_values
