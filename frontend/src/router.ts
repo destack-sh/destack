@@ -1,6 +1,7 @@
+import ModelCreate from "@/components/ModelCreate.vue";
 import Home from "@/views/Home.vue";
-import Models from "@/views/Models.vue";
 import ModelDetail from "@/views/ModelDetail.vue";
+import Models from "@/views/Models.vue";
 import NotFound from "@/views/NotFound.vue";
 import Playground from "@/views/Playground.vue";
 import qs from "qs";
@@ -15,6 +16,7 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 const routes = [
   { path: "/", component: Home },
   { path: "/models", component: Models },
+  { path: "/models/new", component: ModelCreate },
   { path: "/models/:modelName", component: ModelDetail, props: true },
   {
     path: "/playground",
