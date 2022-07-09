@@ -28,7 +28,7 @@ from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactCon
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
-from bench.utils.record import Record, RecordBatch, RecordList, is_record
+from bench.utils.record import Record, RecordBatch, RecordList
 
 logger = structlog.stdlib.get_logger()
 
@@ -103,10 +103,10 @@ class LocalExecutor(Executor):
             # run model
             model_handler = self._get_model_handler(model, load_if_needed)
             execution.start()
-            if is_record(record):
-                output = model_handler.predict(cast(Record, record))
-            else:
+            if isinstance(record, RecordBatch):
                 output = model_handler.predict_batch(cast(RecordBatch, record))
+            else:
+                output = model_handler.predict(cast(Record, record))
 
             # record outputs
             output_dataset = write_to_dataset(f"{model.artifact.name}.outputs", output)

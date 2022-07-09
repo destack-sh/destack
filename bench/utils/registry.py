@@ -69,6 +69,9 @@ class Registry(Generic[T]):
             raise RegistryError(f"object {item} does not exist")
         return obj
 
+    def __iter__(self):
+        return iter(self._registered_objects.values())
+
 
 def get_qualified_name(obj: Any) -> str:
     return ".".join([obj.__module__, obj.__qualname__])

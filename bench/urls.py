@@ -8,7 +8,7 @@ from django.contrib import admin
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from bench.api import api_routers
+from bench.api import api_patterns, api_routers
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -16,4 +16,5 @@ urlpatterns = [
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/schema/swagger/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"),
     *[path("api/", include(r.urls)) for r in api_routers],
+    *api_patterns,
 ]

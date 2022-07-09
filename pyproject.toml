@@ -20,10 +20,6 @@ module = "gunicorn"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "PIL"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = "fsspec"
 ignore_missing_imports = true
 
@@ -37,6 +33,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "sklearn"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "PIL"
 ignore_missing_imports = true
 
 [tool.isort]
