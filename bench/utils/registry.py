@@ -3,6 +3,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Iterable,
     Optional,
     Sequence,
     Tuple,
@@ -62,6 +63,9 @@ class Registry(Generic[T]):
 
     def get(self, name: str) -> Optional[T]:
         return self._registered_objects.get(self._get_key(name))
+
+    def names(self) -> Iterable[str]:
+        return [key[1] for key in self._registered_objects.keys()]
 
     def __getitem__(self, item: str) -> T:
         obj = self.get(item)
