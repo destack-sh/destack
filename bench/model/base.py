@@ -6,7 +6,7 @@ from fsspec import AbstractFileSystem
 from bench.artifact.base import ArtifactHandler
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
-from bench.utils.spec import ModelSpec, ModelType, convert_to_config_spec
+from bench.utils.spec import ModelSpec, ModelType, convert_to_config_spec, infer_config_spec
 
 
 class ModelHandler(ArtifactHandler):
@@ -60,7 +60,21 @@ class UnbatchedModelHandler(ModelHandler, abc.ABC):
         return RecordList(output_records)
 
 
-models: Registry[Type[ModelHandler]] = Registry(("models",))
+def map_to_model_cls(model_cls: Type[ModelHandler], *args) -> Type[ModelHandler]:
+    if hasattr(model_cls, "config_spec"):
+        declared_config_spec = convert_to_config_spec(model_cls.config_spec)
+    else:
+        declared_config_spec = None
+    # TODO @Robustness: check declared_config_spec against inferred_config_spec
+    inferred_config_spec = infer_config_spec(model_cls.__init__)  # noqa
+
+    # overwrite config spec with clean config
+    config_spec = declared_config_spec or inferred_config_spec
+    model_cls.config_spec = config_spec
+    return model_cls
+
+
+models: Registry[Type[ModelHandler]] = Registry(("models",), mapper=map_to_model_cls)
 # TODO @Feature: figure out better registration mechanism for registered objects
 import bench.model.huggingface  # noqa
 import bench.model.openai  # noqa

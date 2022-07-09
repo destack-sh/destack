@@ -9,10 +9,6 @@ from bench.utils.spec import FieldValue
 Record = Union[FieldValue, dict[str, FieldValue]]
 
 
-def is_record(obj: Any) -> bool:
-    return isinstance(obj, (dict, FieldValue))
-
-
 class RecordBatch(abc.ABC):
     """
     An ordered list of Records for unified Record batch processing.

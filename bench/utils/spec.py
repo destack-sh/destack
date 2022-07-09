@@ -17,6 +17,7 @@ import inspect
 from dataclasses import dataclass
 from functools import cached_property
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     List,
@@ -30,7 +31,9 @@ from typing import (
 
 import docstring_parser
 import numpy as np
-import PIL.Image
+
+# useful for evaluating type signatures, worst case we just vendor it in
+# noinspection PyProtectedMember
 from pydantic.typing import ForwardRef, evaluate_forwardref
 
 from bench.utils.registry import get_qualified_name
@@ -53,8 +56,13 @@ class ValueType(_Type):
 
 
 @dataclass
+class EnumType(ValueType):
+    values: List[FieldValuePrimitive]
+
+
+@dataclass
 class ClassLabelType(_Type):
-    num_classes: int = None
+    num_classes: int
     names: Optional[List[str]] = None
 
 
@@ -86,7 +94,13 @@ class VideoType(_Type):
 
 
 # The (Python) implementation type of a field.
-FieldValuePrimitive = Union[str, int, float, np.ndarray, PIL.Image.Image]
+if TYPE_CHECKING:
+    import PIL.Image
+
+    FieldValuePrimitive = Union[str, int, float, np.ndarray, PIL.Image.Image]
+else:
+    FieldValuePrimitive = Any
+
 FieldValue = Union[
     FieldValuePrimitive,
     Tuple[FieldValuePrimitive],
@@ -161,18 +175,21 @@ class ConfigSpec(_Spec):
 
 
 RecordType = Union[
-    FieldType, FieldValue, FieldSpec, dict[str, Union[FieldValue, FieldType, FieldSpec]]
+    Type[FieldValue],
+    FieldType,
+    FieldSpec,
+    Mapping[str, Union[Type[FieldValue], FieldType, FieldSpec]],
 ]
-RecordTypeSpec = Union[FieldSpec, dict[str, FieldSpec]]
+RecordTypeSpec = Union[FieldSpec, Mapping[str, FieldSpec]]
 
-AnyType = Union[FieldValue, FieldType, RecordType, ModelType, DatasetType]
+AnyType = Union[Type[FieldValue], FieldType, RecordType, ModelType, DatasetType]
 AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]
 
-ConfigType = dict[str, Union[AnyType, AnySpec]]
-ConfigTypeSpec = dict[str, AnySpec]
+ConfigType = Mapping[str, Union[AnyType, AnySpec]]
+ConfigTypeSpec = Mapping[str, AnySpec]
 
-ArtifactSetType = dict[str, ArtifactType]
-ArtifactSetSpec = dict[str, ArtifactSpec]
+ArtifactSetType = Mapping[str, ArtifactType]
+ArtifactSetSpec = Mapping[str, ArtifactSpec]
 
 
 def reduce_to_record_type_spec(
@@ -186,14 +203,34 @@ def reduce_to_record_type_spec(
     return record_spec
 
 
-def convert_to_record_type_spec(spec: Mapping[str, Union[AnyType, AnySpec]]) -> RecordTypeSpec:
-    spec = convert_to_spec(spec)
-    return reduce_to_record_type_spec(spec)
+def convert_to_record_type_spec(spec: Union[RecordType, RecordSpec]) -> RecordTypeSpec:
+    if isinstance(spec, Mapping):
+        converted_spec: dict[str, AnySpec] = {}
+        for key, value in spec.items():
+            converted_spec[key] = _type_to_spec(
+                key=key, description="", value=value, ignore_spec=True
+            )
+        return reduce_to_record_type_spec(converted_spec)
+    else:
+        converted_value_spec: AnySpec = _type_to_spec(
+            key="", description="", value=spec, ignore_spec=True
+        )
+        # can only be RecordTypeSpec because spec is Union[RecordType, RecordSpec]
+        return cast(RecordTypeSpec, converted_value_spec)
 
 
-def convert_to_record_spec(
-    spec: Union[RecordSpec, Mapping[str, Union[AnyType, AnySpec]]]
-) -> RecordSpec:
+def convert_to_model_spec(spec: Union[ModelType, ModelSpec]) -> ModelSpec:
+    if isinstance(spec, ModelSpec):
+        return spec
+    return ModelSpec(
+        name="",
+        description="",
+        input_spec=convert_to_record_spec(spec.input_spec),
+        output_spec=convert_to_record_spec(spec.output_spec),
+    )
+
+
+def convert_to_record_spec(spec: Union[RecordType, RecordSpec]) -> RecordSpec:
     if isinstance(spec, RecordSpec):
         converted_spec = convert_to_record_type_spec(spec.type)
         spec = RecordSpec(name=spec.name, description=spec.description, type=converted_spec)
@@ -205,7 +242,7 @@ def convert_to_record_spec(
 
 
 def convert_to_config_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> ConfigTypeSpec:
-    spec = convert_to_spec(spec)
+    spec = _convert_to_config_type_spec(spec)
     # no special logic for config spec yet
     return spec
 
@@ -214,16 +251,16 @@ def convert_to_config_spec(
     spec: Union[ConfigSpec, Mapping[str, Union[AnyType, AnySpec]]]
 ) -> ConfigSpec:
     if isinstance(spec, ConfigSpec):
-        converted_spec = convert_to_spec(spec.type)
+        converted_spec = _convert_to_config_type_spec(spec.type)
         spec = ConfigSpec(name=spec.name, description=spec.description, type=converted_spec)
         return spec
     else:
-        converted_spec = convert_to_spec(spec)
+        converted_spec = _convert_to_config_type_spec(spec)
         spec = ConfigSpec(name="", description="", type=converted_spec)
         return spec
 
 
-def convert_to_spec(spec: Mapping[str, Union[AnyType, AnySpec]]) -> Mapping[str, AnySpec]:
+def _convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
     converted_spec: dict[str, AnySpec] = {}
     for key, value in spec.items():
         converted_spec[key] = _type_to_spec(key=key, description="", value=value, ignore_spec=True)
@@ -240,6 +277,9 @@ def _impl_type_to_type(value: Type, ignore_unknown: bool = False) -> AnyType:
         (DatasetHandler, DatasetType(record_spec={})),
         (ModelHandler, ModelType(input_spec={}, output_spec={})),
         (RecordBatch, {}),
+        (str, ValueType(dtype="str")),
+        (int, ValueType(dtype="int64")),
+        (float, ValueType(dtype="float64")),
     ]
     for impl_type, spec_type in impl_type_to_type:
         if value == impl_type or issubclass(value, impl_type):
@@ -248,11 +288,7 @@ def _impl_type_to_type(value: Type, ignore_unknown: bool = False) -> AnyType:
     if ignore_unknown:
         return value
     else:
-        raise ValueError(f"unknown type {value}")
-
-
-def _impl_type_to_spec_type(value: Type) -> FieldType:
-    raise NotImplementedError
+        raise ValueError(f"unknown implementation type: {value}")
 
 
 def _type_to_spec(
@@ -262,13 +298,10 @@ def _type_to_spec(
     ignore_spec: bool = False,
 ) -> AnySpec:
     # Some value types may be referred to by their implementation types rather than
-    # by their spec/type types (e.g. DatasetHandler instead of DatasetType/DatasetSpec).
+    # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
     # This maps implementation types to the spec types we expect here.
     if isinstance(value, type):
         value = _impl_type_to_type(value, ignore_unknown=True)
-
-    if isinstance(value, type):
-        value = _impl_type_to_spec_type(value)
 
     if isinstance(value, _Spec):
         if ignore_spec:
@@ -276,7 +309,7 @@ def _type_to_spec(
             return cast(AnySpec, value)  # type: ignore
         else:
             raise ValueError(f"type {value} is already a spec type")
-    elif isinstance(value, dict):  # RecordType
+    elif isinstance(value, Mapping):  # RecordType
         return RecordSpec(
             name=key, description=description, type=convert_to_record_type_spec(value)
         )
