@@ -340,11 +340,11 @@ def infer_name(func: Callable) -> str:
     return name
 
 
-def infer_description(func: Callable) -> Optional[str]:
-    """Infers the description of the given callable from its docstring"""
-    if func.__doc__ is None:
+def infer_description(obj: Union[Callable, Type]) -> Optional[str]:
+    """Infers the description of the given object from its docstring"""
+    if obj.__doc__ is None:
         return None
-    parsed_docstring = docstring_parser.parse(func.__doc__)
+    parsed_docstring = docstring_parser.parse(obj.__doc__)
     return parsed_docstring.short_description
 
 
