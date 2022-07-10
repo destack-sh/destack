@@ -1,6 +1,6 @@
 import abc
 import enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import openai
 
@@ -28,7 +28,7 @@ class OpenAIModel(UnbatchedModelHandler, abc.ABC):
         temperature: float = 1.0,
         top_p: float = 1.0,
         n: int = 1,
-        stop: Optional[Union[str, List[str]]] = None,
+        stop: List[str] = None,
         **kwargs
     ):
         super().__init__(**kwargs)
