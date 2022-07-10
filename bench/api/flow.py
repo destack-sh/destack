@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from bench.api.execution import ExecutionSerializer
 from bench.executor import executor
-from bench.executor.base import FlowRawArgument
+from bench.executor.base import FlowExecutionOptions, FlowRawArgument
 from bench.models import ArtifactVersion, Flow, FlowNode
 from bench.models.flow import FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
@@ -42,7 +42,7 @@ class FlowNodeInputDataSerializer(serializers.Serializer):
     name = serializers.CharField()
     # plain records or existing artifact (version) reference
     records = serializers.JSONField(required=False)
-    artifact = serializers.PrimaryKeyRelatedField(
+    artifact: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         queryset=ArtifactVersion.objects.all(), required=False
     )
 
@@ -54,16 +54,20 @@ class FlowNodeInputDataSerializer(serializers.Serializer):
 
 
 class FlowNodeInputsSerializer(serializers.Serializer):
-    node = serializers.PrimaryKeyRelatedField(queryset=FlowNode.objects.all())
+    node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+        queryset=FlowNode.objects.all()
+    )
     inputs = FlowNodeInputDataSerializer(many=True)
 
 
 class FlowNodeArgumentDataSerializer(serializers.Serializer):
     name = serializers.CharField()
     # plain records or existing artifact (version) reference
-    other_node = serializers.PrimaryKeyRelatedField(queryset=FlowNode.objects.all(), required=False)
+    other_node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+        queryset=FlowNode.objects.all(), required=False
+    )
     records = serializers.JSONField(required=False)
-    artifact = serializers.PrimaryKeyRelatedField(
+    artifact: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         queryset=ArtifactVersion.objects.all(), required=False
     )
 
@@ -75,12 +79,16 @@ class FlowNodeArgumentDataSerializer(serializers.Serializer):
 
 
 class FlowNodeArgumentsSerializer(serializers.Serializer):
-    node = serializers.PrimaryKeyRelatedField(queryset=FlowNode.objects.all())
+    node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+        queryset=FlowNode.objects.all()
+    )
     arguments = FlowNodeArgumentDataSerializer(many=True)
 
 
 class FlowExecutionPlanSerializer(serializers.Serializer):
-    flow = serializers.PrimaryKeyRelatedField(queryset=FlowVersion.objects.all())
+    flow: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+        queryset=FlowVersion.objects.all()
+    )
     inputs = FlowNodeInputsSerializer(many=True)
     arguments = FlowNodeArgumentsSerializer(many=True)
 
@@ -130,7 +138,9 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
             arguments[node_argument["node"].id] = node_arguments
 
         flow: FlowVersion = serializer.validated_data["flow"]
-        execution, outputs = executor.run_flow(flow, inputs, arguments)
+        execution, outputs = executor.run_flow(
+            flow, inputs, arguments, options=FlowExecutionOptions.default()
+        )
         serialized_execution = ExecutionSerializer(execution).data
         serialized_outputs: Mapping[UUID, Mapping[str, UUID]] = {
             node_id: {name: artifact.id for name, artifact in artifacts.items()}

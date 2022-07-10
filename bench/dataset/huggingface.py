@@ -8,6 +8,7 @@ from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import DatasetSpec, FieldSpec, FieldValue, RecordSpec, RecordTypeSpec
 
 
+# TODO @Feature: map HF dataset field values to our field value types (where necessary)
 @datasets.register("bench.huggingface.hub")
 class HuggingFaceHubDatasetReader(DatasetReader):
     def __init__(
@@ -29,7 +30,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
 
         self.dataset_name = dataset_name
         # We specify split and streaming=False, so we'll always get a Dataset instance.
-        self._dataset: hf_datasets.Dataset = hf_datasets.load_dataset(  # noqa
+        self._dataset: hf_datasets.Dataset = hf_datasets.load_dataset(  # type: ignore
             dataset_name, revision=version, split=split, use_auth_token=use_auth_token
         )
         record_type = _hf_features_to_record_type(self._dataset.features)
@@ -65,7 +66,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
             stop = index.stop if index.stop is not None else 0
             indices = range(index.start or 0, stop, index.step or 1)
             records = [self._dataset[i] for i in indices]
-            return RecordList(records)
+            return RecordList(records)  # type: ignore
         elif isinstance(index, str):
             return self._dataset[index]
         else:

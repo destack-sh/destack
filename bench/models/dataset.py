@@ -22,7 +22,7 @@ class DatasetManager(ArtifactManager):
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
-            dataset_version = DatasetVersion(artifact=dataset, metadata=metadata.to_dict())
+            dataset_version = DatasetVersion(artifact=dataset, metadata=metadata.to_dict())  # type: ignore
             dataset_version.save()
         return dataset_version
 
@@ -35,7 +35,7 @@ class Dataset(Artifact):
     Handling, storage and management of the dataset may be delegated to external services.
     """
 
-    objects = DatasetManager()
+    objects = DatasetManager()  # type: ignore
 
     class Meta:
         proxy = True
@@ -64,7 +64,7 @@ class DatasetVersion(ArtifactVersion):
 
     @cached_property
     def _metadata_typed(self) -> DatasetMetadata:
-        return DatasetMetadata.from_dict(self.metadata)
+        return DatasetMetadata.from_dict(self.metadata)  # type: ignore
 
     @cached_property
     def handler_id(self) -> str:

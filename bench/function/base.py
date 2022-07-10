@@ -5,6 +5,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Mapping,
     Optional,
     OrderedDict,
     Type,
@@ -42,7 +43,7 @@ class ArtifactFunction(Function, ABC):
     A pure function that operates on artifacts.
     """
 
-    input_spec: dict[str, Union[ArtifactSetType, ArtifactSetSpec]]
+    input_spec: Mapping[str, Union[ArtifactSetType, ArtifactSetSpec]]
     output_spec: OrderedDict[str, Union[ArtifactSetType, ArtifactSetSpec]]
 
 
@@ -51,7 +52,7 @@ class RecordFunction(Function, ABC):
     A pure function that operates on records/batches.
     """
 
-    input_spec: dict[str, Union[RecordType, RecordSpec]]
+    input_spec: Mapping[str, Union[RecordType, RecordSpec]]
     output_spec: OrderedDict[str, Union[RecordType, RecordSpec]]
 
 
@@ -69,8 +70,8 @@ class RecordTransform(RecordFunction, ABC):
     A transformation function mapping input records to output records
     """
 
-    input_spec = {"*": Any}
-    output_spec = OrderedDict[str, Any]([("*", Any)])
+    input_spec: Mapping[str, RecordType] = {"*": {}}
+    output_spec = OrderedDict[str, Any]([("*", {})])
 
     def transform(self, record: Record) -> Record:
         raise NotImplementedError
@@ -99,6 +100,7 @@ class Test(Function):
         self.result_key = result_key
 
     def passed(self, output: Record) -> bool:
+        output = cast(dict, output)  # assume output is dict
         return cast(bool, output[self.result_key])
 
 
@@ -206,11 +208,12 @@ def get_function_cls(handler_id: str) -> Type[Function]:
 
 def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
     function_cls = get_function_cls(function_id)
+    # noinspection PyArgumentList
     function = function_cls(**arguments)
     return function
 
 
-# TODO @Feature: figure out better registration mechanism for registered objects
+# TODO @Cleanup: figure out better registration mechanism for registered objects
 import bench.function.metrics  # noqa
 import bench.function.test  # noqa
 import bench.function.transform.text  # noqa

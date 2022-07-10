@@ -135,7 +135,7 @@ class FlowExecution(Execution):
     The execution of an entire Flow.
     """
 
-    objects = ExecutionManager(default_type=FLOW_EXECUTION_TYPE)
+    objects = ExecutionManager(default_type=FLOW_EXECUTION_TYPE)  # type: ignore
 
     class Meta:
         proxy = True
@@ -146,7 +146,7 @@ class FlowNodeExecution(Execution):
     The parameterised execution of a specific node in a Flow.
     """
 
-    objects = ExecutionManager(default_type=FLOW_NODE_EXECUTION_TYPE)
+    objects = ExecutionManager(default_type=FLOW_NODE_EXECUTION_TYPE)  # type: ignore
 
     class Meta:
         proxy = True
@@ -157,7 +157,7 @@ class ModelExecution(Execution):
     The execution of an individual model artifact (also called a 'prediction').
     """
 
-    objects = ExecutionManager(default_type=MODEL_EXECUTION_TYPE)
+    objects = ExecutionManager(default_type=MODEL_EXECUTION_TYPE)  # type: ignore
 
     class Meta:
         proxy = True

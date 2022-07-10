@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: mypy
         name: mypy (py)
-        args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip]
+        args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip, --config-file=pyproject.toml]
         # TODO @Cleanup: specify additional_dependencies rather than using language: system
         #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
         #  so for now just run it in the system environment. This will probably fail in CI.

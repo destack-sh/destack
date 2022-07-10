@@ -21,7 +21,9 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
             )
         ],
     )
-    versions = serializers.SlugRelatedField(many=True, read_only=True, slug_field="version")
+    versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        many=True, read_only=True, slug_field="version"
+    )
 
     class Meta:
         model = Artifact
@@ -30,8 +32,10 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ArtifactVersionSerializer(serializers.ModelSerializer):
-    artifact = serializers.SlugRelatedField(queryset=Artifact.objects.all(), slug_field="name")
-    parents = serializers.SlugRelatedField(
+    artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        queryset=Artifact.objects.all(), slug_field="name"
+    )
+    parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=ArtifactVersion.objects.all(), slug_field="version", many=True
     )
 
@@ -48,11 +52,6 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
             "committed",
         ]
         read_only_fields = ["id", "parents", "version", "content_hash", "committed"]
-
-
-class ArtifactVersionListingField(serializers.RelatedField):
-    def to_representation(self, value: ArtifactVersion):
-        return f"{value.artifact.name}@{value.version}"
 
 
 class ArtifactViewSet(viewsets.ModelViewSet):
