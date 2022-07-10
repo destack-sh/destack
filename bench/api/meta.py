@@ -14,12 +14,10 @@ class SpecSerializer(serializers.Serializer):
 
 class FieldSpecSerializer(SpecSerializer):
     type = serializers.DictField(child=serializers.DictField())
-    pass
 
 
 class ConfigSpecSerializer(SpecSerializer):
     type = serializers.DictField(child=serializers.DictField())
-    pass
 
 
 class RecordSpecSerializer(SpecSerializer):

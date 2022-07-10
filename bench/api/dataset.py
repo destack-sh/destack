@@ -36,8 +36,10 @@ class DatasetSerializer(ArtifactSerializer):
 
 
 class DatasetVersionSerializer(ArtifactVersionSerializer):
-    artifact = serializers.SlugRelatedField(queryset=Dataset.objects.all(), slug_field="name")
-    parents = serializers.SlugRelatedField(
+    artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        queryset=Dataset.objects.all(), slug_field="name"
+    )
+    parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=DatasetVersion.objects.all(), slug_field="version", many=True
     )
 
@@ -60,7 +62,7 @@ class DatasetVersionSerializer(ArtifactVersionSerializer):
             # should be valid JSON because metadata is a JSONField
             if isinstance(value, str):
                 value = json.loads(value)
-            DatasetMetadata.from_dict(value)
+            DatasetMetadata.from_dict(value)  # type: ignore
         except (ValueError, KeyError) as e:
             raise serializers.ValidationError(f"metadata is invalid: {e}")
         return value
@@ -85,7 +87,7 @@ class DatasetVersionViewSet(ArtifactVersionViewSet):
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # should also copy parent metadata here unless specified otherwise?
         instance: DatasetVersion = serializer.save(committed=False)
-        parents: models.QuerySet[DatasetVersion] = proxies(instance.parents, DatasetVersion).all()
+        parents: models.QuerySet[DatasetVersion] = proxies(instance.parents.all(), DatasetVersion)
         if parents:
             # this should be caught in DatasetVersionSerializer validation
             if len(parents) != 1:
@@ -151,25 +153,27 @@ class RecordViewSet(viewsets.GenericViewSet):
 
         return Response(record.data, status=status.HTTP_201_CREATED)
 
-    def update(self, request: Request, index, artifact_name: str, version_version: str) -> Response:
-        index: int = _positive_int(index)
+    def update(
+        self, request: Request, index: str, artifact_name: str, version_version: str
+    ) -> Response:
+        index_int: int = _positive_int(index)
         writer = _get_dataset_writer(artifact_name, version_version)
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
-        writer.update(index, serializer.validated_data["data"])
+        writer.update(index_int, serializer.validated_data["data"])
 
         reader = _get_dataset_reader(artifact_name, version_version)
-        record = reader[index]
+        record = reader[index_int]
         return Response(record)
 
     def retrieve(
-        self, request: Request, index, artifact_name: str, version_version: str
+        self, request: Request, index: str, artifact_name: str, version_version: str
     ) -> Response:
-        index: int = _positive_int(index)
+        index_int: int = _positive_int(index)
         reader = _get_dataset_reader(artifact_name, version_version)
         try:
-            record = reader[index]
+            record = reader[index_int]
         except LookupError:
             raise Http404("No record matches the given query.")
         return Response(record)
@@ -188,7 +192,7 @@ def _get_dataset_reader(artifact_name: str, version: str) -> DatasetReader:
 def _to_dataset_reader(handler: DatasetHandler) -> DatasetReader:
     if not isinstance(handler, DatasetReader):
         raise ValueError("dataset version is not readable")
-    return cast(DatasetReader, handler)
+    return handler
 
 
 def _get_dataset_writer(artifact_name: str, version: str) -> DatasetWriter:
@@ -204,7 +208,7 @@ def _get_dataset_writer(artifact_name: str, version: str) -> DatasetWriter:
 def _to_dataset_writer(handler: DatasetHandler) -> DatasetWriter:
     if not isinstance(handler, DatasetWriter):
         raise ValueError("dataset version is not writable")
-    return cast(DatasetWriter, handler)
+    return handler
 
 
 def _get_dataset_handler_by_instance(version: DatasetVersion) -> DatasetHandler:

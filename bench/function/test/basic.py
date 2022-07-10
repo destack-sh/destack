@@ -14,20 +14,20 @@ class TestStaticComparison(SingleRecordTransform, Test):
 
     def _evaluate(self, record: Record) -> bool:
         if self.key:
-            record = record[self.key]
+            record = record[self.key]  # type: ignore
 
         if self.operator == "eq":
             return record == self.value
         elif self.operator == "neq":
             return record != self.value
         elif self.operator == "gt":
-            return record > self.value
+            return record > self.value  # type: ignore
         elif self.operator == "gte":
-            return record >= self.value
+            return record >= self.value  # type: ignore
         elif self.operator == "lt":
-            return record < self.value
+            return record < self.value  # type: ignore
         elif self.operator == "lte":
-            return record <= self.value
+            return record <= self.value  # type: ignore
         else:
             raise ValueError(f"unexpected comparison operator: {self.operator}")
 

@@ -2,7 +2,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
-from bench.api.artifact import ArtifactVersionListingField
+from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.models import Execution
 from bench.models.execution import ExecutionArtifactConnection
 
@@ -16,8 +16,10 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
 
 
 class ExecutionSerializer(serializers.ModelSerializer):
-    flow = serializers.PrimaryKeyRelatedField(read_only=True)
-    flow_node = serializers.PrimaryKeyRelatedField(read_only=True)
+    flow = FlowVersionListingField(read_only=True)
+    flow_node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+        read_only=True
+    )
     model = ArtifactVersionListingField(read_only=True)
     connected_artifacts = ExecutionArtifactConnectionSerializer(many=True)
 

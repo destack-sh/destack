@@ -23,15 +23,15 @@ class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
         super().__init__(**kwargs)
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        tokenized_record = self.tokenizer(record["text"], return_tensors="pt")
+        tokenized_text = self.tokenizer(record["text"], return_tensors="pt")  # type: ignore
         tokens = self.tokenizer.convert_ids_to_tokens(
-            tokenized_record["input_ids"].tolist()[0], skip_special_tokens=True
+            tokenized_text["input_ids"].tolist()[0], skip_special_tokens=True
         )
-        output_logits = self.model(**tokenized_record).logits
+        output_logits = self.model(**tokenized_text).logits
         categories = torch.softmax(output_logits, dim=1).tolist()[0]
         # TODO @Broken: remap outputs to proper categories using output spec
         return {
-            **record,
+            **record,  # type: ignore
             "tokens": tokens,
             "categories": categories,
         }

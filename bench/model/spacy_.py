@@ -1,5 +1,5 @@
 import abc
-from typing import Union
+from typing import Union, cast
 
 import spacy
 
@@ -36,12 +36,14 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         return output
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        doc = self.nlp(record["text"])
+        record = cast(dict, record)  # assume record is dict
+        doc = self.nlp(cast(str, record["text"]))
         output = self._map_doc_to_record(doc)
         return output
 
     def predict_batch(self, records: RecordBatch) -> RecordBatch:
-        docs = list(self.nlp.pipe(records["text"]))
+        texts = cast(list[str], records["text"])
+        docs = list(self.nlp.pipe(texts))
         output_records = [self._map_doc_to_record(doc) for doc in docs]
         return RecordList(output_records)
 

@@ -21,7 +21,7 @@ from bench.executor.base import (
     manifest_execution,
 )
 from bench.executor.utils import get_model_iid
-from bench.function.base import Function, MetricFunction, RecordTransform, load_function
+from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactConnection
@@ -103,10 +103,11 @@ class LocalExecutor(Executor):
             # run model
             model_handler = self._get_model_handler(model, load_if_needed)
             execution.start()
+            output: Union[Record, RecordBatch]
             if isinstance(record, RecordBatch):
-                output = model_handler.predict_batch(cast(RecordBatch, record))
+                output = model_handler.predict_batch(record)
             else:
-                output = model_handler.predict(cast(Record, record))
+                output = model_handler.predict(record)
 
             # record outputs
             output_dataset = write_to_dataset(f"{model.artifact.name}.outputs", output)
@@ -139,7 +140,7 @@ class LocalExecutor(Executor):
 
     def _do_execute(self, plan: FlowExecutionPlan):
         # load functions with corresponding arguments
-        functions: dict[UUID, Function] = {}
+        functions: dict[UUID, RecordFunction] = {}
         for node in plan.nodes.values():
             config_arguments = node.config_arguments
             artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
@@ -155,6 +156,8 @@ class LocalExecutor(Executor):
 
             arguments = {**config_arguments, **artifact_arguments}
             function = load_function(node.function_id, arguments=arguments)
+            if not isinstance(function, RecordFunction):
+                raise ValueError(f"function not yet supported: {function}")
             functions[node.id] = function
 
         # organise functions
@@ -194,7 +197,7 @@ class LocalExecutor(Executor):
 
             logger.debug("local_execute", iteration=iteration, pending_data=pending_data, plan=plan)
             for node_id, input_batches in pending_data.items():
-                function: Function = functions[node_id]
+                function = functions[node_id]
                 missing_input_keys = function.input_spec.keys() - input_batches.keys()
                 if missing_input_keys:
                     # wait until all inputs are provided, skip this node in the current iteration

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 import typing
-from typing import Any, Iterator, List, Union
+from typing import Iterator, List, Union
 
 from bench.utils.spec import FieldValue
 
@@ -75,7 +75,8 @@ class RecordList(RecordBatch):
         elif isinstance(index, slice):
             return RecordList(self._records[index])
         elif isinstance(index, str):
-            return [record[index] for record in self._records]
+            # str index access assumes record is a dict
+            return [record[index] for record in self._records]  # type: ignore
         else:
             raise TypeError(index)
 

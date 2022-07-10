@@ -58,7 +58,7 @@ class OpenAIModelForCompletion(OpenAIModel):
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         output = openai.Completion.create(
-            prompt=record["text"],
+            prompt=record["text"],  # type: ignore
             **self._get_params(),
         )
         output_records = [choice for choice in output["choices"]]
@@ -81,9 +81,9 @@ class OpenAIModelForClassification(OpenAIModel):
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         output = openai.Classification.create(
-            prompt=record["text"],
-            examples=record["examples"],
-            labels=record["labels"],
+            prompt=record["text"],  # type: ignore
+            examples=record["examples"],  # type: ignore
+            labels=record["labels"],  # type: ignore
             **self._get_params(),
         )
         output_records = [choice for choice in output["choices"]]

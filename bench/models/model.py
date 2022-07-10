@@ -26,7 +26,7 @@ class ModelManager(ArtifactManager):
     ) -> Model:
         """Creates the given model with an initial version"""
         model = Model(type=MODEL_TYPE, name=name, description=description)
-        model.versions.create(metadata=metadata.to_dict())
+        model.versions.create(metadata=metadata.to_dict())  # type: ignore
         model.save()
         return model
 
@@ -34,7 +34,7 @@ class ModelManager(ArtifactManager):
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)
-            model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())
+            model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())  # type: ignore
             model_version.save()
         return model_version
 
@@ -51,7 +51,7 @@ class Model(Artifact):
     TODO @Feature: specify model affordances for different tasks, define common task/model specs
     """
 
-    objects = ModelManager()
+    objects = ModelManager()  # type: ignore
 
     class Meta:
         proxy = True
@@ -73,7 +73,7 @@ class ModelVersion(ArtifactVersion):
 
     @cached_property
     def _metadata_typed(self) -> ModelMetadata:
-        return ModelMetadata.from_dict(self.metadata)
+        return ModelMetadata.from_dict(self.metadata)  # type: ignore
 
     @cached_property
     def handler_id(self) -> str:
