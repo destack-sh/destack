@@ -64,10 +64,8 @@
 <script setup lang="ts">
 import Sidebar from "@/components/Sidebar.vue";
 import {
-  AcademicCapIcon,
   CheckCircleIcon,
   PlusSmIcon,
-  ReceiptRefundIcon,
   ServerIcon,
   TableIcon,
   UserGroupIcon,

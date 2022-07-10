@@ -51,5 +51,5 @@ api_routers: List[BaseRouter] = [
     models_router,
 ]
 api_patterns = [
-    path("meta/models", list_model_handlers),
+    path("api/meta/models", list_model_handlers),
 ]

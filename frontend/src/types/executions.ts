@@ -31,9 +31,3 @@ export type ExecutionArtifactConnection = {
   connection_type: ExecutionArtifactConnectionType;
   connection_name: string;
 };
-
-export function splitArtifactVersion(artifact: string) {
-  // assumes schema artifactName@version
-  const parts = artifact.split("@");
-  return parts[0], parts[1];
-}
