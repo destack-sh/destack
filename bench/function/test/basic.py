@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 
 from bench.function.base import SingleRecordTransform, Test, functions
 from bench.utils.record import Record
@@ -6,7 +6,7 @@ from bench.utils.record import Record
 
 @functions.register("bench.test.comparison_static")
 class TestStaticComparison(SingleRecordTransform, Test):
-    def __init__(self, operator: str, value: Union[float, int, str], key: Optional[str] = None):
+    def __init__(self, operator: str, value: float, key: Optional[str] = None):
         super().__init__(result_key="result")
         self.operator = operator
         self.value = value

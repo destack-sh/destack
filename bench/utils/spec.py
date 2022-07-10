@@ -13,9 +13,10 @@ The core points are:
 from __future__ import annotations
 
 import abc
+import enum
 import inspect
+import typing
 from dataclasses import dataclass
-from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -39,10 +40,9 @@ from pydantic.typing import ForwardRef, evaluate_forwardref
 from bench.utils.registry import get_qualified_name
 
 
+@dataclass
 class _Type(abc.ABC):
-    @cached_property
-    def impl_types(self) -> List[Type]:
-        return []
+    pass
 
 
 # ===========
@@ -53,10 +53,11 @@ class _Type(abc.ABC):
 @dataclass
 class ValueType(_Type):
     dtype: str
+    default: Optional[FieldValuePrimitive] = None
 
 
 @dataclass
-class EnumType(ValueType):
+class EnumType(_Type):
     values: List[FieldValuePrimitive]
 
 
@@ -98,20 +99,57 @@ if TYPE_CHECKING:
     import PIL.Image
 
     FieldValuePrimitive = Union[str, int, float, np.ndarray, PIL.Image.Image]
+    # mypy cannot handle recursive types: https://github.com/python/mypy/issues/731
+    FieldValue = Union[
+        FieldValuePrimitive,
+        tuple[FieldValuePrimitive],
+        list[FieldValuePrimitive],
+        Mapping[str, FieldValuePrimitive],
+    ]
 else:
     FieldValuePrimitive = Any
-
-FieldValue = Union[
-    FieldValuePrimitive,
-    Tuple[FieldValuePrimitive],
-    List[FieldValuePrimitive],
-    Mapping[str, FieldValuePrimitive],
-]
+    FieldValue = Union[
+        FieldValuePrimitive,
+        tuple["FieldValuePrimitive"],
+        list["FieldValuePrimitive"],
+        Mapping[str, "FieldValuePrimitive"],
+    ]
 
 # The schema type of a field.
-FieldType = Union[
-    ValueType, ClassLabelType, Array1dType, Array2dType, AudioType, ImageType, VideoType
+FieldTypePrimitive = Union[
+    Type[FieldValuePrimitive],
+    ValueType,
+    ClassLabelType,
+    Array1dType,
+    Array2dType,
+    AudioType,
+    ImageType,
+    VideoType,
 ]
+FIELD_TYPES: List[Type[_Type]] = [
+    ValueType,
+    ClassLabelType,
+    Array1dType,
+    Array2dType,
+    AudioType,
+    ImageType,
+    VideoType,
+]
+if TYPE_CHECKING:
+    # mypy cannot handle recursive types: https://github.com/python/mypy/issues/731
+    FieldType = Union[
+        FieldTypePrimitive,
+        tuple[FieldTypePrimitive],
+        list[FieldTypePrimitive],
+        Mapping[str, FieldTypePrimitive],
+    ]
+else:
+    FieldType = Union[
+        FieldTypePrimitive,
+        tuple["FieldType"],
+        list["FieldType"],
+        Mapping[str, "FieldType"],
+    ]
 
 
 # =============
@@ -145,7 +183,10 @@ class _Spec(abc.ABC):
 
 @dataclass
 class FieldSpec(_Spec):
-    type: FieldType
+    type: FieldTypeSpec
+
+
+RecordSpec = FieldSpec
 
 
 @dataclass
@@ -157,16 +198,13 @@ class ArtifactSpec(_Spec):
 class ModelSpec(_Spec):
     input_spec: RecordSpec
     output_spec: RecordSpec
+    type = "model"
 
 
 @dataclass
 class DatasetSpec(_Spec):
     record_spec: RecordSpec
-
-
-@dataclass
-class RecordSpec(_Spec):
-    type: RecordTypeSpec
+    type = "artifact"
 
 
 @dataclass
@@ -174,17 +212,14 @@ class ConfigSpec(_Spec):
     type: ConfigTypeSpec
 
 
-RecordType = Union[
-    Type[FieldValue],
-    FieldType,
-    FieldSpec,
-    Mapping[str, Union[Type[FieldValue], FieldType, FieldSpec]],
-]
-RecordTypeSpec = Union[FieldSpec, Mapping[str, FieldSpec]]
+FieldTypeSpec = Union[FieldSpec, tuple[FieldSpec], list[FieldSpec], Mapping[str, FieldSpec]]
+RecordType = FieldType
+RecordTypeSpec = FieldTypeSpec
 
 AnyType = Union[Type[FieldValue], FieldType, RecordType, ModelType, DatasetType]
 AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]
 
+CONFIG_TYPES: List[Type[_Type]] = [*FIELD_TYPES, ModelType, DatasetType]
 ConfigType = Mapping[str, Union[AnyType, AnySpec]]
 ConfigTypeSpec = Mapping[str, AnySpec]
 
@@ -267,7 +302,9 @@ def _convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
     return converted_spec
 
 
-def _impl_type_to_type(value: Type, ignore_unknown: bool = False) -> AnyType:
+def _impl_type_to_type(
+    value: Type, default: Optional[Any], ignore_unknown: bool = False
+) -> AnyType:
     from bench.dataset.base import DatasetHandler
     from bench.model.base import ModelHandler
     from bench.utils.record import RecordBatch
@@ -277,13 +314,16 @@ def _impl_type_to_type(value: Type, ignore_unknown: bool = False) -> AnyType:
         (DatasetHandler, DatasetType(record_spec={})),
         (ModelHandler, ModelType(input_spec={}, output_spec={})),
         (RecordBatch, {}),
-        (str, ValueType(dtype="str")),
-        (int, ValueType(dtype="int64")),
-        (float, ValueType(dtype="float64")),
+        (str, ValueType(dtype="str", default=default)),
+        (int, ValueType(dtype="int64", default=default)),
+        (float, ValueType(dtype="float64", default=default)),
     ]
     for impl_type, spec_type in impl_type_to_type:
         if value == impl_type or issubclass(value, impl_type):
             return spec_type
+
+    if issubclass(value, enum.Enum):
+        value = EnumType(values=[item.name for item in value])
 
     if ignore_unknown:
         return value
@@ -295,24 +335,58 @@ def _type_to_spec(
     key: str,
     description: str,
     value: Union[AnyType, AnySpec],
+    default: Optional[Any] = None,
     ignore_spec: bool = False,
 ) -> AnySpec:
-    # Some value types may be referred to by their implementation types rather than
-    # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
-    # This maps implementation types to the spec types we expect here.
-    if isinstance(value, type):
-        value = _impl_type_to_type(value, ignore_unknown=True)
-
+    # If value is already a spec either error or ignore
     if isinstance(value, _Spec):
         if ignore_spec:
             # mypy thinks this is a redundant cast, but also complains if it's not here
             return cast(AnySpec, value)  # type: ignore
         else:
             raise ValueError(f"type {value} is already a spec type")
-    elif isinstance(value, Mapping):  # RecordType
-        return RecordSpec(
-            name=key, description=description, type=convert_to_record_type_spec(value)
-        )
+
+    # Unwrap and handle union types
+    if isinstance(value, typing._UnionGenericAlias):  # type: ignore
+        union_types = value.__args__
+        # Optional[x] is secretly Union[x, None]
+        if len(union_types) == 2 and union_types[1] == type(None):  # noqa
+            # TODO @Feature: handle optional types more gracefully (currently set default to None if not set)
+            # unwrap optional and set default as None if not set
+            return _type_to_spec(
+                key=key,
+                description=description,
+                value=union_types[0],
+                default=default or None,
+                ignore_spec=ignore_spec,
+            )
+        else:  # plain Union
+            raise ValueError(f"union types not supported: {value}")
+
+    # Map collection types (e.g. list[str] to [str])
+    if isinstance(value, typing._GenericAlias):
+        value = value.__args__
+
+    # Map collection instances (e.g. [str] -> [FieldSpec]
+    if isinstance(value, Mapping):  # RecordType/FieldType is a dict
+        value = convert_to_record_type_spec(value)  # type: ignore
+    elif isinstance(value, (list, tuple)):
+        value = [
+            _type_to_spec(
+                key=key,
+                description=description,
+                value=val,
+                default=default,
+                ignore_spec=ignore_spec,
+            )
+            for val in value
+        ]
+
+    # Map implementation types to spec types
+    # Some value types may be referred to by their implementation types rather than
+    # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
+    if isinstance(value, type):
+        value = _impl_type_to_type(value, default, ignore_unknown=True)
     elif isinstance(value, DatasetType):
         return DatasetSpec(
             name=key,
@@ -326,11 +400,11 @@ def _type_to_spec(
             input_spec=convert_to_record_spec(value.input_spec),
             output_spec=convert_to_record_spec(value.output_spec),
         )
-    else:
-        # At this point, we can't be sure that 'value' is an appropriate type.
-        # But as validation for specs is separate from conversion,
-        # we will just ignore this potential error here to be caught later.
-        return FieldSpec(name=key, description=description, type=value)  # type: ignore
+
+    # At this point, we aren't quite sure that 'value' is an appropriate type.
+    # But as validation for specs is separate from conversion,
+    # we will just ignore potential errors and pass on the value as a type.
+    return FieldSpec(name=key, description=description, type=value)  # type: ignore
 
 
 def infer_name(func: Callable) -> str:
@@ -388,7 +462,9 @@ def infer_config_type(func: Callable) -> ConfigTypeSpec:
             raise ValueError(
                 f"function {get_qualified_name(func)} parameter {name} is not type-annotated"
             )
-        spec_value = _type_to_spec(key=name, description="", value=annotation)
+        # TODO @Robustness: handle not-set default values more gracefully
+        default = None if param.default == inspect._empty else param.default
+        spec_value = _type_to_spec(key=name, description="", default=default, value=annotation)
         spec[name] = spec_value
 
     # patch unspecified descriptions from docstring if available
