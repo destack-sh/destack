@@ -1,4 +1,3 @@
-plitArtifactVersion
 <template>
   <Sidebar>
     <div class="mx-auto max-w-7xl px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
@@ -93,6 +92,7 @@ import {
   type Execution,
   type FieldSpec,
   type LimitPaginatedResult,
+  type ValueType,
 } from "@/types";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { reactive, ref, watch, type PropType, type Ref } from "vue";
@@ -108,7 +108,16 @@ const { result: models } = computedAsync(() =>
     })
   )
 );
-const fields: Array<FieldSpec> = [{ name: "text", description: "any text", type: "string" }];
+const fields: Array<FieldSpec> = [
+  {
+    name: "text",
+    description: "any text",
+    type: {
+      _type: "ValueType",
+      dtype: "string",
+    } as ValueType,
+  },
+];
 const fieldValues: Array<any> = [""];
 const executions: Ref<Array<Execution>> = ref([]);
 const outputDatasets: Record<string, Record<string, any>[]> = reactive({});

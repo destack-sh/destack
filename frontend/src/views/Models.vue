@@ -11,10 +11,10 @@
         </button>
       </router-link>
     </div>
-    <ModelsList />
+    <ModelList />
   </Sidebar>
 </template>
 <script lang="ts" setup>
-import ModelsList from "@/components/ModelsList.vue";
+import ModelList from "@/components/ModelList.vue";
 import Sidebar from "@/components/Sidebar.vue";
 </script>

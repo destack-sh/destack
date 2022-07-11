@@ -2,6 +2,7 @@ import structlog
 from django.db import models
 from rest_framework import mixins, serializers, validators, viewsets
 from rest_framework.generics import get_object_or_404
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -43,6 +44,7 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
         model = ArtifactVersion
         fields = [
             "id",
+            "created_at",
             "parents",
             "version",
             "artifact",
@@ -51,7 +53,7 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
             "content_hash",
             "committed",
         ]
-        read_only_fields = ["id", "parents", "version", "content_hash", "committed"]
+        read_only_fields = ["id", "created_at", "parents", "version", "content_hash", "committed"]
 
 
 class ArtifactViewSet(viewsets.ModelViewSet):
@@ -66,6 +68,8 @@ class ArtifactVersionViewSet(viewsets.ModelViewSet):
     serializer_class = ArtifactVersionSerializer
     lookup_field = "version"
     lookup_value_regex = r"[\w.]+"
+    # TODO @Feature: paginate artifact versions with branches correctly
+    pagination_class = LimitOffsetPagination
 
     def get_queryset(self) -> models.QuerySet[ArtifactVersion]:
         return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name"))

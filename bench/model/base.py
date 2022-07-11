@@ -32,7 +32,7 @@ class ModelHandler(ArtifactHandler):
         fs: Optional[AbstractFileSystem] = None,
         path: Optional[str] = None,
         version: Optional[str] = None,
-        spec: Union[None, ModelType, ModelSpec] = None,
+        spec: Optional[ModelSpec] = None,
     ):
         super().__init__(fs=fs, path=path, version=version)
         if spec is None:
