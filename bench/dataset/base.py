@@ -23,7 +23,7 @@ class DatasetHandler(ArtifactHandler):
         fs: AbstractFileSystem = None,
         path: Optional[str] = None,
         version: Optional[str] = None,
-        spec: Union[None, DatasetType, DatasetSpec] = None,
+        spec: Optional[DatasetSpec] = None,
     ):
         super().__init__(fs=fs, path=path, version=version)
         if spec is None:

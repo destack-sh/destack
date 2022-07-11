@@ -1,7 +1,9 @@
 {
   "name": "bench",
   "version": "0.0.1",
-  "engines": { "node": ">=18.x" },
+  "engines": {
+    "node": ">=18.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
@@ -21,6 +23,7 @@
     "@tailwindcss/line-clamp": "^0.4.0",
     "@tailwindcss/typography": "^0.5.2",
     "axios": "^0.27.2",
+    "luxon": "^3.0.1",
     "mande": "^2.0.2",
     "pinia": "^2.0.13",
     "qs": "^6.10.5",
@@ -31,6 +34,7 @@
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.0",
     "@types/jsdom": "^16.2.14",
+    "@types/luxon": "^2.3.2",
     "@types/node": "^16.11.26",
     "@types/qs": "^6.9.7",
     "@vitejs/plugin-vue": "^2.3.1",

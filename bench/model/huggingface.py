@@ -1,5 +1,7 @@
+import json
 from typing import Optional, Union
 
+import requests
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -35,3 +37,20 @@ class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
             "tokens": tokens,
             "categories": categories,
         }
+
+
+@models.register("bench.huggingface.hosted")
+class HuggingFaceHostedModel(UnbatchedModelHandler):
+    config_static_keys = {"model_name", "version"}
+
+    def __init__(self, model_name: str, bearer_token: str, **kwargs):
+        self.model_name = model_name
+        self.bearer_token = bearer_token
+        super().__init__(**kwargs)
+
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+        headers = {"Authorization": f"Bearer {self.bearer_token}"}
+        data = json.dumps(record)
+        api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
+        response = requests.request("POST", api_url, headers=headers, data=data)
+        return json.loads(response.content.decode("utf-8"))

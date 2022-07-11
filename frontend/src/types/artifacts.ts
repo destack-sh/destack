@@ -1,4 +1,4 @@
-import type { FieldSpec } from "@/types/spec";
+import type { FieldSpec, ModelHandlerSpec } from "@/types/spec";
 
 export type Artifact = {
   id: string;
@@ -32,6 +32,16 @@ export type ModelMetadata = {
   config_arguments: Record<string, any>;
   input_spec: Record<string, FieldSpec>;
   output_spec: Record<string, FieldSpec>;
+};
+
+export type ModelTemplate = {
+  name: string;
+  handler: ModelHandlerSpec;
+};
+
+export type EmptyTemplate = {
+  name: string;
+  empty: boolean;
 };
 
 export function splitArtifactNameVersion(artifact: string) {

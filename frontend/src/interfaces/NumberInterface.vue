@@ -1,19 +1,19 @@
 <template>
   <input
-    type="text"
+    type="number"
     :value="modelValue"
     @input="$emit('update:modelValue', $event.target?.value)"
     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-    :placeholder="placeholder"
+    :placeholder="`${placeholder}`"
   />
 </template>
 <script lang="ts" setup>
 import { watchEffect } from "vue";
 
 const props = defineProps<{
-  modelValue?: string;
-  default?: string;
-  placeholder?: string;
+  modelValue?: number;
+  default?: number;
+  placeholder?: number;
 }>();
 const emit = defineEmits(["update:modelValue"]);
 

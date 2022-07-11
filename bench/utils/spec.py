@@ -462,7 +462,7 @@ def infer_config_type(func: Callable) -> ConfigTypeSpec:
             raise ValueError(
                 f"function {get_qualified_name(func)} parameter {name} is not type-annotated"
             )
-        # TODO @Robustness: handle not-set default values more gracefully
+        # TODO @Robustness: handle not-set default values appropriately
         default = None if param.default == inspect._empty else param.default
         spec_value = _type_to_spec(key=name, description="", default=default, value=annotation)
         spec[name] = spec_value

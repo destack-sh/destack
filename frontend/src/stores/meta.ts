@@ -1,15 +1,34 @@
 import { api } from "@/api";
-import type { ModelHandlerSpec } from "@/types";
+import type { ModelHandlerSpec, ModelTemplate } from "@/types";
 import { defineStore } from "pinia";
 
 export const useMetaStore = defineStore("meta", {
   state: () => ({
     modelHandlers: [] as Array<ModelHandlerSpec>,
+    modelHandlersByName: {} as Record<string, ModelHandlerSpec>,
   }),
-  getters: {},
+  getters: {
+    modelTemplates(): ModelTemplate[] {
+      return [
+        {
+          name: "spaCy Bundled [Local]",
+          handler: this.modelHandlersByName["bench.spacy.bundled"],
+        },
+        {
+          name: "HuggingFace Hub [Hosted]",
+          handler: this.modelHandlersByName["bench.huggingface.hosted"],
+        },
+        {
+          name: "OpenAI Completion [Hosted]",
+          handler: this.modelHandlersByName["bench.openai.completion"],
+        },
+      ];
+    },
+  },
   actions: {
     async hydrate() {
       this.modelHandlers = (await api.get<ModelHandlerSpec[]>("/meta/models")).data;
+      this.modelHandlers.forEach((handler) => (this.modelHandlersByName[handler.name] = handler));
     },
     async dehyrate() {
       this.$reset();
