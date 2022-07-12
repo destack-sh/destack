@@ -1,4 +1,4 @@
-import ModelCreate from "@/components/ModelCreate.vue";
+import ModelCreate from "@/views/ModelCreate.vue";
 import Home from "@/views/Home.vue";
 import ModelDetail from "@/views/ModelDetail.vue";
 import Models from "@/views/Models.vue";
@@ -6,6 +6,7 @@ import NotFound from "@/views/NotFound.vue";
 import Playground from "@/views/Playground.vue";
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
+import ModelEdit from "@/views/ModelEdit.vue";
 
 const forwardQuery = (route: RouteLocationNormalized) => route.query;
 const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
@@ -17,7 +18,8 @@ const routes = [
   { path: "/", component: Home },
   { path: "/models", component: Models },
   { path: "/models/new", component: ModelCreate },
-  { path: "/models/:modelName", component: ModelDetail, props: true },
+  { path: "/models/:modelName", component: ModelDetail, props: forwardQueryAndParams },
+  { path: "/models/:modelName/edit", component: ModelEdit, props: forwardQueryAndParams },
   {
     path: "/playground",
     name: "playground",

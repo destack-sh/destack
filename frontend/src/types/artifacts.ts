@@ -6,6 +6,7 @@ export type Artifact = {
   name: string;
   description?: string;
   versions?: string[]; // fk to ArtifactVersion.version
+  latest_version?: ArtifactVersion;
   created_at: string;
 };
 
@@ -24,14 +25,14 @@ export type ArtifactVersion = {
 export type DatasetMetadata = {
   handler_id: string;
   config_arguments: Record<string, any>;
-  record_spec: Record<string, FieldSpec>;
+  record_spec?: Record<string, FieldSpec>;
 };
 
 export type ModelMetadata = {
   handler_id: string;
   config_arguments: Record<string, any>;
-  input_spec: Record<string, FieldSpec>;
-  output_spec: Record<string, FieldSpec>;
+  input_spec?: Record<string, FieldSpec>;
+  output_spec?: Record<string, FieldSpec>;
 };
 
 export type ModelTemplate = {
