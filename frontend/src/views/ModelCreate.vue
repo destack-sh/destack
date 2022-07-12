@@ -54,7 +54,7 @@
           class="mt-3"
           v-if="!(selectedTemplate as EmptyTemplate).empty"
           :spec="(selectedTemplate as ModelTemplate).handler.config_spec"
-          @update:record="(record) => (modelConfigRecord = record)"
+          v-model="modelConfigRecord"
         />
       </div>
 

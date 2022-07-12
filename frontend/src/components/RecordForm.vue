@@ -7,8 +7,8 @@
       <div class="mt-1 flex rounded-md shadow-sm">
         <component
           :is="componentFor(field)"
-          :modelValue="record[field.name]"
-          @update:modelValue="(value: any) => setRecord(field, value)"
+          :modelValue="props.modelValue[field.name]"
+          @update:modelValue="(value: any) => setRecordField(field, value)"
           v-bind="componentProps(field)"
           :name="field.name"
           :id="field.name"
@@ -23,20 +23,20 @@ import MissingInterface from "@/interfaces/MissingInterface.vue";
 import NumberInterface from "@/interfaces/NumberInterface.vue";
 import TextInterface from "@/interfaces/TextInterface.vue";
 import { isFieldType, type FieldSpec, type FieldType, type RecordSpec } from "@/types";
-import { computed, reactive, type Ref } from "vue";
+import { computed, type Ref } from "vue";
 
 const props = defineProps<{
   spec: RecordSpec;
+  modelValue: Record<string, any>;
 }>();
 const emit = defineEmits<{
-  (e: "update:record", value: Record<string, any>): void;
+  (e: "update:modelValue", value: Record<string, any>): void;
 }>();
 
-const record: Record<string, any> = reactive({});
-
-function setRecord(field: FieldSpec, value: any) {
-  record[field.name] = value;
-  emit("update:record", record);
+function setRecordField(field: FieldSpec, value: any) {
+  const newRecord: Record<string, any> = { ...props.modelValue };
+  newRecord[field.name] = value;
+  emit("update:modelValue", newRecord);
 }
 
 function componentWithProps(field: FieldSpec) {
