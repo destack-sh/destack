@@ -33,7 +33,7 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
         read_only_fields = ["id", "created_at", "latest_version", "versions"]
 
     def get_latest_version(self, obj: Artifact):
-        latest_version = obj.versions.all().order_by("created_at").first()
+        latest_version = obj.versions.all().order_by("-created_at").first()
         if latest_version is not None:
             return ArtifactVersionSerializer(latest_version).data
         else:
@@ -113,6 +113,5 @@ class ArtifactTagsViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         #  Need to figure out where to put tags first - on the object/in the project/workspace?
         if self.kwargs.get("pk") != "HEAD":
             raise serializers.ValidationError("tag must be HEAD")
-        return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name")).order_by(
-            "created_at"
-        )[:1]
+        name = self.kwargs.get("artifact_name")
+        return self.queryset.filter(artifact__name=name).order_by("-created_at")[:1]
