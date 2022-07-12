@@ -28,11 +28,15 @@ import { computed, reactive, type Ref } from "vue";
 const props = defineProps<{
   spec: RecordSpec;
 }>();
+const emit = defineEmits<{
+  (e: "update:record", value: Record<string, any>): void;
+}>();
+
 const record: Record<string, any> = reactive({});
 
 function setRecord(field: FieldSpec, value: any) {
-  console.log(`set ${field.name} = ${value}`);
   record[field.name] = value;
+  emit("update:record", record);
 }
 
 function componentWithProps(field: FieldSpec) {

@@ -16,18 +16,17 @@
               <h3 class="truncate text-sm font-medium text-gray-900">
                 {{ model.name }}
               </h3>
-              <span
-                class="inline-block flex-shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                >{{ model.type }}</span
-              >
             </div>
-            <p class="mt-1 truncate text-sm text-gray-500">
+            <p v-if="model.description" class="mt-1 truncate text-sm text-gray-500">
               {{ model.description }}
+            </p>
+            <p v-if="model.latest_version" class="mt-1 truncate text-xs text-gray-500">
+              {{ latestMetadata(model)?.handler_id }}
             </p>
           </div>
           <component
             :is="getIconForModel(model)"
-            class="h-10 w-10 flex-shrink-0 text-orange-300"
+            class="h-8 w-8 flex-shrink-0 text-orange-300"
             aria-hidden="true"
           />
         </div>
@@ -59,10 +58,18 @@
 </template>
 <script lang="ts" setup>
 import { useArtifactsStore } from "@/stores/artifacts";
-import type { Artifact } from "@/types/artifacts";
+import type { Artifact, ModelMetadata } from "@/types/artifacts";
 import { BeakerIcon, DocumentTextIcon, GlobeIcon } from "@heroicons/vue/outline";
 
 const artifactsStore = useArtifactsStore();
+
+function latestMetadata(model: Artifact): ModelMetadata | null {
+  if (model.latest_version == null) {
+    return null;
+  } else {
+    return model.latest_version.metadata as ModelMetadata;
+  }
+}
 
 function getIconForModel(model: Artifact) {
   if (model.type == "model") {

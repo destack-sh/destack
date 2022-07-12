@@ -24,6 +24,15 @@ export const useMetaStore = defineStore("meta", {
         },
       ];
     },
+    // TODO @Feature: differentiate model connector and model template?
+    templateFor(): ModelTemplate | null {
+      return (handlerId: str) => {
+        const matchingTemplates = this.modelTemplates.filter(
+          (template) => template.handler.name == handlerId
+        );
+        return matchingTemplates.at(0) || null;
+      };
+    },
   },
   actions: {
     async hydrate() {

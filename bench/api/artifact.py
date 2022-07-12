@@ -25,11 +25,19 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
     versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="version"
     )
+    latest_version = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Artifact
-        fields = ["id", "type", "created_at", "name", "versions", "description"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "type", "created_at", "name", "latest_version", "versions", "description"]
+        read_only_fields = ["id", "created_at", "latest_version", "versions"]
+
+    def get_latest_version(self, obj: Artifact):
+        latest_version = obj.versions.all().order_by("created_at").first()
+        if latest_version is not None:
+            return ArtifactVersionSerializer(latest_version).data
+        else:
+            return None
 
 
 class ArtifactVersionSerializer(serializers.ModelSerializer):
