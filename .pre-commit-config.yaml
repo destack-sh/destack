@@ -57,3 +57,8 @@ repos:
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
+  - repo: https://github.com/flotothemoon/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: check-no-nocheckin
+        types_or: [javascript, jsx, ts, tsx, vue, python, bash]
