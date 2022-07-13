@@ -1,4 +1,5 @@
 import structlog
+from django.core.validators import RegexValidator
 from django.db import models
 from rest_framework import mixins, serializers, validators, viewsets
 from rest_framework.generics import get_object_or_404
@@ -19,7 +20,10 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
             validators.UniqueValidator(
                 queryset=Artifact.objects.all(),
                 message="There is already an artifact with the given name",
-            )
+            ),
+            RegexValidator(
+                regex=r"[\w.\-]+", message="Artifact names must follow pattern [\\w.\\-]+"
+            ),
         ],
     )
     versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
@@ -68,7 +72,7 @@ class ArtifactViewSet(viewsets.ModelViewSet):
     queryset = Artifact.objects.all()
     serializer_class = ArtifactSerializer
     lookup_field = "name"
-    lookup_value_regex = r"[\w.]+"
+    lookup_value_regex = r"[\w.\-]+"
 
 
 class ArtifactVersionViewSet(viewsets.ModelViewSet):
