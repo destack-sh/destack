@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, Union
+from typing import Iterator, Optional, Union
 from uuid import UUID
 
 from django.db import connection, transaction
@@ -21,7 +21,7 @@ from bench.models.record import (
     replace_record,
 )
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetSpec, DatasetType, FieldValue, RecordSpec
+from bench.utils.spec import DatasetSpec, FieldValue, RecordSpec
 
 
 # TODO @Architecture: what does DbDataset do? how does it relate to actual Dataset/DatasetVersion
@@ -35,7 +35,7 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
         self,
         artifact_id: UUID,
         version: str,
-        spec: Union[None, DatasetType, DatasetSpec] = None,
+        spec: Optional[DatasetSpec] = None,
     ):
         self._dataset: DatasetVersion = DatasetVersion.objects.filter(
             artifact_id=artifact_id, version=version

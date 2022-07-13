@@ -16,17 +16,7 @@
       <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
       </div>
-      <div v-for="(field, i) in fields" :key="field.name">
-        <label for="text" class="block text-sm font-medium text-gray-700">{{ field.name }}</label>
-        <textarea
-          rows="3"
-          v-model="fieldValues[i]"
-          :name="field.name"
-          :id="field.name"
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          :placeholder="'Enter ' + field.name"
-        />
-      </div>
+      <RecordForm v-model="modelInputRecord" :spec="modelInputSpec" />
     </form>
 
     <!-- Select models -->
@@ -129,12 +119,14 @@ import {
   type Execution,
   type FieldSpec,
   type LimitPaginatedResult,
+  type RecordSpec,
   type ValueType,
 } from "@/types";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { reactive, ref, watch, type PropType, type Ref } from "vue";
 import ArtifactSelect from "../components/ArtifactSelect.vue";
+import RecordForm from "../components/RecordForm.vue";
 
 const artifactsStore = useArtifactsStore();
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
@@ -155,19 +147,22 @@ watch(
   }
 );
 
-// TODO @Cleanup use RecordForm for input
-const fields: Array<FieldSpec> = [
-  {
-    _type: "FieldSpec",
-    name: "text",
-    description: "any text",
-    type: {
-      _type: "ValueType",
-      dtype: "string",
-    } as ValueType,
-  },
-];
-const fieldValues: Array<any> = [""];
+const modelInputSpec: RecordSpec = {
+  _type: "FieldSpec",
+  name: "Common model input spec",
+  type: [
+    {
+      _type: "FieldSpec",
+      name: "text",
+      description: "any text",
+      type: {
+        _type: "ValueType",
+        dtype: "string",
+      } as ValueType,
+    },
+  ],
+};
+const modelInputRecord = ref({});
 
 const executions: Ref<Array<Execution>> = ref([]);
 const outputDatasets: Record<string, Record<string, any>[]> = reactive({});
@@ -188,16 +183,12 @@ watch(executions, (executions, _) => {
 });
 
 function run() {
-  const fieldValuesAsRecord: Record<string, any> = {};
-  for (const field of fields) {
-    fieldValuesAsRecord[field.name] = fieldValues[0];
-  }
-
+  console.log("post to model", models.value, modelInputRecord);
   models.value?.map((model) =>
     api
       .post<Record<string, any>>(
         `/models/${model.artifact}/versions/${model.version}/predict`,
-        fieldValuesAsRecord
+        modelInputRecord.value
       )
       .then((result) => result.data)
       .then((result) => {
