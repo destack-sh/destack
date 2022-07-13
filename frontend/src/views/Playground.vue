@@ -37,6 +37,7 @@
           <button
             type="button"
             class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            @click="promptAddModel"
           >
             Add model
           </button>
@@ -53,16 +54,49 @@
                 class="font-medium text-gray-900 hover:text-gray-600"
                 >{{ artifactsStore.artifact(model.artifact)?.name }}</router-link
               >
-              <p class="text-gray-500">{{ model.version }}</p>
+              <p class="text-gray-500">
+                {{ artifactsStore.isHead(model) ? "HEAD" : model.version }}
+              </p>
             </div>
             <div class="flex-shrink-0 pr-2">
-              <button
-                type="button"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-transparent bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-              >
-                <span class="sr-only">Open options</span>
-                <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
-              </button>
+              <Menu as="div" class="relative inline-block text-left">
+                <div>
+                  <MenuButton
+                    class="flex items-center rounded-full text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-100"
+                  >
+                    <span class="sr-only">Open options</span>
+                    <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
+                  </MenuButton>
+                </div>
+
+                <transition
+                  enter-active-class="transition ease-out duration-100"
+                  enter-from-class="transform opacity-0 scale-95"
+                  enter-to-class="transform opacity-100 scale-100"
+                  leave-active-class="transition ease-in duration-75"
+                  leave-from-class="transform opacity-100 scale-100"
+                  leave-to-class="transform opacity-0 scale-95"
+                >
+                  <MenuItems
+                    class="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                  >
+                    <div class="py-1">
+                      <MenuItem v-slot="{ active }">
+                        <button
+                          href="#"
+                          :class="[
+                            active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
+                            'block px-4 py-2 text-sm',
+                          ]"
+                          @click="removeModel(model)"
+                        >
+                          Remove from playground
+                        </button>
+                      </MenuItem>
+                    </div>
+                  </MenuItems>
+                </transition>
+              </Menu>
             </div>
           </div>
         </li>
@@ -82,34 +116,49 @@
     </div>
     <!-- TODO @Feature: show executions/output -->
   </Sidebar>
+  <ArtifactSelect ref="artifactSelect" @select="addModel" />
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
 import Sidebar from "@/components/Sidebar.vue";
-import { computedAsync, useArtifactsStore } from "@/stores";
+import { useArtifactsStore } from "@/stores";
 import {
-  splitArtifactNameVersion,
+  mapArtifactNameVersion,
+  type Artifact,
+  type ArtifactVersion,
   type Execution,
   type FieldSpec,
   type LimitPaginatedResult,
   type ValueType,
 } from "@/types";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { reactive, ref, watch, type PropType, type Ref } from "vue";
+import ArtifactSelect from "../components/ArtifactSelect.vue";
 
 const artifactsStore = useArtifactsStore();
-const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: true } });
-const { result: models } = computedAsync(() =>
-  Promise.all(
-    props.models.map((model: string) => {
-      const artifactId = model.split("@")[0];
-      const version = model.split("@")[1];
-      return artifactsStore.getVersionByTag(artifactId, version);
-    })
-  )
+const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
+const models: Ref<ArtifactVersion[]> = ref([]);
+
+// (re-)initialize models if prop models changes
+watch(
+  () => props.models,
+  async () => {
+    const modelsInstances = await Promise.all(
+      (props.models || [])
+        .map((model) => mapArtifactNameVersion(model))
+        .map(([artifactName, artifactVersion]) =>
+          artifactsStore.getVersionByTag(artifactName, artifactVersion)
+        )
+    );
+    models.value = modelsInstances;
+  }
 );
+
+// TODO @Cleanup use RecordForm for input
 const fields: Array<FieldSpec> = [
   {
+    _type: "FieldSpec",
     name: "text",
     description: "any text",
     type: {
@@ -119,6 +168,7 @@ const fields: Array<FieldSpec> = [
   },
 ];
 const fieldValues: Array<any> = [""];
+
 const executions: Ref<Array<Execution>> = ref([]);
 const outputDatasets: Record<string, Record<string, any>[]> = reactive({});
 
@@ -129,7 +179,7 @@ watch(executions, (executions, _) => {
       .filter((connection) => connection.connection_type == "output")
       .slice(0, 1) // ignore all but first
       .forEach((connection) => {
-        const [name, version] = splitArtifactNameVersion(connection.artifact);
+        const [name, version] = mapArtifactNameVersion(connection.artifact);
         readDataset(name, version).then((records) => {
           outputDatasets[execution.id] = records;
         });
@@ -179,5 +229,25 @@ async function readDataset(
       }
     )
     .then((response) => response.data.results);
+}
+
+async function addModel(model: Artifact) {
+  var modelVersion = model.latest_version;
+  if (!modelVersion) {
+    modelVersion = await artifactsStore.getVersionByTag(model.name, "HEAD");
+  }
+  const alreadyExists = models.value.find((version) => version.id == modelVersion?.id);
+  if (!alreadyExists) {
+    models.value.push(modelVersion);
+  }
+}
+
+function removeModel(model: ArtifactVersion) {
+  models.value = models.value.filter((m) => m.id != model.id);
+}
+
+const artifactSelect = ref(null);
+function promptAddModel() {
+  (artifactSelect.value as any).show();
 }
 </script>
