@@ -1,12 +1,25 @@
 <template>
   <Sidebar>
     <div class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:px-8">
-      <h1 class="text-2xl font-semibold text-gray-900">{{ modelName }}</h1>
-      <h3 class="text-lg text-gray-900">
-        {{ model?.description }}
-        <span class="italic text-gray-700" v-if="!model?.description">No description yet</span>
-      </h3>
-
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-900">{{ modelName }}</h1>
+          <h3 class="text-lg text-gray-900">
+            {{ model?.description }}
+            <span class="italic text-gray-700" v-if="!model?.description">No description yet</span>
+          </h3>
+        </div>
+        <div>
+          <button
+            type="button"
+            class="inline-flex items-center rounded-md border border-transparent bg-orange-100 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            @click="_delete"
+          >
+            Delete
+            <TrashIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
       <div class="mx-auto flex w-full justify-end">
         <div v-if="model?.latest_version">
           <div class="mt-6">
@@ -44,6 +57,7 @@
       </div>
     </div>
     <div v-else class="mt-10 text-center">
+      <!-- TODO @Feature: display model config & spec more attractively -->
       <router-link
         :to="{
           path: `/models/${modelName}/edit`,
@@ -70,12 +84,14 @@
   </Sidebar>
 </template>
 <script lang="ts" setup>
+import { api } from "@/api";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore } from "@/stores";
 import type { ModelMetadata } from "@/types";
-import { ChipIcon, PencilIcon, PlusIcon } from "@heroicons/vue/outline";
+import { ChipIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/vue/outline";
 import { computed, type Ref } from "@vue/reactivity";
 import { DateTime } from "luxon";
+import { useRoute, useRouter } from "vue-router";
 
 const props = defineProps({ modelName: { type: String, required: true } });
 
@@ -97,4 +113,11 @@ const latestVersionDtFromNow: Ref<string | null> = computed(() => {
   if (model.value?.latest_version == null) return null;
   return DateTime.fromISO(model.value.latest_version.created_at).toRelative({ locale: "en-US" });
 });
+
+const router = useRouter();
+async function _delete() {
+  await api.delete(`/models/${props.modelName}`);
+  await artifactsStore.hydrate();
+  router.push("/models");
+}
 </script>

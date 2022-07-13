@@ -6,11 +6,16 @@
         :key="model.id"
         class="relative col-span-1 divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow"
       >
-        <div class="flex w-full items-center justify-between space-x-6 p-6">
+        <div class="flex w-full items-center justify-between space-x-3 p-6">
           <router-link :to="'/models/' + model.name" class="focus:outline-none">
             <!-- Extend touch target to entire panel -->
             <span class="absolute inset-0" aria-hidden="true" />
           </router-link>
+          <component
+            :is="getIconForArtifact(model)"
+            class="h-8 w-8 flex-shrink-0 text-orange-300"
+            aria-hidden="true"
+          />
           <div class="flex-1 truncate">
             <div class="flex items-center space-x-3">
               <h3 class="truncate text-sm font-medium text-gray-900">
@@ -24,11 +29,6 @@
               {{ latestMetadata(model)?.handler_id }}
             </p>
           </div>
-          <component
-            :is="getIconForModel(model)"
-            class="h-8 w-8 flex-shrink-0 text-orange-300"
-            aria-hidden="true"
-          />
         </div>
         <div>
           <div class="-mt-px flex divide-x divide-gray-200">
@@ -59,7 +59,7 @@
 <script lang="ts" setup>
 import { useArtifactsStore } from "@/stores/artifacts";
 import type { Artifact, ModelMetadata } from "@/types/artifacts";
-import { BeakerIcon, DocumentTextIcon, GlobeIcon } from "@heroicons/vue/outline";
+import { BeakerIcon, ChipIcon, DatabaseIcon, GlobeIcon } from "@heroicons/vue/outline";
 
 const artifactsStore = useArtifactsStore();
 
@@ -71,9 +71,11 @@ function latestMetadata(model: Artifact): ModelMetadata | null {
   }
 }
 
-function getIconForModel(model: Artifact) {
-  if (model.type == "model") {
-    return DocumentTextIcon;
+function getIconForArtifact(artifact: Artifact) {
+  if (artifact.type == "model") {
+    return ChipIcon;
+  } else if (artifact.type == "dataset") {
+    return DatabaseIcon;
   }
 }
 </script>
