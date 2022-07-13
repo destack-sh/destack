@@ -25,8 +25,8 @@ export const useMetaStore = defineStore("meta", {
       ];
     },
     // TODO @Feature: differentiate model connector and model template?
-    templateFor(): ModelTemplate | null {
-      return (handlerId: str) => {
+    templateFor(): (handlerId: string) => ModelTemplate | null {
+      return (handlerId: string) => {
         const matchingTemplates = this.modelTemplates.filter(
           (template) => template.handler.name == handlerId
         );

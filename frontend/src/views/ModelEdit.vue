@@ -92,7 +92,6 @@ watchEffect(() => {
 
 const artifactsStore = useArtifactsStore();
 const { result: parentVersion } = computedAsync(() => {
-  console.log("get parent: " + props.parent);
   if (props.parent != null) {
     return artifactsStore.getVersion(props.modelName, props.parent);
   } else {
