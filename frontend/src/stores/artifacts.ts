@@ -19,6 +19,10 @@ export const useArtifactsStore = defineStore("artifacts", {
     datasets(): Artifact[] {
       return this.artifacts.filter((artifact) => artifact.type == "dataset");
     },
+    isHead(): (version: ArtifactVersion) => boolean | undefined {
+      return (version: ArtifactVersion) =>
+        this.artifact(version.artifact)?.latest_version?.id == version.id;
+    },
   },
   actions: {
     async hydrate() {

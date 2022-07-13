@@ -91,7 +91,7 @@ import type { ModelMetadata } from "@/types";
 import { ChipIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/vue/outline";
 import { computed, type Ref } from "@vue/reactivity";
 import { DateTime } from "luxon";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 
 const props = defineProps({ modelName: { type: String, required: true } });
 
