@@ -5,25 +5,19 @@
         {{ field.name }}
       </label>
       <div class="mt-1 flex rounded-md shadow-sm">
-        <component
-          :is="componentFor(field)"
+        <FieldValueInterface
           :modelValue="props.modelValue[field.name]"
+          :field="field"
           @update:modelValue="(value: any) => setRecordField(field, value)"
-          v-bind="componentProps(field)"
-          :name="field.name"
-          :id="field.name"
         />
       </div>
     </div>
   </form>
 </template>
 <script lang="ts" setup>
-import EnumInterface from "@/interfaces/EnumInterface.vue";
-import MissingInterface from "@/interfaces/MissingInterface.vue";
-import NumberInterface from "@/interfaces/NumberInterface.vue";
-import TextInterface from "@/interfaces/TextInterface.vue";
 import { isFieldType, type FieldSpec, type FieldType, type RecordSpec } from "@/types";
 import { computed, type Ref } from "vue";
+import FieldValueInterface from "./FieldValueInterface.vue";
 
 const props = defineProps<{
   spec: RecordSpec;
@@ -37,51 +31,6 @@ function setRecordField(field: FieldSpec, value: any) {
   const newRecord: Record<string, any> = { ...props.modelValue };
   newRecord[field.name] = value;
   emit("update:modelValue", newRecord);
-}
-
-function componentWithProps(field: FieldSpec) {
-  if (isFieldType(field.type)) {
-    const fieldType = field.type as FieldType;
-    if (fieldType._type == "ValueType") {
-      if (["int32", "int64", "float32", "float64"].includes(fieldType.dtype)) {
-        return [
-          NumberInterface,
-          {
-            default: Number.parseFloat(fieldType.default),
-            dtype: fieldType.dtype,
-          },
-        ];
-      } else {
-        // fall back to string
-        return [
-          TextInterface,
-          {
-            default: fieldType.default,
-            dtype: fieldType.dtype,
-          },
-        ];
-      }
-    } else if (fieldType._type == "EnumType") {
-      return [
-        EnumInterface,
-        {
-          values: fieldType.values,
-          default: fieldType.values[0],
-        },
-      ];
-    }
-  }
-
-  console.error(`unexpected field: ${field}`, field);
-  return [MissingInterface, { description: null }];
-}
-
-function componentFor(field: FieldSpec) {
-  return componentWithProps(field)[0];
-}
-
-function componentProps(field: FieldSpec) {
-  return componentWithProps(field)[1];
 }
 
 const specs: Ref<FieldSpec[]> = computed(() => {

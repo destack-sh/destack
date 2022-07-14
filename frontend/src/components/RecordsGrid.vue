@@ -4,7 +4,7 @@
       <div class="inline-block min-w-full py-2 align-middle">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
           <table class="min-w-full border-separate" style="border-spacing: 0">
-            <thead class="bg-gray-50">
+            <thead class="bg-gray-50" v-if="displayOptions.showHeader">
               <tr>
                 <th
                   scope="col"
@@ -12,7 +12,7 @@
                   :key="column.name"
                   class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8"
                 >
-                  Name
+                  {{ column.name }}}
                 </th>
               </tr>
             </thead>
@@ -37,6 +37,23 @@
   </div>
 </template>
 <script lang="ts" setup>
-const columns = [];
-const records = [];
+import type { FieldSpec } from "@/types";
+import { computed } from "vue";
+const props = defineProps<{
+  fields: Array<FieldSpec>;
+  records: Array<Record<string, any>>;
+  style: "preview" | "full";
+}>();
+
+const columns = computed(() => props.fields);
+
+const displayOptionsByStyle = {
+  preview: {
+    showHeader: false,
+  },
+  full: {
+    showHeader: true,
+  },
+};
+const displayOptions = computed(() => displayOptionsByStyle[props.style]);
 </script>

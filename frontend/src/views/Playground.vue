@@ -129,19 +129,16 @@ const props = defineProps({ models: { type: Array as PropType<Array<string>>, re
 const models: Ref<ArtifactVersion[]> = ref([]);
 
 // (re-)initialize models if prop models changes
-watch(
-  () => props.models,
-  async () => {
-    const modelsInstances = await Promise.all(
-      (props.models || [])
-        .map((model) => mapArtifactNameVersion(model))
-        .map(([artifactName, artifactVersion]) =>
-          artifactsStore.getVersionByTag(artifactName, artifactVersion)
-        )
-    );
-    models.value = modelsInstances;
-  }
-);
+watchEffect(async () => {
+  const modelsInstances = await Promise.all(
+    (props.models || [])
+      .map((model) => mapArtifactNameVersion(model))
+      .map(([artifactName, artifactVersion]) =>
+        artifactsStore.getVersionByTag(artifactName, artifactVersion)
+      )
+  );
+  models.value = modelsInstances;
+});
 
 const modelInputSpec: RecordSpec = {
   _type: "FieldSpec",
