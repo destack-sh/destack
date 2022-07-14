@@ -6,7 +6,7 @@ from bench.models.flow import FlowVersion
 
 class FlowVersionListingField(serializers.RelatedField):
     def to_representation(self, value: FlowVersion):
-        return f"{value.flow.name}@{value.id}"
+        return f"{value.flow.name}@{value.version}"
 
 
 class ArtifactVersionListingField(serializers.RelatedField):
