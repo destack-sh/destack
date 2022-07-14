@@ -1,5 +1,5 @@
 import { api } from "@/api";
-import type { PaginatedResult } from "@/types";
+import type { LimitPaginatedResult } from "@/types";
 import type { Artifact, ArtifactVersion } from "@/types/artifacts";
 import { defineStore } from "pinia";
 
@@ -10,7 +10,7 @@ export const useArtifactsStore = defineStore("artifacts", {
     versions: new Map<string, ArtifactVersion[]>(),
   }),
   getters: {
-    artifact() {
+    artifact(): (name: string) => Artifact | undefined {
       return (name: string) => this.artifactsByName.get(name);
     },
     models(): Artifact[] {
@@ -34,7 +34,7 @@ export const useArtifactsStore = defineStore("artifacts", {
     },
     async getVersions(artifactId: string, branch = "main", limit = 10, after?: string) {
       return (
-        await api.get<PaginatedResult<ArtifactVersion>>(`/artifacts/${artifactId}/versions`, {
+        await api.get<LimitPaginatedResult<ArtifactVersion>>(`/artifacts/${artifactId}/versions`, {
           params: { branch, limit, after },
         })
       ).data;

@@ -7,6 +7,7 @@ from rest_framework_nested import routers
 from bench.api.artifact import ArtifactTagsViewSet, ArtifactVersionViewSet, ArtifactViewSet
 from bench.api.dataset import DatasetVersionViewSet, DatasetViewSet, RecordViewSet
 from bench.api.execution import ExecutionViewSet
+from bench.api.flow import FlowVersionViewSet, FlowViewSet
 from bench.api.meta import list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
 
@@ -43,12 +44,17 @@ router.register("models", ModelViewSet)
 models_router = ExtendedNestedRouter(router, "models", lookup="artifact")
 models_router.register("versions", ModelVersionViewSet, basename="models_versions")
 
+router.register("flows", FlowViewSet)
+flows_router = ExtendedNestedRouter(router, "flows", lookup="flow")
+flows_router.register("flows", FlowVersionViewSet, basename="flows_versions")
+
 api_routers: List[BaseRouter] = [
     router,
     artifacts_router,
     datasets_router,
     datasets_versions_router,
     models_router,
+    flows_router,
 ]
 api_patterns = [
     path("api/meta/models", list_model_handlers),

@@ -2,8 +2,10 @@ from itertools import chain
 from typing import Mapping
 from uuid import UUID
 
+from django.core.validators import RegexValidator
 from rest_framework import serializers, validators, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -22,7 +24,8 @@ class FlowSerializer(serializers.ModelSerializer):
             validators.UniqueValidator(
                 queryset=Flow.objects.all(),
                 message="There is already a flow with the given name",
-            )
+            ),
+            RegexValidator(regex=r"[\w.\-]+", message="Flow names must follow pattern [\\w.\\-]+"),
         ],
     )
 
@@ -104,11 +107,17 @@ class FlowExecutionPlanSerializer(serializers.Serializer):
 class FlowViewSet(viewsets.ModelViewSet):
     queryset = Flow.objects.order_by("-created_at").all()
     serializer_class = FlowSerializer
+    lookup_field = "name"
+    lookup_value_regex = r"[\w.\-]+"
 
 
 class FlowVersionViewSet(viewsets.ModelViewSet):
     queryset = FlowVersion.objects.order_by("-created_at").all()
     serializer_class = FlowVersionSerializer
+    lookup_field = "version"
+    lookup_value_regex = r"[\w.]+"
+    # TODO @Feature: paginate flow versions with branches correctly
+    pagination_class = LimitOffsetPagination
 
     @action(methods=["POST"], detail=True)
     def execute(self, request: Request, *args, **kwargs) -> Response:

@@ -20,6 +20,7 @@ export type ArtifactVersion = {
   created_at: string;
   storage_uri?: string;
   metadata: Record<string, any>;
+  committed: boolean;
 };
 
 export type DatasetMetadata = {
