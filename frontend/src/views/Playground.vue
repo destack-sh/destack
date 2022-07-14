@@ -1,3 +1,4 @@
+PaginatedResult
 <template>
   <Sidebar>
     <div class="mx-auto max-w-7xl px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
@@ -49,6 +50,7 @@
                 {{ artifactsStore.isHead(model) ? "HEAD" : model.version }}
               </p>
             </div>
+            <!-- TODO @UI @Bug model menu is clipped by parent container  -->
             <div class="flex-shrink-0 pr-2">
               <Menu as="div" class="relative inline-block text-left">
                 <div>
@@ -113,13 +115,13 @@ import {
   type Artifact,
   type ArtifactVersion,
   type Execution,
-  type LimitPaginatedResult,
+  type PaginatedResult,
   type RecordSpec,
   type ValueType,
 } from "@/types";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
-import { computed, ref, watch, watchEffect, type PropType, type Ref } from "vue";
+import { computed, ref, watchEffect, type PropType, type Ref } from "vue";
 import ArtifactSelect from "../components/ArtifactSelect.vue";
 import ExecutionsGrid from "../components/ExecutionsGrid.vue";
 import RecordForm from "../components/RecordForm.vue";
@@ -140,6 +142,7 @@ watchEffect(async () => {
   models.value = modelsInstances;
 });
 
+// TODO @Feature: derive input spec from selected models
 const modelInputSpec: RecordSpec = {
   _type: "FieldSpec",
   name: "Common model input spec",
@@ -181,7 +184,7 @@ function run() {
 
 function fetchExecutions(model?: string, flow?: string, limit = 10) {
   api
-    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
+    .get<PaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
 }

@@ -3,16 +3,39 @@ from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
-from bench.models import Execution
+from bench.dataset.accessor import get_dataset_version_reader
+from bench.models import DatasetVersion, Execution
 from bench.models.execution import ExecutionArtifactConnection
 
 
 class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
     artifact = ArtifactVersionListingField(read_only=True)
+    dataset_preview = serializers.SerializerMethodField(read_only=True)
+
+    def get_dataset_preview(self, obj: ExecutionArtifactConnection):
+        if obj.artifact.artifact.type != "dataset":
+            return None
+
+        dataset = obj.artifact
+        # TODO @Robustness:
+        # "cast" ArtifactVersion to DatasetVersion
+        dataset.__class__ = DatasetVersion
+
+        # TODO @Performance: configure execution connection records preview in api
+        offset = 0
+        limit = 3
+        reader = get_dataset_version_reader(dataset)
+        records = list(reader[offset : (offset + limit)])
+        return {
+            "limit": limit,
+            "count": len(reader),
+            "offset": offset,
+            "results": records,
+        }
 
     class Meta:
         model = ExecutionArtifactConnection
-        fields = ["connection_type", "connection_name", "artifact"]
+        fields = ["connection_type", "connection_name", "artifact", "dataset_preview"]
 
 
 class ExecutionSerializer(serializers.ModelSerializer):
