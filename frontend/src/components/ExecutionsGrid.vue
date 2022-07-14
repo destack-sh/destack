@@ -63,7 +63,7 @@ import {
   mapArtifactNameVersion,
   type Execution,
   type FieldSpec,
-  type LimitPaginatedResult as PaginatedResult,
+  type LimitPaginatedResult,
   type ValueType,
 } from "@/types";
 import { DateTime, type ToRelativeOptions } from "luxon";
@@ -89,7 +89,7 @@ const artifactColumns = computed(() => {
       });
 });
 
-type PaginatedDataset = PaginatedResult<Record<string, any>>;
+type PaginatedDataset = LimitPaginatedResult<Record<string, any>>;
 
 const luxonToRelativeOptions: ToRelativeOptions = { locale: "en-US", style: "short" };
 const columns = computed(() => [{ name: "state" }, ...artifactColumns.value]);
@@ -98,6 +98,15 @@ const rows = computed(() =>
     const datasets: Record<string, AsyncResult<PaginatedDataset>> = execution.connected_artifacts
       .map((connection) => {
         const [dataset, version] = mapArtifactNameVersion(connection.artifact);
+        // cache preview dataset, may be enough
+        if (connection.dataset_preview) {
+          cacheDataset(
+            dataset,
+            version,
+            connection.dataset_preview.limit,
+            connection.dataset_preview
+          );
+        }
         const result = computedAsync(() => readDataset(dataset, version));
         return { dataset, result };
       })
@@ -140,6 +149,12 @@ function specFor(dataset: string): FieldSpec[] {
 
 // TODO @Robustness @Performance: consolidate and improve dataset/record fetching
 const cachedDatasets: Record<string, PaginatedDataset> = {};
+
+function cacheDataset(dataset: string, version: string, limit: number, result: PaginatedDataset) {
+  const recordsId = `${dataset}@${version}[:${limit}]`;
+  cachedDatasets[recordsId] = result;
+}
+
 async function readDataset(dataset: string, version: string, limit = 3): Promise<PaginatedDataset> {
   const recordsId = `${dataset}@${version}[:${limit}]`;
   const cachedDataset = cachedDatasets[recordsId];

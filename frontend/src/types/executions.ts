@@ -1,3 +1,5 @@
+import type { LimitPaginatedResult } from "@/types/utils";
+
 export type ExecutionState =
   | "created"
   | "scheduled"
@@ -31,4 +33,5 @@ export type ExecutionArtifactConnection = {
   artifact: string; // fk to ArtifactVersion.name@ArtifactVersion.version
   connection_type: ExecutionArtifactConnectionType;
   connection_name: string;
+  dataset_preview?: LimitPaginatedResult<Record<string, any>>;
 };
