@@ -36,13 +36,17 @@
                     'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
                   ]"
                 >
-                  <template v-if="row['artifacts'][column.key]?.result != null">
-                    {{ row["artifacts"][column.key]?.result["results"] }}
+                  <template v-if="row['datasets'][column.key]?.result != null">
+                    <RecordsPreview
+                      :style="'preview'"
+                      :fields="specFor(column.key)"
+                      :records="row['datasets'][column.key]?.result['results']"
+                    />
                   </template>
-                  <template v-else-if="row['artifacts'][column.key]?.error">
-                    {{ row["artifacts"][column.key]?.error }}
+                  <template v-else-if="row['datasets'][column.key]?.error">
+                    {{ row["datasets"][column.key]?.error }}
                   </template>
-                  <template v-else-if="row['artifacts'][column.key]?.loading"> ... </template>
+                  <template v-else-if="row['datasets'][column.key]?.loading"> ... </template>
                 </td>
               </tr>
             </tbody>
@@ -58,19 +62,23 @@ import { computedAsync, type AsyncResult } from "@/stores";
 import {
   mapArtifactNameVersion,
   type Execution,
+  type FieldSpec,
   type LimitPaginatedResult as PaginatedResult,
+  type ValueType,
 } from "@/types";
 import { DateTime, type ToRelativeOptions } from "luxon";
 import { computed } from "vue";
+import RecordsPreview from "./RecordsPreview.vue";
 
 const props = defineProps<{
   executions: Array<Execution>;
 }>();
 
-const artifactColumns = computed(() =>
-  props.executions.length == 0
+const artifactColumns = computed(() => {
+  const completedExecution = props.executions.find((execution) => execution.state == "completed");
+  return completedExecution == null
     ? []
-    : props.executions[0].connected_artifacts.map((connection) => {
+    : completedExecution.connected_artifacts.map((connection) => {
         const [dataset] = mapArtifactNameVersion(connection.artifact);
         return {
           name: dataset,
@@ -78,8 +86,8 @@ const artifactColumns = computed(() =>
           connection: connection,
           artifact: connection.artifact,
         };
-      })
-);
+      });
+});
 
 type PaginatedDataset = PaginatedResult<Record<string, any>>;
 
@@ -87,7 +95,7 @@ const luxonToRelativeOptions: ToRelativeOptions = { locale: "en-US", style: "sho
 const columns = computed(() => [{ name: "state" }, ...artifactColumns.value]);
 const rows = computed(() =>
   props.executions.map((execution) => {
-    const artifacts: Record<string, AsyncResult<PaginatedDataset>> = execution.connected_artifacts
+    const datasets: Record<string, AsyncResult<PaginatedDataset>> = execution.connected_artifacts
       .map((connection) => {
         const [dataset, version] = mapArtifactNameVersion(connection.artifact);
         const result = computedAsync(() => readDataset(dataset, version));
@@ -110,10 +118,25 @@ const rows = computed(() =>
               ...luxonToRelativeOptions,
             })
           : null,
-      artifacts,
+      datasets: datasets,
     };
   })
 );
+
+function specFor(dataset: string): FieldSpec[] {
+  // TODO @Feature: derive input spec from given artifacts/datasets?
+  return [
+    {
+      _type: "FieldSpec",
+      name: "text",
+      description: "any text",
+      type: {
+        _type: "ValueType",
+        dtype: "string",
+      } as ValueType,
+    },
+  ];
+}
 
 async function readDataset(dataset: string, version: string, limit = 3): Promise<PaginatedDataset> {
   dataset = encodeURIComponent(dataset);
