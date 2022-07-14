@@ -12,8 +12,9 @@ export type Execution = {
   id: string;
   type: string;
   created_at: string;
+  started_at?: string;
   updated_at: string;
-  terminated_at: string;
+  terminated_at?: string;
   state: ExecutionState;
   metadata: Record<string, any>;
   parent: string; // fk to Execution.parent

@@ -6,6 +6,7 @@
         type="submit"
         class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
         @click.prevent="run"
+        :disabled="!canRun"
       >
         Run
       </button>
@@ -94,17 +95,12 @@
     </div>
 
     <!-- Executions & output -->
-    <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
+    <div class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:px-8">
       <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Outputs</h3>
       </div>
-      <div v-for="execution in executions" :key="execution.id">
-        {{ execution.created_at }}
-        {{ execution.state }}
-        {{ outputDatasets[execution.id] }}
-      </div>
+      <ExecutionsGrid :executions="executions" />
     </div>
-    <!-- TODO @Feature: show executions/output -->
   </Sidebar>
   <ArtifactSelect ref="artifactSelect" @select="addModel" />
 </template>
@@ -117,15 +113,15 @@ import {
   type Artifact,
   type ArtifactVersion,
   type Execution,
-  type FieldSpec,
   type LimitPaginatedResult,
   type RecordSpec,
   type ValueType,
 } from "@/types";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
-import { reactive, ref, watch, type PropType, type Ref } from "vue";
+import { computed, ref, watch, watchEffect, type PropType, type Ref } from "vue";
 import ArtifactSelect from "../components/ArtifactSelect.vue";
+import ExecutionsGrid from "../components/ExecutionsGrid.vue";
 import RecordForm from "../components/RecordForm.vue";
 
 const artifactsStore = useArtifactsStore();
@@ -165,22 +161,10 @@ const modelInputSpec: RecordSpec = {
 const modelInputRecord = ref({});
 
 const executions: Ref<Array<Execution>> = ref([]);
-const outputDatasets: Record<string, Record<string, any>[]> = reactive({});
 
-watch(models, () => models.value?.forEach((model) => fetchExecutions(model.id)));
-watch(executions, (executions, _) => {
-  executions.forEach((execution) =>
-    execution.connected_artifacts
-      .filter((connection) => connection.connection_type == "output")
-      .slice(0, 1) // ignore all but first
-      .forEach((connection) => {
-        const [name, version] = mapArtifactNameVersion(connection.artifact);
-        readDataset(name, version).then((records) => {
-          outputDatasets[execution.id] = records;
-        });
-      })
-  );
-});
+watchEffect(() => models.value?.forEach((model) => fetchExecutions(model.id)));
+
+const canRun: Ref<boolean> = computed(() => (models.value?.length || 0) > 0);
 
 function run() {
   console.log("post to model", models.value, modelInputRecord);
@@ -203,23 +187,6 @@ function fetchExecutions(model?: string, flow?: string, limit = 10) {
     .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
-}
-
-async function readDataset(
-  dataset: string,
-  version: string,
-  limit = 10
-): Promise<Record<string, any>[]> {
-  dataset = encodeURIComponent(dataset);
-  version = encodeURIComponent(version);
-  return api
-    .get<LimitPaginatedResult<Record<string, any>>>(
-      `/datasets/${dataset}/versions/${version}/records`,
-      {
-        params: { limit },
-      }
-    )
-    .then((response) => response.data.results);
 }
 
 async function addModel(model: Artifact) {

@@ -1,6 +1,12 @@
-import { ref, watchEffect, type Ref } from "vue";
+import { reactive, ref, watchEffect, type Ref } from "vue";
 
-export function computedAsync<T>(getter: () => Promise<T>) {
+export type AsyncResult<T> = {
+  result: T | null;
+  error: any;
+  loading: boolean;
+};
+
+export function computedAsync<T>(getter: () => Promise<T>): AsyncResult<T> {
   /**
    * Wraps a computed promise to get its result along with error/loading info.
    */
@@ -19,5 +25,5 @@ export function computedAsync<T>(getter: () => Promise<T>) {
     }
   });
 
-  return { result, error, loading };
+  return reactive({ result, error, loading });
 }
