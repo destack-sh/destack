@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+
 from django.db import models, transaction
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
@@ -35,6 +37,10 @@ class Flow(UUIDModel, VersionedRepository):
         constraints = [models.UniqueConstraint(name="bench_flow_name_ak", fields=["name"])]
 
 
+def _generate_flow_version(nbytes: int = 4) -> str:
+    return secrets.token_hex(nbytes)
+
+
 # TODO @Performance: version Flows on node-level
 #  Storing a complete copy of the entire Flow graph for every version
 #  seems both cumbersome and inefficient. But node-level versioning for graphs is
@@ -44,8 +50,19 @@ class FlowVersion(UUIDModel, VersionedCommit):
     A flow version is a specific (generally) immutable specification of a flow.
     """
 
+    version = models.CharField(max_length=256, default=_generate_flow_version)
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
+
+    indexes = [
+        models.Index(name="bench_flow_version_idx", fields=["version"]),
+    ]
+    constraints = [
+        models.UniqueConstraint(
+            name="bench_flow_version_flow_version_ak",
+            fields=["flow", "version"],
+        )
+    ]
 
 
 class FlowNode(UUIDModel, VersionedBlob):
