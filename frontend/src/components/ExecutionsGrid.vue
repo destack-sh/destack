@@ -138,13 +138,25 @@ function specFor(dataset: string): FieldSpec[] {
   ];
 }
 
+// TODO @Robustness @Performance: consolidate and improve dataset/record fetching
+const cachedDatasets: Record<string, PaginatedDataset> = {};
 async function readDataset(dataset: string, version: string, limit = 3): Promise<PaginatedDataset> {
+  const recordsId = `${dataset}@${version}[:${limit}]`;
+  const cachedDataset = cachedDatasets[recordsId];
+  if (cachedDataset != null) {
+    return Promise.resolve(cachedDataset);
+  }
+
   dataset = encodeURIComponent(dataset);
   version = encodeURIComponent(version);
   return api
     .get<PaginatedDataset>(`/datasets/${dataset}/versions/${version}/records`, {
       params: { limit },
     })
-    .then((response) => response.data);
+    .then((response) => response.data)
+    .then((dataset) => {
+      cachedDatasets[recordsId] = dataset;
+      return dataset;
+    });
 }
 </script>
