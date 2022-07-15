@@ -38,5 +38,5 @@ class FlowVersionListingField(NameVersionListingField):
     parent_name_lookup = "flow"
 
 
-class ArtifactVersionListingField(FlowVersionListingField):
+class ArtifactVersionListingField(NameVersionListingField):
     parent_name_lookup = "artifact"

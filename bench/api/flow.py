@@ -42,7 +42,7 @@ class FlowSerializer(serializers.ModelSerializer):
 
 
 class FlowNodeSerializer(serializers.ModelSerializer):
-    flow = FlowVersionListingField(read_only=True)
+    flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
 
     class Meta:
         model = FlowNode
