@@ -197,14 +197,11 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
     pagination_class = LimitOffsetPagination
 
     def get_queryset(self) -> models.QuerySet[FlowVersion]:
-        return self.queryset.filter(flow__name=self.kwargs.get("flow_name"))
+        return self.queryset.filter(flow__name=self.kwargs.get("flow"))
 
     def create(self, request: Request, *args, **kwargs) -> Response:
-        # auto-insert flow_name provided by nested flow versions route
-        if "flow_name" in kwargs:
-            request.data["flow"] = kwargs.pop("flow_name")
-
-        return super().create(request, *args, **kwargs)
+        request.data["flow"] = kwargs.pop("flow")
+        return super().create(*args, **kwargs)
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # TODO @Cleanup: why force committed=False in FlowVersion create? (also see DatasetVersion)
@@ -265,15 +262,14 @@ class FlowNodeViewSet(viewsets.ModelViewSet):
     # TODO @Cleanup: repetition of get_queryset/create mapping among FlowNode&Edges
     def get_queryset(self) -> models.QuerySet[FlowNode]:
         return self.queryset.filter(
-            flow__flow__name=self.kwargs.get("flow_name"),
-            flow__version=self.kwargs.get("version_version"),
+            flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         # TODO @Cleanup: argument mapping could be in nested router?
         # map nested arguments to FlowNode.flow representation
-        if "flow_name" in kwargs and "version_version" in kwargs:
-            request.data["flow"] = f"{kwargs['flow_name']}@{kwargs['version_version']}"
+        if "flow" in kwargs and "version" in kwargs:
+            request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)
 
 
@@ -283,14 +279,13 @@ class FlowNodeEdgeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self) -> models.QuerySet[FlowNode]:
         return self.queryset.filter(
-            flow__flow__name=self.kwargs.get("flow_name"),
-            flow__version=self.kwargs.get("version_version"),
+            flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         # map nested arguments to FlowNode.flow representation
-        if "flow_name" in kwargs and "version_version" in kwargs:
-            request.data["flow"] = f"{kwargs['flow_name']}@{kwargs['version_version']}"
+        if "flow" in kwargs and "version" in kwargs:
+            request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)
 
 
@@ -300,12 +295,11 @@ class FlowArtifactEdgeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self) -> models.QuerySet[FlowNode]:
         return self.queryset.filter(
-            flow__flow__name=self.kwargs.get("flow_name"),
-            flow__version=self.kwargs.get("version_version"),
+            flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         # map nested arguments to FlowNode.flow representation
-        if "flow_name" in kwargs and "version_version" in kwargs:
-            request.data["flow"] = f"{kwargs['flow_name']}@{kwargs['version_version']}"
+        if "flow" in kwargs and "version" in kwargs:
+            request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)

@@ -85,13 +85,10 @@ class ArtifactVersionViewSet(viewsets.ModelViewSet):
     pagination_class = LimitOffsetPagination
 
     def get_queryset(self) -> models.QuerySet[ArtifactVersion]:
-        return self.queryset.filter(artifact__name=self.kwargs.get("artifact_name"))
+        return self.queryset.filter(artifact__name=self.kwargs.get("artifact"))
 
     def create(self, request: Request, *args, **kwargs) -> Response:
-        # auto-insert artifact_name provided by nested dataset versions route
-        if "artifact_name" in kwargs:
-            request.data["artifact"] = kwargs.pop("artifact_name")
-
+        request.data["artifact"] = kwargs.pop("artifact")
         # auto-insert parent metadata if not explicitly given and there is only one parent
         if request.data.get("parents"):
             parents_field_serializer = self.get_serializer().fields["parents"]  # type: ignore
@@ -118,5 +115,5 @@ class ArtifactTagsViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         #  Need to figure out where to put tags first - on the object/in the project/workspace?
         if self.kwargs.get("pk") != "HEAD":
             raise serializers.ValidationError("tag must be HEAD")
-        name = self.kwargs.get("artifact_name")
+        name = self.kwargs.get("artifact")
         return self.queryset.filter(artifact__name=name).order_by("-created_at")[:1]
