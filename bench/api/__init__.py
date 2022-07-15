@@ -21,20 +21,46 @@ from bench.api.meta import list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
 
 
+def _get_lookup_regex_simple(viewset: Type[ViewSetMixin], lookup_prefix: str = "") -> str:
+    if not lookup_prefix:
+        raise ValueError("can't use lookup_omit_field when lookup_prefix is not set")
+    if lookup_prefix.endswith("_"):
+        lookup_prefix = lookup_prefix[:-1]
+
+    # simpler lookup regex that does not include the lookup_field
+    # so e.g. instead of /artifacts/{artifact_name}/versions/{version_version}
+    # it just becomes /artifacts/{artifact}/versions/{version}
+    base_regex = r"(?P<{lookup_prefix}>{lookup_value})"
+    lookup_value = getattr(viewset, "lookup_value_regex", "[^/.]+")
+    # noinspection StrFormat
+    lookup_regex = base_regex.format(lookup_prefix=lookup_prefix, lookup_value=lookup_value)
+    return lookup_regex
+
+
 class ExtendedDefaultRouter(routers.DefaultRouter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lookup_omit_field: bool, **kwargs):
         super().__init__(*args, **kwargs)
-        # make trailing slash optional
+        self.lookup_omit_field = lookup_omit_field
         self.trailing_slash = r"/?"
-        self.child_routers = []
+        self.child_routers: List[ExtendedNestedRouter] = []
 
     def register_nested(
-        self, prefix: str, viewset: Type[ViewSetMixin], lookup: str
+        self, prefix: str, viewset: Type[ViewSetMixin], lookup: str, lookup_omit_field: bool = None
     ) -> ExtendedNestedRouter:
         self.register(prefix, viewset)
-        nested_router = ExtendedNestedRouter(self, parent_prefix=prefix, lookup=lookup)
+        if lookup_omit_field is None:
+            lookup_omit_field = self.lookup_omit_field
+        nested_router = ExtendedNestedRouter(
+            self, parent_prefix=prefix, lookup=lookup, lookup_omit_field=lookup_omit_field
+        )
         self.child_routers.append(nested_router)
         return nested_router
+
+    def get_lookup_regex(self, viewset: Type[ViewSetMixin], lookup_prefix: str = "") -> str:
+        if self.lookup_omit_field and lookup_prefix:
+            return _get_lookup_regex_simple(viewset, lookup_prefix)
+        else:
+            return super().get_lookup_regex(viewset, lookup_prefix)
 
     @property
     def descendant_routers(self):
@@ -47,11 +73,11 @@ class ExtendedDefaultRouter(routers.DefaultRouter):
 
 
 class ExtendedNestedRouter(routers.NestedSimpleRouter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lookup_omit_field: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
-        # make trailing slash optional
+        self.lookup_omit_field = lookup_omit_field
         self.trailing_slash = r"/?"
-        self.child_routers = []
+        self.child_routers: List[ExtendedNestedRouter] = []
 
     def register(
         self,
@@ -64,16 +90,31 @@ class ExtendedNestedRouter(routers.NestedSimpleRouter):
         super().register(prefix, viewset, basename)
 
     def register_nested(
-        self, prefix: str, viewset: Type[ViewSetMixin], lookup: str, basename: str = None
+        self,
+        prefix: str,
+        viewset: Type[ViewSetMixin],
+        lookup: str,
+        basename: str = None,
+        lookup_omit_field: bool = None,
     ) -> ExtendedNestedRouter:
         basename = basename or f"{self.parent_prefix}_{prefix}"
         self.register(prefix, viewset, basename)
-        nested_router = ExtendedNestedRouter(self, parent_prefix=prefix, lookup=lookup)
+        if lookup_omit_field is None:
+            lookup_omit_field = self.lookup_omit_field
+        nested_router = ExtendedNestedRouter(
+            self, parent_prefix=prefix, lookup=lookup, lookup_omit_field=lookup_omit_field
+        )
         self.child_routers.append(nested_router)
         return nested_router
 
+    def get_lookup_regex(self, viewset: Type[ViewSetMixin], lookup_prefix: str = "") -> str:
+        if self.lookup_omit_field and lookup_prefix:
+            return _get_lookup_regex_simple(viewset, lookup_prefix)
+        else:
+            return super().get_lookup_regex(viewset, lookup_prefix)
 
-router = ExtendedDefaultRouter()
+
+router = ExtendedDefaultRouter(lookup_omit_field=True)
 router.register("executions", ExecutionViewSet)
 
 artifacts_router = router.register_nested("artifacts", ArtifactViewSet, lookup="artifact")
