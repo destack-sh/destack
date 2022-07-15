@@ -262,6 +262,7 @@ class FlowNodeViewSet(viewsets.ModelViewSet):
     queryset = FlowNode.objects.all()
     serializer_class = FlowNodeSerializer
 
+    # TODO @Cleanup: repetition of get_queryset/create mapping among FlowNode&Edges
     def get_queryset(self) -> models.QuerySet[FlowNode]:
         return self.queryset.filter(
             flow__flow__name=self.kwargs.get("flow_name"),
@@ -269,6 +270,7 @@ class FlowNodeViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
+        # TODO @Cleanup: argument mapping could be in nested router?
         # map nested arguments to FlowNode.flow representation
         if "flow_name" in kwargs and "version_version" in kwargs:
             request.data["flow"] = f"{kwargs['flow_name']}@{kwargs['version_version']}"
@@ -285,6 +287,12 @@ class FlowNodeEdgeViewSet(viewsets.ModelViewSet):
             flow__version=self.kwargs.get("version_version"),
         )
 
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        # map nested arguments to FlowNode.flow representation
+        if "flow_name" in kwargs and "version_version" in kwargs:
+            request.data["flow"] = f"{kwargs['flow_name']}@{kwargs['version_version']}"
+        return super().create(request, *args, **kwargs)
+
 
 class FlowArtifactEdgeViewSet(viewsets.ModelViewSet):
     queryset = FlowArtifactEdge.objects.all()
@@ -295,3 +303,9 @@ class FlowArtifactEdgeViewSet(viewsets.ModelViewSet):
             flow__flow__name=self.kwargs.get("flow_name"),
             flow__version=self.kwargs.get("version_version"),
         )
+
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        # map nested arguments to FlowNode.flow representation
+        if "flow_name" in kwargs and "version_version" in kwargs:
+            request.data["flow"] = f"{kwargs['flow_name']}@{kwargs['version_version']}"
+        return super().create(request, *args, **kwargs)
