@@ -78,5 +78,7 @@ class ArtifactVersionHandler(ArtifactHandler):
         """
         Returns a new handler with the given version checked out (creating it if necessary), where
         the new version is based on the state of this version.
+        TODO @Feature: ArtifactVersionHandler.checkout should have create flag?
+         (as in, whether to create a new version from the current or check out an existing version)
         """
         raise NotImplementedError

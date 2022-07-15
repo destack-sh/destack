@@ -1,4 +1,3 @@
-PaginatedResult
 <template>
   <Sidebar>
     <div class="mx-auto max-w-7xl px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
@@ -42,9 +41,9 @@ PaginatedResult
           >
             <div class="flex-1 truncate px-4 py-2 text-sm">
               <router-link
-                :to="'/models/' + artifactsStore.artifact(model.artifact)?.name"
+                :to="'/models/' + model.artifact"
                 class="font-medium text-gray-900 hover:text-gray-600"
-                >{{ artifactsStore.artifact(model.artifact)?.name }}</router-link
+                >{{ model.artifact }}</router-link
               >
               <p class="text-gray-500">
                 {{ artifactsStore.isHead(model) ? "HEAD" : model.version }}
@@ -108,6 +107,9 @@ PaginatedResult
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
+import ArtifactSelect from "@/components/ArtifactSelect.vue";
+import ExecutionsGrid from "@/components/ExecutionsGrid.vue";
+import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { useArtifactsStore } from "@/stores";
 import {
@@ -115,21 +117,21 @@ import {
   type Artifact,
   type ArtifactVersion,
   type Execution,
-  type PaginatedResult,
+  type LimitPaginatedResult,
   type RecordSpec,
   type ValueType,
 } from "@/types";
+import type { FlowVersion } from "@/types/flows";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { computed, ref, watchEffect, type PropType, type Ref } from "vue";
-import ArtifactSelect from "../components/ArtifactSelect.vue";
-import ExecutionsGrid from "../components/ExecutionsGrid.vue";
-import RecordForm from "../components/RecordForm.vue";
+
+const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
+
+const flow: Ref<FlowVersion | null> = ref(null);
 
 const artifactsStore = useArtifactsStore();
-const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 const models: Ref<ArtifactVersion[]> = ref([]);
-
 // (re-)initialize models if prop models changes
 watchEffect(async () => {
   const modelsInstances = await Promise.all(
@@ -184,7 +186,7 @@ function run() {
 
 function fetchExecutions(model?: string, flow?: string, limit = 10) {
   api
-    .get<PaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
+    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
 }
