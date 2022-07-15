@@ -111,7 +111,7 @@ import ArtifactSelect from "@/components/ArtifactSelect.vue";
 import ExecutionsGrid from "@/components/ExecutionsGrid.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
-import { useArtifactsStore } from "@/stores";
+import { useArtifactsStore, useFlowsStore } from "@/stores";
 import {
   mapArtifactNameVersion,
   type Artifact,
@@ -124,11 +124,32 @@ import {
 import type { FlowVersion } from "@/types/flows";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
-import { computed, ref, watchEffect, type PropType, type Ref } from "vue";
+import { DateTime } from "luxon";
+import { computed, onMounted, ref, watchEffect, type PropType, type Ref } from "vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
 const flow: Ref<FlowVersion | null> = ref(null);
+
+const flowStore = useFlowsStore();
+onMounted(async () => {
+  const flowName = `playground-${DateTime.now().toISODate()}`;
+  // create or recover flow (could also recover from props)
+  var flowInstance = flowStore.flow(flowName);
+  if (!flowInstance) {
+    flowInstance = await flowStore.createFlow({ name: flowName });
+  }
+  var flowVersion = flowInstance.latest_version;
+  if (flowVersion) {
+    // recover from existing flow
+  } else {
+    // create new basic flow
+    flowVersion = await flowStore.createFlowVersion(flowName, {
+      name: "Initial commit",
+      parents: [],
+    });
+  }
+});
 
 const artifactsStore = useArtifactsStore();
 const models: Ref<ArtifactVersion[]> = ref([]);

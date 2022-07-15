@@ -201,7 +201,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         request.data["flow"] = kwargs.pop("flow")
-        return super().create(*args, **kwargs)
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         # TODO @Cleanup: why force committed=False in FlowVersion create? (also see DatasetVersion)

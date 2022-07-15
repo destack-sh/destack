@@ -30,18 +30,16 @@ export type FlowNode = {
 export type FlowArtifactEdgeType = "input" | "argument" | "output";
 export type FlowArtifactEdge = {
   id: string;
+  artifact: string; // fk to ArtifactVersion.artifact.name@ArtifactVersion.version
   connection_type: FlowArtifactEdgeType;
   connection_name: string;
-  artifact: string; // fk to ArtifactVersion.artifact.name@ArtifactVersion.version
 };
 
 export type FlowNodeEdgeType = "input" | "argument"; // output is unnecessary because symmetry
 export type FlowNodeEdge = {
   id: string;
-
   dependent_nodes: string[]; // fk to FlowNode.id
   dependency_nodes: string[]; // fk to FlowNode.id
-
   connection_type: FlowNodeEdgeType;
   connection_name_dependent: string;
   connection_name_dependency: string;
