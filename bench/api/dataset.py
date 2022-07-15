@@ -45,6 +45,7 @@ class DatasetVersionSerializer(ArtifactVersionSerializer):
 
     class Meta(ArtifactVersionSerializer.Meta):
         model = DatasetVersion
+        # fields/read_only_fields same as super
 
     def validate(self, data):
         if len(data["parents"]) > 1:
@@ -85,14 +86,14 @@ class DatasetVersionViewSet(ArtifactVersionViewSet):
     serializer_class = DatasetVersionSerializer
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
-        # should also copy parent metadata here unless specified otherwise?
         instance: DatasetVersion = serializer.save(committed=False)
         parents: models.QuerySet[DatasetVersion] = proxies(instance.parents.all(), DatasetVersion)
         if parents:
             # this should be caught in DatasetVersionSerializer validation
             if len(parents) != 1:
-                raise ValueError("creating versions with multiple parents is not supported yet")
+                raise RuntimeError("creating versions with multiple parents is not supported yet")
 
+            # note: parent metadata is copied in ArtifactVersionViewSet.create prior to actual create
             # create a new version of the dataset state based on the parent
             # TODO @Architecture: creating new version logic should be elsewhere (DatasetAccessor?)
             #  because it is a shared concern and needs to drill down into (partial) sub-datasets.

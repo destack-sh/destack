@@ -11,9 +11,6 @@ export const useFlowsStore = defineStore("flows", {
     flow(): (name: string) => Flow | undefined {
       return (name: string) => this.flowsByName[name];
     },
-    flows(): Flow[] {
-      return this.flows;
-    },
     isHead(): (version: FlowVersion) => boolean | undefined {
       return (version: FlowVersion) => this.flow(version.flow)?.latest_version?.id == version.id;
     },

@@ -23,13 +23,16 @@ class ModelSerializer(ArtifactSerializer):
 
 
 class ModelVersionSerializer(ArtifactVersionSerializer):
-    artifact = serializers.SlugRelatedField(queryset=Model.objects.all(), slug_field="name")
-    parents = serializers.SlugRelatedField(
+    artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        queryset=Model.objects.all(), slug_field="name"
+    )
+    parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=ModelVersion.objects.all(), slug_field="version", many=True
     )
 
     class Meta(ArtifactVersionSerializer.Meta):
         model = ModelVersion
+        # fields/read_only_fields same as super
 
 
 class ModelViewSet(ArtifactViewSet):

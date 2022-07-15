@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import structlog
 from django.core.validators import RegexValidator
 from django.db import models
@@ -62,7 +64,6 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
             "artifact",
             "storage_uri",
             "metadata",
-            "content_hash",
             "committed",
         ]
         read_only_fields = ["id", "created_at", "parents", "version", "content_hash", "committed"]

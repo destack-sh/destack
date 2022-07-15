@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import secrets
 
 from django.db import models, transaction
@@ -54,15 +55,51 @@ class FlowVersion(UUIDModel, VersionedCommit):
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
 
-    indexes = [
-        models.Index(name="bench_flow_version_idx", fields=["version"]),
-    ]
-    constraints = [
-        models.UniqueConstraint(
-            name="bench_flow_version_flow_version_ak",
-            fields=["flow", "version"],
-        )
-    ]
+    def copy_from(self, parent: FlowVersion):
+        """Copies nodes and edges from a parent version"""
+
+        # TODO @Architecture: not sure if FlowVersion is the best place to manage versioning
+
+        # copy nodes
+        child_node_by_parent_node_id = {}
+        for parent_node in parent.nodes.all():
+            child_node = parent_node.shallow_copy(flow=self)
+            child_node_by_parent_node_id[parent_node.id] = child_node
+
+        # copy node edges
+        child_node_edges: list[FlowNodeEdge] = []
+        for parent_edge in parent.node_edges.all():
+            child_edge = parent_edge.shallow_copy(
+                flow=self,
+                dependent=child_node_by_parent_node_id[parent_edge.dependent_id],
+                dependency=child_node_by_parent_node_id[parent_edge.dependency_id],
+            )
+            child_node_edges.append(child_edge)
+
+        # copy artifact edges
+        child_artifact_edges: list[FlowArtifactEdge] = []
+        for parent_edge in parent.artifact_edges.all():
+            child_edge = parent_edge.shallow_copy(
+                flow=self,
+                dependent=child_node_by_parent_node_id[parent_edge.dependent_id],
+                dependency=parent_edge.dependency,
+            )
+            child_node_edges.append(child_edge)
+
+        FlowNode.objects.bulk_create(child_node_by_parent_node_id.values())
+        FlowNodeEdge.objects.bulk_create(child_node_edges)
+        FlowArtifactEdge.objects.bulk_create(child_artifact_edges)
+
+    class Meta:
+        indexes = [
+            models.Index(name="bench_flow_version_idx", fields=["version"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_flow_version_flow_version_ak",
+                fields=["flow", "version"],
+            )
+        ]
 
 
 class FlowNode(UUIDModel, VersionedBlob):
@@ -95,6 +132,23 @@ class FlowNode(UUIDModel, VersionedBlob):
     def is_committed(self) -> bool:
         return self.committed
 
+    def shallow_copy(self, **kwargs) -> FlowNode:
+        return FlowNode(
+            name=self.name,
+            created_at=self.created_at,
+            function_id=self.function_id,
+            config_arguments=copy.copy(self.config_arguments),
+            **kwargs,
+        )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_flow_version_name_ak",
+                fields=["flow", "name"],
+            )
+        ]
+
 
 class FlowNodeEdge(UUIDModel):
     """
@@ -106,11 +160,20 @@ class FlowNodeEdge(UUIDModel):
         Input = "input"
         # "Output" is unnecessary because flow node connections are asymmetric.
 
+    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="node_edges")
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name_dependent = models.CharField(max_length=64)
     connection_name_dependency = models.CharField(max_length=64)
     dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
     dependency = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
+
+    def shallow_copy(self, **kwargs) -> FlowNodeEdge:
+        return FlowNodeEdge(
+            connection_type=self.connection_type,
+            connection_name_dependent=self.connection_name_dependent,
+            connection_name_dependency=self.connection_name_dependency,
+            **kwargs,
+        )
 
 
 class FlowArtifactEdge(UUIDModel):
@@ -123,6 +186,7 @@ class FlowArtifactEdge(UUIDModel):
         Input = "input"
         Output = "output"
 
+    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="artifact_edges")
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64)
     dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE)

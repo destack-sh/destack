@@ -1,13 +1,22 @@
-from typing import List
+from __future__ import annotations
+
+from typing import List, Optional, Type, Union
 
 from django.urls import path
 from rest_framework.routers import BaseRouter
+from rest_framework.viewsets import ViewSetMixin
 from rest_framework_nested import routers
 
 from bench.api.artifact import ArtifactTagsViewSet, ArtifactVersionViewSet, ArtifactViewSet
 from bench.api.dataset import DatasetVersionViewSet, DatasetViewSet, RecordViewSet
 from bench.api.execution import ExecutionViewSet
-from bench.api.flow import FlowVersionViewSet, FlowViewSet
+from bench.api.flow import (
+    FlowArtifactEdgeViewSet,
+    FlowNodeEdgeViewSet,
+    FlowNodeViewSet,
+    FlowVersionViewSet,
+    FlowViewSet,
+)
 from bench.api.meta import list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
 
@@ -17,6 +26,24 @@ class ExtendedDefaultRouter(routers.DefaultRouter):
         super().__init__(*args, **kwargs)
         # make trailing slash optional
         self.trailing_slash = r"/?"
+        self.child_routers = []
+
+    def register_nested(
+        self, prefix: str, viewset: Type[ViewSetMixin], lookup: str
+    ) -> ExtendedNestedRouter:
+        self.register(prefix, viewset)
+        nested_router = ExtendedNestedRouter(self, parent_prefix=prefix, lookup=lookup)
+        self.child_routers.append(nested_router)
+        return nested_router
+
+    @property
+    def descendant_routers(self):
+        def _get_descendants(child_router: Union[ExtendedDefaultRouter, ExtendedNestedRouter]):
+            yield from child_router.child_routers
+            for grandchild_router in child_router.child_routers:
+                yield from _get_descendants(grandchild_router)
+
+        return list(_get_descendants(self))
 
 
 class ExtendedNestedRouter(routers.NestedSimpleRouter):
@@ -24,38 +51,53 @@ class ExtendedNestedRouter(routers.NestedSimpleRouter):
         super().__init__(*args, **kwargs)
         # make trailing slash optional
         self.trailing_slash = r"/?"
+        self.child_routers = []
+
+    def register(
+        self,
+        prefix: str,
+        viewset: Type[ViewSetMixin],
+        basename: Optional[str] = None,
+        base_name: Optional[str] = None,
+    ) -> None:
+        basename = basename or base_name or f"{self.parent_prefix}_{prefix}"
+        super().register(prefix, viewset, basename)
+
+    def register_nested(
+        self, prefix: str, viewset: Type[ViewSetMixin], lookup: str, basename: str = None
+    ) -> ExtendedNestedRouter:
+        basename = basename or f"{self.parent_prefix}_{prefix}"
+        self.register(prefix, viewset, basename)
+        nested_router = ExtendedNestedRouter(self, parent_prefix=prefix, lookup=lookup)
+        self.child_routers.append(nested_router)
+        return nested_router
 
 
 router = ExtendedDefaultRouter()
 router.register("executions", ExecutionViewSet)
 
-router.register("artifacts", ArtifactViewSet)
-artifacts_router = ExtendedNestedRouter(router, "artifacts", lookup="artifact")
-artifacts_router.register("versions", ArtifactVersionViewSet, basename="artifacts_versions")
-artifacts_router.register("tags", ArtifactTagsViewSet, basename="artifacts_tags")
+artifacts_router = router.register_nested("artifacts", ArtifactViewSet, lookup="artifact")
+artifacts_router.register("versions", ArtifactVersionViewSet)
+artifacts_router.register("tags", ArtifactTagsViewSet)
 
-router.register("datasets", DatasetViewSet)
-datasets_router = ExtendedNestedRouter(router, "datasets", lookup="artifact")
-datasets_router.register("versions", DatasetVersionViewSet, basename="datasets_versions")
-datasets_versions_router = ExtendedNestedRouter(datasets_router, "versions", lookup="version")
-datasets_versions_router.register("records", RecordViewSet, basename="datasets_versions_records")
+datasets_router = router.register_nested("datasets", DatasetViewSet, lookup="artifact")
+datasets_versions_router = datasets_router.register_nested(
+    "versions", DatasetVersionViewSet, lookup="version"
+)
+datasets_versions_router.register("records", RecordViewSet)
 
-router.register("models", ModelViewSet)
-models_router = ExtendedNestedRouter(router, "models", lookup="artifact")
-models_router.register("versions", ModelVersionViewSet, basename="models_versions")
+models_router = router.register_nested("models", ModelViewSet, lookup="artifact")
+models_router.register("versions", ModelVersionViewSet)
 
-router.register("flows", FlowViewSet)
-flows_router = ExtendedNestedRouter(router, "flows", lookup="flow")
-flows_router.register("flows", FlowVersionViewSet, basename="flows_versions")
+flows_router = router.register_nested("flows", FlowViewSet, lookup="flow")
+flows_versions_router = flows_router.register_nested(
+    "versions", FlowVersionViewSet, lookup="version"
+)
+flows_versions_router.register("nodes", FlowNodeViewSet)
+flows_versions_router.register("node_edges", FlowNodeEdgeViewSet)
+flows_versions_router.register("artifact_edges", FlowArtifactEdgeViewSet)
 
-api_routers: List[BaseRouter] = [
-    router,
-    artifacts_router,
-    datasets_router,
-    datasets_versions_router,
-    models_router,
-    flows_router,
-]
+api_routers: List[BaseRouter] = [router, *router.descendant_routers]
 api_patterns = [
     path("api/meta/models", list_model_handlers),
 ]

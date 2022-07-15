@@ -37,7 +37,7 @@ class VersionedObject(models.Model):
     Any object involved in versioning of a repository.
 
     Unlike in Git, objects may contain fields not related to their versioned state.
-    Immutability is a terminal state, but objects may be mutable before that.
+    Immutability is a terminal state, but objects may be mutable before to enable collaboration.
     """
 
     content_hash = models.BinaryField(max_length=32)
@@ -62,7 +62,7 @@ class VersionedObject(models.Model):
 
 class VersionedBlob(VersionedObject):
     """
-    An atomic and generally immutable piece of data.
+    An atomic and eventually immutable piece of data.
     """
 
     class Meta:
