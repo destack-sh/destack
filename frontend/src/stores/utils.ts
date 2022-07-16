@@ -1,9 +1,9 @@
-import { reactive, ref, watchEffect, type Ref } from "vue";
+import { ref, watchEffect, type Ref } from "vue";
 
 export type AsyncResult<T> = {
-  result: T | null;
-  error: any;
-  loading: boolean;
+  result: Ref<T | null>;
+  error: Ref<any>;
+  loading: Ref<boolean>;
 };
 
 export function computedAsync<T>(getter: () => Promise<T>): AsyncResult<T> {
@@ -25,5 +25,5 @@ export function computedAsync<T>(getter: () => Promise<T>): AsyncResult<T> {
     }
   });
 
-  return reactive({ result, error, loading });
+  return { result, error, loading };
 }

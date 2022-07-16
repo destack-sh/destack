@@ -1,5 +1,5 @@
 import { api } from "@/api";
-import type { Flow, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
+import type { Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
 import { defineStore } from "pinia";
 
 export const useFlowsStore = defineStore("flows", {
@@ -47,7 +47,7 @@ export const useFlowsStore = defineStore("flows", {
       flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">
     ): Promise<FlowNode> {
       return api
-        .post<FlowNode>(`/flows/${flow}/versions/${version}`, flowNode)
+        .post<FlowNode>(`/flows/${flow}/versions/${version}/nodes`, flowNode)
         .then((response) => response.data);
     },
     async createFlowNodeEdge(
@@ -57,6 +57,18 @@ export const useFlowsStore = defineStore("flows", {
     ): Promise<FlowNodeEdge> {
       return api
         .post<FlowNodeEdge>(`/flows/${flow}/versions/${version}/node_edges`, flowNodeEdge)
+        .then((response) => response.data);
+    },
+    async createFlowArtifactEdge(
+      flow: string,
+      version: string,
+      flowArtifactEdge: Omit<FlowArtifactEdge, "id">
+    ): Promise<FlowArtifactEdge> {
+      return api
+        .post<FlowArtifactEdge>(
+          `/flows/${flow}/versions/${version}/artifact_edges`,
+          flowArtifactEdge
+        )
         .then((response) => response.data);
     },
   },

@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
@@ -15,8 +15,8 @@ class NameVersionListingField(serializers.RelatedField):
     }
     parent_name_lookup: ClassVar[str]
 
-    def to_representation(self, value: FlowVersion):
-        return f"{value.flow.name}@{value.version}"
+    def to_representation(self, value: Any):
+        return f"{getattr(value, self.parent_name_lookup).name}@{value.version}"
 
     def to_internal_value(self, data) -> FlowVersion:
         queryset = self.get_queryset()

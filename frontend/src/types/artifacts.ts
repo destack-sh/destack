@@ -46,7 +46,7 @@ export type EmptyTemplate = {
   empty: boolean;
 };
 
-export function splitArtifactNameVersion(artifact: string): [string, string?] {
+export function splitNameVersion(artifact: string): [string, string?] {
   // assumes schema artifactName[@version]
   const parts = artifact.split("@");
   if (parts.length == 2) {
@@ -56,10 +56,11 @@ export function splitArtifactNameVersion(artifact: string): [string, string?] {
   }
 }
 
-export function mapArtifactNameVersion(
-  artifact: string,
-  defaultVersion = "HEAD"
-): [string, string] {
-  const [name, version] = splitArtifactNameVersion(artifact);
+export function toNameVersion(artifact: ArtifactVersion) {
+  return `${artifact.artifact}@${artifact.version}`;
+}
+
+export function mapNameVersion(artifact: string, defaultVersion = "HEAD"): [string, string] {
+  const [name, version] = splitNameVersion(artifact);
   return [name, version || defaultVersion];
 }

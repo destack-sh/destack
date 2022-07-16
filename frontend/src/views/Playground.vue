@@ -17,7 +17,7 @@
       <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
       </div>
-      <RecordForm v-model="modelInputRecord" :spec="modelInputSpec" />
+      <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" />
     </form>
 
     <!-- Select models -->
@@ -35,18 +35,22 @@
         </div>
       </div>
       <ul role="list" class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-        <li v-for="model in models" :key="model.name" class="col-span-1 flex rounded-md shadow-sm">
+        <li
+          v-for="modelNode in modelNodes"
+          :key="modelNode.name"
+          class="col-span-1 flex rounded-md shadow-sm"
+        >
           <div
             class="flex flex-1 items-center justify-between truncate rounded-r-md border-t border-b border-r border-gray-200 bg-white"
           >
             <div class="flex-1 truncate px-4 py-2 text-sm">
               <router-link
-                :to="'/models/' + model.artifact"
+                :to="'/models/' + modelForNode(modelNode)?.artifact"
                 class="font-medium text-gray-900 hover:text-gray-600"
-                >{{ model.artifact }}</router-link
+                >{{ modelForNode(modelNode)?.artifact }}</router-link
               >
               <p class="text-gray-500">
-                {{ artifactsStore.isHead(model) ? "HEAD" : model.version }}
+                {{ modelForNode(modelNode)?.version }}
               </p>
             </div>
             <!-- TODO @UI @Bug model menu is clipped by parent container  -->
@@ -80,7 +84,7 @@
                             active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
                             'block px-4 py-2 text-sm',
                           ]"
-                          @click="removeModel(model)"
+                          @click="removeModel(modelNode)"
                         >
                           Remove from playground
                         </button>
@@ -103,7 +107,7 @@
       <ExecutionsGrid :executions="executions" />
     </div>
   </Sidebar>
-  <ArtifactSelect ref="artifactSelect" @select="addModel" />
+  <ArtifactSelect ref="artifactSelect" @select="(model) => addModels([toNameVersion(model)])" />
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
@@ -111,64 +115,122 @@ import ArtifactSelect from "@/components/ArtifactSelect.vue";
 import ExecutionsGrid from "@/components/ExecutionsGrid.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
-import { useArtifactsStore, useFlowsStore } from "@/stores";
+import { useFlow } from "@/composables/useFlow";
+import { computedAsync, useArtifactsStore, useFlowsStore } from "@/stores";
 import {
-  mapArtifactNameVersion,
-  type Artifact,
+  mapNameVersion,
+  splitNameVersion,
+  toNameVersion,
   type ArtifactVersion,
   type Execution,
+  type FlowNode,
+  type FlowVersion,
   type LimitPaginatedResult,
   type RecordSpec,
   type ValueType,
 } from "@/types";
-import type { FlowVersion } from "@/types/flows";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { DateTime } from "luxon";
-import { computed, onMounted, ref, watchEffect, type PropType, type Ref } from "vue";
+import { computed, onMounted, ref, type PropType, type Ref } from "vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
 const flow: Ref<FlowVersion | null> = ref(null);
-
+const { createFlowNode, connectFlowNodes, connectFlowNodeArtifact, artifactEdges } = useFlow(flow);
 const flowStore = useFlowsStore();
+const artifactsStore = useArtifactsStore();
+
+const inputNode: Ref<FlowNode | null> = computed(
+  () => flow.value?.nodes?.find((node) => node.name == "input-0") || null
+);
+const modelNodes: Ref<FlowNode[]> = computed(
+  () => flow.value?.nodes?.filter((node) => node.function_id == "bench.model") || []
+);
+// models referenced by modelNodes
+const { result: modelsByNameVersion } = computedAsync(async () => {
+  const referencedModels: string[] = modelNodes.value
+    .map((node) => artifactEdges(node, "argument").pop()?.dependency)
+    .filter((model) => model != undefined) as string[];
+  const models = await Promise.all(
+    referencedModels.map((artifact) => artifactsStore.getVersion(...mapNameVersion(artifact)))
+  );
+  const modelsByNameVersion: Record<string, ArtifactVersion> = {};
+  models.forEach((model) => (modelsByNameVersion[toNameVersion(model)] = model));
+  return modelsByNameVersion;
+});
+
+function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
+  const referencedModel = artifactEdges(modelNode, "argument").pop()?.dependency;
+  return (modelsByNameVersion.value || {})[referencedModel || ""];
+}
+
+async function addModels(models: string[]) {
+  // create model nodes and connections to main input & models for models
+  const modelNodes = await Promise.all(
+    models.map((model) =>
+      createFlowNode({
+        name: `model-${splitNameVersion(model)[0]}`,
+        function_id: "bench.model",
+      })
+    )
+  );
+
+  // resolve to actual models (versions) instances to get real version reference to use
+  models = models.map((model) => {
+    let [name, version] = splitNameVersion(model);
+    // TODO @Feature handle tags other than HEAD in added models to flow
+    if (version == "HEAD") {
+      version = artifactsStore.artifact(name)?.latest_version?.version;
+    }
+    return `${name}@${version}`;
+  });
+  // create connections to models
+  await Promise.all(
+    modelNodes.map((modelNode, i) => connectFlowNodeArtifact(modelNode, models[i], "argument"))
+  );
+
+  return modelNodes;
+}
+
+async function removeModel(modelNode: FlowNode) {
+  throw new Error("not yet implemented: removeModel");
+}
+
+async function setupPlayground(models: string[]) {
+  // create main input node
+  const inputNode = await createFlowNode({
+    name: "input-0",
+    function_id: "bench.identity",
+  });
+  const modelNodes = await addModels(models);
+  await connectFlowNodes(inputNode, modelNodes, "input");
+}
+
+// setup or recover playground
 onMounted(async () => {
-  const flowName = `playground-${DateTime.now().toISODate()}`;
-  // create or recover flow (could also recover from props)
-  var flowInstance = flowStore.flow(flowName);
+  const flowName = "playground-" + DateTime.now().toISODate();
+  // reload or create flow with version
+  let flowInstance = flowStore.flow(flowName);
   if (!flowInstance) {
     flowInstance = await flowStore.createFlow({ name: flowName });
   }
-  var flowVersion = flowInstance.latest_version;
-  if (flowVersion) {
-    // recover from existing flow
-  } else {
-    // create new basic flow
+  let flowVersion = flowInstance.latest_version;
+  if (!flowVersion) {
     flowVersion = await flowStore.createFlowVersion(flowName, {
       name: "Initial commit",
+      description: "Auto-generated.",
       parents: [],
     });
   }
+  flow.value = flowVersion;
+  setupPlayground(props.models || []);
 });
 
-const artifactsStore = useArtifactsStore();
-const models: Ref<ArtifactVersion[]> = ref([]);
-// (re-)initialize models if prop models changes
-watchEffect(async () => {
-  const modelsInstances = await Promise.all(
-    (props.models || [])
-      .map((model) => mapArtifactNameVersion(model))
-      .map(([artifactName, artifactVersion]) =>
-        artifactsStore.getVersionByTag(artifactName, artifactVersion)
-      )
-  );
-  models.value = modelsInstances;
-});
-
-// TODO @Feature: derive input spec from selected models
-const modelInputSpec: RecordSpec = {
+// TODO @Feature: derive input spec from selected models (or any other specs)
+const flowInputSpec: RecordSpec = {
   _type: "FieldSpec",
-  name: "Common model input spec",
+  name: "Common input spec",
   type: [
     {
       _type: "FieldSpec",
@@ -181,28 +243,15 @@ const modelInputSpec: RecordSpec = {
     },
   ],
 };
-const modelInputRecord = ref({});
+const flowInputRecord = ref({});
 
 const executions: Ref<Array<Execution>> = ref([]);
 
-watchEffect(() => models.value?.forEach((model) => fetchExecutions(model.id)));
-
-const canRun: Ref<boolean> = computed(() => (models.value?.length || 0) > 0);
+const canRun: Ref<boolean> = computed(() => flowInputRecord.value != {});
 
 function run() {
-  console.log("post to model", models.value, modelInputRecord);
-  models.value?.map((model) =>
-    api
-      .post<Record<string, any>>(
-        `/models/${model.artifact}/versions/${model.version}/predict`,
-        modelInputRecord.value
-      )
-      .then((result) => result.data)
-      .then((result) => {
-        executions.value = [result["execution"] as Execution, ...executions.value.slice(0, 9)];
-        fetchExecutions(model.id);
-      })
-  );
+  console.log("execute flow with input", flow.value, flowInputRecord);
+  // TODO @Feature: execute flow
 }
 
 function fetchExecutions(model?: string, flow?: string, limit = 10) {
@@ -210,21 +259,6 @@ function fetchExecutions(model?: string, flow?: string, limit = 10) {
     .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
-}
-
-async function addModel(model: Artifact) {
-  var modelVersion = model.latest_version;
-  if (!modelVersion) {
-    modelVersion = await artifactsStore.getVersionByTag(model.name, "HEAD");
-  }
-  const alreadyExists = models.value.find((version) => version.id == modelVersion?.id);
-  if (!alreadyExists) {
-    models.value.push(modelVersion);
-  }
-}
-
-function removeModel(model: ArtifactVersion) {
-  models.value = models.value.filter((m) => m.id != model.id);
 }
 
 const artifactSelect = ref(null);
