@@ -1,36 +1,15 @@
 import { useFlowsStore } from "@/stores";
-import type { FlowNode, FlowVersion, FlowNodeEdge, FlowArtifactEdge } from "@/types";
-import { type Ref, computed, ref, watchEffect } from "vue";
+import type { FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
+import { computed, type Ref } from "vue";
 
-export function useFlow(name: Ref<string>) {
+export function useFlow(flow: Ref<FlowVersion | null>) {
   const flowStore = useFlowsStore();
 
-  const flow: Ref<FlowVersion | null> = ref(null);
   const _flow: Ref<FlowVersion> = computed(() => {
     if (flow.value == null) {
       throw new Error("flow not yet initialized");
     }
     return flow.value;
-  });
-
-  // ensure flow = latest version of flow by name (create if needed)
-  watchEffect(async () => {
-    if (flow.value == null || flow.value.name != name.value) {
-      // reload or create flow with version
-      let flowInstance = flowStore.flow(name.value);
-      if (!flowInstance) {
-        flowInstance = await flowStore.createFlow({ name: name.value });
-      }
-      let flowVersion = flowInstance.latest_version;
-      if (!flowVersion) {
-        flowVersion = await flowStore.createFlowVersion(name.value, {
-          name: "Initial commit",
-          description: "Auto-generated.",
-          parents: [],
-        });
-      }
-      flow.value = flowVersion;
-    }
   });
 
   async function connectFlowNodes(
@@ -40,9 +19,9 @@ export function useFlow(name: Ref<string>) {
   ) {
     const nodeEdges = await Promise.all(
       dependentNodes.map((dependentNodes) =>
-        flowStore.createFlowNodeEdge(_flow.value.name, _flow.value.version, {
-          dependency_node: dependencyNode.id,
-          dependent_node: dependentNodes.id,
+        flowStore.createFlowNodeEdge(_flow.value.flow, _flow.value.version, {
+          dependency: dependencyNode.id,
+          dependent: dependentNodes.id,
           connection_name_dependency: "*",
           connection_name_dependent: "*",
           connection_type: connectionType,
@@ -56,10 +35,10 @@ export function useFlow(name: Ref<string>) {
     flowNode: FlowNode,
     artifact: string,
     connection_type: "input" | "argument",
-    connection_name: "*"
+    connection_name: "*" = "*"
   ) {
     return flowStore
-      .createFlowArtifactEdge(_flow.value.name, _flow.value.version, {
+      .createFlowArtifactEdge(_flow.value.flow, _flow.value.version, {
         dependent: flowNode.id,
         dependency: artifact,
         connection_type,
@@ -72,8 +51,16 @@ export function useFlow(name: Ref<string>) {
     flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">
   ) {
     return flowStore
-      .createFlowNode(_flow.value.name, _flow.value.version, flowNode)
+      .createFlowNode(_flow.value.flow, _flow.value.version, flowNode)
       .then(_addFlowNode);
+  }
+
+  function artifactEdges(node: FlowNode, type: "input" | "argument" | null): FlowArtifactEdge[] {
+    return (
+      flow.value?.artifact_edges?.filter(
+        (edge) => edge.dependent == node.id && (type == null || edge.connection_type == type)
+      ) || []
+    );
   }
 
   function _addFlowNode(node: FlowNode) {
@@ -100,5 +87,5 @@ export function useFlow(name: Ref<string>) {
     return artifactEdge;
   }
 
-  return { flow, createFlowNode, connectFlowNodes, connectFlowNodeArtifact };
+  return { createFlowNode, connectFlowNodes, connectFlowNodeArtifact, artifactEdges };
 }

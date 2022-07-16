@@ -1,3 +1,4 @@
+mapNameVersion
 <template>
   <div class="mt-8 flex flex-col">
     <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
@@ -60,7 +61,7 @@
 import { api } from "@/api";
 import { computedAsync, type AsyncResult } from "@/stores";
 import {
-  mapArtifactNameVersion,
+  mapNameVersion,
   type Execution,
   type FieldSpec,
   type LimitPaginatedResult,
@@ -79,7 +80,7 @@ const artifactColumns = computed(() => {
   return completedExecution == null
     ? []
     : completedExecution.connected_artifacts.map((connection) => {
-        const [dataset] = mapArtifactNameVersion(connection.artifact);
+        const [dataset] = mapNameVersion(connection.artifact);
         return {
           name: dataset,
           key: dataset,
@@ -97,7 +98,7 @@ const rows = computed(() =>
   props.executions.map((execution) => {
     const datasets: Record<string, AsyncResult<PaginatedDataset>> = execution.connected_artifacts
       .map((connection) => {
-        const [dataset, version] = mapArtifactNameVersion(connection.artifact);
+        const [dataset, version] = mapNameVersion(connection.artifact);
         // cache preview dataset, may be enough
         if (connection.dataset_preview) {
           cacheDataset(

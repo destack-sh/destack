@@ -34,11 +34,19 @@ class FlowSerializer(serializers.ModelSerializer):
             RegexValidator(regex=r"[\w.\-]+", message="Flow names must follow pattern [\\w.\\-]+"),
         ],
     )
+    latest_version = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Flow
-        fields = ["id", "name", "description", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "name", "description", "created_at", "latest_version"]
+        read_only_fields = ["id", "created_at", "latest_version"]
+
+    def get_latest_version(self, obj: Flow):
+        latest_version = obj.versions.all().order_by("-created_at").first()
+        if latest_version is not None:
+            return FlowVersionSerializer(latest_version).data
+        else:
+            return None
 
 
 class FlowNodeSerializer(serializers.ModelSerializer):
@@ -51,6 +59,7 @@ class FlowNodeSerializer(serializers.ModelSerializer):
 
 
 class FlowNodeEdgeSerializer(serializers.ModelSerializer):
+    flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
     dependent: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         queryset=FlowNode.objects.all()
     )
@@ -65,13 +74,14 @@ class FlowNodeEdgeSerializer(serializers.ModelSerializer):
 
 
 class FlowArtifactEdgeSerializer(serializers.ModelSerializer):
+    flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
     dependent: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         queryset=FlowNode.objects.all()
     )
     dependency = ArtifactVersionListingField(queryset=ArtifactVersion.objects.all())
 
     class Meta:
-        model = FlowNodeEdge
+        model = FlowArtifactEdge
         fields = "__all__"
         read_only_fields = ["id"]
 
