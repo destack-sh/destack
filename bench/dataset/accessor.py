@@ -85,5 +85,5 @@ def write_to_dataset(name: str, records: Union[Record, RecordBatch]) -> Artifact
     dataset = Dataset.objects.create_dataset_version(
         name=name, metadata=DatasetMetadata.default_db()
     )
-    write_to_dataset_version(dataset, records)
+    write_to_dataset_version(dataset, records, append=False)
     return dataset

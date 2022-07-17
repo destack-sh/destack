@@ -265,7 +265,11 @@ watch(
   flow,
   (flow, oldFlow) => {
     if (oldFlow == null || flow == null || flow?.id != oldFlow?.id) {
-      fetchExecutions(flow == null ? null : flow.id);
+      if (flow == null) {
+        executions.value = [];
+      } else {
+        fetchExecutions(flow == null ? null : flow.id);
+      }
     }
   },
   { immediate: true }
