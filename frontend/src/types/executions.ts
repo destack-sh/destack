@@ -10,9 +10,13 @@ export type ExecutionState =
   | "failed"
   | "completed";
 
+export function isTerminal(state: ExecutionState) {
+  return ["aborted", "failed", "completed"].includes(state);
+}
+
 export type Execution = {
   id: string;
-  type: string;
+  type: "flow" | "flow_node" | "model" | "job";
   created_at: string;
   started_at?: string;
   updated_at: string;
