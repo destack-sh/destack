@@ -30,7 +30,7 @@ export type ExecutionArtifactConnectionType = "input" | "output" | "argument";
 
 export type ExecutionArtifactConnection = {
   execution: string; // fk to Execution.id
-  artifact: string; // fk to ArtifactVersion.name@ArtifactVersion.version
+  artifact: string; // fk to ArtifactVersion.artifact.name@ArtifactVersion.version
   connection_type: ExecutionArtifactConnectionType;
   connection_name: string;
   dataset_preview?: LimitPaginatedResult<Record<string, any>>;

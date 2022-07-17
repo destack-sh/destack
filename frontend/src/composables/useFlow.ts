@@ -1,3 +1,4 @@
+import { api } from "@/api";
 import { useFlowsStore } from "@/stores";
 import type { FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
 import { computed, type Ref } from "vue";
@@ -55,6 +56,13 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
       .then(_addFlowNode);
   }
 
+  async function deleteFlowNode(flowNode: FlowNode) {
+    await api.delete(
+      `/flows/${_flow.value.flow}/versions/${_flow.value.version}/nodes/${flowNode.id}`
+    );
+    _flow.value.nodes = _flow.value.nodes?.filter((node) => node.id != flowNode.id) || [];
+  }
+
   function artifactEdges(node: FlowNode, type: "input" | "argument" | null): FlowArtifactEdge[] {
     return (
       flow.value?.artifact_edges?.filter(
@@ -87,5 +95,11 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     return artifactEdge;
   }
 
-  return { createFlowNode, connectFlowNodes, connectFlowNodeArtifact, artifactEdges };
+  return {
+    createFlowNode,
+    deleteFlowNode,
+    connectFlowNodes,
+    connectFlowNodeArtifact,
+    artifactEdges,
+  };
 }

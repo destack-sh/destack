@@ -96,9 +96,6 @@ import { useRouter } from "vue-router";
 const props = defineProps({ modelName: { type: String, required: true } });
 
 const artifactsStore = useArtifactsStore();
-const { result: versionsPaginated } = computedAsync(() =>
-  artifactsStore.getVersions(props.modelName)
-);
 const model = computed(() => artifactsStore.artifact(props.modelName));
 const latestMetadata = computed(() => {
   if (model.value?.latest_version == null) {
@@ -108,6 +105,9 @@ const latestMetadata = computed(() => {
   }
 });
 
+const { result: versionsPaginated } = computedAsync(() =>
+  artifactsStore.getVersions(props.modelName)
+);
 const versions = computed(() => versionsPaginated?.results);
 const latestVersionDtFromNow: Ref<string | null> = computed(() => {
   if (model.value?.latest_version == null) return null;

@@ -1,11 +1,11 @@
-from itertools import chain
-from typing import Mapping
+from collections import defaultdict
 from uuid import UUID
 
 from django.core.validators import RegexValidator
 from django.db import models
 from rest_framework import serializers, validators, viewsets
 from rest_framework.decorators import action
+from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -21,6 +21,7 @@ from bench.models.utils import MAX_NAME_LENGTH
 # ========================
 # General Flow serializers
 # ========================
+from bench.utils.func import get_first
 
 
 class FlowSerializer(serializers.ModelSerializer):
@@ -56,6 +57,11 @@ class FlowNodeSerializer(serializers.ModelSerializer):
         model = FlowNode
         fields = ["id", "flow", "name", "created_at", "function_id", "config_arguments"]
         read_only_fields = ["id", "created_at", "committed"]
+        validators = [
+            validators.UniqueTogetherValidator(
+                queryset=FlowNode.objects.all(), fields=["flow", "name"]
+            )
+        ]
 
 
 class FlowNodeEdgeSerializer(serializers.ModelSerializer):
@@ -134,56 +140,30 @@ FLOW_NODE_INPUT_KEYS: set[str] = {"records", "artifacts"}
 
 
 class FlowNodeArgumentDataSerializer(serializers.Serializer):
-    def __init__(self, allowed_keys: set[str], **kwargs):
-        self.allowed_keys = allowed_keys
-        super().__init__(**kwargs)
-
+    type = serializers.ChoiceField(choices=["input", "argument"])
+    node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+        queryset=FlowNode.objects.all()
+    )
     name = serializers.CharField()
-    # plain records or existing artifact (version) reference
+    # actual argument is union of either another node, an existing artifact or ad-hoc records
     other_node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         queryset=FlowNode.objects.all(), required=False
     )
+    artifact = ArtifactVersionListingField(queryset=ArtifactVersion.objects.all(), required=False)
     records = serializers.JSONField(required=False)
-    artifact: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=ArtifactVersion.objects.all(), required=False
-    )
 
     def validate(self, data):
-        num_specified = sum(1 if key in data else 0 for key in self.allowed_keys)
+        allowed_keys = ["other_node", "artifact", "records"]
+        num_specified = sum(1 if key in data else 0 for key in allowed_keys)
         if num_specified != 1:
             raise serializers.ValidationError(
-                f"must specify exactly one of data keys: {self.allowed_keys}"
+                f"must specify exactly one of data keys: {allowed_keys}"
             )
-
-
-class FlowNodeInputsSerializer(serializers.Serializer):
-    node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all()
-    )
-    inputs = FlowNodeArgumentDataSerializer(many=True, allowed_keys=FLOW_NODE_INPUT_KEYS)
-
-
-class FlowNodeArgumentsSerializer(serializers.Serializer):
-    node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all()
-    )
-    arguments = FlowNodeArgumentDataSerializer(many=True, allowed_keys=FLOW_NODE_ARGUMENT_KEYS)
+        return data
 
 
 class FlowExecutionPlanSerializer(serializers.Serializer):
-    flow: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowVersion.objects.all()
-    )
-    inputs = FlowNodeArgumentsSerializer(many=True)
-    arguments = FlowNodeArgumentsSerializer(many=True)
-
-    def validate(self, data):
-        bad_arguments = filter(
-            lambda argument: argument.node.flow_id != data["flow"].id,
-            chain(data["inputs"], data["arguments"]),
-        )
-        if bad_arguments:
-            raise serializers.ValidationError("argument flow nodes refer to different flow")
+    arguments = serializers.DictField(child=FlowNodeArgumentDataSerializer(many=True))
 
 
 # ==========
@@ -227,42 +207,32 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
             instance.copy_from(parents[0])
 
     @action(methods=["POST"], detail=True)
-    def execute(self, request: Request, *args, **kwargs) -> Response:
-        serializer = FlowExecutionPlanSerializer(request.data)
+    def execute(self, request: Request, flow: str, version: str) -> Response:
+        flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
+
+        serializer = FlowExecutionPlanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # assemble inputs into dict form
-        inputs: dict[UUID, Mapping[str, FlowRawArgument]] = {}
-        for node_input in serializer.validated_data["inputs"]:
-            node_inputs: dict[str, FlowRawArgument] = {}
-            for input_data in node_input["inputs"]:
-                # use first non-null data given
-                node_inputs[input_data["name"]] = input_data.get(
-                    "records", input_data.get("artifact")
+        # assemble plan arguments into inputs/arguments dicts
+        inputs: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
+        arguments: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
+        for named_arguments in serializer.data["arguments"].values():
+            for named_argument in named_arguments:
+                value: FlowRawArgument = get_first(
+                    named_argument, ("other_node", "artifact", "records")
                 )
-            inputs[node_input["node"].id] = node_inputs
+                node: UUID = named_argument["node"]
+                name: str = named_argument["name"]
+                if named_argument["type"] == "input":
+                    inputs[node][name] = value
+                elif named_argument["type"] == "argument":
+                    arguments[node][name] = value
 
-        # assemble arguments into dict form
-        arguments: dict[UUID, Mapping[str, FlowRawArgument]] = {}
-        for node_argument in serializer.validated_data["arguments"]:
-            node_arguments: dict[str, FlowRawArgument] = {}
-            for argument_data in node_argument["arguments"]:
-                # use first non-null data given
-                node_arguments[argument_data["name"]] = argument_data.get(
-                    "other_node", argument_data.get("records", argument_data.get("artifact"))
-                )
-            arguments[node_argument["node"].id] = node_arguments
-
-        flow: FlowVersion = serializer.validated_data["flow"]
-        execution, outputs = executor.run_flow(
-            flow, inputs, arguments, options=FlowExecutionOptions.default()
+        execution, _ = executor.run_flow(
+            flow_instance, inputs, arguments, options=FlowExecutionOptions.default()
         )
         serialized_execution = ExecutionSerializer(execution).data
-        serialized_outputs: Mapping[UUID, Mapping[str, UUID]] = {
-            node_id: {name: artifact.id for name, artifact in artifacts.items()}
-            for node_id, artifacts in outputs.items()
-        }
-        return Response({"execution": serialized_execution, "outputs": serialized_outputs})
+        return Response(serialized_execution)
 
 
 class FlowNodeViewSet(viewsets.ModelViewSet):

@@ -1,3 +1,4 @@
+FlowExecutionPlan
 <template>
   <Sidebar>
     <div class="mx-auto max-w-7xl px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
@@ -5,8 +6,8 @@
       <button
         type="submit"
         class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-        @click.prevent="run"
-        :disabled="!canRun"
+        @click.prevent="execute"
+        :disabled="!canExecute"
       >
         Run
       </button>
@@ -107,7 +108,7 @@
       <ExecutionsGrid :executions="executions" />
     </div>
   </Sidebar>
-  <ArtifactSelect ref="artifactSelect" @select="(model) => addModels([toNameVersion(model)])" />
+  <ArtifactSelect ref="artifactSelect" @select="(model) => addModels([`${model.name}@HEAD`])" />
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
@@ -123,6 +124,7 @@ import {
   toNameVersion,
   type ArtifactVersion,
   type Execution,
+  type FlowExecutionPlan,
   type FlowNode,
   type FlowVersion,
   type LimitPaginatedResult,
@@ -132,12 +134,13 @@ import {
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { DateTime } from "luxon";
-import { computed, onMounted, ref, type PropType, type Ref } from "vue";
+import { computed, onBeforeMount, ref, type PropType, type Ref } from "vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
 const flow: Ref<FlowVersion | null> = ref(null);
-const { createFlowNode, connectFlowNodes, connectFlowNodeArtifact, artifactEdges } = useFlow(flow);
+const { createFlowNode, deleteFlowNode, connectFlowNodes, connectFlowNodeArtifact, artifactEdges } =
+  useFlow(flow);
 const flowStore = useFlowsStore();
 const artifactsStore = useArtifactsStore();
 
@@ -148,24 +151,33 @@ const modelNodes: Ref<FlowNode[]> = computed(
   () => flow.value?.nodes?.filter((node) => node.function_id == "bench.model") || []
 );
 // models referenced by modelNodes
-const { result: modelsByNameVersion } = computedAsync(async () => {
+const { result: usedModelsByNV } = computedAsync(async () => {
   const referencedModels: string[] = modelNodes.value
     .map((node) => artifactEdges(node, "argument").pop()?.dependency)
     .filter((model) => model != undefined) as string[];
   const models = await Promise.all(
     referencedModels.map((artifact) => artifactsStore.getVersion(...mapNameVersion(artifact)))
   );
-  const modelsByNameVersion: Record<string, ArtifactVersion> = {};
-  models.forEach((model) => (modelsByNameVersion[toNameVersion(model)] = model));
-  return modelsByNameVersion;
+  const modelsByNV: Record<string, ArtifactVersion> = {};
+  models.forEach((model) => (modelsByNV[toNameVersion(model)] = model));
+  return modelsByNV;
 });
 
 function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
   const referencedModel = artifactEdges(modelNode, "argument").pop()?.dependency;
-  return (modelsByNameVersion.value || {})[referencedModel || ""];
+  return (usedModelsByNV.value || {})[referencedModel || ""];
 }
 
 async function addModels(models: string[]) {
+  // filter models that already exist (are referenced in modelsByNameVersion)
+  // TODO @Cleanup: guard against models already exist when user adds model?
+  // if (usedModelsByNV.value != null) {
+  //   models = models.filter((model) => usedModelsByNV.value[model] != null);
+  //   if (models.length == 0) {
+  //     return;
+  //   }
+  // }
+
   // create model nodes and connections to main input & models for models
   const modelNodes = await Promise.all(
     models.map((model) =>
@@ -194,7 +206,7 @@ async function addModels(models: string[]) {
 }
 
 async function removeModel(modelNode: FlowNode) {
-  throw new Error("not yet implemented: removeModel");
+  await deleteFlowNode(modelNode);
 }
 
 async function setupPlayground(models: string[]) {
@@ -208,23 +220,23 @@ async function setupPlayground(models: string[]) {
 }
 
 // setup or recover playground
-onMounted(async () => {
+onBeforeMount(async () => {
   const flowName = "playground-" + DateTime.now().toISODate();
   // reload or create flow with version
   let flowInstance = flowStore.flow(flowName);
   if (!flowInstance) {
     flowInstance = await flowStore.createFlow({ name: flowName });
   }
-  let flowVersion = flowInstance.latest_version;
-  if (!flowVersion) {
-    flowVersion = await flowStore.createFlowVersion(flowName, {
+  flow.value = flowInstance.latest_version || null;
+  if (!flow.value) {
+    // create and initialize
+    flow.value = await flowStore.createFlowVersion(flowName, {
       name: "Initial commit",
       description: "Auto-generated.",
       parents: [],
     });
+    setupPlayground(props.models || []);
   }
-  flow.value = flowVersion;
-  setupPlayground(props.models || []);
 });
 
 // TODO @Feature: derive input spec from selected models (or any other specs)
@@ -247,11 +259,30 @@ const flowInputRecord = ref({});
 
 const executions: Ref<Array<Execution>> = ref([]);
 
-const canRun: Ref<boolean> = computed(() => flowInputRecord.value != {});
+const canExecute: Ref<boolean> = computed(() => flowInputRecord.value != {});
 
-function run() {
+async function execute() {
+  if (flow.value == null || inputNode.value == null) {
+    throw new Error("cannot execute: flow is not initialized");
+  }
+
   console.log("execute flow with input", flow.value, flowInputRecord);
-  // TODO @Feature: execute flow
+  const plan: FlowExecutionPlan = {
+    arguments: {
+      [inputNode.value?.id]: [
+        {
+          type: "input",
+          node: inputNode.value.id,
+          name: "*",
+          records: [flowInputRecord.value],
+        },
+      ],
+    },
+  };
+  await api
+    .post<Execution>(`/flows/${flow.value.flow}/versions/${flow.value.version}/execute`, plan)
+    .then((response) => response.data)
+    .then((execution) => (executions.value = [execution, ...executions.value]));
 }
 
 function fetchExecutions(model?: string, flow?: string, limit = 10) {
