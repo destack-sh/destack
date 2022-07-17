@@ -30,14 +30,14 @@ mapNameVersion
                   <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
                 </td>
                 <td
-                  v-for="column in artifactColumns"
+                  v-for="column in datasetColumns"
                   :key="column.key"
                   :class="[
                     rowIdx !== rows.length - 1 ? 'border-b border-gray-200' : '',
                     'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
                   ]"
                 >
-                  <template v-if="row['datasets'][column.key]?.result != null">
+                  <template v-if="row['datasets'][column.key]?.result.value != null">
                     <RecordsPreview
                       :style="'preview'"
                       :fields="specFor(column.key)"
@@ -92,15 +92,27 @@ function getAllConnectedDatasets(execution: Execution): ExecutionArtifactConnect
   );
 }
 
-const artifactColumns = computed(() => {
+// trim execution artifact name to shortest unambiguous identifier for legibility
+function datasetToFriendlyName(execution: Execution, connection: ExecutionArtifactConnection) {
+  let [dataset] = mapNameVersion(connection.artifact);
+  if (execution.type == "flow") {
+    const [flowName, _] = mapNameVersion(execution.flow);
+    if (dataset.startsWith(flowName)) {
+      dataset = dataset.split(".", 2)[1];
+    }
+  }
+  return dataset;
+}
+
+const datasetColumns = computed(() => {
   // use "schema" of latest completed execution (for now)
-  const completedExecution = props.executions.find((execution) => execution.state == "completed");
-  return completedExecution == null
+  const schemaExecution = props.executions.find((execution) => execution.state == "completed");
+  return schemaExecution == null
     ? []
-    : getAllConnectedDatasets(completedExecution).map((connection) => {
+    : getAllConnectedDatasets(schemaExecution).map((connection) => {
         const [dataset] = mapNameVersion(connection.artifact);
         return {
-          name: dataset,
+          name: datasetToFriendlyName(schemaExecution, connection),
           key: dataset,
           connection: connection,
           artifact: connection.artifact,
@@ -111,7 +123,7 @@ const artifactColumns = computed(() => {
 type PaginatedDataset = LimitPaginatedResult<Record<string, any>>;
 
 const luxonToRelativeOptions: ToRelativeOptions = { locale: "en-US", style: "short" };
-const columns = computed(() => [{ name: "state" }, ...artifactColumns.value]);
+const columns = computed(() => [{ name: "state" }, ...datasetColumns.value]);
 const rows = computed(() =>
   props.executions.map((execution) => {
     const datasets: Record<string, AsyncResult<PaginatedDataset>> = getAllConnectedDatasets(
