@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import traceback
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TypeVar
 
 from django.db import models
@@ -99,7 +99,7 @@ class Execution(UUIDModel):
         """
         Marks this execution as started in the given state
         """
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.utcnow().astimezone(tz=timezone.utc)
         self.state = state
         self._set_transition_metadata(state, transition_metadata)
         self.save()
@@ -110,7 +110,7 @@ class Execution(UUIDModel):
         """
         Marks this execution as terminated in the given state
         """
-        self.terminated_at = datetime.utcnow()
+        self.terminated_at = datetime.utcnow().astimezone(tz=timezone.utc)
         self.state = state
         self._set_transition_metadata(state, transition_metadata)
         self.save()

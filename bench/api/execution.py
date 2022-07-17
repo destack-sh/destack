@@ -41,12 +41,16 @@ class ExecutionSerializer(serializers.ModelSerializer):
         read_only=True
     )
     model = ArtifactVersionListingField(read_only=True)
+    children = serializers.SerializerMethodField(read_only=True)
     connected_artifacts = ExecutionArtifactConnectionSerializer(many=True)
+
+    def get_children(self, data: Execution):
+        # specify children as method field because we need ExecutionSerializer (recursive)
+        return ExecutionSerializer(data.children, many=True).data  # type: ignore
 
     class Meta:
         model = Execution
-        fields = "__all__"
-        read_only_fields = [
+        fields = [
             "type",
             "created_at",
             "updated_at",
@@ -55,11 +59,13 @@ class ExecutionSerializer(serializers.ModelSerializer):
             "state",
             "metadata",
             "parent",
+            "children",
             "flow",
             "flow_node",
             "model",
             "connected_artifacts",
         ]
+        read_only_fields = fields
         depth = 1
 
 
