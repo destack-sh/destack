@@ -35,7 +35,7 @@ export type FlowArtifactEdgeType = "input" | "argument" | "output";
 export type FlowArtifactEdge = {
   id: string;
   dependent: string; // fk to FlowNode.id
-  dependency: string; // fk to ArtifactVersion.artifact.name@ArtifactVersion.version
+  dependency: string; // fk to Artifact.name@ArtifactVersion.version
   connection_type: FlowArtifactEdgeType;
   connection_name: string;
 };
@@ -43,9 +43,27 @@ export type FlowArtifactEdge = {
 export type FlowNodeEdgeType = "input" | "argument"; // output is unnecessary because symmetry
 export type FlowNodeEdge = {
   id: string;
-  dependent_node: string; // fk to FlowNode.id
-  dependency_node: string; // fk to FlowNode.id
+  dependent: string; // fk to FlowNode.id
+  dependency: string; // fk to FlowNode.id
   connection_type: FlowNodeEdgeType;
   connection_name_dependent: string;
   connection_name_dependency: string;
+};
+
+export type FlowNodeExecutionArgument = {
+  type: "input" | "argument";
+  node: string; // fk to FlowNode.id;
+  name: string;
+  other_node?: string; // fk to FlowNode.id
+  artifact?: string; // fk to Artifact.name@ArtifactVersion.version
+  records?: any;
+};
+
+export type FlowExecutionOptions = {
+  blocking: boolean;
+};
+
+export type FlowExecutionPlan = {
+  arguments?: Record<string, FlowNodeExecutionArgument[]>; // key is FlowNode.id
+  options?: FlowExecutionOptions;
 };
