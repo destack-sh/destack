@@ -1,18 +1,11 @@
+from __future__ import annotations
+
 import abc
 import dataclasses
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
-from typing import (
-    Callable,
-    Dict,
-    Iterable,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Callable, Dict, Iterable, Mapping, Optional, Tuple, Union
 from uuid import UUID
 
 from django.db.models import QuerySet
@@ -45,15 +38,17 @@ FlowArgument = Union[ArtifactVersion]
 @dataclasses.dataclass
 class FlowExecutionOptions:
     blocking: bool
-    capture_intermediate: Set[FlowNodeEdge.ConnectionType]
+    capture_intermediate: list[FlowNodeEdge.ConnectionType] = dataclasses.field(
+        default_factory=list
+    )
 
     @staticmethod
     def default():
-        return FlowExecutionOptions(blocking=False, capture_intermediate=set())
+        return FlowExecutionOptions(blocking=False)
 
     @staticmethod
     def default_blocking():
-        return FlowExecutionOptions(blocking=True, capture_intermediate=set())
+        return FlowExecutionOptions(blocking=True)
 
 
 class Executor(abc.ABC):
@@ -98,7 +93,7 @@ class Executor(abc.ABC):
         inputs: Mapping[UUID, Mapping[str, FlowRawArgument]],
         arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
         options: FlowExecutionOptions,
-    ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
+    ) -> Tuple[FlowExecution, FlowExecutionPlan]:
         """
         Runs the given flow with the provided inputs and arguments to each node.
         This method is non-blocking and the returned execution object can be used to retrieve results.
@@ -214,7 +209,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
 def _make_node_connections(
     flow_name: str,
     nodes: Iterable[FlowNode],
-    captured_connection_types: set[FlowNodeEdge.ConnectionType],
+    captured_connection_types: list[FlowNodeEdge.ConnectionType],
 ):
     node_inputs: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)
     node_arguments: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)

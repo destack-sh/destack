@@ -77,6 +77,10 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     def __str__(self):
         return f"{self.artifact.name}/{self.version}"
 
+    @property
+    def name_version(self) -> str:
+        return f"{self.artifact.name}@{self.version}"
+
     class Meta:
         indexes = [
             models.Index(name="bench_artifact_version_idx", fields=["version"]),

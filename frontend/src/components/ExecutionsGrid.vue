@@ -60,13 +60,8 @@ mapNameVersion
 <script lang="ts" setup>
 import { api } from "@/api";
 import { computedAsync, type AsyncResult } from "@/stores";
-import {
-  mapNameVersion,
-  type Execution,
-  type FieldSpec,
-  type LimitPaginatedResult,
-  type ValueType,
-} from "@/types";
+import type { Execution, LimitPaginatedResult, FieldSpec, ValueType } from "@/types";
+import { mapNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
 import { computed } from "vue";
 import RecordsPreview from "./RecordsPreview.vue";

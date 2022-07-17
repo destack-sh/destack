@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import NamedTuple
 from uuid import UUID
 
 from django.core.validators import RegexValidator
@@ -9,6 +10,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework_dataclasses.serializers import DataclassSerializer, _strip_empty_sentinels
 
 from bench.api.execution import ExecutionSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
@@ -22,6 +24,7 @@ from bench.models.utils import MAX_NAME_LENGTH
 # General Flow serializers
 # ========================
 from bench.utils.func import get_first
+from bench.utils.record import RecordList
 
 
 class FlowSerializer(serializers.ModelSerializer):
@@ -146,14 +149,11 @@ class FlowNodeArgumentDataSerializer(serializers.Serializer):
     )
     name = serializers.CharField()
     # actual argument is union of either another node, an existing artifact or ad-hoc records
-    other_node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all(), required=False
-    )
     artifact = ArtifactVersionListingField(queryset=ArtifactVersion.objects.all(), required=False)
     records = serializers.JSONField(required=False)
 
     def validate(self, data):
-        allowed_keys = ["other_node", "artifact", "records"]
+        allowed_keys = ["artifact", "records"]
         num_specified = sum(1 if key in data else 0 for key in allowed_keys)
         if num_specified != 1:
             raise serializers.ValidationError(
@@ -162,8 +162,28 @@ class FlowNodeArgumentDataSerializer(serializers.Serializer):
         return data
 
 
-class FlowExecutionPlanSerializer(serializers.Serializer):
+class FlowExecutionOptionsSerializer(DataclassSerializer):
+    class Meta:
+        dataclass = FlowExecutionOptions
+
+
+class FlowExecutionRequest(NamedTuple):
+    arguments: dict[str, dict]
+    options: FlowExecutionOptions
+
+
+class FlowExecutionRequestSerializer(serializers.Serializer):
     arguments = serializers.DictField(child=FlowNodeArgumentDataSerializer(many=True))
+    options = FlowExecutionOptionsSerializer(required=False, default=FlowExecutionOptions.default)
+
+    def create(self, validated_data) -> FlowExecutionRequest:
+        # TODO @Cleanup: don't call private _strip_empty_sentinels on FlowExecutionOptionsSerializer
+        # For some reason this doesn't happen automatically, though it should according to
+        # DataclassSerializer.validated_data.. I'm probably missing something here, fix later.
+        return FlowExecutionRequest(
+            arguments=validated_data["arguments"],
+            options=_strip_empty_sentinels(validated_data["options"]),
+        )
 
 
 # ==========
@@ -210,27 +230,28 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
     def execute(self, request: Request, flow: str, version: str) -> Response:
         flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
 
-        serializer = FlowExecutionPlanSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        request_serializer = FlowExecutionRequestSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        exec_request: FlowExecutionRequest = request_serializer.save()
 
         # assemble plan arguments into inputs/arguments dicts
         inputs: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
         arguments: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
-        for named_arguments in serializer.data["arguments"].values():
+        for named_arguments in exec_request.arguments.values():
             for named_argument in named_arguments:
-                value: FlowRawArgument = get_first(
-                    named_argument, ("other_node", "artifact", "records")
-                )
-                node: UUID = named_argument["node"]
+                value = get_first(named_argument, ("artifact", "records"))
+                # convert record RecordBatch
+                if not isinstance(value, ArtifactVersion):
+                    value = RecordList(value)
+
+                node: FlowNode = named_argument["node"]
                 name: str = named_argument["name"]
                 if named_argument["type"] == "input":
-                    inputs[node][name] = value
+                    inputs[node.id][name] = value
                 elif named_argument["type"] == "argument":
-                    arguments[node][name] = value
+                    arguments[node.id][name] = value
 
-        execution, _ = executor.run_flow(
-            flow_instance, inputs, arguments, options=FlowExecutionOptions.default()
-        )
+        execution, _ = executor.run_flow(flow_instance, inputs, arguments, exec_request.options)
         serialized_execution = ExecutionSerializer(execution).data
         return Response(serialized_execution)
 

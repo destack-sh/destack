@@ -55,6 +55,10 @@ class FlowVersion(UUIDModel, VersionedCommit):
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
 
+    @property
+    def name_version(self) -> str:
+        return f"{self.flow.name}@{self.version}"
+
     def copy_from(self, parent: FlowVersion):
         """Copies nodes and edges from a parent version"""
 
@@ -126,7 +130,7 @@ class FlowNode(UUIDModel, VersionedBlob):
     controller = models.ForeignKey("Controller", on_delete=models.RESTRICT, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.flow.name}/{self.name or self.id}"
+        return f"{self.flow.name_version}/{self.name or self.id}"
 
     @property
     def is_committed(self) -> bool:
