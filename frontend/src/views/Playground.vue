@@ -300,7 +300,7 @@ async function execute() {
 
 function fetchExecutions(flow: string | null, limit = 10) {
   api
-    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { flow, limit } })
+    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { type: "flow", flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
 }

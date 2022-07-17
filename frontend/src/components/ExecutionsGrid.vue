@@ -41,7 +41,7 @@ mapNameVersion
                     <RecordsPreview
                       :style="'preview'"
                       :fields="specFor(column.key)"
-                      :records="row['datasets'][column.key]?.result['results']"
+                      :records="row['datasets'][column.key]?.result.value['results']"
                     />
                   </template>
                   <template v-else-if="row['datasets'][column.key]?.error">
@@ -60,7 +60,13 @@ mapNameVersion
 <script lang="ts" setup>
 import { api } from "@/api";
 import { computedAsync, type AsyncResult } from "@/stores";
-import type { Execution, LimitPaginatedResult, FieldSpec, ValueType } from "@/types";
+import type {
+  Execution,
+  ExecutionArtifactConnection,
+  FieldSpec,
+  LimitPaginatedResult,
+  ValueType,
+} from "@/types";
 import { mapNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
 import { computed } from "vue";
@@ -70,11 +76,28 @@ const props = defineProps<{
   executions: Array<Execution>;
 }>();
 
+function getAllConnectedArtifacts(execution: Execution): ExecutionArtifactConnection[] {
+  const connectedArtifacts = [...execution.connected_artifacts];
+  if (execution.children != null) {
+    for (const childExecution of execution.children) {
+      connectedArtifacts.push(...childExecution.connected_artifacts);
+    }
+  }
+  return connectedArtifacts;
+}
+
+function getAllConnectedDatasets(execution: Execution): ExecutionArtifactConnection[] {
+  return getAllConnectedArtifacts(execution).filter(
+    (connection) => connection.dataset_preview != null
+  );
+}
+
 const artifactColumns = computed(() => {
+  // use "schema" of latest completed execution (for now)
   const completedExecution = props.executions.find((execution) => execution.state == "completed");
   return completedExecution == null
     ? []
-    : completedExecution.connected_artifacts.map((connection) => {
+    : getAllConnectedDatasets(completedExecution).map((connection) => {
         const [dataset] = mapNameVersion(connection.artifact);
         return {
           name: dataset,
@@ -91,7 +114,9 @@ const luxonToRelativeOptions: ToRelativeOptions = { locale: "en-US", style: "sho
 const columns = computed(() => [{ name: "state" }, ...artifactColumns.value]);
 const rows = computed(() =>
   props.executions.map((execution) => {
-    const datasets: Record<string, AsyncResult<PaginatedDataset>> = execution.connected_artifacts
+    const datasets: Record<string, AsyncResult<PaginatedDataset>> = getAllConnectedDatasets(
+      execution
+    )
       .map((connection) => {
         const [dataset, version] = mapNameVersion(connection.artifact);
         // cache preview dataset, may be enough

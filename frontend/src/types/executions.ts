@@ -20,6 +20,7 @@ export type Execution = {
   state: ExecutionState;
   metadata: Record<string, any>;
   parent: string; // fk to Execution.parent
+  children: Execution[];
   flow: string; // fk to FlowVersion.id
   flow_node: string; // fk to FlowNode.id
   model: string; // fk as ModelVersion.name@ModelVersion.version
