@@ -36,7 +36,7 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     flowNode: FlowNode,
     artifact: string,
     connection_type: "input" | "argument",
-    connection_name: "*" = "*"
+    connection_name: string
   ) {
     return flowStore
       .createFlowArtifactEdge(_flow.value.flow, _flow.value.version, {

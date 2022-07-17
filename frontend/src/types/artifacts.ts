@@ -1,4 +1,4 @@
-import type { FieldSpec, ModelHandlerSpec } from "@/types/spec";
+import type { FieldSpec, FieldValuePrimitive, ModelHandlerSpec } from "@/types/spec";
 
 export type Artifact = {
   id: string;
@@ -31,7 +31,7 @@ export type DatasetMetadata = {
 
 export type ModelMetadata = {
   handler_id: string;
-  config_arguments: Record<string, any>;
+  config_arguments: Record<string, FieldValuePrimitive>;
   input_spec?: Record<string, FieldSpec>;
   output_spec?: Record<string, FieldSpec>;
 };
@@ -45,22 +45,3 @@ export type EmptyTemplate = {
   name: string;
   empty: boolean;
 };
-
-export function splitNameVersion(artifact: string): [string, string?] {
-  // assumes schema artifactName[@version]
-  const parts = artifact.split("@");
-  if (parts.length == 2) {
-    return [parts[0], parts[1]];
-  } else {
-    return [parts[0], undefined];
-  }
-}
-
-export function toNameVersion(artifact: ArtifactVersion) {
-  return `${artifact.artifact}@${artifact.version}`;
-}
-
-export function mapNameVersion(artifact: string, defaultVersion = "HEAD"): [string, string] {
-  const [name, version] = splitNameVersion(artifact);
-  return [name, version || defaultVersion];
-}

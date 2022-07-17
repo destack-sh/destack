@@ -118,23 +118,21 @@ import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { useFlow } from "@/composables/useFlow";
 import { computedAsync, useArtifactsStore, useFlowsStore } from "@/stores";
-import {
-  mapNameVersion,
-  splitNameVersion,
-  toNameVersion,
-  type ArtifactVersion,
-  type Execution,
-  type FlowExecutionPlan,
-  type FlowNode,
-  type FlowVersion,
-  type LimitPaginatedResult,
-  type RecordSpec,
-  type ValueType,
+import type {
+  ArtifactVersion,
+  Execution,
+  FlowExecutionPlan,
+  FlowNode,
+  FlowVersion,
+  LimitPaginatedResult,
+  RecordSpec,
+  ValueType,
 } from "@/types";
+import { mapNameVersion, splitNameVersion, toNameVersion } from "@/utils/versioning";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { DateTime } from "luxon";
-import { computed, onBeforeMount, ref, type PropType, type Ref } from "vue";
+import { computed, onBeforeMount, ref, watch, type PropType, type Ref } from "vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
@@ -199,7 +197,9 @@ async function addModels(models: string[]) {
   });
   // create connections to models
   await Promise.all(
-    modelNodes.map((modelNode, i) => connectFlowNodeArtifact(modelNode, models[i], "argument"))
+    modelNodes.map((modelNode, i) =>
+      connectFlowNodeArtifact(modelNode, models[i], "argument", "model")
+    )
   );
 
   return modelNodes;
@@ -257,9 +257,19 @@ const flowInputSpec: RecordSpec = {
 };
 const flowInputRecord = ref({});
 
+const canExecute: Ref<boolean> = computed(() => flowInputRecord.value != {});
 const executions: Ref<Array<Execution>> = ref([]);
 
-const canExecute: Ref<boolean> = computed(() => flowInputRecord.value != {});
+// fetch executions whenever the flow instance changes
+watch(
+  flow,
+  (flow, oldFlow) => {
+    if (oldFlow == null || flow == null || flow?.id != oldFlow?.id) {
+      fetchExecutions(flow == null ? null : flow.id);
+    }
+  },
+  { immediate: true }
+);
 
 async function execute() {
   if (flow.value == null || inputNode.value == null) {
@@ -278,6 +288,9 @@ async function execute() {
         },
       ],
     },
+    options: {
+      blocking: true,
+    },
   };
   await api
     .post<Execution>(`/flows/${flow.value.flow}/versions/${flow.value.version}/execute`, plan)
@@ -285,9 +298,9 @@ async function execute() {
     .then((execution) => (executions.value = [execution, ...executions.value]));
 }
 
-function fetchExecutions(model?: string, flow?: string, limit = 10) {
+function fetchExecutions(flow: string | null, limit = 10) {
   api
-    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { model, flow, limit } })
+    .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
 }

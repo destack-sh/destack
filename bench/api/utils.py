@@ -1,4 +1,4 @@
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Type, TypeVar, cast
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
@@ -40,3 +40,18 @@ class FlowVersionListingField(NameVersionListingField):
 
 class ArtifactVersionListingField(NameVersionListingField):
     parent_name_lookup = "artifact"
+
+
+T = TypeVar("T")
+
+
+def terrible_cast(cls: Type[T], obj) -> T:
+    """
+    Changes the actual class of an object.
+
+    For obvious reasons, use this with great caution. This can lead to subtle and annoying bugs,
+     but is also super convenient in rare circumstances.
+    """
+    # TODO @Robustness: don't do terrible casts
+    obj.__class__ = cls
+    return cast(T, obj)

@@ -54,7 +54,6 @@ export type FlowNodeExecutionArgument = {
   type: "input" | "argument";
   node: string; // fk to FlowNode.id;
   name: string;
-  other_node?: string; // fk to FlowNode.id
   artifact?: string; // fk to Artifact.name@ArtifactVersion.version
   records?: any;
 };

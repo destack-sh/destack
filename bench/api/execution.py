@@ -2,7 +2,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
-from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
+from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField, terrible_cast
 from bench.dataset.accessor import get_dataset_version_reader
 from bench.models import DatasetVersion, Execution
 from bench.models.execution import ExecutionArtifactConnection
@@ -16,10 +16,7 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
         if obj.artifact.artifact.type != "dataset":
             return None
 
-        dataset = obj.artifact
-        # TODO @Robustness:
-        # "cast" ArtifactVersion to DatasetVersion
-        dataset.__class__ = DatasetVersion
+        dataset = terrible_cast(DatasetVersion, obj.artifact)
 
         # TODO @Performance: configure execution connection records preview in api
         offset = 0
@@ -69,8 +66,8 @@ class ExecutionSerializer(serializers.ModelSerializer):
 class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Execution.objects.order_by("-created_at").all()
     serializer_class = ExecutionSerializer
-    filter_backends = [DjangoFilterBackend]
     pagination_class = LimitOffsetPagination
+    filter_backends = [DjangoFilterBackend]
     filterset_fields = [
         "type",
         "flow",

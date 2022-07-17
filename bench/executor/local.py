@@ -1,9 +1,14 @@
+from __future__ import annotations
+
+import threading
 from collections import defaultdict
+from queue import Queue
 from typing import Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
 import structlog
 
+from bench.api.utils import terrible_cast
 from bench.dataset.accessor import (
     get_dataset_version_handler,
     read_dataset_version,
@@ -13,6 +18,7 @@ from bench.dataset.accessor import (
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
     Executor,
+    FlowExecutionManifest,
     FlowExecutionOptions,
     FlowExecutionPlan,
     FlowRawArgument,
@@ -23,7 +29,7 @@ from bench.executor.base import (
 from bench.executor.utils import get_model_iid
 from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
-from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
+from bench.models import DatasetVersion, FlowExecution, ModelExecution
 from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
@@ -33,6 +39,23 @@ from bench.utils.record import Record, RecordBatch, RecordList
 logger = structlog.stdlib.get_logger()
 
 
+class LocalExecutorThread(threading.Thread):
+    def __init__(
+        self,
+        executor: LocalExecutor,
+        executions_queue: Queue[Tuple[FlowExecutionPlan, FlowExecutionManifest]],
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self._executions_queue = executions_queue
+        self._executor = executor
+
+    def run(self):
+        plan, manifest = self._executions_queue.get()
+        with manifest.execution.capture():
+            self._executor._do_execute(plan)
+
+
 class LocalExecutor(Executor):
     """
     A locally executed implementation of Executor without coordination or parallelism.
@@ -40,6 +63,10 @@ class LocalExecutor(Executor):
 
     def __init__(self):
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
+        self._executions_queue: Queue[Tuple[FlowExecutionPlan, FlowExecutionManifest]] = Queue()
+        self._executions_thread = LocalExecutorThread(self, self._executions_queue)
+        # TODO @Cleanup: move start thread out of LocalExecutor.__init__ (to Executor.start?)
+        self._executions_thread.start()
 
     def _get_model_handler(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
         model_iid = get_model_iid(model)
@@ -125,18 +152,18 @@ class LocalExecutor(Executor):
         inputs: Mapping[UUID, Mapping[str, FlowRawArgument]],
         arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
         options: FlowExecutionOptions,
-    ) -> Tuple[FlowExecution, Mapping[UUID, Mapping[str, ArtifactVersion]]]:
-        if not options.blocking:
-            # TODO @Performance: run_flow is always blocking
-            raise ValueError("non-blocking execution not supported")
-
+    ) -> Tuple[FlowExecution, FlowExecutionPlan]:
         plan = make_execution_plan(flow, inputs, arguments, options)
         manifest = manifest_execution(flow, plan)
 
-        with manifest.execution.capture():
-            self._do_execute(plan)
+        if options.blocking:
+            with manifest.execution.capture():
+                self._do_execute(plan)
+        else:
+            manifest.execution.update_state(state=FlowExecution.State.Queued)
+            self._executions_queue.put((plan, manifest))
 
-        return manifest.execution, plan.final_outputs
+        return manifest.execution, plan
 
     def _do_execute(self, plan: FlowExecutionPlan):
         # load functions with corresponding arguments
@@ -146,10 +173,10 @@ class LocalExecutor(Executor):
             artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
             for name, artifact_connection in plan.artifact_arguments.get(node.id, {}).items():
                 if artifact_connection.artifact_type == MODEL_TYPE:
-                    model = cast(ModelVersion, artifact_connection.artifact)
+                    model = terrible_cast(ModelVersion, artifact_connection.artifact)
                     artifact_arguments[name] = self._get_model_handler(model)
                 elif artifact_connection.artifact_type == DATASET_TYPE:
-                    dataset = cast(DatasetVersion, artifact_connection.artifact)
+                    dataset = terrible_cast(DatasetVersion, artifact_connection.artifact)
                     artifact_arguments[name] = self._get_dataset_handler(dataset)
                 else:
                     raise ValueError(f"unknown artifact type: {artifact_connection}")
