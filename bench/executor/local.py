@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import threading
+import uuid
 from collections import defaultdict
 from queue import Queue
 from typing import Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
 import structlog
+from django.db.models import Q
 
 from bench.api.utils import terrible_cast
 from bench.dataset.accessor import (
@@ -30,7 +32,7 @@ from bench.executor.utils import get_model_iid
 from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import DatasetVersion, FlowExecution, ModelExecution
-from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactConnection
+from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
@@ -51,11 +53,12 @@ class LocalExecutorThread(threading.Thread):
         self._executor = executor
 
     def run(self):
-        plan, manifest = self._executions_queue.get()
-        with manifest.execution.capture():
-            logger.info("execute_started", execution=manifest.execution)
-            self._executor._do_execute(plan)
-        logger.info("execute_terminated", execution=manifest.execution)
+        while True:
+            plan, manifest = self._executions_queue.get()
+            with manifest.execution.capture():
+                logger.info("execute_started", execution=manifest.execution)
+                self._executor._do_execute(plan)
+            logger.info("execute_terminated", execution=manifest.execution)
 
 
 class LocalExecutor(Executor):
@@ -64,11 +67,25 @@ class LocalExecutor(Executor):
     """
 
     def __init__(self):
+        self.executor_id = uuid.uuid4().hex
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
         self._executions_queue: Queue[Tuple[FlowExecutionPlan, FlowExecutionManifest]] = Queue()
         self._executions_thread = LocalExecutorThread(self, self._executions_queue)
         # TODO @Cleanup: move start thread out of LocalExecutor.__init__ (to Executor.start?)
         self._executions_thread.start()
+        self.mark_dead_queued_executions_failed()
+
+    def mark_dead_queued_executions_failed(self):
+        dead_executions = Execution.objects.filter(
+            Q(state=Execution.State.Queued.value)
+            & Q(metadata__queued__executor_type="local")
+            & ~Q(metadata__queued__executor_id=self.executor_id),
+        )
+        for execution in dead_executions:
+            logger.warning("mark_dead_queued_execution_failed", execution=execution)
+            execution.terminate(
+                state=Execution.State.Failed, transition_metadata={"message": "dead queue"}
+            )
 
     def _get_model_handler(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
         model_iid = get_model_iid(model)
@@ -167,7 +184,10 @@ class LocalExecutor(Executor):
                 self._do_execute(plan)
             logger.info("execute_terminated", execution=manifest.execution)
         else:
-            manifest.execution.update_state(state=FlowExecution.State.Queued)
+            manifest.execution.update_state(
+                state=FlowExecution.State.Queued,
+                transition_metadata={"executor_id": self.executor_id, "executor_type": "local"},
+            )
             self._executions_queue.put((plan, manifest))
 
         return manifest.execution, plan

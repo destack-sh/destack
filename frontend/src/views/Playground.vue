@@ -6,7 +6,7 @@ FlowExecutionPlan
       <button
         type="submit"
         class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-        @click.prevent="execute"
+        @click.prevent="updatedExecution"
         :disabled="!canExecute"
       >
         Run
@@ -118,21 +118,22 @@ import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { useFlow } from "@/composables/useFlow";
 import { computedAsync, useArtifactsStore, useFlowsStore } from "@/stores";
-import type {
-  ArtifactVersion,
-  Execution,
-  FlowExecutionPlan,
-  FlowNode,
-  FlowVersion,
-  LimitPaginatedResult,
-  RecordSpec,
-  ValueType,
+import {
+  isTerminal,
+  type ArtifactVersion,
+  type Execution,
+  type FlowExecutionPlan,
+  type FlowNode,
+  type FlowVersion,
+  type LimitPaginatedResult,
+  type RecordSpec,
+  type ValueType,
 } from "@/types";
 import { mapNameVersion, splitNameVersion, toNameVersion } from "@/utils/versioning";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
-import { DateTime } from "luxon";
-import { computed, onBeforeMount, ref, watch, type PropType, type Ref } from "vue";
+import { DateTime, Duration } from "luxon";
+import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type PropType, type Ref } from "vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
@@ -275,7 +276,7 @@ watch(
   { immediate: true }
 );
 
-async function execute() {
+async function updatedExecution() {
   if (flow.value == null || inputNode.value == null) {
     throw new Error("cannot execute: flow is not initialized");
   }
@@ -293,7 +294,7 @@ async function execute() {
       ],
     },
     options: {
-      blocking: true,
+      blocking: false,
     },
   };
   await api
@@ -302,11 +303,46 @@ async function execute() {
     .then((execution) => (executions.value = [execution, ...executions.value]));
 }
 
-function fetchExecutions(flow: string | null, limit = 10) {
+function fetchExecutions(flow: string, limit = 10) {
   api
     .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { type: "flow", flow, limit } })
     .then((result) => result.data)
     .then((result) => (executions.value = result.results));
+}
+
+const pollIntervalMillis = 200;
+const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
+onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
+
+async function pollUnterminatedExecutions(flow: string) {
+  const pendingExecutions = executions.value.filter((execution) => !isTerminal(execution.state));
+  if (pendingExecutions.length == 0) {
+    return;
+  }
+
+  console.log("poll " + pendingExecutions.length + " executions", pendingExecutions);
+  const updatedExecutions = await api
+    .get<LimitPaginatedResult<Execution>>(`/executions`, {
+      params: {
+        // TODO @Performance: filter for id__in when polling pending executions
+        //  Currently not doing this as it messes with django-filters somehow.
+        // id__in: pendingExecutions.map((execution) => execution.id),
+        updated_at__gt: DateTime.utc()
+          .minus(Duration.fromMillis(pollIntervalMillis))
+          .toISO({ includeOffset: false }),
+        type: "flow",
+        flow,
+        limit: pendingExecutions.length,
+      },
+    })
+    .then((response) => response.data.results);
+
+  // replace current executions with updated ones
+  updatedExecutions.forEach((updatedExecution) => {
+    const index = executions.value.findIndex((ex) => ex.id == updatedExecution.id);
+    executions.value[index] = updatedExecution;
+  });
+  console.log("updated executions", updatedExecutions);
 }
 
 const artifactSelect = ref(null);

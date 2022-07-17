@@ -1,3 +1,4 @@
+from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
@@ -51,6 +52,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Execution
         fields = [
+            "id",
             "type",
             "created_at",
             "updated_at",
@@ -69,20 +71,25 @@ class ExecutionSerializer(serializers.ModelSerializer):
         depth = 1
 
 
+class UUIDArrayFilter(filters.UUIDFilter):
+    def filter(self, qs, value):
+        if value is not None and not isinstance(value, list):
+            value = [value]
+        return super().filter(qs, value)
+
+
+class ExecutionFilter(filters.FilterSet):
+    id__in = UUIDArrayFilter(field_name="id", lookup_expr="in")
+    updated_at__gt = filters.DateTimeFilter(field_name="updated_at", lookup_expr="gt")
+
+    class Meta:
+        model = Execution
+        fields = ["id", "type", "flow", "flow_node", "model", "state", "parent"]
+
+
 class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Execution.objects.order_by("-created_at").all()
     serializer_class = ExecutionSerializer
     pagination_class = LimitOffsetPagination
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = [
-        "type",
-        "flow",
-        "flow_node",
-        "model",
-        "created_at",
-        "updated_at",
-        "started_at",
-        "terminated_at",
-        "state",
-        "parent",
-    ]
+    filterset_class = ExecutionFilter

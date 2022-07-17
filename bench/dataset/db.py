@@ -69,6 +69,7 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
     def extend(self, records: typing.Iterable[Record]):
         with transaction.atomic():
             db_records = [DbRecord(data=record) for record in records]
+            DbRecord.objects.bulk_create(db_records)
             append_records(self.root, db_records)
 
     def update(self, index: int, record: Record):
