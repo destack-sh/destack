@@ -53,7 +53,9 @@ class LocalExecutorThread(threading.Thread):
     def run(self):
         plan, manifest = self._executions_queue.get()
         with manifest.execution.capture():
+            logger.info("execute_started", execution=manifest.execution)
             self._executor._do_execute(plan)
+        logger.info("execute_terminated", execution=manifest.execution)
 
 
 class LocalExecutor(Executor):
@@ -153,12 +155,17 @@ class LocalExecutor(Executor):
         arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
         options: FlowExecutionOptions,
     ) -> Tuple[FlowExecution, FlowExecutionPlan]:
+        logger.debug("execute_planning")
         plan = make_execution_plan(flow, inputs, arguments, options)
+        logger.debug("execute_planned")
         manifest = manifest_execution(flow, plan)
+        logger.debug("execute_manifested", execution=manifest.execution)
 
         if options.blocking:
             with manifest.execution.capture():
+                logger.info("execute_started", execution=manifest.execution)
                 self._do_execute(plan)
+            logger.info("execute_terminated", execution=manifest.execution)
         else:
             manifest.execution.update_state(state=FlowExecution.State.Queued)
             self._executions_queue.put((plan, manifest))

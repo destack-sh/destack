@@ -25,9 +25,11 @@ mapNameVersion
                     'w-4 whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
                   ]"
                 >
-                  {{ row["state"] }}
-                  <br />
-                  <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
+                  <div class="inline-flex flex-col">
+                    {{ row["state"] }}
+                    <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
+                    <span class="font-normal text-gray-700">{{ row["duration"] }}</span>
+                  </div>
                 </td>
                 <td
                   v-for="column in datasetColumns"
@@ -155,10 +157,9 @@ const rows = computed(() =>
         : null,
       duration:
         execution.terminated_at && execution.started_at
-          ? DateTime.fromISO(execution.terminated_at).toRelative({
-              base: DateTime.fromISO(execution.started_at),
-              ...luxonToRelativeOptions,
-            })
+          ? DateTime.fromISO(execution.terminated_at)
+              .diff(DateTime.fromISO(execution.started_at))
+              .toMillis() + "ms"
           : null,
       datasets: datasets,
     };

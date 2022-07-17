@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import time
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
 from typing import Callable, Dict, Iterable, Mapping, Optional, Tuple, Union
 from uuid import UUID
 
+import structlog
 from django.db.models import QuerySet
 
 from bench.dataset.accessor import write_to_dataset
@@ -21,12 +23,17 @@ from bench.models import (
     ModelExecution,
 )
 from bench.models.dataset import DatasetMetadata, DatasetVersion
-from bench.models.execution import DEFAULT_CONNECTION_NAME, ExecutionArtifactConnection
+from bench.models.execution import (
+    DEFAULT_CONNECTION_NAME,
+    FLOW_NODE_EXECUTION_TYPE,
+    ExecutionArtifactConnection,
+)
 from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
 
+logger = structlog.stdlib.get_logger()
 Resource = str
 ResourceRequirements = Dict[Resource, Union[int, float]]
 PerNodeResourceRequirements = Dict[UUIDT, ResourceRequirements]
@@ -237,10 +244,11 @@ def _make_node_connections(
 def _get_static_connections(nodes: Iterable[FlowNode]):
     static_inputs: dict[UUID, dict[str, ArtifactConnection]] = defaultdict(dict)
     static_arguments: dict[UUID, dict[str, ArtifactConnection]] = defaultdict(dict)
+    artifacts_dependencies: QuerySet[FlowArtifactEdge] = FlowArtifactEdge.objects.filter(
+        dependent__in=nodes
+    ).all()
     for node in nodes:
-        artifact_dependencies: QuerySet[FlowArtifactEdge] = FlowArtifactEdge.objects.filter(
-            dependent=node
-        )
+        artifact_dependencies = [art for art in artifacts_dependencies if art.dependent == node]
         for edge in artifact_dependencies:
             connection_type = ExecutionArtifactConnection.ConnectionType(edge.connection_type)
             connection = ArtifactConnection(
@@ -279,6 +287,7 @@ def make_execution_plan(
         lambda node_id, name: f"{flow.flow.name}.{nodes[node_id].name}.arguments.{name}",
         connection_type=ExecutionArtifactConnection.ConnectionType.Argument,
     )
+    logger.debug("execute_converted")
 
     # define node<->artifact connections (from given extra and defined in flow)
     static_arguments, static_inputs = _get_static_connections(nodes.values())
@@ -291,9 +300,11 @@ def make_execution_plan(
         nodes=nodes.values(),
         captured_connection_types=options.capture_intermediate,
     )
+    logger.debug("execute_nodes_connected")
 
     # define final outputs
     final_outputs = _make_final_outputs(flow, nodes.values())
+    logger.debug("execute_final_outputs_created")
 
     # define execution plan for data flow
     plan = FlowExecutionPlan(
@@ -314,19 +325,22 @@ def manifest_execution(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowExecut
 
     execution = FlowExecution.objects.create(flow=flow)
     node_executions: dict[UUID, FlowNodeExecution] = {}
+    new_connections: list[ExecutionArtifactConnection] = []
     for node in plan.nodes.values():
-        node_execution = FlowNodeExecution.objects.create(
-            flow=flow, flow_node=node, parent=execution
+        node_execution = FlowNodeExecution(
+            type=FLOW_NODE_EXECUTION_TYPE, flow=flow, flow_node=node, parent=execution
         )
 
         # static inputs
         for name, static_connection in plan.static(node_id=node.id):
-            node_execution.connected_artifacts.create(
+            connection = ExecutionArtifactConnection(
+                execution=node_execution,
                 connection_type=static_connection.type,
                 connection_name=name,
                 flow_artifact_edge=static_connection.edge,
                 artifact=static_connection.artifact,
             )
+            new_connections.append(connection)
 
         # inter-node connections
         for name, node_connection in plan.connected(node_id=node.id):
@@ -338,20 +352,29 @@ def manifest_execution(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowExecut
                 if node == node_connection.edge.dependency
                 else node_connection.edge.connection_type
             )
-            node_execution.connected_artifacts.create(
+            connections = ExecutionArtifactConnection(
+                execution=node_execution,
                 connection_type=connection_type,
                 connection_name=name,
                 artifact=node_connection.intermediate_artifact,
             )
+            new_connections.append(connections)
 
         # final outputs
         for name, artifact in plan.final_outputs.get(node.id, {}).items():
-            node_execution.connected_artifacts.create(
+            connection = ExecutionArtifactConnection(
+                execution=node_execution,
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
                 connection_name=name,
                 artifact=artifact,
             )
+            new_connections.append(connection)
         node_executions[node.id] = node_execution
+
+    start = time.time()
+    FlowNodeExecution.objects.bulk_create(node_executions.values())
+    ExecutionArtifactConnection.objects.bulk_create(new_connections)
+    logger.debug("execute_manifest_bulk_create", took=time.time() - start)
 
     manifest = FlowExecutionManifest(execution=execution, node_executions=node_executions)
     return manifest

@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import NamedTuple
 from uuid import UUID
 
+import structlog
 from django.core.validators import RegexValidator
 from django.db import models
 from rest_framework import serializers, validators, viewsets
@@ -25,6 +26,8 @@ from bench.models.utils import MAX_NAME_LENGTH
 # ========================
 from bench.utils.func import get_first
 from bench.utils.record import RecordList
+
+logger = structlog.stdlib.get_logger()
 
 
 class FlowSerializer(serializers.ModelSerializer):
@@ -228,6 +231,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=True)
     def execute(self, request: Request, flow: str, version: str) -> Response:
+        logger.debug("execute_attempt")
         flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
 
         request_serializer = FlowExecutionRequestSerializer(data=request.data)

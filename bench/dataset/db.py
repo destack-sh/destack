@@ -12,6 +12,7 @@ from bench.models.record import (
     RecordTree,
     RecordTreeReference,
     append_record,
+    append_records,
     clear_record_tree,
     delete_record,
     get_record,
@@ -61,15 +62,14 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
         pass
 
     def append(self, record: Record):
-        # TODO @Performance: use content hashes to avoid creating duplicates
+        # TODO @Storage: use content hashes to avoid creating duplicates
         db_record = DbRecord(data=record)
         append_record(self.root, db_record)
 
     def extend(self, records: typing.Iterable[Record]):
-        # TODO @Performance: batch DbDataset.extend insert
         with transaction.atomic():
-            for record in records:
-                self.append(record)
+            db_records = [DbRecord(data=record) for record in records]
+            append_records(self.root, db_records)
 
     def update(self, index: int, record: Record):
         db_record = get_record(self.root, index)
