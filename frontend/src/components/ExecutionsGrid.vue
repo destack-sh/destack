@@ -61,6 +61,7 @@ mapNameVersion
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
+import { useNow } from "@/composables/useNow";
 import { computedAsync, type AsyncResult } from "@/stores";
 import type {
   Execution,
@@ -71,7 +72,7 @@ import type {
 } from "@/types";
 import { mapNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
-import { computed } from "vue";
+import { computed, onMounted, ref, type Ref } from "vue";
 import RecordsPreview from "./RecordsPreview.vue";
 
 const props = defineProps<{
@@ -124,8 +125,22 @@ const datasetColumns = computed(() => {
 
 type PaginatedDataset = LimitPaginatedResult<Record<string, any>>;
 
-const luxonToRelativeOptions: ToRelativeOptions = { locale: "en-US", style: "short" };
+const luxonToRelativeOptions: ToRelativeOptions = {
+  locale: "en-US",
+  style: "narrow",
+  unit: ["years", "months", "weeks", "days", "hours", "minutes"],
+};
 const columns = computed(() => [{ name: "state" }, ...datasetColumns.value]);
+
+const now = useNow();
+function getTimeFromNow(dt: DateTime): string | null {
+  if (now.value.diff(dt, "seconds").seconds < 60) {
+    return "just now";
+  } else {
+    return dt.toRelative({ ...luxonToRelativeOptions, base: now.value });
+  }
+}
+
 const rows = computed(() =>
   props.executions.map((execution) => {
     const datasets: Record<string, AsyncResult<PaginatedDataset>> = getAllConnectedDatasets(
@@ -149,12 +164,8 @@ const rows = computed(() =>
     return {
       id: execution.id,
       state: execution.state,
-      started: execution.started_at
-        ? DateTime.fromISO(execution.started_at).toRelative(luxonToRelativeOptions)
-        : null,
-      updated: execution.updated_at
-        ? DateTime.fromISO(execution.updated_at).toRelative(luxonToRelativeOptions)
-        : null,
+      started: execution.started_at ? getTimeFromNow(DateTime.fromISO(execution.started_at)) : null,
+      updated: execution.updated_at ? getTimeFromNow(DateTime.fromISO(execution.updated_at)) : null,
       duration:
         execution.terminated_at && execution.started_at
           ? DateTime.fromISO(execution.terminated_at)
