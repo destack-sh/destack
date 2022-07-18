@@ -9,6 +9,7 @@ from uuid import UUID
 
 import structlog
 from django.db.models import Q
+from more_itertools import flatten
 
 from bench.api.utils import terrible_cast
 from bench.dataset.accessor import (
@@ -73,18 +74,18 @@ class LocalExecutor(Executor):
         self._executions_thread = LocalExecutorThread(self, self._executions_queue)
         # TODO @Cleanup: move start thread out of LocalExecutor.__init__ (to Executor.start?)
         self._executions_thread.start()
-        self.mark_dead_queued_executions_failed()
+        self.mark_dead_executions_failed()
 
-    def mark_dead_queued_executions_failed(self):
+    def mark_dead_executions_failed(self):
         dead_executions = Execution.objects.filter(
-            Q(state=Execution.State.Queued.value)
+            Q(state__in=[state.value for state in Execution.PENDING_STATES])
             & Q(metadata__queued__executor_type="local")
             & ~Q(metadata__queued__executor_id=self.executor_id),
         )
         for execution in dead_executions:
             logger.warning("mark_dead_queued_execution_failed", execution=execution)
             execution.terminate(
-                state=Execution.State.Failed, transition_metadata={"message": "dead queue"}
+                state=Execution.State.Failed, transition_metadata={"message": "dead"}
             )
 
     def _get_model_handler(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
@@ -217,14 +218,14 @@ class LocalExecutor(Executor):
         # organise functions
         record_transforms: dict[UUID, RecordTransform] = {}
         metric_functions: dict[UUID, MetricFunction] = {}
-        for node_id, func in functions.items():
-            if isinstance(func, RecordTransform):
-                record_transforms[node_id] = func
-            elif isinstance(func, MetricFunction):
-                metric_functions[node_id] = func
+        for node_id, function in functions.items():
+            if isinstance(function, RecordTransform):
+                record_transforms[node_id] = function
+            elif isinstance(function, MetricFunction):
+                metric_functions[node_id] = function
             else:
                 # TODO @Feature: support all function types
-                raise ValueError(f"function is not supported at {node_id}: {func}")
+                raise ValueError(f"function is not supported at {node_id}: {function}")
 
         # start actual execution
         # keep track of not yet processed data by input node in `pending_data`
@@ -274,7 +275,7 @@ class LocalExecutor(Executor):
                     raise RuntimeError(f"unexpected function: {function}")
 
                 # write to next input nodes and intermediate output artifacts (if any)
-                for node_connection in plan.connected_inverse[node_id].values():
+                for node_connection in flatten(plan.connected_inverse[node_id].values()):
                     dependent_id = node_connection.edge.dependent.id
                     if dependent_id in visited_node_ids:
                         raise RuntimeError(f"cycle between {node_id} and {dependent_id}")

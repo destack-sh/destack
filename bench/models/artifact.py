@@ -75,7 +75,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
     metadata = models.JSONField()
 
     def __str__(self):
-        return f"{self.artifact.name}/{self.version}"
+        return self.name_version
 
     @property
     def name_version(self) -> str:

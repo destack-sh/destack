@@ -72,7 +72,7 @@ import type {
 } from "@/types";
 import { mapNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
-import { computed, onMounted, ref, type Ref } from "vue";
+import { computed } from "vue";
 import RecordsPreview from "./RecordsPreview.vue";
 
 const props = defineProps<{
