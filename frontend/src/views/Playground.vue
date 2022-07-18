@@ -108,7 +108,10 @@ FlowExecutionPlan
       <ExecutionsGrid :executions="executions" />
     </div>
   </Sidebar>
-  <ArtifactSelect ref="artifactSelect" @select="(model) => addModels([`${model.name}@HEAD`])" />
+  <ArtifactSelect
+    ref="artifactSelect"
+    @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])"
+  />
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
@@ -167,25 +170,18 @@ function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
   return (usedModelsByNV.value || {})[referencedModel || ""];
 }
 
-async function addModels(models: string[]) {
-  // filter models that already exist (are referenced in modelsByNameVersion)
-  // TODO @Cleanup: guard against models already exist when user adds model?
-  // if (usedModelsByNV.value != null) {
-  //   models = models.filter((model) => usedModelsByNV.value[model] != null);
-  //   if (models.length == 0) {
-  //     return;
-  //   }
-  // }
+async function addModelsAndConnectInput(models: string[]) {
+  if (inputNode.value == null) {
+    throw new Error("input not initialized");
+  }
 
-  // create model nodes and connections to main input & models for models
-  const modelNodes = await Promise.all(
-    models.map((model) =>
-      createFlowNode({
-        name: `model-${splitNameVersion(model)[0]}`,
-        function_id: "bench.model",
-      })
-    )
-  );
+  const modelNodes = await addModels(models);
+  await connectFlowNodes(inputNode.value, modelNodes, "input");
+}
+
+async function addModels(models: string[]) {
+  // TODO @Cleanup: guard against models already exist when user adds model?
+  //  Currently it will just error because the model name already exists.
 
   // resolve to actual models (versions) instances to get real version reference to use
   models = models.map((model) => {
@@ -196,6 +192,17 @@ async function addModels(models: string[]) {
     }
     return `${name}@${version}`;
   });
+
+  // create model nodes and connections to main input & models for models
+  const modelNodes = await Promise.all(
+    models.map((model) =>
+      createFlowNode({
+        name: `model-${model}`,
+        function_id: "bench.model",
+      })
+    )
+  );
+
   // create connections to models
   await Promise.all(
     modelNodes.map((modelNode, i) =>
@@ -320,15 +327,14 @@ async function pollUnterminatedExecutions(flow: string) {
     return;
   }
 
-  console.log("poll " + pendingExecutions.length + " executions", pendingExecutions);
   const updatedExecutions = await api
     .get<LimitPaginatedResult<Execution>>(`/executions`, {
       params: {
         // TODO @Performance: filter for id__in when polling pending executions
-        //  Currently not doing this as it messes with django-filters somehow.
+        //  Currently not doing this as it messes with django-filters array conversion somehow.
         // id__in: pendingExecutions.map((execution) => execution.id),
         updated_at__gt: DateTime.utc()
-          .minus(Duration.fromMillis(pollIntervalMillis))
+          .minus(Duration.fromMillis(pollIntervalMillis * 5))
           .toISO({ includeOffset: false }),
         type: "flow",
         flow,
@@ -342,7 +348,6 @@ async function pollUnterminatedExecutions(flow: string) {
     const index = executions.value.findIndex((ex) => ex.id == updatedExecution.id);
     executions.value[index] = updatedExecution;
   });
-  console.log("updated executions", updatedExecutions);
 }
 
 const artifactSelect = ref(null);

@@ -151,17 +151,17 @@ class FlowExecutionPlan:
 
     def connected(self, node_id: UUID) -> Iterable[Tuple[str, FlowNodeConnection]]:
         return chain(
-            self.node_inputs.get(node_id, {}).items(),
-            self.node_arguments.get(node_id, {}).items(),
-            self.connected_inverse.get(node_id, {}).items(),
+            self.node_inputs.get(node_id, {}).items(), self.node_arguments.get(node_id, {}).items()
         )
 
     @cached_property
-    def connected_inverse(self) -> Mapping[UUID, Mapping[str, FlowNodeConnection]]:
-        inverse: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)
+    def connected_inverse(self) -> Mapping[UUID, Mapping[str, list[FlowNodeConnection]]]:
+        inverse: dict[UUID, dict[str, list[FlowNodeConnection]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         for node_inputs in chain(self.node_inputs.values(), self.node_arguments.values()):
             for name, connection in node_inputs.items():
-                inverse[connection.edge.dependency.id][name] = connection
+                inverse[connection.edge.dependency.id][name].append(connection)
         return inverse
 
 

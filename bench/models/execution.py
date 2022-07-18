@@ -53,6 +53,9 @@ class Execution(UUIDModel):
         Failed = "failed"
         Completed = "completed"
 
+    TERMINAL_STATES = {State.Aborted, State.Failed, State.Completed}
+    PENDING_STATES = set(State) - TERMINAL_STATES
+
     type = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
