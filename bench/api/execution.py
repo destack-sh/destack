@@ -3,9 +3,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
+from bench.api.artifact import ArtifactViewSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.dataset.accessor import get_dataset_version_reader
 from bench.models import DatasetVersion, Execution
+from bench.models.dataset import DatasetViewData
 from bench.models.execution import ExecutionArtifactConnection
 from bench.utils.func import terrible_cast
 
@@ -13,18 +15,22 @@ from bench.utils.func import terrible_cast
 class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
     artifact = ArtifactVersionListingField(read_only=True)
     dataset_preview = serializers.SerializerMethodField(read_only=True)
+    view = ArtifactViewSerializer()
 
     def get_dataset_preview(self, obj: ExecutionArtifactConnection):
         if obj.artifact.artifact.type != "dataset":
             return None
 
         dataset = terrible_cast(DatasetVersion, obj.artifact)
+        view = DatasetViewData(**(obj.view_inline or {}))
 
-        # TODO @Performance: configure execution connection records preview in api
+        # TODO @Performance: enable configuring execution connection records preview via api
         offset = 0
         limit = 3
         reader = get_dataset_version_reader(dataset)
-        records = list(reader[offset : (offset + limit)])
+        start = view.apply(offset)
+        end = view.apply(offset + limit)
+        records = list(reader[start:end])
         return {
             "limit": limit,
             "count": len(reader),
@@ -34,7 +40,15 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExecutionArtifactConnection
-        fields = ["connection_type", "connection_name", "artifact", "dataset_preview"]
+        fields = [
+            "connection_type",
+            "connection_name",
+            "artifact",
+            "dataset_preview",
+            "view",
+            "view_inline",
+        ]
+        read_only_fields = fields
 
 
 class ExecutionSerializer(serializers.ModelSerializer):

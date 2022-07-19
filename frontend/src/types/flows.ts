@@ -1,3 +1,5 @@
+import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
+
 export type Flow = {
   id: string;
   name: string;
@@ -38,6 +40,8 @@ export type FlowArtifactEdge = {
   dependency: string; // fk to Artifact.name@ArtifactVersion.version
   connection_type: FlowArtifactEdgeType;
   connection_name: string;
+  view?: ArtifactView;
+  view_inline?: ArtifactViewData;
 };
 
 export type FlowNodeEdgeType = "input" | "argument"; // output is unnecessary because symmetry

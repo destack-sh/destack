@@ -56,10 +56,12 @@ class DatasetWriter(DatasetHandler, abc.ABC):
         pass
 
     # -- Modify data ---
-    def append(self, record: Record):
+    def append(self, record: Record) -> int:
+        """Appends the given record, returning its index"""
         raise NotImplementedError
 
-    def extend(self, records: Iterable[Record]):
+    def extend(self, records: Iterable[Record]) -> tuple[int, int]:
+        """Appends the given records, returning the start and end indices"""
         raise NotImplementedError
 
     def update(self, index: int, record: Record):

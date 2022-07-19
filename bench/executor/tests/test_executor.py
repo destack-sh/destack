@@ -170,8 +170,9 @@ def test_local_execute_dataset_flow(local_executor: LocalExecutor):
     swap_node_1: FlowNode = flow.nodes.create(
         function_id="bench.text.swap", name="swap_1", config_arguments={}
     )
-    dataset = write_to_dataset(
+    dataset, _ = write_to_dataset(
         "badword_replacements",
+        "0",
         RecordList(
             [
                 {"pattern": "fizz", "replacement": "buzz"},

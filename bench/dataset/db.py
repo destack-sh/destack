@@ -2,7 +2,7 @@ import typing
 from typing import Iterator, Optional, Union
 from uuid import UUID
 
-from django.db import connection, transaction
+from django.db import connection
 
 from bench.artifact.base import ArtifactVersionHandler
 from bench.dataset.base import DatasetReader, DatasetWriter, datasets
@@ -61,20 +61,19 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
         # nothing special needs to be done
         pass
 
-    def append(self, record: Record):
-        # TODO @Storage: use content hashes to avoid creating duplicates
-        db_record = DbRecord(data=record)
-        append_record(self.root, db_record)
+    def append(self, record: Record) -> int:
+        # TODO @Storage: use content hashes to avoid creating duplicates?
+        db_record = DbRecord.objects.create(data=record)
+        return append_record(self.root, db_record)
 
-    def extend(self, records: typing.Iterable[Record]):
-        with transaction.atomic():
-            db_records = [DbRecord(data=record) for record in records]
-            DbRecord.objects.bulk_create(db_records)
-            append_records(self.root, db_records)
+    def extend(self, records: typing.Iterable[Record]) -> tuple[int, int]:
+        db_records = [DbRecord(data=record) for record in records]
+        DbRecord.objects.bulk_create(db_records)
+        return append_records(self.root, db_records)
 
     def update(self, index: int, record: Record):
         db_record = get_record(self.root, index)
-        # TODO @Performance: use content hashes to avoid creating duplicates
+        # TODO @Storage: use content hashes to avoid creating duplicates?
         # "copy" record, replace data with new record data
         db_record.id = None
         db_record._state.adding = True

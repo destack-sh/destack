@@ -3,8 +3,9 @@ from __future__ import annotations
 import threading
 import uuid
 from collections import defaultdict
+from itertools import chain
 from queue import Queue
-from typing import Dict, Mapping, Optional, Tuple, Union, cast
+from typing import Dict, Iterable, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
 import structlog
@@ -19,19 +20,22 @@ from bench.dataset.accessor import (
 )
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
+    ArtifactConnection,
     Executor,
     FlowExecutionManifest,
     FlowExecutionOptions,
     FlowExecutionPlan,
+    FlowNodeConnection,
     FlowRawArgument,
     ResourceRequirements,
+    make_execution_manifest,
     make_execution_plan,
-    manifest_execution,
 )
 from bench.executor.utils import get_model_iid
 from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import DatasetVersion, FlowExecution, ModelExecution
+from bench.models.dataset import DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
@@ -58,7 +62,7 @@ class LocalExecutorThread(threading.Thread):
             plan, manifest = self._executions_queue.get()
             with manifest.execution.capture():
                 logger.info("execute_started", execution=manifest.execution)
-                self._executor._do_execute(plan)
+                self._executor._do_execute(plan, manifest)
             logger.info("execute_terminated", execution=manifest.execution)
 
 
@@ -141,11 +145,12 @@ class LocalExecutor(Executor):
 
         with execution.capture(start=False):
             # record inputs
-            input_dataset = write_to_dataset(f"{model.artifact.name}.inputs", record)
+            input_dataset, view = write_to_dataset(f"{model.artifact.name}.inputs", "0", record)
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Input,
                 connection_name=DEFAULT_CONNECTION_NAME,
                 artifact=input_dataset,
+                view_inline=DatasetViewData.from_slice(view).asdict,
             )
 
             # run model
@@ -158,11 +163,12 @@ class LocalExecutor(Executor):
                 output = model_handler.predict(record)
 
             # record outputs
-            output_dataset = write_to_dataset(f"{model.artifact.name}.outputs", output)
+            output_dataset, view = write_to_dataset(f"{model.artifact.name}.outputs", "0", output)
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
                 connection_name=DEFAULT_CONNECTION_NAME,
                 artifact=output_dataset,
+                view_inline=DatasetViewData.from_slice(view).asdict,
             )
 
         return execution, output
@@ -177,13 +183,13 @@ class LocalExecutor(Executor):
         logger.debug("execute_planning")
         plan = make_execution_plan(flow, inputs, arguments, options)
         logger.debug("execute_planned")
-        manifest = manifest_execution(flow, plan)
+        manifest = make_execution_manifest(flow, plan)
         logger.debug("execute_manifested", execution=manifest.execution)
 
         if options.blocking:
             with manifest.execution.capture():
                 logger.info("execute_started", execution=manifest.execution)
-                self._do_execute(plan)
+                self._do_execute(plan, manifest)
             logger.info("execute_terminated", execution=manifest.execution)
         else:
             manifest.execution.update_state(
@@ -194,7 +200,7 @@ class LocalExecutor(Executor):
 
         return manifest.execution, plan
 
-    def _do_execute(self, plan: FlowExecutionPlan):
+    def _do_execute(self, plan: FlowExecutionPlan, manifest: FlowExecutionManifest):
         # load functions with corresponding arguments
         functions: dict[UUID, RecordFunction] = {}
         for node in plan.nodes.values():
@@ -230,13 +236,13 @@ class LocalExecutor(Executor):
 
         # start actual execution
         # keep track of not yet processed data by input node in `pending_data`
-        #  currently only supports one connection channel ("*")
         pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
         for node_id, named_inputs in plan.artifact_inputs.items():
             for input_key, artifact_connection in named_inputs.items():
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
                     pending_data[node_id][artifact_connection.name] = read_dataset_version(
-                        cast(DatasetVersion, artifact_connection.artifact)
+                        cast(DatasetVersion, artifact_connection.artifact),
+                        artifact_connection.view_data,
                     )
                 else:
                     raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
@@ -284,16 +290,22 @@ class LocalExecutor(Executor):
                     output_batch = output_batches[node_connection.dependent_name]
                     new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
                     if node_connection.intermediate_artifact is not None:
-                        write_to_dataset_version(
+                        view = write_to_dataset_version(
                             node_connection.intermediate_artifact, output_batch
                         )
+                        node_connection.view_inline = DatasetViewData.from_slice(view).asdict
 
                 # write to final outputs (if any)
-                for artifact in plan.final_outputs.get(node_id, {}).values():
-                    if artifact.artifact.type == DATASET_TYPE:
-                        write_to_dataset_version(cast(DatasetVersion, artifact), output_batch)
-                    else:
-                        raise ValueError(f"non-dataset artifacts not supported: {artifact}")
+                for artifact_connection in plan.final_outputs.get(node_id, {}).values():
+                    if artifact_connection.artifact_type != DATASET_TYPE:
+                        raise ValueError(
+                            f"non-dataset artifacts not supported: {artifact_connection}"
+                        )
+
+                    view = write_to_dataset_version(
+                        cast(DatasetVersion, artifact_connection.artifact), output_batch
+                    )
+                    artifact_connection.view_inline = DatasetViewData.from_slice(view).asdict
 
             # clear already processed nodes from pending and stop if everything is processed
             if len(new_pending_data) == 0:
@@ -301,3 +313,20 @@ class LocalExecutor(Executor):
             pending_data = new_pending_data
             new_pending_data = defaultdict(dict)
             iteration += 1
+
+        # update dynamic (node and final) connections with view data
+        dynamic_connections: Iterable[Union[FlowNodeConnection, ArtifactConnection]] = flatten(
+            connections.values()
+            for connections in chain(
+                plan.node_inputs.values(), plan.node_arguments.values(), plan.final_outputs.values()
+            )
+        )
+        for connection in dynamic_connections:
+            connection_id = cast(UUID, connection.manifested_id)
+            if connection_id is not None:  # only if dynamic connection is actually manifested
+                execution_connection = manifest.execution_connections[connection_id]
+                execution_connection.view_inline = connection.view_inline
+        if dynamic_connections:
+            ExecutionArtifactConnection.objects.bulk_update(
+                manifest.execution_connections.values(), ["view_inline"]
+            )

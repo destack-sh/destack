@@ -72,6 +72,7 @@ import type {
 } from "@/types";
 import { mapNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
+import qs from "qs";
 import { computed } from "vue";
 import RecordsPreview from "./RecordsPreview.vue";
 
@@ -153,11 +154,14 @@ const rows = computed(() =>
           cacheDataset(
             dataset,
             version,
+            connection.view?.data || connection.view_inline,
             connection.dataset_preview.limit,
             connection.dataset_preview
           );
         }
-        const result = computedAsync(() => readDataset(dataset, version));
+        const result = computedAsync(() =>
+          readDataset(dataset, version, connection.view?.data || connection.view_inline)
+        );
         return { dataset, result };
       })
       .reduce((previous, { dataset, result }) => ({ ...previous, [dataset]: result }), {});
@@ -195,13 +199,37 @@ function specFor(dataset: string): FieldSpec[] {
 // TODO @Robustness @Performance: consolidate and improve dataset/record fetching
 const cachedDatasets: Record<string, PaginatedDataset> = {};
 
-function cacheDataset(dataset: string, version: string, limit: number, result: PaginatedDataset) {
-  const recordsId = `${dataset}@${version}[:${limit}]`;
+function getRecordsId(
+  dataset: string,
+  version: string,
+  view_data: Record<string, any> | undefined,
+  limit: number
+): string {
+  if (view_data != null) {
+    return `${dataset}@${version}<${qs.stringify(view_data)}>[:${limit}]`;
+  } else {
+    return `${dataset}@${version}[:${limit}]`;
+  }
+}
+
+function cacheDataset(
+  dataset: string,
+  version: string,
+  view_data: Record<string, any> | undefined,
+  limit: number,
+  result: PaginatedDataset
+) {
+  const recordsId = getRecordsId(dataset, version, view_data, limit);
   cachedDatasets[recordsId] = result;
 }
 
-async function readDataset(dataset: string, version: string, limit = 3): Promise<PaginatedDataset> {
-  const recordsId = `${dataset}@${version}[:${limit}]`;
+async function readDataset(
+  dataset: string,
+  version: string,
+  view_data?: Record<string, any>,
+  limit = 3
+): Promise<PaginatedDataset> {
+  const recordsId = getRecordsId(dataset, version, view_data, limit);
   const cachedDataset = cachedDatasets[recordsId];
   if (cachedDataset != null) {
     return Promise.resolve(cachedDataset);
@@ -211,7 +239,7 @@ async function readDataset(dataset: string, version: string, limit = 3): Promise
   version = encodeURIComponent(version);
   return api
     .get<PaginatedDataset>(`/datasets/${dataset}/versions/${version}/records`, {
-      params: { limit },
+      params: { limit, ...view_data },
     })
     .then((response) => response.data)
     .then((dataset) => {

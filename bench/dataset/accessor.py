@@ -1,4 +1,6 @@
-from typing import Union
+from typing import Optional, Union
+
+import structlog.stdlib
 
 from bench.dataset.base import (
     DatasetHandler,
@@ -9,8 +11,10 @@ from bench.dataset.base import (
     load_dataset,
 )
 from bench.models import ArtifactVersion, Dataset, DatasetVersion
-from bench.models.dataset import DatasetMetadata
+from bench.models.dataset import DatasetMetadata, DatasetViewData
 from bench.utils.record import Record, RecordBatch, RecordList
+
+logger = structlog.stdlib.get_logger()
 
 
 class DatasetAccessor:
@@ -66,24 +70,31 @@ def records_to_batch(records: Union[Record, RecordBatch]) -> RecordBatch:
         return RecordList([records])
 
 
+def read_dataset_version(
+    version: DatasetVersion, view_data: Optional[DatasetViewData] = None
+) -> RecordBatch:
+    reader = get_dataset_version_reader(version)
+    if view_data is None:
+        return reader[0 : len(reader)]
+    else:
+        return reader[view_data.apply(0) : view_data.apply(len(reader))]
+
+
+def write_to_dataset(
+    name: str, version: str, records: Union[Record, RecordBatch], append=True
+) -> tuple[ArtifactVersion, tuple[int, int]]:
+    dataset = Dataset.objects.get_or_create_dataset_version(
+        name, version, metadata=DatasetMetadata.default_db()
+    )
+    view_slice = write_to_dataset_version(dataset, records, append=append)
+    return dataset, view_slice
+
+
 def write_to_dataset_version(
     version: DatasetVersion, records: Union[Record, RecordBatch], append: bool = True
-):
+) -> tuple[int, int]:
     writer = get_dataset_version_writer(version)
     if not append:
         writer.clear()
     batch = records_to_batch(records)
-    writer.extend(batch)
-
-
-def read_dataset_version(version: DatasetVersion) -> RecordBatch:
-    reader = get_dataset_version_reader(version)
-    return reader[0 : len(reader)]
-
-
-def write_to_dataset(name: str, records: Union[Record, RecordBatch]) -> ArtifactVersion:
-    dataset = Dataset.objects.create_dataset_version(
-        name=name, metadata=DatasetMetadata.default_db()
-    )
-    write_to_dataset_version(dataset, records, append=False)
-    return dataset
+    return writer.extend(batch)
