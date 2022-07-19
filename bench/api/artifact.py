@@ -10,6 +10,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bench.models import Artifact, ArtifactVersion
+from bench.models.artifact import ArtifactView
 from bench.models.utils import MAX_NAME_LENGTH
 
 logger = structlog.stdlib.get_logger()
@@ -67,6 +68,27 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
             "committed",
         ]
         read_only_fields = ["id", "created_at", "parents", "version", "content_hash", "committed"]
+
+
+class ArtifactViewSerializer(serializers.ModelSerializer):
+    artifact = serializers.SlugRelatedField(queryset=ArtifactView.objects.all(), slug_field="name")
+    compatible_versions = serializers.SlugRelatedField(
+        queryset=ArtifactVersion.objects.all(), slug_field="version", many=True
+    )
+
+    class Meta:
+        model = ArtifactView
+        fields = [
+            "id",
+            "created_at",
+            "type",
+            "artifact",
+            "compatible_versions",
+            "name",
+            "description",
+            "data",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class ArtifactViewSet(viewsets.ModelViewSet):

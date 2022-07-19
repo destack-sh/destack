@@ -51,6 +51,7 @@ class RecordTree(UUIDModel, VersionedTree):
     max_index = models.IntegerField(default=-1)
 
 
+# TODO @Storage: change RecordTreeReference.id from UUID to int
 class RecordTreeReference(UUIDModel):
     """
     A reference from a 'tree' to either a record or a subtree at a relative index.
@@ -108,6 +109,25 @@ def get_parent_tree(tree: RecordTree, index: int) -> Tuple[RecordTree, RecordTre
         return tree, reference
 
 
+def get_parent_trees(
+    tree: RecordTree, start: int, end: int
+) -> Tuple[RecordTree, list[RecordTreeReference]]:
+    """
+    Gets the immediate parent tree for the record at the index (relative to this tree)
+
+    Unlike get_parent_tree, this method does not currently deal with nested trees.
+    """
+
+    if start < 0 or end > tree.max_index:
+        raise LookupError(f"tree [0, {tree.max_index}] does not contain range [{start}:{end}]")
+    references: list[RecordTreeReference] = (
+        RecordTreeReference.objects.filter(tree=tree, index__gte=start)
+        .order_by("index")
+        .select_related("record")[: (end - start + 1)]
+    )
+    return tree, [ref.record for ref in references]
+
+
 def get_record(tree: RecordTree, index: int) -> Record:
     """
     Gets the Record at the given index within the tree
@@ -117,17 +137,15 @@ def get_record(tree: RecordTree, index: int) -> Record:
     return cast(Record, reference.record)
 
 
-def get_records_slice(tree: RecordTree, start: int, stop: int) -> list[Record]:
+def get_records_slice(tree: RecordTree, start: int, end: int) -> list[Record]:
     """
     Gets the Records in the given range within the tree
     TODO @Performance: optimise get_records_slice to remove redundant queries
     """
     # map start/stop to bounds
     start = max(start, 0)
-    stop = min(stop, tree.max_index + 1)
-    records = []
-    for i in range(start, stop):
-        records.append(get_record(tree, i))
+    end = min(end, tree.max_index)
+    _, records = get_parent_trees(tree, start, end)
     return records
 
 
@@ -142,20 +160,20 @@ def get_records_field(tree: RecordTree, field: str) -> list[FieldValue]:
     return field_values
 
 
-def append_record(tree: RecordTree, record: Record):
+def append_record(tree: RecordTree, record: Record) -> int:
     """
     Appends the given record to the "end" of the given tree.
     Changes are immediately persisted to the DB.
     """
     with transaction.atomic():
         insert_index = tree.max_index + 1
-        record.save()
         tree.references.create(index=insert_index, record=record)
         tree.max_index = insert_index
         tree.save()
+    return insert_index
 
 
-def append_records(tree: RecordTree, records: list[Record]):
+def append_records(tree: RecordTree, records: list[Record]) -> tuple[int, int]:
     """
     Appends the given records to the "end" of the given tree in order.
     Changes are immediately persisted to the DB.
@@ -165,11 +183,12 @@ def append_records(tree: RecordTree, records: list[Record]):
         references = []
         for i in range(0, len(records)):
             references.append(
-                RecordTreeReference(tree=tree, index=insert_offset + i, record=records[i])
+                RecordTreeReference(tree_id=tree.id, index=insert_offset + i, record=records[i])
             )
         RecordTreeReference.objects.bulk_create(references)
-        tree.max_index = insert_offset
+        tree.max_index = tree.max_index + len(records)
         tree.save()
+    return insert_offset, tree.max_index + 1
 
 
 def replace_record(tree: RecordTree, index: int, new_record: Record):
@@ -199,6 +218,8 @@ def clear_record_tree(tree: RecordTree):
     RecordTreeReference.objects.filter(tree=tree).delete()
     # TODO @Performance: gc only recently de-referenced records when deleting record tree
     gc_unused_records_all()
+    tree.max_index = -1
+    tree.save()
 
 
 def gc_unused_records_all():

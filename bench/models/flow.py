@@ -195,3 +195,5 @@ class FlowArtifactEdge(UUIDModel):
     connection_name = models.CharField(max_length=64)
     dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
     dependency = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)
+    view = models.ForeignKey("ArtifactView", on_delete=models.RESTRICT, null=True, blank=True)
+    view_inline = models.JSONField(null=True, blank=True)

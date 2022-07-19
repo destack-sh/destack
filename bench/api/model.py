@@ -55,4 +55,4 @@ class ModelVersionViewSet(ArtifactVersionViewSet):
             load_if_needed=True,
         )
         serialized_execution = ExecutionSerializer(execution).data
-        return Response({"execution": serialized_execution, "result": prediction})
+        return Response(serialized_execution)

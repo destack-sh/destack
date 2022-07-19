@@ -22,9 +22,20 @@ class DatasetManager(ArtifactManager):
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
-            dataset_version = DatasetVersion(artifact=dataset, metadata=metadata.to_dict())  # type: ignore
-            dataset_version.save()
-        return dataset_version
+            return DatasetVersion.objects.create(artifact=dataset, metadata=metadata.to_dict())  # type: ignore
+
+    def get_or_create_dataset_version(
+        self, name: str, version: str, metadata: DatasetMetadata
+    ) -> DatasetVersion:
+        """Creates dataset version and corresponding dataset if it doesn't exist"""
+        try:
+            return DatasetVersion.objects.get(artifact__name=name, version=version)
+        except DatasetVersion.DoesNotExist:
+            with transaction.atomic():
+                dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
+                return DatasetVersion.objects.create(
+                    artifact=dataset, version=version, metadata=metadata.to_dict()  # type: ignore
+                )
 
 
 class Dataset(Artifact):
@@ -90,15 +101,23 @@ class DatasetVersion(ArtifactVersion):
         proxy = True
 
 
+# TODO @Feature: support more complex dataset views (e.g. filters)
 @dataclass
 class DatasetViewData:
-    start: Optional[int]
-    end: Optional[int]
+    start: Optional[int] = None
+    end: Optional[int] = None
 
-    # TODO @Feature: support more complex dataset views (e.g. filters)
-    def apply(self, index: int) -> Optional[int]:
+    @property
+    def asdict(self) -> dict:
+        return dataclasses.asdict(self)
+
+    @staticmethod
+    def from_slice(slice: tuple[int, int]) -> DatasetViewData:
+        return DatasetViewData(start=slice[0], end=slice[1])
+
+    def apply(self, index: int) -> int:
         if self.start is not None:
             index += self.start
         if self.end is not None and index >= self.end:
-            return None
+            return self.end
         return index
