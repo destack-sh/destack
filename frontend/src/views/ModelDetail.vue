@@ -108,7 +108,6 @@ const latestMetadata = computed(() => {
 const { result: versionsPaginated } = computedAsync(() =>
   artifactsStore.getVersions(props.modelName)
 );
-const versions = computed(() => versionsPaginated?.results);
 const latestVersionDtFromNow: Ref<string | null> = computed(() => {
   if (model.value?.latest_version == null) return null;
   return DateTime.fromISO(model.value.latest_version.created_at).toRelative({ locale: "en-US" });
