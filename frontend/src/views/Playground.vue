@@ -276,7 +276,7 @@ watch(
       if (flow == null) {
         executions.value = [];
       } else {
-        fetchExecutions(flow == null ? null : flow.id);
+        fetchExecutions(flow.id);
       }
     }
   },
