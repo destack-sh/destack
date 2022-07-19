@@ -1,3 +1,4 @@
+import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
 import type { LimitPaginatedResult } from "@/types/utils";
 
 export type ExecutionState =
@@ -39,4 +40,6 @@ export type ExecutionArtifactConnection = {
   connection_type: ExecutionArtifactConnectionType;
   connection_name: string;
   dataset_preview?: LimitPaginatedResult<Record<string, any>>;
+  view?: ArtifactView;
+  view_inline?: ArtifactViewData;
 };

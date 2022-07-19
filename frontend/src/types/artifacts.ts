@@ -23,6 +23,22 @@ export type ArtifactVersion = {
   committed: boolean;
 };
 
+export type ArtifactViewData = {
+  type: string;
+};
+export type DatasetIndexSliceView = ArtifactViewData & {
+  start: number;
+  end: number;
+};
+
+export type ArtifactView = {
+  id: string;
+  type: string;
+  artifact: string; // fk to Artifact.name
+  compatible_versions?: string[]; // fk to ArtifactVersion.version
+  data: ArtifactViewData;
+};
+
 export type DatasetMetadata = {
   handler_id: string;
   config_arguments: Record<string, any>;
