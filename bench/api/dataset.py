@@ -7,6 +7,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination, _positive_int
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -21,7 +22,7 @@ from bench.artifact.base import ArtifactVersionHandler
 from bench.dataset.accessor import get_dataset_version_handler
 from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter
 from bench.models import Dataset, DatasetVersion, Record
-from bench.models.dataset import DatasetMetadata
+from bench.models.dataset import DatasetMetadata, DatasetViewData
 from bench.models.utils import DATASET_TYPE, proxies
 from tasks.synchronize import copy_dataset_version
 
@@ -136,16 +137,29 @@ class RecordViewSet(viewsets.GenericViewSet):
     serializer_class = RecordSerializer
     pagination_class = RecordPagination
 
+    @property
+    def view(self) -> DatasetViewData:
+        try:
+            return DatasetViewData(**self.request.data)
+        except ValueError as e:
+            raise ValidationError(f"invalid view: {e}")
+
+    def view_apply(self, index: int) -> int:
+        index = self.view.apply(index)
+        if index is None:
+            raise Http404()
+        return index
+
     def list(self, request: Request, artifact: str, version: str) -> Response:
-        reader = _get_dataset_reader(artifact, version)
+        dataset, reader = _get_dataset_reader(artifact, version)
         paginator = cast(RecordPagination, self.paginator)
         offset: int = paginator.get_offset(request)
         limit: int = cast(int, paginator.get_limit(request))
-        records = list(reader[offset : offset + limit])
+        records = list(reader[self.view_apply(offset) : self.view_apply(offset + limit)])
         return Response({"limit": limit, "offset": offset, "results": records})
 
     def create(self, request: Request, artifact: str, version: str) -> Response:
-        writer = _get_dataset_writer(artifact, version)
+        dataset, writer = _get_dataset_writer(artifact, version)
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         record = serializer.save()
@@ -155,8 +169,9 @@ class RecordViewSet(viewsets.GenericViewSet):
         return Response(record.data, status=status.HTTP_201_CREATED)
 
     def update(self, request: Request, index: str, artifact: str, version: str) -> Response:
-        index_int: int = _positive_int(index)
-        writer = _get_dataset_writer(artifact, version)
+        dataset, writer = _get_dataset_writer(artifact, version)
+        index_int: int = self.view_apply(_positive_int(index))
+
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
@@ -167,8 +182,8 @@ class RecordViewSet(viewsets.GenericViewSet):
         return Response(record)
 
     def retrieve(self, request: Request, index: str, artifact: str, version: str) -> Response:
-        index_int: int = _positive_int(index)
-        reader = _get_dataset_reader(artifact, version)
+        dataset, reader = _get_dataset_reader(artifact, version)
+        index_int: int = self.view_apply(_positive_int(index))
         try:
             record = reader[index_int]
         except LookupError:
@@ -176,10 +191,10 @@ class RecordViewSet(viewsets.GenericViewSet):
         return Response(record)
 
 
-def _get_dataset_reader(artifact: str, version: str) -> DatasetReader:
+def _get_dataset_reader(artifact: str, version: str) -> tuple[DatasetVersion, DatasetReader]:
     dataset_version = get_object_or_404(DatasetVersion, artifact__name=artifact, version=version)
     handler = _get_dataset_handler_by_instance(dataset_version)
-    return _to_dataset_reader(handler)
+    return dataset_version, _to_dataset_reader(handler)
 
 
 def _to_dataset_reader(handler: DatasetHandler) -> DatasetReader:
@@ -188,10 +203,10 @@ def _to_dataset_reader(handler: DatasetHandler) -> DatasetReader:
     return handler
 
 
-def _get_dataset_writer(artifact: str, version: str) -> DatasetWriter:
+def _get_dataset_writer(artifact: str, version: str) -> tuple[DatasetVersion, DatasetWriter]:
     dataset_version = get_object_or_404(DatasetVersion, artifact__name=artifact, version=version)
     handler = _get_dataset_handler_by_instance(dataset_version)
-    return _to_dataset_writer(handler)
+    return dataset_version, _to_dataset_writer(handler)
 
 
 def _to_dataset_writer(handler: DatasetHandler) -> DatasetWriter:

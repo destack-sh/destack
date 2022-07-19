@@ -257,6 +257,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
         execution, _ = executor.run_flow(flow_instance, inputs, arguments, exec_request.options)
         serialized_execution = ExecutionSerializer(execution).data
+        logger.info("execute_serialized")
         return Response(serialized_execution)
 
 

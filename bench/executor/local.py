@@ -11,7 +11,6 @@ import structlog
 from django.db.models import Q
 from more_itertools import flatten
 
-from bench.api.utils import terrible_cast
 from bench.dataset.accessor import (
     get_dataset_version_handler,
     read_dataset_version,
@@ -37,6 +36,7 @@ from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, Execution
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
+from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
 
 logger = structlog.stdlib.get_logger()
@@ -72,7 +72,8 @@ class LocalExecutor(Executor):
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
         self._executions_queue: Queue[Tuple[FlowExecutionPlan, FlowExecutionManifest]] = Queue()
         self._executions_thread = LocalExecutorThread(self, self._executions_queue)
-        # TODO @Cleanup: move start thread out of LocalExecutor.__init__ (to Executor.start?)
+
+    def start(self):
         self._executions_thread.start()
         self.mark_dead_executions_failed()
 

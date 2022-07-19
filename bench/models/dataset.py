@@ -3,13 +3,13 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from dataclasses_json import dataclass_json
 from django.db import transaction
 from django.db.models import QuerySet
 
-from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion, ArtifactView
+from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import DATASET_TYPE
 from bench.utils.spec import DatasetSpec, RecordSpec
 
@@ -90,10 +90,15 @@ class DatasetVersion(ArtifactVersion):
         proxy = True
 
 
-class DatasetView(ArtifactView):
-    """
-    A Dataset-specific thin proxy of ArtifactView exposing typed attributes.
-    """
+@dataclass
+class DatasetViewData:
+    start: Optional[int]
+    end: Optional[int]
 
-    class Meta:
-        proxy = True
+    # TODO @Feature: support more complex dataset views (e.g. filters)
+    def apply(self, index: int) -> Optional[int]:
+        if self.start is not None:
+            index += self.start
+        if self.end is not None and index >= self.end:
+            return None
+        return index

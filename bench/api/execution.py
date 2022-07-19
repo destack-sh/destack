@@ -3,10 +3,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
-from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField, terrible_cast
+from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.dataset.accessor import get_dataset_version_reader
 from bench.models import DatasetVersion, Execution
 from bench.models.execution import ExecutionArtifactConnection
+from bench.utils.func import terrible_cast
 
 
 class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):

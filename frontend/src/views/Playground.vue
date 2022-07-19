@@ -165,6 +165,10 @@ const { result: usedModelsByNV } = computedAsync(async () => {
   return modelsByNV;
 });
 
+function getNodeIndex(nodeName: string): number {
+  return flow.value?.nodes?.filter((node) => node.name.startsWith(nodeName)).length || 0;
+}
+
 function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
   const referencedModel = artifactEdges(modelNode, "argument").pop()?.dependency;
   return (usedModelsByNV.value || {})[referencedModel || ""];
@@ -195,12 +199,14 @@ async function addModels(models: string[]) {
 
   // create model nodes and connections to main input & models for models
   const modelNodes = await Promise.all(
-    models.map((model) =>
-      createFlowNode({
-        name: `model-${model}`,
-        function_id: "bench.model",
-      })
-    )
+    models
+      .map((model) => `model-${splitNameVersion(model)[0]}`)
+      .map((modelNodeName) =>
+        createFlowNode({
+          name: modelNodeName + "-" + getNodeIndex(modelNodeName),
+          function_id: "bench.model",
+        })
+      )
   );
 
   // create connections to models
@@ -220,7 +226,7 @@ async function removeModel(modelNode: FlowNode) {
 async function setupPlayground(models: string[]) {
   // create main input node
   const inputNode = await createFlowNode({
-    name: "input-0",
+    name: "input-" + getNodeIndex("input"),
     function_id: "bench.identity",
   });
   const modelNodes = await addModels(models);

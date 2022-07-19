@@ -201,6 +201,5 @@ class ExecutionArtifactConnection(UUIDModel):
         blank=True,
         related_name="execution_connections",
     )
-    # inlined ArtifactView if we don't want/need a full ArtifactView
-    view_type = models.CharField(null=True, blank=True, max_length=64)
-    view_data = models.JSONField(null=True, blank=True)
+    # inlined ArtifactView.data if we don't want/need a full ArtifactView
+    view_inline = models.JSONField(null=True, blank=True)
