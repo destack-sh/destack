@@ -6,7 +6,7 @@ FlowExecutionPlan
       <button
         type="submit"
         class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-        @click.prevent="updatedExecution"
+        @click.prevent="execute"
         :disabled="!canExecute"
       >
         Run
@@ -122,11 +122,14 @@ import Sidebar from "@/components/Sidebar.vue";
 import { useFlow } from "@/composables/useFlow";
 import { computedAsync, useArtifactsStore, useFlowsStore } from "@/stores";
 import {
+  getAllConnectedArtifacts,
   isTerminal,
   type ArtifactVersion,
   type Execution,
+  type ExecutionArtifactConnection,
   type FlowExecutionPlan,
   type FlowNode,
+  type FlowNodeExecutionArgument,
   type FlowVersion,
   type LimitPaginatedResult,
   type RecordSpec,
@@ -141,8 +144,14 @@ import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type PropType, ty
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
 const flow: Ref<FlowVersion | null> = ref(null);
-const { createFlowNode, deleteFlowNode, connectFlowNodes, connectFlowNodeArtifact, artifactEdges } =
-  useFlow(flow);
+const {
+  createFlowNode,
+  deleteFlowNode,
+  getFlowNode,
+  connectFlowNodes,
+  connectFlowNodeArtifact,
+  artifactEdges,
+} = useFlow(flow);
 const flowStore = useFlowsStore();
 const artifactsStore = useArtifactsStore();
 
@@ -289,7 +298,7 @@ watch(
   { immediate: true }
 );
 
-async function updatedExecution() {
+async function execute() {
   if (flow.value == null || inputNode.value == null) {
     throw new Error("cannot execute: flow is not initialized");
   }
@@ -313,6 +322,46 @@ async function updatedExecution() {
   await api
     .post<Execution>(`/flows/${flow.value.flow}/versions/${flow.value.version}/execute`, plan)
     .then((response) => response.data)
+    .then((execution) => {
+      // automatically insert preview datasets for arguments we passed in to give quicker feedback
+      if (plan.arguments == null || getAllConnectedArtifacts(execution).length > 0) {
+        // bail if there were no arguments or if the backend already manifested them on the execution
+        return execution;
+      }
+      const argumentsValues = [] as FlowNodeExecutionArgument[];
+      Object.values(plan.arguments).forEach((nodeArguments: FlowNodeExecutionArgument[]) =>
+        argumentsValues.push(...nodeArguments)
+      );
+
+      // TODO @Cleanup: faux/eager execution connections are tightly coupled to execution grid
+      const eagerConnections = argumentsValues
+        .filter((argument) => argument.records != null)
+        .map((argument: FlowNodeExecutionArgument) => {
+          // determine name of soon-to-be artifact according to well known backend schema
+          const nodeName = getFlowNode(argument.node)?.name;
+          var artifact;
+          if (argument.name == "*") {
+            artifact = `${flow.value?.flow}.${nodeName}.${argument.type}s`;
+          } else {
+            artifact = `${flow.value?.flow}.${nodeName}-${argument.type}s.${argument.name}`;
+          }
+          // create pretend execution artifact connection with known data
+          return {
+            execution: execution.id,
+            artifact: `${artifact}@0`,
+            connection_type: argument.type,
+            connection_name: argument.name,
+            view_inline: { start: -argument.records.length, end: 0 },
+            dataset_preview: {
+              count: argument.records.length,
+              limit: 3,
+              results: argument.records,
+            },
+          } as ExecutionArtifactConnection;
+        });
+      execution.connected_artifacts = eagerConnections;
+      return execution;
+    })
     .then((execution) => (executions.value = [execution, ...executions.value]));
 }
 
@@ -323,12 +372,18 @@ function fetchExecutions(flow: string, limit = 10) {
     .then((result) => (executions.value = result.results));
 }
 
-const pollIntervalMillis = 200;
-// const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
-// onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
+const pollIntervalMillis = 250;
+const waitIntervalMillis = 250;
+const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
+onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
 
 async function pollUnterminatedExecutions(flow: string) {
-  const pendingExecutions = executions.value.filter((execution) => !isTerminal(execution.state));
+  const pendingExecutions = executions.value
+    .filter((execution) => !isTerminal(execution.state))
+    .filter(
+      (execution) =>
+        DateTime.fromISO(execution.updated_at).diffNow().milliseconds < -waitIntervalMillis
+    );
   if (pendingExecutions.length == 0) {
     return;
   }

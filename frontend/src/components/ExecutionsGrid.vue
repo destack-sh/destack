@@ -28,7 +28,7 @@ mapNameVersion
                   <div class="inline-flex flex-col">
                     {{ row["state"] }}
                     <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
-                    <span class="font-normal text-gray-700">{{ row["duration"] }}</span>
+                    <span class="font-normal text-gray-700">{{ row["duration"] || "..." }}</span>
                   </div>
                 </td>
                 <td
@@ -63,12 +63,13 @@ mapNameVersion
 import { api } from "@/api";
 import { useNow } from "@/composables/useNow";
 import { computedAsync, type AsyncResult } from "@/stores";
-import type {
-  Execution,
-  ExecutionArtifactConnection,
-  FieldSpec,
-  LimitPaginatedResult,
-  ValueType,
+import {
+  getAllConnectedDatasets,
+  type Execution,
+  type ExecutionArtifactConnection,
+  type FieldSpec,
+  type LimitPaginatedResult,
+  type ValueType,
 } from "@/types";
 import { mapNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
@@ -79,22 +80,6 @@ import RecordsPreview from "./RecordsPreview.vue";
 const props = defineProps<{
   executions: Array<Execution>;
 }>();
-
-function getAllConnectedArtifacts(execution: Execution): ExecutionArtifactConnection[] {
-  const connectedArtifacts = [...execution.connected_artifacts];
-  if (execution.children != null) {
-    for (const childExecution of execution.children) {
-      connectedArtifacts.push(...childExecution.connected_artifacts);
-    }
-  }
-  return connectedArtifacts;
-}
-
-function getAllConnectedDatasets(execution: Execution): ExecutionArtifactConnection[] {
-  return getAllConnectedArtifacts(execution).filter(
-    (connection) => connection.dataset_preview != null
-  );
-}
 
 // trim execution artifact name to shortest unambiguous identifier for legibility
 function datasetToFriendlyName(execution: Execution, connection: ExecutionArtifactConnection) {

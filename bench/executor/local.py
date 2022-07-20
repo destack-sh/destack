@@ -6,7 +6,7 @@ import uuid
 from collections import defaultdict
 from itertools import chain
 from queue import Empty, Queue
-from typing import Dict, Iterable, Mapping, Optional, Tuple, Union, cast
+from typing import Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
 import structlog
@@ -29,8 +29,9 @@ from bench.executor.base import (
     FlowNodeConnection,
     FlowRawArgument,
     ResourceRequirements,
-    make_execution_manifest,
     make_execution_plan,
+    prepare_execution_manifest,
+    save_execution_manifest,
 )
 from bench.executor.utils import get_model_iid
 from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
@@ -68,6 +69,7 @@ class LocalExecutorThread(threading.Thread):
                 time.sleep(0.01)
                 continue
 
+            save_execution_manifest(manifest)
             with manifest.execution.capture():
                 logger.info("execute_started", execution=manifest.execution)
                 self._executor._do_execute(plan, manifest)
@@ -199,10 +201,11 @@ class LocalExecutor(Executor):
         logger.debug("execute_planning")
         plan = make_execution_plan(flow, inputs, arguments, options)
         logger.debug("execute_planned")
-        manifest = make_execution_manifest(flow, plan)
+        manifest = prepare_execution_manifest(flow, plan)
         logger.debug("execute_manifested", execution=manifest.execution)
 
         if options.blocking:
+            save_execution_manifest(manifest)
             with manifest.execution.capture():
                 logger.info("execute_started", execution=manifest.execution)
                 self._do_execute(plan, manifest)
@@ -331,13 +334,14 @@ class LocalExecutor(Executor):
             iteration += 1
 
         # update dynamic (node and final) connections with view data
-        dynamic_connections: Iterable[Union[FlowNodeConnection, ArtifactConnection]] = flatten(
+        dynamic_connections = flatten(
             connections.values()
             for connections in chain(
                 plan.node_inputs.values(), plan.node_arguments.values(), plan.final_outputs.values()
             )
         )
         for connection in dynamic_connections:
+            connection = cast(Union[FlowNodeConnection, ArtifactConnection], connection)
             connection_id = cast(UUID, connection.manifested_id)
             if connection_id is not None:  # only if dynamic connection is actually manifested
                 execution_connection = manifest.execution_connections[connection_id]

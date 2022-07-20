@@ -23,9 +23,7 @@ export type ArtifactVersion = {
   committed: boolean;
 };
 
-export type ArtifactViewData = {
-  type: string;
-};
+export type ArtifactViewData = Record<string, any>;
 export type DatasetIndexSliceView = ArtifactViewData & {
   start: number;
   end: number;

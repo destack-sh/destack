@@ -27,7 +27,9 @@ from bench.models.artifact import ArtifactView
 from bench.models.dataset import DatasetMetadata, DatasetVersion, DatasetViewData
 from bench.models.execution import (
     DEFAULT_CONNECTION_NAME,
+    FLOW_EXECUTION_TYPE,
     FLOW_NODE_EXECUTION_TYPE,
+    Execution,
     ExecutionArtifactConnection,
 )
 from bench.models.flow import FlowNodeEdge, FlowVersion
@@ -212,6 +214,9 @@ def _convert_arguments_to_artifact_connections(
                 view=None,
                 view_inline=view_inline,
             )
+            logger.debug(
+                "execute_converted_partial", type=connection_type, artifact=artifact, name=name
+            )
 
         converted_arguments[node_id] = converted_node_arguments
     return converted_arguments
@@ -367,11 +372,17 @@ def make_execution_plan(
 
 
 def make_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowExecutionManifest:
+    manifest = prepare_execution_manifest(flow, plan)
+    save_execution_manifest(manifest)
+    return manifest
+
+
+def prepare_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowExecutionManifest:
     """
     Makes the actual execution objects and links them together
     """
 
-    execution = FlowExecution.objects.create(flow=flow)
+    execution = FlowExecution(type=FLOW_EXECUTION_TYPE, flow=flow)
     node_executions: dict[UUID, FlowNodeExecution] = {}
     execution_connections: dict[UUID, ExecutionArtifactConnection] = {}
     for node in plan.nodes.values():
@@ -400,7 +411,7 @@ def make_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowE
 
             connection_type = (
                 ExecutionArtifactConnection.ConnectionType.Output
-                if node == node_connection.edge.dependency
+                if node.id == node_connection.edge.dependency_id
                 else node_connection.edge.connection_type
             )
             connection = ExecutionArtifactConnection(
@@ -427,10 +438,11 @@ def make_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowE
             artifact_connection.manifested_id = connection.id
         node_executions[node.id] = node_execution
 
-    start = time.time()
-    FlowNodeExecution.objects.bulk_create(node_executions.values())
-    ExecutionArtifactConnection.objects.bulk_create(execution_connections.values())
-    logger.debug("execute_manifest_bulk_create", took=time.time() - start)
+    return FlowExecutionManifest(execution, node_executions, execution_connections)
 
-    manifest = FlowExecutionManifest(execution, node_executions, execution_connections)
-    return manifest
+
+def save_execution_manifest(manifest: FlowExecutionManifest):
+    start = time.time()
+    Execution.objects.bulk_create(chain(manifest.node_executions.values()))
+    ExecutionArtifactConnection.objects.bulk_create(manifest.execution_connections.values())
+    logger.debug("execute_manifest_bulk_create", took=time.time() - start)
