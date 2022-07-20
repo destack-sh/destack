@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Iterator, Optional, Tuple, cast
+from typing import Iterable, Iterator, Optional, Tuple, cast
 
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
-from django.db.models import Q, Subquery
+from django.db.models import Q, QuerySet, Subquery
 
 from bench.models.utils import UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedObject, VersionedTree
@@ -111,21 +111,21 @@ def get_parent_tree(tree: RecordTree, index: int) -> Tuple[RecordTree, RecordTre
 
 def get_parent_trees(
     tree: RecordTree, start: int, end: int
-) -> Tuple[RecordTree, list[RecordTreeReference]]:
+) -> Tuple[RecordTree, Iterable[RecordTreeReference]]:
     """
     Gets the immediate parent tree for the record at the index (relative to this tree)
 
     Unlike get_parent_tree, this method does not currently deal with nested trees.
     """
 
-    if start < 0 or end > tree.max_index:
+    if start < 0 or end > (tree.max_index + 1):
         raise LookupError(f"tree [0, {tree.max_index}] does not contain range [{start}:{end}]")
-    references: list[RecordTreeReference] = (
-        RecordTreeReference.objects.filter(tree=tree, index__gte=start)
+    references: QuerySet[RecordTreeReference] = (
+        RecordTreeReference.objects.filter(tree=tree, index__gte=start, index__lt=end)
         .order_by("index")
         .select_related("record")[: (end - start + 1)]
     )
-    return tree, [ref.record for ref in references]
+    return tree, references
 
 
 def get_record(tree: RecordTree, index: int) -> Record:
@@ -144,9 +144,10 @@ def get_records_slice(tree: RecordTree, start: int, end: int) -> list[Record]:
     """
     # map start/stop to bounds
     start = max(start, 0)
-    end = min(end, tree.max_index)
-    _, records = get_parent_trees(tree, start, end)
-    return records
+    end = min(end, tree.max_index + 1)
+    _, references = get_parent_trees(tree, start, end)
+    # ref.record must be non-null due to get_parent_trees
+    return [cast(Record, ref.record) for ref in references]
 
 
 def get_records_field(tree: RecordTree, field: str) -> list[FieldValue]:

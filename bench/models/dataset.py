@@ -46,7 +46,7 @@ class Dataset(Artifact):
     Handling, storage and management of the dataset may be delegated to external services.
     """
 
-    objects = DatasetManager()  # type: ignore
+    objects = DatasetManager()
 
     class Meta:
         proxy = True
@@ -110,6 +110,10 @@ class DatasetViewData:
     @property
     def asdict(self) -> dict:
         return dataclasses.asdict(self)
+
+    @staticmethod
+    def empty() -> DatasetViewData:
+        return DatasetViewData.from_slice((0, 0))
 
     @staticmethod
     def from_slice(slice: tuple[int, int]) -> DatasetViewData:

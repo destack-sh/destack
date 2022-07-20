@@ -31,9 +31,10 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
         start = view.apply(offset)
         end = view.apply(offset + limit)
         records = list(reader[start:end])
+        count = view.apply(len(reader)) - view.apply(0)
         return {
             "limit": limit,
-            "count": len(reader),
+            "count": count,
             "offset": offset,
             "results": records,
         }
@@ -62,7 +63,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
 
     def get_children(self, data: Execution):
         # specify children as method field because we need ExecutionSerializer (recursive)
-        return ExecutionSerializer(data.children, many=True).data  # type: ignore
+        return ExecutionSerializer(data.children, many=True).data
 
     class Meta:
         model = Execution
