@@ -43,3 +43,19 @@ export type ExecutionArtifactConnection = {
   view?: ArtifactView;
   view_inline?: ArtifactViewData;
 };
+
+export function getAllConnectedArtifacts(execution: Execution): ExecutionArtifactConnection[] {
+  const connectedArtifacts = [...execution.connected_artifacts];
+  if (execution.children != null) {
+    for (const childExecution of execution.children) {
+      connectedArtifacts.push(...childExecution.connected_artifacts);
+    }
+  }
+  return connectedArtifacts;
+}
+
+export function getAllConnectedDatasets(execution: Execution): ExecutionArtifactConnection[] {
+  return getAllConnectedArtifacts(execution).filter(
+    (connection) => connection.dataset_preview != null
+  );
+}

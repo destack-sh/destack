@@ -29,7 +29,9 @@ class DatasetManager(ArtifactManager):
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         try:
-            return DatasetVersion.objects.get(artifact__name=name, version=version)
+            return DatasetVersion.objects.select_related("record_tree_root").get(
+                artifact__name=name, version=version
+            )
         except DatasetVersion.DoesNotExist:
             with transaction.atomic():
                 dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
