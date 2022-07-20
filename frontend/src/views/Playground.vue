@@ -324,8 +324,8 @@ function fetchExecutions(flow: string, limit = 10) {
 }
 
 const pollIntervalMillis = 200;
-const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
-onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
+// const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
+// onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
 
 async function pollUnterminatedExecutions(flow: string) {
   const pendingExecutions = executions.value.filter((execution) => !isTerminal(execution.state));

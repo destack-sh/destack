@@ -121,11 +121,11 @@ class ArtifactConnection:
     manifested_id: Optional[uuid.UUID] = None
 
     @property
-    def view_data(self) -> Optional[DatasetViewData]:
+    def view_data(self) -> DatasetViewData:
         if self.view is not None:
             return DatasetViewData(**self.view.data)
         else:
-            return DatasetViewData(**self.view_inline)
+            return DatasetViewData(**(self.view_inline or {}))
 
     @property
     def artifact_type(self) -> str:
@@ -238,6 +238,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
                 type=ExecutionArtifactConnection.ConnectionType.Output,
                 name=output_id,
                 artifact=output_dataset,
+                view_inline=DatasetViewData.empty().asdict,
             )
     return {k: v for k, v in final_outputs.items()}  # convert to regular dict
 
@@ -256,10 +257,14 @@ def _make_node_connections(
                 output_id = f"{flow_name}.{node.name}.outputs"
                 if edge.connection_name_dependency != DEFAULT_CONNECTION_NAME:
                     output_id = f"{output_id}.{edge.connection_name_dependency}"
-                output_dataset = Dataset.objects.create_dataset_version(
-                    name=output_id, metadata=DatasetMetadata.default_db()
+                output_dataset = Dataset.objects.get_or_create_dataset_version(
+                    name=output_id, version="0", metadata=DatasetMetadata.default_db()
                 )
-                connection = FlowNodeConnection(edge=edge, intermediate_artifact=output_dataset)
+                connection = FlowNodeConnection(
+                    edge=edge,
+                    intermediate_artifact=output_dataset,
+                    view_inline=DatasetViewData.empty().asdict,
+                )
             else:
                 connection = FlowNodeConnection(edge=edge, intermediate_artifact=None)
 
@@ -386,7 +391,7 @@ def make_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> FlowE
                 view_inline=artifact_connection.view_inline,
             )
             execution_connections[connection.id] = connection
-            artifact_connection.manifested_it = connection.id
+            artifact_connection.manifested_id = connection.id
 
         # inter-node connections
         for name, node_connection in plan.connected(node_id=node.id):
