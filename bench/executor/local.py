@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import threading
+import time
 import uuid
 from collections import defaultdict
 from itertools import chain
-from queue import Queue
+from queue import Empty, Queue
 from typing import Dict, Iterable, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
@@ -51,19 +52,29 @@ class LocalExecutorThread(threading.Thread):
         self,
         executor: LocalExecutor,
         executions_queue: Queue[Tuple[FlowExecutionPlan, FlowExecutionManifest]],
+        daemon: bool,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(**kwargs, daemon=daemon)
         self._executions_queue = executions_queue
         self._executor = executor
+        self._should_stop = False
 
     def run(self):
-        while True:
-            plan, manifest = self._executions_queue.get()
+        while not self._should_stop:
+            try:
+                plan, manifest = self._executions_queue.get_nowait()
+            except Empty:
+                time.sleep(0.01)
+                continue
+
             with manifest.execution.capture():
                 logger.info("execute_started", execution=manifest.execution)
                 self._executor._do_execute(plan, manifest)
             logger.info("execute_terminated", execution=manifest.execution)
+
+    def stop(self):
+        self._should_stop = True
 
 
 class LocalExecutor(Executor):
@@ -75,11 +86,16 @@ class LocalExecutor(Executor):
         self.executor_id = uuid.uuid4().hex
         self._loaded_models_by_iid: Dict[str, ModelHandler] = {}
         self._executions_queue: Queue[Tuple[FlowExecutionPlan, FlowExecutionManifest]] = Queue()
-        self._executions_thread = LocalExecutorThread(self, self._executions_queue)
+        self._executions_thread = LocalExecutorThread(self, self._executions_queue, daemon=True)
 
     def start(self):
         self._executions_thread.start()
         self.mark_dead_executions_failed()
+
+    def stop(self):
+        if self._executions_thread.is_alive():
+            self._executions_thread.stop()
+            self._executions_thread.join()
 
     def mark_dead_executions_failed(self):
         dead_executions = Execution.objects.filter(
