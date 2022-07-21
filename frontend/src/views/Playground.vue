@@ -18,7 +18,7 @@ FlowExecutionPlan
       <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
       </div>
-      <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" />
+      <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
     </form>
 
     <!-- Select models -->

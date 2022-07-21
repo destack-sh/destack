@@ -1,9 +1,11 @@
 import abc
-from typing import Optional
+from typing import Optional, cast
 
 from fsspec import AbstractFileSystem
 
 from bench.utils.spec import ConfigSpec
+
+NO_STATIC_KEYS = cast(set[str], set())
 
 
 class ArtifactHandler(abc.ABC):

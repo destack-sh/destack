@@ -14,6 +14,8 @@ import structlog
 from django.db.models import QuerySet
 
 from bench.dataset.accessor import write_to_dataset
+from bench.dataset.base import DatasetHandler
+from bench.model.base import ModelHandler
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -71,15 +73,9 @@ class Executor(abc.ABC):
         self,
         model: ArtifactVersion,
         requirements: Optional[ResourceRequirements] = None,
-    ):
+    ) -> Union[ModelHandler, DatasetHandler]:
         """
         Make the artifact available in this executor with the given resources.
-        """
-        raise NotImplementedError
-
-    def load_flow(self, flow: FlowVersion, requirements: PerNodeResourceRequirements):
-        """
-        Prepare the flow in this executor with the given resources.
         """
         raise NotImplementedError
 

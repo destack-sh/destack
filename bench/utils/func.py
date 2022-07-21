@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Iterable, Type, TypeVar, cast
 
 
@@ -23,3 +24,17 @@ def terrible_cast(cls: Type[T], obj) -> T:
     # TODO @Robustness: don't do terrible casts
     obj.__class__ = cls
     return cast(T, obj)
+
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+def dict_to_ordered(obj: dict[K, V]) -> OrderedDict[K, V]:
+    if isinstance(obj, OrderedDict):
+        return obj
+
+    if len(obj) > 1:
+        raise ValueError("cannot order dict with multiple entries")
+
+    return OrderedDict(**obj)
