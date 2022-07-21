@@ -28,7 +28,7 @@ export const useMetaStore = defineStore("meta", {
     templateFor(): (handlerId: string) => ModelTemplate | null {
       return (handlerId: string) => {
         const matchingTemplates = this.modelTemplates.filter(
-          (template) => template.handler.name == handlerId
+          (template) => template.handler?.name == handlerId
         );
         return matchingTemplates.at(0) || null;
       };

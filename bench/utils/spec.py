@@ -192,20 +192,18 @@ RecordSpec = FieldSpec
 
 @dataclass
 class ArtifactSpec(_Spec):
-    type: str
+    pass
 
 
 @dataclass
-class ModelSpec(_Spec):
+class ModelSpec(ArtifactSpec):
     input_spec: RecordSpec
     output_spec: RecordSpec
-    type = "model"
 
 
 @dataclass
-class DatasetSpec(_Spec):
+class DatasetSpec(ArtifactSpec):
     record_spec: RecordSpec
-    type = "artifact"
 
 
 @dataclass
@@ -390,7 +388,7 @@ def type_to_spec(
     # Some value types may be referred to by their implementation types rather than
     # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
     if isinstance(typ, type):
-        typ = _impl_type_to_type(typ, default, ignore_unknown=True)
+        typ = _impl_type_to_type(typ, default, ignore_unknown=False)
     elif isinstance(typ, DatasetType):
         return DatasetSpec(
             name=key,

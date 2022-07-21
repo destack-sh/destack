@@ -16,8 +16,12 @@ class SpacyModelBase(ModelHandler, abc.ABC):
             "textcat_multilabel"
         )
         self.has_entities = self.nlp.has_pipe("ner") or self.nlp.has_pipe("entity_ruler")
-        self.base_spec = kwargs.get("spec", self.infer_spec())
+        self.base_spec = self.infer_spec()
         super().__init__(**kwargs)
+
+    @property
+    def runtime_spec(self) -> ModelSpec:
+        return self.infer_spec()
 
     def infer_spec(self) -> ModelSpec:
         input_spec = RecordSpec(

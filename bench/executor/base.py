@@ -13,9 +13,8 @@ from uuid import UUID
 import structlog
 from django.db.models import QuerySet
 
+from bench.artifact.base import ArtifactHandler
 from bench.dataset.accessor import write_to_dataset
-from bench.dataset.base import DatasetHandler
-from bench.model.base import ModelHandler
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -38,6 +37,7 @@ from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
+from bench.utils.spec import ArtifactSpec
 
 logger = structlog.stdlib.get_logger()
 Resource = str
@@ -73,9 +73,16 @@ class Executor(abc.ABC):
         self,
         model: ArtifactVersion,
         requirements: Optional[ResourceRequirements] = None,
-    ) -> Union[ModelHandler, DatasetHandler]:
+    ) -> ArtifactHandler:
         """
         Make the artifact available in this executor with the given resources.
+        """
+        raise NotImplementedError
+
+    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactSpec:
+        """
+        Gets the runtime/actual specification of the given artifact (instead of the configured).
+        This may require loading the given artifact and performing other expensive operations.
         """
         raise NotImplementedError
 

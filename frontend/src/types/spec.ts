@@ -37,6 +37,13 @@ export function isFieldSpec(obj: any) {
   return obj._type == "FieldSpec";
 }
 
+export function makeFieldSpec(
+  name: string,
+  type: FieldType | Array<FieldSpec> | Record<string, FieldSpec>
+): FieldSpec {
+  return { _type: "FieldSpec", name, type };
+}
+
 export type RecordSpec = FieldSpec;
 
 export type ArtifactSpec = _Spec & {

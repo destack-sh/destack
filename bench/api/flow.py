@@ -231,7 +231,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=True)
     def execute(self, request: Request, flow: str, version: str) -> Response:
-        logger.debug("execute_attempt")
+        logger.debug("execute_attempt", flow=flow, version=version)
         flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
 
         request_serializer = FlowExecutionRequestSerializer(data=request.data)

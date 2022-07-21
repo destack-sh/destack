@@ -3,7 +3,7 @@ from typing import Optional, cast
 
 from fsspec import AbstractFileSystem
 
-from bench.utils.spec import ConfigSpec
+from bench.utils.spec import ArtifactSpec, ConfigSpec
 
 NO_STATIC_KEYS = cast(set[str], set())
 
@@ -19,6 +19,8 @@ class ArtifactHandler(abc.ABC):
     config_spec: ConfigSpec
     # Config values are immutable after init. If not set, defaults to all keys.
     config_static_keys: set[str]
+    # Generic spec for this handler.
+    spec: ArtifactSpec
 
     def __init__(
         self,
@@ -37,6 +39,11 @@ class ArtifactHandler(abc.ABC):
         self._fs = fs
         self._path = path
         self._version = version
+
+    @property
+    def runtime_spec(self) -> ArtifactSpec:
+        """Gets the actual *runtime* spec of the current model (if different from configured)"""
+        return self.spec
 
     @property
     def fs(self) -> AbstractFileSystem:

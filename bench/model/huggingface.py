@@ -8,13 +8,18 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from bench.artifact.base import NO_STATIC_KEYS
 from bench.model.base import UnbatchedModelHandler, models
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ModelType
+from bench.utils.spec import ModelSpec, convert_to_record_spec
 
 
 # TODO @Feature: HuggingFaceModel only works for sequence classification task
 @models.register("bench.huggingface.sequence_classification")
 class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
-    base_spec = ModelType(input_spec={"text": str}, output_spec={"text": str})
+    base_spec = ModelSpec(
+        name="bench.huggingface.sequence_classification",
+        description="HuggingFace local model for sequence classification",
+        input_spec=convert_to_record_spec({"text": str}),
+        output_spec=convert_to_record_spec({"text": str}),
+    )
     config_static_keys = {"model_name", "version"}
 
     def __init__(self, model_name: str, version: Optional[str], **kwargs):
@@ -37,7 +42,6 @@ class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
         return {**record, "tokens": tokens, "categories": categories}
 
 
-@models.register("bench.huggingface.hosted")
 class HuggingFaceHostedModel(UnbatchedModelHandler):
     config_static_keys = NO_STATIC_KEYS
 
@@ -47,14 +51,21 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
         super().__init__(**kwargs)
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        # TODO @Cleanup @Architecture: generalise model/flow node input/output remapping
         record = cast(dict, record)
-        if "text" in record:
-            record = {**record, "inputs": record["text"]}
-
         headers = {"Authorization": f"Bearer {self.bearer_token}"}
         data = json.dumps(record)
         api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
         response = requests.request("POST", api_url, headers=headers, data=data)
         output = json.loads(response.content.decode("utf-8"))
+        return output
+
+
+@models.register("bench.huggingface.hosted.text_generation")
+class HuggingFaceHostedGenerationModel(HuggingFaceHostedModel):
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+        record = cast(dict, record)
+        # TODO @Cleanup @Architecture: generalise model/flow node input/output remapping
+        if "text" in record:
+            record = {**record, "inputs": record["text"]}
+        output = super().predict(record)
         return output

@@ -1,12 +1,13 @@
 import abc
 import enum
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple, Union, cast
 
 import openai
 
 from bench.model.base import UnbatchedModelHandler, models
+from bench.model.utils import make_scored_labels_spec
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ModelType
+from bench.utils.spec import ModelSpec, convert_to_record_spec
 
 
 class OpenAIModel(UnbatchedModelHandler, abc.ABC):
@@ -52,15 +53,18 @@ class OpenAIModel(UnbatchedModelHandler, abc.ABC):
         )
 
 
-@models.register("bench.openai.completion")
+@models.register("bench.openai.text_generation")
 class OpenAIModelForCompletion(OpenAIModel):
-    spec = ModelType(input_spec={"text": str}, output_spec={"text": str})
+    spec = ModelSpec(
+        name="bench.openai.text_generation",
+        description="OpenAI hosted model for text generation",
+        input_spec=convert_to_record_spec({"text": str}),
+        output_spec=convert_to_record_spec({"generated_text": str}),
+    )
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        output = openai.Completion.create(
-            prompt=record["text"],  # type: ignore
-            **self._get_params(),
-        )
+        record = cast(dict, record)
+        output = openai.Completion.create(prompt=record["text"], **self._get_params())
         output_records = [choice for choice in output["choices"]]
         if self.n == 1:
             return output_records[0]
@@ -68,23 +72,28 @@ class OpenAIModelForCompletion(OpenAIModel):
             return RecordList(output_records)
 
 
-@models.register("bench.openai.classification")
+@models.register("bench.openai.text_classification")
 class OpenAIModelForClassification(OpenAIModel):
-    spec = ModelType(
-        input_spec={
-            "text": str,
-            "examples": List[Tuple[str, str]],
-            "labels": List[str],
-        },
-        output_spec={"text": str, "categories": Dict[str, float]},
+    spec = ModelSpec(
+        name="bench.openai.text_classification",
+        description="OpenAI hosted model for text classification",
+        input_spec=convert_to_record_spec(
+            {
+                "text": str,
+                "examples": List[Tuple[str, str]],
+                "labels": List[str],
+            }
+        ),
+        output_spec=convert_to_record_spec({"text": str, "classes": make_scored_labels_spec(str)}),
     )
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
+        record = cast(dict, record)
         output = openai.Classification.create(
-            prompt=record["text"],  # type: ignore
-            examples=record["examples"],  # type: ignore
-            labels=record["labels"],  # type: ignore
-            **self._get_params(),
+            prompt=record["text"],
+            examples=record["examples"],
+            labels=record["labels"],
+            **self._get_params()
         )
         output_records = [choice for choice in output["choices"]]
         if self.n == 1:
