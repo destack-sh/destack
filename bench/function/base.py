@@ -9,7 +9,6 @@ from typing import (
     Optional,
     OrderedDict,
     Type,
-    Union,
     cast,
 )
 
@@ -17,11 +16,8 @@ from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
     ArtifactSetSpec,
-    ArtifactSetType,
     ConfigSpec,
-    ConfigType,
     RecordSpec,
-    RecordType,
     convert_to_config_spec,
     convert_to_record_spec,
     infer_config_spec,
@@ -34,8 +30,7 @@ class Function(ABC):
     A generic pure function that operates either on records/batches or on artifacts.
     """
 
-    # could auto-infer this from function constructor in some cases via inspect
-    config_spec: Union[ConfigType, ConfigSpec]
+    config_spec: ConfigSpec
 
 
 class ArtifactFunction(Function, ABC):
@@ -43,8 +38,8 @@ class ArtifactFunction(Function, ABC):
     A pure function that operates on artifacts.
     """
 
-    input_spec: Mapping[str, Union[ArtifactSetType, ArtifactSetSpec]]
-    output_spec: OrderedDict[str, Union[ArtifactSetType, ArtifactSetSpec]]
+    input_spec: Mapping[str, ArtifactSetSpec]
+    output_spec: OrderedDict[str, ArtifactSetSpec]
 
 
 class RecordFunction(Function, ABC):
@@ -52,8 +47,8 @@ class RecordFunction(Function, ABC):
     A pure function that operates on records/batches.
     """
 
-    input_spec: Mapping[str, Union[RecordType, RecordSpec]]
-    output_spec: OrderedDict[str, Union[RecordType, RecordSpec]]
+    input_spec: Mapping[str, RecordSpec]
+    output_spec: OrderedDict[str, RecordSpec]
 
 
 class MetricFunction(RecordFunction):
@@ -69,9 +64,6 @@ class RecordTransform(RecordFunction, ABC):
     """
     A transformation function mapping input records to output records
     """
-
-    input_spec: Mapping[str, RecordType] = {"*": {}}
-    output_spec = OrderedDict[str, Any]([("*", {})])
 
     def transform(self, record: Record) -> Record:
         raise NotImplementedError

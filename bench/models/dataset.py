@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from functools import cached_property
 from typing import Any, Dict, Optional
 
 from dataclasses_json import dataclass_json
@@ -75,19 +74,19 @@ class DatasetVersion(ArtifactVersion):
     A Dataset-specific thin proxy of ArtifactVersion exposing typed attributes.
     """
 
-    @cached_property
+    @property
     def _metadata_typed(self) -> DatasetMetadata:
         return DatasetMetadata.from_dict(self.metadata)  # type: ignore
 
-    @cached_property
+    @property
     def handler_id(self) -> str:
         return self._metadata_typed.handler_id
 
-    @cached_property
+    @property
     def config_arguments(self):
         return self._metadata_typed.config_arguments
 
-    @cached_property
+    @property
     def record_spec(self):
         return self._metadata_typed.record_spec
 

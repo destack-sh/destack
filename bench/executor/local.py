@@ -16,6 +16,7 @@ from more_itertools import flatten
 from bench.dataset.accessor import (
     get_dataset_version_handler,
     read_dataset_version,
+    update_dataset_spec_if_unset,
     write_to_dataset,
     write_to_dataset_version,
 )
@@ -36,7 +37,7 @@ from bench.executor.base import (
 from bench.executor.utils import get_model_iid
 from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
-from bench.models import DatasetVersion, FlowExecution, ModelExecution
+from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.dataset import DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
@@ -115,22 +116,20 @@ class LocalExecutor(Executor):
         model_iid = get_model_iid(model)
         if model_iid not in self._loaded_models_by_iid:
             if not load_if_needed:
-                raise RuntimeError("model " + model_iid + " is not load")
+                raise RuntimeError("model " + model_iid + " is not loaded")
             else:
-                self.load_model(model)
+                self.load_model(model, requirements=None)
         return self._loaded_models_by_iid[model_iid]
 
     def _get_dataset_handler(self, dataset: DatasetVersion) -> DatasetHandler:
         return get_dataset_version_handler(dataset)
 
     def load_model(
-        self,
-        model: ModelVersion,
-        requirements: Optional[ResourceRequirements] = None,
-    ):
+        self, model: ModelVersion, requirements: Optional[ResourceRequirements]
+    ) -> ModelHandler:
         model_iid = get_model_iid(model=model)
         if model_iid in self._loaded_models_by_iid:
-            return
+            return self._loaded_models_by_iid[model_iid]
 
         log = logger.bind(
             model_id=model.id,
@@ -148,6 +147,17 @@ class LocalExecutor(Executor):
         )
         self._loaded_models_by_iid[model_iid] = model_handler
         log.info("model_loaded")
+        return model_handler
+
+    def load_artifact(
+        self,
+        artifact: ArtifactVersion,
+        requirements: Optional[ResourceRequirements] = None,
+    ) -> Union[ModelHandler, DatasetHandler]:
+        if artifact.artifact.type == MODEL_TYPE:
+            return self.load_model(terrible_cast(ModelVersion, artifact), requirements)
+        else:
+            raise NotImplementedError("cannot load: " + artifact)
 
     def run_model(
         self,
@@ -259,10 +269,12 @@ class LocalExecutor(Executor):
         for node_id, named_inputs in plan.artifact_inputs.items():
             for input_key, artifact_connection in named_inputs.items():
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
+                    dataset = cast(DatasetVersion, artifact_connection.artifact)
                     pending_data[node_id][artifact_connection.name] = read_dataset_version(
-                        cast(DatasetVersion, artifact_connection.artifact),
-                        artifact_connection.view_data,
+                        dataset, artifact_connection.view_data
                     )
+                    input_spec = functions[node_id].input_spec[input_key]
+                    update_dataset_spec_if_unset(dataset, input_spec)
                 else:
                     raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
 
@@ -309,8 +321,11 @@ class LocalExecutor(Executor):
                     output_batch = output_batches[node_connection.dependent_name]
                     new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
                     if node_connection.intermediate_artifact is not None:
+                        output_spec = function.output_spec[node_connection.dependent_name]
                         view = write_to_dataset_version(
-                            node_connection.intermediate_artifact, output_batch
+                            node_connection.intermediate_artifact,
+                            output_batch,
+                            record_spec=output_spec,
                         )
                         node_connection.view_inline = DatasetViewData.from_slice(view).asdict
 
@@ -321,8 +336,11 @@ class LocalExecutor(Executor):
                             f"non-dataset artifacts not supported: {artifact_connection}"
                         )
 
+                    output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
                     view = write_to_dataset_version(
-                        cast(DatasetVersion, artifact_connection.artifact), output_batch
+                        cast(DatasetVersion, artifact_connection.artifact),
+                        output_batch,
+                        record_spec=output_spec,
                     )
                     artifact_connection.view_inline = DatasetViewData.from_slice(view).asdict
 

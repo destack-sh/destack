@@ -4,17 +4,46 @@ from typing import Union, cast
 import spacy
 
 from bench.model.base import ModelHandler, models
+from bench.model.utils import TOKENS_SPEC, make_entities_spec, make_scored_labels_spec
 from bench.utils.record import Record, RecordBatch, RecordList
+from bench.utils.spec import ClassLabelType, ModelSpec, RecordSpec, convert_to_record_spec
 
 
 class SpacyModelBase(ModelHandler, abc.ABC):
     def __init__(self, nlp: spacy.language.Language, **kwargs):
-        super().__init__(**kwargs)
         self.nlp = nlp
         self.has_categories = self.nlp.has_pipe("textcat") or self.nlp.has_pipe(
             "textcat_multilabel"
         )
         self.has_entities = self.nlp.has_pipe("ner") or self.nlp.has_pipe("entity_ruler")
+        self.base_spec = kwargs.get("spec", self.infer_spec())
+        super().__init__(**kwargs)
+
+    def infer_spec(self) -> ModelSpec:
+        input_spec = RecordSpec(
+            name="input",
+            description="",
+            type=convert_to_record_spec({"text": str}),
+        )
+        output_type = {"text": str, "tokens": TOKENS_SPEC}
+        if self.has_entities:
+            labels = self.nlp.get_pipe("ner").labels
+            entity_type = ClassLabelType(num_classes=len(labels), names=list(labels))
+            output_type["entities"] = make_entities_spec(entity_type)
+        if self.has_categories:
+            if self.nlp.has_pipe("textcat"):
+                pipe = self.nlp.get_pipe("textcat")
+            else:
+                pipe = self.nlp.get_pipe("textcat_multilabel")
+            category_type = ClassLabelType(num_classes=len(pipe.labels), names=list(pipe.labels))
+            output_type["classes"] = make_scored_labels_spec(category_type)
+
+        output_spec = RecordSpec(
+            name="output",
+            description="",
+            type=convert_to_record_spec(output_type),
+        )
+        return ModelSpec(name="", description="", input_spec=input_spec, output_spec=output_spec)
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:
         tokens: list[dict] = [{"text": token.text} for token in doc]

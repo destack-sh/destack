@@ -1,3 +1,4 @@
+import dataclasses
 from typing import Optional, Union
 
 import structlog.stdlib
@@ -13,6 +14,7 @@ from bench.dataset.base import (
 from bench.models import ArtifactVersion, Dataset, DatasetVersion
 from bench.models.dataset import DatasetMetadata, DatasetViewData
 from bench.utils.record import Record, RecordBatch, RecordList
+from bench.utils.spec import BLANK_RECORD_SPEC, RecordSpec
 
 logger = structlog.stdlib.get_logger()
 
@@ -80,20 +82,41 @@ def read_dataset_version(
         return reader[view_data.apply(0) : view_data.apply(len(reader))]
 
 
+def update_dataset_spec_if_unset(dataset: DatasetVersion, record_spec: Optional[RecordSpec]):
+    if dataset.record_spec is None and record_spec is not None:
+        dataset.metadata = DatasetMetadata(
+            **dataclasses.asdict(dataset.metadata), record_spec=record_spec
+        )
+        dataset.save()
+
+
 def write_to_dataset(
-    name: str, version: str, records: Union[Record, RecordBatch], append=True
+    name: str,
+    version: str,
+    records: Union[Record, RecordBatch],
+    record_spec: Optional[RecordSpec] = None,
+    append=True,
 ) -> tuple[ArtifactVersion, tuple[int, int]]:
     dataset = Dataset.objects.get_or_create_dataset_version(
-        name, version, metadata=DatasetMetadata.default_db()
+        name,
+        version,
+        metadata=DatasetMetadata(
+            handler_id="bench.db", record_spec=record_spec or BLANK_RECORD_SPEC
+        ),
     )
+    update_dataset_spec_if_unset(dataset, record_spec)
     view_slice = write_to_dataset_version(dataset, records, append=append)
     return dataset, view_slice
 
 
 def write_to_dataset_version(
-    version: DatasetVersion, records: Union[Record, RecordBatch], append: bool = True
+    version: DatasetVersion,
+    records: Union[Record, RecordBatch],
+    record_spec: Optional[RecordSpec] = None,
+    append: bool = True,
 ) -> tuple[int, int]:
     writer = get_dataset_version_writer(version)
+    update_dataset_spec_if_unset(version, record_spec)
     if not append:
         writer.clear()
     batch = records_to_batch(records)

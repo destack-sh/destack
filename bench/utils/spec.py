@@ -122,6 +122,7 @@ FieldTypePrimitive = Union[
     ClassLabelType,
     Array1dType,
     Array2dType,
+    EnumType,
     AudioType,
     ImageType,
     VideoType,
@@ -183,7 +184,7 @@ class _Spec(abc.ABC):
 
 @dataclass
 class FieldSpec(_Spec):
-    type: FieldTypeSpec
+    type: Union[FieldTypeSpec, FieldTypePrimitive]
 
 
 RecordSpec = FieldSpec
@@ -226,6 +227,11 @@ ConfigTypeSpec = Mapping[str, AnySpec]
 ArtifactSetType = Mapping[str, ArtifactType]
 ArtifactSetSpec = Mapping[str, ArtifactSpec]
 
+BLANK_RECORD_TYPE: RecordTypeSpec = cast(RecordTypeSpec, {})
+BLANK_RECORD_SPEC = RecordSpec(name="", description="", type=BLANK_RECORD_TYPE)
+BLANK_FIELD_TYPE: FieldTypeSpec = cast(FieldTypeSpec, {})
+BLANK_FIELD_SPEC = FieldSpec(name="", description="", type=BLANK_FIELD_TYPE)
+
 
 def reduce_to_record_type_spec(
     spec: Mapping[str, AnySpec], ignore_invalid: bool = False
@@ -242,13 +248,11 @@ def convert_to_record_type_spec(spec: Union[RecordType, RecordSpec]) -> RecordTy
     if isinstance(spec, Mapping):
         converted_spec: dict[str, AnySpec] = {}
         for key, value in spec.items():
-            converted_spec[key] = _type_to_spec(
-                key=key, description="", value=value, ignore_spec=True
-            )
+            converted_spec[key] = type_to_spec(key=key, description="", typ=value, ignore_spec=True)
         return reduce_to_record_type_spec(converted_spec)
     else:
-        converted_value_spec: AnySpec = _type_to_spec(
-            key="", description="", value=spec, ignore_spec=True
+        converted_value_spec: AnySpec = type_to_spec(
+            key="", description="", typ=spec, ignore_spec=True
         )
         # can only be RecordTypeSpec because spec is Union[RecordType, RecordSpec]
         return cast(RecordTypeSpec, converted_value_spec)
@@ -298,7 +302,7 @@ def convert_to_config_spec(
 def _convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
     converted_spec: dict[str, AnySpec] = {}
     for key, value in spec.items():
-        converted_spec[key] = _type_to_spec(key=key, description="", value=value, ignore_spec=True)
+        converted_spec[key] = type_to_spec(key=key, description="", typ=value, ignore_spec=True)
     return converted_spec
 
 
@@ -323,7 +327,7 @@ def _impl_type_to_type(
             return spec_type
 
     if issubclass(value, enum.Enum):
-        value = EnumType(values=[item.name for item in value])
+        return EnumType(values=[item.name for item in value])
 
     if ignore_unknown:
         return value
@@ -331,80 +335,80 @@ def _impl_type_to_type(
         raise ValueError(f"unknown implementation type: {value}")
 
 
-def _type_to_spec(
+def type_to_spec(
     key: str,
     description: str,
-    value: Union[AnyType, AnySpec],
+    typ: Union[AnyType, AnySpec],
     default: Optional[Any] = None,
     ignore_spec: bool = False,
 ) -> AnySpec:
     # If value is already a spec either error or ignore
-    if isinstance(value, _Spec):
+    if isinstance(typ, _Spec):
         if ignore_spec:
             # mypy thinks this is a redundant cast, but also complains if it's not here
-            return cast(AnySpec, value)  # type: ignore
+            return cast(AnySpec, typ)  # type: ignore
         else:
-            raise ValueError(f"type {value} is already a spec type")
+            raise ValueError(f"type {typ} is already a spec type")
 
     # Unwrap and handle union types
-    if isinstance(value, typing._UnionGenericAlias):  # type: ignore
-        union_types = value.__args__
+    if isinstance(typ, typing._UnionGenericAlias):  # type: ignore
+        union_types = typ.__args__
         # Optional[x] is secretly Union[x, None]
         if len(union_types) == 2 and union_types[1] == type(None):  # noqa
             # TODO @Feature: handle optional types more gracefully (currently set default to None if not set)
             # unwrap optional and set default as None if not set
-            return _type_to_spec(
+            return type_to_spec(
                 key=key,
                 description=description,
-                value=union_types[0],
+                typ=union_types[0],
                 default=default or None,
                 ignore_spec=ignore_spec,
             )
         else:  # plain Union
-            raise ValueError(f"union types not supported: {value}")
+            raise ValueError(f"union types not supported: {typ}")
 
     # Map collection types (e.g. list[str] to [str])
-    if isinstance(value, typing._GenericAlias):
-        value = value.__args__
+    if isinstance(typ, typing._GenericAlias):  # type: ignore
+        typ = typ.__args__
 
     # Map collection instances (e.g. [str] -> [FieldSpec]
-    if isinstance(value, Mapping):  # RecordType/FieldType is a dict
-        value = convert_to_record_type_spec(value)  # type: ignore
-    elif isinstance(value, (list, tuple)):
-        value = [
-            _type_to_spec(
+    if isinstance(typ, Mapping):  # RecordType/FieldType is a dict
+        typ = convert_to_record_type_spec(typ)  # type: ignore
+    elif isinstance(typ, (list, tuple)):
+        typ = [
+            type_to_spec(  # type: ignore
                 key=key,
                 description=description,
-                value=val,
+                typ=val,
                 default=default,
                 ignore_spec=ignore_spec,
             )
-            for val in value
+            for val in typ
         ]
 
     # Map implementation types to spec types
     # Some value types may be referred to by their implementation types rather than
     # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
-    if isinstance(value, type):
-        value = _impl_type_to_type(value, default, ignore_unknown=True)
-    elif isinstance(value, DatasetType):
+    if isinstance(typ, type):
+        typ = _impl_type_to_type(typ, default, ignore_unknown=True)
+    elif isinstance(typ, DatasetType):
         return DatasetSpec(
             name=key,
             description=description,
-            record_spec=convert_to_record_spec(value.record_spec),
+            record_spec=convert_to_record_spec(typ.record_spec),
         )
-    elif isinstance(value, ModelType):
+    elif isinstance(typ, ModelType):
         return ModelSpec(
             name=key,
             description=description,
-            input_spec=convert_to_record_spec(value.input_spec),
-            output_spec=convert_to_record_spec(value.output_spec),
+            input_spec=convert_to_record_spec(typ.input_spec),
+            output_spec=convert_to_record_spec(typ.output_spec),
         )
 
     # At this point, we aren't quite sure that 'value' is an appropriate type.
     # But as validation for specs is separate from conversion,
     # we will just ignore potential errors and pass on the value as a type.
-    return FieldSpec(name=key, description=description, type=value)  # type: ignore
+    return FieldSpec(name=key, description=description, type=typ)  # type: ignore
 
 
 def infer_name(func: Callable) -> str:
@@ -464,7 +468,7 @@ def infer_config_type(func: Callable) -> ConfigTypeSpec:
             )
         # TODO @Robustness: handle not-set default values appropriately
         default = None if param.default == inspect._empty else param.default
-        spec_value = _type_to_spec(key=name, description="", default=default, value=annotation)
+        spec_value = type_to_spec(key=name, description="", default=default, typ=annotation)
         spec[name] = spec_value
 
     # patch unspecified descriptions from docstring if available

@@ -10,6 +10,7 @@
           :spec="(selectedTemplate as ModelTemplate).handler.config_spec"
           v-model="modelConfigRecord"
         />
+        <ModelSpecSelect v-model="modelSpec" />
       </div>
       <div>
         <h3 class="mt-3 text-lg font-medium leading-6 text-gray-900">Commit changes</h3>
@@ -63,20 +64,30 @@ import ModelTemplateSelect from "@/components/ModelTemplateSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore, useMetaStore } from "@/stores";
-import type { ArtifactVersion, EmptyTemplate, ModelMetadata, ModelTemplate } from "@/types";
+import type {
+  ArtifactVersion,
+  EmptyTemplate,
+  ModelMetadata,
+  ModelSpecEditable,
+  ModelTemplate,
+} from "@/types";
 import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
+import ModelSpecSelect from "../components/ModelSpecSelect.vue";
 
 const props = defineProps({
   modelName: { type: String, required: true },
   parent: { type: String, required: false },
 });
+
 const emptyTemplate = {
   name: "No template",
   empty: true,
 } as EmptyTemplate;
 const selectedTemplate: Ref<ModelTemplate | EmptyTemplate> = ref(emptyTemplate);
 const modelConfigRecord: Ref<Record<string, any>> = ref({});
+const modelSpec: Ref<ModelSpecEditable> = ref({} as ModelSpecEditable);
+
 const commitTitle: Ref<string> = ref("Initial commit");
 const commitDescription: Ref<string> = ref("");
 const isInitial = computed(() => props.parent == null);
@@ -100,12 +111,13 @@ const { result: parentVersion } = computedAsync(() => {
 });
 
 const metaStore = useMetaStore();
-// sync parentVersion -> modelConfigRecord
+// sync parent (or current version) -> local state
 watch(parentVersion, () => {
   if (parentVersion.value != null) {
     const parentMetadata = parentVersion.value.metadata as ModelMetadata;
     selectedTemplate.value = metaStore.templateFor(parentMetadata.handler_id) || emptyTemplate;
     modelConfigRecord.value = parentMetadata.config_arguments;
+    modelSpec.value = parentMetadata;
   }
 });
 
@@ -114,6 +126,8 @@ async function commit() {
   const metadata: ModelMetadata = {
     handler_id: (selectedTemplate.value as ModelTemplate).handler.name,
     config_arguments: modelConfigRecord.value,
+    input_spec: modelSpec.value?.input_spec,
+    output_spec: modelSpec.value?.output_spec,
   };
   await api.post<ArtifactVersion>(`/models/${props.modelName}/versions`, {
     parents: [],

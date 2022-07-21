@@ -4,18 +4,23 @@ from typing import Tuple, Union, cast
 
 from bench.dataset.base import DatasetReader
 from bench.function.base import SingleRecordTransform, functions
+from bench.utils.func import dict_to_ordered
 from bench.utils.record import Record
+from bench.utils.spec import convert_to_record_spec
 
 
 class TextTransform(SingleRecordTransform, abc.ABC):
+    input_spec = {"*": convert_to_record_spec({"text": str})}
+    output_spec = dict_to_ordered({"*": convert_to_record_spec({"text": str})})
+
     def transform(self, record: Record) -> Record:
         record = cast(dict, record)  # assume record is dict
         transformed_text = self.transform_text(cast(str, record["text"]))
         if isinstance(transformed_text, str):
-            return {**record, "text": transformed_text}  # type: ignore
+            return {**record, "text": transformed_text}
         else:
             output_text, output_record = transformed_text
-            return {**record, **output_record, "text": transformed_text}  # type: ignore
+            return {**record, **output_record, "text": transformed_text}
 
     def transform_text(self, text: str) -> Union[str, Tuple[str, Record]]:
         raise NotImplementedError
