@@ -13,6 +13,7 @@ import structlog
 from django.db.models import Q
 from more_itertools import flatten
 
+from bench.artifact.base import ArtifactHandler
 from bench.dataset.accessor import (
     get_dataset_version_handler,
     read_dataset_version,
@@ -45,6 +46,7 @@ from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
+from bench.utils.spec import ArtifactSpec
 
 logger = structlog.stdlib.get_logger()
 
@@ -153,11 +155,17 @@ class LocalExecutor(Executor):
         self,
         artifact: ArtifactVersion,
         requirements: Optional[ResourceRequirements] = None,
-    ) -> Union[ModelHandler, DatasetHandler]:
+    ) -> ArtifactHandler:
         if artifact.artifact.type == MODEL_TYPE:
             return self.load_model(terrible_cast(ModelVersion, artifact), requirements)
+        elif artifact.artifact.type == DATASET_TYPE:
+            return get_dataset_version_handler(terrible_cast(DatasetVersion, artifact))
         else:
-            raise NotImplementedError("cannot load: " + artifact)
+            raise NotImplementedError(f"cannot load: {artifact}")
+
+    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactSpec:
+        artifact_handler = self.load_artifact(artifact)
+        return artifact_handler.runtime_spec
 
     def run_model(
         self,

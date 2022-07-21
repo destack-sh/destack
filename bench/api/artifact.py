@@ -4,14 +4,18 @@ import structlog
 from django.core.validators import RegexValidator
 from django.db import models
 from rest_framework import mixins, serializers, validators, viewsets
+from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bench.api.meta import DatasetSpecSerializer, ModelSpecSerializer
+from bench.executor import executor
 from bench.models import Artifact, ArtifactVersion
 from bench.models.artifact import ArtifactView
 from bench.models.utils import MAX_NAME_LENGTH
+from bench.utils.spec import DatasetSpec, ModelSpec
 
 logger = structlog.stdlib.get_logger()
 
@@ -71,8 +75,10 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
 
 
 class ArtifactViewSerializer(serializers.ModelSerializer):
-    artifact = serializers.SlugRelatedField(queryset=ArtifactView.objects.all(), slug_field="name")
-    compatible_versions = serializers.SlugRelatedField(
+    artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        queryset=ArtifactView.objects.all(), slug_field="name"
+    )
+    compatible_versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=ArtifactVersion.objects.all(), slug_field="version", many=True
     )
 
@@ -89,6 +95,18 @@ class ArtifactViewSerializer(serializers.ModelSerializer):
             "data",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+def _get_serialized_runtime_spec(artifact: ArtifactVersion) -> dict:
+    """Gets the serialized runtime spec (as opposed to configured spec) for an artifact"""
+    spec = executor.get_runtime_artifact_spec(artifact)
+    if isinstance(spec, ModelSpec):
+        serialized_spec = ModelSpecSerializer(spec).data
+    elif isinstance(spec, DatasetSpec):
+        serialized_spec = DatasetSpecSerializer(spec).data
+    else:
+        raise serializers.ValidationError(f"invalid artifact: {artifact}")
+    return serialized_spec
 
 
 class ArtifactViewSet(viewsets.ModelViewSet):
@@ -119,6 +137,16 @@ class ArtifactVersionViewSet(viewsets.ModelViewSet):
                 request.data["metadata"] = parents[0].metadata.copy()
 
         return super().create(request, *args, **kwargs)
+
+    # TODO add get runtime spec for temporary and live artifacts
+    #  temporary for creating new models, other for existing
+    @action(url_path="spec", methods=["GET"], detail=True)
+    def get_runtime_spec(self, request: Request, artifact: str, version: str):
+        artifact_instance: ArtifactVersion = get_object_or_404(
+            ArtifactVersion, artifact__name=artifact, version=version
+        )
+        serialized_spec = _get_serialized_runtime_spec(artifact_instance)
+        return Response(serialized_spec)
 
 
 class ArtifactTagsViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):

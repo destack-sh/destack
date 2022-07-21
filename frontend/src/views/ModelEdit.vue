@@ -11,6 +11,22 @@
           v-model="modelConfigRecord"
         />
         <ModelSpecSelect v-model="modelSpec" />
+        <div
+          v-if="modelSpec != null && runtimeModelSpec != null && modelSpec != runtimeModelSpec"
+          class="flex justify-end"
+        >
+          <button
+            class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            @click.prevent="restoreRuntimeSpec"
+          >
+            Reset to runtime spec
+          </button>
+        </div>
+        <div class="p-3" v-if="modelSpec != null">
+          <RecordSpecDisplay :spec="modelSpec.input_spec" />
+          =>
+          <RecordSpecDisplay :spec="modelSpec.output_spec" />
+        </div>
       </div>
       <div>
         <h3 class="mt-3 text-lg font-medium leading-6 text-gray-900">Commit changes</h3>
@@ -65,15 +81,17 @@ import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore, useMetaStore } from "@/stores";
 import type {
-  ArtifactVersion,
   EmptyTemplate,
-  ModelMetadata,
-  ModelSpecEditable,
   ModelTemplate,
+  ModelSpecEditable,
+  ModelSpec,
+  ModelMetadata,
+  ArtifactVersion,
 } from "@/types";
 import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import ModelSpecSelect from "../components/ModelSpecSelect.vue";
+import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
 
 const props = defineProps({
   modelName: { type: String, required: true },
@@ -87,6 +105,21 @@ const emptyTemplate = {
 const selectedTemplate: Ref<ModelTemplate | EmptyTemplate> = ref(emptyTemplate);
 const modelConfigRecord: Ref<Record<string, any>> = ref({});
 const modelSpec: Ref<ModelSpecEditable> = ref({} as ModelSpecEditable);
+
+const { result: runtimeModelSpec } = computedAsync(async () => {
+  if (props.parent == null) {
+    return null;
+  }
+  return await api
+    .get<ModelSpec>(`/artifacts/${props.modelName}/versions/${props.parent}/spec`)
+    .then((response) => response.data);
+});
+
+function restoreRuntimeSpec() {
+  if (runtimeModelSpec.value != null) {
+    modelSpec.value = runtimeModelSpec.value;
+  }
+}
 
 const commitTitle: Ref<string> = ref("Initial commit");
 const commitDescription: Ref<string> = ref("");
@@ -117,7 +150,10 @@ watch(parentVersion, () => {
     const parentMetadata = parentVersion.value.metadata as ModelMetadata;
     selectedTemplate.value = metaStore.templateFor(parentMetadata.handler_id) || emptyTemplate;
     modelConfigRecord.value = parentMetadata.config_arguments;
-    modelSpec.value = parentMetadata;
+    modelSpec.value = {
+      input_spec: parentMetadata.input_spec,
+      output_spec: parentMetadata.output_spec,
+    };
   }
 });
 

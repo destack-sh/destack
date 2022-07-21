@@ -77,14 +77,17 @@
       {{ model?.latest_version?.storage_uri }}
       {{ latestMetadata?.config_arguments }}
       <h3 class="mt-2 text-sm font-medium text-gray-900">Spec</h3>
-      {{ latestMetadata?.input_spec?.type }}
-      =>
-      {{ latestMetadata?.output_spec?.type }}
+      <div class="p-3" v-if="latestMetadata != null">
+        <RecordSpecDisplay :spec="latestMetadata?.input_spec" />
+        =>
+        <RecordSpecDisplay :spec="latestMetadata?.output_spec" />
+      </div>
     </div>
   </Sidebar>
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
+import RecordSpecDisplay from "@/components/RecordSpecDisplay.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore } from "@/stores";
 import type { ModelMetadata } from "@/types";

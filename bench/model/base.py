@@ -10,7 +10,6 @@ from bench.utils.registry import Registry
 from bench.utils.spec import (
     ConfigSpec,
     ModelSpec,
-    ModelType,
     RecordSpec,
     convert_to_config_spec,
     convert_to_record_spec,
@@ -25,7 +24,8 @@ class ModelHandler(ArtifactHandler):
     """
 
     # Known base model spec for all models of this handler.
-    base_spec: Union[None, ModelType, ModelSpec] = None
+    base_spec: Optional[ModelSpec] = None
+    spec: ModelSpec
 
     def __init__(
         self,

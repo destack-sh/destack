@@ -10,7 +10,7 @@
         class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
       >
         <span class="block truncate" :class="modelValue == null ? 'text-gray-500' : ''">
-          {{ modelValue?.name || "Custom spec" }}
+          {{ modelValue?.name || "No spec" }}
         </span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
           <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -59,7 +59,7 @@
   </Listbox>
 </template>
 <script lang="ts" setup>
-import type { ModelSpecEditable } from "@/types";
+import { makeFieldSpec, type ModelSpecEditable } from "@/types";
 import {
   Listbox,
   ListboxButton,
@@ -70,30 +70,20 @@ import {
 import { CheckIcon, SelectorIcon } from "@heroicons/vue/solid";
 
 type ModelSpecTemplate = ModelSpecEditable & {
+  id: string;
   name: string;
 };
 
 const availableTemplates: ModelSpecTemplate[] = [
   {
+    id: "text-generation",
     name: "Text generation",
-    input_spec: {
-      _type: "FieldSpec",
-      name: "input",
-      type: {
-        text: { _type: "FieldSpec", name: "text", type: { _type: "ValueType", dtype: "string" } },
-      },
-    },
-    output_spec: {
-      _type: "FieldSpec",
-      name: "output",
-      type: {
-        text: {
-          _type: "FieldSpec",
-          name: "generated_text",
-          type: { _type: "ValueType", dtype: "string" },
-        },
-      },
-    },
+    input_spec: makeFieldSpec("input", {
+      text: makeFieldSpec("text", { _type: "ValueType", dtype: "string" }),
+    }),
+    output_spec: makeFieldSpec("output", {
+      text: makeFieldSpec("generated_text", { _type: "ValueType", dtype: "string" }),
+    }),
   },
 ];
 
