@@ -372,12 +372,17 @@ function fetchExecutions(flow: string, limit = 10) {
     .then((result) => (executions.value = result.results));
 }
 
+const poll = true;
 const pollIntervalMillis = 250;
 const waitIntervalMillis = 250;
 const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
 onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
 
-async function pollUnterminatedExecutions(flow: string) {
+async function pollUnterminatedExecutions() {
+  if (!poll) {
+    return;
+  }
+
   const pendingExecutions = executions.value
     .filter((execution) => !isTerminal(execution.state))
     .filter(
@@ -398,7 +403,7 @@ async function pollUnterminatedExecutions(flow: string) {
           .minus(Duration.fromMillis(pollIntervalMillis * 5))
           .toISO({ includeOffset: false }),
         type: "flow",
-        flow,
+        flow: flow.value?.id,
         limit: pendingExecutions.length,
       },
     })

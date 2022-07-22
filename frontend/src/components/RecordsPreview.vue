@@ -13,13 +13,13 @@
               </tr>
             </thead> -->
     <tbody class="bg-white">
-      <tr v-for="record in records" :key="record.email">
+      <tr v-for="record in records" :key="record.name">
         <td
           v-for="column in columns"
           :key="column.name"
           :class="[
             // recordIdx !== records.length - 1 ? 'border-b border-gray-200' : '',
-            'whitespace-nowrap py-2 text-sm font-medium',
+            'whitespace-pre-wrap py-2 text-sm font-medium',
           ]"
         >
           {{ record[column.name] }}
