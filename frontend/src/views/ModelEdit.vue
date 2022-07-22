@@ -22,7 +22,7 @@
             Reset to runtime spec
           </button>
         </div>
-        <div class="p-3" v-if="modelSpec != null">
+        <div class="p-3" v-if="modelSpec?.input_spec != null && modelSpec?.output_spec != null">
           <RecordSpecDisplay :spec="modelSpec.input_spec" />
           =>
           <RecordSpecDisplay :spec="modelSpec.output_spec" />
@@ -171,6 +171,7 @@ async function commit() {
     name: commitTitle.value,
     description: commitDescription.value || null,
   } as Partial<ArtifactVersion>);
+  await artifactsStore.hydrate();
   router.push(`/models/${props.modelName}`);
 }
 </script>

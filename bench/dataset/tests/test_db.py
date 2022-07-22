@@ -25,7 +25,7 @@ def dataset_version() -> DatasetVersion:
 @pytest.fixture()
 def dataset(dataset_version: DatasetVersion) -> DbDataset:
     dataset = DbDataset(
-        artifact_id=dataset_version.artifact.id, version=dataset_version.version, spec=None
+        artifact_id=dataset_version.name_version, version=dataset_version.version, spec=None
     )
     return dataset
 

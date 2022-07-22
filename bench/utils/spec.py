@@ -242,7 +242,9 @@ def reduce_to_record_type_spec(
     return record_spec
 
 
-def convert_to_record_type_spec(spec: Union[RecordType, RecordSpec]) -> RecordTypeSpec:
+def convert_to_record_type_spec(
+    spec: Union[RecordType, RecordSpec, FieldTypeSpec, FieldTypePrimitive]
+) -> RecordTypeSpec:
     if isinstance(spec, Mapping):
         converted_spec: dict[str, AnySpec] = {}
         for key, value in spec.items():
@@ -250,7 +252,7 @@ def convert_to_record_type_spec(spec: Union[RecordType, RecordSpec]) -> RecordTy
         return reduce_to_record_type_spec(converted_spec)
     else:
         converted_value_spec: AnySpec = type_to_spec(
-            key="", description="", typ=spec, ignore_spec=True
+            key="", description="", typ=spec, ignore_spec=True  # type: ignore
         )
         # can only be RecordTypeSpec because spec is Union[RecordType, RecordSpec]
         return cast(RecordTypeSpec, converted_value_spec)
@@ -388,7 +390,8 @@ def type_to_spec(
     # Some value types may be referred to by their implementation types rather than
     # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
     if isinstance(typ, type):
-        typ = _impl_type_to_type(typ, default, ignore_unknown=False)
+        # TODO @Robustness: don't ignore unknown types in _impl_type_to_type
+        typ = _impl_type_to_type(typ, default, ignore_unknown=True)
     elif isinstance(typ, DatasetType):
         return DatasetSpec(
             name=key,

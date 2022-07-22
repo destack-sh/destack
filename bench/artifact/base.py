@@ -19,6 +19,12 @@ class ArtifactHandler(abc.ABC):
     config_spec: ConfigSpec
     # Config values are immutable after init. If not set, defaults to all keys.
     config_static_keys: set[str]
+    # Three types of spec:
+    #  - base_spec applies to all artifacts connected to this handler
+    #  - spec may be configured and applies to this specific artifact and handler
+    #  - runtime_spec is derived from this specific artifact at runtime
+    # Generic base spec for this handler (before configuration).
+    base_spec: Optional[ArtifactSpec]
     # Generic spec for this handler.
     spec: ArtifactSpec
 
@@ -43,7 +49,7 @@ class ArtifactHandler(abc.ABC):
     @property
     def runtime_spec(self) -> ArtifactSpec:
         """Gets the actual *runtime* spec of the current model (if different from configured)"""
-        return self.spec
+        return self.base_spec or self.spec
 
     @property
     def fs(self) -> AbstractFileSystem:
