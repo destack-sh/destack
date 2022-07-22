@@ -50,18 +50,27 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         return ModelSpec(name="", description="", input_spec=input_spec, output_spec=output_spec)
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:
-        tokens: list[dict] = [{"text": token.text} for token in doc]
+        tokens: list[dict] = [
+            {
+                "text": token.text_with_ws,
+                "start": token.idx,
+                "end": token.idx + len(token.text),
+            }
+            for token in doc
+        ]
         output = {"text": doc.text, "tokens": tokens}
         if self.has_entities:
-            output["entities"] = [
-                {
+            entities = []
+            for span in doc.ents:
+                end = doc[span.end].idx if span.end < len(doc) else len(doc.text)
+                entity = {
                     "text": span.text,
-                    "start": span.start,
-                    "end": span.end,
+                    "start": doc[span.start].idx,
+                    "end": end,
                     "label": span.label_,
                 }
-                for span in doc.ents
-            ]
+                entities.append(entity)
+            output["entities"] = entities
         if self.has_categories:
             output["categories"] = [
                 {"label": label, "score": score} for label, score in doc.cats.items()

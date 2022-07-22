@@ -13,7 +13,7 @@
               </tr>
             </thead> -->
     <tbody class="bg-white">
-      <tr v-for="record in records" :key="record.name">
+      <tr v-for="(row, i) in rows" :key="i">
         <td
           v-for="column in columns"
           :key="column.name"
@@ -22,7 +22,7 @@
             'whitespace-pre-wrap py-2 text-sm font-medium',
           ]"
         >
-          {{ record[column.name] }}
+          <SpanTextDisplay :model-value="row" :spec="props.fields" />
         </td>
       </tr>
     </tbody>
@@ -30,11 +30,17 @@
 </template>
 <script lang="ts" setup>
 import type { FieldSpec } from "@/types";
+import SpanTextDisplay from "@/displays/SpanTextDisplay.vue";
 import { computed } from "vue";
 const props = defineProps<{
   fields: Array<FieldSpec>;
   records: Array<Record<string, any>>;
 }>();
 
-const columns = computed(() => props.fields);
+// TODO @Cleanup @Architecture: support general multi-field displays & interfaces
+//  (across interfaces/displays for preview, grid, form, etc.)
+const columns = computed(() =>
+  props.fields.filter((f) => !["entities", "tokens"].includes(f.name))
+);
+const rows = computed(() => props.records);
 </script>
