@@ -51,7 +51,7 @@ class Model(Artifact):
     TODO @Feature: specify model affordances for different tasks, define common task/model specs
     """
 
-    objects = ModelManager()  # type: ignore
+    objects = ModelManager()
 
     class Meta:
         proxy = True
@@ -89,7 +89,7 @@ class ModelVersion(ArtifactVersion):
 
     @cached_property
     def output_spec(self):
-        return self._metadata_typed.input_spec
+        return self._metadata_typed.output_spec
 
     @property
     def spec(self) -> ModelSpec:

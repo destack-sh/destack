@@ -231,6 +231,10 @@ BLANK_FIELD_TYPE: FieldTypeSpec = cast(FieldTypeSpec, {})
 BLANK_FIELD_SPEC = FieldSpec(name="", description="", type=BLANK_FIELD_TYPE)
 
 
+def is_blank_spec(obj) -> bool:
+    return obj == {}
+
+
 def reduce_to_record_type_spec(
     spec: Mapping[str, AnySpec], ignore_invalid: bool = False
 ) -> RecordTypeSpec:

@@ -17,18 +17,16 @@ from bench.artifact.base import ArtifactHandler
 from bench.dataset.accessor import (
     get_dataset_version_handler,
     read_dataset_version,
-    update_dataset_spec_if_unset,
+    update_dataset_spec,
     write_to_dataset,
     write_to_dataset_version,
 )
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
-    ArtifactConnection,
     Executor,
     FlowExecutionManifest,
     FlowExecutionOptions,
     FlowExecutionPlan,
-    FlowNodeConnection,
     FlowRawArgument,
     ResourceRequirements,
     make_execution_plan,
@@ -282,7 +280,7 @@ class LocalExecutor(Executor):
                         dataset, artifact_connection.view_data
                     )
                     input_spec = functions[node_id].input_spec[input_key]
-                    update_dataset_spec_if_unset(dataset, input_spec)
+                    update_dataset_spec(dataset, input_spec)
                 else:
                     raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
 
@@ -367,7 +365,6 @@ class LocalExecutor(Executor):
             )
         )
         for connection in dynamic_connections:
-            connection = cast(Union[FlowNodeConnection, ArtifactConnection], connection)
             connection_id = cast(UUID, connection.manifested_id)
             if connection_id is not None:  # only if dynamic connection is actually manifested
                 execution_connection = manifest.execution_connections[connection_id]

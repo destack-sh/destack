@@ -57,7 +57,7 @@ class ModelHandler(ArtifactHandler):
 
 class UnbatchedModelHandler(ModelHandler, abc.ABC):
     """
-    A naive ModelBase.forward_batch implementation that just iterates over predict.
+    A naive ModelHandler.predict_batch implementation that just iterates over predict.
     """
 
     def predict_batch(self, records: RecordBatch) -> RecordBatch:
@@ -70,6 +70,20 @@ class UnbatchedModelHandler(ModelHandler, abc.ABC):
             else:
                 output_records.append(output)
         return RecordList(output_records)
+
+
+class BatchedModelHandler(ModelHandler, abc.ABC):
+    """
+    A naive ModelHandler.predict implementation that just aggregates into lists.
+    """
+
+    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+        input_records = RecordList([record])
+        output_records = self.predict_batch(input_records)
+        if len(output_records) == 1:
+            return output_records[0]
+        else:
+            return output_records
 
 
 def map_to_model_cls(model_cls: Type[ModelHandler], *args) -> Type[ModelHandler]:

@@ -75,27 +75,27 @@ class DatasetVersion(ArtifactVersion):
     """
 
     @property
-    def _metadata_typed(self) -> DatasetMetadata:
+    def metadata_typed(self) -> DatasetMetadata:
         return DatasetMetadata.from_dict(self.metadata)  # type: ignore
 
     @property
     def handler_id(self) -> str:
-        return self._metadata_typed.handler_id
+        return self.metadata_typed.handler_id
 
     @property
     def config_arguments(self):
-        return self._metadata_typed.config_arguments
+        return self.metadata_typed.config_arguments
 
     @property
     def record_spec(self):
-        return self._metadata_typed.record_spec
+        return self.metadata_typed.record_spec
 
     @property
     def spec(self) -> DatasetSpec:
         return DatasetSpec(
             name=self.artifact.name,
             description=self.artifact.description or "",
-            record_spec=self._metadata_typed.record_spec,
+            record_spec=self.metadata_typed.record_spec,
         )
 
     class Meta:

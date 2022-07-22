@@ -42,7 +42,7 @@ mapNameVersion
                   <template v-if="row['datasets'][column.key]?.result.value != null">
                     <RecordsPreview
                       :style="'preview'"
-                      :fields="specFor(column.key)"
+                      :fields="specFor(column.artifact)"
                       :records="row['datasets'][column.key]?.result.value['results']"
                     />
                   </template>
@@ -62,16 +62,19 @@ mapNameVersion
 <script lang="ts" setup>
 import { api } from "@/api";
 import { useNow } from "@/composables/useNow";
-import { computedAsync, type AsyncResult } from "@/stores";
+import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
+  isFieldType,
+  makeFieldSpec,
+  type ArtifactVersion,
+  type DatasetMetadata,
   type Execution,
   type ExecutionArtifactConnection,
   type FieldSpec,
   type LimitPaginatedResult,
-  type ValueType,
 } from "@/types";
-import { mapNameVersion } from "@/utils/versioning";
+import { mapNameVersion, toNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
 import qs from "qs";
 import { computed } from "vue";
@@ -167,22 +170,61 @@ const rows = computed(() =>
 );
 
 function specFor(dataset: string): FieldSpec[] {
-  // TODO @Feature: derive input spec from given artifacts/datasets?
-  return [
-    {
-      _type: "FieldSpec",
-      name: "text",
-      description: "any text",
-      type: {
-        _type: "ValueType",
-        dtype: "string",
-      } as ValueType,
-    },
-  ];
+  if (datasetVersions.value == null || datasetVersions.value[dataset] == null) {
+    // TODO @Cleanup: derive spec from values?
+    return [];
+  }
+
+  const datasetVersion = datasetVersions.value[dataset];
+  const spec = (datasetVersion.metadata as DatasetMetadata).record_spec;
+  if (spec == null || spec.type == {}) {
+    // TODO @Cleanup: fall back to above
+    return [];
+  }
+
+  if (isFieldType(spec.type)) {
+    return [makeFieldSpec("", spec.type)];
+  } else if (Array.isArray(spec.type)) {
+    return spec.type;
+  } else {
+    return Object.values(spec.type);
+  }
+  // return [
+  //   {
+  //     _type: "FieldSpec",
+  //     name: "text",
+  //     description: "any text",
+  //     type: {
+  //       _type: "ValueType",
+  //       dtype: "string",
+  //     } as ValueType,
+  //   },
+  // ];
 }
 
+const artifactsStore = useArtifactsStore();
+
+const cachedDatasetVersions: Record<string, ArtifactVersion> = {};
+const { result: datasetVersions } = computedAsync(async () => {
+  const datasets = await Promise.all(
+    datasetColumns.value
+      .map((column) => column.artifact)
+      .map(async (artifact) => {
+        if (cachedDatasetVersions[artifact] != null) {
+          return cachedDatasetVersions[artifact];
+        }
+        const datasetVersion = await artifactsStore.getVersion(...mapNameVersion(artifact));
+        cachedDatasetVersions[artifact] = datasetVersion;
+        return datasetVersion;
+      })
+  );
+  const datasetVersions: Record<string, ArtifactVersion> = {};
+  datasets.forEach((dataset) => (datasetVersions[toNameVersion(dataset)] = dataset));
+  return datasetVersions;
+});
+
 // TODO @Robustness @Performance: consolidate and improve dataset/record fetching
-const cachedDatasets: Record<string, PaginatedDataset> = {};
+const cachedDatasetsRecords: Record<string, PaginatedDataset> = {};
 
 function getRecordsId(
   dataset: string,
@@ -205,7 +247,7 @@ function cacheDataset(
   result: PaginatedDataset
 ) {
   const recordsId = getRecordsId(dataset, version, view_data, limit);
-  cachedDatasets[recordsId] = result;
+  cachedDatasetsRecords[recordsId] = result;
 }
 
 async function readDataset(
@@ -215,7 +257,7 @@ async function readDataset(
   limit = 3
 ): Promise<PaginatedDataset> {
   const recordsId = getRecordsId(dataset, version, view_data, limit);
-  const cachedDataset = cachedDatasets[recordsId];
+  const cachedDataset = cachedDatasetsRecords[recordsId];
   if (cachedDataset != null) {
     return Promise.resolve(cachedDataset);
   }
@@ -228,7 +270,7 @@ async function readDataset(
     })
     .then((response) => response.data)
     .then((dataset) => {
-      cachedDatasets[recordsId] = dataset;
+      cachedDatasetsRecords[recordsId] = dataset;
       return dataset;
     });
 }

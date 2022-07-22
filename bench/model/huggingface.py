@@ -2,6 +2,7 @@ import json
 from typing import Optional, Union, cast
 
 import requests
+import structlog.stdlib
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -9,6 +10,8 @@ from bench.artifact.base import NO_STATIC_KEYS
 from bench.model.base import UnbatchedModelHandler, models
 from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import ModelSpec, convert_to_record_spec
+
+logger = structlog.stdlib.get_logger()
 
 
 # TODO @Feature: HuggingFaceModel only works for sequence classification task
@@ -50,14 +53,29 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
         self.bearer_token = bearer_token
         super().__init__(**kwargs)
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
-        record = cast(dict, record)
-        headers = {"Authorization": f"Bearer {self.bearer_token}"}
-        data = json.dumps(record)
-        api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
-        response = requests.request("POST", api_url, headers=headers, data=data)
-        output = json.loads(response.content.decode("utf-8"))
-        return output
+    @property
+    def api_url(self):
+        return f"https://api-inference.huggingface.co/models/{self.model_name}"
+
+    @property
+    def headers(self) -> dict:
+        return {"Authorization": f"Bearer {self.bearer_token}"}
+
+    def predict(self, record: Record) -> Record:
+        data = json.dumps(cast(dict, record))
+        response = requests.request("POST", self.api_url, headers=self.headers, data=data)
+        if response.status_code == 503:
+            logger.debug("waiting_for_hosted_model", model=self.model_name)
+            response = requests.request(
+                "POST",
+                self.api_url,
+                params={"wait_for_model": True},
+                headers=self.headers,
+                data=data,
+            )
+
+        outputs = json.loads(response.content.decode("utf-8"))
+        return outputs[0]
 
 
 @models.register("bench.huggingface.hosted.text_generation")
