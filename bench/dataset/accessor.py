@@ -2,6 +2,7 @@ import dataclasses
 from typing import Optional, Union
 
 import structlog.stdlib
+from fsspec import AbstractFileSystem
 
 from bench.dataset.base import (
     DatasetHandler,
@@ -44,12 +45,11 @@ class DatasetAccessor:
 
 def _to_handler_opts(version: DatasetVersion) -> dict:
     return {
-        **version.config_arguments,
+        "arguments": {**version.config_arguments, "artifact_id": version.artifact.id},
         "handler_id": version.handler_id,
         "storage_uri": version.storage_uri,
         "version": version.version,
         "spec": version.spec,
-        "artifact_id": version.artifact.id,
     }
 
 
@@ -121,3 +121,14 @@ def write_to_dataset_version(
         writer.clear()
     batch = records_to_batch(records)
     return writer.extend(batch)
+
+
+def get_file_system(storage_uri: str) -> tuple[AbstractFileSystem, str]:
+    """
+    Parses the given storage uri into the corresponding file system & path
+    @param storage_uri: The storage URI
+    @return: A tuple of [fs, path]
+    """
+    # TODO @Feature: parse storage_uri into fsspec's fs & path for ArtifactHandler
+    #  Note: how will we get auth information in here?
+    raise NotImplementedError
