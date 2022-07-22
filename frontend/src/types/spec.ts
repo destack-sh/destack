@@ -30,7 +30,7 @@ export type FieldValue = any;
 
 export type FieldSpec = _Spec & {
   _type: "FieldSpec";
-  type: FieldType | Array<FieldSpec> | Record<string, FieldSpec>;
+  type: FieldType | FieldSpec | Array<FieldSpec> | Record<string, FieldSpec>;
 };
 
 export function isFieldSpec(obj: any) {

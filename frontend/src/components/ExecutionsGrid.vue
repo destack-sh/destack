@@ -65,6 +65,7 @@ import { useNow } from "@/composables/useNow";
 import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
+  isFieldSpec,
   isFieldType,
   makeFieldSpec,
   type ArtifactVersion,
@@ -72,6 +73,7 @@ import {
   type Execution,
   type ExecutionArtifactConnection,
   type FieldSpec,
+  type FieldType,
   type LimitPaginatedResult,
 } from "@/types";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
@@ -169,6 +171,19 @@ const rows = computed(() =>
   })
 );
 
+function unravelSpec(spec: FieldSpec): FieldSpec[] {
+  if (isFieldType(spec.type)) {
+    return [makeFieldSpec("", spec.type as FieldType)];
+  } else if (isFieldSpec(spec.type)) {
+    // if the spec type is just a blank spec it's just a level of annotation
+    return unravelSpec(spec.type as FieldSpec);
+  } else if (Array.isArray(spec.type)) {
+    return spec.type;
+  } else {
+    return Object.values(spec.type);
+  }
+}
+
 function specFor(dataset: string): FieldSpec[] {
   if (datasetVersions.value == null || datasetVersions.value[dataset] == null) {
     // TODO @Cleanup: derive spec from values?
@@ -182,24 +197,7 @@ function specFor(dataset: string): FieldSpec[] {
     return [];
   }
 
-  if (isFieldType(spec.type)) {
-    return [makeFieldSpec("", spec.type)];
-  } else if (Array.isArray(spec.type)) {
-    return spec.type;
-  } else {
-    return Object.values(spec.type);
-  }
-  // return [
-  //   {
-  //     _type: "FieldSpec",
-  //     name: "text",
-  //     description: "any text",
-  //     type: {
-  //       _type: "ValueType",
-  //       dtype: "string",
-  //     } as ValueType,
-  //   },
-  // ];
+  return unravelSpec(spec);
 }
 
 const artifactsStore = useArtifactsStore();
