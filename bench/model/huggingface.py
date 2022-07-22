@@ -62,6 +62,13 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
 
 @models.register("bench.huggingface.hosted.text_generation")
 class HuggingFaceHostedGenerationModel(HuggingFaceHostedModel):
+    base_spec = ModelSpec(
+        name="bench.huggingface.hosted.text_generation",
+        description="HuggingFace hosted model for text generation",
+        input_spec=convert_to_record_spec({"text": str}),
+        output_spec=convert_to_record_spec({"generated_text": str}),
+    )
+
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         # TODO @Cleanup @Architecture: generalise model/flow node input/output remapping

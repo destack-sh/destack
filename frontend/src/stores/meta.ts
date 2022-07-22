@@ -15,12 +15,12 @@ export const useMetaStore = defineStore("meta", {
           handler: this.modelHandlersByName["bench.spacy.bundled"],
         },
         {
-          name: "HuggingFace Hub [Hosted]",
-          handler: this.modelHandlersByName["bench.huggingface.hosted"],
+          name: "HuggingFace Text Generation [Hosted]",
+          handler: this.modelHandlersByName["bench.huggingface.hosted.text_generation"],
         },
         {
-          name: "OpenAI Completion [Hosted]",
-          handler: this.modelHandlersByName["bench.openai.completion"],
+          name: "OpenAI Text Generation [Hosted]",
+          handler: this.modelHandlersByName["bench.openai.text_generation"],
         },
       ];
     },
