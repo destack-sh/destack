@@ -1,7 +1,8 @@
 import abc
-import functools
 from typing import Any, Iterable, Optional, Tuple, Type, Union
 
+import cachetools
+from cachetools import LRUCache
 from fsspec import AbstractFileSystem
 
 from bench.artifact.base import ArtifactHandler
@@ -92,12 +93,12 @@ def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
     return datasets[handler_id]
 
 
-@functools.cache
+@cachetools.cached(cache=LRUCache(maxsize=1024), key=lambda cls: cls.__name__)
 def _get_dataset_handler_config_type(cls: Type[DatasetHandler]) -> ConfigTypeSpec:
     return infer_config_type(cls)
 
 
-def _get_file_system(storage_uri: str) -> Tuple[AbstractFileSystem, str]:
+def get_file_system(storage_uri: str) -> Tuple[AbstractFileSystem, str]:
     """
     Parses the given storage uri into the corresponding file system & path
     @param storage_uri: The storage URI
@@ -113,7 +114,7 @@ def load_dataset(
     storage_uri: Optional[str],
     version: Optional[str],
     spec: Optional[DatasetSpec],
-    **kwargs,
+    arguments: dict[str, Any],
 ) -> DatasetHandler:
     """
     Loads a handler for interacting with the given dataset
@@ -126,15 +127,14 @@ def load_dataset(
 
     dataset_cls = get_dataset_cls(handler_id)
     if storage_uri:
-        fs, path = _get_file_system(storage_uri)
+        fs, path = get_file_system(storage_uri)
     else:
         fs, path = None, None
 
     config_type = _get_dataset_handler_config_type(dataset_cls)
-    arguments = dict(fs=fs, path=path, **kwargs)
+    arguments = dict(**arguments, fs=fs, path=path)
     # filter arguments to only those listed
     arguments = {key: value for key, value in arguments.items() if key in config_type}
-
     dataset = dataset_cls(spec=spec, version=version, **arguments)  # noqa
     return dataset
 
@@ -144,14 +144,14 @@ def get_dataset_reader(
     storage_uri: Optional[str],
     version: Optional[str],
     spec: Optional[DatasetSpec],
-    **kwargs,
+    arguments: dict[str, Any],
 ) -> DatasetReader:
     dataset_handler = load_dataset(
         handler_id=handler_id,
         storage_uri=storage_uri,
         version=version,
         spec=spec,
-        **kwargs,
+        arguments=arguments,
     )
     if not isinstance(dataset_handler, DatasetReader):
         raise ValueError(f"dataset handler does not support reading: {dataset_handler}")

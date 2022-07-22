@@ -1,10 +1,11 @@
 import abc
 from dataclasses import dataclass
-from typing import AbstractSet, Any, Dict, List, Optional, Type, Union
+from typing import AbstractSet, Any, List, Optional, Type, Union
 
 from fsspec import AbstractFileSystem
 
 from bench.artifact.base import ArtifactHandler
+from bench.dataset.accessor import get_file_system
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
 from bench.utils.spec import (
@@ -14,6 +15,7 @@ from bench.utils.spec import (
     convert_to_config_spec,
     convert_to_record_spec,
     infer_config_spec,
+    infer_config_type,
     infer_description,
 )
 
@@ -163,9 +165,18 @@ def load_model(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    arguments: Dict[str, Any],
+    arguments: dict[str, Any],
     spec: Optional[ModelSpec],
 ) -> ModelHandler:
     model_cls = get_model_cls(handler_id)
+    if storage_uri:
+        fs, path = get_file_system(storage_uri)
+    else:
+        fs, path = None, None
+
+    config_type = infer_config_type(model_cls)
+    arguments = dict(**arguments, fs=fs, path=path)
+    # filter arguments to only those listed
+    arguments = {key: value for key, value in arguments.items() if key in config_type}
     model = model_cls(spec=spec, version=version, **arguments)  # noqa
     return model
