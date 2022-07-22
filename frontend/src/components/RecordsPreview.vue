@@ -19,7 +19,7 @@
           :key="column.name"
           :class="[
             // recordIdx !== records.length - 1 ? 'border-b border-gray-200' : '',
-            'whitespace-pre-wrap py-2 text-sm font-medium',
+            'whitespace-pre-wrap text-sm font-medium',
           ]"
         >
           <SpanTextDisplay :model-value="row" :spec="props.fields" />

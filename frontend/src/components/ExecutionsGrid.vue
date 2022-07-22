@@ -17,7 +17,7 @@ mapNameVersion
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white">
+            <tbody class="bg-white align-top">
               <tr v-for="(row, rowIdx) in rows" :key="row.id">
                 <td
                   :class="[
