@@ -75,6 +75,7 @@ import {
   type FieldSpec,
   type FieldType,
   type LimitPaginatedResult,
+  type RecordSpec,
 } from "@/types";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
 import { DateTime, type ToRelativeOptions } from "luxon";
@@ -192,16 +193,21 @@ function specFor(dataset: string): FieldSpec[] {
 
   const datasetVersion = datasetVersions.value[dataset];
   const spec = (datasetVersion.metadata as DatasetMetadata).record_spec;
-  if (spec == null || spec.type == {}) {
+  if (!isValidSpec(spec)) {
     // TODO @Cleanup: fall back to above
     return [];
   }
 
-  return unravelSpec(spec);
+  return unravelSpec(spec as RecordSpec);
+}
+
+function isValidSpec(spec: RecordSpec | undefined | null): boolean {
+  return spec != null && spec.type != {};
 }
 
 const artifactsStore = useArtifactsStore();
 
+// cached dataset versions maintained for specs
 const cachedDatasetVersions: Record<string, ArtifactVersion> = {};
 const { result: datasetVersions } = computedAsync(async () => {
   const datasets = await Promise.all(
@@ -212,7 +218,11 @@ const { result: datasetVersions } = computedAsync(async () => {
           return cachedDatasetVersions[artifact];
         }
         const datasetVersion = await artifactsStore.getVersion(...mapNameVersion(artifact));
-        cachedDatasetVersions[artifact] = datasetVersion;
+        // only cache datasets with valid spec
+        if (isValidSpec((datasetVersion.metadata as DatasetMetadata).record_spec)) {
+          cachedDatasetVersions[artifact] = datasetVersion;
+        }
+
         return datasetVersion;
       })
   );

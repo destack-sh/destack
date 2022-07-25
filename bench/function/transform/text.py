@@ -18,6 +18,8 @@ class TextTransform(SingleRecordTransform, abc.ABC):
         transformed_text = self.transform_text(cast(str, record["text"]))
         if isinstance(transformed_text, str):
             return {**record, "text": transformed_text}
+        elif isinstance(transformed_text, dict):
+            return {**record, **transformed_text}
         else:
             output_text, output_record = transformed_text
             return {**record, **output_record, "text": transformed_text}
@@ -26,8 +28,14 @@ class TextTransform(SingleRecordTransform, abc.ABC):
         raise NotImplementedError
 
 
-@functions.register("bench.text.upper_case")
+@functions.register("bench.text.case.upper")
 class UpperCaseTextTransform(TextTransform):
+    def transform_text(self, text: str) -> str:
+        return text.upper()
+
+
+@functions.register("bench.text.case.lower")
+class LowerCaseTextTransform(TextTransform):
     def transform_text(self, text: str) -> str:
         return text.upper()
 

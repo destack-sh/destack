@@ -21,6 +21,21 @@ FlowExecutionPlan
       <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
     </form>
 
+    <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
+      <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">Augmentations</h3>
+      </div>
+      <div class="">
+        <button
+          type="button"
+          class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          @click="promptAddAugmentation"
+        >
+          Add augmentation
+        </button>
+      </div>
+    </div>
+
     <!-- Select models -->
     <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
       <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
@@ -298,6 +313,41 @@ watch(
   { immediate: true }
 );
 
+function getEagerExecutionConnections(plan: FlowExecutionPlan, execution: Execution) {
+  const argumentsValues = [] as FlowNodeExecutionArgument[];
+  Object.values(plan.arguments).forEach((nodeArguments: FlowNodeExecutionArgument[]) =>
+    argumentsValues.push(...nodeArguments)
+  );
+
+  // TODO @Cleanup: faux/eager execution connections are tightly coupled to execution grid
+  const eagerConnections = argumentsValues
+    .filter((argument) => argument.records != null)
+    .map((argument: FlowNodeExecutionArgument) => {
+      // determine name of soon-to-be artifact according to well known backend schema
+      const nodeName = getFlowNode(argument.node)?.name;
+      var artifact;
+      if (argument.name == "*") {
+        artifact = `${flow.value?.flow}.${nodeName}.${argument.type}s`;
+      } else {
+        artifact = `${flow.value?.flow}.${nodeName}-${argument.type}s.${argument.name}`;
+      }
+      // create pretend execution artifact connection with known data
+      return {
+        execution: execution.id,
+        artifact: `${artifact}@0`,
+        connection_type: argument.type,
+        connection_name: argument.name,
+        view_inline: { start: -argument.records.length, end: 0 },
+        dataset_preview: {
+          count: argument.records.length,
+          limit: 3,
+          results: argument.records,
+        },
+      } as ExecutionArtifactConnection;
+    });
+  return eagerConnections;
+}
+
 async function execute() {
   if (flow.value == null || inputNode.value == null) {
     throw new Error("cannot execute: flow is not initialized");
@@ -328,37 +378,7 @@ async function execute() {
         // bail if there were no arguments or if the backend already manifested them on the execution
         return execution;
       }
-      const argumentsValues = [] as FlowNodeExecutionArgument[];
-      Object.values(plan.arguments).forEach((nodeArguments: FlowNodeExecutionArgument[]) =>
-        argumentsValues.push(...nodeArguments)
-      );
-
-      // TODO @Cleanup: faux/eager execution connections are tightly coupled to execution grid
-      const eagerConnections = argumentsValues
-        .filter((argument) => argument.records != null)
-        .map((argument: FlowNodeExecutionArgument) => {
-          // determine name of soon-to-be artifact according to well known backend schema
-          const nodeName = getFlowNode(argument.node)?.name;
-          var artifact;
-          if (argument.name == "*") {
-            artifact = `${flow.value?.flow}.${nodeName}.${argument.type}s`;
-          } else {
-            artifact = `${flow.value?.flow}.${nodeName}-${argument.type}s.${argument.name}`;
-          }
-          // create pretend execution artifact connection with known data
-          return {
-            execution: execution.id,
-            artifact: `${artifact}@0`,
-            connection_type: argument.type,
-            connection_name: argument.name,
-            view_inline: { start: -argument.records.length, end: 0 },
-            dataset_preview: {
-              count: argument.records.length,
-              limit: 3,
-              results: argument.records,
-            },
-          } as ExecutionArtifactConnection;
-        });
+      const eagerConnections = getEagerExecutionConnections(plan, execution);
       execution.connected_artifacts = eagerConnections;
       return execution;
     })
@@ -420,4 +440,6 @@ const artifactSelect = ref(null);
 function promptAddModel() {
   (artifactSelect.value as any).show();
 }
+
+function promptAddAugmentation() {}
 </script>
