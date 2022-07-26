@@ -4,7 +4,7 @@
       <label for="username" class="block text-sm font-medium text-gray-700">
         {{ field.name }}
       </label>
-      <div class="mt-1 flex rounded-md shadow-sm">
+      <div class="mt-1 flex rounded-md">
         <FieldValueInterface
           :modelValue="props.modelValue[field.name]"
           :field="field"

@@ -138,7 +138,6 @@
 <script lang="ts" setup>
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
 import {
-  BeakerIcon,
   CheckCircleIcon,
   ChipIcon,
   CubeIcon,
@@ -156,8 +155,9 @@ const navigation = [
   { name: "Datasets", to: "/datasets", icon: DatabaseIcon, current: false },
   { name: "Flows", to: "/flows", icon: VariableIcon, current: false },
   { name: "Tests", to: "/tests", icon: CheckCircleIcon, current: false },
+  // { name: "Issues", to: "/issues", icon: ExclamationCircleIcon, current: false },
   { name: "Playground", to: "/playground", icon: CubeIcon, current: false },
-  { name: "Laboratory", to: "/laboratory", icon: BeakerIcon, current: false },
+  // { name: "Laboratory", to: "/laboratory", icon: BeakerIcon, current: false },
   //   { name: "Resources", to: "/resources", icon: ServerIcon, current: false },
 ];
 

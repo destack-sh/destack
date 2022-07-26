@@ -31,6 +31,7 @@ export type FlowNode = {
   created_at: string;
   function_id: string;
   config_arguments?: Record<string, any>;
+  metadata?: Record<string, any>;
 };
 
 export type FlowArtifactEdgeType = "input" | "argument" | "output";

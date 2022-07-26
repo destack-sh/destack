@@ -9,6 +9,7 @@ from typing import (
     Optional,
     OrderedDict,
     Type,
+    Union,
     cast,
 )
 
@@ -65,7 +66,7 @@ class RecordTransform(RecordFunction, ABC):
     A transformation function mapping input records to output records
     """
 
-    def transform(self, record: Record) -> Record:
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
     def transform_batch(self, records: RecordBatch) -> RecordBatch:

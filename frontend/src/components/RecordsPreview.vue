@@ -22,7 +22,8 @@
             'whitespace-pre-wrap text-sm font-medium',
           ]"
         >
-          <SpanTextDisplay :model-value="row" :spec="props.fields" />
+          <SpanTextDisplay v-if="row.text != undefined" :model-value="row" :spec="props.fields" />
+          <span v-else class="font-normal">{{ row[column.name] }}</span>
         </td>
       </tr>
     </tbody>
