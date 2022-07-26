@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import Union
 
 from bench.function.base import RecordTransform, functions
 from bench.model.base import ModelHandler
@@ -25,11 +26,8 @@ class ModelRecordTransform(RecordTransform):
         self.input_spec = {"*": self.model.spec.input_spec}
         self.output_spec = OrderedDict([("*", self.model.spec.output_spec)])
 
-    def transform(self, record: Record) -> Record:
-        output = self.model.predict(record)
-        if isinstance(output, RecordBatch):
-            raise ValueError("model record transform cannot handle record->batch transform")
-        return output
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
+        return self.model.predict(record)
 
     def transform_batch(self, records: RecordBatch) -> RecordBatch:
         return self.model.predict_batch(records)

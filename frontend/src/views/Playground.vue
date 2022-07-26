@@ -25,115 +25,114 @@ FlowExecutionPlan
         </button>
       </div>
     </div>
-
-    <!-- Input -->
-    <form class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
-      <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
+    <div class="mx-auto flex max-w-7xl flex-col gap-2 py-4 px-4 sm:px-6 md:px-8">
+      <div class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-3 sm:px-6">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
+        </div>
+        <div class="px-4 py-2 sm:p-6">
+          <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
+        </div>
       </div>
-      <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
-    </form>
 
-    <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
-      <div class="mb-3 border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Augmentations</h3>
-      </div>
-      <div class="">
-        <button
-          type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click="promptAddAugmentation"
-        >
-          Add augmentation
-        </button>
-      </div>
-    </div>
-
-    <!-- Select models -->
-    <div class="sm:px--6 mx-auto max-w-7xl px-4 pt-6 md:px-8">
-      <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Models</h3>
-        <div class="mt-3 sm:mt-0 sm:ml-4">
+      <div class="self-center px-4">
+        <div class="">
           <button
             type="button"
             class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            @click="promptAddModel"
+            @click="promptAddNode"
           >
-            Add model
+            Add node
           </button>
         </div>
       </div>
-      <ul role="list" class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-        <li
-          v-for="modelNode in modelNodes"
-          :key="modelNode.name"
-          class="col-span-1 flex rounded-md shadow-sm"
-        >
-          <div
-            class="flex flex-1 items-center justify-between truncate rounded-r-md border-t border-b border-r border-gray-200 bg-white"
-          >
-            <div class="flex-1 truncate px-4 py-2 text-sm">
-              <router-link
-                :to="'/models/' + modelForNode(modelNode)?.artifact"
-                class="font-medium text-gray-900 hover:text-gray-600"
-                >{{ modelForNode(modelNode)?.artifact }}</router-link
-              >
-              <p class="text-gray-500">
-                {{ modelForNode(modelNode)?.version }}
-              </p>
-            </div>
-            <!-- TODO @UI @Bug model menu is clipped by parent container  -->
-            <div class="flex-shrink-0 pr-2">
-              <Menu as="div" class="relative inline-block text-left">
-                <div>
-                  <MenuButton
-                    class="flex items-center rounded-full text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-100"
-                  >
-                    <span class="sr-only">Open options</span>
-                    <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
-                  </MenuButton>
-                </div>
 
-                <transition
-                  enter-active-class="transition ease-out duration-100"
-                  enter-from-class="transform opacity-0 scale-95"
-                  enter-to-class="transform opacity-100 scale-100"
-                  leave-active-class="transition ease-in duration-75"
-                  leave-from-class="transform opacity-100 scale-100"
-                  leave-to-class="transform opacity-0 scale-95"
-                >
-                  <MenuItems
-                    class="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-                  >
-                    <div class="py-1">
-                      <MenuItem v-slot="{ active }">
-                        <button
-                          href="#"
-                          :class="[
-                            active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
-                            'block px-4 py-2 text-sm',
-                          ]"
-                          @click="removeModel(modelNode)"
-                        >
-                          Remove from playground
-                        </button>
-                      </MenuItem>
-                    </div>
-                  </MenuItems>
-                </transition>
-              </Menu>
-            </div>
+      <!-- Select models -->
+      <div class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
+        <div class="px-4 py-3 sm:flex sm:items-center sm:justify-between">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Models</h3>
+          <div class="sm:mt-0 sm:ml-4">
+            <button
+              type="button"
+              class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              @click="promptAddModel"
+            >
+              Add model
+            </button>
           </div>
-        </li>
-      </ul>
-    </div>
+        </div>
+        <ul role="list" class="grid grid-cols-1 gap-5 px-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+          <li
+            v-for="modelNode in modelNodes"
+            :key="modelNode.name"
+            class="col-span-1 my-2 flex rounded-md"
+          >
+            <div
+              class="flex flex-1 items-center justify-between truncate rounded-md border border-gray-200 bg-white"
+            >
+              <div class="flex-1 truncate px-4 py-2 text-sm">
+                <router-link
+                  :to="'/models/' + modelForNode(modelNode)?.artifact"
+                  class="font-medium text-gray-900 hover:text-gray-600"
+                  >{{ modelForNode(modelNode)?.artifact }}</router-link
+                >
+                <p class="text-gray-500">
+                  {{ modelVersionForNode(modelNode) }}
+                </p>
+              </div>
+              <!-- TODO @UI @Bug model menu is clipped by parent container  -->
+              <div class="flex-shrink-0 pr-2">
+                <Menu as="div" class="relative inline-block text-left">
+                  <div>
+                    <MenuButton
+                      class="flex items-center rounded-full text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-100"
+                    >
+                      <span class="sr-only">Open options</span>
+                      <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
+                    </MenuButton>
+                  </div>
 
-    <!-- Executions & output -->
-    <div class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:px-8">
-      <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
-        <h3 class="text-lg font-medium leading-6 text-gray-900">Outputs</h3>
+                  <transition
+                    enter-active-class="transition ease-out duration-100"
+                    enter-from-class="transform opacity-0 scale-95"
+                    enter-to-class="transform opacity-100 scale-100"
+                    leave-active-class="transition ease-in duration-75"
+                    leave-from-class="transform opacity-100 scale-100"
+                    leave-to-class="transform opacity-0 scale-95"
+                  >
+                    <MenuItems
+                      class="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    >
+                      <div class="py-1">
+                        <MenuItem v-slot="{ active }">
+                          <button
+                            href="#"
+                            :class="[
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
+                              'block px-4 py-2 text-sm',
+                            ]"
+                            @click="removeModel(modelNode)"
+                          >
+                            Remove from playground
+                          </button>
+                        </MenuItem>
+                      </div>
+                    </MenuItems>
+                  </transition>
+                </Menu>
+              </div>
+            </div>
+          </li>
+        </ul>
       </div>
-      <ExecutionsGrid :executions="executions" />
+
+      <!-- Executions & output -->
+      <div class="pt-6">
+        <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Execution history</h3>
+        </div>
+        <ExecutionsGrid :executions="executions" />
+      </div>
     </div>
   </Sidebar>
   <ArtifactSelect
@@ -208,6 +207,16 @@ const { result: usedModelsByNV } = computedAsync(async () => {
 
 function getNodeIndex(nodeName: string): number {
   return flow.value?.nodes?.filter((node) => node.name.startsWith(nodeName)).length || 0;
+}
+
+function modelVersionForNode(modelNode: FlowNode): string | null {
+  const model = modelForNode(modelNode);
+  if (model == null) return null;
+  if (artifactsStore.isHead(model)) {
+    return "latest";
+  } else {
+    return model.name || model.version;
+  }
 }
 
 function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
@@ -492,5 +501,5 @@ function promptAddModel() {
   (artifactSelect.value as any).show();
 }
 
-function promptAddAugmentation() {}
+function promptAddNode() {}
 </script>

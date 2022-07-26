@@ -61,7 +61,7 @@ mapNameVersion
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
-import { useNow, useTimeFromNow } from "@/composables/useNow";
+import { useTimeFromNow } from "@/composables/useNow";
 import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
@@ -78,7 +78,7 @@ import {
   type RecordSpec,
 } from "@/types";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
-import { DateTime, type ToRelativeOptions } from "luxon";
+import { DateTime } from "luxon";
 import qs from "qs";
 import { computed } from "vue";
 import RecordsPreview from "./RecordsPreview.vue";
