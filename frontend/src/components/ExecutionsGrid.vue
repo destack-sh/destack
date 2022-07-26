@@ -61,7 +61,7 @@ mapNameVersion
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
-import { useNow } from "@/composables/useNow";
+import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
@@ -117,21 +117,8 @@ const datasetColumns = computed(() => {
 
 type PaginatedDataset = LimitPaginatedResult<Record<string, any>>;
 
-const luxonToRelativeOptions: ToRelativeOptions = {
-  locale: "en-US",
-  style: "narrow",
-  unit: ["years", "months", "weeks", "days", "hours", "minutes"],
-};
 const columns = computed(() => [{ name: "state" }, ...datasetColumns.value]);
-
-const now = useNow();
-function getTimeFromNow(dt: DateTime): string | null {
-  if (now.value.diff(dt, "seconds").seconds < 60) {
-    return "just now";
-  } else {
-    return dt.toRelative({ ...luxonToRelativeOptions, base: now.value });
-  }
-}
+const { getTimeFromNow } = useTimeFromNow();
 
 const rows = computed(() =>
   props.executions.map((execution) => {

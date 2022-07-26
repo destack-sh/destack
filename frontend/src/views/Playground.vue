@@ -1,16 +1,29 @@
 FlowExecutionPlan
 <template>
   <Sidebar>
-    <div class="mx-auto max-w-7xl px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
-      <h1 class="text-2xl font-semibold text-gray-900">Playground</h1>
-      <button
-        type="submit"
-        class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-        @click.prevent="execute"
-        :disabled="!canExecute"
-      >
-        Run
-      </button>
+    <div
+      class="mx-auto max-w-7xl justify-between px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8"
+    >
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900">{{ flow?.flow }}</h1>
+        <h3 class="text text-gray-700">created {{ getTimeFromNowString(flow?.created_at) }}</h3>
+      </div>
+      <div class="flex gap-4">
+        <button
+          type="submit"
+          class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+          @click.prevent="execute"
+          :disabled="!canExecute"
+        >
+          Run
+        </button>
+        <button
+          class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+          @click="initNewPlayground"
+        >
+          New
+        </button>
+      </div>
     </div>
 
     <!-- Input -->
@@ -155,6 +168,9 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { DateTime, Duration } from "luxon";
 import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type PropType, type Ref } from "vue";
+import animalsString from "@/assets/animals.txt?raw";
+import adjectivesString from "@/assets/adjectives.txt?raw";
+import { useTimeFromNow } from "@/composables/useNow";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
@@ -169,6 +185,7 @@ const {
 } = useFlow(flow);
 const flowStore = useFlowsStore();
 const artifactsStore = useArtifactsStore();
+const { getTimeFromNowString } = useTimeFromNow();
 
 const inputNode: Ref<FlowNode | null> = computed(
   () => flow.value?.nodes?.find((node) => node.name == "input-0") || null
@@ -247,20 +264,34 @@ async function removeModel(modelNode: FlowNode) {
   await deleteFlowNode(modelNode);
 }
 
-async function setupPlayground(models: string[]) {
-  // create main input node
-  const inputNode = await createFlowNode({
-    name: "input-" + getNodeIndex("input"),
-    function_id: "bench.identity",
-  });
-  const modelNodes = await addModels(models);
-  await connectFlowNodes(inputNode, modelNodes, "input");
+function getRandomElement<T>(array: T[]): T {
+  const randomIndex = Math.floor(Math.random() * array.length);
+  return array[randomIndex];
 }
 
-// setup or recover playground
-onBeforeMount(async () => {
-  const flowName = "playground-" + DateTime.now().toISODate();
-  // reload or create flow with version
+const animals = animalsString
+  .toLowerCase()
+  .split("\n")
+  .map((s) => s.replace(" ", "-"));
+const adjectives = adjectivesString
+  .toLowerCase()
+  .split("\n")
+  .map((s) => s.replace(" ", "-"));
+async function initNewPlayground() {
+  var foundNewName = false;
+  var flowName = "";
+  while (!foundNewName) {
+    const randomAdjective = getRandomElement(adjectives);
+    const randomNoun = getRandomElement(animals);
+    flowName = `${randomAdjective}-${randomNoun}`;
+    if (!flowStore.flowExists(flowName)) {
+      foundNewName = true;
+    }
+  }
+  initPlayground(flowName);
+}
+
+async function initPlayground(flowName: string) {
   let flowInstance = flowStore.flow(flowName);
   if (!flowInstance) {
     flowInstance = await flowStore.createFlow({ name: flowName });
@@ -274,6 +305,26 @@ onBeforeMount(async () => {
       parents: [],
     });
     setupPlayground(props.models || []);
+  }
+}
+
+async function setupPlayground(models: string[]) {
+  // create main input node
+  const inputNode = await createFlowNode({
+    name: "input-" + getNodeIndex("input"),
+    function_id: "bench.identity",
+  });
+  const modelNodes = await addModels(models);
+  await connectFlowNodes(inputNode, modelNodes, "input");
+}
+
+// recover or setup playground
+onBeforeMount(async () => {
+  const flowToRecover = flowStore.lastOpenedFlow;
+  if (flowToRecover != null) {
+    flow.value = flowToRecover;
+  } else {
+    initNewPlayground();
   }
 });
 

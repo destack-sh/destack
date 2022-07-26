@@ -8,8 +8,21 @@ export const useFlowsStore = defineStore("flows", {
     flowsByName: {} as Record<string, Flow>,
   }),
   getters: {
+    lastOpenedFlow(): FlowVersion | undefined {
+      function getAccessedDt(flow: Flow): string {
+        return flow.latest_version?.created_at || flow.created_at;
+      }
+
+      return this.flows
+        .filter((flow) => flow.latest_version != null)
+        .sort((a, b) => getAccessedDt(b).localeCompare(getAccessedDt(a)))
+        .map((flow) => flow.latest_version as FlowVersion)[0];
+    },
     flow(): (name: string) => Flow | undefined {
       return (name: string) => this.flowsByName[name];
+    },
+    flowExists(): (name: string) => boolean {
+      return (name: string) => this.flow(name) != null;
     },
     isHead(): (version: FlowVersion) => boolean | undefined {
       return (version: FlowVersion) => this.flow(version.flow)?.latest_version?.id == version.id;
