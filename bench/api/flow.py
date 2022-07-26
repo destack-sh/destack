@@ -38,7 +38,9 @@ class FlowSerializer(serializers.ModelSerializer):
                 queryset=Flow.objects.all(),
                 message="There is already a flow with the given name",
             ),
-            RegexValidator(regex=r"[\w.\-]+", message="Flow names must follow pattern [\\w.\\-]+"),
+            RegexValidator(
+                regex=r"^[\w.\-]+$", message="Flow names must follow pattern [\\w.\\-]+"
+            ),
         ],
     )
     latest_version = serializers.SerializerMethodField(required=False, read_only=True)
@@ -58,6 +60,14 @@ class FlowSerializer(serializers.ModelSerializer):
 
 class FlowNodeSerializer(serializers.ModelSerializer):
     flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
+    name = serializers.CharField(
+        max_length=MAX_NAME_LENGTH,
+        validators=[
+            RegexValidator(
+                regex=r"^[\w.\-]+$", message="Flow node names must follow pattern [\\w.\\-]+"
+            )
+        ],
+    )
 
     class Meta:
         model = FlowNode

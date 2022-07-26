@@ -29,7 +29,7 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
                 message="There is already an artifact with the given name",
             ),
             RegexValidator(
-                regex=r"[\w.\-]+", message="Artifact names must follow pattern [\\w.\\-]+"
+                regex=r"^[\w.\-]+$", message="Artifact names must follow pattern [\\w.\\-]+"
             ),
         ],
     )
