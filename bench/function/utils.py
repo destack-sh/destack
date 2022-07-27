@@ -21,6 +21,9 @@ class IdentityRecordTransform(RecordTransform):
 
 @functions.register("bench.model")
 class ModelRecordTransform(RecordTransform):
+    input_spec = {"*": BLANK_RECORD_SPEC}
+    output_spec = OrderedDict([("*", BLANK_RECORD_SPEC)])
+
     def __init__(self, model: ModelHandler):
         self.model = model
         self.input_spec = {"*": self.model.spec.input_spec}

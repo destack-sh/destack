@@ -80,3 +80,14 @@ export type ModelHandlerSpec = _Spec & {
   base_spec: ModelSpec;
   config_spec: ConfigSpec;
 };
+
+export type FunctionType = "RecordTransform" | "Metric" | "Test";
+
+export type FunctionHandlerSpec = {
+  name: string;
+  description: string;
+  type: FunctionType;
+  config_spec: ConfigSpec;
+  input_spec: Record<string, RecordSpec>;
+  output_spec: Record<string, RecordSpec>;
+};

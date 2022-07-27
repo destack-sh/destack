@@ -1,3 +1,3 @@
-from .basic import TestStaticComparison
+from .basic import TestConstantComparison
 
-__all__ = ["TestStaticComparison"]
+__all__ = ["TestConstantComparison"]

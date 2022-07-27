@@ -207,6 +207,12 @@ class DatasetSpec(ArtifactSpec):
 
 
 @dataclass
+class FunctionSpec(_Spec):
+    input_spec: Mapping[str, RecordSpec]
+    output_spec: typing.OrderedDict[str, RecordSpec]
+
+
+@dataclass
 class ConfigSpec(_Spec):
     type: ConfigTypeSpec
 
@@ -273,7 +279,10 @@ def convert_to_model_spec(spec: Union[ModelType, ModelSpec]) -> ModelSpec:
     )
 
 
-def convert_to_record_spec(spec: Union[RecordType, RecordSpec]) -> RecordSpec:
+def convert_to_record_spec(spec: Union[RecordType, RecordTypeSpec, RecordSpec]) -> RecordSpec:
+    # TODO @Cleanup: if spec is a field type, convert to RecordSpec(type=FieldType)
+    #  instead of RecordSpec(type=RecordSpec(type=FieldType))
+    #  (check/adjust in/around convert_to_record_type_spec)
     if isinstance(spec, RecordSpec):
         converted_spec = convert_to_record_type_spec(spec.type)
         spec = RecordSpec(name=spec.name, description=spec.description, type=converted_spec)
