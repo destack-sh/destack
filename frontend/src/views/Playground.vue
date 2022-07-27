@@ -6,7 +6,9 @@ FlowExecutionPlan
     >
       <div>
         <h1 class="text-2xl font-semibold text-gray-900">{{ flow?.flow }}</h1>
-        <h3 class="text text-gray-700">created {{ getTimeFromNowString(flow?.created_at) }}</h3>
+        <h3 class="text text-gray-700" v-if="flow">
+          created {{ getTimeFromNowString(flow.created_at) }}
+        </h3>
       </div>
       <div class="flex gap-4">
         <button
@@ -26,104 +28,49 @@ FlowExecutionPlan
       </div>
     </div>
     <div class="mx-auto flex max-w-7xl flex-col gap-2 py-4 px-4 sm:px-6 md:px-8">
-      <div class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
-        <div class="px-4 py-3 sm:px-6">
-          <h3 class="text-lg font-medium leading-6 text-gray-900">Input</h3>
-        </div>
-        <div class="px-4 py-2 sm:p-6">
-          <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
-        </div>
-      </div>
+      <FlowNodeInterface v-if="inputNode" label="Input" :node="inputNode">
+        <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
+      </FlowNodeInterface>
 
       <div class="self-center px-4">
-        <div class="">
-          <button
-            type="button"
-            class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            @click="promptAddNode"
-          >
-            Add node
-          </button>
-        </div>
+        <button
+          type="button"
+          class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          @click="promptAddNode"
+        >
+          Add node
+        </button>
       </div>
 
       <!-- Select models -->
-      <div class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
-        <div class="px-4 py-3 sm:flex sm:items-center sm:justify-between">
-          <h3 class="text-lg font-medium leading-6 text-gray-900">Models</h3>
-          <div class="sm:mt-0 sm:ml-4">
-            <button
-              type="button"
-              class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-              @click="promptAddModel"
-            >
-              Add model
-            </button>
-          </div>
-        </div>
-        <ul role="list" class="grid grid-cols-1 gap-5 px-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-          <li
-            v-for="modelNode in modelNodes"
-            :key="modelNode.name"
-            class="col-span-1 my-2 flex rounded-md"
+      <div class="flex flex-auto items-center gap-4">
+        <FlowNodeInterface
+          class="flex-1"
+          v-for="modelNode in modelNodes"
+          :key="modelNode.id"
+          label="Model"
+          :node="modelNode"
+        >
+          <router-link
+            :to="'/models/' + modelForNode(modelNode)?.artifact"
+            class="font-medium text-gray-900 hover:text-gray-600"
           >
-            <div
-              class="flex flex-1 items-center justify-between truncate rounded-md border border-gray-200 bg-white"
-            >
-              <div class="flex-1 truncate px-4 py-2 text-sm">
-                <router-link
-                  :to="'/models/' + modelForNode(modelNode)?.artifact"
-                  class="font-medium text-gray-900 hover:text-gray-600"
-                  >{{ modelForNode(modelNode)?.artifact }}</router-link
-                >
-                <p class="text-gray-500">
-                  {{ modelVersionForNode(modelNode) }}
-                </p>
-              </div>
-              <!-- TODO @UI @Bug model menu is clipped by parent container  -->
-              <div class="flex-shrink-0 pr-2">
-                <Menu as="div" class="relative inline-block text-left">
-                  <div>
-                    <MenuButton
-                      class="flex items-center rounded-full text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-100"
-                    >
-                      <span class="sr-only">Open options</span>
-                      <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
-                    </MenuButton>
-                  </div>
+            {{ modelForNode(modelNode)?.artifact }}
+          </router-link>
+          <p class="text-gray-500">
+            {{ modelVersionForNode(modelNode) }}
+          </p>
+        </FlowNodeInterface>
 
-                  <transition
-                    enter-active-class="transition ease-out duration-100"
-                    enter-from-class="transform opacity-0 scale-95"
-                    enter-to-class="transform opacity-100 scale-100"
-                    leave-active-class="transition ease-in duration-75"
-                    leave-from-class="transform opacity-100 scale-100"
-                    leave-to-class="transform opacity-0 scale-95"
-                  >
-                    <MenuItems
-                      class="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-                    >
-                      <div class="py-1">
-                        <MenuItem v-slot="{ active }">
-                          <button
-                            href="#"
-                            :class="[
-                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
-                              'block px-4 py-2 text-sm',
-                            ]"
-                            @click="removeModel(modelNode)"
-                          >
-                            Remove from playground
-                          </button>
-                        </MenuItem>
-                      </div>
-                    </MenuItems>
-                  </transition>
-                </Menu>
-              </div>
-            </div>
-          </li>
-        </ul>
+        <div class="self-center px-4">
+          <button
+            type="button"
+            class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            @click="promptAddModel"
+          >
+            Add model
+          </button>
+        </div>
       </div>
 
       <!-- Executions & output -->
@@ -163,13 +110,12 @@ import {
   type ValueType,
 } from "@/types";
 import { mapNameVersion, splitNameVersion, toNameVersion } from "@/utils/versioning";
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { DotsVerticalIcon } from "@heroicons/vue/outline";
 import { DateTime, Duration } from "luxon";
 import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type PropType, type Ref } from "vue";
 import animalsString from "@/assets/animals.txt?raw";
 import adjectivesString from "@/assets/adjectives.txt?raw";
 import { useTimeFromNow } from "@/composables/useNow";
+import FlowNodeInterface from "../components/FlowNodeInterface.vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
@@ -267,10 +213,6 @@ async function addModels(models: string[]) {
   );
 
   return modelNodes;
-}
-
-async function removeModel(modelNode: FlowNode) {
-  await deleteFlowNode(modelNode);
 }
 
 function getRandomElement<T>(array: T[]): T {

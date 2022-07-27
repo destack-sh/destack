@@ -6,11 +6,13 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.decorators import api_view
+from rest_framework.fields import DictField
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bench.function.base import FunctionHandlerSpec, get_function_handler_specs
 from bench.model.base import ModelHandlerSpec, get_model_handler_specs
-from bench.utils.spec import CONFIG_TYPES, FIELD_TYPES, FieldSpec, FieldType, _Type
+from bench.utils.spec import CONFIG_TYPES, FIELD_TYPES, FieldSpec, FieldType, FieldTypeSpec, _Type
 
 
 class SpecSerializer(serializers.Serializer):
@@ -48,9 +50,9 @@ class SpecField(serializers.Field):
         else:
             return copy.deepcopy(obj)
 
-    def to_internal_value(self, data: Any) -> Union[FieldSpec, FieldType]:
+    def to_internal_value(self, data: Any) -> Union[FieldSpec, FieldTypeSpec, FieldType]:
         if isinstance(data, (tuple, list)):
-            return [self.to_internal_value(item) for item in data]
+            return [self.to_internal_value(item) for item in data]  # type: ignore
         elif not isinstance(data, dict):
             self.fail("not_a_dict")
         if len(data) == 0:
@@ -68,7 +70,7 @@ class SpecField(serializers.Field):
             return type_cls(**child_data)  # type: ignore
         else:
             # otherwise simply re-construct the dict
-            return {key: self.to_internal_value(value) for key, value in data.items()}
+            return {key: self.to_internal_value(value) for key, value in data.items()}  # type: ignore
 
 
 class FieldSpecSerializer(SpecSerializer):
@@ -92,12 +94,9 @@ class ModelSpecSerializer(SpecSerializer):
     output_spec = RecordSpecSerializer()
 
 
-class RecordFunctionSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    description = serializers.CharField(required=False)
-    config_spec = ConfigSpecSerializer()
-    input_spec = RecordSpecSerializer()
-    output_spec = RecordSpecSerializer()
+class FunctionSpecSerializer(SpecSerializer):
+    input_spec = DictField(child=SpecField(types=FIELD_TYPES))
+    output_spec = DictField(child=SpecField(types=FIELD_TYPES))
 
 
 class DatasetHandlerSerializer(serializers.Serializer):
@@ -114,9 +113,25 @@ class ModelHandlerSerializer(serializers.Serializer):
     config_spec = ConfigSpecSerializer()
 
 
+class FunctionHandlerSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    description = serializers.CharField(required=False)
+    type = serializers.CharField()
+    config_spec = ConfigSpecSerializer()
+    base_spec = FunctionSpecSerializer()
+
+
 @extend_schema(responses=ModelHandlerSerializer(many=True))
 @api_view(["GET"])
 def list_model_handlers(request: Request):
     specs: list[ModelHandlerSpec] = get_model_handler_specs()
     serialized_models = ModelHandlerSerializer(specs, many=True).data
     return Response(serialized_models)
+
+
+@extend_schema(responses=FunctionHandlerSerializer(many=True))
+@api_view(["GET"])
+def list_function_handlers(request: Request):
+    specs: list[FunctionHandlerSpec] = get_function_handler_specs()
+    serialized_functions = FunctionHandlerSerializer(specs, many=True).data
+    return Response(serialized_functions)

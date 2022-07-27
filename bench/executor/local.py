@@ -34,7 +34,7 @@ from bench.executor.base import (
     save_execution_manifest,
 )
 from bench.executor.utils import get_model_iid
-from bench.function.base import MetricFunction, RecordFunction, RecordTransform, load_function
+from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
 from bench.model.base import ModelHandler, load_model
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.dataset import DatasetViewData
@@ -42,7 +42,7 @@ from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, Execution
 from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
-from bench.utils.func import terrible_cast
+from bench.utils.func import dict_to_ordered, terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import ArtifactSpec
 
@@ -277,17 +277,17 @@ class LocalExecutor(Executor):
                     ):
                         continue
                     output_function = functions[output_node_connection.edge.dependent_id]
-                    function.output_spec = output_function.input_spec
+                    function.output_spec = dict_to_ordered(output_function.input_spec)
                     function.input_spec = function.output_spec
                     break
 
         # organise functions by type
         record_transforms: dict[UUID, RecordTransform] = {}
-        metric_functions: dict[UUID, MetricFunction] = {}
+        metric_functions: dict[UUID, Metric] = {}
         for node_id, function in functions.items():
             if isinstance(function, RecordTransform):
                 record_transforms[node_id] = function
-            elif isinstance(function, MetricFunction):
+            elif isinstance(function, Metric):
                 metric_functions[node_id] = function
             else:
                 # TODO @Feature: support all function types
@@ -334,7 +334,7 @@ class LocalExecutor(Executor):
                     input_batch = input_batches[DEFAULT_CONNECTION_NAME]
                     output_batch = record_transforms[node_id].transform_batch(input_batch)
                     output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
-                elif isinstance(function, MetricFunction):
+                elif isinstance(function, Metric):
                     # assume input batches contains all required inputs (for now)
                     output_record = metric_functions[node_id].compute(**input_batches)
                     output_batch = RecordList([output_record])

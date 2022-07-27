@@ -17,7 +17,7 @@ from bench.api.flow import (
     FlowVersionViewSet,
     FlowViewSet,
 )
-from bench.api.meta import list_model_handlers
+from bench.api.meta import list_function_handlers, list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
 
 
@@ -141,4 +141,5 @@ flows_versions_router.register("artifact_edges", FlowArtifactEdgeViewSet)
 api_routers: List[BaseRouter] = [router, *router.descendant_routers]
 api_patterns = [
     path("api/meta/models", list_model_handlers),
+    path("api/meta/functions", list_function_handlers),
 ]

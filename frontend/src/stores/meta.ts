@@ -1,11 +1,13 @@
 import { api } from "@/api";
-import type { ModelHandlerSpec, ModelTemplate } from "@/types";
+import type { FunctionHandlerSpec, ModelHandlerSpec, ModelTemplate } from "@/types";
 import { defineStore } from "pinia";
 
 export const useMetaStore = defineStore("meta", {
   state: () => ({
     modelHandlers: [] as Array<ModelHandlerSpec>,
     modelHandlersByName: {} as Record<string, ModelHandlerSpec>,
+    functionHandlers: [] as Array<FunctionHandlerSpec>,
+    functionHandlersByName: {} as Record<string, FunctionHandlerSpec>,
   }),
   getters: {
     modelTemplates(): ModelTemplate[] {
@@ -36,8 +38,18 @@ export const useMetaStore = defineStore("meta", {
   },
   actions: {
     async hydrate() {
-      this.modelHandlers = (await api.get<ModelHandlerSpec[]>("/meta/models")).data;
+      const [modelHandlers, functionHandlers] = await Promise.all([
+        api.get<ModelHandlerSpec[]>("/meta/models").then((r) => r.data),
+        api.get<FunctionHandlerSpec[]>("/meta/functions").then((r) => r.data),
+      ]);
+
+      this.modelHandlers = modelHandlers;
       this.modelHandlers.forEach((handler) => (this.modelHandlersByName[handler.name] = handler));
+
+      this.functionHandlers = functionHandlers;
+      this.functionHandlers.forEach(
+        (handler) => (this.functionHandlersByName[handler.name] = handler)
+      );
     },
     async dehyrate() {
       this.$reset();

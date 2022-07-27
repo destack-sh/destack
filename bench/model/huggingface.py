@@ -70,7 +70,7 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
                 "POST",
                 self.api_url,
                 headers=self.headers,
-                data={**data, "options": {"wait_for_model": True}},
+                data={**data, "options": {"wait_for_model": "true"}},
             )
 
         outputs = json.loads(response.content.decode("utf-8"))

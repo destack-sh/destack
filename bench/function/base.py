@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import enum
 from abc import ABC
+from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
@@ -18,6 +20,7 @@ from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
     ArtifactSetSpec,
     ConfigSpec,
+    FunctionSpec,
     RecordSpec,
     convert_to_config_spec,
     convert_to_record_spec,
@@ -52,7 +55,7 @@ class RecordFunction(Function, ABC):
     output_spec: OrderedDict[str, RecordSpec]
 
 
-class MetricFunction(RecordFunction):
+class Metric(RecordFunction):
     """
     A metric computed over an arbitrary set of input record batches.
     """
@@ -188,6 +191,68 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
 
 
 functions: Registry[Type[Function]] = Registry(("functions",), mapper=map_to_function_cls)
+# TODO @Cleanup: figure out better registration mechanism for registered objects
+import bench.function.metrics  # noqa
+import bench.function.test  # noqa
+import bench.function.transform.text  # noqa
+import bench.function.utils  # noqa
+
+
+class FunctionType(enum.Enum):
+    RecordTransform = "RecordTransform"
+    Metric = "MetricFunction"
+    Test = "Test"
+
+
+@dataclass
+class FunctionHandlerSpec:
+    name: str
+    description: str
+    type: FunctionType
+    config_spec: ConfigSpec
+    base_spec: FunctionSpec
+
+
+def get_function_handler_specs() -> list[FunctionHandlerSpec]:
+    function_handler_specs = []
+    for handler_id in functions.names():
+        function_handler_spec = get_function_handler_spec(handler_id)
+        function_handler_specs.append(function_handler_spec)
+    return function_handler_specs
+
+
+def get_function_type(function_cls: Type[Function]) -> FunctionType:
+    if issubclass(function_cls, Test):
+        return FunctionType.Test
+    elif issubclass(function_cls, Metric):
+        return FunctionType.Metric
+    elif issubclass(function_cls, RecordTransform):
+        return FunctionType.RecordTransform
+    else:
+        raise ValueError(f"unexpected function type: {function_cls}")
+
+
+def get_function_handler_spec(handler_id: str) -> FunctionHandlerSpec:
+    function_cls = get_function_cls(handler_id)
+    config_spec: ConfigSpec = function_cls.config_spec
+    function_type = get_function_type(function_cls)
+
+    if not issubclass(function_cls, RecordFunction):
+        raise ValueError(f"unexpected function: {function_cls}")
+
+    function_handler_spec = FunctionHandlerSpec(
+        name=config_spec.name,
+        description=config_spec.description,
+        type=function_type,
+        config_spec=config_spec,
+        base_spec=FunctionSpec(
+            name=config_spec.name,
+            description=config_spec.description,
+            input_spec=function_cls.input_spec,
+            output_spec=function_cls.output_spec,
+        ),
+    )
+    return function_handler_spec
 
 
 def get_config_spec(function_id: str) -> ConfigSpec:
@@ -204,10 +269,3 @@ def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
     # noinspection PyArgumentList
     function = function_cls(**arguments)
     return function
-
-
-# TODO @Cleanup: figure out better registration mechanism for registered objects
-import bench.function.metrics  # noqa
-import bench.function.test  # noqa
-import bench.function.transform.text  # noqa
-import bench.function.utils  # noqa
