@@ -20,21 +20,6 @@
           />
         </div>
       </div>
-
-      <div class="sm:col-span-6">
-        <label for="description" class="block text-sm font-medium text-gray-700">
-          Description <span class="font-normal text-gray-500">(optional)</span>
-        </label>
-        <div class="mt-1">
-          <textarea
-            v-model="description"
-            id="description"
-            name="description"
-            rows="1"
-            class="block w-full rounded-md border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          />
-        </div>
-      </div>
     </div>
     <div class="pt-4" v-if="selectedFunctionHandler">
       <RecordForm :spec="selectedFunctionHandler.config_spec" v-model="nodeConfigRecord" />
@@ -45,7 +30,7 @@
         <button
           type="submit"
           class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click.prevent="() => {}"
+          @click.prevent="create"
         >
           Create
         </button>
@@ -62,11 +47,29 @@ import RecordForm from "./RecordForm.vue";
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
 
 const name: Ref<string> = ref("");
-const description: Ref<string> = ref("");
 const nodeConfigRecord: Ref<Record<string, any>> = ref({});
+const metadata: Ref<Record<string, any>> = ref({});
+const connectedArtifacts: Ref<Record<string, ArtifactVersion>> = ref({});
+
+function create() {
+  const node = {
+    name: name.value,
+    function_id: selectedFunctionHandler.value?.name,
+    config_arguments: nodeConfigRecord.value,
+    metadata: metadata.value,
+  } as FlowNode;
+  emit("create", { node, connectedArtifacts: connectedArtifacts.value });
+}
 
 const props = defineProps<{ modelValue?: FlowNode }>();
 const emit = defineEmits<{
+  (
+    e: "create",
+    value: {
+      node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
+      connectedArtifacts: Record<string, ArtifactVersion>;
+    }
+  ): void;
   (e: "update:modelValue", value: FlowNode): void;
   (e: "update:connectedArtifact", value: { name: string; artifact: ArtifactVersion | null }): void;
 }>();
