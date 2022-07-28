@@ -16,15 +16,17 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
   async function connectFlowNodes(
     dependencyNode: FlowNode,
     dependentNodes: FlowNode[],
-    connectionType: "input" | "argument" = "input"
+    connectionType: "input" | "argument" = "input",
+    connectionNameDependency = "*",
+    connectionNameDependent = "*"
   ) {
     const nodeEdges = await Promise.all(
       dependentNodes.map((dependentNodes) =>
         flowStore.createFlowNodeEdge(_flow.value.flow, _flow.value.version, {
           dependency: dependencyNode.id,
           dependent: dependentNodes.id,
-          connection_name_dependency: "*",
-          connection_name_dependent: "*",
+          connection_name_dependency: connectionNameDependency,
+          connection_name_dependent: connectionNameDependent,
           connection_type: connectionType,
         })
       )

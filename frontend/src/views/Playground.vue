@@ -32,11 +32,15 @@ FlowExecutionPlan
         <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
       </FlowNodeInterface>
 
-      <div class="self-center px-4">
+      <FlowNodeInterface v-for="node in augmentNodes" label="Augment" :node="node" :key="node.id">
+        {{ node.function_id }}
+      </FlowNodeInterface>
+
+      <div v-if="inputNode" class="self-center px-4">
         <button
           type="button"
           class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click="promptAddNode"
+          @click="promptAddNode([inputNode], modelNodes)"
         >
           Add node
         </button>
@@ -77,7 +81,7 @@ FlowExecutionPlan
         <button
           type="button"
           class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click="promptAddNode"
+          @click="promptAddNode(modelNodes, [])"
         >
           Add node
         </button>
@@ -97,7 +101,7 @@ FlowExecutionPlan
     @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])"
   />
   <Slideover ref="createNodeSlideover" title="Create flow node">
-    <FlowNodeConfigInterface />
+    <FlowNodeConfigInterface @create="createFlowNodeFromSelection" />
   </Slideover>
 </template>
 <script lang="ts" setup>
@@ -149,6 +153,11 @@ const { getTimeFromNowString } = useTimeFromNow();
 
 const inputNode: Ref<FlowNode | null> = computed(
   () => flow.value?.nodes?.find((node) => node.name == "input-0") || null
+);
+const augmentNodes: Ref<FlowNode[]> = computed(() =>
+  flow.value?.nodes?.filter(
+    (node) => !node.name.startsWith("input-") && node.function_id != "bench.model"
+  )
 );
 const modelNodes: Ref<FlowNode[]> = computed(
   () => flow.value?.nodes?.filter((node) => node.function_id == "bench.model") || []
@@ -297,6 +306,43 @@ const flowInputSpec: RecordSpec = {
 };
 const flowInputRecord = ref({});
 
+const selectedFromNodes: Ref<FlowNode[]> = ref([]);
+const selectedToNodes: Ref<FlowNode[]> = ref([]);
+
+const artifactSelect = ref(null);
+function promptAddModel() {
+  (artifactSelect.value as any).show();
+}
+
+const createNodeSlideover = ref(null);
+function promptAddNode(fromNodes: FlowNode[], toNodes: FlowNode[]) {
+  selectedFromNodes.value = fromNodes;
+  selectedToNodes.value = toNodes;
+  (createNodeSlideover.value as any).show();
+}
+
+async function createFlowNodeFromSelection(v: {
+  node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
+  connectedArtifacts: Record<string, ArtifactVersion>;
+}) {
+  // create node
+  const node = await createFlowNode(v.node);
+
+  // connect to argument artifacts (only for now)
+  for (const connectionName in v.connectedArtifacts) {
+    const artifact = toNameVersion(v.connectedArtifacts[connectionName]);
+    await connectFlowNodeArtifact(node, artifact, "argument", connectionName);
+  }
+
+  // connect to current selection of input/output nodes (* connection only for now)
+  for (const inputNode of selectedFromNodes.value) {
+    await connectFlowNodes(inputNode, [node], "input");
+  }
+  await connectFlowNodes(node, selectedToNodes.value, "input");
+
+  (createNodeSlideover.value as any).hide();
+}
+
 const canExecute: Ref<boolean> = computed(() => flowInputRecord.value != {});
 const executions: Ref<Array<Execution>> = ref([]);
 
@@ -436,15 +482,5 @@ async function pollUnterminatedExecutions() {
     const index = executions.value.findIndex((ex) => ex.id == updatedExecution.id);
     executions.value[index] = updatedExecution;
   });
-}
-
-const artifactSelect = ref(null);
-function promptAddModel() {
-  (artifactSelect.value as any).show();
-}
-
-const createNodeSlideover = ref(null);
-function promptAddNode() {
-  (createNodeSlideover.value as any).show();
 }
 </script>
