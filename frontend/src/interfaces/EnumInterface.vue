@@ -62,7 +62,7 @@ import { CheckIcon, SelectorIcon } from "@heroicons/vue/solid";
 import { watchEffect } from "vue";
 
 const props = defineProps<{
-  modelValue: string;
+  modelValue?: string;
   values?: any[];
   default?: any;
 }>();
@@ -70,8 +70,12 @@ const props = defineProps<{
 const emit = defineEmits(["update:modelValue"]);
 
 watchEffect(() => {
-  if (props.modelValue == null && props.default != null) {
-    emit("update:modelValue", props.default);
+  if (props.modelValue == null) {
+    if (props.default != null) {
+      emit("update:modelValue", props.default);
+    } else if (props.values != null && props.values.length > 0) {
+      emit("update:modelValue", props.values[0]);
+    }
   }
 });
 </script>
