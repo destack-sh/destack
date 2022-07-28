@@ -7,6 +7,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Literal,
     Mapping,
     Optional,
     OrderedDict,
@@ -208,7 +209,7 @@ class FunctionType(enum.Enum):
 class FunctionHandlerSpec:
     name: str
     description: str
-    type: FunctionType
+    type: Union[Literal["RecordTransform"], Literal["MetricFunction"], Literal["Test"]]
     config_spec: ConfigSpec
     base_spec: FunctionSpec
 
@@ -240,17 +241,18 @@ def get_function_handler_spec(handler_id: str) -> FunctionHandlerSpec:
     if not issubclass(function_cls, RecordFunction):
         raise ValueError(f"unexpected function: {function_cls}")
 
-    function_handler_spec = FunctionHandlerSpec(
-        name=config_spec.name,
+    base_spec = FunctionSpec(
+        name=handler_id,
         description=config_spec.description,
-        type=function_type,
+        input_spec=function_cls.input_spec,
+        output_spec=function_cls.output_spec,
+    )
+    function_handler_spec = FunctionHandlerSpec(
+        name=handler_id,
+        description=base_spec.description,
+        type=function_type.value,
         config_spec=config_spec,
-        base_spec=FunctionSpec(
-            name=config_spec.name,
-            description=config_spec.description,
-            input_spec=function_cls.input_spec,
-            output_spec=function_cls.output_spec,
-        ),
+        base_spec=base_spec,
     )
     return function_handler_spec
 

@@ -6,7 +6,7 @@ from bench.dataset.base import DatasetReader
 from bench.function.base import SingleRecordTransform, functions
 from bench.utils.func import dict_to_ordered
 from bench.utils.record import Record
-from bench.utils.spec import convert_to_record_spec
+from bench.utils.spec import DatasetType, convert_to_config_spec, convert_to_record_spec
 
 
 class TextTransform(SingleRecordTransform, abc.ABC):
@@ -42,6 +42,10 @@ class LowerCaseTextTransform(TextTransform):
 
 @functions.register("bench.text.swap")
 class TemplateTextSwapper(TextTransform):
+    config_spec = convert_to_config_spec(
+        {"swaps_dataset": DatasetType(record_spec={"pattern": str, "replacement": str})}
+    )
+
     def __init__(self, swaps_dataset: DatasetReader):
         self.swaps_dataset = swaps_dataset
         swaps_patterns = cast(list[str], swaps_dataset["pattern"])

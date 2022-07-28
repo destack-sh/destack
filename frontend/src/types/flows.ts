@@ -1,5 +1,4 @@
 import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
-import type { ConfigSpec } from "@/types/spec";
 
 export type Flow = {
   id: string;
