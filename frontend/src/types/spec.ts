@@ -77,10 +77,16 @@ export function isConfigSpecType(obj: any) {
   return CONFIG_SPEC_TYPES.includes(obj._type);
 }
 
+export type DatasetHandlerSpec = _Spec & {
+  _type: "DatasetHandlerSpec";
+  base_spec: DatasetSpec;
+  config_spec: RecordSpec;
+};
+
 export type ModelHandlerSpec = _Spec & {
   _type: "ModelHandlerSpec";
   base_spec: ModelSpec;
-  config_spec: ConfigSpec;
+  config_spec: RecordSpec;
 };
 
 export type FunctionType = "RecordTransform" | "Metric" | "Test";

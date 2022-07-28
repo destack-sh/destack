@@ -9,7 +9,6 @@ from bench.dataset.accessor import get_file_system
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
 from bench.utils.spec import (
-    ConfigSpec,
     ModelSpec,
     RecordSpec,
     convert_to_config_spec,
@@ -112,7 +111,7 @@ class ModelHandlerSpec:
     name: str
     description: str
     base_spec: Optional[ModelSpec]
-    config_spec: ConfigSpec
+    config_spec: RecordSpec
 
 
 def get_model_handler_specs() -> List[ModelHandlerSpec]:
@@ -163,7 +162,7 @@ def get_model_cls(handler_id: str) -> Type[ModelHandler]:
 
 def get_variable_config_keys(handler_id: str) -> AbstractSet[str]:
     model_cls = get_model_cls(handler_id)
-    config_spec = convert_to_config_spec(model_cls.config_spec)
+    config_spec = convert_to_record_spec(model_cls.config_spec)
     all_keys = config_spec.type.keys()
     static_keys = model_cls.config_static_keys or set()
     variable_keys = all_keys - static_keys

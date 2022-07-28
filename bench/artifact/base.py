@@ -3,7 +3,7 @@ from typing import Optional, cast
 
 from fsspec import AbstractFileSystem
 
-from bench.utils.spec import ArtifactSpec, ConfigSpec
+from bench.utils.spec import ArtifactSpec, RecordSpec
 
 NO_STATIC_KEYS = cast(set[str], set())
 
@@ -16,7 +16,7 @@ class ArtifactHandler(abc.ABC):
     """
 
     # Config spec to configure this handler.
-    config_spec: ConfigSpec
+    config_spec: RecordSpec
     # Config values are immutable after init. If not set, defaults to all keys.
     config_static_keys: set[str]
     # Three types of spec:
