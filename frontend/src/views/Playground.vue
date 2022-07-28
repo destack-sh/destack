@@ -73,6 +73,16 @@ FlowExecutionPlan
         </div>
       </div>
 
+      <div class="self-center px-4">
+        <button
+          type="button"
+          class="inline-flex items-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          @click="promptAddNode"
+        >
+          Add node
+        </button>
+      </div>
+
       <!-- Executions & output -->
       <div class="pt-6">
         <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
@@ -86,6 +96,9 @@ FlowExecutionPlan
     ref="artifactSelect"
     @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])"
   />
+  <Slideover ref="createNodeSlideover" title="Create flow node">
+    <FlowNodeConfigInterface />
+  </Slideover>
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
@@ -93,6 +106,7 @@ import ArtifactSelect from "@/components/ArtifactSelect.vue";
 import ExecutionsGrid from "@/components/ExecutionsGrid.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
+import Slideover from "@/components/Slideover.vue";
 import { useFlow } from "@/composables/useFlow";
 import { computedAsync, useArtifactsStore, useFlowsStore } from "@/stores";
 import {
@@ -112,10 +126,11 @@ import {
 import { mapNameVersion, splitNameVersion, toNameVersion } from "@/utils/versioning";
 import { DateTime, Duration } from "luxon";
 import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type PropType, type Ref } from "vue";
-import animalsString from "@/assets/animals.txt?raw";
-import adjectivesString from "@/assets/adjectives.txt?raw";
+
+import FlowNodeConfigInterface from "@/components/FlowNodeConfigInterface.vue";
+import FlowNodeInterface from "@/components/FlowNodeInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import FlowNodeInterface from "../components/FlowNodeInterface.vue";
+import { getRandomName } from "@/composables/useRandomName";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
@@ -215,26 +230,11 @@ async function addModels(models: string[]) {
   return modelNodes;
 }
 
-function getRandomElement<T>(array: T[]): T {
-  const randomIndex = Math.floor(Math.random() * array.length);
-  return array[randomIndex];
-}
-
-const animals = animalsString
-  .toLowerCase()
-  .split("\n")
-  .map((s) => s.replace(" ", "-"));
-const adjectives = adjectivesString
-  .toLowerCase()
-  .split("\n")
-  .map((s) => s.replace(" ", "-"));
 async function initNewPlayground() {
   var foundNewName = false;
   var flowName = "";
   while (!foundNewName) {
-    const randomAdjective = getRandomElement(adjectives);
-    const randomNoun = getRandomElement(animals);
-    flowName = `${randomAdjective}-${randomNoun}`;
+    flowName = getRandomName();
     if (!flowStore.flowExists(flowName)) {
       foundNewName = true;
     }
@@ -443,5 +443,8 @@ function promptAddModel() {
   (artifactSelect.value as any).show();
 }
 
-function promptAddNode() {}
+const createNodeSlideover = ref(null);
+function promptAddNode() {
+  (createNodeSlideover.value as any).show();
+}
 </script>
