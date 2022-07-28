@@ -52,17 +52,19 @@ export type ArtifactSpec = _Spec & {
 
 export type DatasetSpec = ArtifactSpec & {
   _type: "DatasetSpec";
-  type: "dataset";
   record_spec: RecordSpec;
-  config_spec: ConfigSpec;
 };
 
 export type ModelSpec = ArtifactSpec & {
   _type: "ModelSpec";
-  type: "model";
   input_spec: RecordSpec;
   output_spec: RecordSpec;
-  config_spec: ConfigSpec;
+};
+
+export type FunctionSpec = _Spec & {
+  _type: "FunctionSpec";
+  input_spec: Record<string, RecordSpec>;
+  output_spec: Record<string, RecordSpec>;
 };
 
 export type ConfigSpec = _Spec & {
@@ -88,6 +90,5 @@ export type FunctionHandlerSpec = {
   description: string;
   type: FunctionType;
   config_spec: ConfigSpec;
-  input_spec: Record<string, RecordSpec>;
-  output_spec: Record<string, RecordSpec>;
+  base_spec: FunctionSpec;
 };
