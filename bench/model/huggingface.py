@@ -63,14 +63,16 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
 
     def predict(self, record: Record) -> Record:
         data = cast(dict, record)
-        response = requests.request("POST", self.api_url, headers=self.headers, data=data)
+        response = requests.request(
+            "POST", self.api_url, headers=self.headers, data=json.dumps(data)
+        )
         if response.status_code == 503:
             logger.debug("waiting_for_hosted_model", model=self.model_name)
             response = requests.request(
                 "POST",
                 self.api_url,
                 headers=self.headers,
-                data={**data, "options": {"wait_for_model": "true"}},
+                data=json.dumps({**data, "options": {"wait_for_model": "true"}}),
             )
 
         outputs = json.loads(response.content.decode("utf-8"))
