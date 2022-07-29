@@ -44,10 +44,25 @@ from bench.utils.registry import get_qualified_name
 class _Type(abc.ABC):
     pass
 
+    def __instancecheck__(self, instance):
+        raise NotImplementedError(f"type not fully implemented: {self}")
+
 
 # ===========
 # Field types
 # ===========
+
+
+DTYPE_TO_PTYPE: Mapping[str, type] = {
+    "int32": int,
+    "int64": int,
+    "float32": float,
+    "float64": float,
+    "bool": bool,
+    "str": str,
+}
+PTYPE_TO_DTYPE: Mapping[type, str] = {int: "int64", float: "float64", bool: "bool", str: "str"}
+DTYPES = set(DTYPE_TO_PTYPE.keys())
 
 
 @dataclass
@@ -55,16 +70,29 @@ class ValueType(_Type):
     dtype: str
     default: Optional[FieldValuePrimitive] = None
 
+    def __instancecheck__(self, instance):
+        ptype = DTYPE_TO_PTYPE[self.dtype]
+        return isinstance(instance, cast(type, ptype))
+
 
 @dataclass
 class EnumType(_Type):
     values: List[FieldValuePrimitive]
+
+    def __instancecheck__(self, instance):
+        return instance in self.values
 
 
 @dataclass
 class ClassLabelType(_Type):
     num_classes: int
     names: Optional[List[str]] = None
+
+    def __instancecheck__(self, instance):
+        if self.names is None:
+            return instance in range(0, self.num_classes)
+        else:
+            return instance in self.names
 
 
 @dataclass
@@ -188,6 +216,7 @@ class FieldSpec(_Spec):
 
 
 RecordSpec = FieldSpec
+FIELD_SPEC_TYPES: List[Type[_Spec]] = [FieldSpec]
 
 
 @dataclass
@@ -225,6 +254,7 @@ AnyType = Union[Type[FieldValue], FieldType, RecordType, ModelType, DatasetType]
 AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]
 
 CONFIG_TYPES: List[Type[_Type]] = [*FIELD_TYPES, ModelType, DatasetType]
+CONFIG_SPEC_TYPES: List[Type[_Spec]] = [*FIELD_SPEC_TYPES, ModelSpec, DatasetSpec]
 ConfigType = Mapping[str, Union[AnyType, AnySpec]]
 ConfigTypeSpec = Mapping[str, AnySpec]
 
@@ -341,9 +371,10 @@ def _impl_type_to_type(
         (DatasetHandler, DatasetType(record_spec={})),
         (ModelHandler, ModelType(input_spec={}, output_spec={})),
         (RecordBatch, {}),
-        (str, ValueType(dtype="str", default=default)),
-        (int, ValueType(dtype="int64", default=default)),
-        (float, ValueType(dtype="float64", default=default)),
+        *(
+            (ptype, ValueType(dtype=dtype, default=default))
+            for ptype, dtype in PTYPE_TO_DTYPE.items()
+        ),
     ]
     for impl_type, spec_type in impl_type_to_type:
         if value == impl_type or issubclass(value, impl_type):

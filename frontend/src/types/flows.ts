@@ -65,6 +65,7 @@ export type FlowNodeExecutionArgument = {
 
 export type FlowExecutionOptions = {
   blocking: boolean;
+  validate: boolean;
 };
 
 export type FlowExecutionPlan = {

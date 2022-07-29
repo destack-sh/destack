@@ -4,6 +4,10 @@ import sys
 from django.apps import AppConfig
 
 
+def is_migrating():
+    return "makemigrations" in sys.argv or "migrate" in sys.argv
+
+
 class BenchConfig(AppConfig):
     name = "bench"
     verbose_name = "The Bench"
@@ -11,7 +15,8 @@ class BenchConfig(AppConfig):
     def ready(self) -> None:
         from bench.executor import executor
 
-        executor.start()
+        if not is_migrating():
+            executor.start()
 
         def stop_int(*args):
             executor.stop()
