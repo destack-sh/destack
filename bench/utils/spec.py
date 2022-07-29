@@ -15,6 +15,7 @@ from __future__ import annotations
 import abc
 import enum
 import inspect
+import types
 import typing
 from dataclasses import dataclass
 from typing import (
@@ -377,7 +378,7 @@ def _impl_type_to_type(
         ),
     ]
     for impl_type, spec_type in impl_type_to_type:
-        if value == impl_type or issubclass(value, impl_type):
+        if isinstance(value, type) and (value == impl_type or issubclass(value, impl_type)):
             return spec_type
 
     if issubclass(value, enum.Enum):
@@ -422,13 +423,15 @@ def type_to_spec(
             raise ValueError(f"union types not supported: {typ}")
 
     # Map collection types (e.g. list[str] to [str])
-    if isinstance(typ, typing._GenericAlias):  # type: ignore
+    if isinstance(typ, (typing._GenericAlias, types.GenericAlias)):  # type: ignore
         typ = typ.__args__
 
     # Map collection instances (e.g. [str] -> [FieldSpec]
     if isinstance(typ, Mapping):  # RecordType/FieldType is a dict
         typ = convert_to_record_type_spec(typ)  # type: ignore
     elif isinstance(typ, (list, tuple)):
+        if len(typ) != 1:
+            raise ValueError(f"list-like types must have exactly one element: {typ}")
         typ = [
             type_to_spec(  # type: ignore
                 name=name,

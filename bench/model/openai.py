@@ -1,6 +1,6 @@
 import abc
 import enum
-from typing import List, Tuple, Union, cast
+from typing import List, Union, cast
 
 import openai
 
@@ -80,8 +80,8 @@ class OpenAIModelForClassification(OpenAIModel):
         input_spec=convert_to_record_spec(
             {
                 "text": str,
-                "examples": List[Tuple[str, str]],
-                "labels": List[str],
+                "examples": list[list[str]],
+                "labels": list[str],
             }
         ),
         output_spec=convert_to_record_spec({"text": str, "classes": make_scored_labels_spec(str)}),
