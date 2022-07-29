@@ -5,12 +5,13 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Dict, Optional
 
-from dataclasses_json import dataclass_json
 from django.db import transaction
 from django.db.models import QuerySet
+from rest_framework import serializers
 
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import MODEL_TYPE
+from bench.utils.serializer import RecordSpecSerializer
 from bench.utils.spec import ModelSpec, RecordSpec
 
 
@@ -26,7 +27,7 @@ class ModelManager(ArtifactManager):
     ) -> Model:
         """Creates the given model with an initial version"""
         model = Model(type=MODEL_TYPE, name=name, description=description)
-        model.versions.create(metadata=metadata.to_dict())  # type: ignore
+        model.versions.create(metadata=metadata.to_dict())
         model.save()
         return model
 
@@ -34,7 +35,7 @@ class ModelManager(ArtifactManager):
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)
-            model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())  # type: ignore
+            model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())
             model_version.save()
         return model_version
 
@@ -57,13 +58,35 @@ class Model(Artifact):
         proxy = True
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class ModelMetadata:
     handler_id: str
     config_arguments: Dict[str, Any] = dataclasses.field(default_factory=dict)
     input_spec: RecordSpec = RecordSpec(name="", description="", type={})
     output_spec: RecordSpec = RecordSpec(name="", description="", type={})
+
+    @staticmethod
+    def from_dict(obj: dict) -> ModelMetadata:
+        serializer = ModelMetadataSerializer(data=obj)
+        serializer.is_valid(raise_exception=True)
+        return serializer.save()
+
+    def to_dict(self) -> dict:
+        return ModelMetadataSerializer(self).data
+
+
+class ModelMetadataSerializer(serializers.Serializer):
+    handler_id = serializers.CharField()
+    config_arguments = serializers.JSONField()
+    input_spec = RecordSpecSerializer(required=False)
+    output_spec = RecordSpecSerializer(required=False)
+
+    def create(self, validated_data):
+        if "input_spec" in validated_data:
+            validated_data["input_spec"] = RecordSpec(**validated_data["input_spec"])
+        if "output_spec" in validated_data:
+            validated_data["output_spec"] = RecordSpec(**validated_data["output_spec"])
+        return ModelMetadata(**validated_data)
 
 
 class ModelVersion(ArtifactVersion):
@@ -72,24 +95,24 @@ class ModelVersion(ArtifactVersion):
     """
 
     @cached_property
-    def _metadata_typed(self) -> ModelMetadata:
-        return ModelMetadata.from_dict(self.metadata)  # type: ignore
+    def metadata_typed(self) -> ModelMetadata:
+        return ModelMetadata.from_dict(self.metadata)
 
     @cached_property
     def handler_id(self) -> str:
-        return self._metadata_typed.handler_id
+        return self.metadata_typed.handler_id
 
     @cached_property
     def config_arguments(self):
-        return self._metadata_typed.config_arguments
+        return self.metadata_typed.config_arguments
 
     @cached_property
     def input_spec(self):
-        return self._metadata_typed.input_spec
+        return self.metadata_typed.input_spec
 
     @cached_property
     def output_spec(self):
-        return self._metadata_typed.output_spec
+        return self.metadata_typed.output_spec
 
     @property
     def spec(self) -> ModelSpec:

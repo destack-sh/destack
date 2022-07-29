@@ -7,7 +7,17 @@ import uuid
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
-from typing import Callable, Dict, Iterable, Mapping, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import structlog
@@ -37,7 +47,7 @@ from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ArtifactSpec
+from bench.utils.spec import ArtifactSpec, FieldSpec, FieldTypePrimitive, FieldTypeSpec, _Type
 
 logger = structlog.stdlib.get_logger()
 Resource = str
@@ -51,17 +61,18 @@ FlowArgument = Union[ArtifactVersion]
 @dataclasses.dataclass
 class FlowExecutionOptions:
     blocking: bool
+    validate: bool
     capture_intermediate: list[FlowNodeEdge.ConnectionType] = dataclasses.field(
         default_factory=list
     )
 
     @staticmethod
     def default():
-        return FlowExecutionOptions(blocking=False)
+        return FlowExecutionOptions(validate=True, blocking=False)
 
     @staticmethod
     def default_blocking():
-        return FlowExecutionOptions(blocking=True)
+        return FlowExecutionOptions(validate=True, blocking=True)
 
 
 class Executor(abc.ABC):
@@ -161,6 +172,7 @@ class FlowExecutionPlan:
     node_inputs: Mapping[UUID, Mapping[str, FlowNodeConnection]]
     node_arguments: Mapping[UUID, Mapping[str, FlowNodeConnection]]
     final_outputs: Mapping[UUID, Mapping[str, ArtifactConnection]]
+    options: FlowExecutionOptions
 
     def static(self, node_id: UUID) -> Iterable[Tuple[str, ArtifactConnection]]:
         return chain(
@@ -370,6 +382,7 @@ def make_execution_plan(
         node_inputs=node_inputs,
         node_arguments=node_arguments,
         final_outputs=final_outputs,
+        options=options,
     )
     return plan
 
@@ -449,3 +462,49 @@ def save_execution_manifest(manifest: FlowExecutionManifest):
     Execution.objects.bulk_create(chain(manifest.node_executions.values()))
     ExecutionArtifactConnection.objects.bulk_create(manifest.execution_connections.values())
     logger.debug("execute_manifest_bulk_create", took=time.time() - start)
+
+
+def validate_record_batch_type(
+    records: RecordBatch,
+    record_type: Union[FieldTypeSpec, FieldTypePrimitive],
+    ignore_extraneous: bool,
+    lazy: bool,
+):
+    records_len = len(records)
+    if records_len == 0:
+        return
+    if lazy:
+        # validate first and last only
+        validate_record_type(records[0], record_type, ignore_extraneous)
+        if records_len > 1:
+            validate_record_type(records[records_len - 1], record_type, ignore_extraneous)
+    else:
+        # validate each record individually
+        for record in records:
+            validate_record_type(record, record_type, ignore_extraneous)
+
+
+def validate_record_type(
+    record: Record, record_type: Union[FieldTypeSpec, FieldTypePrimitive], ignore_extraneous: bool
+):
+    def _check_isinstance(path: list[str], value: Any, cls: Any):
+        if not isinstance(value, cls):
+            raise ValueError(f"{'.'.join(path)} is not a {cls} but is {type(value)}: {str(value)}")
+
+    def _validate_rec(
+        path: list[str], value: Record, value_type: Union[FieldTypeSpec, FieldTypePrimitive]
+    ):
+        if isinstance(value_type, (type, _Type)):
+            _check_isinstance(path, value, value_type)
+        elif isinstance(value_type, FieldSpec):
+            _validate_rec(path, value, value_type.type)
+        elif isinstance(value_type, (tuple, list)):
+            _check_isinstance(path, value, (tuple, list))
+            for i, element_type in enumerate(value_type):
+                _validate_rec(path + [f"[{i}]"], cast(list, value)[i], value_type[0])
+        elif isinstance(value_type, dict):
+            _check_isinstance(path, value, dict)
+            for key, element_type in value_type.items():
+                _validate_rec(path + [key], cast(dict, value).get(key), element_type)
+
+    _validate_rec([], record, record_type)

@@ -23,15 +23,18 @@ from bench.dataset.accessor import (
 )
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
+    ArtifactConnection,
     Executor,
     FlowExecutionManifest,
     FlowExecutionOptions,
     FlowExecutionPlan,
+    FlowNodeConnection,
     FlowRawArgument,
     ResourceRequirements,
     make_execution_plan,
     prepare_execution_manifest,
     save_execution_manifest,
+    validate_record_batch_type,
 )
 from bench.executor.utils import get_model_iid
 from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
@@ -237,50 +240,20 @@ class LocalExecutor(Executor):
 
     def _do_execute(self, plan: FlowExecutionPlan, manifest: FlowExecutionManifest):
         # load functions with corresponding arguments
-        functions: dict[UUID, RecordFunction] = {}
-        for node in plan.nodes.values():
-            config_arguments = node.config_arguments
-            artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
-            for name, artifact_connection in plan.artifact_arguments.get(node.id, {}).items():
-                if artifact_connection.artifact_type == MODEL_TYPE:
-                    model = terrible_cast(ModelVersion, artifact_connection.artifact)
-                    artifact_arguments[name] = self._get_model_handler(model)
-                elif artifact_connection.artifact_type == DATASET_TYPE:
-                    dataset = terrible_cast(DatasetVersion, artifact_connection.artifact)
-                    artifact_arguments[name] = self._get_dataset_handler(dataset)
-                else:
-                    raise ValueError(f"unknown artifact type: {artifact_connection}")
-
-            arguments = {**config_arguments, **artifact_arguments}
-            function = load_function(node.function_id, arguments=arguments)
-            if not isinstance(function, RecordFunction):
-                raise ValueError(f"function not yet supported: {function}")
-            functions[node.id] = function
+        functions = self._load_functions(plan)
 
         # update specs for special functions (like identity) where input/output spec is dynamic
         # TODO @Cleanup @Architecture: don't update function specs at runtime
         #  Ideally we set this ahead of time, e.g. by the user configuring input specs and by
         #  setting specs for dynamic spec functions whenever the flow changes.
-        for node_id, function in functions.items():
-            if plan.nodes[node_id].function_id == "bench.identity":
-                input_node_connection = plan.node_inputs.get(node_id, {}).get("*")
-                if input_node_connection is not None:
-                    input_function = functions[input_node_connection.edge.dependency_id]
-                    function.input_spec = input_function.output_spec
-                    function.output_spec = function.input_spec
-                    continue
-                output_node_connections = plan.connected_inverse[node_id].get("*")
-                for output_node_connection in output_node_connections or []:
-                    if (
-                        output_node_connection.edge.connection_type
-                        != FlowNodeEdge.ConnectionType.Input
-                    ):
-                        continue
-                    output_function = functions[output_node_connection.edge.dependent_id]
-                    function.output_spec = dict_to_ordered(output_function.input_spec)
-                    function.input_spec = function.output_spec
-                    break
+        self._patch_dynamic_function_specs(functions, plan)
 
+        self._run_execution_loop(functions, plan)
+
+        # update dynamic (node and final) connections with view data
+        self._update_dynamic_connections(manifest, plan)
+
+    def _run_execution_loop(self, functions: dict[UUID, RecordFunction], plan: FlowExecutionPlan):
         # organise functions by type
         record_transforms: dict[UUID, RecordTransform] = {}
         metric_functions: dict[UUID, Metric] = {}
@@ -342,6 +315,13 @@ class LocalExecutor(Executor):
                 else:
                     raise RuntimeError(f"unexpected function: {function}")
 
+                # validate output against output spec
+                if plan.options.validate:
+                    output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
+                    validate_record_batch_type(
+                        output_batch, output_spec.type, ignore_extraneous=True, lazy=True
+                    )
+
                 # write to next input nodes and intermediate output artifacts (if any)
                 for node_connection in flatten(plan.connected_inverse[node_id].values()):
                     dependent_id = node_connection.edge.dependent.id
@@ -350,6 +330,16 @@ class LocalExecutor(Executor):
 
                     output_batch = output_batches[node_connection.dependent_name]
                     new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
+
+                    # validate output against next input spec
+                    if plan.options.validate:
+                        input_spec = functions[dependent_id].input_spec[
+                            node_connection.dependency_name
+                        ]
+                        validate_record_batch_type(
+                            output_batch, input_spec.type, ignore_extraneous=True, lazy=True
+                        )
+
                     if node_connection.intermediate_artifact is not None:
                         output_spec = function.output_spec[node_connection.dependent_name]
                         view = write_to_dataset_version(
@@ -381,15 +371,17 @@ class LocalExecutor(Executor):
             new_pending_data = defaultdict(dict)
             iteration += 1
 
-        # update dynamic (node and final) connections with view data
+    def _update_dynamic_connections(self, manifest: FlowExecutionManifest, plan: FlowExecutionPlan):
         dynamic_connections = flatten(
             connections.values()
             for connections in chain(
                 plan.node_inputs.values(), plan.node_arguments.values(), plan.final_outputs.values()
             )
         )
-        for connection in dynamic_connections:
-            connection_id = cast(UUID, connection.manifested_id)
+        for connection in cast(
+            list[Union[FlowNodeConnection, ArtifactConnection]], dynamic_connections
+        ):
+            connection_id = connection.manifested_id
             if connection_id is not None:  # only if dynamic connection is actually manifested
                 execution_connection = manifest.execution_connections[connection_id]
                 execution_connection.view_inline = connection.view_inline
@@ -397,3 +389,48 @@ class LocalExecutor(Executor):
             ExecutionArtifactConnection.objects.bulk_update(
                 manifest.execution_connections.values(), ["view_inline"]
             )
+
+    def _load_functions(self, plan: FlowExecutionPlan) -> dict[UUID, RecordFunction]:
+        functions: dict[UUID, RecordFunction] = {}
+        for node in plan.nodes.values():
+            config_arguments = node.config_arguments
+            artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
+            for name, artifact_connection in plan.artifact_arguments.get(node.id, {}).items():
+                if artifact_connection.artifact_type == MODEL_TYPE:
+                    model = terrible_cast(ModelVersion, artifact_connection.artifact)
+                    artifact_arguments[name] = self._get_model_handler(model)
+                elif artifact_connection.artifact_type == DATASET_TYPE:
+                    dataset = terrible_cast(DatasetVersion, artifact_connection.artifact)
+                    artifact_arguments[name] = self._get_dataset_handler(dataset)
+                else:
+                    raise ValueError(f"unknown artifact type: {artifact_connection}")
+
+            arguments = {**config_arguments, **artifact_arguments}
+            function = load_function(node.function_id, arguments=arguments)
+            if not isinstance(function, RecordFunction):
+                raise ValueError(f"function not yet supported: {function}")
+            functions[node.id] = function
+        return functions
+
+    def _patch_dynamic_function_specs(
+        self, functions: dict[UUID, RecordFunction], plan: FlowExecutionPlan
+    ):
+        for node_id, function in functions.items():
+            # only bench.identity is "dynamic"(ally) dependent on other functions right now
+            if plan.nodes[node_id].function_id != "bench.identity":
+                continue
+
+            input_node_connection = plan.node_inputs.get(node_id, {}).get("*")
+            if input_node_connection is not None:
+                input_function = functions[input_node_connection.edge.dependency_id]
+                function.input_spec = input_function.output_spec
+                function.output_spec = function.input_spec
+                continue
+            output_node_connections = plan.connected_inverse[node_id].get("*")
+            for output_node_connection in output_node_connections or []:
+                if output_node_connection.edge.connection_type != FlowNodeEdge.ConnectionType.Input:
+                    continue
+                output_function = functions[output_node_connection.edge.dependent_id]
+                function.output_spec = dict_to_ordered(output_function.input_spec)
+                function.input_spec = function.output_spec
+                break

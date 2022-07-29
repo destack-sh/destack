@@ -90,6 +90,6 @@ class HuggingFaceHostedGenerationModel(HuggingFaceHostedModel):
         record = cast(dict, record)
         # TODO @Cleanup @Architecture: generalise model/flow node input/output remapping
         if "text" in record:
-            record = {**record, "inputs": record["text"]}
+            record = {"inputs": record["text"]}
         output = super().predict(record)
-        return output
+        return {**record, **output}

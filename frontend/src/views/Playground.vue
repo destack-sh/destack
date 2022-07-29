@@ -10,7 +10,24 @@ FlowExecutionPlan
           created {{ getTimeFromNowString(flow.created_at) }}
         </h3>
       </div>
-      <div class="flex gap-4">
+      <div class="flex items-baseline gap-4">
+        <fieldset class="space-y-5">
+          <div class="relative flex items-start">
+            <div class="flex h-5 items-center">
+              <input
+                v-model="poll"
+                id="poll"
+                aria-describedby="poll-description"
+                name="poll"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              />
+            </div>
+            <div class="ml-3 text-sm">
+              <label for="poll" class="font-medium text-gray-700">Poll</label>
+            </div>
+          </div>
+        </fieldset>
         <button
           type="submit"
           class="mt-3 inline-flex justify-center rounded-md border border-transparent bg-slate-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
@@ -415,6 +432,7 @@ async function execute() {
     },
     options: {
       blocking: false,
+      validate: true,
     },
   };
   await api
@@ -440,14 +458,14 @@ function fetchExecutions(flow: string, limit = 10) {
     .then((result) => (executions.value = result.results));
 }
 
-const poll = true;
+const poll: Ref<boolean> = ref(true);
 const pollIntervalMillis = 250;
 const waitIntervalMillis = 250;
 const pollExecutionsInterval = setInterval(pollUnterminatedExecutions, pollIntervalMillis);
 onBeforeUnmount(() => clearInterval(pollExecutionsInterval));
 
 async function pollUnterminatedExecutions() {
-  if (!poll) {
+  if (!poll.value) {
     return;
   }
 

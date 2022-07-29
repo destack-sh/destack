@@ -4,12 +4,13 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from dataclasses_json import dataclass_json
 from django.db import transaction
 from django.db.models import QuerySet
+from rest_framework import serializers
 
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import DATASET_TYPE
+from bench.utils.serializer import RecordSpecSerializer
 from bench.utils.spec import DatasetSpec, RecordSpec
 
 
@@ -21,7 +22,7 @@ class DatasetManager(ArtifactManager):
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
-            return DatasetVersion.objects.create(artifact=dataset, metadata=metadata.to_dict())  # type: ignore
+            return DatasetVersion.objects.create(artifact=dataset, metadata=metadata.to_dict())
 
     def get_or_create_dataset_version(
         self, name: str, version: str, metadata: DatasetMetadata
@@ -35,7 +36,7 @@ class DatasetManager(ArtifactManager):
             with transaction.atomic():
                 dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
                 return DatasetVersion.objects.create(
-                    artifact=dataset, version=version, metadata=metadata.to_dict()  # type: ignore
+                    artifact=dataset, version=version, metadata=metadata.to_dict()
                 )
 
 
@@ -53,7 +54,6 @@ class Dataset(Artifact):
         proxy = True
 
 
-@dataclass_json
 @dataclass(frozen=True)
 class DatasetMetadata:
     handler_id: str
@@ -61,12 +61,28 @@ class DatasetMetadata:
     record_spec: RecordSpec = RecordSpec(name="", description="", type={})
 
     @staticmethod
+    def from_dict(obj: dict) -> DatasetMetadata:
+        serializer = DatasetMetadataSerializer(data=obj)
+        serializer.is_valid(raise_exception=True)
+        return serializer.save()
+
+    def to_dict(self) -> dict:
+        return DatasetMetadataSerializer(self).data
+
+    @staticmethod
     def default_db():
         return DatasetMetadata(handler_id="bench.db")
 
-    class Config:
-        allow_mutation = False
-        frozen = True
+
+class DatasetMetadataSerializer(serializers.Serializer):
+    handler_id = serializers.CharField()
+    config_arguments = serializers.JSONField()
+    record_spec = RecordSpecSerializer(required=False)
+
+    def create(self, validated_data):
+        if "record_spec" in validated_data:
+            validated_data["record_spec"] = RecordSpec(**validated_data["record_spec"])
+        return DatasetMetadata(**validated_data)
 
 
 class DatasetVersion(ArtifactVersion):
@@ -76,7 +92,7 @@ class DatasetVersion(ArtifactVersion):
 
     @property
     def metadata_typed(self) -> DatasetMetadata:
-        return DatasetMetadata.from_dict(self.metadata)  # type: ignore
+        return DatasetMetadata.from_dict(self.metadata)
 
     @property
     def handler_id(self) -> str:

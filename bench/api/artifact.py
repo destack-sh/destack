@@ -10,11 +10,11 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.api.meta import DatasetSpecSerializer, ModelSpecSerializer
 from bench.executor import executor
 from bench.models import Artifact, ArtifactVersion
 from bench.models.artifact import ArtifactView
 from bench.models.utils import MAX_NAME_LENGTH
+from bench.utils.serializer import DatasetSpecSerializer, ModelSpecSerializer
 from bench.utils.spec import DatasetSpec, ModelSpec
 
 logger = structlog.stdlib.get_logger()
