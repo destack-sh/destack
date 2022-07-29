@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import Optional, Type, Union
 
 from bench.utils.spec import ClassLabelType, FieldSpec, convert_to_record_spec
 
@@ -11,12 +11,10 @@ TOKENS_SPEC = [TOKEN_SPEC]
 
 
 def make_entity_spec(label_type: Union[Type[str], ClassLabelType]):
-    return FieldSpec(
+    return convert_to_record_spec(
         name="entity",
         description="a single entity",
-        type=convert_to_record_spec(
-            {"text": str, "start": int, "end": int, "label": label_type, "score": float}
-        ),
+        spec={"text": str, "start": int, "end": int, "label": label_type, "score": Optional[float]},
     )
 
 

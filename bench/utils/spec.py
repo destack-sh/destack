@@ -69,6 +69,7 @@ DTYPES = set(DTYPE_TO_PTYPE.keys())
 @dataclass
 class ValueType(_Type):
     dtype: str
+    optional: bool = False
     default: Optional[FieldValuePrimitive] = None
 
     def __instancecheck__(self, instance):
@@ -79,6 +80,8 @@ class ValueType(_Type):
 @dataclass
 class EnumType(_Type):
     values: List[FieldValuePrimitive]
+    optional: bool = False
+    default: Optional[FieldValuePrimitive] = None
 
     def __instancecheck__(self, instance):
         return instance in self.values
@@ -88,6 +91,7 @@ class EnumType(_Type):
 class ClassLabelType(_Type):
     num_classes: int
     names: Optional[List[str]] = None
+    optional: bool = False
 
     def __instancecheck__(self, instance):
         if self.names is None:
@@ -100,12 +104,14 @@ class ClassLabelType(_Type):
 class Array1dType(_Type):
     shape: tuple[int]
     dtype: str
+    optional: bool = False
 
 
 @dataclass
 class Array2dType(_Type):
     shape: tuple[int]
     dtype: str
+    optional: bool = False
 
 
 @dataclass
@@ -169,6 +175,7 @@ if TYPE_CHECKING:
     # mypy cannot handle recursive types: https://github.com/python/mypy/issues/731
     FieldType = Union[
         FieldTypePrimitive,
+        Optional[FieldTypePrimitive],
         tuple[FieldTypePrimitive],
         list[FieldTypePrimitive],
         Mapping[str, FieldTypePrimitive],
@@ -361,7 +368,7 @@ def _convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
 
 
 def _impl_type_to_type(
-    value: Type, default: Optional[Any], ignore_unknown: bool = False
+    value: Type, optional: bool, default: Optional[Any], ignore_unknown: bool = False
 ) -> AnyType:
     from bench.dataset.base import DatasetHandler
     from bench.model.base import ModelHandler
@@ -373,7 +380,7 @@ def _impl_type_to_type(
         (ModelHandler, ModelType(input_spec={}, output_spec={})),
         (RecordBatch, {}),
         *(
-            (ptype, ValueType(dtype=dtype, default=default))
+            (ptype, ValueType(dtype=dtype, optional=optional, default=default))
             for ptype, dtype in PTYPE_TO_DTYPE.items()
         ),
     ]
@@ -382,7 +389,9 @@ def _impl_type_to_type(
             return spec_type
 
     if issubclass(value, enum.Enum):
-        return EnumType(values=[item.name for item in value])
+        if isinstance(default, enum.Enum):
+            default = default.value
+        return EnumType(values=[item.name for item in value], optional=optional, default=default)
 
     if ignore_unknown:
         return value
@@ -394,6 +403,7 @@ def type_to_spec(
     name: str,
     description: str,
     typ: Union[AnyType, AnySpec],
+    optional: bool = False,
     default: Optional[Any] = None,
     ignore_spec: bool = False,
 ) -> AnySpec:
@@ -406,17 +416,17 @@ def type_to_spec(
             raise ValueError(f"type {typ} is already a spec type")
 
     # Unwrap and handle union types
-    if isinstance(typ, typing._UnionGenericAlias):  # type: ignore
+    if isinstance(typ, (typing._UnionGenericAlias)):  # type: ignore
         union_types = typ.__args__
         # Optional[x] is secretly Union[x, None]
         if len(union_types) == 2 and union_types[1] == type(None):  # noqa
-            # TODO @Feature: handle optional types more gracefully (currently set default to None if not set)
-            # unwrap optional and set default as None if not set
+            # unwrap optional and set as optional
             return type_to_spec(
                 name=name,
                 description=description,
                 typ=union_types[0],
-                default=default or None,
+                optional=True,
+                default=default,
                 ignore_spec=ignore_spec,
             )
         else:  # plain Union
@@ -437,6 +447,7 @@ def type_to_spec(
                 name=name,
                 description=description,
                 typ=val,
+                optional=optional,
                 default=default,
                 ignore_spec=ignore_spec,
             )
@@ -448,7 +459,7 @@ def type_to_spec(
     # by their spec/type types (e.g. DatasetHandler -> DatasetType, int -> ValueType(int64)).
     if isinstance(typ, type):
         # TODO @Robustness: don't ignore unknown types in _impl_type_to_type
-        typ = _impl_type_to_type(typ, default, ignore_unknown=True)
+        typ = _impl_type_to_type(typ, optional, default, ignore_unknown=True)
     elif isinstance(typ, DatasetType):
         return DatasetSpec(
             name=name,

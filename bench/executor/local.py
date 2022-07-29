@@ -74,10 +74,13 @@ class LocalExecutorThread(threading.Thread):
                 continue
 
             save_execution_manifest(manifest)
-            with manifest.execution.capture():
-                logger.info("execute_started", execution=manifest.execution)
-                self._executor._do_execute(plan, manifest)
-            logger.info("execute_terminated", execution=manifest.execution)
+            try:
+                with manifest.execution.capture():
+                    logger.info("execute_started", execution=manifest.execution)
+                    self._executor._do_execute(plan, manifest)
+                logger.info("execute_terminated", execution=manifest.execution)
+            except Exception as e:
+                logger.error("execute_failed", execution=manifest.execution, error=e)
 
     def stop(self):
         self._should_stop = True
@@ -223,16 +226,17 @@ class LocalExecutor(Executor):
         manifest = prepare_execution_manifest(flow, plan)
         logger.debug("execute_manifested", execution=manifest.execution)
 
+        executor_metadata = {"executor_id": self.executor_id, "executor_type": "local"}
         if options.blocking:
+            manifest.execution.save()
             save_execution_manifest(manifest)
-            with manifest.execution.capture():
+            with manifest.execution.capture(start_metadata=executor_metadata):
                 logger.info("execute_started", execution=manifest.execution)
                 self._do_execute(plan, manifest)
             logger.info("execute_terminated", execution=manifest.execution)
         else:
             manifest.execution.update_state(
-                state=FlowExecution.State.Queued,
-                transition_metadata={"executor_id": self.executor_id, "executor_type": "local"},
+                state=FlowExecution.State.Queued, transition_metadata=executor_metadata
             )
             self._executions_queue.put((plan, manifest))
 
