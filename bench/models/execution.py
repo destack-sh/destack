@@ -119,10 +119,10 @@ class Execution(UUIDModel):
         self.save()
 
     @contextmanager
-    def capture(self, start: bool = True):
+    def capture(self, start: bool = True, start_metadata: Optional[dict] = None):
         try:
             if start:
-                self.start()
+                self.start(transition_metadata=start_metadata)
             yield
             self.terminate()
         except Exception as e:
@@ -138,7 +138,7 @@ class FlowExecution(Execution):
     The execution of an entire Flow.
     """
 
-    objects = ExecutionManager(default_type=FLOW_EXECUTION_TYPE)  # type: ignore
+    objects = ExecutionManager(default_type=FLOW_EXECUTION_TYPE)
 
     class Meta:
         proxy = True
@@ -149,7 +149,7 @@ class FlowNodeExecution(Execution):
     The parameterised execution of a specific node in a Flow.
     """
 
-    objects = ExecutionManager(default_type=FLOW_NODE_EXECUTION_TYPE)  # type: ignore
+    objects = ExecutionManager(default_type=FLOW_NODE_EXECUTION_TYPE)
 
     class Meta:
         proxy = True
@@ -160,7 +160,7 @@ class ModelExecution(Execution):
     The execution of an individual model artifact (also called a 'prediction').
     """
 
-    objects = ExecutionManager(default_type=MODEL_EXECUTION_TYPE)  # type: ignore
+    objects = ExecutionManager(default_type=MODEL_EXECUTION_TYPE)
 
     class Meta:
         proxy = True

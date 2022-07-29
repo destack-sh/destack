@@ -491,16 +491,25 @@ def validate_record_type(
         if not isinstance(value, cls):
             raise ValueError(f"{'.'.join(path)} is not a {cls} but is {type(value)}: {str(value)}")
 
+    def _check_none(path: list[str], optional: bool, value_type: Any):
+        if not optional:
+            raise ValueError(f"{'.'.join(path)} is None but {value_type} is not optional")
+
     def _validate_rec(
         path: list[str], value: Record, value_type: Union[FieldTypeSpec, FieldTypePrimitive]
     ):
-        if isinstance(value_type, (type, _Type)):
-            _check_isinstance(path, value, value_type)
-        elif isinstance(value_type, FieldSpec):
+        if isinstance(value_type, FieldSpec):
+            # skip to inner validation
             _validate_rec(path, value, value_type.type)
+            return
+        optional = isinstance(value_type, _Type) and getattr(value_type, "optional", False)
+        if value is None:
+            _check_none(path, optional, value_type)
+        elif isinstance(value_type, (type, _Type)):
+            _check_isinstance(path, value, value_type)
         elif isinstance(value_type, (tuple, list)):
             _check_isinstance(path, value, (tuple, list))
-            for i, element_type in enumerate(value_type):
+            for i, element_type in enumerate(value):
                 _validate_rec(path + [f"[{i}]"], cast(list, value)[i], value_type[0])
         elif isinstance(value_type, dict):
             _check_isinstance(path, value, dict)

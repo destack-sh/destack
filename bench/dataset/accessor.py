@@ -13,7 +13,7 @@ from bench.dataset.base import (
     load_dataset,
 )
 from bench.models import ArtifactVersion, Dataset, DatasetVersion
-from bench.models.dataset import DatasetMetadata, DatasetViewData
+from bench.models.dataset import DatasetMetadata, DatasetMetadataSerializer, DatasetViewData
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import BLANK_RECORD_SPEC, RecordSpec, is_blank_spec
 
@@ -43,7 +43,7 @@ class DatasetAccessor:
         raise NotImplementedError
 
 
-def _to_handler_opts(version: DatasetVersion) -> dict:
+def _to_handler_args(version: DatasetVersion) -> dict:
     return {
         "arguments": {**version.config_arguments, "artifact_id": version.artifact.id},
         "handler_id": version.handler_id,
@@ -54,15 +54,15 @@ def _to_handler_opts(version: DatasetVersion) -> dict:
 
 
 def get_dataset_version_handler(version: DatasetVersion) -> DatasetHandler:
-    return load_dataset(**_to_handler_opts(version))
+    return load_dataset(**_to_handler_args(version))
 
 
 def get_dataset_version_reader(version: DatasetVersion) -> DatasetReader:
-    return get_dataset_reader(**_to_handler_opts(version))
+    return get_dataset_reader(**_to_handler_args(version))
 
 
 def get_dataset_version_writer(version: DatasetVersion) -> DatasetWriter:
-    return get_dataset_writer(**_to_handler_opts(version))
+    return get_dataset_writer(**_to_handler_args(version))
 
 
 def records_to_batch(records: Union[Record, RecordBatch]) -> RecordBatch:
@@ -89,7 +89,7 @@ def update_dataset_spec(
         return
     if overwrite or (dataset.record_spec is None or is_blank_spec(dataset.record_spec.type)):
         updated_metadata = dataclasses.replace(dataset.metadata_typed, record_spec=record_spec)
-        dataset.metadata = dataclasses.asdict(updated_metadata)
+        dataset.metadata = DatasetMetadataSerializer(updated_metadata).data
         dataset.save()
 
 

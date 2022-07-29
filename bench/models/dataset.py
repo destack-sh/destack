@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import dataclasses
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
@@ -62,7 +63,7 @@ class DatasetMetadata:
 
     @staticmethod
     def from_dict(obj: dict) -> DatasetMetadata:
-        serializer = DatasetMetadataSerializer(data=obj)
+        serializer = DatasetMetadataSerializer(data=copy.deepcopy(obj))
         serializer.is_valid(raise_exception=True)
         return serializer.save()
 

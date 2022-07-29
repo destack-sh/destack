@@ -1,5 +1,6 @@
 type _Type = {
   _type: string;
+  optional?: boolean;
 };
 
 type _Spec = {
