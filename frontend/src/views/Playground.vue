@@ -49,7 +49,13 @@ FlowExecutionPlan
         <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
       </FlowNodeInterface>
 
-      <FlowNodeInterface v-for="node in augmentNodes" label="Augment" :node="node" :key="node.id">
+      <FlowNodeInterface
+        v-for="node in augmentNodes"
+        label="Augment"
+        :node="node"
+        :key="node.id"
+        @delete="deleteFlowNode(node)"
+      >
         {{ node.function_id }}
       </FlowNodeInterface>
 
@@ -71,6 +77,7 @@ FlowExecutionPlan
           :key="modelNode.id"
           label="Model"
           :node="modelNode"
+          @delete="deleteFlowNode(modelNode)"
         >
           <router-link
             :to="'/models/' + modelForNode(modelNode)?.artifact"
