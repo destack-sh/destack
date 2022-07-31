@@ -1,3 +1,5 @@
+from typing import Optional
+
 import sklearn
 
 from bench.function.base import Metric, functions
@@ -17,8 +19,8 @@ class MetricAccuracy(Metric):
     # TODO @Cleanup @Architecture: move input/output remapping to general connection/function wrapper
     def __init__(
         self,
-        prediction_key: str = None,
-        reference_key: str = None,
+        prediction_key: Optional[str] = None,
+        reference_key: Optional[str] = None,
     ):
         self.prediction_key = prediction_key
         self.reference_key = reference_key
