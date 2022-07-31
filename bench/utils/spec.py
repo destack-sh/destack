@@ -384,8 +384,13 @@ def _impl_type_to_type(
             for ptype, dtype in PTYPE_TO_DTYPE.items()
         ),
     ]
+    # try exact types first
     for impl_type, spec_type in impl_type_to_type:
-        if isinstance(value, type) and (value == impl_type or issubclass(value, impl_type)):
+        if value == impl_type:
+            return spec_type
+    # then try subclasses (two steps since e.g. bool is subclass of int)
+    for impl_type, spec_type in impl_type_to_type:
+        if issubclass(value, impl_type):
             return spec_type
 
     if issubclass(value, enum.Enum):
