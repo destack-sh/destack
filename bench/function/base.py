@@ -79,17 +79,24 @@ class RecordTransform(RecordFunction, ABC):
 
 class SingleRecordTransform(RecordTransform, ABC):
     def transform_batch(self, records: RecordBatch) -> RecordBatch:
-        results = []
+        outputs = []
         for record in records:
-            results.append(self.transform(record))
-        return RecordList(results)
+            output = self.transform(record)
+            if isinstance(output, RecordBatch):
+                outputs.extend(output)
+            else:
+                outputs.append(output)
+        return RecordList(outputs)
 
 
 class BatchRecordTransform(RecordTransform, ABC):
-    def transform(self, record: Record) -> Record:
-        record_as_batch = RecordList([record])
-        result_batch = self.transform_batch(record_as_batch)
-        return result_batch[0]
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
+        input_batch = RecordList([record])
+        output_batch = self.transform_batch(input_batch)
+        if len(output_batch) == 1:
+            return output_batch[0]
+        else:
+            return output_batch
 
 
 class Test(Function):

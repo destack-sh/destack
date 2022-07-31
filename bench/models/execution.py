@@ -126,9 +126,10 @@ class Execution(UUIDModel):
             yield
             self.terminate()
         except Exception as e:
+            stacktrace = traceback.format_stack()
             self.terminate(
                 state=Execution.State.Failed,
-                transition_metadata={"error": str(e), "stacktrace": traceback.format_stack()},
+                transition_metadata={"error": str(e), "stacktrace": stacktrace},
             )
             raise
 

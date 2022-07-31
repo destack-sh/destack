@@ -9,11 +9,12 @@
   />
 </template>
 <script lang="ts" setup>
+import BooleanInterface from "@/interfaces/BooleanInterface.vue";
 import EnumInterface from "@/interfaces/EnumInterface.vue";
 import MissingInterface from "@/interfaces/MissingInterface.vue";
 import NumberInterface from "@/interfaces/NumberInterface.vue";
 import TextInterface from "@/interfaces/TextInterface.vue";
-import { type FieldSpec, isFieldType, type FieldType } from "@/types";
+import { isFieldType, type FieldSpec, type FieldType } from "@/types";
 
 const props = defineProps<{
   modelValue: any;
@@ -33,6 +34,13 @@ function componentWithProps(field: FieldSpec) {
           {
             default: Number.parseFloat(fieldType.default),
             dtype: fieldType.dtype,
+          },
+        ];
+      } else if ("bool" == fieldType.dtype) {
+        return [
+          BooleanInterface,
+          {
+            default: fieldType.default || false,
           },
         ];
       } else {
