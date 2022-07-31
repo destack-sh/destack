@@ -494,13 +494,17 @@ def validate_record_batch_type(
 def validate_record_type(
     record: Record, record_type: Union[FieldTypeSpec, FieldTypePrimitive], ignore_extraneous: bool
 ):
+    def _fail(path: list[str], message: str):
+        path_str = ".".join(path) or "<root>"
+        raise ValueError(f"{path_str} {message}")
+
     def _check_isinstance(path: list[str], value: Any, cls: Any):
         if not isinstance(value, cls):
-            raise ValueError(f"{'.'.join(path)} is not a {cls} but is {type(value)}: {str(value)}")
+            _fail(path, f"is not a {cls} but is {type(value)}: {str(value)}")
 
     def _check_none(path: list[str], optional: bool, value_type: Any):
         if not optional:
-            raise ValueError(f"{'.'.join(path)} is None but {value_type} is not optional")
+            _fail(path, f"is None but {value_type} is not optional")
 
     def _validate_rec(
         path: list[str], value: Record, value_type: Union[FieldTypeSpec, FieldTypePrimitive]

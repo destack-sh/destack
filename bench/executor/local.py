@@ -48,7 +48,7 @@ from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import dict_to_ordered, terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ArtifactSpec
+from bench.utils.spec import ArtifactSpec, FieldTypePrimitive, FieldTypeSpec
 
 logger = structlog.stdlib.get_logger()
 
@@ -290,6 +290,16 @@ class LocalExecutor(Executor):
         validate = plan.options.validate in (FlowRuntimeValidation.Lazy, FlowRuntimeValidation.Full)
         validate_lazy = plan.options.validate == FlowRuntimeValidation.Lazy
 
+        def _validate_records(
+            source_node_id: UUID,
+            records: RecordBatch,
+            spec_type: Union[FieldTypeSpec, FieldTypePrimitive],
+        ):
+            if validate:
+                validate_record_batch_type(
+                    records, spec_type, ignore_extraneous=True, lazy=validate_lazy
+                )
+
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
         new_pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
@@ -325,11 +335,8 @@ class LocalExecutor(Executor):
                     raise RuntimeError(f"unexpected function: {function}")
 
                 # validate output against output spec
-                if validate:
-                    output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
-                    validate_record_batch_type(
-                        output_batch, output_spec.type, ignore_extraneous=True, lazy=validate_lazy
-                    )
+                output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
+                _validate_records(node_id, output_batch, output_spec.type)
 
                 # write to next input nodes and intermediate output artifacts (if any)
                 for node_connection in flatten(plan.connected_inverse[node_id].values()):
@@ -341,16 +348,8 @@ class LocalExecutor(Executor):
                     new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
 
                     # validate output against next input spec
-                    if validate:
-                        input_spec = functions[dependent_id].input_spec[
-                            node_connection.dependency_name
-                        ]
-                        validate_record_batch_type(
-                            output_batch,
-                            input_spec.type,
-                            ignore_extraneous=True,
-                            lazy=validate_lazy,
-                        )
+                    input_spec = functions[dependent_id].input_spec[node_connection.dependency_name]
+                    _validate_records(node_id, output_batch, input_spec.type)
 
                     if node_connection.intermediate_artifact is not None:
                         output_spec = function.output_spec[node_connection.dependent_name]

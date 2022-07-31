@@ -5,7 +5,7 @@ from typing import Tuple, Union, cast
 from bench.dataset.base import DatasetReader
 from bench.function.base import SingleRecordTransform, functions
 from bench.utils.func import dict_to_ordered
-from bench.utils.record import Record
+from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import DatasetType, convert_to_config_spec, convert_to_record_spec
 
 
@@ -13,9 +13,11 @@ class TextTransform(SingleRecordTransform, abc.ABC):
     input_spec = {"*": convert_to_record_spec({"text": str})}
     output_spec = dict_to_ordered({"*": convert_to_record_spec({"text": str})})
 
-    def transform(self, record: Record) -> Record:
-        record = cast(dict, record)  # assume record is dict
-        transformed_text = self.transform_text(cast(str, record["text"]))
+    def __init__(self, spread_original: bool = False):
+        self.spread_original = spread_original
+
+    @staticmethod
+    def make_output(record: dict, transformed_text: Union[str, Tuple[str, Record]]) -> Record:
         if isinstance(transformed_text, str):
             return {**record, "text": transformed_text}
         elif isinstance(transformed_text, dict):
@@ -23,6 +25,19 @@ class TextTransform(SingleRecordTransform, abc.ABC):
         else:
             output_text, output_record = transformed_text
             return {**record, **output_record, "text": transformed_text}
+
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
+        record = cast(dict, record)  # assume record is dict
+        original_text = cast(str, record["text"])
+        transformed_text = self.transform_text(original_text)
+        if self.spread_original:
+            outputs = [
+                TextTransform.make_output(record, original_text),
+                TextTransform.make_output(record, transformed_text),
+            ]
+            return RecordList(outputs)
+        else:
+            return TextTransform.make_output(record, transformed_text)
 
     def transform_text(self, text: str) -> Union[str, Tuple[str, Record]]:
         raise NotImplementedError
@@ -43,10 +58,14 @@ class LowerCaseTextTransform(TextTransform):
 @functions.register("bench.text.swap")
 class TemplateTextSwapper(TextTransform):
     config_spec = convert_to_config_spec(
-        {"swaps_dataset": DatasetType(record_spec={"pattern": str, "replacement": str})}
+        {
+            "swaps_dataset": DatasetType(record_spec={"pattern": str, "replacement": str}),
+            "spread_original": bool,
+        },
     )
 
-    def __init__(self, swaps_dataset: DatasetReader):
+    def __init__(self, swaps_dataset: DatasetReader, spread_original: bool = False):
+        super().__init__(spread_original=spread_original)
         self.swaps_dataset = swaps_dataset
         swaps_patterns = cast(list[str], swaps_dataset["pattern"])
         self.regex_patterns = [re.compile(pattern) for pattern in swaps_patterns]
