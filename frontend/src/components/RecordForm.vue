@@ -3,12 +3,14 @@
     <div class="sm:col-span-4" v-for="field in specs" :key="field.name">
       <label for="username" class="block text-sm font-medium text-gray-700">
         {{ field.name }}
+        <span v-if="isOptional(field)" class="font-normal text-gray-500">(optional)</span>
       </label>
       <div class="mt-1 flex rounded-md">
         <FieldValueInterface
           :modelValue="props.modelValue[field.name]"
           :field="field"
           @update:modelValue="(value: any) => setRecordField(field, value)"
+          :required="!isOptional(field)"
         />
       </div>
     </div>
@@ -31,6 +33,10 @@ function setRecordField(field: FieldSpec, value: any) {
   const newRecord: Record<string, any> = { ...props.modelValue };
   newRecord[field.name] = value;
   emit("update:modelValue", newRecord);
+}
+
+function isOptional(field: FieldSpec): boolean | undefined {
+  return isFieldType(field.type) && (field.type as FieldType).optional;
 }
 
 const specs: Ref<FieldSpec[]> = computed(() => {

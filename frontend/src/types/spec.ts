@@ -12,11 +12,13 @@ export type ValueType = _Type & {
   _type: "ValueType";
   dtype: string;
   default?: any;
+  optional?: boolean;
 };
 
 export type EnumType = _Type & {
   _type: "EnumType";
   values: any[];
+  optional?: boolean;
 };
 
 export type FieldType = ValueType | EnumType;
