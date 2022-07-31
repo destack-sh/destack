@@ -178,10 +178,11 @@ const { getTimeFromNowString } = useTimeFromNow();
 const inputNode: Ref<FlowNode | null> = computed(
   () => flow.value?.nodes?.find((node) => node.name == "input-0") || null
 );
-const augmentNodes: Ref<FlowNode[]> = computed(() =>
-  flow.value?.nodes?.filter(
-    (node) => !node.name.startsWith("input-") && node.function_id != "bench.model"
-  )
+const augmentNodes: Ref<FlowNode[]> = computed(
+  () =>
+    flow.value?.nodes?.filter(
+      (node) => !node.name.startsWith("input-") && node.function_id != "bench.model"
+    ) || []
 );
 const modelNodes: Ref<FlowNode[]> = computed(
   () => flow.value?.nodes?.filter((node) => node.function_id == "bench.model") || []
@@ -439,7 +440,7 @@ async function execute() {
     },
     options: {
       blocking: false,
-      validate: true,
+      validate: "lazy",
     },
   };
   await api

@@ -30,6 +30,7 @@ from bench.executor.base import (
     FlowExecutionPlan,
     FlowNodeConnection,
     FlowRawArgument,
+    FlowRuntimeValidation,
     ResourceRequirements,
     make_execution_plan,
     prepare_execution_manifest,
@@ -285,6 +286,10 @@ class LocalExecutor(Executor):
                 else:
                     raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
 
+        # general settings
+        validate = plan.options.validate in (FlowRuntimeValidation.Lazy, FlowRuntimeValidation.Full)
+        validate_lazy = plan.options.validate == FlowRuntimeValidation.Lazy
+
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
         new_pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
@@ -320,10 +325,10 @@ class LocalExecutor(Executor):
                     raise RuntimeError(f"unexpected function: {function}")
 
                 # validate output against output spec
-                if plan.options.validate:
+                if validate:
                     output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
                     validate_record_batch_type(
-                        output_batch, output_spec.type, ignore_extraneous=True, lazy=True
+                        output_batch, output_spec.type, ignore_extraneous=True, lazy=validate_lazy
                     )
 
                 # write to next input nodes and intermediate output artifacts (if any)
@@ -336,12 +341,15 @@ class LocalExecutor(Executor):
                     new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
 
                     # validate output against next input spec
-                    if plan.options.validate:
+                    if validate:
                         input_spec = functions[dependent_id].input_spec[
                             node_connection.dependency_name
                         ]
                         validate_record_batch_type(
-                            output_batch, input_spec.type, ignore_extraneous=True, lazy=True
+                            output_batch,
+                            input_spec.type,
+                            ignore_extraneous=True,
+                            lazy=validate_lazy,
                         )
 
                     if node_connection.intermediate_artifact is not None:
