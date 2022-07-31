@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import enum
 import time
 import uuid
 from collections import defaultdict
@@ -58,21 +59,27 @@ FlowRawArgument = Union[RecordBatch, ArtifactVersion]
 FlowArgument = Union[ArtifactVersion]
 
 
+class FlowRuntimeValidation(enum.Enum):
+    Off = "off"
+    Lazy = "lazy"
+    Full = "full"
+
+
 @dataclasses.dataclass
 class FlowExecutionOptions:
     blocking: bool
-    validate: bool
+    validate: FlowRuntimeValidation
     capture_intermediate: list[FlowNodeEdge.ConnectionType] = dataclasses.field(
         default_factory=list
     )
 
     @staticmethod
     def default():
-        return FlowExecutionOptions(validate=True, blocking=False)
+        return FlowExecutionOptions(validate=FlowRuntimeValidation.Lazy, blocking=False)
 
     @staticmethod
     def default_blocking():
-        return FlowExecutionOptions(validate=True, blocking=True)
+        return FlowExecutionOptions(validate=FlowRuntimeValidation.Lazy, blocking=True)
 
 
 class Executor(abc.ABC):

@@ -63,9 +63,11 @@ export type FlowNodeExecutionArgument = {
   records?: any;
 };
 
+export type FlowRuntimeValidation = "off" | "lazy" | "full";
+
 export type FlowExecutionOptions = {
   blocking: boolean;
-  validate: boolean;
+  validate: FlowRuntimeValidation;
 };
 
 export type FlowExecutionPlan = {
