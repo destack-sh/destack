@@ -22,7 +22,11 @@
       </div>
     </div>
     <div class="pt-4" v-if="selectedFunctionHandler">
-      <RecordForm :spec="selectedFunctionHandler.config_spec" v-model="nodeConfigRecord" />
+      <RecordForm
+        :spec="reduceToFieldSpec(selectedFunctionHandler.config_spec)"
+        v-model="configRecord"
+      />
+      <ConfigForm :spec="selectedFunctionHandler.config_spec" v-model="configRecord" />
     </div>
     <div class="pt-4">
       <div class="flex justify-end">
@@ -39,16 +43,23 @@
   </form>
 </template>
 <script lang="ts" setup>
+import ConfigForm from "@/components/ConfigForm.vue";
+import FunctionHandlerSelect from "@/components/FunctionHandlerSelect.vue";
+import RecordForm from "@/components/RecordForm.vue";
 import { useMetaStore } from "@/stores";
-import type { ArtifactVersion, FlowNode, FlowVersion, FunctionHandlerSpec } from "@/types";
+import {
+  reduceToFieldSpec,
+  type ArtifactVersion,
+  type FlowNode,
+  type FlowVersion,
+  type FunctionHandlerSpec,
+} from "@/types";
 import { computed, ref, watchEffect, type Ref } from "vue";
-import FunctionHandlerSelect from "./FunctionHandlerSelect.vue";
-import RecordForm from "./RecordForm.vue";
 
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
 
 const name: Ref<string> = ref("");
-const nodeConfigRecord: Ref<Record<string, any>> = ref({});
+const configRecord: Ref<Record<string, any>> = ref({});
 const metadata: Ref<Record<string, any>> = ref({});
 const connectedArtifacts: Ref<Record<string, ArtifactVersion>> = ref({});
 
@@ -76,7 +87,7 @@ watchEffect(() => {
   }
   name.value = props.existingNode.name;
   selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
-  nodeConfigRecord.value = props.existingNode.config_arguments || {};
+  configRecord.value = props.existingNode.config_arguments || {};
   // TODO @Broken: init/recover existing artifact connections when editing flow
 });
 
@@ -92,7 +103,7 @@ function create() {
   const node = {
     name: name.value,
     function_id: selectedFunctionHandler.value?.name,
-    config_arguments: nodeConfigRecord.value,
+    config_arguments: configRecord.value,
     metadata: metadata.value,
   } as FlowNode;
   emit("create", { node, connectedArtifacts: connectedArtifacts.value });
@@ -102,8 +113,9 @@ function update() {
   const node = props.existingNode as FlowNode;
   const updatedNode = {
     ...node,
+    name: name.value,
     function_id: selectedFunctionHandler.value?.name,
-    config_arguments: nodeConfigRecord.value,
+    config_arguments: configRecord.value,
     metadata: metadata.value,
   } as FlowNode;
   emit("update", { node: updatedNode, connectedArtifacts: connectedArtifacts.value });

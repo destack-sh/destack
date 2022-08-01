@@ -6,34 +6,29 @@
         <span v-if="isOptional(field)" class="font-normal text-gray-500">(optional)</span>
       </label>
       <div class="mt-1 flex rounded-md">
-        <FieldValueInterface
-          :modelValue="props.modelValue[field.name]"
-          :field="field"
-          @update:modelValue="(value: any) => setRecordField(field, value)"
-          :required="!isOptional(field)"
-        />
+        <ArtifactSelect hide-if-empty />
       </div>
     </div>
   </form>
 </template>
 <script lang="ts" setup>
 import {
-  isFieldType,
-  unravelFieldSpec,
+  isArtifactType,
+  unravelConfigSpec,
+  type ArtifactType,
+  type ArtifactVersion,
+  type ConfigSpec,
   type FieldSpec,
-  type FieldType,
-  type FieldTypePrimitive,
-  type RecordSpec,
 } from "@/types";
 import { computed, type Ref } from "vue";
-import FieldValueInterface from "./FieldValueInterface.vue";
+import ArtifactSelect from "./ArtifactSelect.vue";
 
 const props = defineProps<{
-  spec: RecordSpec[];
-  modelValue: Record<string, any>;
+  spec: ConfigSpec;
+  modelValue: Record<string, ArtifactVersion>;
 }>();
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Record<string, any>): void;
+  (e: "update:modelValue", value: Record<string, ArtifactVersion>): void;
 }>();
 
 function setRecordField(field: FieldSpec, value: any) {
@@ -43,8 +38,10 @@ function setRecordField(field: FieldSpec, value: any) {
 }
 
 function isOptional(field: FieldSpec): boolean | undefined {
-  return isFieldType(field.type) && (field.type as FieldTypePrimitive).optional;
+  return isArtifactType(field.type) && (field.type as ArtifactType).optional;
 }
 
-const specs: Ref<FieldSpec[]> = computed(() => unravelFieldSpec(props.spec));
+const specs: Ref<FieldSpec[]> = computed(
+  () => unravelConfigSpec(props.spec).filter((spec) => isArtifactType(spec.type)) as FieldSpec[]
+);
 </script>

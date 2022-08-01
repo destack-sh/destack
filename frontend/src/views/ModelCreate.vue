@@ -53,7 +53,7 @@
         <RecordForm
           class="mt-3"
           v-if="!(selectedTemplate as EmptyTemplate).empty"
-          :spec="(selectedTemplate as ModelTemplate).handler.config_spec"
+          :spec="[(selectedTemplate as ModelTemplate).handler.config_spec]"
           v-model="modelConfigRecord"
         />
       </div>

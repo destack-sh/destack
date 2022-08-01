@@ -196,18 +196,20 @@ else:
 
 @dataclass
 class ArtifactType(_Type):
-    type: str
+    pass
 
 
 @dataclass
-class ModelType(_Type):
+class ModelType(ArtifactType):
     input_spec: Union[RecordSpec, RecordType]
     output_spec: Union[RecordSpec, RecordType]
+    optional: Optional[bool] = False
 
 
 @dataclass
-class DatasetType(_Type):
+class DatasetType(ArtifactType):
     record_spec: Union[RecordType, RecordSpec]
+    optional: Optional[bool] = False
 
 
 @dataclass
@@ -376,8 +378,8 @@ def _impl_type_to_type(
 
     # default implementation types to their generic spec types
     impl_type_to_type: List[Tuple[Type, AnyType]] = [
-        (DatasetHandler, DatasetType(record_spec={})),
-        (ModelHandler, ModelType(input_spec={}, output_spec={})),
+        (DatasetHandler, DatasetType(record_spec={}, optional=optional)),
+        (ModelHandler, ModelType(input_spec={}, output_spec={}, optional=optional)),
         (RecordBatch, {}),
         *(
             (ptype, ValueType(dtype=dtype, optional=optional, default=default))
