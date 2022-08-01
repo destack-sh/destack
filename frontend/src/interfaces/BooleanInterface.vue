@@ -1,13 +1,10 @@
 <template>
   <div class="flex h-5 items-center">
     <input
-      id="poll"
-      aria-describedby="poll-description"
-      name="poll"
       type="checkbox"
       class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-      :value="modelValue"
-      @input="$emit('update:modelValue', $event.target?.value)"
+      :checked="modelValue"
+      @input="$emit('update:modelValue', $event.target?.checked)"
     />
   </div>
 </template>

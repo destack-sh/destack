@@ -3,6 +3,8 @@ import { useFlowsStore } from "@/stores";
 import type { FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
 import { computed, type Ref } from "vue";
 
+export const CURRENT_USE_FLOW_KEY = Symbol();
+
 export function useFlow(flow: Ref<FlowVersion | null>) {
   const flowStore = useFlowsStore();
 
@@ -12,6 +14,8 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     }
     return flow.value;
   });
+
+  const _flowUrl = computed(() => `/flows/${_flow.value.flow}/versions/${_flow.value.version}`);
 
   async function connectFlowNodes(
     dependencyNode: FlowNode,
@@ -58,10 +62,15 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
       .then(_addFlowNode);
   }
 
+  async function updateFlowNode(flowNode: Partial<FlowNode> & Pick<FlowNode, "id">) {
+    return api
+      .patch<FlowNode>(`${_flowUrl.value}/nodes/${flowNode.id}`, flowNode)
+      .then((response) => response.data)
+      .then(_updateFlowNode);
+  }
+
   async function deleteFlowNode(flowNode: FlowNode) {
-    await api.delete(
-      `/flows/${_flow.value.flow}/versions/${_flow.value.version}/nodes/${flowNode.id}`
-    );
+    await api.delete(`${_flowUrl.value}/nodes/${flowNode.id}`);
     _flow.value.nodes = _flow.value.nodes?.filter((node) => node.id != flowNode.id) || [];
   }
 
@@ -85,6 +94,13 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     return node;
   }
 
+  function _updateFlowNode(node: FlowNode) {
+    const existingNode = _flow.value.nodes?.find((n) => n.id == node.id);
+    if (existingNode != null) {
+      Object.assign(existingNode, node);
+    }
+  }
+
   function _addFlowNodeEdge(nodeEdge: FlowNodeEdge) {
     if (_flow.value.node_edges == null) {
       _flow.value.node_edges = [];
@@ -103,6 +119,7 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
 
   return {
     createFlowNode,
+    updateFlowNode,
     deleteFlowNode,
     connectFlowNodes,
     connectFlowNodeArtifact,
