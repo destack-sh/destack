@@ -71,7 +71,7 @@ class FlowNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlowNode
-        fields = ["id", "flow", "name", "created_at", "function_id", "config_arguments"]
+        fields = ["id", "flow", "name", "created_at", "function_id", "config_arguments", "metadata"]
         read_only_fields = ["id", "created_at", "committed"]
         validators = [
             validators.UniqueTogetherValidator(

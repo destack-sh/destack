@@ -54,6 +54,7 @@ FlowExecutionPlan
         label="Augment"
         :node="node"
         :key="node.id"
+        @edit="promptEditNode(node)"
         @delete="deleteFlowNode(node)"
       >
         {{ node.function_id }}
@@ -73,20 +74,21 @@ FlowExecutionPlan
       <div class="flex flex-auto items-center gap-4">
         <FlowNodeInterface
           class="flex-1"
-          v-for="modelNode in modelNodes"
-          :key="modelNode.id"
+          v-for="node in modelNodes"
+          :key="node.id"
           label="Model"
-          :node="modelNode"
-          @delete="deleteFlowNode(modelNode)"
+          :node="node"
+          @edit="promptEditNode(node)"
+          @delete="deleteFlowNode(node)"
         >
           <router-link
-            :to="'/models/' + modelForNode(modelNode)?.artifact"
+            :to="'/models/' + modelForNode(node)?.artifact"
             class="font-medium text-gray-900 hover:text-gray-600"
           >
-            {{ modelForNode(modelNode)?.artifact }}
+            {{ modelForNode(node)?.artifact }}
           </router-link>
           <p class="text-gray-500">
-            {{ modelVersionForNode(modelNode) }}
+            {{ modelVersionForNode(node) }}
           </p>
         </FlowNodeInterface>
 
@@ -124,8 +126,17 @@ FlowExecutionPlan
     ref="artifactSelect"
     @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])"
   />
-  <Slideover ref="createNodeSlideover" title="Create flow node">
-    <FlowNodeConfigInterface @create="createFlowNodeFromSelection" />
+  <Slideover
+    ref="editNodeSlideover"
+    :title="selectedNode == null ? 'Create flow node' : 'Edit flow node'"
+    v-if="flow"
+  >
+    <FlowNodeConfigInterface
+      :existing-node="selectedNode || undefined"
+      :flow="flow"
+      @create="createFlowNodeFromSelection"
+      @update="updateFlowNodeInPlace"
+    />
   </Slideover>
 </template>
 <script lang="ts" setup>
@@ -165,6 +176,7 @@ const props = defineProps({ models: { type: Array as PropType<Array<string>>, re
 const flow: Ref<FlowVersion | null> = ref(null);
 const {
   createFlowNode,
+  updateFlowNode,
   deleteFlowNode,
   getFlowNode,
   connectFlowNodes,
@@ -331,6 +343,7 @@ const flowInputSpec: RecordSpec = {
 };
 const flowInputRecord = ref({});
 
+const selectedNode: Ref<FlowNode | null> = ref(null);
 const selectedFromNodes: Ref<FlowNode[]> = ref([]);
 const selectedToNodes: Ref<FlowNode[]> = ref([]);
 
@@ -339,11 +352,17 @@ function promptAddModel() {
   (artifactSelect.value as any).show();
 }
 
-const createNodeSlideover = ref(null);
+const editNodeSlideover = ref(null);
 function promptAddNode(fromNodes: FlowNode[], toNodes: FlowNode[]) {
+  selectedNode.value = null;
   selectedFromNodes.value = fromNodes;
   selectedToNodes.value = toNodes;
-  (createNodeSlideover.value as any).show();
+  (editNodeSlideover.value as any).show();
+}
+
+function promptEditNode(node: FlowNode) {
+  selectedNode.value = node;
+  (editNodeSlideover.value as any).show();
 }
 
 async function createFlowNodeFromSelection(v: {
@@ -365,7 +384,19 @@ async function createFlowNodeFromSelection(v: {
   }
   await connectFlowNodes(node, selectedToNodes.value, "input");
 
-  (createNodeSlideover.value as any).hide();
+  (editNodeSlideover.value as any).hide();
+}
+
+async function updateFlowNodeInPlace(v: {
+  node: FlowNode;
+  connectedArtifacts: Record<string, ArtifactVersion>;
+}) {
+  // update node
+  await updateFlowNode(v.node);
+
+  // TODO @Broken: update connected artifacts
+
+  (editNodeSlideover.value as any).hide();
 }
 
 const canExecute: Ref<boolean> = computed(() => flowInputRecord.value != {});

@@ -119,6 +119,7 @@ class FlowNode(UUIDModel, VersionedBlob):
 
     function_id = models.CharField(max_length=256)
     config_arguments = models.JSONField(default=dict)
+    metadata = models.JSONField(default=dict)
     connected_artifacts = models.ManyToManyField("ArtifactVersion", through="FlowArtifactEdge")
     depends_on_nodes = models.ManyToManyField(
         "FlowNode",

@@ -30,17 +30,18 @@
         <button
           type="submit"
           class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click.prevent="create"
+          @click.prevent="submit"
         >
-          Create
+          {{ creating ? "Create" : "Update" }}
         </button>
       </div>
     </div>
   </form>
 </template>
 <script lang="ts" setup>
-import type { ArtifactVersion, FlowNode, FunctionHandlerSpec } from "@/types";
-import { ref, type Ref } from "vue";
+import { useMetaStore } from "@/stores";
+import type { ArtifactVersion, FlowNode, FlowVersion, FunctionHandlerSpec } from "@/types";
+import { computed, ref, watchEffect, type Ref } from "vue";
 import FunctionHandlerSelect from "./FunctionHandlerSelect.vue";
 import RecordForm from "./RecordForm.vue";
 
@@ -50,6 +51,42 @@ const name: Ref<string> = ref("");
 const nodeConfigRecord: Ref<Record<string, any>> = ref({});
 const metadata: Ref<Record<string, any>> = ref({});
 const connectedArtifacts: Ref<Record<string, ArtifactVersion>> = ref({});
+
+const props = defineProps<{ existingNode?: FlowNode; flow: FlowVersion }>();
+const emit = defineEmits<{
+  (
+    e: "create",
+    value: {
+      node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
+      connectedArtifacts: Record<string, ArtifactVersion>;
+    }
+  ): void;
+  (
+    e: "update",
+    value: { node: FlowNode; connectedArtifacts: Record<string, ArtifactVersion> }
+  ): void;
+}>();
+
+const creating = computed(() => props.existingNode == null);
+// initialize forms if not creating
+const metaStore = useMetaStore();
+watchEffect(() => {
+  if (props.existingNode == null) {
+    return;
+  }
+  name.value = props.existingNode.name;
+  selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
+  nodeConfigRecord.value = props.existingNode.config_arguments || {};
+  // TODO @Broken: init/recover existing artifact connections when editing flow
+});
+
+function submit() {
+  if (creating.value) {
+    create();
+  } else {
+    update();
+  }
+}
 
 function create() {
   const node = {
@@ -61,16 +98,14 @@ function create() {
   emit("create", { node, connectedArtifacts: connectedArtifacts.value });
 }
 
-const props = defineProps<{ modelValue?: FlowNode }>();
-const emit = defineEmits<{
-  (
-    e: "create",
-    value: {
-      node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
-      connectedArtifacts: Record<string, ArtifactVersion>;
-    }
-  ): void;
-  (e: "update:modelValue", value: FlowNode): void;
-  (e: "update:connectedArtifact", value: { name: string; artifact: ArtifactVersion | null }): void;
-}>();
+function update() {
+  const node = props.existingNode as FlowNode;
+  const updatedNode = {
+    ...node,
+    function_id: selectedFunctionHandler.value?.name,
+    config_arguments: nodeConfigRecord.value,
+    metadata: metadata.value,
+  } as FlowNode;
+  emit("update", { node: updatedNode, connectedArtifacts: connectedArtifacts.value });
+}
 </script>

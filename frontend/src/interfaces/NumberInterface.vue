@@ -1,9 +1,9 @@
 <template>
   <input
     type="number"
+    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
     :value="modelValue"
     @input="$emit('update:modelValue', Number.parseFloat($event.target?.value))"
-    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
     :placeholder="`${props.default}`"
   />
 </template>
