@@ -45,11 +45,11 @@ FlowExecutionPlan
       </div>
     </div>
     <div class="mx-auto flex max-w-7xl flex-col gap-2 py-4 px-4 sm:px-6 md:px-8">
-      <FlowNodeInterface v-if="inputNode" label="Input" :node="inputNode">
-        <RecordForm v-model="flowInputRecord" :spec="flowInputSpec" @submit.prevent="execute" />
-      </FlowNodeInterface>
+      <FlowNodeDisplay v-if="inputNode" label="Input" :node="inputNode">
+        <RecordForm v-model="flowInputRecord" :spec="[flowInputSpec]" @submit.prevent="execute" />
+      </FlowNodeDisplay>
 
-      <FlowNodeInterface
+      <FlowNodeDisplay
         v-for="node in augmentNodes"
         label="Augment"
         :node="node"
@@ -58,7 +58,7 @@ FlowExecutionPlan
         @delete="deleteFlowNode(node)"
       >
         {{ node.function_id }}
-      </FlowNodeInterface>
+      </FlowNodeDisplay>
 
       <div v-if="inputNode" class="self-center px-4">
         <button
@@ -72,7 +72,7 @@ FlowExecutionPlan
 
       <!-- Select models -->
       <div class="flex flex-auto items-center gap-4">
-        <FlowNodeInterface
+        <FlowNodeDisplay
           class="flex-1"
           v-for="node in modelNodes"
           :key="node.id"
@@ -90,7 +90,7 @@ FlowExecutionPlan
           <p class="text-gray-500">
             {{ modelVersionForNode(node) }}
           </p>
-        </FlowNodeInterface>
+        </FlowNodeDisplay>
 
         <div class="self-center px-4">
           <button
@@ -122,10 +122,9 @@ FlowExecutionPlan
       </div>
     </div>
   </Sidebar>
-  <ArtifactSelect
-    ref="artifactSelect"
-    @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])"
-  />
+  <PopupDialog title="Select artifact" ref="artifactSelectDialog">
+    <ArtifactSelect @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])" />
+  </PopupDialog>
   <Slideover
     ref="editNodeSlideover"
     :title="selectedNode == null ? 'Create flow node' : 'Edit flow node'"
@@ -167,9 +166,10 @@ import { DateTime, Duration } from "luxon";
 import { computed, onBeforeMount, onBeforeUnmount, ref, watch, type PropType, type Ref } from "vue";
 
 import FlowNodeConfigInterface from "@/components/FlowNodeConfigInterface.vue";
-import FlowNodeInterface from "@/components/FlowNodeInterface.vue";
+import FlowNodeDisplay from "@/components/FlowNodeDisplay.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { getRandomName } from "@/composables/useRandomName";
+import PopupDialog from "../components/PopupDialog.vue";
 
 const props = defineProps({ models: { type: Array as PropType<Array<string>>, required: false } });
 
@@ -347,9 +347,9 @@ const selectedNode: Ref<FlowNode | null> = ref(null);
 const selectedFromNodes: Ref<FlowNode[]> = ref([]);
 const selectedToNodes: Ref<FlowNode[]> = ref([]);
 
-const artifactSelect = ref(null);
+const artifactSelectDialog = ref(null);
 function promptAddModel() {
-  (artifactSelect.value as any).show();
+  (artifactSelectDialog.value as any).show();
 }
 
 const editNodeSlideover = ref(null);

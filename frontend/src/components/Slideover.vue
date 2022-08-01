@@ -38,6 +38,7 @@
                   </div>
                   <div class="relative mt-6 flex-1 px-4 sm:px-6">
                     <slot>
+                      <!-- put content here -->
                       <div class="absolute inset-0 px-4 sm:px-6">
                         <div
                           class="h-full border-2 border-dashed border-gray-200"

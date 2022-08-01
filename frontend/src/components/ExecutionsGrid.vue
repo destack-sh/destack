@@ -68,6 +68,7 @@ import {
   isFieldSpec,
   isFieldType,
   makeFieldSpec,
+  unravelFieldSpec,
   type ArtifactVersion,
   type DatasetMetadata,
   type Execution,
@@ -159,19 +160,6 @@ const rows = computed(() =>
   })
 );
 
-function unravelSpec(spec: FieldSpec): FieldSpec[] {
-  if (isFieldType(spec.type)) {
-    return [makeFieldSpec("", spec.type as FieldType)];
-  } else if (isFieldSpec(spec.type)) {
-    // if the spec type is just a blank spec it's just a level of annotation
-    return unravelSpec(spec.type as FieldSpec);
-  } else if (Array.isArray(spec.type)) {
-    return spec.type;
-  } else {
-    return Object.values(spec.type);
-  }
-}
-
 function specFor(dataset: string): FieldSpec[] {
   if (datasetVersions.value == null || datasetVersions.value[dataset] == null) {
     // TODO @Cleanup: derive spec from values?
@@ -185,7 +173,7 @@ function specFor(dataset: string): FieldSpec[] {
     return [];
   }
 
-  return unravelSpec(spec as RecordSpec);
+  return unravelFieldSpec(spec as RecordSpec);
 }
 
 function isValidSpec(spec: RecordSpec | undefined | null): boolean {
