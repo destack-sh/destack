@@ -123,7 +123,7 @@ FlowExecutionPlan
     </div>
   </Sidebar>
   <PopupDialog title="Select artifact" ref="artifactSelectDialog">
-    <ArtifactSelect @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])" />
+    <ArtifactSelect static @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])" />
   </PopupDialog>
   <Slideover
     ref="editNodeSlideover"
@@ -150,6 +150,7 @@ import { computedAsync, useArtifactsStore, useFlowsStore } from "@/stores";
 import {
   getAllConnectedArtifacts,
   isTerminal,
+  type ArtifactConnection,
   type ArtifactVersion,
   type Execution,
   type ExecutionArtifactConnection,
@@ -181,6 +182,7 @@ const {
   getFlowNode,
   connectFlowNodes,
   connectFlowNodeArtifact,
+  setFlowNodeArtifactConnections,
   artifactEdges,
 } = useFlow(flow);
 const flowStore = useFlowsStore();
@@ -269,7 +271,11 @@ async function addModels(models: string[]) {
   // create connections to models
   await Promise.all(
     modelNodes.map((modelNode, i) =>
-      connectFlowNodeArtifact(modelNode, models[i], "argument", "model")
+      connectFlowNodeArtifact(modelNode, {
+        dependency: models[i],
+        connection_type: "argument",
+        connection_name: "model",
+      })
     )
   );
 
@@ -367,15 +373,14 @@ function promptEditNode(node: FlowNode) {
 
 async function createFlowNodeFromSelection(v: {
   node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
-  connectedArtifacts: Record<string, ArtifactVersion>;
+  connectedArtifacts: ArtifactConnection[];
 }) {
   // create node
   const node = await createFlowNode(v.node);
 
-  // connect to argument artifacts (only for now)
-  for (const connectionName in v.connectedArtifacts) {
-    const artifact = toNameVersion(v.connectedArtifacts[connectionName]);
-    await connectFlowNodeArtifact(node, artifact, "argument", connectionName);
+  // connect to artifacts (only for now)
+  for (const connection of v.connectedArtifacts) {
+    await connectFlowNodeArtifact(node, connection);
   }
 
   // connect to current selection of input/output nodes (* connection only for now)
@@ -389,12 +394,11 @@ async function createFlowNodeFromSelection(v: {
 
 async function updateFlowNodeInPlace(v: {
   node: FlowNode;
-  connectedArtifacts: Record<string, ArtifactVersion>;
+  connectedArtifacts: ArtifactConnection[];
 }) {
   // update node
   await updateFlowNode(v.node);
-
-  // TODO @Broken: update connected artifacts
+  await setFlowNodeArtifactConnections(v.node, v.connectedArtifacts);
 
   (editNodeSlideover.value as any).hide();
 }

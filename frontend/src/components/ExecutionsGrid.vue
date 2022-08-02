@@ -183,6 +183,7 @@ function isValidSpec(spec: RecordSpec | undefined | null): boolean {
 const artifactsStore = useArtifactsStore();
 
 // cached dataset versions maintained for specs
+// TODO @Cleanup: use artifacts store's cache here (mind the stale logic for invalid specs)
 const cachedDatasetVersions: Record<string, ArtifactVersion> = {};
 const { result: datasetVersions } = computedAsync(async () => {
   const datasets = await Promise.all(

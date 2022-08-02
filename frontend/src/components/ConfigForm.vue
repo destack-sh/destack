@@ -6,34 +6,60 @@
         <span v-if="isOptional(field)" class="font-normal text-gray-500">(optional)</span>
       </label>
       <div class="mt-1 flex rounded-md">
-        <ArtifactSelect hide-if-empty />
+        <ArtifactSelect
+          :modelValue="artifact(modelValue[field.name])"
+          @select="(artifact) => setArtifactConnection(field, artifact)"
+        />
       </div>
     </div>
   </form>
 </template>
 <script lang="ts" setup>
+import { useArtifactsStore } from "@/stores";
 import {
   isArtifactType,
   unravelConfigSpec,
+  type Artifact,
+  type ArtifactConnection,
   type ArtifactType,
-  type ArtifactVersion,
   type ConfigSpec,
   type FieldSpec,
 } from "@/types";
+import { splitNameVersion } from "@/utils/versioning";
 import { computed, type Ref } from "vue";
 import ArtifactSelect from "./ArtifactSelect.vue";
 
 const props = defineProps<{
   spec: ConfigSpec;
-  modelValue: Record<string, ArtifactVersion>;
+  modelValue: Record<string, ArtifactConnection>;
 }>();
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Record<string, ArtifactVersion>): void;
+  (e: "update:modelValue", value: Record<string, ArtifactConnection>): void;
 }>();
 
-function setRecordField(field: FieldSpec, value: any) {
-  const newRecord: Record<string, any> = { ...props.modelValue };
-  newRecord[field.name] = value;
+const artifactsStore = useArtifactsStore();
+
+function artifact(connection?: ArtifactConnection) {
+  if (connection == null) {
+    return undefined;
+  }
+  const artifact = splitNameVersion(connection.dependency)[0];
+  return artifactsStore.artifact(artifact);
+}
+
+function unsetArtifactConnection(field: FieldSpec) {
+  const newRecord: Record<string, ArtifactConnection> = { ...props.modelValue };
+  delete newRecord[field.name];
+  return newRecord;
+}
+
+function setArtifactConnection(field: FieldSpec, value: Artifact) {
+  const newRecord: Record<string, ArtifactConnection> = { ...props.modelValue };
+  newRecord[field.name] = {
+    dependency: `${value.name}@HEAD`,
+    connection_name: field.name,
+    connection_type: "argument",
+  };
   emit("update:modelValue", newRecord);
 }
 
