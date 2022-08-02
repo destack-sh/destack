@@ -26,7 +26,7 @@
         :spec="reduceToFieldSpec(selectedFunctionHandler.config_spec)"
         v-model="configRecord"
       />
-      <ConfigForm :spec="selectedFunctionHandler.config_spec" v-model="configRecord" />
+      <ConfigForm :spec="selectedFunctionHandler.config_spec" v-model="configArtifacts" />
     </div>
     <div class="pt-4">
       <div class="flex justify-end">
@@ -46,22 +46,23 @@
 import ConfigForm from "@/components/ConfigForm.vue";
 import FunctionHandlerSelect from "@/components/FunctionHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
+import { useFlow } from "@/composables/useFlow";
 import { useMetaStore } from "@/stores";
 import {
   reduceToFieldSpec,
-  type ArtifactVersion,
+  type ArtifactConnection,
   type FlowNode,
   type FlowVersion,
   type FunctionHandlerSpec,
 } from "@/types";
-import { computed, ref, watchEffect, type Ref } from "vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
 
 const name: Ref<string> = ref("");
 const configRecord: Ref<Record<string, any>> = ref({});
 const metadata: Ref<Record<string, any>> = ref({});
-const connectedArtifacts: Ref<Record<string, ArtifactVersion>> = ref({});
+const configArtifacts: Ref<Record<string, ArtifactConnection>> = ref({});
 
 const props = defineProps<{ existingNode?: FlowNode; flow: FlowVersion }>();
 const emit = defineEmits<{
@@ -69,27 +70,35 @@ const emit = defineEmits<{
     e: "create",
     value: {
       node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
-      connectedArtifacts: Record<string, ArtifactVersion>;
+      connectedArtifacts: ArtifactConnection[];
     }
   ): void;
-  (
-    e: "update",
-    value: { node: FlowNode; connectedArtifacts: Record<string, ArtifactVersion> }
-  ): void;
+  (e: "update", value: { node: FlowNode; connectedArtifacts: ArtifactConnection[] }): void;
 }>();
+
+// TODO @Cleanup: don't "useFlow" in every subcomponent of a parent, that breaks sync
+const flow = useFlow(toRef(props, "flow"));
+const metaStore = useMetaStore();
 
 const creating = computed(() => props.existingNode == null);
 // initialize forms if not creating
-const metaStore = useMetaStore();
-watchEffect(() => {
-  if (props.existingNode == null) {
-    return;
-  }
-  name.value = props.existingNode.name;
-  selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
-  configRecord.value = props.existingNode.config_arguments || {};
-  // TODO @Broken: init/recover existing artifact connections when editing flow
-});
+watch(
+  toRef(props, "existingNode"),
+  () => {
+    if (props.existingNode == null) {
+      return;
+    }
+    name.value = props.existingNode.name;
+    selectedFunctionHandler.value =
+      metaStore.functionHandlersByName[props.existingNode.function_id];
+    configRecord.value = props.existingNode.config_arguments || {};
+    configArtifacts.value = {};
+    flow
+      .artifactEdges(props.existingNode, "argument")
+      .forEach((connection) => (configArtifacts.value[connection.connection_name] = connection));
+  },
+  { immediate: true, deep: true }
+);
 
 function submit() {
   if (creating.value) {
@@ -106,7 +115,7 @@ function create() {
     config_arguments: configRecord.value,
     metadata: metadata.value,
   } as FlowNode;
-  emit("create", { node, connectedArtifacts: connectedArtifacts.value });
+  emit("create", { node, connectedArtifacts: Object.values(configArtifacts.value) });
 }
 
 function update() {
@@ -118,6 +127,6 @@ function update() {
     config_arguments: configRecord.value,
     metadata: metadata.value,
   } as FlowNode;
-  emit("update", { node: updatedNode, connectedArtifacts: connectedArtifacts.value });
+  emit("update", { node: updatedNode, connectedArtifacts: Object.values(configArtifacts.value) });
 }
 </script>

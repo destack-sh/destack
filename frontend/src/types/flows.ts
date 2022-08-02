@@ -1,4 +1,4 @@
-import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
+import type { ArtifactVersion, ArtifactView, ArtifactViewData } from "@/types/artifacts";
 
 export type Flow = {
   id: string;
@@ -44,6 +44,9 @@ export type FlowArtifactEdge = {
   view?: ArtifactView;
   view_inline?: ArtifactViewData;
 };
+
+// like FlowArtifactEdge but untethered
+export type ArtifactConnection = Omit<FlowArtifactEdge, "id" | "dependent">;
 
 export type FlowNodeEdgeType = "input" | "argument"; // output is unnecessary because symmetry
 export type FlowNodeEdge = {

@@ -5,7 +5,7 @@
     </ComboboxLabel>
     <div class="relative mt-1">
       <ComboboxInput
-        class="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+        class="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
         @change="query = $event.target.value"
         :display-value="(handler) => handler?.name"
       />
@@ -29,7 +29,7 @@
           <li
             :class="[
               'relative cursor-default select-none py-2 pl-8 pr-4',
-              active ? 'bg-indigo-600 text-white' : 'text-gray-900',
+              active ? 'bg-orange-600 text-white' : 'text-gray-900',
             ]"
           >
             <span :class="['block truncate', selected && 'font-semibold']">
@@ -40,7 +40,7 @@
               v-if="selected"
               :class="[
                 'absolute inset-y-0 left-0 flex items-center pl-1.5',
-                active ? 'text-white' : 'text-indigo-600',
+                active ? 'text-white' : 'text-orange-600',
               ]"
             >
               <CheckIcon class="h-5 w-5" aria-hidden="true" />

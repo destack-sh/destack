@@ -14,7 +14,7 @@ import EnumInterface from "@/interfaces/EnumInterface.vue";
 import MissingInterface from "@/interfaces/MissingInterface.vue";
 import NumberInterface from "@/interfaces/NumberInterface.vue";
 import TextInterface from "@/interfaces/TextInterface.vue";
-import { isFieldType, type FieldSpec, type FieldType } from "@/types";
+import { isFieldType, type FieldSpec, type FieldType, type FieldTypePrimitive } from "@/types";
 
 const props = defineProps<{
   modelValue: any;
@@ -26,7 +26,7 @@ defineEmits<{
 
 function componentWithProps(field: FieldSpec) {
   if (isFieldType(field.type)) {
-    const fieldType = field.type as FieldType;
+    const fieldType = field.type as FieldTypePrimitive;
     if (fieldType._type == "ValueType") {
       if (["int32", "int64", "float32", "float64"].includes(fieldType.dtype)) {
         return [

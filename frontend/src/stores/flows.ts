@@ -84,5 +84,22 @@ export const useFlowsStore = defineStore("flows", {
         )
         .then((response) => response.data);
     },
+    async updateFlowArtifactEdge(
+      flow: string,
+      version: string,
+      flowArtifactEdge: Pick<FlowArtifactEdge, "id"> & Partial<FlowArtifactEdge>
+    ): Promise<FlowArtifactEdge> {
+      return api
+        .patch<FlowArtifactEdge>(
+          `/flows/${flow}/versions/${version}/artifact_edges/${flowArtifactEdge.id}`,
+          flowArtifactEdge
+        )
+        .then((response) => response.data);
+    },
+    async deleteFlowArtifactEdge(flow: string, version: string, id: string): Promise<void> {
+      return api
+        .patch<void>(`/flows/${flow}/versions/${version}/artifact_edges/${id}`)
+        .then((response) => response.data);
+    },
   },
 });

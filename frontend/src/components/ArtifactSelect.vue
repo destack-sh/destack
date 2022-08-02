@@ -1,12 +1,14 @@
 <template>
-  <Combobox @update:modelValue="onSelect">
+  <Combobox :model-value="modelValue" @update:modelValue="onSelect">
     <div class="relative mt-1 w-full">
       <ComboboxInput
         class="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
         @change="query = $event.target.value"
         :display-value="(artifact: unknown) => (artifact as Artifact | null)?.name || ''"
+        placeholder="Select artifact"
       />
       <ComboboxButton
+        v-if="!props.static"
         class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
       >
         <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -14,7 +16,12 @@
 
       <ComboboxOptions
         :static="props.static"
-        class="absolute z-10 mt-1 -mb-2 max-h-72 w-full scroll-py-2 overflow-auto overflow-y-auto rounded-md bg-white py-2 text-base text-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+        :class="
+          props.static
+            ? 'py-1'
+            : 'absolute z-10 bg-white py-2 shadow-lg ring-1 ring-black ring-opacity-5'
+        "
+        class="mt-1 -mb-2 max-h-72 w-full scroll-py-2 overflow-auto overflow-y-auto rounded-md text-base text-gray-800 focus:outline-none sm:text-sm"
       >
         <ComboboxOption
           v-for="artifact in filteredArtifacts"
@@ -57,7 +64,7 @@ import {
 import { ChipIcon, SelectorIcon } from "@heroicons/vue/outline";
 import { computed, ref, type Ref } from "vue";
 
-const props = defineProps<{ static?: boolean }>();
+const props = defineProps<{ modelValue?: Artifact; static?: boolean }>();
 
 const query: Ref<string> = ref("");
 
@@ -71,8 +78,9 @@ const filteredArtifacts = computed(() =>
   })
 );
 
-const emit = defineEmits(["select"]);
+const emit = defineEmits(["select", "update:modelValue"]);
 function onSelect(artifact: Artifact) {
   emit("select", artifact);
+  emit("update:modelValue", artifact);
 }
 </script>
