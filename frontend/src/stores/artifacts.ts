@@ -21,8 +21,7 @@ export const useArtifactsStore = defineStore("artifacts", {
       return this.artifacts.filter((artifact) => artifact.type == "dataset");
     },
     isHead(): (version: ArtifactVersion) => boolean | undefined {
-      return (version: ArtifactVersion) =>
-        this.artifact(version.artifact)?.latest_version?.id == version.id;
+      return (version: ArtifactVersion) => this.artifact(version.artifact)?.latest_version?.id == version.id;
     },
   },
   actions: {
@@ -40,9 +39,7 @@ export const useArtifactsStore = defineStore("artifacts", {
       } else {
         if (version == null) {
           // if no version set, clear all versions for artifact
-          const staleKeys = Object.keys(this.cachedVersions).filter(
-            (key) => key.split("@")[0] == artifact
-          );
+          const staleKeys = Object.keys(this.cachedVersions).filter((key) => key.split("@")[0] == artifact);
           staleKeys.forEach((key) => delete this.cachedVersions[key]);
         } else {
           // if artifact and version set, clear only that specific version
@@ -69,16 +66,12 @@ export const useArtifactsStore = defineStore("artifacts", {
       if (this.cachedVersions[artifact] != null) {
         return this.cachedVersions[artifact];
       }
-      const artifactVersion = (
-        await api.get<ArtifactVersion>(`/artifacts/${artifactId}/versions/${version}`)
-      ).data;
+      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactId}/versions/${version}`)).data;
       this.cacheVersion(artifactVersion);
       return artifactVersion;
     },
     async getVersionByTag(artifactId: string, tag: string) {
-      const artifactVersion = (
-        await api.get<ArtifactVersion>(`/artifacts/${artifactId}/tags/${tag}`)
-      ).data;
+      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactId}/tags/${tag}`)).data;
       this.cacheVersion(artifactVersion);
       return artifactVersion;
     },

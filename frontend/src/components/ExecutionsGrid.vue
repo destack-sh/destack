@@ -123,9 +123,7 @@ const { getTimeFromNow } = useTimeFromNow();
 
 const rows = computed(() =>
   props.executions.map((execution) => {
-    const datasets: Record<string, AsyncResult<PaginatedDataset>> = getAllConnectedDatasets(
-      execution
-    )
+    const datasets: Record<string, AsyncResult<PaginatedDataset>> = getAllConnectedDatasets(execution)
       .map((connection) => {
         const [dataset, version] = mapNameVersion(connection.artifact);
         // cache preview dataset, may be enough
@@ -151,9 +149,7 @@ const rows = computed(() =>
       updated: execution.updated_at ? getTimeFromNow(DateTime.fromISO(execution.updated_at)) : null,
       duration:
         execution.terminated_at && execution.started_at
-          ? DateTime.fromISO(execution.terminated_at)
-              .diff(DateTime.fromISO(execution.started_at))
-              .toMillis() + "ms"
+          ? DateTime.fromISO(execution.terminated_at).diff(DateTime.fromISO(execution.started_at)).toMillis() + "ms"
           : null,
       datasets: datasets,
     };

@@ -11,11 +11,7 @@
             <!-- Extend touch target to entire panel -->
             <span class="absolute inset-0" aria-hidden="true" />
           </router-link>
-          <component
-            :is="getIconForArtifact(model)"
-            class="h-8 w-8 flex-shrink-0 text-orange-300"
-            aria-hidden="true"
-          />
+          <component :is="getIconForArtifact(model)" class="h-8 w-8 flex-shrink-0 text-orange-300" aria-hidden="true" />
           <div class="flex-1 truncate">
             <div class="flex items-center space-x-3">
               <h3 class="truncate text-sm font-medium text-gray-900">

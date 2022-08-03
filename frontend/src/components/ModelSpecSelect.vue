@@ -1,9 +1,5 @@
 <template>
-  <Listbox
-    as="div"
-    :model-value="modelValue"
-    @update:model-value="(value) => $emit('update:modelValue', value)"
-  >
+  <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
     <ListboxLabel class="mt-2 block text-sm font-medium text-gray-700"> Model spec </ListboxLabel>
     <div class="relative mt-1">
       <ListboxButton
@@ -60,13 +56,7 @@
 </template>
 <script lang="ts" setup>
 import { makeFieldSpec, type ModelSpecEditable } from "@/types";
-import {
-  Listbox,
-  ListboxButton,
-  ListboxLabel,
-  ListboxOption,
-  ListboxOptions,
-} from "@headlessui/vue";
+import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckIcon, SelectorIcon } from "@heroicons/vue/solid";
 
 type ModelSpecTemplate = ModelSpecEditable & {

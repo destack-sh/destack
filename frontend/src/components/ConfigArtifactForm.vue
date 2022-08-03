@@ -55,9 +55,7 @@ function unsetArtifactConnection(field: FieldSpec) {
 
 function setArtifactConnection(field: FieldSpec, value: Artifact) {
   if (value.latest_version == null) {
-    throw new Error(
-      `${value.name} does not have a latest version and that's ArtifactSelect can handle`
-    );
+    throw new Error(`${value.name} does not have a latest version and that's ArtifactSelect can handle`);
   }
 
   const newRecord: Record<string, ArtifactConnection> = { ...props.modelValue };

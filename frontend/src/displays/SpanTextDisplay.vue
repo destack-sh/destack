@@ -1,10 +1,6 @@
 <template>
   <template v-for="span in displaySpans" :key="span.start">
-    <mark
-      v-if="span.markStyle != null"
-      :class="span.markStyle"
-      class="rounded-sm bg-yellow-300 px-1 py-0.5"
-    >
+    <mark v-if="span.markStyle != null" :class="span.markStyle" class="rounded-sm bg-yellow-300 px-1 py-0.5">
       {{ span.text }}
       <span v-if="(span as LabeledSpan).label" class="pr-0.5 text-xs leading-tight text-orange-700">
         {{ (span as LabeledSpan).label }}
@@ -44,13 +40,7 @@ const props = defineProps<{
 }>();
 
 const displaySpans = computed(() => {
-  function makeSpan(
-    start: number,
-    end: number,
-    label?: string,
-    score?: number,
-    markStyle?: string
-  ) {
+  function makeSpan(start: number, end: number, label?: string, score?: number, markStyle?: string) {
     return { start, end, text: text(start, end), label, score, markStyle } as DisplaySpan;
   }
 

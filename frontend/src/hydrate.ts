@@ -24,9 +24,7 @@ export async function hydrate() {
 
   try {
     const hydratedStores = [] as string[];
-    await Promise.all(
-      stores.filter(({ $id }) => !hydratedStores.includes($id)).map((store) => store.hydrate?.())
-    );
+    await Promise.all(stores.filter(({ $id }) => !hydratedStores.includes($id)).map((store) => store.hydrate?.()));
   } catch (e) {
     console.log(e);
     appStore.error = e as Error;

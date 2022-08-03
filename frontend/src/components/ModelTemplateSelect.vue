@@ -1,21 +1,13 @@
 <template>
-  <Listbox
-    as="div"
-    :model-value="modelValue"
-    @update:model-value="(value) => $emit('update:modelValue', value)"
-  >
-    <ListboxLabel class="mt-2 block text-sm font-medium text-gray-700">
-      Model template
-    </ListboxLabel>
+  <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
+    <ListboxLabel class="mt-2 block text-sm font-medium text-gray-700"> Model template </ListboxLabel>
     <div class="relative mt-1">
       <ListboxButton
         class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
       >
-        <span
-          class="block truncate"
-          :class="(modelValue as EmptyTemplate).empty ? 'text-gray-500' : ''"
-          >{{ modelValue.name }}</span
-        >
+        <span class="block truncate" :class="(modelValue as EmptyTemplate).empty ? 'text-gray-500' : ''">{{
+          modelValue.name
+        }}</span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
           <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
         </span>
@@ -65,13 +57,7 @@
 <script lang="ts" setup>
 import { useMetaStore } from "@/stores";
 import type { EmptyTemplate, ModelTemplate } from "@/types";
-import {
-  Listbox,
-  ListboxButton,
-  ListboxLabel,
-  ListboxOption,
-  ListboxOptions,
-} from "@headlessui/vue";
+import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckIcon, SelectorIcon } from "@heroicons/vue/solid";
 import { computed, type Ref } from "vue";
 

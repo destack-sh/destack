@@ -29,9 +29,7 @@ export const useMetaStore = defineStore("meta", {
     // TODO @Feature: differentiate model connector and model template?
     templateFor(): (handlerId: string) => ModelTemplate | null {
       return (handlerId: string) => {
-        const matchingTemplates = this.modelTemplates.filter(
-          (template) => template.handler?.name == handlerId
-        );
+        const matchingTemplates = this.modelTemplates.filter((template) => template.handler?.name == handlerId);
         return matchingTemplates.at(0) || null;
       };
     },
@@ -47,9 +45,7 @@ export const useMetaStore = defineStore("meta", {
       this.modelHandlers.forEach((handler) => (this.modelHandlersByName[handler.name] = handler));
 
       this.functionHandlers = functionHandlers;
-      this.functionHandlers.forEach(
-        (handler) => (this.functionHandlersByName[handler.name] = handler)
-      );
+      this.functionHandlers.forEach((handler) => (this.functionHandlersByName[handler.name] = handler));
     },
     async dehyrate() {
       this.$reset();

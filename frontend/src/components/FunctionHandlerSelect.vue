@@ -9,9 +9,7 @@
         @change="query = $event.target.value"
         :display-value="(handler) => handler?.name"
       />
-      <ComboboxButton
-        class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
-      >
+      <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
         <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
       </ComboboxButton>
 
@@ -38,10 +36,7 @@
 
             <span
               v-if="selected"
-              :class="[
-                'absolute inset-y-0 left-0 flex items-center pl-1.5',
-                active ? 'text-white' : 'text-orange-600',
-              ]"
+              :class="['absolute inset-y-0 left-0 flex items-center pl-1.5', active ? 'text-white' : 'text-orange-600']"
             >
               <CheckIcon class="h-5 w-5" aria-hidden="true" />
             </span>

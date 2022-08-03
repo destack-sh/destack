@@ -22,11 +22,8 @@
       </div>
     </div>
     <div class="pt-4" v-if="selectedFunctionHandler">
-      <RecordForm
-        :spec="reduceToFieldSpec(selectedFunctionHandler.config_spec)"
-        v-model="configRecord"
-      />
-      <ConfigForm :spec="selectedFunctionHandler.config_spec" v-model="configArtifacts" />
+      <RecordForm :spec="reduceToFieldSpec(selectedFunctionHandler.config_spec)" v-model="configRecord" />
+      <ConfigArtifactForm :spec="selectedFunctionHandler.config_spec" v-model="configArtifacts" />
     </div>
     <div class="pt-4">
       <div class="flex justify-end">
@@ -43,7 +40,7 @@
   </form>
 </template>
 <script lang="ts" setup>
-import ConfigForm from "@/components/ConfigForm.vue";
+import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
 import FunctionHandlerSelect from "@/components/FunctionHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import { useFlow } from "@/composables/useFlow";
@@ -89,8 +86,7 @@ watch(
       return;
     }
     name.value = props.existingNode.name;
-    selectedFunctionHandler.value =
-      metaStore.functionHandlersByName[props.existingNode.function_id];
+    selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
     configRecord.value = props.existingNode.config_arguments || {};
     configArtifacts.value = {};
     flow
