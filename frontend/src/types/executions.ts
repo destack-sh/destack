@@ -55,7 +55,5 @@ export function getAllConnectedArtifacts(execution: Execution): ExecutionArtifac
 }
 
 export function getAllConnectedDatasets(execution: Execution): ExecutionArtifactConnection[] {
-  return getAllConnectedArtifacts(execution).filter(
-    (connection) => connection.dataset_preview != null
-  );
+  return getAllConnectedArtifacts(execution).filter((connection) => connection.dataset_preview != null);
 }

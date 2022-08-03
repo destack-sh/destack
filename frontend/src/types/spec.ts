@@ -31,11 +31,7 @@ export function isFieldType(obj: any) {
 export type FieldValuePrimitive = string | number | object;
 export type FieldValue = any;
 
-export type FieldType =
-  | FieldTypePrimitive
-  | FieldSpec
-  | Array<FieldSpec>
-  | Record<string, FieldSpec>;
+export type FieldType = FieldTypePrimitive | FieldSpec | Array<FieldSpec> | Record<string, FieldSpec>;
 export type FieldSpec = _Spec & {
   _type: "FieldSpec";
   type: FieldType | FieldSpec | Array<FieldSpec> | Record<string, FieldSpec>;
@@ -48,10 +44,7 @@ export function isFieldSpec(obj: any) {
   return obj._type == "FieldSpec";
 }
 
-export function makeFieldSpec(
-  name: string,
-  type: FieldType | Array<FieldSpec> | Record<string, FieldSpec>
-): FieldSpec {
+export function makeFieldSpec(name: string, type: FieldType | Array<FieldSpec> | Record<string, FieldSpec>): FieldSpec {
   return { _type: "FieldSpec", name, type };
 }
 

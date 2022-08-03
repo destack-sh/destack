@@ -52,17 +52,11 @@
                     :key="item.name"
                     :to="item.to"
                     :class="[
-                      item.current
-                        ? 'bg-orange-800 text-white'
-                        : 'text-white hover:bg-orange-600 hover:bg-opacity-75',
+                      item.current ? 'bg-orange-800 text-white' : 'text-white hover:bg-orange-600 hover:bg-opacity-75',
                       'group flex items-center rounded-md px-2 py-2 text-base font-medium',
                     ]"
                   >
-                    <component
-                      :is="item.icon"
-                      class="mr-4 h-6 w-6 flex-shrink-0 text-orange-300"
-                      aria-hidden="true"
-                    />
+                    <component :is="item.icon" class="mr-4 h-6 w-6 flex-shrink-0 text-orange-300" aria-hidden="true" />
                     {{ item.name }}
                   </router-link>
                 </nav>
@@ -91,9 +85,7 @@
               :key="item.name"
               :to="item.to"
               :class="[
-                item.current
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                item.current ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
                 'group flex items-center rounded-md px-2 py-2 text-sm font-medium',
               ]"
             >

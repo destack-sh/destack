@@ -1,12 +1,6 @@
 import { api } from "@/api";
 import { useFlowsStore } from "@/stores";
-import type {
-  ArtifactConnection,
-  FlowArtifactEdge,
-  FlowNode,
-  FlowNodeEdge,
-  FlowVersion,
-} from "@/types";
+import type { ArtifactConnection, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
 import { computed, type Ref } from "vue";
 
 export const CURRENT_USE_FLOW_KEY = Symbol();
@@ -57,11 +51,7 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
       .then(_addFlowArtifactEdge);
   }
 
-  async function setFlowNodeArtifactConnections(
-    flowNode: FlowNode,
-    connections: ArtifactConnection[],
-    remove = true
-  ) {
+  async function setFlowNodeArtifactConnections(flowNode: FlowNode, connections: ArtifactConnection[], remove = true) {
     const existingConnections = artifactEdges(flowNode, null);
 
     function sameConnection(c1: ArtifactConnection, c2: ArtifactConnection) {
@@ -106,12 +96,8 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     }
   }
 
-  async function createFlowNode(
-    flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">
-  ) {
-    return flowStore
-      .createFlowNode(_flow.value.flow, _flow.value.version, flowNode)
-      .then(_addFlowNode);
+  async function createFlowNode(flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">) {
+    return flowStore.createFlowNode(_flow.value.flow, _flow.value.version, flowNode).then(_addFlowNode);
   }
 
   async function updateFlowNode(flowNode: Partial<FlowNode> & Pick<FlowNode, "id">) {

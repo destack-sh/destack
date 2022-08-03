@@ -7,6 +7,7 @@ import Playground from "@/views/Playground.vue";
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 import ModelEdit from "@/views/ModelEdit.vue";
+import Flows from "@/views/Flows.vue";
 
 const forwardQuery = (route: RouteLocationNormalized) => route.query;
 const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
@@ -26,6 +27,7 @@ const routes = [
     component: Playground,
     props: forwardQueryAndParams,
   },
+  { path: "/flows", component: Flows },
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];
 

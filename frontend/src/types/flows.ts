@@ -1,4 +1,4 @@
-import type { ArtifactVersion, ArtifactView, ArtifactViewData } from "@/types/artifacts";
+import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
 
 export type Flow = {
   id: string;

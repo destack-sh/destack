@@ -1,14 +1,9 @@
-FlowExecutionPlan
 <template>
   <Sidebar>
-    <div
-      class="mx-auto max-w-7xl justify-between px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8"
-    >
+    <div class="mx-auto max-w-7xl justify-between px-4 pt-6 sm:flex sm:items-center sm:gap-4 sm:px-6 md:px-8">
       <div>
         <h1 class="text-2xl font-semibold text-gray-900">{{ flow?.flow }}</h1>
-        <h3 class="text text-gray-700" v-if="flow">
-          created {{ getTimeFromNowString(flow.created_at) }}
-        </h3>
+        <h3 class="text text-gray-700" v-if="flow">created {{ getTimeFromNowString(flow.created_at) }}</h3>
       </div>
       <div class="flex items-baseline gap-4">
         <fieldset class="space-y-5">
@@ -125,11 +120,7 @@ FlowExecutionPlan
   <PopupDialog title="Select artifact" ref="artifactSelectDialog">
     <ArtifactSelect static @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])" />
   </PopupDialog>
-  <Slideover
-    ref="editNodeSlideover"
-    :title="selectedNode == null ? 'Create flow node' : 'Edit flow node'"
-    v-if="flow"
-  >
+  <Slideover ref="editNodeSlideover" :title="selectedNode == null ? 'Create flow node' : 'Edit flow node'" v-if="flow">
     <FlowNodeConfigInterface
       :existing-node="selectedNode || undefined"
       :flow="flow"
@@ -193,10 +184,7 @@ const inputNode: Ref<FlowNode | null> = computed(
   () => flow.value?.nodes?.find((node) => node.name == "input-0") || null
 );
 const augmentNodes: Ref<FlowNode[]> = computed(
-  () =>
-    flow.value?.nodes?.filter(
-      (node) => !node.name.startsWith("input-") && node.function_id != "bench.model"
-    ) || []
+  () => flow.value?.nodes?.filter((node) => !node.name.startsWith("input-") && node.function_id != "bench.model") || []
 );
 const modelNodes: Ref<FlowNode[]> = computed(
   () => flow.value?.nodes?.filter((node) => node.function_id == "bench.model") || []
@@ -392,12 +380,10 @@ async function createFlowNodeFromSelection(v: {
   (editNodeSlideover.value as any).hide();
 }
 
-async function updateFlowNodeInPlace(v: {
-  node: FlowNode;
-  connectedArtifacts: ArtifactConnection[];
-}) {
+async function updateFlowNodeInPlace(v: { node: FlowNode; connectedArtifacts: ArtifactConnection[] }) {
   // update node
   await updateFlowNode(v.node);
+
   await setFlowNodeArtifactConnections(v.node, v.connectedArtifacts);
 
   (editNodeSlideover.value as any).hide();
@@ -514,10 +500,7 @@ async function pollUnterminatedExecutions() {
 
   const pendingExecutions = executions.value
     .filter((execution) => !isTerminal(execution.state))
-    .filter(
-      (execution) =>
-        DateTime.fromISO(execution.updated_at).diffNow().milliseconds < -waitIntervalMillis
-    );
+    .filter((execution) => DateTime.fromISO(execution.updated_at).diffNow().milliseconds < -waitIntervalMillis);
   if (pendingExecutions.length == 0) {
     return;
   }

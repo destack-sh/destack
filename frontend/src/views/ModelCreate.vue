@@ -4,9 +4,7 @@
       <div>
         <div>
           <h3 class="text-lg font-medium leading-6 text-gray-900">Create a new model</h3>
-          <p class="mt-1 text-sm text-gray-500">
-            Choose from ready-to-use templates or connect your own
-          </p>
+          <p class="mt-1 text-sm text-gray-500">Choose from ready-to-use templates or connect your own</p>
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
@@ -76,13 +74,7 @@
 <script lang="ts" setup>
 import { api } from "@/api";
 import { useArtifactsStore } from "@/stores";
-import type {
-  Artifact,
-  ArtifactVersion,
-  EmptyTemplate,
-  ModelMetadata,
-  ModelTemplate,
-} from "@/types";
+import type { Artifact, ArtifactVersion, EmptyTemplate, ModelMetadata, ModelTemplate } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import ModelTemplateSelect from "@/components/ModelTemplateSelect.vue";

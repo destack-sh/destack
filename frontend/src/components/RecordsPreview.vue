@@ -40,8 +40,6 @@ const props = defineProps<{
 
 // TODO @Cleanup @Architecture: support general multi-field displays & interfaces
 //  (across interfaces/displays for preview, grid, form, etc.)
-const columns = computed(() =>
-  props.fields.filter((f) => !["entities", "tokens"].includes(f.name))
-);
+const columns = computed(() => props.fields.filter((f) => !["entities", "tokens"].includes(f.name)));
 const rows = computed(() => props.records);
 </script>

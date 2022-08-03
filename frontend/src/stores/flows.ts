@@ -50,18 +50,14 @@ export const useFlowsStore = defineStore("flows", {
       flow: string,
       flowVersion: Pick<FlowVersion, "name" | "description" | "parents">
     ): Promise<FlowVersion> {
-      return api
-        .post<FlowVersion>(`/flows/${flow}/versions`, flowVersion)
-        .then((response) => response.data);
+      return api.post<FlowVersion>(`/flows/${flow}/versions`, flowVersion).then((response) => response.data);
     },
     async createFlowNode(
       flow: string,
       version: string,
       flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">
     ): Promise<FlowNode> {
-      return api
-        .post<FlowNode>(`/flows/${flow}/versions/${version}/nodes`, flowNode)
-        .then((response) => response.data);
+      return api.post<FlowNode>(`/flows/${flow}/versions/${version}/nodes`, flowNode).then((response) => response.data);
     },
     async createFlowNodeEdge(
       flow: string,
@@ -78,10 +74,7 @@ export const useFlowsStore = defineStore("flows", {
       flowArtifactEdge: Omit<FlowArtifactEdge, "id">
     ): Promise<FlowArtifactEdge> {
       return api
-        .post<FlowArtifactEdge>(
-          `/flows/${flow}/versions/${version}/artifact_edges`,
-          flowArtifactEdge
-        )
+        .post<FlowArtifactEdge>(`/flows/${flow}/versions/${version}/artifact_edges`, flowArtifactEdge)
         .then((response) => response.data);
     },
     async updateFlowArtifactEdge(

@@ -14,7 +14,7 @@ import EnumInterface from "@/interfaces/EnumInterface.vue";
 import MissingInterface from "@/interfaces/MissingInterface.vue";
 import NumberInterface from "@/interfaces/NumberInterface.vue";
 import TextInterface from "@/interfaces/TextInterface.vue";
-import { isFieldType, type FieldSpec, type FieldType, type FieldTypePrimitive } from "@/types";
+import { isFieldType, type FieldSpec, type FieldTypePrimitive } from "@/types";
 
 const props = defineProps<{
   modelValue: any;
