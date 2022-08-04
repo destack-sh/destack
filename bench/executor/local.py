@@ -295,10 +295,15 @@ class LocalExecutor(Executor):
             records: RecordBatch,
             spec_type: Union[FieldTypeSpec, FieldTypePrimitive],
         ):
-            if validate:
+            if not validate:
+                return
+
+            try:
                 validate_record_batch_type(
                     records, spec_type, ignore_extraneous=True, lazy=validate_lazy
                 )
+            except ValueError as e:
+                raise RuntimeError(f"node {plan.nodes[source_node_id]} failed validation: {e}")
 
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()

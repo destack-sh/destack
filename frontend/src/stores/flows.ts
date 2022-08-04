@@ -1,4 +1,5 @@
 import { api } from "@/api";
+import { getRandomName } from "@/composables/useRandomName";
 import type { Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion } from "@/types";
 import { defineStore } from "pinia";
 
@@ -26,6 +27,19 @@ export const useFlowsStore = defineStore("flows", {
     },
     isHead(): (version: FlowVersion) => boolean | undefined {
       return (version: FlowVersion) => this.flow(version.flow)?.latest_version?.id == version.id;
+    },
+    newName(): () => string {
+      return () => {
+        let foundNewName = false;
+        let flowName = "";
+        while (!foundNewName) {
+          flowName = getRandomName();
+          if (!this.flowExists(flowName)) {
+            foundNewName = true;
+          }
+        }
+        return flowName;
+      };
     },
   },
   actions: {

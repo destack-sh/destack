@@ -1,63 +1,58 @@
 mapNameVersion
 <template>
-  <div class="mt-8 flex flex-col">
-    <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-      <div class="inline-block min-w-full py-2 align-middle">
-        <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-          <table class="w-full border-separate" style="border-spacing: 0">
-            <thead class="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  v-for="column in columns"
-                  :key="column.name"
-                  class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8"
-                >
-                  {{ column.name }}
-                </th>
-              </tr>
-            </thead>
-            <tbody class="bg-white align-top">
-              <tr v-for="(row, rowIdx) in rows" :key="row.id">
-                <td
-                  :class="[
-                    rowIdx !== rows.length - 1 ? '' : '',
-                    'w-4 whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
-                  ]"
-                >
-                  <div class="inline-flex flex-col">
-                    {{ row["state"] }}
-                    <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
-                    <span class="font-normal text-gray-700">{{ row["duration"] || "..." }}</span>
-                  </div>
-                </td>
-                <td
-                  v-for="column in datasetColumns"
-                  :key="column.key"
-                  :class="[
-                    rowIdx !== rows.length - 1 ? 'border-b border-gray-200' : '',
-                    'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
-                  ]"
-                >
-                  <template v-if="row['datasets'][column.key]?.result.value != null">
-                    <RecordsPreview
-                      :style="'preview'"
-                      :fields="specFor(column.artifact)"
-                      :records="row['datasets'][column.key]?.result.value['results']"
-                    />
-                  </template>
-                  <template v-else-if="row['datasets'][column.key]?.error">
-                    {{ row["datasets"][column.key]?.error }}
-                  </template>
-                  <template v-else-if="row['datasets'][column.key]?.loading"> ... </template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
+  <table
+    class="w-full border-separate align-middle shadow-sm ring-1 ring-black ring-opacity-5"
+    style="border-spacing: 0"
+  >
+    <thead class="bg-gray-50">
+      <tr>
+        <th
+          scope="col"
+          v-for="column in columns"
+          :key="column.name"
+          class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8"
+        >
+          {{ column.name }}
+        </th>
+      </tr>
+    </thead>
+    <tbody class="bg-white align-top">
+      <tr v-for="(row, rowIdx) in rows" :key="row.id">
+        <td
+          :class="[
+            rowIdx !== rows.length - 1 ? '' : '',
+            'w-4 whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
+          ]"
+        >
+          <div class="inline-flex flex-col">
+            {{ row["state"] }}
+            <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
+            <span class="font-normal text-gray-700">{{ row["duration"] || "..." }}</span>
+          </div>
+        </td>
+        <td
+          v-for="column in datasetColumns"
+          :key="column.key"
+          :class="[
+            rowIdx !== rows.length - 1 ? 'border-b border-gray-200' : '',
+            'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8',
+          ]"
+        >
+          <template v-if="row['datasets'][column.key]?.result.value != null">
+            <RecordsPreview
+              :style="'preview'"
+              :fields="specFor(column.artifact)"
+              :records="row['datasets'][column.key]?.result.value['results']"
+            />
+          </template>
+          <template v-else-if="row['datasets'][column.key]?.error">
+            {{ row["datasets"][column.key]?.error }}
+          </template>
+          <template v-else-if="row['datasets'][column.key]?.loading"> ... </template>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
@@ -65,16 +60,12 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
-  isFieldSpec,
-  isFieldType,
-  makeFieldSpec,
   unravelFieldSpec,
   type ArtifactVersion,
   type DatasetMetadata,
   type Execution,
   type ExecutionArtifactConnection,
   type FieldSpec,
-  type FieldType,
   type LimitPaginatedResult,
   type RecordSpec,
 } from "@/types";

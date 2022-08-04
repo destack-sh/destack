@@ -124,6 +124,10 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     return flow.value?.nodes?.find((node) => node.id == id);
   }
 
+  function getFlowNodeByName(name: string): FlowNode | undefined {
+    return flow.value?.nodes?.find((node) => node.name == name);
+  }
+
   function _addFlowNode(node: FlowNode) {
     if (_flow.value.nodes == null) {
       _flow.value.nodes = [];
@@ -184,5 +188,6 @@ export function useFlow(flow: Ref<FlowVersion | null>) {
     setFlowNodeArtifactConnections,
     artifactEdges,
     getFlowNode,
+    getFlowNodeByName,
   };
 }
