@@ -14,6 +14,9 @@
       editable
       v-model:runtimeData="runtimeData"
       v-model:interactionData="interactionData"
+      @add-node="promptAddNode"
+      @edit-node="promptEditNode"
+      @delete-node="promptDeleteNode"
       @submit-input="execute"
     />
     <div class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8" v-if="flow">
@@ -23,9 +26,6 @@
       <ExecutionsGrid :executions="executions" />
     </div>
   </Sidebar>
-  <PopupDialog title="Select artifact" ref="artifactSelectDialog">
-    <ArtifactSelect static @select="(model) => addModelsAndConnectInput([`${model.name}@HEAD`])" />
-  </PopupDialog>
   <Slideover
     ref="editNodeSlideover"
     :title="interactionData.selectedNode == null ? 'Create flow node' : 'Edit flow node'"
@@ -36,18 +36,15 @@
       :flow="flow"
       v-model:runtimeData="runtimeData"
       v-model:interactionData="interactionData"
-      @create="createFlowNodeFromSelection"
-      @update="updateFlowNodeInPlace"
+      @create="createFlowNode"
+      @update="updateFlowNode"
     />
   </Slideover>
 </template>
 <script lang="ts" setup>
-import ArtifactSelect from "@/components/ArtifactSelect.vue";
 import FlowGraphInterface from "@/components/FlowGraphInterface.vue";
-import PopupDialog from "@/components/PopupDialog.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import Slideover from "@/components/Slideover.vue";
-import { useFlow } from "@/composables/useFlow";
 import { useFlowExecution } from "@/composables/useFlowExecution";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useArtifactsStore, useFlowsStore } from "@/stores";
@@ -57,9 +54,10 @@ import {
   type FlowInteractionData,
   type FlowNode,
   type FlowRuntimeData,
+  type FlowVersion,
 } from "@/types";
 import { splitNameVersion } from "@/utils/versioning";
-import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 import ExecutionsGrid from "../components/ExecutionsGrid.vue";
 import FlowNodeConfigInterface from "../components/FlowNodeConfigInterface.vue";
 
@@ -67,7 +65,6 @@ const props = defineProps<{ flow: string; playground?: boolean; models?: string[
 
 const flowsStore = useFlowsStore();
 const flow = computed(() => flowsStore.flow(props.flow)?.latest_version || null);
-const flowManager = useFlow(flow);
 const runtimeData: Ref<FlowRuntimeData> = ref({});
 const interactionData: Ref<FlowInteractionData> = ref(makeInteractionData());
 
@@ -79,20 +76,36 @@ const inputNode: Ref<FlowNode | null> = computed(
   () => flow.value?.nodes?.find((node) => node.name == "input-0") || null
 );
 
+function getFlow(): FlowVersion {
+  if (!flow.value) {
+    throw new Error("flow not initialized");
+  }
+  return flow.value;
+}
+
 function getNodeIndex(nodeName: string): number {
   return flow.value?.nodes?.filter((node) => node.name.startsWith(nodeName)).length || 0;
 }
 
-async function addModelsAndConnectInput(models: string[]) {
+async function addModelsAndConnectInput(flow: FlowVersion, models: string[]) {
   if (inputNode.value == null) {
     throw new Error("input not initialized");
   }
-
-  const modelNodes = await addModels(models);
-  await flowManager.connectFlowNodes(inputNode.value, modelNodes, "input");
+  const modelNodes = await addModels(flow, models);
+  await Promise.all(
+    modelNodes.map((modelNode) =>
+      flowsStore.createFlowNodeEdge(flow, {
+        dependency: modelNode.id,
+        dependent: (inputNode.value as FlowNode).id,
+        connection_name_dependency: "*",
+        connection_name_dependent: "*",
+        connection_type: "input",
+      })
+    )
+  );
 }
 
-async function addModels(models: string[]) {
+async function addModels(flow: FlowVersion, models: string[]) {
   // TODO @Cleanup: guard against models already exist when user adds model?
   //  Currently it will just error because the model node name already exists.
 
@@ -111,7 +124,7 @@ async function addModels(models: string[]) {
     models
       .map((model) => `model-${splitNameVersion(model)[0]}`)
       .map((modelNodeName) =>
-        flowManager.createFlowNode({
+        flowsStore.createFlowNode(flow, {
           name: modelNodeName + "-" + getNodeIndex(modelNodeName),
           function_id: "bench.model",
         })
@@ -121,7 +134,8 @@ async function addModels(models: string[]) {
   // create connections to models
   await Promise.all(
     modelNodes.map((modelNode, i) =>
-      flowManager.connectFlowNodeArtifact(modelNode, {
+      flowsStore.createFlowArtifactEdge(flow, {
+        dependent: modelNode.id,
         dependency: models[i],
         connection_type: "argument",
         connection_name: "model",
@@ -133,32 +147,61 @@ async function addModels(models: string[]) {
 }
 
 const editNodeSlideover = ref(null);
-async function createFlowNodeFromSelection(v: {
+
+function promptAddNode(v: { inputNode?: FlowNode[]; outputNodes?: FlowNode[] }) {
+  interactionData.value.selectedNode = null;
+  (editNodeSlideover as any).show();
+}
+
+function promptEditNode(node: FlowNode) {
+  interactionData.value.selectedNode = node;
+  (editNodeSlideover as any).show();
+}
+
+function promptDeleteNode(node: FlowNode) {}
+
+async function createFlowNode(v: {
   node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;
   connectedArtifacts: ArtifactConnection[];
+  fromNodes?: FlowNode[];
+  toNodes?: FlowNode[];
 }) {
+  const flow = getFlow();
   // create node
-  const node = await flowManager.createFlowNode(v.node);
+  const node = await flowsStore.createFlowNode(flow, v.node);
 
   // connect to artifacts (only for now)
   for (const connection of v.connectedArtifacts) {
-    await flowManager.connectFlowNodeArtifact(node, connection);
+    await flowsStore.createFlowArtifactEdge(flow, { dependent: node.id, ...connection });
   }
 
   // connect to current selection of input/output nodes (* connection only for now)
-  for (const inputNode of interactionData.value.selectedFromNodes) {
-    await flowManager.connectFlowNodes(inputNode, [node], "input");
+  for (const inputNode of v.fromNodes || []) {
+    await flowsStore.connectFlowNode(flow, inputNode, {
+      connection_type: "input",
+      connection_name_dependency: "*",
+      connection_name_dependent: "*",
+      dependency: node.id,
+    });
   }
-  await flowManager.connectFlowNodes(node, interactionData.value.selectedToNodes, "input");
+  for (const dependentNode of v.toNodes || []) {
+    await flowsStore.connectFlowNode(flow, dependentNode, {
+      connection_type: "input",
+      connection_name_dependency: "*",
+      connection_name_dependent: "*",
+      dependency: node.id,
+    });
+  }
 
   (editNodeSlideover.value as any).hide();
 }
 
-async function updateFlowNodeInPlace(v: { node: FlowNode; connectedArtifacts: ArtifactConnection[] }) {
+async function updateFlowNode(v: { node: FlowNode; connectedArtifacts: ArtifactConnection[] }) {
+  const flow = getFlow();
   // update node
-  await flowManager.updateFlowNode(v.node);
+  await flowsStore.updateFlowNode(flow, v.node);
 
-  await flowManager.setFlowNodeArtifactConnections(v.node, v.connectedArtifacts);
+  await flowsStore.setFlowNodeArtifactConnections(flow, v.node, v.connectedArtifacts);
 
   (editNodeSlideover.value as any).hide();
 }
@@ -179,25 +222,34 @@ watch(
       }
 
       // init playground
-      await flowsStore.createFlowVersion(flowInstance.name, {
+      const flow = await flowsStore.createFlowVersion(flowInstance, {
         name: "Initial commit",
         description: "Auto-generated.",
         parents: [],
       });
 
-      nextTick(() => setupPlayground(props.models || []));
+      await setupPlayground(flow, props.models || []);
     }
   },
   { immediate: true }
 );
 
-async function setupPlayground(models: string[]) {
+async function setupPlayground(flow: FlowVersion, models: string[]) {
   // create main input node
-  const inputNode = await flowManager.createFlowNode({
+  const inputNode = await flowsStore.createFlowNode(flow, {
     name: "input-0",
     function_id: "bench.identity",
   });
-  const modelNodes = await addModels(models);
-  await flowManager.connectFlowNodes(inputNode, modelNodes, "input");
+  const modelNodes = await addModels(flow, models);
+  await Promise.all(
+    modelNodes.map((modelNode) =>
+      flowsStore.connectFlowNode(flow, modelNode, {
+        connection_type: "input",
+        dependency: inputNode.id,
+        connection_name_dependency: "*",
+        connection_name_dependent: "*",
+      })
+    )
+  );
 }
 </script>

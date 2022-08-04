@@ -60,6 +60,7 @@ import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } fro
 import { XIcon } from "@heroicons/vue/outline";
 
 defineProps<{ title?: string }>();
+
 const open = ref(false);
 
 function show() {

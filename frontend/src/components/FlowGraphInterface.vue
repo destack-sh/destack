@@ -74,14 +74,14 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { useFlow } from "@/composables/useFlow";
+import { useFlowsStore } from "@/stores";
 import { useArtifactsStore } from "@/stores/artifacts";
 import { computedAsync } from "@/stores/utils";
 import type { ArtifactVersion } from "@/types/artifacts";
 import type { FlowInteractionData, FlowNode, FlowRuntimeData, FlowVersion } from "@/types/flows";
 import type { RecordSpec, ValueType } from "@/types/spec";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
-import { computed, ref, toRef, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import FlowNodeDisplay from "./FlowNodeDisplay.vue";
 import RecordForm from "./RecordForm.vue";
 
@@ -99,8 +99,7 @@ const emit = defineEmits<{
   (e: "update:runtimeData", value: FlowRuntimeData): void;
   (e: "update:interactionData", value: FlowInteractionData): void;
 }>();
-
-const flow = useFlow(toRef(props, "flow"));
+const flowsStore = useFlowsStore();
 
 const inputNode: Ref<FlowNode | null> = computed(
   () => props.flow.nodes?.find((node) => node.name == "input-0") || null
@@ -148,7 +147,7 @@ watch(
 const artifactsStore = useArtifactsStore();
 const { result: usedModelsByNV } = computedAsync(async () => {
   const referencedModels: string[] = modelNodes.value
-    .map((node) => flow.artifactEdges(node, "argument").pop()?.dependency)
+    .map((node) => flowsStore.artifactEdges(props.flow, node, "argument").pop()?.dependency)
     .filter((model) => model != undefined) as string[];
   const models = await Promise.all(
     referencedModels.map((artifact) => artifactsStore.getVersion(...mapNameVersion(artifact)))
@@ -169,7 +168,7 @@ function modelVersionForNode(modelNode: FlowNode): string | null {
 }
 
 function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
-  const referencedModel = flow.artifactEdges(modelNode, "argument").pop()?.dependency;
+  const referencedModel = flowsStore.artifactEdges(props.flow, modelNode, "argument").pop()?.dependency;
   return (usedModelsByNV.value || {})[referencedModel || ""];
 }
 </script>

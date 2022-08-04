@@ -26,8 +26,7 @@ const routes = [
   {
     path: "/playground",
     name: "playground",
-    component: FlowEdit,
-    props: (route: RouteLocationNormalized) => {
+    redirect: (route: RouteLocationNormalized) => {
       // playground is just a flow editor view with automatic init/recovery to last playground
       const flowsStore = useFlowsStore();
       let flowName = flowsStore.lastOpenedFlow?.flow;
@@ -35,7 +34,15 @@ const routes = [
         flowName = flowsStore.newName();
       }
 
-      return { flow: flowName, playground: true };
+      // unset query
+      const query = { ...route.query };
+      delete query.new;
+      delete query.models;
+
+      return {
+        path: `/flows/${flowName}/edit`,
+        query: { flow: flowName, playground: true, ...query },
+      };
     },
   },
   { path: "/flows", component: Flows },

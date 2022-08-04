@@ -1,4 +1,4 @@
-import type { FieldSpec, FieldValuePrimitive, ModelHandlerSpec, RecordSpec } from "@/types/spec";
+import type { FieldValuePrimitive, ModelHandlerSpec, RecordSpec } from "@/types/spec";
 
 export type Artifact = {
   id: string;
