@@ -12,7 +12,7 @@ export const useArtifactsStore = defineStore("artifacts", {
   }),
   getters: {
     artifact(): (name: string) => Artifact | undefined {
-      return (name: string) => this.artifactsByName[name];
+      return (name) => this.artifactsByName[name];
     },
     models(): Artifact[] {
       return this.artifacts.filter((artifact) => artifact.type == "model");
@@ -21,7 +21,7 @@ export const useArtifactsStore = defineStore("artifacts", {
       return this.artifacts.filter((artifact) => artifact.type == "dataset");
     },
     isHead(): (version: ArtifactVersion) => boolean | undefined {
-      return (version: ArtifactVersion) => this.artifact(version.artifact)?.latest_version?.id == version.id;
+      return (version) => this.artifact(version.artifact)?.latest_version?.id == version.id;
     },
   },
   actions: {
@@ -32,6 +32,7 @@ export const useArtifactsStore = defineStore("artifacts", {
     async dehydrate() {
       this.$reset();
     },
+
     clearVersionCache(artifact?: string, version?: string) {
       if (artifact == null) {
         // if no artifact set, clear everything
@@ -44,36 +45,41 @@ export const useArtifactsStore = defineStore("artifacts", {
         } else {
           // if artifact and version set, clear only that specific version
           const key = `${artifact}@${version}`;
-          if (key in this.cachedVersions) {
+          if (this.cachedVersions[key] != null) {
             delete this.cachedVersions[key];
           }
         }
       }
     },
-    cacheVersion(artifactVersion: ArtifactVersion) {
+
+    _cacheArtifactVersion(artifactVersion: ArtifactVersion) {
       const nameVersion = toNameVersion(artifactVersion);
       this.cachedVersions[nameVersion] = artifactVersion;
+      return artifactVersion;
     },
-    async getVersions(artifactId: string, branch = "main", limit = 10, after?: string) {
-      return (
-        await api.get<LimitPaginatedResult<ArtifactVersion>>(`/artifacts/${artifactId}/versions`, {
+
+    async getVersions(artifactName: string, branch = "main", limit = 10, after?: string) {
+      const versionsPaginated = (
+        await api.get<LimitPaginatedResult<ArtifactVersion>>(`/artifacts/${artifactName}/versions`, {
           params: { branch, limit, after },
         })
       ).data;
+      versionsPaginated.results.forEach(this._cacheArtifactVersion);
+      return versionsPaginated;
     },
-    async getVersion(artifactId: string, version: string) {
-      const artifact = `${artifactId}@${version}`;
+
+    async getVersion(artifactName: string, version: string) {
+      const artifact = `${artifactName}@${version}`;
       if (this.cachedVersions[artifact] != null) {
         return this.cachedVersions[artifact];
       }
-      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactId}/versions/${version}`)).data;
-      this.cacheVersion(artifactVersion);
-      return artifactVersion;
+      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactName}/versions/${version}`)).data;
+      return this._cacheArtifactVersion(artifactVersion);
     },
-    async getVersionByTag(artifactId: string, tag: string) {
-      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactId}/tags/${tag}`)).data;
-      this.cacheVersion(artifactVersion);
-      return artifactVersion;
+
+    async getVersionByTag(artifactName: string, tag: string) {
+      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactName}/tags/${tag}`)).data;
+      return this._cacheArtifactVersion(artifactVersion);
     },
   },
 });

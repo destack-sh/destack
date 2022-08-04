@@ -43,7 +43,6 @@
 import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
 import FunctionHandlerSelect from "@/components/FunctionHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
-import { useFlow } from "@/composables/useFlow";
 import { useMetaStore } from "@/stores";
 import {
   reduceToFieldSpec,

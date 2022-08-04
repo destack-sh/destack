@@ -1,5 +1,5 @@
 import { api } from "@/api";
-import { useFlow } from "@/composables/useFlow";
+import { useFlowsStore } from "@/stores";
 import {
   getAllConnectedArtifacts,
   isTerminal,
@@ -21,7 +21,7 @@ export function useFlowExecution(
   pollIntervalMillis = 250
 ) {
   const executions: Ref<Array<Execution>> = ref([]);
-  const flowManager = useFlow(flow);
+  const flowsStore = useFlowsStore();
 
   // fetch executions whenever the flow instance changes
   watch(
@@ -38,7 +38,7 @@ export function useFlowExecution(
     { immediate: true }
   );
 
-  function getEagerExecutionConnections(plan: FlowExecutionPlan, execution: Execution) {
+  function getEagerExecutionConnections(flow: FlowVersion, plan: FlowExecutionPlan, execution: Execution) {
     const argumentsValues = [] as FlowNodeExecutionArgument[];
     Object.values(plan.arguments).forEach((nodeArguments: FlowNodeExecutionArgument[]) =>
       argumentsValues.push(...nodeArguments)
@@ -49,12 +49,12 @@ export function useFlowExecution(
       .filter((argument) => argument.records != null)
       .map((argument: FlowNodeExecutionArgument) => {
         // determine name of soon-to-be artifact according to well known backend schema
-        const nodeName = flowManager.getFlowNode(argument.node)?.name;
+        const nodeName = flowsStore.getFlowNode(flow, argument.node)?.name;
         let artifact;
         if (argument.name == "*") {
-          artifact = `${flow.value?.flow}.${nodeName}.${argument.type}s`;
+          artifact = `${flow.flow}.${nodeName}.${argument.type}s`;
         } else {
-          artifact = `${flow.value?.flow}.${nodeName}-${argument.type}s.${argument.name}`;
+          artifact = `${flow.flow}.${nodeName}-${argument.type}s.${argument.name}`;
         }
         // create pretend execution artifact connection with known data
         return {
@@ -83,7 +83,7 @@ export function useFlowExecution(
 
     for (const nodeName in runtimeData.value.inputs) {
       const input = runtimeData.value.inputs[nodeName];
-      const node = flowManager.getFlowNodeByName(nodeName);
+      const node = flowsStore.getFlowNodeByName(flow.value, nodeName);
       if (node != null) {
         // FlowRuntimeData.inputs supports only single record inputs to main input for now.
         argumentsInputs[node.id] = [
@@ -112,7 +112,7 @@ export function useFlowExecution(
           // bail if there were no arguments or if the backend already manifested them on the execution
           return execution;
         } else {
-          execution.connected_artifacts = getEagerExecutionConnections(plan, execution);
+          execution.connected_artifacts = getEagerExecutionConnections(flow.value, plan, execution);
           return execution;
         }
       })
