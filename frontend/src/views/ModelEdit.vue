@@ -2,7 +2,7 @@
   <Sidebar>
     <form class="mx-auto max-w-xl space-y-8 divide-y divide-gray-200 pt-8" action="">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-900">{{ modelName }}</h1>
+        <h1 class="text-2xl font-semibold text-gray-900">{{ model }}</h1>
         <ModelTemplateSelect v-model="selectedTemplate" />
         <RecordForm
           class="mt-3"
@@ -94,7 +94,7 @@ import ModelSpecSelect from "../components/ModelSpecSelect.vue";
 import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
 
 const props = defineProps({
-  modelName: { type: String, required: true },
+  model: { type: String, required: true },
   parent: { type: String, required: false },
 });
 
@@ -111,7 +111,7 @@ const { result: runtimeModelSpec } = computedAsync(async () => {
     return null;
   }
   return await api
-    .get<ModelSpec>(`/artifacts/${props.modelName}/versions/${props.parent}/spec`)
+    .get<ModelSpec>(`/artifacts/${props.model}/versions/${props.parent}/spec`)
     .then((response) => response.data);
 });
 
@@ -137,7 +137,7 @@ watchEffect(() => {
 const artifactsStore = useArtifactsStore();
 const { result: parentVersion } = computedAsync(() => {
   if (props.parent != null) {
-    return artifactsStore.getVersion(props.modelName, props.parent);
+    return artifactsStore.getVersion(props.model, props.parent);
   } else {
     return Promise.resolve(null);
   }
@@ -165,13 +165,13 @@ async function commit() {
     input_spec: modelSpec.value?.input_spec,
     output_spec: modelSpec.value?.output_spec,
   };
-  await api.post<ArtifactVersion>(`/models/${props.modelName}/versions`, {
+  await api.post<ArtifactVersion>(`/models/${props.model}/versions`, {
     parents: [],
     metadata,
     name: commitTitle.value,
     description: commitDescription.value || null,
   } as Partial<ArtifactVersion>);
   await artifactsStore.hydrate();
-  router.push(`/models/${props.modelName}`);
+  router.push(`/models/${props.model}`);
 }
 </script>

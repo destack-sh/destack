@@ -3,7 +3,7 @@
     <div class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:px-8">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-semibold text-gray-900">{{ modelName }}</h1>
+          <h1 class="text-2xl font-semibold text-gray-900">{{ model }}</h1>
           <h3 class="text-lg text-gray-900">
             {{ model?.description }}
             <span class="italic text-gray-700" v-if="!model?.description">No description yet</span>
@@ -25,13 +25,13 @@
           <div class="mt-6">
             <router-link
               class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-              :to="`/models/${modelName}/versions/${model.latest_version?.version}`"
+              :to="`/models/${model}/versions/${model.latest_version?.version}`"
             >
               {{ model.latest_version.version }}
               {{ latestVersionDtFromNow }}
             </router-link>
             <router-link
-              :to="`/models/${modelName}/versions`"
+              :to="`/models/${model}/versions`"
               class="ml-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
             >
               {{ versionsPaginated?.count || 0 }} versions
@@ -45,7 +45,7 @@
       <h3 class="mt-2 text-sm font-medium text-gray-900">Empty model</h3>
       <p class="mt-1 text-sm text-gray-500">Get started by initializing from a template</p>
       <div class="mt-6">
-        <router-link :to="`/models/${modelName}/edit`">
+        <router-link :to="`/models/${model}/edit`">
           <button
             type="button"
             class="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
@@ -60,7 +60,7 @@
       <!-- TODO @Feature: display model config & spec more attractively -->
       <router-link
         :to="{
-          path: `/models/${modelName}/edit`,
+          path: `/models/${model}/edit`,
           query: { parent: model?.latest_version?.version },
         }"
       >
@@ -96,10 +96,10 @@ import { computed, type Ref } from "@vue/reactivity";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
 
-const props = defineProps({ modelName: { type: String, required: true } });
+const props = defineProps({ model: { type: String, required: true } });
 
 const artifactsStore = useArtifactsStore();
-const model = computed(() => artifactsStore.artifact(props.modelName));
+const model = computed(() => artifactsStore.artifact(props.model));
 const latestMetadata = computed(() => {
   if (model.value?.latest_version == null) {
     return null;
@@ -108,7 +108,7 @@ const latestMetadata = computed(() => {
   }
 });
 
-const { result: versionsPaginated } = computedAsync(() => artifactsStore.getVersions(props.modelName));
+const { result: versionsPaginated } = computedAsync(() => artifactsStore.getVersions(props.model));
 const latestVersionDtFromNow: Ref<string | null> = computed(() => {
   if (model.value?.latest_version == null) return null;
   return DateTime.fromISO(model.value.latest_version.created_at).toRelative({ locale: "en-US" });
@@ -116,7 +116,7 @@ const latestVersionDtFromNow: Ref<string | null> = computed(() => {
 
 const router = useRouter();
 async function _delete() {
-  await api.delete(`/models/${props.modelName}`);
+  await api.delete(`/models/${props.model}`);
   await artifactsStore.hydrate();
   router.push("/models");
 }

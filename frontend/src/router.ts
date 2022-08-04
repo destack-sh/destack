@@ -1,13 +1,15 @@
-import ModelCreate from "@/views/ModelCreate.vue";
+import { useFlowsStore } from "@/stores";
+import FlowDetail from "@/views/FlowDetail.vue";
+import FlowEdit from "@/views/FlowEdit.vue";
+import Flows from "@/views/Flows.vue";
 import Home from "@/views/Home.vue";
+import ModelCreate from "@/views/ModelCreate.vue";
 import ModelDetail from "@/views/ModelDetail.vue";
+import ModelEdit from "@/views/ModelEdit.vue";
 import Models from "@/views/Models.vue";
 import NotFound from "@/views/NotFound.vue";
-import Playground from "@/views/Playground.vue";
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
-import ModelEdit from "@/views/ModelEdit.vue";
-import Flows from "@/views/Flows.vue";
 
 const forwardQuery = (route: RouteLocationNormalized) => route.query;
 const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
@@ -19,15 +21,27 @@ const routes = [
   { path: "/", component: Home },
   { path: "/models", component: Models },
   { path: "/models/new", component: ModelCreate },
-  { path: "/models/:modelName", component: ModelDetail, props: forwardQueryAndParams },
-  { path: "/models/:modelName/edit", component: ModelEdit, props: forwardQueryAndParams },
+  { path: "/models/:model", component: ModelDetail, props: forwardQueryAndParams },
+  { path: "/models/:model/edit", component: ModelEdit, props: forwardQueryAndParams },
   {
     path: "/playground",
     name: "playground",
-    component: Playground,
-    props: forwardQueryAndParams,
+    component: FlowEdit,
+    props: (route: RouteLocationNormalized) => {
+      // playground is just a flow editor view with automatic init/recovery to last playground
+      const flowsStore = useFlowsStore();
+      let flowName = flowsStore.lastOpenedFlow?.flow;
+      if (flowName == null || route.query.new) {
+        flowName = flowsStore.newName();
+      }
+
+      return { flow: flowName, playground: true };
+    },
   },
   { path: "/flows", component: Flows },
+  { path: "/flows/:flow", component: FlowDetail, props: forwardQueryAndParams },
+  { path: "/flows/:flow/edit", component: FlowEdit, props: forwardQueryAndParams },
+  // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];
 
