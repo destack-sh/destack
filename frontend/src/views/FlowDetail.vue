@@ -19,11 +19,11 @@
     </div>
     <FlowGraphInterface
       v-if="flow"
+      class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8"
       :flow="flow"
       v-model:runtimeData="runtimeData"
       v-model:interactionData="interactionData"
       @submit-input="execute"
-      class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8"
     />
     <!-- Executions & output -->
     <div class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8">
