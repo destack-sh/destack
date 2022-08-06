@@ -15,4 +15,6 @@ const appStore = useAppStore();
 
 <style>
 @import "@/assets/base.css";
+@import "@braks/vue-flow/dist/style.css";
+@import "@braks/vue-flow/dist/theme-default.css";
 </style>

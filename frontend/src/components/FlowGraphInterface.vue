@@ -1,5 +1,16 @@
 <template>
   <div>
+    <VueFlow>
+      <Background :variant="BackgroundVariant.Dots" pattern-color="#f8f8f8" />
+      <template #node-custom="props">
+        <FlowNodeDisplay
+          :label="props.label"
+          v-if="flowsStore.getFlowNode(flow, props.id)"
+          :node="flowsStore.flowNode(flow, props.id)"
+        >
+        </FlowNodeDisplay>
+      </template>
+    </VueFlow>
     <FlowNodeDisplay v-if="inputNode" label="Input" :node="inputNode">
       <RecordForm
         v-model="flowInputRecord"
@@ -84,6 +95,7 @@ import { mapNameVersion, toNameVersion } from "@/utils/versioning";
 import { computed, ref, watch, type Ref } from "vue";
 import FlowNodeDisplay from "./FlowNodeDisplay.vue";
 import RecordForm from "./RecordForm.vue";
+import { Background, BackgroundVariant, useVueFlow, VueFlow } from "@braks/vue-flow";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -100,6 +112,36 @@ const emit = defineEmits<{
   (e: "update:interactionData", value: FlowInteractionData): void;
 }>();
 const flowsStore = useFlowsStore();
+
+const { setNodes, setEdges } = useVueFlow({});
+
+// sync vue-flow state from flow
+watch(
+  () => props.flow.nodes,
+  () => {
+    // update nodes
+    const flowNodes = (props.flow.nodes || []).map((node) => ({
+      id: node.id,
+      label: node.name,
+      position: {
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+      },
+      type: "custom",
+      real: true,
+    }));
+    setNodes([...flowNodes]);
+
+    // update edges
+    const flowNodeEdges = (props.flow.node_edges || []).map((edge) => ({
+      id: edge.id,
+      source: edge.dependency,
+      target: edge.dependent,
+    }));
+    setEdges([...flowNodeEdges]);
+  },
+  { immediate: true }
+);
 
 const inputNode: Ref<FlowNode | null> = computed(
   () => props.flow.nodes?.find((node) => node.name == "input-0") || null

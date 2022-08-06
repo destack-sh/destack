@@ -60,6 +60,15 @@ export const useFlowsStore = defineStore("flows", {
     getFlowNode(): (flow: FlowVersion, id: string) => FlowNode | undefined {
       return (flow, id) => flow.nodes?.find((node) => node.id == id);
     },
+    flowNode(): (flow: FlowVersion, id: string) => FlowNode {
+      return (flow, id) => {
+        const node = this.getFlowNode(flow, id);
+        if (node == null) {
+          throw new Error(`could not find node ${id} in flow ${flow}`);
+        }
+        return node;
+      };
+    },
     getFlowNodeByName(): (flow: FlowVersion, name: string) => FlowNode | undefined {
       return (flow, name) => flow.nodes?.find((node) => node.name == name);
     },
