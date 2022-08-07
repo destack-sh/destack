@@ -120,16 +120,20 @@ watch(
   () => props.flow.nodes,
   () => {
     // update nodes
+    // "real" function nodes from the flow
     const flowNodes = (props.flow.nodes || []).map((node) => ({
       id: node.id,
       label: node.name,
       position: {
-        x: Math.random() * 100,
-        y: Math.random() * 100,
+        x: 0,
+        y: 0,
       },
       type: "custom",
       real: true,
     }));
+    // "virtual" inputs (artifacts or record inputs)
+    const virtualInputNodes = [];
+
     setNodes([...flowNodes]);
 
     // update edges

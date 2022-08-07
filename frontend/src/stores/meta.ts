@@ -1,5 +1,5 @@
 import { api } from "@/api";
-import type { FunctionHandlerSpec, ModelHandlerSpec, ModelTemplate } from "@/types";
+import type { FunctionHandlerSpec, ModelHandlerSpec } from "@/types";
 import { defineStore } from "pinia";
 
 export const useMetaStore = defineStore("meta", {
@@ -10,27 +10,13 @@ export const useMetaStore = defineStore("meta", {
     functionHandlersByName: {} as Record<string, FunctionHandlerSpec>,
   }),
   getters: {
-    modelTemplates(): ModelTemplate[] {
-      return [
-        {
-          name: "spaCy Bundled [Local]",
-          handler: this.modelHandlersByName["bench.spacy.bundled"],
-        },
-        {
-          name: "HuggingFace Text Generation [Hosted]",
-          handler: this.modelHandlersByName["bench.huggingface.hosted.text_generation"],
-        },
-        {
-          name: "OpenAI Text Generation [Hosted]",
-          handler: this.modelHandlersByName["bench.openai.text_generation"],
-        },
-      ];
-    },
-    // TODO @Feature: differentiate model connector and model template?
-    templateFor(): (handlerId: string) => ModelTemplate | null {
-      return (handlerId: string) => {
-        const matchingTemplates = this.modelTemplates.filter((template) => template.handler?.name == handlerId);
-        return matchingTemplates.at(0) || null;
+    modelHandler(): (handlerId: string) => ModelHandlerSpec {
+      return (handlerId) => {
+        const handler = this.modelHandlersByName[handlerId];
+        if (handler == null) {
+          throw new Error(`handler wiht id ${handlerId} does not exist`);
+        }
+        return handler as ModelHandlerSpec;
       };
     },
   },

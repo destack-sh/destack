@@ -3,11 +3,11 @@
     <form class="mx-auto max-w-xl space-y-8 divide-y divide-gray-200 pt-8" action="">
       <div>
         <h1 class="text-2xl font-semibold text-gray-900">{{ model }}</h1>
-        <ModelTemplateSelect v-model="selectedTemplate" />
+        <ModelHandlerSelect v-model="selectedHandler" />
         <RecordForm
           class="mt-3"
-          v-if="!(selectedTemplate as EmptyTemplate).empty"
-          :spec="[(selectedTemplate as ModelTemplate).handler.config_spec]"
+          v-if="selectedHandler != null"
+          :spec="[selectedHandler.config_spec]"
           v-model="modelConfigRecord"
         />
         <ModelSpecSelect v-model="modelSpec" />
@@ -76,18 +76,11 @@
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
-import ModelTemplateSelect from "@/components/ModelTemplateSelect.vue";
+import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore, useMetaStore } from "@/stores";
-import type {
-  EmptyTemplate,
-  ModelTemplate,
-  ModelSpecEditable,
-  ModelSpec,
-  ModelMetadata,
-  ArtifactVersion,
-} from "@/types";
+import type { ModelSpecEditable, ModelSpec, ModelMetadata, ArtifactVersion, ModelHandlerSpec } from "@/types";
 import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import ModelSpecSelect from "../components/ModelSpecSelect.vue";
@@ -98,11 +91,7 @@ const props = defineProps({
   parent: { type: String, required: false },
 });
 
-const emptyTemplate = {
-  name: "No template",
-  empty: true,
-} as EmptyTemplate;
-const selectedTemplate: Ref<ModelTemplate | EmptyTemplate> = ref(emptyTemplate);
+const selectedHandler: Ref<ModelHandlerSpec | null> = ref(null);
 const modelConfigRecord: Ref<Record<string, any>> = ref({});
 const modelSpec: Ref<ModelSpecEditable> = ref({} as ModelSpecEditable);
 
@@ -148,7 +137,7 @@ const metaStore = useMetaStore();
 watch(parentVersion, () => {
   if (parentVersion.value != null) {
     const parentMetadata = parentVersion.value.metadata as ModelMetadata;
-    selectedTemplate.value = metaStore.templateFor(parentMetadata.handler_id) || emptyTemplate;
+    selectedHandler.value = metaStore.modelHandler(parentMetadata.handler_id);
     modelConfigRecord.value = parentMetadata.config_arguments;
     modelSpec.value = {
       input_spec: parentMetadata.input_spec,
@@ -159,8 +148,12 @@ watch(parentVersion, () => {
 
 const router = useRouter();
 async function commit() {
+  if (selectedHandler.value == null) {
+    throw new Error("no model handler selected");
+  }
+
   const metadata: ModelMetadata = {
-    handler_id: (selectedTemplate.value as ModelTemplate).handler.name,
+    handler_id: selectedHandler.value.name,
     config_arguments: modelConfigRecord.value,
     input_spec: modelSpec.value?.input_spec,
     output_spec: modelSpec.value?.output_spec,
