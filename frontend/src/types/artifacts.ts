@@ -51,13 +51,3 @@ export type ModelMetadata = {
 };
 
 export type ModelSpecEditable = Pick<ModelMetadata, "input_spec" | "output_spec">;
-
-export type ModelTemplate = {
-  name: string;
-  handler: ModelHandlerSpec;
-};
-
-export type EmptyTemplate = {
-  name: string;
-  empty: boolean;
-};
