@@ -18,7 +18,6 @@
         @submit.prevent="$emit('submitInput', { node: inputNode, data: flowInputRecord })"
       />
     </FlowNodeDisplay>
-
     <FlowNodeDisplay
       v-for="node in augmentNodes"
       label="Augment"
@@ -40,7 +39,6 @@
       </button>
     </div>
 
-    <!-- Select models -->
     <div class="flex flex-auto items-center gap-4">
       <FlowNodeDisplay
         class="flex-1"
@@ -96,6 +94,7 @@ import { computed, ref, watch, type Ref } from "vue";
 import FlowNodeDisplay from "./FlowNodeDisplay.vue";
 import RecordForm from "./RecordForm.vue";
 import { Background, BackgroundVariant, useVueFlow, VueFlow } from "@braks/vue-flow";
+import ELK from "elkjs";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -118,23 +117,21 @@ const { setNodes, setEdges } = useVueFlow({});
 // sync vue-flow state from flow
 watch(
   () => props.flow.nodes,
-  () => {
+  async () => {
     // update nodes
     // "real" function nodes from the flow
     const flowNodes = (props.flow.nodes || []).map((node) => ({
       id: node.id,
       label: node.name,
-      position: {
-        x: 0,
-        y: 0,
-      },
       type: "custom",
       real: true,
+      width: 100,
+      height: 50,
     }));
     // "virtual" inputs (artifacts or record inputs)
-    const virtualInputNodes = [];
+    const virtualInputNodes = [] as any[];
 
-    setNodes([...flowNodes]);
+    const nodes = [...flowNodes, ...virtualInputNodes];
 
     // update edges
     const flowNodeEdges = (props.flow.node_edges || []).map((edge) => ({
@@ -142,10 +139,44 @@ watch(
       source: edge.dependency,
       target: edge.dependent,
     }));
-    setEdges([...flowNodeEdges]);
+    const edges = [...flowNodeEdges];
+
+    const positionedNodes = await layoutNodes(nodes, edges);
+    console.log(positionedNodes);
+    setNodes(positionedNodes);
+    setEdges([...edges]);
   },
   { immediate: true }
 );
+
+async function layoutNodes(
+  nodes: { id: string; width: number; height: number }[],
+  edges: { id: string; source: string; target: string }[]
+): Promise<{ id: string; position: { x: number; y: number } }[]> {
+  const elk = new ELK();
+  const elkNodes = nodes.map((n) => ({ id: n.id, width: n.width, height: n.height }));
+  const elkEdges = edges.map((e) => ({ id: e.id, sources: [e.source], targets: [e.target] }));
+  const elkGraph = {
+    id: "root",
+    children: elkNodes,
+    edges: elkEdges,
+  };
+
+  // see elkjs docs at https://github.com/kieler/elkjs
+  // see ELK layered options at https://www.eclipse.org/elk/reference/algorithms/org-eclipse-elk-layered.html
+  const positionedElkGraph = await elk.layout(elkGraph, { logging: true, layoutOptions: { algorithm: "layered" } });
+  console.log(elkGraph);
+  function getNodePosition(id: string) {
+    const node = positionedElkGraph.children?.find((n) => n.id == id);
+    if (node == null) {
+      throw new Error("could not find node with id: " + id);
+    }
+    // swap x/y for vertical layout
+    return { x: node.y as number, y: node.x as number };
+  }
+
+  return nodes.map((n) => ({ ...n, position: getNodePosition(n.id) }));
+}
 
 const inputNode: Ref<FlowNode | null> = computed(
   () => props.flow.nodes?.find((node) => node.name == "input-0") || null
@@ -178,13 +209,10 @@ const flowInputRecord = ref({});
 
 // update runtime data
 watch(
-  [flowInputRecord, inputNode],
+  flowInputRecord,
   () => {
-    var inputs = {};
-    if (inputNode.value != null) {
-      inputs = { [inputNode.value?.name]: flowInputRecord.value };
-    }
-    emit("update:runtimeData", { ...props.runtimeData, inputs });
+    console.log("update runtime data");
+    // TODO @Broken: update runtime data with all virtual input nodes (record & artifact)
   },
   { immediate: true }
 );

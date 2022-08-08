@@ -24,13 +24,15 @@
     "@tailwindcss/line-clamp": "^0.4.0",
     "@tailwindcss/typography": "^0.5.2",
     "axios": "^0.27.2",
+    "elkjs": "^0.8.1",
     "luxon": "^3.0.1",
     "mande": "^2.0.2",
     "pinia": "^2.0.13",
     "qs": "^6.10.5",
     "vue": "^3.2.31",
     "vue-meta": "^3.0.0-alpha.9",
-    "vue-router": "^4.0.14"
+    "vue-router": "^4.0.14",
+    "web-worker": "^1.2.0"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.0",
