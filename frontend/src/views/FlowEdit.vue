@@ -9,7 +9,7 @@
     </div>
     <FlowGraphInterface
       v-if="flow"
-      class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8"
+      class="pt-6 sm:gap-4"
       :flow="flow"
       editable
       v-model:runtimeData="runtimeData"
@@ -17,6 +17,7 @@
       @add-node="promptAddNode"
       @edit-node="promptEditNode"
       @delete-node="promptDeleteNode"
+      @add-edge="addEdge"
       @submit-input="execute"
     />
     <div class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8" v-if="flow">
@@ -147,6 +148,10 @@ async function addModels(flow: FlowVersion, models: string[]) {
 }
 
 const editNodeSlideover = ref(null);
+
+async function addEdge(v: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }) {
+  console.log("add edge", v);
+}
 
 function promptAddNode(v: { inputNode?: FlowNode[]; outputNodes?: FlowNode[] }) {
   interactionData.value.selectedNode = null;
