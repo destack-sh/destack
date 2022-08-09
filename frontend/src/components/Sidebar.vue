@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="h-full w-full">
     <TransitionRoot as="template" :show="sidebarOpen">
       <Dialog as="div" class="relative z-40 md:hidden" @close="sidebarOpen = false">
         <TransitionChild
@@ -110,7 +110,7 @@
     </div>
 
     <!-- Content container -->
-    <div class="flex flex-1 flex-col md:pl-64">
+    <div class="flex h-full w-full flex-1 flex-col md:pl-64">
       <div class="sticky top-0 z-10 bg-gray-100 pt-1 pl-1 sm:pl-3 sm:pt-3 md:hidden">
         <button
           type="button"
@@ -121,7 +121,7 @@
           <MenuIcon class="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
-      <main class="flex-1">
+      <main class="h-full w-full flex-1">
         <slot />
       </main>
     </div>

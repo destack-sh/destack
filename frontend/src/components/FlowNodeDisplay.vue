@@ -1,6 +1,6 @@
 <template>
-  <div class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
-    <div class="flex flex-row items-center justify-between px-4 py-3 sm:px-6">
+  <div class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
+    <div class="flex flex-row items-center justify-between px-4 py-2 sm:px-6">
       <div>
         <h3 class="text-md font-medium leading-6 text-gray-900">{{ node.name }}</h3>
         <h5 class="text-xs font-normal text-gray-500">{{ label }}</h5>

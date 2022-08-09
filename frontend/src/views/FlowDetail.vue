@@ -19,19 +19,19 @@
     </div>
     <FlowGraphInterface
       v-if="flow"
-      class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8"
+      class="pt-6 sm:gap-4"
       :flow="flow"
       v-model:runtimeData="runtimeData"
       v-model:interactionData="interactionData"
       @submit-input="execute"
     />
     <!-- Executions & output -->
-    <div class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8">
+    <!-- <div class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8">
       <div class="border-b border-gray-200 pb-3 sm:flex sm:items-center sm:justify-between">
         <h3 class="text-lg font-medium leading-6 text-gray-900">Execution history</h3>
       </div>
       <ExecutionsGrid :executions="executions" class="" />
-    </div>
+    </div> -->
   </Sidebar>
 </template>
 <script lang="ts" setup>

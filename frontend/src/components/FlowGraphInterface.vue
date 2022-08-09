@@ -1,7 +1,15 @@
 <template>
-  <div>
-    <VueFlow>
-      <Background :variant="BackgroundVariant.Dots" pattern-color="#f8f8f8" />
+  <div class="h-1/2 w-full">
+    <VueFlow
+      class="border-t border-b border-gray-300"
+      :nodes-draggable="true"
+      :pan-on-drag="true"
+      :pan-on-scroll="false"
+      :min-zoom="0.6"
+      :max-zoom="1.0"
+      :default-zoom="1.0"
+    >
+      <Background :variant="BackgroundVariant.Dots" pattern-color="#bbbbbb" :size="0.6" :gap="12" />
       <template #node-custom="props">
         <FlowNodeDisplay
           :label="props.label"
@@ -9,9 +17,11 @@
           :node="flowsStore.flowNode(flow, props.id)"
         >
         </FlowNodeDisplay>
+        <Handle type="target" class="bg-orange-500" :position="Position.Top" />
+        <Handle type="source" class="w-10" :position="Position.Bottom" />
       </template>
     </VueFlow>
-    <FlowNodeDisplay v-if="inputNode" label="Input" :node="inputNode">
+    <!-- <FlowNodeDisplay v-if="inputNode" label="Input" :node="inputNode">
       <RecordForm
         v-model="flowInputRecord"
         :spec="[flowInputSpec]"
@@ -79,7 +89,7 @@
       >
         Add node
       </button>
-    </div>
+    </div> -->
   </div>
 </template>
 <script lang="ts" setup>
@@ -90,11 +100,10 @@ import type { ArtifactVersion } from "@/types/artifacts";
 import type { FlowInteractionData, FlowNode, FlowRuntimeData, FlowVersion } from "@/types/flows";
 import type { RecordSpec, ValueType } from "@/types/spec";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
+import { Background, BackgroundVariant, Handle, Position, useVueFlow, VueFlow } from "@braks/vue-flow";
+import ELK from "elkjs";
 import { computed, ref, watch, type Ref } from "vue";
 import FlowNodeDisplay from "./FlowNodeDisplay.vue";
-import RecordForm from "./RecordForm.vue";
-import { Background, BackgroundVariant, useVueFlow, VueFlow } from "@braks/vue-flow";
-import ELK from "elkjs";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -112,39 +121,53 @@ const emit = defineEmits<{
 }>();
 const flowsStore = useFlowsStore();
 
-const { setNodes, setEdges } = useVueFlow({});
+const { setNodes, setEdges, fitView } = useVueFlow({});
+
+function buildVueFlowGraph() {
+  // "real" function nodes from the flow
+  const flowNodes = (props.flow.nodes || []).map((node) => {
+    let nodeRect = { width: 200, height: 100 };
+    return {
+      id: node.id,
+      label: node.name,
+      type: "custom",
+      real: true,
+      width: nodeRect.width,
+      height: nodeRect.height,
+      sourcePosition: Position.Top,
+      targetPosition: Position.Bottom,
+    };
+  });
+  // "virtual" inputs (artifacts or record inputs)
+  const virtualInputNodes = [] as any[];
+  const nodes = [...flowNodes, ...virtualInputNodes];
+
+  // update edges
+  const flowNodeEdges = (props.flow.node_edges || []).map((edge) => ({
+    id: edge.id,
+    source: edge.dependency,
+    target: edge.dependent,
+    type: "smoothstep",
+  }));
+  const edges = [...flowNodeEdges];
+
+  return { nodes, edges };
+}
+
+async function updateVueFlowGraph() {
+  const { nodes, edges } = buildVueFlowGraph();
+  const positionedNodes = await layoutNodes(nodes, edges);
+  setNodes(positionedNodes);
+  setEdges([...edges]);
+
+  fitView.apply({ padding: 0.2 });
+}
 
 // sync vue-flow state from flow
 watch(
   () => props.flow.nodes,
   async () => {
-    // update nodes
-    // "real" function nodes from the flow
-    const flowNodes = (props.flow.nodes || []).map((node) => ({
-      id: node.id,
-      label: node.name,
-      type: "custom",
-      real: true,
-      width: 100,
-      height: 50,
-    }));
-    // "virtual" inputs (artifacts or record inputs)
-    const virtualInputNodes = [] as any[];
-
-    const nodes = [...flowNodes, ...virtualInputNodes];
-
-    // update edges
-    const flowNodeEdges = (props.flow.node_edges || []).map((edge) => ({
-      id: edge.id,
-      source: edge.dependency,
-      target: edge.dependent,
-    }));
-    const edges = [...flowNodeEdges];
-
-    const positionedNodes = await layoutNodes(nodes, edges);
-    console.log(positionedNodes);
-    setNodes(positionedNodes);
-    setEdges([...edges]);
+    await updateVueFlowGraph();
   },
   { immediate: true }
 );
@@ -164,26 +187,28 @@ async function layoutNodes(
 
   // see elkjs docs at https://github.com/kieler/elkjs
   // see ELK layered options at https://www.eclipse.org/elk/reference/algorithms/org-eclipse-elk-layered.html
-  const positionedElkGraph = await elk.layout(elkGraph, { logging: true, layoutOptions: { algorithm: "layered" } });
-  console.log(elkGraph);
+  const positionedElkGraph = await elk.layout(elkGraph, {
+    logging: true,
+    measureExecutionTime: true,
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": "DOWN",
+      "spacing.nodeNodeBetweenLayers": "80",
+    },
+  });
+  console.log(positionedElkGraph);
   function getNodePosition(id: string) {
     const node = positionedElkGraph.children?.find((n) => n.id == id);
     if (node == null) {
       throw new Error("could not find node with id: " + id);
     }
     // swap x/y for vertical layout
-    return { x: node.y as number, y: node.x as number };
+    return { x: node.x as number, y: node.y as number };
   }
 
   return nodes.map((n) => ({ ...n, position: getNodePosition(n.id) }));
 }
 
-const inputNode: Ref<FlowNode | null> = computed(
-  () => props.flow.nodes?.find((node) => node.name == "input-0") || null
-);
-const augmentNodes: Ref<FlowNode[]> = computed(
-  () => props.flow.nodes?.filter((node) => !node.name.startsWith("input-") && node.function_id != "bench.model") || []
-);
 const modelNodes: Ref<FlowNode[]> = computed(
   () => props.flow.nodes?.filter((node) => node.function_id == "bench.model") || []
 );
@@ -246,3 +271,22 @@ function modelForNode(modelNode: FlowNode): ArtifactVersion | null {
   return (usedModelsByNV.value || {})[referencedModel || ""];
 }
 </script>
+
+<style>
+.vue-flow__handle {
+  width: 8px;
+  height: 8px;
+  background-color: rgb(234, 88, 12);
+}
+
+.vue-flow__handle.source {
+}
+
+.vue-flow__handle.target {
+}
+
+.vue-flow__edge-path {
+  stroke: rgb(234, 88, 12);
+  stroke-width: 2;
+}
+</style>
