@@ -17,14 +17,7 @@
   </form>
 </template>
 <script lang="ts" setup>
-import {
-  isFieldType,
-  unravelFieldSpec,
-  type FieldSpec,
-  type FieldType,
-  type FieldTypePrimitive,
-  type RecordSpec,
-} from "@/types";
+import { isFieldType, unravelFieldSpec, type FieldSpec, type FieldTypePrimitive, type RecordSpec } from "@/types";
 import { computed, type Ref } from "vue";
 import FieldValueInterface from "./FieldValueInterface.vue";
 

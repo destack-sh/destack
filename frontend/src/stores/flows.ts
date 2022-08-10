@@ -72,13 +72,6 @@ export const useFlowsStore = defineStore("flows", {
     getFlowNodeByName(): (flow: FlowVersion, name: string) => FlowNode | undefined {
       return (flow, name) => flow.nodes?.find((node) => node.name == name);
     },
-
-    artifactEdges(): (flow: FlowVersion, node: FlowNode, type: "input" | "argument" | null) => FlowArtifactEdge[] {
-      return (flow, node, type) =>
-        flow.artifact_edges?.filter(
-          (edge) => edge.dependent == node.id && (type == null || edge.connection_type == type)
-        ) || [];
-    },
   },
   actions: {
     async hydrate() {
