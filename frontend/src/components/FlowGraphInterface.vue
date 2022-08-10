@@ -2,7 +2,7 @@
   <div class="h-1/2 w-full">
     <VueFlow
       class="relative border-t border-b border-gray-300"
-      :nodes-draggable="true"
+      :nodes-draggable="editable"
       :pan-on-drag="true"
       :pan-on-scroll="false"
       :min-zoom="0.6"
@@ -15,15 +15,15 @@
       @connect="addEdge"
     >
       <Background :variant="BackgroundVariant.Dots" pattern-color="#bbbbbb" :size="0.6" :gap="12" />
+      <!-- Real nodes -->
       <template #node-custom-real="props">
         <template v-if="flowsStore.getFlowNode(flow, props.id)">
           <FlowNodeDisplay
-            :label="props.label"
-            :name="flowsStore.flowNode(flow, props.id).function_id"
-            @edit="$emit('editNode', flowsStore.flowNode(flow, props.id))"
-            @delete="$emit('deleteNode', flowsStore.flowNode(flow, props.id))"
-          >
-          </FlowNodeDisplay>
+            :node="props.data.node"
+            :editable="editable"
+            @edit="$emit('editNode', props.data.node)"
+            @delete="$emit('deleteNode', props.data.node)"
+          />
           <Handle
             v-for="targetPort in props.data.sourcePorts"
             :key="targetPort"
@@ -41,24 +41,45 @@
           />
         </template>
       </template>
-      <template #node-custom-virtual="props">
-        <FlowNodeDisplay label="Input" :name="props.label">
-          <!--<RecordForm
-            v-model="flowInputRecord"
-            :spec="[flowInputSpec]"
-            @submit.prevent="$emit('submitInput', { node: inputNode, data: flowInputRecord })"
-          /> -->
-        </FlowNodeDisplay>
+      <!-- Virtual input nodes -->
+      <template #node-custom-virtual-input="props">
+        <div
+          v-if="props.data"
+          class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow"
+        >
+          <div class="flex flex-row items-center justify-between px-4 py-2 sm:px-6">
+            <div>
+              <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
+              <h5 class="text-xs font-normal text-gray-500">
+                {{ props.data.node.name }}
+                <template v-if="props.data.name != '*'"> .{{ props.data.name }} </template>
+              </h5>
+            </div>
+          </div>
+          <div class="px-6 py-4 text-sm">
+            <RecordForm
+              :model-value="getRuntimeInputData(props.data.node.id, props.data.name)"
+              @update:modelValue="(record) => setRuntimeInputData(props.data.node.id, props.data.name, record)"
+              :spec="[props.data.spec]"
+              @submit.prevent="
+                $emit('submitInput', {
+                  node: props.data.node,
+                  data: getRuntimeInputData(props.data.node.id, props.data.name),
+                })
+              "
+            />
+          </div>
+          <Handle type="source" :position="Position.Bottom" :is-valid-connection="isValidConnection" />
+        </div>
       </template>
     </VueFlow>
   </div>
 </template>
 <script lang="ts" setup>
+import RecordForm from "@/components/RecordForm.vue";
 import { useFlowsStore, useMetaStore } from "@/stores";
-import { useArtifactsStore } from "@/stores/artifacts";
 import type { FlowInteractionData, FlowNode, FlowRuntimeData, FlowVersion } from "@/types/flows";
-import type { RecordSpec, ValueType } from "@/types/spec";
-import { isValidEdge, nodePorts } from "@/utils/flows";
+import { flowPorts, isPortSatisfied, isValidEdge, nodePorts } from "@/utils/flows";
 import {
   Background,
   BackgroundVariant,
@@ -68,9 +89,11 @@ import {
   useVueFlow,
   VueFlow,
   type Connection,
+  type Edge,
+  type Node,
 } from "@braks/vue-flow";
 import ELK from "elkjs";
-import { computed, ref, watch, type Ref } from "vue";
+import { watch } from "vue";
 import FlowNodeDisplay from "./FlowNodeDisplay.vue";
 
 const props = defineProps<{
@@ -89,6 +112,26 @@ const emit = defineEmits<{
   (e: "update:interactionData", value: FlowInteractionData): void;
 }>();
 
+function getRuntimeInputData(nodeId: string, name: string): Record<string, any> {
+  return props.runtimeData?.inputs?.[nodeId]?.[name] || {};
+}
+
+function setRuntimeInputData(nodeId: string, name: string, record: Record<string, any>) {
+  const newRuntimeData = JSON.parse(JSON.stringify(props.runtimeData)) as FlowRuntimeData;
+  if (newRuntimeData.inputs == null) {
+    newRuntimeData.inputs = {};
+  }
+  if (newRuntimeData.inputs[nodeId] == null) {
+    newRuntimeData.inputs[nodeId] = {};
+  }
+  newRuntimeData.inputs[nodeId][name] = record;
+
+  emit("update:runtimeData", newRuntimeData);
+}
+
+const flowsStore = useFlowsStore();
+const metaStore = useMetaStore();
+
 function addEdge(connection: Connection) {
   emit("addNodeEdge", {
     source: flowsStore.flowNode(props.flow, connection.source),
@@ -97,16 +140,15 @@ function addEdge(connection: Connection) {
     targetPort: connection.targetHandle || "*",
   });
 }
-
-const flowsStore = useFlowsStore();
-const metaStore = useMetaStore();
-
-const { setNodes, setEdges, fitView } = useVueFlow({});
+const { fitView, setElements } = useVueFlow({});
 
 function buildVueFlowGraph() {
+  const nodes = [] as Omit<Node, "position">[];
+  const edges = [] as Edge[];
+
+  let nodeRect = { width: 200, height: 100 };
   // "real" function nodes from the flow
   const flowNodes = (props.flow.nodes || []).map((node) => {
-    let nodeRect = { width: 200, height: 100 };
     const targetPorts = nodePorts(node, metaStore.functionHandlersByName, "input");
     const sourcePorts = nodePorts(node, metaStore.functionHandlersByName, "output");
     return {
@@ -118,24 +160,51 @@ function buildVueFlowGraph() {
       sourcePosition: Position.Top,
       targetPosition: Position.Bottom,
       data: {
+        node,
         real: true,
         sourcePorts,
         targetPorts,
       },
     };
   });
-  // "virtual" inputs (artifacts or record inputs)
-  const virtualInputNodes = [] as any[];
-  const nodes = [...flowNodes, ...virtualInputNodes];
-
-  // update edges
   const flowNodeEdges = (props.flow.node_edges || []).map((edge) => ({
     id: edge.id,
     source: edge.dependency,
     target: edge.dependent,
     type: "smoothstep",
   }));
-  const edges = [...flowNodeEdges];
+  nodes.push(...flowNodes);
+  edges.push(...flowNodeEdges);
+
+  // "virtual" inputs (artifacts or record inputs, only supporting record input for now)
+  const virtualInputNodes = flowPorts(props.flow, metaStore.functionHandlersByName, "input")
+    .filter((port) => !isPortSatisfied(props.flow, port))
+    .map((port) => {
+      const functionSpec = metaStore.functionHandlersByName[port.node.function_id];
+      const inputSpec = functionSpec.base_spec.input_spec[port.name];
+      return {
+        id: `${port.node.id}.${port.type}s.${port.name}`,
+        label: `${port.node.id}.${port.type}s.${port.name}`,
+        type: "custom-virtual-input",
+        width: nodeRect.width,
+        height: nodeRect.height,
+        sourcePosition: Position.Top,
+        targetPosition: Position.Bottom,
+        data: {
+          node: port.node,
+          name: port.name,
+          spec: inputSpec,
+        },
+      };
+    });
+  const virtualInputEdges = virtualInputNodes.map((node) => ({
+    id: node.id + "-edge",
+    source: node.id,
+    target: node.data.node.id,
+    type: "smoothstep",
+  }));
+  nodes.push(...virtualInputNodes);
+  edges.push(...virtualInputEdges);
 
   return { nodes, edges };
 }
@@ -143,8 +212,8 @@ function buildVueFlowGraph() {
 async function updateVueFlowGraph() {
   const { nodes, edges } = buildVueFlowGraph();
   const positionedNodes = await layoutNodes(nodes, edges);
-  setNodes(positionedNodes);
-  setEdges([...edges]);
+
+  setElements([...positionedNodes, ...edges]);
 
   fitView.apply({ padding: 0.2 });
 }
@@ -179,7 +248,7 @@ async function layoutNodes(
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
-      "spacing.nodeNodeBetweenLayers": "80",
+      "spacing.nodeNodeBetweenLayers": "40",
     },
   });
   function getNodePosition(id: string) {

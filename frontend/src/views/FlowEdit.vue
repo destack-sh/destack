@@ -172,7 +172,13 @@ function promptEditNode(node: FlowNode) {
   (editNodeSlideover as any).show();
 }
 
-function promptDeleteNode(node: FlowNode) {}
+async function promptDeleteNode(node: FlowNode) {
+  if (flow.value == null) {
+    throw new Error("flow is not initialized");
+  }
+  // TODO @Feature: prompt before delete
+  await flowsStore.deleteFlowNode(flow.value, node);
+}
 
 async function createFlowNode(v: {
   node: Pick<FlowNode, "name" | "function_id" | "config_arguments" | "metadata">;

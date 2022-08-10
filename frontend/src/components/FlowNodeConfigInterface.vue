@@ -30,7 +30,7 @@
         <!-- TODO @Feature: use proper form validation -->
         <button
           type="submit"
-          class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           @click.prevent="submit"
         >
           {{ creating ? "Create" : "Update" }}
@@ -51,6 +51,7 @@ import {
   type FlowVersion,
   type FunctionHandlerSpec,
 } from "@/types";
+import { artifactEdges } from "@/utils/flows";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
@@ -72,8 +73,6 @@ const emit = defineEmits<{
   (e: "update", value: { node: FlowNode; connectedArtifacts: ArtifactConnection[] }): void;
 }>();
 
-// TODO @Cleanup: don't "useFlow" in every subcomponent of a parent, that breaks sync
-const flow = useFlow(toRef(props, "flow"));
 const metaStore = useMetaStore();
 
 const creating = computed(() => props.existingNode == null);
@@ -88,9 +87,9 @@ watch(
     selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
     configRecord.value = props.existingNode.config_arguments || {};
     configArtifacts.value = {};
-    flow
-      .artifactEdges(props.existingNode, "argument")
-      .forEach((connection) => (configArtifacts.value[connection.connection_name] = connection));
+    artifactEdges(props.flow, { dependency: props.existingNode, type: "argument" }).forEach(
+      (connection) => (configArtifacts.value[connection.connection_name] = connection)
+    );
   },
   { immediate: true, deep: true }
 );
