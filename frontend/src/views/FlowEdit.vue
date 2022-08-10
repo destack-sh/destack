@@ -17,7 +17,7 @@
       @add-node="promptAddNode"
       @edit-node="promptEditNode"
       @delete-node="promptDeleteNode"
-      @add-edge="addEdge"
+      @add-node-edge="addNodeEdge"
       @submit-input="execute"
     />
     <div class="px-4 pt-6 sm:gap-4 sm:px-6 md:px-8" v-if="flow">
@@ -149,8 +149,17 @@ async function addModels(flow: FlowVersion, models: string[]) {
 
 const editNodeSlideover = ref(null);
 
-async function addEdge(v: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }) {
-  console.log("add edge", v);
+async function addNodeEdge(v: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }) {
+  if (flow.value == null) {
+    throw new Error("flow is not initialized");
+  }
+  await flowsStore.createFlowNodeEdge(flow.value, {
+    dependency: v.source.id,
+    dependent: v.target.id,
+    connection_name_dependency: v.sourcePort,
+    connection_name_dependent: v.targetPort,
+    connection_type: "input",
+  });
 }
 
 function promptAddNode(v: { inputNode?: FlowNode[]; outputNodes?: FlowNode[] }) {

@@ -62,6 +62,13 @@ export type FlowNodeEdge = {
 // like FlowNodeEdge but untethered
 export type FlowNodeConnection = Omit<FlowNodeEdge, "id" | "dependent">;
 
+export type FlowNodePortType = "input" | "output" | "argument";
+export type FlowNodePort = {
+  name: string;
+  node: FlowNode;
+  type: FlowNodePortType;
+};
+
 export type FlowNodeExecutionArgument = {
   type: "input" | "argument";
   node: string; // fk to FlowNode.id;

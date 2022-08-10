@@ -2,7 +2,7 @@
   <div class="h-1/2 w-full">
     <VueFlow
       class="relative border-t border-b border-gray-300"
-      :nodes-draggable="false"
+      :nodes-draggable="true"
       :pan-on-drag="true"
       :pan-on-scroll="false"
       :min-zoom="0.6"
@@ -29,6 +29,7 @@
             :key="targetPort"
             type="target"
             :position="Position.Top"
+            :is-valid-connection="isValidConnection"
           />
           <Handle
             v-for="sourcePort in props.data.targetPorts"
@@ -36,6 +37,7 @@
             type="source"
             class="w-10"
             :position="Position.Bottom"
+            :is-valid-connection="isValidConnection"
           />
         </template>
       </template>
@@ -55,7 +57,8 @@
 import { useFlowsStore, useMetaStore } from "@/stores";
 import { useArtifactsStore } from "@/stores/artifacts";
 import type { FlowInteractionData, FlowNode, FlowRuntimeData, FlowVersion } from "@/types/flows";
-import type { FunctionSpec, RecordSpec, ValueType } from "@/types/spec";
+import type { RecordSpec, ValueType } from "@/types/spec";
+import { isValidEdge, nodePorts } from "@/utils/flows";
 import {
   Background,
   BackgroundVariant,
@@ -80,14 +83,14 @@ const emit = defineEmits<{
   (e: "addNode", value: { inputNodes?: FlowNode[]; outputNodes?: FlowNode[] }): void;
   (e: "editNode", value: FlowNode): void;
   (e: "deleteNode", value: FlowNode): void;
-  (e: "addEdge", value: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }): void;
+  (e: "addNodeEdge", value: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }): void;
   (e: "submitInput", value: { node: FlowNode; data: Record<string, any> }): void;
   (e: "update:runtimeData", value: FlowRuntimeData): void;
   (e: "update:interactionData", value: FlowInteractionData): void;
 }>();
 
 function addEdge(connection: Connection) {
-  emit("addEdge", {
+  emit("addNodeEdge", {
     source: flowsStore.flowNode(props.flow, connection.source),
     sourcePort: connection.sourceHandle || "*",
     target: flowsStore.flowNode(props.flow, connection.target),
@@ -100,22 +103,12 @@ const metaStore = useMetaStore();
 
 const { setNodes, setEdges, fitView } = useVueFlow({});
 
-function getFunctionSpec(nodeId: string): FunctionSpec {
-  const node = flowsStore.flowNode(props.flow, nodeId);
-  const functionSpec = metaStore.functionHandlersByName[node.function_id];
-  if (functionSpec == null) {
-    throw new Error("could not get function spec for handler: " + node.function_id);
-  }
-  // TODO @Feature: use current function spec rather than base
-  return functionSpec.base_spec;
-}
-
 function buildVueFlowGraph() {
   // "real" function nodes from the flow
   const flowNodes = (props.flow.nodes || []).map((node) => {
     let nodeRect = { width: 200, height: 100 };
-    const targetPorts = Object.keys(getFunctionSpec(node.id).input_spec);
-    const sourcePorts = Object.keys(getFunctionSpec(node.id).output_spec);
+    const targetPorts = nodePorts(node, metaStore.functionHandlersByName, "input");
+    const sourcePorts = nodePorts(node, metaStore.functionHandlersByName, "output");
     return {
       id: node.id,
       label: node.name,
@@ -150,7 +143,6 @@ function buildVueFlowGraph() {
 async function updateVueFlowGraph() {
   const { nodes, edges } = buildVueFlowGraph();
   const positionedNodes = await layoutNodes(nodes, edges);
-  console.log(positionedNodes);
   setNodes(positionedNodes);
   setEdges([...edges]);
 
@@ -159,11 +151,11 @@ async function updateVueFlowGraph() {
 
 // sync vue-flow state from flow
 watch(
-  () => props.flow.nodes,
+  () => [props.flow.nodes, props.flow.node_edges, props.flow.artifact_edges],
   async () => {
     await updateVueFlowGraph();
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 async function layoutNodes(
@@ -190,7 +182,6 @@ async function layoutNodes(
       "spacing.nodeNodeBetweenLayers": "80",
     },
   });
-  console.log(positionedElkGraph);
   function getNodePosition(id: string) {
     const node = positionedElkGraph.children?.find((n) => n.id == id);
     if (node == null) {
@@ -203,40 +194,15 @@ async function layoutNodes(
   return nodes.map((n) => ({ ...n, position: getNodePosition(n.id) }));
 }
 
-const modelNodes: Ref<FlowNode[]> = computed(
-  () => props.flow.nodes?.filter((node) => node.function_id == "bench.model") || []
-);
-
-// TODO @Feature: derive input spec from selected models (or any other specs)
-//  Also allow multiple inputs.. this will soon be removed anyway.
-const flowInputSpec: RecordSpec = {
-  _type: "FieldSpec",
-  name: "Common input spec",
-  type: [
-    {
-      _type: "FieldSpec",
-      name: "text",
-      description: "any text",
-      type: {
-        _type: "ValueType",
-        dtype: "string",
-      } as ValueType,
-    },
-  ],
-};
-const flowInputRecord = ref({});
-
-// update runtime data
-watch(
-  flowInputRecord,
-  () => {
-    console.log("update runtime data");
-    // TODO @Broken: update runtime data with all virtual input nodes (record & artifact)
-  },
-  { immediate: true }
-);
-
-const artifactsStore = useArtifactsStore();
+function isValidConnection(connection: Connection): boolean {
+  return isValidEdge(props.flow, {
+    dependent: connection.source,
+    connection_name_dependent: connection.sourceHandle || "*",
+    dependency: connection.target,
+    connection_name_dependency: connection.targetHandle || "*",
+    connection_type: "input",
+  }).valid;
+}
 </script>
 
 <style>
@@ -258,6 +224,18 @@ const artifactsStore = useArtifactsStore();
   background-color: white;
   border-width: 2px;
   border-color: rgb(234, 88, 12);
+}
+
+.vue-flow__handle-connecting {
+  border-color: red;
+  cursor: not-allowed;
+}
+
+.vue-flow__handle-valid {
+  width: 16px;
+  height: 16px;
+  border-color: green;
+  cursor: pointer;
 }
 
 .vue-flow__edge-path {

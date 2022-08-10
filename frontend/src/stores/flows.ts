@@ -73,10 +73,6 @@ export const useFlowsStore = defineStore("flows", {
       return (flow, name) => flow.nodes?.find((node) => node.name == name);
     },
 
-    inputPorts(): (flow: FlowVersion) => { node: FlowNode; port: string }[] {
-      return (flow) => [];
-    },
-
     artifactEdges(): (flow: FlowVersion, node: FlowNode, type: "input" | "argument" | null) => FlowArtifactEdge[] {
       return (flow, node, type) =>
         flow.artifact_edges?.filter(
