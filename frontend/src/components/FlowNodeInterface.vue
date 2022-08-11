@@ -47,16 +47,25 @@
         </transition>
       </Menu>
     </div>
-    <div class="px-6 py-4 text-sm">
-      <slot />
+    <div class="px-6 py-2 text-sm">
+      <ConfigArtifactForm :model-value="configArtifacts" :spec="configSpec" />
     </div>
   </div>
 </template>
 <script lang="ts" setup>
-import type { FlowNode } from "@/types/flows.js";
+import { useMetaStore } from "@/stores";
+import type { FlowNode, FlowVersion } from "@/types/flows";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon, DuplicateIcon, PencilAltIcon, TrashIcon } from "@heroicons/vue/solid";
+import { computed } from "vue";
+import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
+import { artifactConnections } from "@/utils/flows";
 
+const props = defineProps<{
+  flow: FlowVersion;
+  node: FlowNode;
+  editable?: boolean;
+}>();
 const emit = defineEmits<{ (e: "edit"): void; (e: "delete"): void }>();
 const actions = [
   {
@@ -79,8 +88,7 @@ const actions = [
   },
 ];
 
-const props = defineProps<{
-  node: FlowNode;
-  editable?: boolean;
-}>();
+const metaStore = useMetaStore();
+const configArtifacts = computed(() => artifactConnections(props.flow, props.node, "argument"));
+const configSpec = computed(() => metaStore.functionHandlersByName[props.node.function_id].config_spec);
 </script>

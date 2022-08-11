@@ -164,12 +164,12 @@ async function addNodeEdge(v: { source: FlowNode; sourcePort: string; target: Fl
 
 function promptAddNode(v: { inputNode?: FlowNode[]; outputNodes?: FlowNode[] }) {
   interactionData.value.selectedNode = null;
-  (editNodeSlideover as any).show();
+  (editNodeSlideover.value as any).show();
 }
 
 function promptEditNode(node: FlowNode) {
   interactionData.value.selectedNode = node;
-  (editNodeSlideover as any).show();
+  (editNodeSlideover.value as any).show();
 }
 
 async function promptDeleteNode(node: FlowNode) {
