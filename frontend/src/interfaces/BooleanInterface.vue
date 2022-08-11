@@ -9,7 +9,7 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { watchEffect } from "vue";
+import { ref, watchEffect } from "vue";
 
 const props = defineProps<{
   modelValue?: boolean;
@@ -17,7 +17,12 @@ const props = defineProps<{
 }>();
 const emit = defineEmits(["update:modelValue"]);
 
+const setDefault = ref(false);
 watchEffect(() => {
+  if (setDefault.value) {
+    return;
+  }
+  setDefault.value = true;
   if (props.modelValue == null) {
     if (props.default != null) {
       emit("update:modelValue", props.default);

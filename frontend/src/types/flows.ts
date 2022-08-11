@@ -64,6 +64,7 @@ export type FlowNodeConnection = Omit<FlowNodeEdge, "id" | "dependent">;
 
 export type FlowNodePortType = "input" | "output" | "argument";
 export type FlowNodePort = {
+  id: string;
   name: string;
   node: FlowNode;
   type: FlowNodePortType;

@@ -8,7 +8,7 @@
   />
 </template>
 <script lang="ts" setup>
-import { watchEffect } from "vue";
+import { ref, watchEffect } from "vue";
 
 const props = defineProps<{
   modelValue?: number;
@@ -17,7 +17,13 @@ const props = defineProps<{
 }>();
 const emit = defineEmits(["update:modelValue"]);
 
+const setDefault = ref(false);
 watchEffect(() => {
+  if (setDefault.value) {
+    return;
+  }
+  setDefault.value = true;
+
   if (props.modelValue == null || Number.isNaN(props.modelValue)) {
     if (props.default != null && !Number.isNaN(props.default)) {
       emit("update:modelValue", props.default);
