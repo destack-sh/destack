@@ -10,6 +10,7 @@ import type {
   FlowVersion,
   LimitPaginatedResult,
 } from "@/types";
+import { artifactEdges } from "@/utils/flows";
 import { toNameVersion } from "@/utils/versioning";
 import { defineStore } from "pinia";
 
@@ -201,7 +202,7 @@ export const useFlowsStore = defineStore("flows", {
       connections: ArtifactConnection[],
       remove = true
     ) {
-      const existingConnections = this.flowEdges(flow, flowNode, null);
+      const existingConnections = artifactEdges(flow, flowNode, null);
 
       function sameConnection(c1: ArtifactConnection, c2: ArtifactConnection) {
         return (

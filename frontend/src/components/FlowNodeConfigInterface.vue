@@ -51,7 +51,7 @@ import {
   type FlowVersion,
   type FunctionHandlerSpec,
 } from "@/types";
-import { artifactEdges } from "@/utils/flows";
+import { artifactConnections } from "@/utils/flows";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
@@ -86,10 +86,7 @@ watch(
     name.value = props.existingNode.name;
     selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
     configRecord.value = props.existingNode.config_arguments || {};
-    configArtifacts.value = {};
-    artifactEdges(props.flow, { dependency: props.existingNode, type: "argument" }).forEach(
-      (connection) => (configArtifacts.value[connection.connection_name] = connection)
-    );
+    configArtifacts.value = artifactConnections(props.flow, props.existingNode, "argument");
   },
   { immediate: true, deep: true }
 );

@@ -18,7 +18,8 @@
       <!-- Real nodes -->
       <template #node-custom-real="props">
         <template v-if="flowsStore.getFlowNode(flow, props.id)">
-          <FlowNodeDisplay
+          <FlowNodeInterface
+            :flow="flow"
             :node="props.data.node"
             :editable="editable"
             @edit="$emit('editNode', props.data.node)"
@@ -94,7 +95,7 @@ import {
 } from "@braks/vue-flow";
 import ELK from "elkjs";
 import { watch } from "vue";
-import FlowNodeDisplay from "./FlowNodeDisplay.vue";
+import FlowNodeInterface from "@/components/FlowNodeInterface.vue";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -146,7 +147,10 @@ function buildVueFlowGraph() {
   const nodes = [] as Omit<Node, "position">[];
   const edges = [] as Edge[];
 
-  let nodeRect = { width: 200, height: 100 };
+  // TODO @UI: vue flow node rect should be calculated dynamically based on element size
+  // To do this, before becoming visible we could render all nodes with show=false
+  //  and then update their size prior to layouting and showing everything.
+  let nodeRect = { width: 250, height: 150 };
   // "real" function nodes from the flow
   const flowNodes = (props.flow.nodes || []).map((node) => {
     const targetPorts = nodePorts(node, metaStore.functionHandlersByName, "input");

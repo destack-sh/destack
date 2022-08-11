@@ -1,4 +1,5 @@
 import type {
+  ArtifactConnection,
   FlowArtifactEdge,
   FlowNode,
   FlowNodeEdge,
@@ -109,6 +110,18 @@ export function nodePorts(
       type,
     }))
   );
+}
+
+export function artifactConnections(
+  flow: FlowVersion,
+  node: FlowNode,
+  type: FlowNodePortType
+): Record<string, ArtifactConnection> {
+  const connections = {} as Record<string, ArtifactConnection>;
+  artifactEdges(flow, { dependency: node, type }).forEach(
+    (connection) => (connections[connection.connection_name] = connection)
+  );
+  return connections;
 }
 
 export function isValidEdge(flow: FlowVersion, edge: Omit<FlowNodeEdge, "id">): { valid: boolean; reason?: string } {
