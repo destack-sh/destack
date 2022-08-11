@@ -9,6 +9,14 @@ import type {
   FunctionHandlerSpec,
 } from "@/types";
 
+export function flowNode(flow: FlowVersion, id: string): FlowNode {
+  const node = flow.nodes?.find((n) => n.id == id);
+  if (node == null) {
+    throw new Error(`could not find node ${id} in flow ${flow}`);
+  }
+  return node;
+}
+
 export function artifactEdges(
   flow: FlowVersion,
   where: {
@@ -54,7 +62,9 @@ export function nodeEdges(
     (edge) =>
       (where.dependent == null || edge.dependent == where.dependent.id) &&
       (where.dependency == null || edge.dependency == where.dependency.id) &&
-      (where.type == null || edge.connection_type == where.type)
+      (where.type == null || edge.connection_type == where.type) &&
+      (where.sourceName == null || edge.connection_name_dependency == where.sourceName) &&
+      (where.targetName == null || edge.connection_name_dependent == where.targetName)
   );
 }
 
@@ -86,6 +96,33 @@ export function flowPorts(
   return flow.nodes.flatMap((node) => nodePorts(node, functionHandlersByName, ofType));
 }
 
+export function getFlowNodePortId(port: Omit<FlowNodePort, "id">): string {
+  if (port.name != "*") {
+    return `${port.node.id}.${port.type}s.${port.name}`;
+  } else {
+    return `${port.node.id}.${port.type}`;
+  }
+}
+
+export function makeFlowNodePort(name: string, node: FlowNode, type: FlowNodePortType): FlowNodePort {
+  return {
+    id: getFlowNodePortId({ name, node, type }),
+    name,
+    node,
+    type,
+  };
+}
+
+export function nodeEdgePorts(flow: FlowVersion, edge: FlowNodeEdge): { source: FlowNodePort; target: FlowNodePort } {
+  const sourceNode = flowNode(flow, edge.dependency);
+  const targetNode = flowNode(flow, edge.dependent);
+
+  return {
+    source: makeFlowNodePort(edge.connection_name_dependency, sourceNode, "output"),
+    target: makeFlowNodePort(edge.connection_name_dependent, targetNode, "input"),
+  };
+}
+
 export function nodePorts(
   node: FlowNode,
   functionHandlersByName: Record<string, FunctionHandlerSpec>,
@@ -103,13 +140,7 @@ export function nodePorts(
     output: functionSpec.base_spec.output_spec,
     argument: functionSpec.config_spec.type,
   };
-  return types.flatMap((type) =>
-    Object.keys(specs[type]).map((name) => ({
-      name,
-      node,
-      type,
-    }))
-  );
+  return types.flatMap((type) => Object.keys(specs[type]).map((name) => makeFlowNodePort(name, node, type)));
 }
 
 export function artifactConnections(
@@ -130,16 +161,24 @@ export function isValidEdge(flow: FlowVersion, edge: Omit<FlowNodeEdge, "id">): 
   }
 
   // edge already exists
-  // TODO @Broken: isValidEdge doesn't accept multi-edges between same nodes via different ports
-  const matchingEdge = (flow.node_edges || [])
-    .filter((node) => node.connection_type == edge.connection_type)
-    .find(
-      (node) =>
-        (node.dependency == edge.dependency && node.dependent == edge.dependent) ||
-        (node.dependency == edge.dependent && node.dependent == edge.dependency)
-    );
-  if (matchingEdge != null) {
-    return _invalid("already exists");
+  const existingEdge = (flow.node_edges || []).find(
+    (e) =>
+      e.connection_type == edge.connection_type &&
+      e.dependency == edge.dependency &&
+      e.dependent == edge.dependent &&
+      e.connection_name_dependency == edge.connection_name_dependency &&
+      e.connection_name_dependent == edge.connection_name_dependent
+  );
+  if (existingEdge != null) {
+    return _invalid("edge already exists");
+  }
+
+  // nodes are already connected the other way
+  const opposingEdge = (flow.node_edges || []).find(
+    (e) => e.connection_type == edge.connection_type && e.dependency == edge.dependent && e.dependent == edge.dependency
+  );
+  if (opposingEdge != null) {
+    return _invalid("already connected the other way");
   }
 
   // simple loop

@@ -1,5 +1,5 @@
 <template>
-  <div class="h-1/2 w-full">
+  <div class="h-2/3 w-full">
     <VueFlow
       class="relative border-t border-b border-gray-300"
       :nodes-draggable="editable"
@@ -12,12 +12,23 @@
       :nodes-connectable="editable"
       :edges-updatable="editable"
       :connection-mode="ConnectionMode.Strict"
-      @connect="addEdge"
+      @connect="addConnection"
     >
       <Background :variant="BackgroundVariant.Dots" pattern-color="#bbbbbb" :size="0.6" :gap="12" />
+      <!-- Custom controls -->
+      <!-- Not sure if controls should be here or in FlowEdit/wrapper -->
+      <div class="absolute top-2 right-2 z-10" v-if="editable">
+        <button
+          type="button"
+          class="inline-flex items-center rounded-full border border-transparent bg-orange-600 p-1 text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          @click="emit('addNode', {})"
+        >
+          <PlusSmIcon class="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
       <!-- Real nodes -->
       <template #node-custom-real="props">
-        <template v-if="flowsStore.getFlowNode(flow, props.id)">
+        <template v-if="props.data?.node">
           <FlowNodeInterface
             :flow="flow"
             :node="props.data.node"
@@ -26,17 +37,26 @@
             @delete="$emit('deleteNode', props.data.node)"
           />
           <Handle
-            v-for="targetPort in props.data.sourcePorts"
+            v-for="targetPort in props.data.targetPorts"
             :key="targetPort"
+            :id="targetPort.name"
             type="target"
+            :style="{
+              left: (props.data as PositionedNodeData).targetPortsOffsets[targetPort.id].x + 'px',
+              top: (props.data as PositionedNodeData).targetPortsOffsets[targetPort.id].y + 'px',
+            }"
             :position="Position.Top"
             :is-valid-connection="isValidConnection"
           />
           <Handle
-            v-for="sourcePort in props.data.targetPorts"
+            v-for="sourcePort in props.data.sourcePorts"
             :key="sourcePort"
+            :id="sourcePort.name"
             type="source"
-            class="w-10"
+            :style="{
+              left: (props.data as PositionedNodeData).sourcePortsOffsets[sourcePort.id].x + 'px',
+              top: (props.data as PositionedNodeData).sourcePortsOffsets[sourcePort.id].y + 'px',
+            }"
             :position="Position.Bottom"
             :is-valid-connection="isValidConnection"
           />
@@ -52,20 +72,23 @@
             <div>
               <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
               <h5 class="text-xs font-normal text-gray-500">
-                {{ props.data.node.name }}
-                <template v-if="props.data.name != '*'"> .{{ props.data.name }} </template>
+                {{ (props.data as VirtualNodeData).virtualForNode.name
+
+                }}<template v-if="(props.data as VirtualNodeData).virtualForNode.name != '*'"
+                  >.{{ props.data.virtualForPort.name }}
+                </template>
               </h5>
             </div>
           </div>
           <div class="px-6 py-4 text-sm">
             <RecordForm
-              :model-value="getRuntimeInputData(props.data.node.id, props.data.name)"
-              @update:modelValue="(record) => setRuntimeInputData(props.data.node.id, props.data.name, record)"
+              :model-value="getRuntimeInputData(props.data)"
+              @update:modelValue="(record) => setRuntimeInputData(props.data, record)"
               :spec="[props.data.spec]"
               @submit.prevent="
                 $emit('submitInput', {
-                  node: props.data.node,
-                  data: getRuntimeInputData(props.data.node.id, props.data.name),
+                  node: props.data.virtualForNode,
+                  data: getRuntimeInputData(props.data),
                 })
               "
             />
@@ -77,10 +100,19 @@
   </div>
 </template>
 <script lang="ts" setup>
+import FlowNodeInterface from "@/components/FlowNodeInterface.vue";
 import RecordForm from "@/components/RecordForm.vue";
-import { useFlowsStore, useMetaStore } from "@/stores";
-import type { FlowInteractionData, FlowNode, FlowRuntimeData, FlowVersion } from "@/types/flows";
-import { flowPorts, isPortSatisfied, isValidEdge, nodePorts } from "@/utils/flows";
+import { useMetaStore } from "@/stores";
+import type {
+  FlowInteractionData,
+  FlowNode,
+  FlowNodeEdge,
+  FlowNodePort,
+  FlowRuntimeData,
+  FlowVersion,
+} from "@/types/flows";
+import type { FieldSpec } from "@/types/spec";
+import { flowPorts, isPortSatisfied, isValidEdge, makeFlowNodePort, nodeEdgePorts, nodePorts } from "@/utils/flows";
 import {
   Background,
   BackgroundVariant,
@@ -93,9 +125,9 @@ import {
   type Edge,
   type Node,
 } from "@braks/vue-flow";
-import ELK from "elkjs";
-import { watch } from "vue";
-import FlowNodeInterface from "@/components/FlowNodeInterface.vue";
+import { PlusSmIcon } from "@heroicons/vue/solid";
+import ELK, { type ElkEdge, type ElkNode } from "elkjs";
+import { ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -107,41 +139,67 @@ const emit = defineEmits<{
   (e: "addNode", value: { inputNodes?: FlowNode[]; outputNodes?: FlowNode[] }): void;
   (e: "editNode", value: FlowNode): void;
   (e: "deleteNode", value: FlowNode): void;
-  (e: "addNodeEdge", value: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }): void;
+  (
+    e: "addNodeEdge",
+    value: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string; type: "input" | "argument" }
+  ): void;
   (e: "submitInput", value: { node: FlowNode; data: Record<string, any> }): void;
   (e: "update:runtimeData", value: FlowRuntimeData): void;
   (e: "update:interactionData", value: FlowInteractionData): void;
 }>();
 
-function getRuntimeInputData(nodeId: string, name: string): Record<string, any> {
-  return props.runtimeData?.inputs?.[nodeId]?.[name] || {};
+function getRuntimeInputData(data: VirtualNodeData): Record<string, any> {
+  return props.runtimeData?.inputs?.[data.virtualForNode.id]?.[data.virtualForPort.name] || {};
 }
 
-function setRuntimeInputData(nodeId: string, name: string, record: Record<string, any>) {
+function setRuntimeInputData(data: VirtualNodeData, record: Record<string, any>) {
   const newRuntimeData = JSON.parse(JSON.stringify(props.runtimeData)) as FlowRuntimeData;
   if (newRuntimeData.inputs == null) {
     newRuntimeData.inputs = {};
   }
-  if (newRuntimeData.inputs[nodeId] == null) {
-    newRuntimeData.inputs[nodeId] = {};
+  if (newRuntimeData.inputs[data.virtualForNode.id] == null) {
+    newRuntimeData.inputs[data.virtualForNode.id] = {};
   }
-  newRuntimeData.inputs[nodeId][name] = record;
+  newRuntimeData.inputs[data.virtualForNode.id][data.virtualForPort.name] = record;
 
+  console.log("update runtime data");
   emit("update:runtimeData", newRuntimeData);
 }
 
-const flowsStore = useFlowsStore();
 const metaStore = useMetaStore();
 
-function addEdge(connection: Connection) {
-  emit("addNodeEdge", {
-    source: flowsStore.flowNode(props.flow, connection.source),
-    sourcePort: connection.sourceHandle || "*",
-    target: flowsStore.flowNode(props.flow, connection.target),
-    targetPort: connection.targetHandle || "*",
-  });
-}
 const { fitView, setElements } = useVueFlow({});
+const currentVueFlowNodes: Ref<Record<string, Node>> = ref({});
+const currentVueFlowEdges: Ref<Record<string, Edge>> = ref({});
+
+type NodeData = {
+  real: boolean;
+  sourcePorts: FlowNodePort[];
+  targetPorts: FlowNodePort[];
+};
+
+type RealNodeData = NodeData & {
+  real: true;
+  node: FlowNode;
+};
+
+type VirtualNodeData = NodeData & {
+  real: false;
+  virtualForPort: FlowNodePort;
+  virtualForNode: FlowNode;
+  spec: FieldSpec;
+};
+
+type PositionedNodeData = {
+  sourcePortsOffsets: Record<string, { x: number; y: number }>;
+  targetPortsOffsets: Record<string, { x: number; y: number }>;
+};
+
+type EdgeData = {
+  edge?: FlowNodeEdge;
+  sourcePort: FlowNodePort;
+  targetPort: FlowNodePort;
+};
 
 function buildVueFlowGraph() {
   const nodes = [] as Omit<Node, "position">[];
@@ -161,22 +219,31 @@ function buildVueFlowGraph() {
       type: "custom-real",
       width: nodeRect.width,
       height: nodeRect.height,
-      sourcePosition: Position.Top,
-      targetPosition: Position.Bottom,
       data: {
         node,
         real: true,
         sourcePorts,
         targetPorts,
-      },
+      } as RealNodeData,
     };
   });
-  const flowNodeEdges = (props.flow.node_edges || []).map((edge) => ({
-    id: edge.id,
-    source: edge.dependency,
-    target: edge.dependent,
-    type: "smoothstep",
-  }));
+  const flowNodeEdges = (props.flow.node_edges || []).map((edge) => {
+    const ports = nodeEdgePorts(props.flow, edge);
+    return {
+      id: edge.id,
+      source: edge.dependency,
+      sourceHandle: edge.connection_name_dependency,
+      target: edge.dependent,
+      targetHandle: edge.connection_name_dependent,
+      type: "smoothstep",
+      data: {
+        edge,
+        type: edge.connection_type,
+        sourcePort: ports.source,
+        targetPort: ports.target,
+      } as EdgeData,
+    };
+  });
   nodes.push(...flowNodes);
   edges.push(...flowNodeEdges);
 
@@ -187,25 +254,32 @@ function buildVueFlowGraph() {
       const functionSpec = metaStore.functionHandlersByName[port.node.function_id];
       const inputSpec = functionSpec.base_spec.input_spec[port.name];
       return {
-        id: `${port.node.id}.${port.type}s.${port.name}`,
-        label: `${port.node.id}.${port.type}s.${port.name}`,
+        id: port.id + "-virtual-input-node",
+        label: port.id,
         type: "custom-virtual-input",
         width: nodeRect.width,
         height: nodeRect.height,
-        sourcePosition: Position.Top,
-        targetPosition: Position.Bottom,
         data: {
-          node: port.node,
-          name: port.name,
+          real: false,
+          virtualForPort: port,
+          virtualForNode: port.node,
+          sourcePorts: [makeFlowNodePort(port.name, { ...port.node, id: port.id + "-virtual-input-node" }, "output")],
+          targetPorts: [],
           spec: inputSpec,
-        },
+        } as VirtualNodeData,
       };
     });
   const virtualInputEdges = virtualInputNodes.map((node) => ({
     id: node.id + "-edge",
     source: node.id,
-    target: node.data.node.id,
+    target: node.data.virtualForNode.id,
+    targetHandle: node.data.virtualForPort.name,
     type: "smoothstep",
+    data: {
+      type: "input",
+      sourcePort: node.data.sourcePorts[0],
+      targetPort: node.data.virtualForPort,
+    } as EdgeData,
   }));
   nodes.push(...virtualInputNodes);
   edges.push(...virtualInputEdges);
@@ -215,11 +289,23 @@ function buildVueFlowGraph() {
 
 async function updateVueFlowGraph() {
   const { nodes, edges } = buildVueFlowGraph();
-  const positionedNodes = await layoutNodes(nodes, edges);
+  const positioned = await elkLayout(nodes, edges);
 
-  setElements([...positionedNodes, ...edges]);
-
+  // TODO @UI: transition update elements and viewport smoothly
+  setElements([...positioned.nodes, ...edges]);
   fitView.apply({ padding: 0.2 });
+
+  // update local copy of current elements for simple lookup
+  const vueFlowNodes: Record<string, Node> = {};
+  for (const node of positioned.nodes) {
+    vueFlowNodes[node.id] = node;
+  }
+  currentVueFlowNodes.value = vueFlowNodes;
+  const vueFlowEdges: Record<string, Edge> = {};
+  for (const edge of edges) {
+    vueFlowEdges[edge.id] = edge;
+  }
+  currentVueFlowEdges.value = vueFlowEdges;
 }
 
 // sync vue-flow state from flow
@@ -231,13 +317,43 @@ watch(
   { immediate: true, deep: true }
 );
 
-async function layoutNodes(
-  nodes: { id: string; width: number; height: number }[],
-  edges: { id: string; source: string; target: string }[]
-): Promise<{ id: string; position: { x: number; y: number } }[]> {
+async function elkLayout(nodes: Node[], edges: Edge[]): Promise<{ nodes: Node[]; edges: Edge[] }> {
   const elk = new ELK();
-  const elkNodes = nodes.map((n) => ({ id: n.id, width: n.width, height: n.height }));
-  const elkEdges = edges.map((e) => ({ id: e.id, sources: [e.source], targets: [e.target] }));
+  const elkNodes: Array<ElkNode> = nodes.map((n) => {
+    const elkPorts = [];
+    const nodeData = n.data as NodeData;
+    elkPorts.push(
+      ...nodeData.targetPorts.map((port) => ({
+        id: port.id,
+        layoutOptions: {
+          "port.side": "NORTH",
+        },
+      })),
+      ...nodeData.sourcePorts.map((port) => ({
+        id: port.id,
+        layoutOptions: {
+          "port.side": "SOUTH",
+        },
+      }))
+    );
+
+    return {
+      id: n.id,
+      width: n.width,
+      height: n.height,
+      ports: elkPorts,
+      layoutOptions: {
+        portConstraints: "FIXED_SIDE",
+      },
+    } as ElkNode;
+  });
+  const elkEdges: Array<ElkEdge> = edges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    sourcePort: (e.data as EdgeData).sourcePort.id,
+    target: e.target,
+    targetPort: (e.data as EdgeData).targetPort.id,
+  }));
   const elkGraph = {
     id: "root",
     children: elkNodes,
@@ -246,35 +362,82 @@ async function layoutNodes(
 
   // see elkjs docs at https://github.com/kieler/elkjs
   // see ELK layered options at https://www.eclipse.org/elk/reference/algorithms/org-eclipse-elk-layered.html
-  const positionedElkGraph = await elk.layout(elkGraph, {
+  const positionedElkGraph = await elk.layout(elkGraph as ElkNode, {
     logging: true,
     measureExecutionTime: true,
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
       "spacing.nodeNodeBetweenLayers": "40",
+      "spacing.portPort": "20",
     },
   });
-  function getNodePosition(id: string) {
-    const node = positionedElkGraph.children?.find((n) => n.id == id);
-    if (node == null) {
-      throw new Error("could not find node with id: " + id);
-    }
-    // swap x/y for vertical layout
-    return { x: node.x as number, y: node.y as number };
-  }
+  console.log(positionedElkGraph);
 
-  return nodes.map((n) => ({ ...n, position: getNodePosition(n.id) }));
+  // map nodes to positions
+  const positionedNodes = nodes.map((node) => {
+    const elkNode = positionedElkGraph.children?.find((n) => n.id == node.id);
+    if (elkNode == null) {
+      throw new Error("could not find node in positioned ELK graph: " + node.id);
+    }
+
+    const position = { x: elkNode.x as number, y: elkNode.y as number };
+    const sourcePortsOffsets = {} as Record<string, { x: number; y: number }>;
+    const targetPortsOffsets = {} as Record<string, { x: number; y: number }>;
+
+    elkNode.ports?.forEach((elkPort) => {
+      const sourcePort = (node.data as NodeData).sourcePorts.find((p) => p.id == elkPort.id);
+      if (sourcePort != null) {
+        sourcePortsOffsets[sourcePort.id] = { x: elkPort.x as number, y: elkPort.y as number };
+        return;
+      }
+      const targetPort = (node.data as NodeData).targetPorts.find((p) => p.id == elkPort.id);
+      if (targetPort != null) {
+        targetPortsOffsets[targetPort.id] = { x: elkPort.x as number, y: elkPort.y as number };
+        return;
+      }
+      throw new Error("could not find port in positioned ELK graph: " + elkPort.id);
+    });
+
+    const positionedNodeData = { ...node.data, sourcePortsOffsets, targetPortsOffsets } as PositionedNodeData;
+    return { ...node, position, data: positionedNodeData };
+  });
+
+  return { nodes: positionedNodes, edges: edges };
+}
+
+function addConnection(connection: Connection) {
+  const sourceNode = currentVueFlowNodes.value[connection.source];
+  const targetNode = currentVueFlowNodes.value[connection.target];
+
+  if (sourceNode.data.real) {
+    emit("addNodeEdge", {
+      source: (sourceNode.data as RealNodeData).node,
+      sourcePort: connection.sourceHandle || "*",
+      target: (targetNode.data as RealNodeData).node,
+      targetPort: connection.targetHandle || "*",
+      type: "input",
+    });
+  } else {
+    // TODO @Feature: connect virtual input record to multiple ports (manually)
+    console.warn("connecting virtual input record manually is not yet supported");
+  }
 }
 
 function isValidConnection(connection: Connection): boolean {
-  return isValidEdge(props.flow, {
-    dependent: connection.source,
-    connection_name_dependent: connection.sourceHandle || "*",
-    dependency: connection.target,
-    connection_name_dependency: connection.targetHandle || "*",
-    connection_type: "input",
-  }).valid;
+  const sourceNode = currentVueFlowNodes.value[connection.source];
+  if (sourceNode.data.real) {
+    return isValidEdge(props.flow, {
+      dependent: connection.source,
+      connection_name_dependent: connection.sourceHandle || "*",
+      dependency: connection.target,
+      connection_name_dependency: connection.targetHandle || "*",
+      connection_type: "input",
+    }).valid;
+  } else {
+    // connecting virtual input nodes manually is not yet supported
+    return false;
+  }
 }
 </script>
 

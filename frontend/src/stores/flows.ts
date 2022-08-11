@@ -10,7 +10,7 @@ import type {
   FlowVersion,
   LimitPaginatedResult,
 } from "@/types";
-import { artifactEdges } from "@/utils/flows";
+import { artifactEdges, flowNode } from "@/utils/flows";
 import { toNameVersion } from "@/utils/versioning";
 import { defineStore } from "pinia";
 
@@ -62,13 +62,7 @@ export const useFlowsStore = defineStore("flows", {
       return (flow, id) => flow.nodes?.find((node) => node.id == id);
     },
     flowNode(): (flow: FlowVersion, id: string) => FlowNode {
-      return (flow, id) => {
-        const node = this.getFlowNode(flow, id);
-        if (node == null) {
-          throw new Error(`could not find node ${id} in flow ${flow}`);
-        }
-        return node;
-      };
+      return (flow, id) => flowNode(flow, id);
     },
     getFlowNodeByName(): (flow: FlowVersion, name: string) => FlowNode | undefined {
       return (flow, name) => flow.nodes?.find((node) => node.name == name);
@@ -202,7 +196,7 @@ export const useFlowsStore = defineStore("flows", {
       connections: ArtifactConnection[],
       remove = true
     ) {
-      const existingConnections = artifactEdges(flow, flowNode, null);
+      const existingConnections = artifactEdges(flow, { dependency: flowNode });
 
       function sameConnection(c1: ArtifactConnection, c2: ArtifactConnection) {
         return (
