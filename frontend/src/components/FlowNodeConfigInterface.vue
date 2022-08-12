@@ -27,7 +27,7 @@
         v-model="configRecord"
       />
       <ConfigArtifactForm
-        :spec="(Object.values(selectedFunctionHandler.config_spec).filter(isArtifactSpec) as ArtifactSpec[])"
+        :spec="(Object.values(selectedFunctionHandler.config_spec).filter(isArtifactSpec) as any[])"
         v-model="configArtifacts"
       />
     </div>
@@ -52,7 +52,6 @@ import { useMetaStore } from "@/stores";
 import {
   isArtifactSpec,
   reduceToFieldSpec,
-  type ArtifactSpec,
   type ArtifactConnection,
   type FlowNode,
   type FlowVersion,
@@ -108,7 +107,7 @@ function submit() {
 function create() {
   const node = {
     name: name.value,
-    function_id: selectedFunctionHandler.value?.name,
+    function_id: selectedFunctionHandler.value?.id,
     config_arguments: configRecord.value,
     metadata: metadata.value,
   } as FlowNode;
@@ -120,7 +119,7 @@ function update() {
   const updatedNode = {
     ...node,
     name: name.value,
-    function_id: selectedFunctionHandler.value?.name,
+    function_id: selectedFunctionHandler.value?.id,
     config_arguments: configRecord.value,
     metadata: metadata.value,
   } as FlowNode;
