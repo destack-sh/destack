@@ -1,11 +1,14 @@
 <template>
   <div class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
-    <div class="flex flex-row items-center justify-between px-4 py-2 sm:px-6">
-      <div>
-        <h3 class="text-md font-medium leading-6 text-gray-900">
-          {{ metaStore.functionHandlersById[node.function_id].name }}
-        </h3>
-        <h5 class="text-xs font-normal text-gray-500">{{ node.name }}</h5>
+    <div class="flex flex-row items-center justify-between py-2 px-4">
+      <div class="flex flex-row items-center gap-2">
+        <component :is="icon" class="h-6 w-6 flex-shrink-0 rounded-md text-orange-300" aria-hidden="true" />
+        <div>
+          <h3 class="text-md font-medium leading-6 text-gray-900">
+            {{ metaStore.functionHandlersById[node.function_id].name }}
+          </h3>
+          <h5 class="text-xs font-normal text-gray-500">{{ node.name }}</h5>
+        </div>
       </div>
       <Menu v-if="editable" as="div" class="inline-block text-left">
         <div>
@@ -63,6 +66,7 @@ import { computed } from "vue";
 import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
 import { artifactConnections } from "@/utils/flows";
 import { isArtifactSpec } from "@/types/spec";
+import { useIcons } from "@/composables/useIcons";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -92,6 +96,9 @@ const actions = [
 ];
 
 const metaStore = useMetaStore();
+const icons = useIcons();
+
 const configArtifacts = computed(() => artifactConnections(props.flow, props.node, "argument"));
 const configSpec = computed(() => metaStore.functionHandlersById[props.node.function_id].config_spec);
+const icon = computed(() => icons.forNode(props.node));
 </script>
