@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import AbstractSet, Any, List, Optional, Type, Union
+from typing import AbstractSet, Any, List, Mapping, Optional, Type, Union
 
 from fsspec import AbstractFileSystem
 
@@ -9,14 +9,20 @@ from bench.dataset.accessor import get_file_system
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
 from bench.utils.spec import (
-    ModelSpec,
+    FieldSpec,
+    ModelType,
     RecordSpec,
-    convert_to_config_spec,
+    convert_to_config_type_spec,
     convert_to_record_spec,
-    infer_config_spec,
     infer_config_type,
-    infer_description,
 )
+
+
+@dataclass
+class ModelHandlerMetadata:
+    name: str
+    description: str
+    tags: list[str]
 
 
 class ModelHandler(ArtifactHandler):
@@ -25,15 +31,16 @@ class ModelHandler(ArtifactHandler):
     """
 
     # Known base model spec for all models of this handler.
-    base_spec: Optional[ModelSpec] = None
-    spec: ModelSpec
+    metadata: ModelHandlerMetadata
+    base_spec: Optional[ModelType] = None
+    spec: ModelType
 
     def __init__(
         self,
         fs: Optional[AbstractFileSystem] = None,
         path: Optional[str] = None,
         version: Optional[str] = None,
-        spec: Optional[ModelSpec] = None,
+        spec: Optional[ModelType] = None,
     ):
         super().__init__(fs=fs, path=path, version=version)
         if spec is None:
@@ -87,11 +94,11 @@ class BatchedModelHandler(ModelHandler, abc.ABC):
 
 def map_to_model_cls(model_cls: Type[ModelHandler], *args) -> Type[ModelHandler]:
     if hasattr(model_cls, "config_spec"):
-        declared_config_spec = convert_to_config_spec(model_cls.config_spec)
+        declared_config_spec = convert_to_config_type_spec(model_cls.config_spec)
     else:
         declared_config_spec = None
     # TODO @Robustness: check declared_config_spec against inferred_config_spec
-    inferred_config_spec = infer_config_spec(model_cls.__init__)  # noqa
+    inferred_config_spec = infer_config_type(model_cls.__init__)  # noqa
 
     # overwrite config spec with clean config
     config_spec = declared_config_spec or inferred_config_spec
@@ -108,10 +115,12 @@ import bench.model.spacy_  # noqa
 
 @dataclass
 class ModelHandlerSpec:
+    id: str
     name: str
     description: str
-    base_spec: Optional[ModelSpec]
-    config_spec: RecordSpec
+    tags: list[str]
+    base_spec: Optional[ModelType]
+    config_spec: Mapping[str, FieldSpec]
 
 
 def get_model_handler_specs() -> List[ModelHandlerSpec]:
@@ -126,17 +135,18 @@ def get_model_handler_spec(handler_id: str):
     model_cls = get_model_cls(handler_id)
     base_spec = get_model_base_spec(handler_id)
     model_handler_spec = ModelHandlerSpec(
-        name=base_spec.name,
-        description=base_spec.description,
+        id=handler_id,
+        name=model_cls.metadata.name,
+        description=model_cls.metadata.description,
+        tags=model_cls.metadata.tags,
         base_spec=base_spec,
         config_spec=model_cls.config_spec,
     )
     return model_handler_spec
 
 
-def get_model_base_spec(handler_id: str) -> ModelSpec:
+def get_model_base_spec(handler_id: str) -> ModelType:
     model_cls = get_model_cls(handler_id)
-    inferred_description = infer_description(model_cls) or ""
 
     # if available, use defined base spec, else use blank input/output spec
     if model_cls.base_spec is not None:
@@ -146,12 +156,7 @@ def get_model_base_spec(handler_id: str) -> ModelSpec:
         input_spec = RecordSpec(name="", description="", type={})
         output_spec = RecordSpec(name="", description="", type={})
 
-    model_spec = ModelSpec(
-        name=handler_id,
-        description=inferred_description,
-        input_spec=input_spec,
-        output_spec=output_spec,
-    )
+    model_spec = ModelType(input_spec=input_spec, output_spec=output_spec)
     return model_spec
 
 
@@ -179,7 +184,7 @@ def load_model(
     storage_uri: Optional[str],
     version: Optional[str],
     arguments: dict[str, Any],
-    spec: Optional[ModelSpec],
+    spec: Optional[ModelType],
 ) -> ModelHandler:
     model_cls = get_model_cls(handler_id)
     if storage_uri:

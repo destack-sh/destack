@@ -48,7 +48,7 @@ from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ArtifactSpec, FieldSpec, FieldTypePrimitive, FieldTypeSpec, _Type
+from bench.utils.spec import ArtifactType, FieldSpec, FieldTypePrimitive, FieldTypeSpec, _Type
 
 logger = structlog.stdlib.get_logger()
 Resource = str
@@ -97,7 +97,7 @@ class Executor(abc.ABC):
         """
         raise NotImplementedError
 
-    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactSpec:
+    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactType:
         """
         Gets the runtime/actual specification of the given artifact (instead of the configured).
         This may require loading the given artifact and performing other expensive operations.

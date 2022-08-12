@@ -40,10 +40,6 @@ export type FieldSpec = _Spec & {
 export type RecordSpec = FieldSpec;
 export type RecordType = FieldType;
 
-export function isFieldSpec(obj: any) {
-  return obj._type == "FieldSpec";
-}
-
 export function makeFieldSpec(name: string, type: FieldType | Array<FieldSpec> | Record<string, FieldSpec>): FieldSpec {
   return { _type: "FieldSpec", name, type };
 }
@@ -55,11 +51,19 @@ export type ModelType = ArtifactSpec & {
   _type: "ModelType";
   input_spec: RecordSpec | RecordType;
   output_spec: RecordSpec | RecordType;
+  optiona?: boolean;
 };
 
 export type DatasetType = ArtifactSpec & {
   _type: "DatasetType";
   record_spec: RecordSpec | RecordType;
+  optiona?: boolean;
+};
+
+export type FunctionType = _Type & {
+  input_spec: Record<string, RecordSpec>;
+  output_spec: Record<string, RecordSpec>;
+  optiona?: boolean;
 };
 
 const ARTIFACT_TYPES = ["ModelType", "DatasetType"];
@@ -69,86 +73,88 @@ export function isArtifactType(obj: any) {
 
 export type ArtifactSpec = _Spec & {
   _type: "ArtifactSpec";
-};
-
-export type DatasetSpec = ArtifactSpec & {
-  _type: "DatasetSpec";
-  record_spec: RecordSpec;
-};
-
-export type ModelSpec = ArtifactSpec & {
-  _type: "ModelSpec";
-  input_spec: RecordSpec;
-  output_spec: RecordSpec;
+  type: ArtifactType;
 };
 
 export type FunctionSpec = _Spec & {
   _type: "FunctionSpec";
-  input_spec: Record<string, RecordSpec>;
-  output_spec: Record<string, RecordSpec>;
+  type: FunctionType;
 };
+
+export type AnySpec = FieldSpec | ArtifactSpec;
+export type ConfigType = Record<string, AnySpec>;
 
 export type ConfigSpec = _Spec & {
   _type: "ConfigSpec";
-  type: Record<string, FieldSpec>;
+  type: ConfigType;
 };
+
+export function isFieldSpec(obj: any) {
+  return obj._type == "FieldSpec";
+}
+
+export function isConfigSpec(obj: any) {
+  return obj._type == "ConfigSpec";
+}
+
+export function isArtifactSpec(obj: any) {
+  return obj._type == "DatasetSpec" || obj._type == "ModelSpec";
+}
+
+export function isAnySpec(obj: any) {
+  return ["FieldSpec", "DatasetSpec", "ModelSpec"].includes(obj._type);
+}
 
 export type DatasetHandlerSpec = _Spec & {
   _type: "DatasetHandlerSpec";
-  base_spec: DatasetSpec;
-  config_spec: RecordSpec;
+  id: string;
+  tags: string[];
+  base_spec: DatasetType;
+  config_spec: Record<string, FieldSpec>;
 };
 
 export type ModelHandlerSpec = _Spec & {
   _type: "ModelHandlerSpec";
-  base_spec: ModelSpec;
-  config_spec: RecordSpec;
+  id: string;
+  tags: string[];
+  base_spec: ModelType;
+  config_spec: Record<string, FieldSpec>;
 };
 
-export type FunctionType = "RecordTransform" | "Metric" | "Test";
+export type FunctionHandlerType = "RecordTransform" | "Metric" | "Test";
 
-export type FunctionHandlerSpec = {
-  name: string;
-  description: string;
-  type: FunctionType;
-  config_spec: ConfigSpec;
-  base_spec: FunctionSpec;
+export type FunctionHandlerSpec = _Spec & {
+  id: string;
+  tags: string[];
+  type: FunctionHandlerType;
+  base_spec: FunctionType;
+  config_spec: ConfigType;
 };
 
 // Helper methods
 
-export function unravelConfigSpec(spec: ConfigSpec): FieldSpec[] {
-  return Object.values(spec.type);
-}
-
-export function unravelFieldSpec(spec: FieldSpec | FieldSpec[]): FieldSpec[] {
+export function unravelSpec(spec: AnySpec | AnySpec[]): AnySpec[] {
   if (Array.isArray(spec)) {
-    return spec.flatMap(unravelFieldSpec);
-  } else if (isFieldType(spec.type)) {
-    return [spec];
-  } else if (isFieldSpec(spec.type)) {
-    // if the spec type is just a blank spec it's just a level of annotation
-    return unravelFieldSpec(spec.type as FieldSpec);
-  } else if (Array.isArray(spec.type)) {
-    return spec.type;
+    return spec.flatMap(unravelSpec);
+  } else if (isFieldSpec(spec)) {
+    if (isFieldType(spec.type)) {
+      return [spec];
+    } else if (isFieldSpec(spec) && isFieldSpec(spec.type)) {
+      // if the spec type is just a blank spec it's just a level of annotation
+      return unravelSpec(spec.type as FieldSpec);
+    } else if (Array.isArray(spec.type)) {
+      return spec.type;
+    } else {
+      return Object.values(spec.type);
+    }
   } else {
-    return Object.values(spec.type);
+    // don't unravel non-field specs (nothing to unravel)
+    return [spec];
   }
 }
 
-export function reduceToFieldSpec(spec: ConfigSpec): FieldSpec[] {
-  return unravelConfigSpec(spec)
-    .filter((spec) => isFieldType(spec.type))
-    .flatMap((spec) => unravelFieldSpec(spec as FieldSpec));
-}
-
-const ARTIFACT_SPEC_TYPES = ["DatasetSpec", "ModelSpec"];
-const CONFIG_SPEC_TYPES = [...ARTIFACT_SPEC_TYPES, "FieldSpec"];
-
-export function isArtifactSpecType(obj: any): boolean {
-  return ARTIFACT_SPEC_TYPES.includes(obj._type);
-}
-
-export function isConfigSpecType(obj: any) {
-  return CONFIG_SPEC_TYPES.includes(obj._type);
+export function reduceToFieldSpec(spec: AnySpec[]): FieldSpec[] {
+  return unravelSpec(Object.values(spec))
+    .filter((spec) => isFieldSpec(spec))
+    .flatMap((spec) => unravelSpec(spec as FieldSpec) as FieldSpec[]);
 }

@@ -4,10 +4,10 @@ from typing import List, Union, cast
 
 import openai
 
-from bench.model.base import UnbatchedModelHandler, models
+from bench.model.base import ModelHandlerMetadata, UnbatchedModelHandler, models
 from bench.model.utils import make_scored_labels_spec
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ModelSpec, convert_to_record_spec
+from bench.utils.spec import ModelType, convert_to_record_spec
 
 
 class OpenAIModel(UnbatchedModelHandler, abc.ABC):
@@ -55,9 +55,12 @@ class OpenAIModel(UnbatchedModelHandler, abc.ABC):
 
 @models.register("bench.openai.text_generation")
 class OpenAIModelForCompletion(OpenAIModel):
-    spec = ModelSpec(
-        name="bench.openai.text_generation",
+    metadata = ModelHandlerMetadata(
+        name="OpenAI text generation",
         description="OpenAI hosted model for text generation",
+        tags=["openai", "hosted"],
+    )
+    spec = ModelType(
         input_spec=convert_to_record_spec({"text": str}),
         output_spec=convert_to_record_spec({"generated_text": str}),
     )
@@ -74,9 +77,12 @@ class OpenAIModelForCompletion(OpenAIModel):
 
 @models.register("bench.openai.text_classification")
 class OpenAIModelForClassification(OpenAIModel):
-    spec = ModelSpec(
-        name="bench.openai.text_classification",
+    metadata = ModelHandlerMetadata(
+        name="OpenAI classification",
         description="OpenAI hosted model for text classification",
+        tags=["openai", "hosted"],
+    )
+    spec = ModelType(
         input_spec=convert_to_record_spec(
             {
                 "text": str,

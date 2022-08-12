@@ -1,3 +1,4 @@
+unravelSpec
 <template>
   <form class="flex flex-col gap-3">
     <div class="sm:col-span-4" v-for="field in specs" :key="field.name">
@@ -17,9 +18,16 @@
   </form>
 </template>
 <script lang="ts" setup>
-import { isFieldType, unravelFieldSpec, type FieldSpec, type FieldTypePrimitive, type RecordSpec } from "@/types";
+import {
+  isFieldSpec,
+  isFieldType,
+  unravelSpec,
+  type FieldSpec,
+  type FieldTypePrimitive,
+  type RecordSpec,
+} from "@/types";
 import { computed, type Ref } from "vue";
-import FieldValueInterface from "./FieldValueInterface.vue";
+import FieldValueInterface from "@/components/FieldValueInterface.vue";
 
 const props = defineProps<{
   spec: RecordSpec[];
@@ -39,5 +47,5 @@ function isOptional(field: FieldSpec): boolean | undefined {
   return isFieldType(field.type) && (field.type as FieldTypePrimitive).optional;
 }
 
-const specs: Ref<FieldSpec[]> = computed(() => unravelFieldSpec(props.spec));
+const specs: Ref<FieldSpec[]> = computed(() => unravelSpec(props.spec).filter(isFieldSpec));
 </script>

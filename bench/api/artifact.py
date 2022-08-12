@@ -14,8 +14,8 @@ from bench.executor import executor
 from bench.models import Artifact, ArtifactVersion
 from bench.models.artifact import ArtifactView
 from bench.models.utils import MAX_NAME_LENGTH
-from bench.utils.serializer import DatasetSpecSerializer, ModelSpecSerializer
-from bench.utils.spec import DatasetSpec, ModelSpec
+from bench.utils.serializer import DatasetTypeSerializer, ModelTypeSerializer
+from bench.utils.spec import DatasetType, ModelType
 
 logger = structlog.stdlib.get_logger()
 
@@ -100,10 +100,10 @@ class ArtifactViewSerializer(serializers.ModelSerializer):
 def _get_serialized_runtime_spec(artifact: ArtifactVersion) -> dict:
     """Gets the serialized runtime spec (as opposed to configured spec) for an artifact"""
     spec = executor.get_runtime_artifact_spec(artifact)
-    if isinstance(spec, ModelSpec):
-        serialized_spec = ModelSpecSerializer(spec).data
-    elif isinstance(spec, DatasetSpec):
-        serialized_spec = DatasetSpecSerializer(spec).data
+    if isinstance(spec, ModelType):
+        serialized_spec = ModelTypeSerializer(spec).data
+    elif isinstance(spec, DatasetType):
+        serialized_spec = DatasetTypeSerializer(spec).data
     else:
         raise serializers.ValidationError(f"invalid artifact: {artifact}")
     return serialized_spec

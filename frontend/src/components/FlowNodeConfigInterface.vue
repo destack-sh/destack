@@ -22,12 +22,17 @@
       </div>
     </div>
     <div class="pt-4" v-if="selectedFunctionHandler">
-      <RecordForm :spec="reduceToFieldSpec(selectedFunctionHandler.config_spec)" v-model="configRecord" />
-      <ConfigArtifactForm :spec="selectedFunctionHandler.config_spec" v-model="configArtifacts" />
+      <RecordForm
+        :spec="reduceToFieldSpec(Object.values(selectedFunctionHandler.config_spec))"
+        v-model="configRecord"
+      />
+      <ConfigArtifactForm
+        :spec="(Object.values(selectedFunctionHandler.config_spec).filter(isArtifactSpec) as ArtifactSpec[])"
+        v-model="configArtifacts"
+      />
     </div>
     <div class="pt-4">
       <div class="flex justify-end">
-        <!-- TODO @Feature: use proper form validation -->
         <button
           type="submit"
           class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
@@ -45,7 +50,9 @@ import FunctionHandlerSelect from "@/components/FunctionHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import { useMetaStore } from "@/stores";
 import {
+  isArtifactSpec,
   reduceToFieldSpec,
+  type ArtifactSpec,
   type ArtifactConnection,
   type FlowNode,
   type FlowVersion,
@@ -53,7 +60,6 @@ import {
 } from "@/types";
 import { artifactConnections } from "@/utils/flows";
 import { computed, ref, toRef, watch, type Ref } from "vue";
-
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
 
 const name: Ref<string> = ref("");
@@ -84,7 +90,7 @@ watch(
       return;
     }
     name.value = props.existingNode.name;
-    selectedFunctionHandler.value = metaStore.functionHandlersByName[props.existingNode.function_id];
+    selectedFunctionHandler.value = metaStore.functionHandlersById[props.existingNode.function_id];
     configRecord.value = props.existingNode.config_arguments || {};
     configArtifacts.value = artifactConnections(props.flow, props.existingNode, "argument");
   },

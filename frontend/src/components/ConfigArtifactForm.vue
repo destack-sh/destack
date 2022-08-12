@@ -1,6 +1,6 @@
 <template>
   <form class="flex flex-col gap-3">
-    <div class="sm:col-span-4" v-for="field in specs" :key="field.name">
+    <div class="sm:col-span-4" v-for="field in props.spec" :key="field.name">
       <label for="username" class="block text-sm font-medium text-gray-700">
         {{ field.name }}
         <span v-if="isOptional(field)" class="font-normal text-gray-500">(optional)</span>
@@ -16,21 +16,12 @@
 </template>
 <script lang="ts" setup>
 import { useArtifactsStore } from "@/stores";
-import {
-  isArtifactType,
-  unravelConfigSpec,
-  type Artifact,
-  type ArtifactConnection,
-  type ArtifactType,
-  type ConfigSpec,
-  type FieldSpec,
-} from "@/types";
+import { isArtifactType, type Artifact, type ArtifactConnection, type ArtifactSpec, type ArtifactType } from "@/types";
 import { splitNameVersion } from "@/utils/versioning";
-import { computed, type Ref } from "vue";
 import ArtifactSelect from "./ArtifactSelect.vue";
 
 const props = defineProps<{
-  spec: ConfigSpec;
+  spec: ArtifactSpec[];
   modelValue: Record<string, ArtifactConnection>;
 }>();
 const emit = defineEmits<{
@@ -47,13 +38,13 @@ function artifact(connection?: ArtifactConnection) {
   return artifactsStore.artifact(artifact);
 }
 
-function unsetArtifactConnection(field: FieldSpec) {
+function unsetArtifactConnection(field: ArtifactSpec) {
   const newRecord: Record<string, ArtifactConnection> = { ...props.modelValue };
   delete newRecord[field.name];
   return newRecord;
 }
 
-function setArtifactConnection(field: FieldSpec, value: Artifact) {
+function setArtifactConnection(field: ArtifactSpec, value: Artifact) {
   if (value.latest_version == null) {
     throw new Error(`${value.name} does not have a latest version and that's all ArtifactSelect can handle`);
   }
@@ -68,11 +59,7 @@ function setArtifactConnection(field: FieldSpec, value: Artifact) {
   emit("update:modelValue", newRecord);
 }
 
-function isOptional(field: FieldSpec): boolean | undefined {
+function isOptional(field: ArtifactSpec): boolean | undefined {
   return isArtifactType(field.type) && (field.type as ArtifactType).optional;
 }
-
-const specs: Ref<FieldSpec[]> = computed(
-  () => unravelConfigSpec(props.spec).filter((spec) => isArtifactType(spec.type)) as FieldSpec[]
-);
 </script>

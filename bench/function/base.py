@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 from abc import ABC
 from dataclasses import dataclass
 from typing import (
@@ -19,15 +18,24 @@ from typing import (
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
-    ArtifactSetSpec,
-    ConfigSpec,
-    FunctionSpec,
+    AnySpec,
+    ArtifactSetType,
+    FieldSpec,
+    FunctionType,
     RecordSpec,
-    convert_to_config_spec,
+    convert_to_config_type_spec,
     convert_to_record_spec,
-    infer_config_spec,
+    infer_config_type,
+    infer_name,
     reduce_to_record_type_spec,
 )
+
+
+@dataclass
+class FunctionMetadata:
+    name: str
+    description: str
+    tags: Optional[list[str]] = None
 
 
 class Function(ABC):
@@ -35,7 +43,8 @@ class Function(ABC):
     A generic pure function that operates either on records/batches or on artifacts.
     """
 
-    config_spec: ConfigSpec
+    metadata: FunctionMetadata
+    config_spec: Mapping[str, AnySpec]
 
 
 class ArtifactFunction(Function, ABC):
@@ -43,8 +52,8 @@ class ArtifactFunction(Function, ABC):
     A pure function that operates on artifacts.
     """
 
-    input_spec: Mapping[str, ArtifactSetSpec]
-    output_spec: OrderedDict[str, ArtifactSetSpec]
+    input_spec: Mapping[str, ArtifactSetType]
+    output_spec: OrderedDict[str, ArtifactSetType]
 
 
 class RecordFunction(Function, ABC):
@@ -144,11 +153,11 @@ def map_to_function_cls(func: Any, impl: Optional[Type[Function]]) -> Type[Funct
 
 def map_cls_to_function_cls(func: Type[Function]) -> Type[Function]:
     if hasattr(func, "config_spec"):
-        declared_config_spec = convert_to_config_spec(func.config_spec)
+        declared_config_spec = convert_to_config_type_spec(func.config_spec)
     else:
         declared_config_spec = None
     # TODO @Robustness: check declared_config_spec against inferred_config_spec
-    inferred_config_spec = infer_config_spec(func.__init__)  # noqa
+    inferred_config_spec = infer_config_type(func.__init__)  # noqa
 
     # overwrite config spec with clean config
     config_spec = declared_config_spec or inferred_config_spec
@@ -162,18 +171,14 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
     Implementation is basic right now and cannot construct any complex functions.
     """
 
-    inferred_config_spec = infer_config_spec(func)
+    inferred_config_spec = infer_config_type(func)
     try:
         inferred_input_type = reduce_to_record_type_spec(inferred_config_spec.type)
     except ValueError as e:
         raise ValueError("callable function definition has non-FieldType parameters") from e
     inferred_input_spec = convert_to_record_spec(inferred_input_type)
 
-    actual_config_spec = ConfigSpec(
-        name=inferred_config_spec.name,
-        description=inferred_config_spec.description,
-        type={},  # actual config is empty
-    )
+    actual_config_spec = {}  # actual config is empty
     attrs: dict = {
         "__call__": func,
         "config_spec": actual_config_spec,
@@ -194,7 +199,8 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
             f"mapping callable {get_qualified_name(func)} to non-Record functions it not supported"
         )
 
-    func_cls: Type[Function] = cast(Type[Function], type(inferred_config_spec.name, (impl,), attrs))
+    name = infer_name(func)
+    func_cls: Type[Function] = cast(Type[Function], type(name, (impl,), attrs))
     return func_cls
 
 
@@ -205,20 +211,18 @@ import bench.function.test  # noqa
 import bench.function.transform.text  # noqa
 import bench.function.utils  # noqa
 
-
-class FunctionType(enum.Enum):
-    RecordTransform = "RecordTransform"
-    Metric = "MetricFunction"
-    Test = "Test"
+FunctionHandlerType = Union[Literal["RecordTransform"], Literal["Metric"], Literal["Test"]]
 
 
 @dataclass
 class FunctionHandlerSpec:
+    id: str
     name: str
     description: str
-    type: Union[Literal["RecordTransform"], Literal["MetricFunction"], Literal["Test"]]
-    config_spec: ConfigSpec
-    base_spec: FunctionSpec
+    tags: list[str]
+    type: Union[Literal["RecordTransform"], Literal["Metric"], Literal["Test"]]
+    config_spec: Mapping[str, FieldSpec]
+    base_spec: FunctionType
 
 
 def get_function_handler_specs() -> list[FunctionHandlerSpec]:
@@ -229,43 +233,38 @@ def get_function_handler_specs() -> list[FunctionHandlerSpec]:
     return function_handler_specs
 
 
-def get_function_type(function_cls: Type[Function]) -> FunctionType:
+def get_function_handler_type(function_cls: Type[Function]) -> FunctionHandlerType:
     if issubclass(function_cls, Test):
-        return FunctionType.Test
+        return "Test"
     elif issubclass(function_cls, Metric):
-        return FunctionType.Metric
+        return "Metric"
     elif issubclass(function_cls, RecordTransform):
-        return FunctionType.RecordTransform
+        return "RecordTransform"
     else:
         raise ValueError(f"unexpected function type: {function_cls}")
 
 
 def get_function_handler_spec(handler_id: str) -> FunctionHandlerSpec:
     function_cls = get_function_cls(handler_id)
-    config_spec: ConfigSpec = function_cls.config_spec
-    function_type = get_function_type(function_cls)
+    function_type = get_function_handler_type(function_cls)
 
     if not issubclass(function_cls, RecordFunction):
         raise ValueError(f"unexpected function: {function_cls}")
 
-    base_spec = FunctionSpec(
-        name=handler_id,
-        description=config_spec.description,
+    base_spec = FunctionType(
         input_spec=function_cls.input_spec,
         output_spec=function_cls.output_spec,
     )
     function_handler_spec = FunctionHandlerSpec(
-        name=handler_id,
-        description=base_spec.description,
-        type=function_type.value,
-        config_spec=config_spec,
+        id=handler_id,
+        name=function_cls.metadata.name,
+        description=function_cls.metadata.description,
+        tags=function_cls.metadata.tags or [],
+        type=function_type,
+        config_spec=function_cls.config_spec,
         base_spec=base_spec,
     )
     return function_handler_spec
-
-
-def get_config_spec(function_id: str) -> ConfigSpec:
-    return convert_to_config_spec(functions[function_id].config_spec)
 
 
 def get_function_cls(handler_id: str) -> Type[Function]:

@@ -12,7 +12,7 @@ from rest_framework import serializers
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import DATASET_TYPE
 from bench.utils.serializer import RecordSpecSerializer
-from bench.utils.spec import DatasetSpec, RecordSpec
+from bench.utils.spec import DatasetType, RecordSpec
 
 
 class DatasetManager(ArtifactManager):
@@ -108,12 +108,8 @@ class DatasetVersion(ArtifactVersion):
         return self.metadata_typed.record_spec
 
     @property
-    def spec(self) -> DatasetSpec:
-        return DatasetSpec(
-            name=self.artifact.name,
-            description=self.artifact.description or "",
-            record_spec=self.metadata_typed.record_spec,
-        )
+    def spec(self) -> DatasetType:
+        return DatasetType(record_spec=self.metadata_typed.record_spec)
 
     class Meta:
         proxy = True

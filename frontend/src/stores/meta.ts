@@ -5,14 +5,14 @@ import { defineStore } from "pinia";
 export const useMetaStore = defineStore("meta", {
   state: () => ({
     modelHandlers: [] as Array<ModelHandlerSpec>,
-    modelHandlersByName: {} as Record<string, ModelHandlerSpec>,
+    modelHandlersById: {} as Record<string, ModelHandlerSpec>,
     functionHandlers: [] as Array<FunctionHandlerSpec>,
-    functionHandlersByName: {} as Record<string, FunctionHandlerSpec>,
+    functionHandlersById: {} as Record<string, FunctionHandlerSpec>,
   }),
   getters: {
     modelHandler(): (handlerId: string) => ModelHandlerSpec {
       return (handlerId) => {
-        const handler = this.modelHandlersByName[handlerId];
+        const handler = this.modelHandlersById[handlerId];
         if (handler == null) {
           throw new Error(`handler wiht id ${handlerId} does not exist`);
         }
@@ -28,10 +28,10 @@ export const useMetaStore = defineStore("meta", {
       ]);
 
       this.modelHandlers = modelHandlers;
-      this.modelHandlers.forEach((handler) => (this.modelHandlersByName[handler.name] = handler));
+      this.modelHandlers.forEach((handler) => (this.modelHandlersById[handler.id] = handler));
 
       this.functionHandlers = functionHandlers;
-      this.functionHandlers.forEach((handler) => (this.functionHandlersByName[handler.name] = handler));
+      this.functionHandlers.forEach((handler) => (this.functionHandlersById[handler.id] = handler));
     },
     async dehyrate() {
       this.$reset();

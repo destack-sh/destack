@@ -48,7 +48,7 @@ from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import dict_to_ordered, terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ArtifactSpec, FieldTypePrimitive, FieldTypeSpec
+from bench.utils.spec import ArtifactType, FieldTypePrimitive, FieldTypeSpec
 
 logger = structlog.stdlib.get_logger()
 
@@ -168,9 +168,8 @@ class LocalExecutor(Executor):
         else:
             raise NotImplementedError(f"cannot load: {artifact}")
 
-    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactSpec:
-        artifact_handler = self.load_artifact(artifact)
-        return artifact_handler.runtime_spec
+    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactType:
+        return self.load_artifact(artifact).runtime_spec
 
     def run_model(
         self,
