@@ -98,11 +98,11 @@ export function isConfigSpec(obj: any) {
 }
 
 export function isArtifactSpec(obj: any) {
-  return obj._type == "DatasetSpec" || obj._type == "ModelSpec";
+  return obj._type == "ArtifactSpec";
 }
 
 export function isAnySpec(obj: any) {
-  return ["FieldSpec", "DatasetSpec", "ModelSpec"].includes(obj._type);
+  return ["FieldSpec", "ArtifactSpec"].includes(obj._type);
 }
 
 export type DatasetHandlerSpec = _Spec & {

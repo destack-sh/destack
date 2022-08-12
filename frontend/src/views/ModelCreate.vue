@@ -51,7 +51,7 @@
         <RecordForm
           class="mt-3"
           v-if="selectedHandler != null"
-          :spec="[selectedHandler.config_spec]"
+          :spec="Object.values(selectedHandler.config_spec)"
           v-model="modelConfigRecord"
         />
       </div>
@@ -73,20 +73,19 @@
 </template>
 <script lang="ts" setup>
 import { api } from "@/api";
-import { useArtifactsStore, useMetaStore } from "@/stores";
+import RecordForm from "@/components/RecordForm.vue";
+import Sidebar from "@/components/Sidebar.vue";
+import { useArtifactsStore } from "@/stores";
 import type { Artifact, ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import RecordForm from "@/components/RecordForm.vue";
-import Sidebar from "@/components/Sidebar.vue";
-import ModelHandlerSelect from "../components/ModelHandlerSelect.vue";
+import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
 
 const name: Ref<string> = ref("");
 const description: Ref<string> = ref("");
 
 const router = useRouter();
 const artifactsStore = useArtifactsStore();
-const metaStore = useMetaStore();
 
 const selectedHandler: Ref<ModelHandlerSpec | null> = ref(null);
 const modelConfigRecord: Ref<Record<string, any>> = ref({});
@@ -103,7 +102,7 @@ async function submit() {
     // TODO @Robustness: create model and initialize from template should be atomic
     // initialize repo
     const metadata: ModelMetadata = {
-      handler_id: selectedHandler.value.name,
+      handler_id: selectedHandler.value.id,
       config_arguments: modelConfigRecord.value,
     };
     await api.post<ArtifactVersion>(`/models/${artifact.name}/versions`, {

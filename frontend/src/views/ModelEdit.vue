@@ -7,7 +7,7 @@
         <RecordForm
           class="mt-3"
           v-if="selectedHandler != null"
-          :spec="[selectedHandler.config_spec]"
+          :spec="Object.values(selectedHandler.config_spec)"
           v-model="modelConfigRecord"
         />
         <ModelSpecSelect v-model="modelSpec" />
@@ -80,7 +80,7 @@ import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore, useMetaStore } from "@/stores";
-import type { ModelSpecEditable, ModelSpec, ModelMetadata, ArtifactVersion, ModelHandlerSpec } from "@/types";
+import type { ModelSpecEditable, ModelMetadata, ArtifactVersion, ModelHandlerSpec, ModelType } from "@/types";
 import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import ModelSpecSelect from "../components/ModelSpecSelect.vue";
@@ -100,7 +100,7 @@ const { result: runtimeModelSpec } = computedAsync(async () => {
     return null;
   }
   return await api
-    .get<ModelSpec>(`/artifacts/${props.model}/versions/${props.parent}/spec`)
+    .get<ModelType>(`/artifacts/${props.model}/versions/${props.parent}/spec`)
     .then((response) => response.data);
 });
 

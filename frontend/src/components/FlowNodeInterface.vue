@@ -50,7 +50,7 @@
       </Menu>
     </div>
     <div class="px-6 py-2 text-sm">
-      <ConfigArtifactForm :model-value="configArtifacts" :spec="Object.values(configSpec)" />
+      <ConfigArtifactForm :model-value="configArtifacts" :spec="Object.values(configSpec).filter(isArtifactSpec)" />
     </div>
   </div>
 </template>
@@ -62,6 +62,7 @@ import { DotsVerticalIcon, DuplicateIcon, PencilAltIcon, TrashIcon } from "@hero
 import { computed } from "vue";
 import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
 import { artifactConnections } from "@/utils/flows";
+import { isArtifactSpec } from "@/types/spec";
 
 const props = defineProps<{
   flow: FlowVersion;

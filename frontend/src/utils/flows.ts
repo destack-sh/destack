@@ -87,13 +87,13 @@ export function isPortSatisfied(flow: FlowVersion, port: FlowNodePort): boolean 
 
 export function flowPorts(
   flow: FlowVersion,
-  functionHandlersByName: Record<string, FunctionHandlerSpec>,
+  functionHandlersById: Record<string, FunctionHandlerSpec>,
   ofType?: FlowNodePortType
 ): FlowNodePort[] {
   if (flow.nodes == null) {
     return [];
   }
-  return flow.nodes.flatMap((node) => nodePorts(node, functionHandlersByName, ofType));
+  return flow.nodes.flatMap((node) => nodePorts(node, functionHandlersById, ofType));
 }
 
 export function getFlowNodePortId(port: Omit<FlowNodePort, "id">): string {
@@ -125,10 +125,10 @@ export function nodeEdgePorts(flow: FlowVersion, edge: FlowNodeEdge): { source: 
 
 export function nodePorts(
   node: FlowNode,
-  functionHandlersByName: Record<string, FunctionHandlerSpec>,
+  functionHandlersById: Record<string, FunctionHandlerSpec>,
   ofType?: FlowNodePortType
 ): FlowNodePort[] {
-  const functionSpec = functionHandlersByName[node.function_id];
+  const functionSpec = functionHandlersById[node.function_id];
 
   let types: FlowNodePortType[] = ["input", "output", "argument"] as FlowNodePortType[];
   if (ofType != null) {
