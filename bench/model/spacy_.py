@@ -3,10 +3,10 @@ from typing import Union, cast
 
 import spacy
 
-from bench.model.base import ModelHandler, models
+from bench.model.base import ModelHandler, ModelHandlerMetadata, models
 from bench.model.utils import TOKENS_SPEC, make_entities_spec, make_scored_labels_spec
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ClassLabelType, ModelSpec, RecordSpec, convert_to_record_spec
+from bench.utils.spec import ClassLabelType, ModelType, RecordSpec, convert_to_record_spec
 
 
 class SpacyModelBase(ModelHandler, abc.ABC):
@@ -20,10 +20,10 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         super().__init__(**kwargs)
 
     @property
-    def runtime_spec(self) -> ModelSpec:
+    def runtime_spec(self) -> ModelType:
         return self.infer_spec()
 
-    def infer_spec(self) -> ModelSpec:
+    def infer_spec(self) -> ModelType:
         input_spec = RecordSpec(
             name="input",
             description="",
@@ -47,7 +47,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
             description="",
             type=convert_to_record_spec(output_type),
         )
-        return ModelSpec(name="", description="", input_spec=input_spec, output_spec=output_spec)
+        return ModelType(input_spec=input_spec, output_spec=output_spec)
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:
         tokens: list[dict] = [
@@ -92,10 +92,11 @@ class SpacyModelBase(ModelHandler, abc.ABC):
 
 @models.register("bench.spacy.bundled")
 class SpacyModelBundled(SpacyModelBase):
-    """
-    Spacy model wrapper for models pre-bundled with spacy.
-    """
-
+    metadata = ModelHandlerMetadata(
+        name="SpaCy model bundled",
+        description="SpaCy model pre-bundled (with SpaCy " + spacy.__version__ + ")",
+        tags=["spacy"],
+    )
     config_static_keys = {"model_name"}
 
     def __init__(self, model_name: str, **kwargs):
@@ -112,10 +113,11 @@ class SpacyModelBundled(SpacyModelBase):
 
 @models.register("bench.spacy.custom")
 class SpacyModelCustom(SpacyModelBase):
-    """
-    Spacy model wrapper for custom models (model + config).
-    """
-
+    metadata = ModelHandlerMetadata(
+        name="SpaCy model custom",
+        description="SpaCy model custom (for SpaCy " + spacy.__version__ + ")",
+        tags=["spacy"],
+    )
     config_static_keys = {"model_path", "config_path"}
 
     def __init__(self, model_path: str, config_path: str, **kwargs):

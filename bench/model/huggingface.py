@@ -7,9 +7,9 @@ import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from bench.artifact.base import NO_STATIC_KEYS
-from bench.model.base import UnbatchedModelHandler, models
+from bench.model.base import ModelHandlerMetadata, UnbatchedModelHandler, models
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ModelSpec, convert_to_record_spec
+from bench.utils.spec import ModelType, convert_to_record_spec
 
 logger = structlog.stdlib.get_logger()
 
@@ -17,9 +17,12 @@ logger = structlog.stdlib.get_logger()
 # TODO @Feature: HuggingFaceModel only works for sequence classification task
 @models.register("bench.huggingface.sequence_classification")
 class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
-    base_spec = ModelSpec(
-        name="bench.huggingface.sequence_classification",
+    metadata = ModelHandlerMetadata(
+        name="HuggingFace sequence classification",
         description="HuggingFace local model for sequence classification",
+        tags=["huggingface"],
+    )
+    base_spec = ModelType(
         input_spec=convert_to_record_spec({"text": str}),
         output_spec=convert_to_record_spec({"text": str}),
     )
@@ -81,9 +84,12 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
 
 @models.register("bench.huggingface.hosted.text_generation")
 class HuggingFaceHostedGenerationModel(HuggingFaceHostedModel):
-    base_spec = ModelSpec(
-        name="bench.huggingface.hosted.text_generation",
+    metadata = ModelHandlerMetadata(
+        name="HuggingFace hosted text generation",
         description="HuggingFace hosted model for text generation",
+        tags=["huggingface", "hosted"],
+    )
+    base_spec = ModelType(
         input_spec=convert_to_record_spec({"text": str}),
         output_spec=convert_to_record_spec({"generated_text": str}),
     )

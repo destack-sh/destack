@@ -5,7 +5,7 @@ import datasets as hf_datasets
 
 from bench.dataset.base import DatasetReader, datasets
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetSpec, FieldSpec, FieldValue, RecordSpec, RecordTypeSpec
+from bench.utils.spec import DatasetType, FieldSpec, FieldValue, RecordSpec, RecordTypeSpec
 
 
 # TODO @Feature: map HF dataset field values to our field value types (where necessary)
@@ -17,7 +17,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         version: Optional[str] = None,
         split: str = "train",
         use_auth_token: Optional[str] = None,
-        spec: Optional[DatasetSpec] = None,
+        spec: Optional[DatasetType] = None,
     ):
         """
         A HuggingFace datasets-backed Dataset handler.
@@ -35,11 +35,7 @@ class HuggingFaceHubDatasetReader(DatasetReader):
         )
         record_type = _hf_features_to_record_type(self._dataset.features)
         record_spec = RecordSpec(type=record_type, name="", description="")
-        dataset_spec = spec or DatasetSpec(
-            name=dataset_name,
-            description=self._dataset.info.description,
-            record_spec=record_spec,
-        )
+        dataset_spec = spec or DatasetType(record_spec=record_spec)
         super().__init__(spec=dataset_spec)
 
     @typing.overload

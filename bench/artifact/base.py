@@ -1,9 +1,9 @@
 import abc
-from typing import Optional, cast
+from typing import Mapping, Optional, cast
 
 from fsspec import AbstractFileSystem
 
-from bench.utils.spec import ArtifactSpec, RecordSpec
+from bench.utils.spec import ArtifactType, FieldSpec
 
 NO_STATIC_KEYS = cast(set[str], set())
 
@@ -16,7 +16,7 @@ class ArtifactHandler(abc.ABC):
     """
 
     # Config spec to configure this handler.
-    config_spec: RecordSpec
+    config_spec: Mapping[str, FieldSpec]
     # Config values are immutable after init. If not set, defaults to all keys.
     config_static_keys: set[str]
     # Three types of spec:
@@ -24,9 +24,9 @@ class ArtifactHandler(abc.ABC):
     #  - spec may be configured and applies to this specific artifact and handler
     #  - runtime_spec is derived from this specific artifact at runtime
     # Generic base spec for this handler (before configuration).
-    base_spec: Optional[ArtifactSpec]
+    base_spec: Optional[ArtifactType]
     # Generic spec for this handler.
-    spec: ArtifactSpec
+    spec: ArtifactType
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class ArtifactHandler(abc.ABC):
         self._version = version
 
     @property
-    def runtime_spec(self) -> ArtifactSpec:
+    def runtime_spec(self) -> ArtifactType:
         """Gets the actual *runtime* spec of the current model (if different from configured)"""
         return self.base_spec or self.spec
 

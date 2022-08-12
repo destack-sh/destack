@@ -13,7 +13,7 @@ from rest_framework import serializers
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import MODEL_TYPE
 from bench.utils.serializer import RecordSpecSerializer
-from bench.utils.spec import ModelSpec, RecordSpec
+from bench.utils.spec import ModelType, RecordSpec
 
 
 class ModelManager(ArtifactManager):
@@ -116,13 +116,8 @@ class ModelVersion(ArtifactVersion):
         return self.metadata_typed.output_spec
 
     @property
-    def spec(self) -> ModelSpec:
-        return ModelSpec(
-            name=self.artifact.name,
-            description=self.artifact.description or "",
-            input_spec=self.input_spec,
-            output_spec=self.output_spec,
-        )
+    def spec(self) -> ModelType:
+        return ModelType(input_spec=self.input_spec, output_spec=self.output_spec)
 
     class Meta:
         proxy = True

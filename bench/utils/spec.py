@@ -213,6 +213,12 @@ class DatasetType(ArtifactType):
 
 
 @dataclass
+class FunctionType(_Type):
+    input_spec: Mapping[str, RecordSpec]
+    output_spec: typing.OrderedDict[str, RecordSpec]
+
+
+@dataclass
 class _Spec(abc.ABC):
     # name may be empty but not None if not set
     name: str
@@ -231,24 +237,12 @@ FIELD_SPEC_TYPES: List[Type[_Spec]] = [FieldSpec]
 
 @dataclass
 class ArtifactSpec(_Spec):
-    pass
-
-
-@dataclass
-class ModelSpec(ArtifactSpec):
-    input_spec: RecordSpec
-    output_spec: RecordSpec
-
-
-@dataclass
-class DatasetSpec(ArtifactSpec):
-    record_spec: RecordSpec
+    type: ArtifactType
 
 
 @dataclass
 class FunctionSpec(_Spec):
-    input_spec: Mapping[str, RecordSpec]
-    output_spec: typing.OrderedDict[str, RecordSpec]
+    type: FunctionType
 
 
 @dataclass
@@ -261,10 +255,10 @@ RecordType = FieldType
 RecordTypeSpec = FieldTypeSpec
 
 AnyType = Union[Type[FieldValue], FieldType, RecordType, ModelType, DatasetType]
-AnySpec = Union[FieldSpec, RecordSpec, ModelSpec, DatasetSpec]
+AnySpec = Union[FieldSpec, ArtifactSpec]
 
 CONFIG_TYPES: List[Type[_Type]] = [*FIELD_TYPES, ModelType, DatasetType]
-CONFIG_SPEC_TYPES: List[Type[_Spec]] = [*FIELD_SPEC_TYPES, ModelSpec, DatasetSpec]
+CONFIG_SPEC_TYPES: List[Type[_Spec]] = [*FIELD_SPEC_TYPES, ArtifactSpec]
 ConfigType = Mapping[str, Union[AnyType, AnySpec]]
 ConfigTypeSpec = Mapping[str, AnySpec]
 
@@ -313,14 +307,16 @@ def convert_to_record_type_spec(
         return cast(RecordTypeSpec, converted_value_spec)
 
 
-def convert_to_model_spec(spec: Union[ModelType, ModelSpec]) -> ModelSpec:
-    if isinstance(spec, ModelSpec):
+def convert_to_artifact_spec(spec: Union[ModelType, ArtifactSpec]) -> ArtifactSpec:
+    if isinstance(spec, ArtifactSpec):
         return spec
-    return ModelSpec(
+    return ArtifactSpec(
         name="",
         description="",
-        input_spec=convert_to_record_spec(spec.input_spec),
-        output_spec=convert_to_record_spec(spec.output_spec),
+        type=ModelType(
+            input_spec=convert_to_record_spec(spec.input_spec),
+            output_spec=convert_to_record_spec(spec.output_spec),
+        ),
     )
 
 
@@ -344,7 +340,7 @@ def convert_to_record_spec(
 
 
 def convert_to_config_type(spec: Mapping[str, Union[AnyType, AnySpec]]) -> ConfigTypeSpec:
-    spec = _convert_to_config_type_spec(spec)
+    spec = convert_to_config_type_spec(spec)
     # no special logic for config spec yet
     return spec
 
@@ -353,16 +349,16 @@ def convert_to_config_spec(
     spec: Union[ConfigSpec, Mapping[str, Union[AnyType, AnySpec]]]
 ) -> ConfigSpec:
     if isinstance(spec, ConfigSpec):
-        converted_spec = _convert_to_config_type_spec(spec.type)
+        converted_spec = convert_to_config_type_spec(spec.type)
         spec = ConfigSpec(name=spec.name, description=spec.description, type=converted_spec)
         return spec
     else:
-        converted_spec = _convert_to_config_type_spec(spec)
+        converted_spec = convert_to_config_type_spec(spec)
         spec = ConfigSpec(name="", description="", type=converted_spec)
         return spec
 
 
-def _convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
+def convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
     converted_spec: dict[str, AnySpec] = {}
     for key, value in spec.items():
         converted_spec[key] = type_to_spec(name=key, description="", typ=value, ignore_spec=True)
@@ -467,18 +463,21 @@ def type_to_spec(
     if isinstance(typ, type):
         # TODO @Robustness: don't ignore unknown types in _impl_type_to_type
         typ = _impl_type_to_type(typ, optional, default, ignore_unknown=True)
-    elif isinstance(typ, DatasetType):
-        return DatasetSpec(
+
+    if isinstance(typ, DatasetType):
+        return ArtifactSpec(
             name=name,
             description=description,
-            record_spec=convert_to_record_spec(typ.record_spec),
+            type=DatasetType(record_spec=convert_to_record_spec(typ.record_spec)),
         )
     elif isinstance(typ, ModelType):
-        return ModelSpec(
+        return ArtifactSpec(
             name=name,
             description=description,
-            input_spec=convert_to_record_spec(typ.input_spec),
-            output_spec=convert_to_record_spec(typ.output_spec),
+            type=ModelType(
+                input_spec=convert_to_record_spec(typ.input_spec),
+                output_spec=convert_to_record_spec(typ.output_spec),
+            ),
         )
 
     # At this point, we aren't quite sure that 'value' is an appropriate type.

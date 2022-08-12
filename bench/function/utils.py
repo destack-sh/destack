@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from typing import Union
 
-from bench.function.base import RecordTransform, functions
+from bench.function.base import FunctionMetadata, RecordTransform, functions
 from bench.model.base import ModelHandler
 from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import BLANK_RECORD_SPEC
@@ -9,6 +9,8 @@ from bench.utils.spec import BLANK_RECORD_SPEC
 
 @functions.register("bench.identity")
 class IdentityRecordTransform(RecordTransform):
+    metadata = FunctionMetadata("Identity", "Returns the input unchanged")
+
     input_spec = {"*": BLANK_RECORD_SPEC}
     output_spec = OrderedDict([("*", BLANK_RECORD_SPEC)])
 
@@ -21,6 +23,8 @@ class IdentityRecordTransform(RecordTransform):
 
 @functions.register("bench.model")
 class ModelRecordTransform(RecordTransform):
+    metadata = FunctionMetadata("Model", "Runs the model", tags=["model"])
+
     input_spec = {"*": BLANK_RECORD_SPEC}
     output_spec = OrderedDict([("*", BLANK_RECORD_SPEC)])
 

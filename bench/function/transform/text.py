@@ -3,10 +3,10 @@ import re
 from typing import Tuple, Union, cast
 
 from bench.dataset.base import DatasetReader
-from bench.function.base import SingleRecordTransform, functions
+from bench.function.base import FunctionMetadata, SingleRecordTransform, functions
 from bench.utils.func import dict_to_ordered
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetType, convert_to_config_spec, convert_to_record_spec
+from bench.utils.spec import DatasetType, convert_to_config_type_spec, convert_to_record_spec
 
 
 class TextTransform(SingleRecordTransform, abc.ABC):
@@ -45,19 +45,24 @@ class TextTransform(SingleRecordTransform, abc.ABC):
 
 @functions.register("bench.text.case.upper")
 class UpperCaseTextTransform(TextTransform):
+    metadata = FunctionMetadata("Upper case", "Transforms text to upper case", tags=["text"])
+
     def transform_text(self, text: str) -> str:
         return text.upper()
 
 
 @functions.register("bench.text.case.lower")
 class LowerCaseTextTransform(TextTransform):
+    metadata = FunctionMetadata("Lower case", "Transforms text to lower case", tags=["text"])
+
     def transform_text(self, text: str) -> str:
         return text.upper()
 
 
-@functions.register("bench.text.swap")
+@functions.register("bench.text.substitute")
 class TemplateTextSwapper(TextTransform):
-    config_spec = convert_to_config_spec(
+    metadata = FunctionMetadata("Text substitute", "Substitutes text patterns", tags=["text"])
+    config_spec = convert_to_config_type_spec(
         {
             "swaps_dataset": DatasetType(record_spec={"pattern": str, "replacement": str}),
             "spread_original": bool,

@@ -1,7 +1,7 @@
 import enum
 from typing import Optional, cast
 
-from bench.function.base import SingleRecordTransform, Test, functions
+from bench.function.base import FunctionMetadata, SingleRecordTransform, Test, functions
 from bench.utils.func import dict_to_ordered
 from bench.utils.record import Record
 from bench.utils.spec import convert_to_record_spec
@@ -52,6 +52,11 @@ class TestConstantComparison(SingleRecordTransform, Test):
 
 @functions.register("bench.test.compare_constant_int")
 class TestConstantComparisonInt(TestConstantComparison):
+    metadata = FunctionMetadata(
+        name="Compare constant int",
+        description="Compare value to constant integer",
+        tags=["compare"],
+    )
     input_spec = {"*": convert_to_record_spec(int)}
 
     def __init__(self, operator: ComparisonOperator, value: int, key: Optional[str] = None):
@@ -60,6 +65,11 @@ class TestConstantComparisonInt(TestConstantComparison):
 
 @functions.register("bench.test.compare_constant_float")
 class TestConstantComparisonFloat(TestConstantComparison):
+    metadata = FunctionMetadata(
+        name="Compare constant float",
+        description="Compare value to constant floating point number",
+        tags=["compare"],
+    )
     input_spec = {"*": convert_to_record_spec(float)}
 
     def __init__(self, operator: ComparisonOperator, value: float, key: Optional[str] = None):

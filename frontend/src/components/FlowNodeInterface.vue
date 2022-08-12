@@ -2,7 +2,9 @@
   <div class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
     <div class="flex flex-row items-center justify-between px-4 py-2 sm:px-6">
       <div>
-        <h3 class="text-md font-medium leading-6 text-gray-900">{{ node.function_id }}</h3>
+        <h3 class="text-md font-medium leading-6 text-gray-900">
+          {{ metaStore.functionHandlersById[node.function_id].name }}
+        </h3>
         <h5 class="text-xs font-normal text-gray-500">{{ node.name }}</h5>
       </div>
       <Menu v-if="editable" as="div" class="inline-block text-left">
@@ -48,7 +50,7 @@
       </Menu>
     </div>
     <div class="px-6 py-2 text-sm">
-      <ConfigArtifactForm :model-value="configArtifacts" :spec="configSpec" />
+      <ConfigArtifactForm :model-value="configArtifacts" :spec="Object.values(configSpec)" />
     </div>
   </div>
 </template>
@@ -90,5 +92,5 @@ const actions = [
 
 const metaStore = useMetaStore();
 const configArtifacts = computed(() => artifactConnections(props.flow, props.node, "argument"));
-const configSpec = computed(() => metaStore.functionHandlersByName[props.node.function_id].config_spec);
+const configSpec = computed(() => metaStore.functionHandlersById[props.node.function_id].config_spec);
 </script>

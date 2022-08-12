@@ -1,5 +1,6 @@
 import abc
-from typing import Any, Iterable, Optional, Tuple, Type, Union
+from dataclasses import dataclass
+from typing import Any, Iterable, Optional, Tuple, Type
 
 import cachetools
 from cachetools import LRUCache
@@ -8,7 +9,14 @@ from fsspec import AbstractFileSystem
 from bench.artifact.base import ArtifactHandler
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import ConfigTypeSpec, DatasetSpec, DatasetType, RecordSpec, infer_config_type
+from bench.utils.spec import ConfigTypeSpec, DatasetType, RecordSpec, infer_config_type
+
+
+@dataclass
+class DatasetHandlerMetadata:
+    name: str
+    description: str
+    tags: list[str]
 
 
 class DatasetHandler(ArtifactHandler):
@@ -17,14 +25,16 @@ class DatasetHandler(ArtifactHandler):
     """
 
     # Known base dataset spec for all datasets of this handler.
-    base_spec: Union[None, DatasetType, DatasetSpec] = None
+    metadata: DatasetHandlerMetadata
+    base_spec: Optional[DatasetType] = None
+    spec: DatasetType
 
     def __init__(
         self,
         fs: AbstractFileSystem = None,
         path: Optional[str] = None,
         version: Optional[str] = None,
-        spec: Optional[DatasetSpec] = None,
+        spec: Optional[DatasetType] = None,
     ):
         super().__init__(fs=fs, path=path, version=version)
         if spec is None:
@@ -113,7 +123,7 @@ def load_dataset(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    spec: Optional[DatasetSpec],
+    spec: Optional[DatasetType],
     arguments: dict[str, Any],
 ) -> DatasetHandler:
     """
@@ -143,7 +153,7 @@ def get_dataset_reader(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    spec: Optional[DatasetSpec],
+    spec: Optional[DatasetType],
     arguments: dict[str, Any],
 ) -> DatasetReader:
     dataset_handler = load_dataset(
@@ -162,7 +172,7 @@ def get_dataset_writer(
     handler_id: str,
     storage_uri: Optional[str],
     version: Optional[str],
-    spec: Optional[DatasetSpec],
+    spec: Optional[DatasetType],
     **kwargs,
 ) -> DatasetWriter:
     dataset_handler = load_dataset(

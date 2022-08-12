@@ -11,9 +11,12 @@ from bench.utils.spec import (
     CONFIG_TYPES,
     FIELD_SPEC_TYPES,
     FIELD_TYPES,
+    ArtifactSpec,
+    DatasetType,
     FieldSpec,
     FieldType,
     FieldTypeSpec,
+    ModelType,
     RecordSpec,
     _Spec,
     _Type,
@@ -80,52 +83,70 @@ class SpecField(serializers.Field):
             return {key: self.to_internal_value(value) for key, value in data.items()}  # type: ignore
 
 
+class ConfigSpecField(SpecField):
+    def __init__(self, **kwargs):
+        super().__init__(types=[*CONFIG_TYPES, *CONFIG_SPEC_TYPES], **kwargs)
+
+
+class FieldSpecField(SpecField):
+    def __init__(self, **kwargs):
+        super().__init__(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES], **kwargs)
+
+
 class FieldSpecSerializer(SpecSerializer):
     type = SpecField(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES])
 
 
 class ConfigSpecSerializer(SpecSerializer):
-    type = SpecField(types=[*CONFIG_TYPES, *CONFIG_SPEC_TYPES])
+    type = ConfigSpecField()
 
 
 class RecordSpecSerializer(SpecSerializer):
-    type = SpecField(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES])
+    type = FieldSpecField()
 
     def create(self, validated_data):
         return RecordSpec(**validated_data)
 
 
-class DatasetSpecSerializer(SpecSerializer):
+class DatasetTypeSerializer(serializers.Serializer):
     record_spec = RecordSpecSerializer()
 
 
-class ModelSpecSerializer(SpecSerializer):
+class ModelTypeSerializer(serializers.Serializer):
     input_spec = RecordSpecSerializer()
     output_spec = RecordSpecSerializer()
 
 
+class ArtifactSpecSerializer(SpecSerializer):
+    type = SpecField(types=[ArtifactSpec, DatasetType, ModelType])
+
+
+class FunctionTypeSerializer(serializers.Serializer):
+    input_spec = DictField(child=FieldSpecField())
+    output_spec = DictField(child=FieldSpecField())
+
+
 class FunctionSpecSerializer(SpecSerializer):
-    input_spec = DictField(child=SpecField(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES]))
-    output_spec = DictField(child=SpecField(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES]))
+    type = FunctionTypeSerializer()
 
 
-class DatasetHandlerSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    description = serializers.CharField(required=False)
-    base_spec = DatasetSpecSerializer()
-    config_spec = ConfigSpecSerializer()
+class DatasetHandlerSpecSerializer(SpecSerializer):
+    id = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField())
+    base_spec = DatasetTypeSerializer()
+    config_spec = DictField(child=ConfigSpecField())
 
 
-class ModelHandlerSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    description = serializers.CharField(required=False)
-    base_spec = ModelSpecSerializer()
-    config_spec = ConfigSpecSerializer()
+class ModelHandlerSpecSerializer(SpecSerializer):
+    id = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField())
+    base_spec = ModelTypeSerializer()
+    config_spec = DictField(child=ConfigSpecField())
 
 
-class FunctionHandlerSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    description = serializers.CharField(required=False)
+class FunctionHandlerSpecSerializer(SpecSerializer):
+    id = serializers.CharField()
+    tags = serializers.ListField(child=serializers.CharField())
     type = serializers.CharField()
-    config_spec = ConfigSpecSerializer()
-    base_spec = FunctionSpecSerializer()
+    config_spec = DictField(child=ConfigSpecField())
+    base_spec = FunctionTypeSerializer()

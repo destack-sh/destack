@@ -22,7 +22,7 @@ from bench.models.record import (
     replace_record,
 )
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import DatasetSpec, FieldValue, RecordSpec
+from bench.utils.spec import DatasetType, FieldValue, RecordSpec
 
 
 # TODO @Architecture: what does DbDataset do? how does it relate to actual Dataset/DatasetVersion
@@ -36,7 +36,7 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
         self,
         artifact_id: UUID,
         version: str,
-        spec: Optional[DatasetSpec] = None,
+        spec: Optional[DatasetType] = None,
     ):
         self._dataset: DatasetVersion = DatasetVersion.objects.filter(
             artifact_id=artifact_id, version=version

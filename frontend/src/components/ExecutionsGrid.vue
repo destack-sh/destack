@@ -1,4 +1,4 @@
-mapNameVersion
+unravelSpecmapNameVersion
 <template>
   <table
     class="w-full border-separate align-middle shadow-sm ring-1 ring-black ring-opacity-5"
@@ -60,7 +60,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
-  unravelFieldSpec,
+  unravelSpec,
   type ArtifactVersion,
   type DatasetMetadata,
   type Execution,
@@ -160,7 +160,7 @@ function specFor(dataset: string): FieldSpec[] {
     return [];
   }
 
-  return unravelFieldSpec(spec as RecordSpec);
+  return unravelSpec(spec as RecordSpec);
 }
 
 function isValidSpec(spec: RecordSpec | undefined | null): boolean {

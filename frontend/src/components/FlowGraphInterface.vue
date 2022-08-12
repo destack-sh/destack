@@ -208,8 +208,8 @@ function buildVueFlowGraph() {
   let nodeRect = { width: 250, height: 150 };
   // "real" function nodes from the flow
   const flowNodes = (props.flow.nodes || []).map((node) => {
-    const targetPorts = nodePorts(node, metaStore.functionHandlersByName, "input");
-    const sourcePorts = nodePorts(node, metaStore.functionHandlersByName, "output");
+    const targetPorts = nodePorts(node, metaStore.functionHandlersById, "input");
+    const sourcePorts = nodePorts(node, metaStore.functionHandlersById, "output");
     return {
       id: node.id,
       label: node.name,
@@ -245,10 +245,10 @@ function buildVueFlowGraph() {
   edges.push(...flowNodeEdges);
 
   // "virtual" inputs (artifacts or record inputs, only supporting record input for now)
-  const virtualInputNodes = flowPorts(props.flow, metaStore.functionHandlersByName, "input")
+  const virtualInputNodes = flowPorts(props.flow, metaStore.functionHandlersById, "input")
     .filter((port) => !isPortSatisfied(props.flow, port))
     .map((port) => {
-      const functionSpec = metaStore.functionHandlersByName[port.node.function_id];
+      const functionSpec = metaStore.functionHandlersById[port.node.function_id];
       const inputSpec = functionSpec.base_spec.input_spec[port.name];
       return {
         id: port.id + "-virtual-input-node",
