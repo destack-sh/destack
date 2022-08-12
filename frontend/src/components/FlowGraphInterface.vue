@@ -72,11 +72,8 @@
             <div>
               <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
               <h5 class="text-xs font-normal text-gray-500">
-                {{ (props.data as VirtualNodeData).virtualForNode.name
-
-                }}<template v-if="(props.data as VirtualNodeData).virtualForNode.name != '*'"
-                  >.{{ props.data.virtualForPort.name }}
-                </template>
+                {{ props.data.virtualForNode.name }}
+                <template v-if="props.data.virtualForPort.name != '*'">.{{ props.data.virtualForPort.name }} </template>
               </h5>
             </div>
           </div>
@@ -168,7 +165,7 @@ function setRuntimeInputData(data: VirtualNodeData, record: Record<string, any>)
 
 const metaStore = useMetaStore();
 
-const { fitView, setElements } = useVueFlow({});
+const vueFlow = useVueFlow({});
 const currentVueFlowNodes: Ref<Record<string, Node>> = ref({});
 const currentVueFlowEdges: Ref<Record<string, Edge>> = ref({});
 
@@ -288,23 +285,23 @@ function buildVueFlowGraph() {
 }
 
 async function updateVueFlowGraph() {
-  const { nodes, edges } = buildVueFlowGraph();
-  const positioned = await elkLayout(nodes, edges);
-
-  // TODO @UI: transition update elements and viewport smoothly
-  setElements([...positioned.nodes, ...edges]);
-  fitView.apply({ padding: 0.2 });
-
-  // update local copy of current elements for simple lookup
+  const newGraph = buildVueFlowGraph();
+  const positioned = await elkLayout(newGraph.nodes, newGraph.edges);
   const vueFlowNodes: Record<string, Node> = {};
   for (const node of positioned.nodes) {
     vueFlowNodes[node.id] = node;
   }
-  currentVueFlowNodes.value = vueFlowNodes;
   const vueFlowEdges: Record<string, Edge> = {};
-  for (const edge of edges) {
+  for (const edge of newGraph.edges) {
     vueFlowEdges[edge.id] = edge;
   }
+
+  // TODO @UI: transition update elements and viewport smoothly
+  vueFlow.setElements([...positioned.nodes, ...positioned.edges]);
+  vueFlow.fitView({ padding: 0.2 });
+
+  // update local copy of current elements
+  currentVueFlowNodes.value = vueFlowNodes;
   currentVueFlowEdges.value = vueFlowEdges;
 }
 
@@ -317,7 +314,7 @@ watch(
   { immediate: true, deep: true }
 );
 
-async function elkLayout(nodes: Node[], edges: Edge[]): Promise<{ nodes: Node[]; edges: Edge[] }> {
+async function elkLayout(nodes: Omit<Node, "position">[], edges: Edge[]): Promise<{ nodes: Node[]; edges: Edge[] }> {
   const elk = new ELK();
   const elkNodes: Array<ElkNode> = nodes.map((n) => {
     const elkPorts = [];
@@ -372,7 +369,6 @@ async function elkLayout(nodes: Node[], edges: Edge[]): Promise<{ nodes: Node[];
       "spacing.portPort": "20",
     },
   });
-  console.log(positionedElkGraph);
 
   // map nodes to positions
   const positionedNodes = nodes.map((node) => {

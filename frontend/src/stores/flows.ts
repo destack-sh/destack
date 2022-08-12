@@ -146,6 +146,12 @@ export const useFlowsStore = defineStore("flows", {
       }
     },
 
+    _deleteFlowNode(flow: FlowVersion, node: FlowNode) {
+      flow.nodes = flow.nodes?.filter((n) => n.id != node.id) || [];
+      flow.node_edges = flow.node_edges?.filter((e) => e.dependency != node.id && e.dependent != node.id) || [];
+      flow.artifact_edges = flow.artifact_edges?.filter((e) => e.dependency != node.id) || [];
+    },
+
     _addFlowNodeEdge(flow: FlowVersion, nodeEdge: FlowNodeEdge) {
       if (flow.node_edges == null) {
         flow.node_edges = [];
@@ -250,7 +256,7 @@ export const useFlowsStore = defineStore("flows", {
 
     async deleteFlowNode(flow: FlowVersion, flowNode: FlowNode) {
       await api.delete(`${_flowUrl(flow)}/nodes/${flowNode.id}`);
-      flow.nodes = flow.nodes?.filter((node) => node.id != flowNode.id) || [];
+      this._deleteFlowNode(flow, flowNode);
     },
 
     async createFlow(flow: Pick<Flow, "name" | "description">): Promise<Flow> {
