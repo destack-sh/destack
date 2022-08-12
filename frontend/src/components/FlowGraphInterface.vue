@@ -69,12 +69,17 @@
           class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow"
         >
           <div class="flex flex-row items-center justify-between px-4 py-2 sm:px-6">
-            <div>
-              <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
-              <h5 class="text-xs font-normal text-gray-500">
-                {{ props.data.virtualForNode.name }}
-                <template v-if="props.data.virtualForPort.name != '*'">.{{ props.data.virtualForPort.name }} </template>
-              </h5>
+            <div class="flex flex-row items-center gap-2">
+              <PencilIcon class="h-6 w-6 flex-shrink-0 rounded-md text-orange-300" aria-hidden="true" />
+              <div>
+                <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
+                <h5 class="text-xs font-normal text-gray-500">
+                  {{ props.data.virtualForNode.name }}
+                  <template v-if="props.data.virtualForPort.name != '*'"
+                    >.{{ props.data.virtualForPort.name }}
+                  </template>
+                </h5>
+              </div>
             </div>
           </div>
           <div class="px-6 py-4 text-sm">
@@ -122,6 +127,7 @@ import {
   type Edge,
   type Node,
 } from "@braks/vue-flow";
+import { PencilIcon } from "@heroicons/vue/outline";
 import { PlusSmIcon } from "@heroicons/vue/solid";
 import ELK, { type ElkEdge, type ElkNode } from "elkjs";
 import { ref, watch, type Ref } from "vue";
