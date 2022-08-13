@@ -2,10 +2,10 @@
   <div class="h-2/3 w-full">
     <VueFlow
       class="relative border-t border-b border-gray-300"
-      :nodes-draggable="editable"
+      :nodes-draggable="false"
       :pan-on-drag="true"
       :pan-on-scroll="false"
-      :min-zoom="0.6"
+      :min-zoom="0.5"
       :max-zoom="1.0"
       :default-zoom="1.0"
       :connect-on-click="editable"
@@ -14,6 +14,7 @@
       :connection-mode="ConnectionMode.Strict"
       @connect="addConnection"
     >
+      <MiniMap :height="100" v-if="showMinimap" node-color="rgb(249 115 22)" />
       <Background :variant="BackgroundVariant.Dots" pattern-color="#bbbbbb" :size="0.6" :gap="12" />
       <!-- Custom controls -->
       <!-- Not sure if controls should be here or in FlowEdit/wrapper -->
@@ -68,9 +69,11 @@
           v-if="props.data"
           class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow"
         >
-          <div class="flex flex-row items-center justify-between px-4 py-2 sm:px-6">
+          <div class="flex flex-row items-center justify-between px-4 py-2">
             <div class="flex flex-row items-center gap-2">
-              <PencilIcon class="h-6 w-6 flex-shrink-0 rounded-md text-orange-300" aria-hidden="true" />
+              <span class="ring-3 inline-flex rounded-lg bg-orange-50 p-2 text-orange-700 ring-white">
+                <PencilIcon class="h-6 w-6" aria-hidden="true" />
+              </span>
               <div>
                 <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
                 <h5 class="text-xs font-normal text-gray-500">
@@ -121,6 +124,7 @@ import {
   ConnectionMode,
   Handle,
   Position,
+  MiniMap,
   useVueFlow,
   VueFlow,
   type Connection,
@@ -137,6 +141,7 @@ const props = defineProps<{
   runtimeData?: FlowRuntimeData;
   interactionData?: FlowInteractionData;
   editable?: boolean;
+  showMinimap?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "addNode", value: { inputNodes?: FlowNode[]; outputNodes?: FlowNode[] }): void;
