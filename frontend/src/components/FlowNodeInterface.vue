@@ -2,9 +2,11 @@
   <div class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
     <div class="flex flex-row items-center justify-between py-2 px-4">
       <div class="flex flex-row items-center gap-2">
-        <component :is="icon" class="h-6 w-6 flex-shrink-0 rounded-md text-orange-300" aria-hidden="true" />
+        <span class="ring-3 inline-flex rounded-lg bg-orange-50 p-2 text-orange-700 ring-white">
+          <component :is="icon" class="h-6 w-6" aria-hidden="true" />
+        </span>
         <div>
-          <h3 class="text-md font-medium leading-6 text-gray-900">
+          <h3 class="text-md truncate font-medium leading-6 text-gray-900">
             {{ metaStore.functionHandlersById[node.function_id].name }}
           </h3>
           <h5 class="text-xs font-normal text-gray-500">{{ node.name }}</h5>

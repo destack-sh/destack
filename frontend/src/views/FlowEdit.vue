@@ -12,6 +12,7 @@
       class="pt-6 sm:gap-4"
       :flow="flow"
       editable
+      show-minimap
       v-model:runtimeData="runtimeData"
       v-model:interactionData="interactionData"
       @add-node="promptAddNode"
