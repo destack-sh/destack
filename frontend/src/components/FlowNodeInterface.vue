@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
+  <div ref="container" class="w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
     <div class="flex flex-row items-center justify-between py-2 px-4">
       <div class="flex flex-row items-center gap-2">
         <span class="ring-3 inline-flex rounded-lg bg-orange-50 p-2 text-orange-700 ring-white">
@@ -64,11 +64,12 @@ import { useMetaStore } from "@/stores";
 import type { FlowNode, FlowVersion } from "@/types/flows";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon, DuplicateIcon, PencilAltIcon, TrashIcon } from "@heroicons/vue/solid";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
 import { artifactConnections } from "@/utils/flows";
 import { isArtifactSpec } from "@/types/spec";
 import { useIcons } from "@/composables/useIcons";
+import { useElementSize } from "@vueuse/core";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -103,4 +104,9 @@ const icons = useIcons();
 const configArtifacts = computed(() => artifactConnections(props.flow, props.node, "argument"));
 const configSpec = computed(() => metaStore.functionHandlersById[props.node.function_id].config_spec);
 const icon = computed(() => icons.forNode(props.node));
+
+const container = ref(null);
+const elementSize = useElementSize(container);
+
+defineExpose({ elementSize });
 </script>

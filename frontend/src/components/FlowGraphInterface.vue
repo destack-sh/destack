@@ -31,9 +31,11 @@
       <template #node-custom-real="props">
         <template v-if="props.data?.node">
           <FlowNodeInterface
+            :ref="(el: any) => (nodeRefs[props.id] = el)"
             :flow="flow"
             :node="props.data.node"
             :editable="editable"
+            :v-show="isNodeSized(props.id)"
             @edit="$emit('editNode', props.data.node)"
             @delete="$emit('deleteNode', props.data.node)"
           />
@@ -43,8 +45,8 @@
             :id="targetPort.name"
             type="target"
             :style="{
-              left: (props.data as PositionedNodeData).targetPortsOffsets[targetPort.id].x + 'px',
-              top: (props.data as PositionedNodeData).targetPortsOffsets[targetPort.id].y + 'px',
+              left: (props.data as PositionedNodeData).portsOffsets[targetPort.id].x + 'px',
+              top: (props.data as PositionedNodeData).portsOffsets[targetPort.id].y + 'px',
             }"
             :position="Position.Top"
             :is-valid-connection="isValidConnection"
@@ -55,8 +57,8 @@
             :id="sourcePort.name"
             type="source"
             :style="{
-              left: (props.data as PositionedNodeData).sourcePortsOffsets[sourcePort.id].x + 'px',
-              top: (props.data as PositionedNodeData).sourcePortsOffsets[sourcePort.id].y + 'px',
+              left: (props.data as PositionedNodeData).portsOffsets[sourcePort.id].x + 'px',
+              top: (props.data as PositionedNodeData).portsOffsets[sourcePort.id].y + 'px',
             }"
             :position="Position.Bottom"
             :is-valid-connection="isValidConnection"
@@ -67,7 +69,9 @@
       <template #node-custom-virtual-input="props">
         <div
           v-if="props.data"
-          class="h-full w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow"
+          :v-show="isNodeSized(props.id)"
+          :ref="(el: any) => (nodeRefs[props.id] = el)"
+          class="w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow"
         >
           <div class="flex flex-row items-center justify-between px-4 py-2">
             <div class="flex flex-row items-center gap-2">
@@ -77,8 +81,8 @@
               <div>
                 <h3 class="text-md font-medium leading-6 text-gray-900">Input</h3>
                 <h5 class="text-xs font-normal text-gray-500">
-                  {{ props.data.virtualForNode.name }}
-                  <template v-if="props.data.virtualForPort.name != '*'"
+                  to {{ props.data.virtualForNode.name
+                  }}<template v-if="props.data.virtualForPort.name != '*'"
                     >.{{ props.data.virtualForPort.name }}
                   </template>
                 </h5>
@@ -123,8 +127,8 @@ import {
   BackgroundVariant,
   ConnectionMode,
   Handle,
-  Position,
   MiniMap,
+  Position,
   useVueFlow,
   VueFlow,
   type Connection,
@@ -134,7 +138,7 @@ import {
 import { PencilIcon } from "@heroicons/vue/outline";
 import { PlusSmIcon } from "@heroicons/vue/solid";
 import ELK, { type ElkEdge, type ElkNode } from "elkjs";
-import { reactive, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUpdate, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -174,8 +178,6 @@ function setRuntimeInputData(data: VirtualNodeData, record: Record<string, any>)
   emit("update:runtimeData", newRuntimeData);
 }
 
-const metaStore = useMetaStore();
-
 const vueFlow = useVueFlow({});
 
 type NodeData = {
@@ -197,8 +199,7 @@ type VirtualNodeData = NodeData & {
 };
 
 type PositionedNodeData = {
-  sourcePortsOffsets: Record<string, { x: number; y: number }>;
-  targetPortsOffsets: Record<string, { x: number; y: number }>;
+  portsOffsets: Record<string, { x: number; y: number }>;
 };
 
 type EdgeData = {
@@ -207,16 +208,15 @@ type EdgeData = {
   targetPort: FlowNodePort;
 };
 
+const metaStore = useMetaStore();
+
 function buildVueFlowGraph() {
   const nodes = [] as Omit<Node, "position">[];
   const edges = [] as Edge[];
 
-  // TODO @UI: vue flow node rect should be calculated dynamically based on element size
-  // To do this, before becoming visible we could render all nodes with show=false
-  //  and then update their size prior to layouting and showing everything.
-  let nodeRect = { width: 250, height: 150 };
   // "real" function nodes from the flow
   const flowNodes = (props.flow.nodes || []).map((node) => {
+    const nodeRect = getNodeRect(node.id);
     const targetPorts = nodePorts(node, metaStore.functionHandlersById, "input");
     const sourcePorts = nodePorts(node, metaStore.functionHandlersById, "output");
     return {
@@ -257,10 +257,12 @@ function buildVueFlowGraph() {
   const virtualInputNodes = flowPorts(props.flow, metaStore.functionHandlersById, "input")
     .filter((port) => !isPortSatisfied(props.flow, port))
     .map((port) => {
+      const id = port.id + "-virtual-input-node";
+      const nodeRect = getNodeRect(id);
       const functionSpec = metaStore.functionHandlersById[port.node.function_id];
       const inputSpec = functionSpec.base_spec.input_spec[port.name];
       return {
-        id: port.id + "-virtual-input-node",
+        id,
         label: port.id,
         type: "custom-virtual-input",
         width: nodeRect.width,
@@ -269,7 +271,7 @@ function buildVueFlowGraph() {
           real: false,
           virtualForPort: port,
           virtualForNode: port.node,
-          sourcePorts: [makeFlowNodePort(port.name, { ...port.node, id: port.id + "-virtual-input-node" }, "output")],
+          sourcePorts: [makeFlowNodePort(port.name, { ...port.node, id }, "output")],
           targetPorts: [],
           spec: inputSpec,
         } as VirtualNodeData,
@@ -293,12 +295,56 @@ function buildVueFlowGraph() {
   return { nodes, edges };
 }
 
+const VUE_FLOW_VIEW_OPTIONS = { padding: 0.2 };
+const VUE_FLOW_NODE_WIDTH = 250;
 const initialNodes: Ref<Record<string, Node>> = ref({});
 const currentNodes: Ref<Record<string, Node>> = ref({});
+const nodeRefs: Ref<Record<string, Element | InstanceType<typeof FlowNodeInterface>>> = ref({});
 
+onBeforeUpdate(() => (nodeRefs.value = {}));
+
+function isNodeSized(id: string): boolean {
+  return nodeRefs.value[id] != null && getNodeRect(id).height != 0;
+}
+const allNodesSized = computed(() => vueFlow.getNodes.value.find((node) => !isNodeSized(node.id)) == null);
+
+function getNodeRect(id: string): { width: number; height: number } {
+  const nodeRef = nodeRefs.value[id];
+  if (nodeRef != null) {
+    if ((nodeRef as InstanceType<typeof FlowNodeInterface>).elementSize != null) {
+      const component = nodeRef as InstanceType<typeof FlowNodeInterface>;
+      return { width: VUE_FLOW_NODE_WIDTH, height: component.elementSize.height.value };
+    } else {
+      const element = nodeRef as Element;
+      return { width: VUE_FLOW_NODE_WIDTH, height: element.clientHeight };
+    }
+  } else {
+    // arbitrary initial height, will be reset to actual before shown
+    return { width: VUE_FLOW_NODE_WIDTH, height: 180 };
+  }
+}
+
+const currentAnimationDuration = ref(0); // stores current animation duration if we need to re-update
 async function updateVueFlowGraph(animationDuration = 500) {
+  currentAnimationDuration.value = animationDuration;
+  // first update
+  await doUpdateVueFlowGraph(animationDuration);
+}
+
+// re-updates the flow graph should the node sizes have changed
+watch(allNodesSized, async () => {
+  if (allNodesSized.value) {
+    await doUpdateVueFlowGraph(currentAnimationDuration.value);
+  }
+});
+
+async function doUpdateVueFlowGraph(animationDuration = 500) {
+  console.log("update vue flow graph");
+
   const newGraph = buildVueFlowGraph();
   const positionedNodes = await elkLayout(newGraph.nodes, newGraph.edges);
+
+  // store new nodes/edges for processing
   const newNodes: Record<string, Node> = {};
   for (const node of positionedNodes) {
     newNodes[node.id] = node;
@@ -326,22 +372,21 @@ async function updateVueFlowGraph(animationDuration = 500) {
     const interval = setInterval(() => {
       const t = (Date.now() - startTimeMillis) / animationDuration;
       updateVueFlowLayoutAnimation(Math.min(t, 1.0));
-      vueFlow.fitView({ padding: 0.2, duration: animationDuration * 0.5 });
+      vueFlow.fitView({ ...VUE_FLOW_VIEW_OPTIONS, duration: animationDuration * 0.5 });
     }, 20);
     setTimeout(() => {
       updateVueFlowLayoutAnimation(1.0);
       clearInterval(interval);
-      vueFlow.fitView({ padding: 0.2, duration: animationDuration });
+      vueFlow.fitView({ ...VUE_FLOW_VIEW_OPTIONS, duration: animationDuration });
     }, animationDuration + 100);
   } else {
     vueFlow.setElements([...positionedNodes, ...newGraph.edges]);
-    vueFlow.fitView({ padding: 0.2 });
+    vueFlow.fitView(VUE_FLOW_VIEW_OPTIONS);
   }
 }
 
 function updateVueFlowLayoutAnimation(t: number) {
   // update node positions
-  console.log("update flow layout animation: " + t);
   Object.values(vueFlow.getNodes.value).forEach((node) => {
     const initialNode = initialNodes.value[node.id];
     const targetNode = currentNodes.value[node.id];
@@ -434,24 +479,23 @@ async function elkLayout(nodes: Omit<Node, "position">[], edges: Edge[]): Promis
     }
 
     const position = { x: elkNode.x as number, y: elkNode.y as number };
-    const sourcePortsOffsets = {} as Record<string, { x: number; y: number }>;
-    const targetPortsOffsets = {} as Record<string, { x: number; y: number }>;
+    const portsOffsets = {} as Record<string, { x: number; y: number }>;
 
     elkNode.ports?.forEach((elkPort) => {
       const sourcePort = (node.data as NodeData).sourcePorts.find((p) => p.id == elkPort.id);
       if (sourcePort != null) {
-        sourcePortsOffsets[sourcePort.id] = { x: elkPort.x as number, y: elkPort.y as number };
+        portsOffsets[sourcePort.id] = { x: elkPort.x as number, y: elkPort.y as number };
         return;
       }
       const targetPort = (node.data as NodeData).targetPorts.find((p) => p.id == elkPort.id);
       if (targetPort != null) {
-        targetPortsOffsets[targetPort.id] = { x: elkPort.x as number, y: elkPort.y as number };
+        portsOffsets[targetPort.id] = { x: elkPort.x as number, y: elkPort.y as number };
         return;
       }
       throw new Error("could not find port in positioned ELK graph: " + elkPort.id);
     });
 
-    const positionedNodeData = { ...node.data, sourcePortsOffsets, targetPortsOffsets } as PositionedNodeData;
+    const positionedNodeData = { ...node.data, portsOffsets } as PositionedNodeData;
     return { ...node, position, data: positionedNodeData };
   });
 
