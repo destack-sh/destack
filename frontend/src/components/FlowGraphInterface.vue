@@ -174,7 +174,7 @@ function setRuntimeInputData(data: VirtualNodeData, record: Record<string, any>)
   }
   newRuntimeData.inputs[data.virtualForNode.id][data.virtualForPort.name] = record;
 
-  console.log("update runtime data");
+  console.log("update runtime data", newRuntimeData);
   emit("update:runtimeData", newRuntimeData);
 }
 
@@ -259,8 +259,7 @@ function buildVueFlowGraph() {
     .map((port) => {
       const id = port.id + "-virtual-input-node";
       const nodeRect = getNodeRect(id);
-      const functionSpec = metaStore.functionHandlersById[port.node.function_id];
-      const inputSpec = functionSpec.base_spec.input_spec[port.name];
+      const inputSpec = getPortSpec(port);
       return {
         id,
         label: port.id,
@@ -293,6 +292,11 @@ function buildVueFlowGraph() {
   edges.push(...virtualInputEdges);
 
   return { nodes, edges };
+}
+
+function getPortSpec(port: FlowNodePort) {
+  const functionSpec = metaStore.functionHandlersById[port.node.function_id];
+  return functionSpec.base_spec.input_spec[port.name];
 }
 
 const VUE_FLOW_VIEW_OPTIONS = { padding: 0.2 };

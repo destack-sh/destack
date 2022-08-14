@@ -11,6 +11,7 @@ import {
   type FlowVersion,
   type LimitPaginatedResult,
 } from "@/types";
+import { flowNode } from "@/utils/flows";
 import { DateTime, Duration } from "luxon";
 import { onBeforeUnmount, ref, watch, type Ref } from "vue";
 
@@ -81,19 +82,20 @@ export function useFlowExecution(
     console.log("execute flow with data", flow.value, runtimeData.value);
     const argumentsInputs: Record<string, FlowNodeExecutionArgument[]> = {};
 
-    for (const nodeName in runtimeData.value.inputs) {
-      const input = runtimeData.value.inputs[nodeName];
-      const node = flowsStore.getFlowNodeByName(flow.value, nodeName);
+    for (const nodeId in runtimeData.value.inputs) {
+      const inputByName = runtimeData.value.inputs[nodeId];
+      const node = flowNode(flow.value, nodeId);
       if (node != null) {
-        // FlowRuntimeData.inputs supports only single record inputs to main input for now.
-        argumentsInputs[node.id] = [
-          {
-            node: node.id,
-            type: "input",
-            name: "*",
-            records: [input],
-          },
-        ];
+        for (const name of Object.keys(inputByName)) {
+          argumentsInputs[node.id] = [
+            {
+              node: node.id,
+              type: "input",
+              name: name,
+              records: [inputByName[name]],
+            },
+          ];
+        }
       }
     }
     const plan: FlowExecutionPlan = {
