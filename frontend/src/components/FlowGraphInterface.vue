@@ -134,7 +134,7 @@ import {
 import { PencilIcon } from "@heroicons/vue/outline";
 import { PlusSmIcon } from "@heroicons/vue/solid";
 import ELK, { type ElkEdge, type ElkNode } from "elkjs";
-import { ref, watch, type Ref } from "vue";
+import { reactive, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -177,8 +177,6 @@ function setRuntimeInputData(data: VirtualNodeData, record: Record<string, any>)
 const metaStore = useMetaStore();
 
 const vueFlow = useVueFlow({});
-const currentVueFlowNodes: Ref<Record<string, Node>> = ref({});
-const currentVueFlowEdges: Ref<Record<string, Edge>> = ref({});
 
 type NodeData = {
   real: boolean;
@@ -295,37 +293,84 @@ function buildVueFlowGraph() {
   return { nodes, edges };
 }
 
-async function updateVueFlowGraph() {
+const initialNodes: Ref<Record<string, Node>> = ref({});
+const currentNodes: Ref<Record<string, Node>> = ref({});
+
+async function updateVueFlowGraph(animationDuration = 500) {
   const newGraph = buildVueFlowGraph();
-  const positioned = await elkLayout(newGraph.nodes, newGraph.edges);
-  const vueFlowNodes: Record<string, Node> = {};
-  for (const node of positioned.nodes) {
-    vueFlowNodes[node.id] = node;
+  const positionedNodes = await elkLayout(newGraph.nodes, newGraph.edges);
+  const newNodes: Record<string, Node> = {};
+  for (const node of positionedNodes) {
+    newNodes[node.id] = node;
   }
-  const vueFlowEdges: Record<string, Edge> = {};
+  const newEdges: Record<string, Edge> = {};
   for (const edge of newGraph.edges) {
-    vueFlowEdges[edge.id] = edge;
+    newEdges[edge.id] = edge;
   }
 
-  // TODO @UI: transition update elements and viewport smoothly
-  vueFlow.setElements([...positioned.nodes, ...positioned.edges]);
-  vueFlow.fitView({ padding: 0.2 });
+  // new target is current positioned nodes
+  currentNodes.value = {};
+  positionedNodes.forEach((node) => (currentNodes.value[node.id] = node));
 
-  // update local copy of current elements
-  currentVueFlowNodes.value = vueFlowNodes;
-  currentVueFlowEdges.value = vueFlowEdges;
+  if (animationDuration > 0) {
+    // new initial nodes is old nodes
+    initialNodes.value = {};
+    Object.values(vueFlow.getNodes.value).forEach((node) => (initialNodes.value[node.id] = node));
+    // immediately apply new initial and new edges (not transitioned)
+    vueFlow.setElements([...positionedNodes, ...newGraph.edges]);
+
+    // update animation once to set positions
+    updateVueFlowLayoutAnimation(0.0);
+    // gradually transition existing nodes
+    const startTimeMillis = Date.now() * 1.0;
+    const interval = setInterval(() => {
+      const t = (Date.now() - startTimeMillis) / animationDuration;
+      updateVueFlowLayoutAnimation(Math.min(t, 1.0));
+      vueFlow.fitView({ padding: 0.2, duration: animationDuration * 0.5 });
+    }, 20);
+    setTimeout(() => {
+      updateVueFlowLayoutAnimation(1.0);
+      clearInterval(interval);
+      vueFlow.fitView({ padding: 0.2, duration: animationDuration });
+    }, animationDuration + 100);
+  } else {
+    vueFlow.setElements([...positionedNodes, ...newGraph.edges]);
+    vueFlow.fitView({ padding: 0.2 });
+  }
+}
+
+function updateVueFlowLayoutAnimation(t: number) {
+  // update node positions
+  console.log("update flow layout animation: " + t);
+  Object.values(vueFlow.getNodes.value).forEach((node) => {
+    const initialNode = initialNodes.value[node.id];
+    const targetNode = currentNodes.value[node.id];
+
+    if (initialNode != null) {
+      const positionDiff = {
+        x: targetNode.position.x - initialNode.position.x,
+        y: targetNode.position.y - initialNode.position.y,
+      };
+      node.position = {
+        x: initialNode.position.x + t * positionDiff.x,
+        y: initialNode.position.y + t * positionDiff.y,
+      };
+    }
+  });
 }
 
 // sync vue-flow state from flow
 watch(
   () => [props.flow.nodes, props.flow.node_edges, props.flow.artifact_edges],
   async () => {
-    await updateVueFlowGraph();
+    const currentEmpty = Object.values(currentNodes.value).length == 0;
+    const animationDuration = currentEmpty ? 0 : 500;
+    await updateVueFlowGraph(animationDuration);
   },
   { immediate: true, deep: true }
 );
 
-async function elkLayout(nodes: Omit<Node, "position">[], edges: Edge[]): Promise<{ nodes: Node[]; edges: Edge[] }> {
+async function elkLayout(nodes: Omit<Node, "position">[], edges: Edge[]): Promise<Node[]> {
   const elk = new ELK();
   const elkNodes: Array<ElkNode> = nodes.map((n) => {
     const elkPorts = [];
@@ -410,12 +455,12 @@ async function elkLayout(nodes: Omit<Node, "position">[], edges: Edge[]): Promis
     return { ...node, position, data: positionedNodeData };
   });
 
-  return { nodes: positionedNodes, edges: edges };
+  return positionedNodes;
 }
 
 function addConnection(connection: Connection) {
-  const sourceNode = currentVueFlowNodes.value[connection.source];
-  const targetNode = currentVueFlowNodes.value[connection.target];
+  const sourceNode = currentNodes.value[connection.source];
+  const targetNode = currentNodes.value[connection.target];
 
   if (sourceNode.data.real) {
     emit("addNodeEdge", {
@@ -432,7 +477,7 @@ function addConnection(connection: Connection) {
 }
 
 function isValidConnection(connection: Connection): boolean {
-  const sourceNode = currentVueFlowNodes.value[connection.source];
+  const sourceNode = currentNodes.value[connection.source];
   if (sourceNode.data.real) {
     return isValidEdge(props.flow, {
       dependent: connection.source,
@@ -451,6 +496,12 @@ function isValidConnection(connection: Connection): boolean {
 <style>
 .vue-flow__node {
   cursor: default;
+}
+
+.vue-flow__edge {
+}
+
+.vue-flow__viewport {
 }
 
 .vue-flow__handle {

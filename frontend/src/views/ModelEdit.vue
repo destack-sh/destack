@@ -153,7 +153,7 @@ async function commit() {
   }
 
   const metadata: ModelMetadata = {
-    handler_id: selectedHandler.value.name,
+    handler_id: selectedHandler.value.id,
     config_arguments: modelConfigRecord.value,
     input_spec: modelSpec.value?.input_spec,
     output_spec: modelSpec.value?.output_spec,
