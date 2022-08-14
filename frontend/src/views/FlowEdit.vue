@@ -148,7 +148,7 @@ async function addModels(flow: FlowVersion, models: string[]) {
   return modelNodes;
 }
 
-const editNodeSlideover = ref(null);
+const editNodeSlideover = ref<InstanceType<typeof Slideover> | null>(null);
 
 async function addNodeEdge(v: { source: FlowNode; sourcePort: string; target: FlowNode; targetPort: string }) {
   if (flow.value == null) {
@@ -165,12 +165,12 @@ async function addNodeEdge(v: { source: FlowNode; sourcePort: string; target: Fl
 
 function promptAddNode(v: { inputNode?: FlowNode[]; outputNodes?: FlowNode[] }) {
   interactionData.value.selectedNode = null;
-  (editNodeSlideover.value as any).show();
+  editNodeSlideover.value?.show();
 }
 
 function promptEditNode(node: FlowNode) {
   interactionData.value.selectedNode = node;
-  (editNodeSlideover.value as any).show();
+  editNodeSlideover.value?.show();
 }
 
 async function promptDeleteNode(node: FlowNode) {
@@ -214,7 +214,7 @@ async function createFlowNode(v: {
     });
   }
 
-  (editNodeSlideover.value as any).hide();
+  editNodeSlideover.value?.hide();
 }
 
 async function updateFlowNode(v: { node: FlowNode; connectedArtifacts: ArtifactConnection[] }) {
@@ -224,7 +224,7 @@ async function updateFlowNode(v: { node: FlowNode; connectedArtifacts: ArtifactC
 
   await flowsStore.setFlowNodeArtifactConnections(flow, v.node, v.connectedArtifacts);
 
-  (editNodeSlideover.value as any).hide();
+  editNodeSlideover.value?.hide();
 }
 
 // Automatically create new flow if in playground mode.
