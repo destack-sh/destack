@@ -109,7 +109,7 @@ async function submit() {
       parents: [], // initial version
       metadata,
       name: "Create model",
-      description: `Initialized from template ${selectedHandler.value.name}`,
+      description: `Initialized from template ${selectedHandler.value.id}`,
     } as Partial<ArtifactVersion>);
   }
 
