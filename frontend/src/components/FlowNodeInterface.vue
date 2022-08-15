@@ -2,7 +2,7 @@
   <div ref="container" class="w-full divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow">
     <div class="flex flex-row items-center justify-between py-2 px-4">
       <div class="flex flex-row items-center gap-2">
-        <span class="ring-3 inline-flex rounded-lg bg-orange-50 p-2 text-orange-700 ring-white">
+        <span class="ring-3 inline-flex rounded-lg bg-orange-500 p-2 text-orange-50 ring-white">
           <component :is="icon" class="h-6 w-6" aria-hidden="true" />
         </span>
         <div>

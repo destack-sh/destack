@@ -75,7 +75,7 @@
         >
           <div class="flex flex-row items-center justify-between px-4 py-2">
             <div class="flex flex-row items-center gap-2">
-              <span class="ring-3 inline-flex rounded-lg bg-orange-50 p-2 text-orange-700 ring-white">
+              <span class="ring-3 inline-flex rounded-lg bg-orange-500 p-2 text-orange-50 ring-white">
                 <PencilIcon class="h-6 w-6" aria-hidden="true" />
               </span>
               <div>
