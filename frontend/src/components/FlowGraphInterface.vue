@@ -305,7 +305,14 @@ const initialNodes: Ref<Record<string, Node>> = ref({});
 const currentNodes: Ref<Record<string, Node>> = ref({});
 const nodeRefs: Ref<Record<string, Element | InstanceType<typeof FlowNodeInterface>>> = ref({});
 
-onBeforeUpdate(() => (nodeRefs.value = {}));
+// clear nodeRefs from old nodes whenever they are removed
+// this used to be onBeforeUpdate nodeRefs = {} but that causes unnecessary graph updates
+// every time any of the node inputs changes, not only if the actual node set changes.
+watch(currentNodes, () => {
+  Object.keys(nodeRefs.value)
+    .filter((id) => currentNodes.value[id] == null)
+    .forEach((id) => delete nodeRefs.value[id]);
+});
 
 function isNodeSized(id: string): boolean {
   return nodeRefs.value[id] != null && getNodeRect(id).height != 0;
@@ -337,6 +344,7 @@ async function updateVueFlowGraph(animationDuration = 500) {
 
 // re-updates the flow graph should the node sizes have changed
 watch(allNodesSized, async () => {
+  console.log("allNodesSized: " + allNodesSized.value);
   if (allNodesSized.value) {
     await doUpdateVueFlowGraph(currentAnimationDuration.value);
   }
@@ -412,6 +420,7 @@ function updateVueFlowLayoutAnimation(t: number) {
 watch(
   () => [props.flow.nodes, props.flow.node_edges, props.flow.artifact_edges],
   async () => {
+    console.log("trigger sync vue flow graph");
     const currentEmpty = Object.values(currentNodes.value).length == 0;
     const animationDuration = currentEmpty ? 0 : 500;
     await updateVueFlowGraph(animationDuration);
