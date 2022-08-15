@@ -4,7 +4,7 @@
       <h1 class="text-2xl font-semibold text-gray-900">Home</h1>
     </div>
     <div
-      class="mx-6 mt-6 divide-y divide-gray-200 overflow-hidden rounded-lg shadow sm:grid sm:grid-cols-2 sm:gap-px sm:divide-y-0"
+      class="mx-auto mt-6 max-w-7xl divide-y divide-gray-200 overflow-hidden rounded-lg px-4 pt-6 sm:grid sm:grid-cols-2 sm:gap-px sm:divide-y-0 sm:px-6 md:px-8"
     >
       <div
         v-for="(action, actionIdx) in actions"
