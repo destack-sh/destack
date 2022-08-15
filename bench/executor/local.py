@@ -348,15 +348,15 @@ class LocalExecutor(Executor):
                     if dependent_id in visited_node_ids:
                         raise RuntimeError(f"cycle between {node_id} and {dependent_id}")
 
-                    output_batch = output_batches[node_connection.dependent_name]
-                    new_pending_data[dependent_id][node_connection.dependency_name] = output_batch
+                    output_batch = output_batches[node_connection.dependency_name]
+                    new_pending_data[dependent_id][node_connection.dependent_name] = output_batch
 
                     # validate output against next input spec
-                    input_spec = functions[dependent_id].input_spec[node_connection.dependency_name]
+                    input_spec = functions[dependent_id].input_spec[node_connection.dependent_name]
                     _validate_records(node_id, output_batch, input_spec.type)
 
                     if node_connection.intermediate_artifact is not None:
-                        output_spec = function.output_spec[node_connection.dependent_name]
+                        output_spec = function.output_spec[node_connection.dependency_name]
                         view = write_to_dataset_version(
                             node_connection.intermediate_artifact,
                             output_batch,
