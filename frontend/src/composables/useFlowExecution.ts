@@ -103,6 +103,7 @@ export function useFlowExecution(
       options: {
         blocking: false,
         validate: "lazy",
+        captured_connection_types: ["input"],
       },
     };
     await api
