@@ -302,7 +302,7 @@ class LocalExecutor(Executor):
                     records, spec_type, ignore_extraneous=True, lazy=validate_lazy
                 )
             except ValueError as e:
-                raise RuntimeError(f"node {plan.nodes[source_node_id]} failed validation: {e}")
+                raise RuntimeError(f"node {plan.nodes[source_node_id]} failed validation: {e}", e)
 
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()

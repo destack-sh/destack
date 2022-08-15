@@ -88,6 +88,8 @@ export type FlowRuntimeValidation = "off" | "lazy" | "full";
 export type FlowExecutionOptions = {
   blocking: boolean;
   validate: FlowRuntimeValidation;
+  captured_connection_types?: Array<"input" | "argument">;
+  captured_edges?: string[];
 };
 
 export type FlowExecutionPlan = {

@@ -69,7 +69,8 @@ class FlowRuntimeValidation(enum.Enum):
 class FlowExecutionOptions:
     blocking: bool
     validate: FlowRuntimeValidation
-    capture_intermediate: list[FlowNodeEdge.ConnectionType] = dataclasses.field(
+    captured_edges: list[UUID] = dataclasses.field(default_factory=list)
+    captured_connection_types: list[FlowNodeEdge.ConnectionType] = dataclasses.field(
         default_factory=list
     )
 
@@ -274,13 +275,14 @@ def _make_node_connections(
     flow_name: str,
     nodes: Iterable[FlowNode],
     captured_connection_types: list[FlowNodeEdge.ConnectionType],
+    captured_edges: list[UUID],
 ):
     node_inputs: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)
     node_arguments: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)
     for node in nodes:
         node_dependencies: QuerySet[FlowNodeEdge] = FlowNodeEdge.objects.filter(dependent=node)
         for edge in node_dependencies:
-            if edge.connection_type in captured_connection_types:
+            if edge.connection_type in captured_connection_types or edge.id in captured_edges:
                 output_id = f"{flow_name}.{node.name}.outputs"
                 if edge.connection_name_dependency != DEFAULT_CONNECTION_NAME:
                     output_id = f"{output_id}.{edge.connection_name_dependency}"
@@ -373,7 +375,8 @@ def make_execution_plan(
     node_inputs, node_arguments = _make_node_connections(
         flow_name=flow.flow.name,
         nodes=nodes.values(),
-        captured_connection_types=options.capture_intermediate,
+        captured_connection_types=options.captured_connection_types,
+        captured_edges=options.captured_edges,
     )
     logger.debug("execute_nodes_connected")
 
