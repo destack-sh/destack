@@ -11,7 +11,7 @@ import {
   type FlowVersion,
   type LimitPaginatedResult,
 } from "@/types";
-import { flowNode } from "@/utils/flows";
+import { getFlowNode } from "@/utils/flows";
 import { DateTime, Duration } from "luxon";
 import { onBeforeUnmount, ref, watch, type Ref } from "vue";
 
@@ -84,7 +84,7 @@ export function useFlowExecution(
 
     for (const nodeId in runtimeData.value.inputs) {
       const inputByName = runtimeData.value.inputs[nodeId];
-      const node = flowNode(flow.value, nodeId);
+      const node = getFlowNode(flow.value, nodeId);
       if (node != null) {
         for (const name of Object.keys(inputByName)) {
           argumentsInputs[node.id] = [
