@@ -9,6 +9,10 @@ import type {
   FunctionHandlerSpec,
 } from "@/types";
 
+export function getFlowNode(flow: FlowVersion, id: string): FlowNode | undefined {
+  return flow.nodes?.find((n) => n.id == id);
+}
+
 export function flowNode(flow: FlowVersion, id: string): FlowNode {
   const node = flow.nodes?.find((n) => n.id == id);
   if (node == null) {
