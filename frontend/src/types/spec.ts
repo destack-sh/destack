@@ -63,7 +63,7 @@ export type DatasetType = ArtifactSpec & {
 export type FunctionType = _Type & {
   input_spec: Record<string, RecordSpec>;
   output_spec: Record<string, RecordSpec>;
-  optiona?: boolean;
+  optional?: boolean;
 };
 
 const ARTIFACT_TYPES = ["ModelType", "DatasetType"];

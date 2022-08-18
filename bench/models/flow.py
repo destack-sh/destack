@@ -42,10 +42,6 @@ def _generate_flow_version(nbytes: int = 4) -> str:
     return secrets.token_hex(nbytes)
 
 
-# TODO @Performance: version Flows on node-level
-#  Storing a complete copy of the entire Flow graph for every version
-#  seems both cumbersome and inefficient. But node-level versioning for graphs is
-#  quite complex and the complexity does not seem worthwhile at this time.
 class FlowVersion(UUIDModel, VersionedCommit):
     """
     A flow version is a specific (generally) immutable specification of a flow.

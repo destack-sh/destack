@@ -1,5 +1,5 @@
 import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
-import { ref, type Ref } from "vue";
+import type { RecordSpec } from "@/types/spec";
 
 export type Flow = {
   id: string;
@@ -32,7 +32,12 @@ export type FlowNode = {
   created_at: string;
   function_id: string;
   config_arguments?: Record<string, any>;
-  metadata?: Record<string, any>;
+  metadata?: FlowNodeMetadata;
+};
+
+export type FlowNodeMetadata = {
+  input_spec?: Record<string, RecordSpec>;
+  output_spec?: Record<string, RecordSpec>;
 };
 
 export type FlowArtifactEdgeType = "input" | "argument" | "output";
