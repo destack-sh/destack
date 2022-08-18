@@ -121,7 +121,15 @@ import type {
   FlowVersion,
 } from "@/types/flows";
 import type { FieldSpec } from "@/types/spec";
-import { flowPorts, isPortSatisfied, isValidEdge, makeFlowNodePort, nodeEdgePorts, nodePorts } from "@/utils/flows";
+import {
+  flowPorts,
+  isPortSatisfied,
+  isValidEdge,
+  makeFlowNodePort,
+  nodeEdgePorts,
+  nodePorts,
+  portSpec,
+} from "@/utils/flows";
 import {
   Background,
   BackgroundVariant,
@@ -138,7 +146,7 @@ import {
 import { PencilIcon } from "@heroicons/vue/outline";
 import { PlusSmIcon } from "@heroicons/vue/solid";
 import ELK, { type ElkEdge, type ElkNode } from "elkjs";
-import { computed, onBeforeUpdate, ref, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -259,7 +267,7 @@ function buildVueFlowGraph() {
     .map((port) => {
       const id = port.id + "-virtual-input-node";
       const nodeRect = getNodeRect(id);
-      const inputSpec = getPortSpec(port);
+      const inputSpec = portSpec(port, metaStore.functionHandlersById, true);
       return {
         id,
         label: port.id,
@@ -292,11 +300,6 @@ function buildVueFlowGraph() {
   edges.push(...virtualInputEdges);
 
   return { nodes, edges };
-}
-
-function getPortSpec(port: FlowNodePort) {
-  const functionSpec = metaStore.functionHandlersById[port.node.function_id];
-  return functionSpec.base_spec.input_spec[port.name];
 }
 
 const VUE_FLOW_VIEW_OPTIONS = { padding: 0.2 };
@@ -344,7 +347,6 @@ async function updateVueFlowGraph(animationDuration = 500) {
 
 // re-updates the flow graph should the node sizes have changed
 watch(allNodesSized, async () => {
-  console.log("allNodesSized: " + allNodesSized.value);
   if (allNodesSized.value) {
     await doUpdateVueFlowGraph(currentAnimationDuration.value);
   }

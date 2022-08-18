@@ -17,7 +17,7 @@
       <ComboboxOptions
         :static="props.static"
         :class="props.static ? 'py-1' : 'absolute z-10 bg-white py-2 shadow-lg ring-1 ring-black ring-opacity-5'"
-        class="mt-1 -mb-2 max-h-72 w-full scroll-py-2 overflow-auto overflow-y-auto rounded-md text-base text-gray-800 focus:outline-none sm:text-sm"
+        class="z-10 mt-1 -mb-2 max-h-72 w-full scroll-py-2 overflow-auto overflow-y-auto rounded-md text-base text-gray-800 focus:outline-none sm:text-sm"
       >
         <ComboboxOption
           v-for="artifact in filteredArtifacts"

@@ -1,3 +1,4 @@
+import RecordSpecDisplayVue from "@/components/RecordSpecDisplay.vue";
 import type {
   ArtifactConnection,
   FlowArtifactEdge,
@@ -7,6 +8,7 @@ import type {
   FlowNodePortType,
   FlowVersion,
   FunctionHandlerSpec,
+  RecordSpec,
 } from "@/types";
 
 export function getFlowNode(flow: FlowVersion, id: string): FlowNode | undefined {
@@ -145,6 +147,39 @@ export function nodePorts(
     argument: functionSpec.config_spec.type,
   };
   return types.flatMap((type) => Object.keys(specs[type]).map((name) => makeFlowNodePort(name, node, type)));
+}
+
+export function getPortSpec(
+  port: FlowNodePort,
+  functionHandlersById: Record<string, FunctionHandlerSpec>,
+  allowBase = false
+): RecordSpec | null {
+  const functionSpec = functionHandlersById[port.node.function_id];
+  const nodeMetadata = port.node.metadata;
+
+  let portSpec: RecordSpec | undefined;
+  if (port.type == "input") {
+    portSpec = nodeMetadata?.input_spec?.[port.name];
+    if (portSpec == null && allowBase) {
+      portSpec = functionSpec.base_spec.input_spec[port.name];
+    }
+  } else {
+    throw new Error(`get port spec for port type ${port.type} not supported: ${JSON.stringify(port)}`);
+  }
+
+  return portSpec || null;
+}
+
+export function portSpec(
+  port: FlowNodePort,
+  functionHandlersById: Record<string, FunctionHandlerSpec>,
+  allowBase = false
+): RecordSpec {
+  const portSpec = getPortSpec(port, functionHandlersById, allowBase);
+  if (portSpec == null) {
+    throw new Error(`port spec not configured for port: ${JSON.stringify(port)} (allowBase=${allowBase})`);
+  }
+  return portSpec;
 }
 
 export function artifactConnections(
