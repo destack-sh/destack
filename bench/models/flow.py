@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import copy
 import secrets
+from dataclasses import dataclass
+from functools import cached_property
+from itertools import chain
 
 from django.db import models, transaction
+from rest_framework import serializers
+from rest_framework.fields import DictField
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
+from bench.utils.serializer import RecordSpecSerializer
+from bench.utils.spec import RecordSpec
 
 
 class FlowManager(models.Manager):
@@ -38,7 +45,7 @@ class Flow(UUIDModel, VersionedRepository):
         constraints = [models.UniqueConstraint(name="bench_flow_name_ak", fields=["name"])]
 
 
-def _generate_flow_version(nbytes: int = 4) -> str:
+def _generate_flow_version(nbytes: int = 3) -> str:
     return secrets.token_hex(nbytes)
 
 
@@ -102,6 +109,39 @@ class FlowVersion(UUIDModel, VersionedCommit):
         ]
 
 
+@dataclass(frozen=True)
+class FlowNodeMetadata:
+    input_spec: RecordSpec = RecordSpec(name="", description="", type={})
+    output_spec: RecordSpec = RecordSpec(name="", description="", type={})
+
+    @staticmethod
+    def from_dict(obj: dict) -> FlowNodeMetadata:
+        serializer = FlowNodeMetadataSerializer(data=copy.deepcopy(obj))
+        serializer.is_valid(raise_exception=True)
+        return serializer.save()
+
+    def to_dict(self) -> dict:
+        metadata_serialized = FlowNodeMetadataSerializer(self).data
+        # TODO @Cleanup: set type of inner input/output spec field directly in FlowNodeMetadataSerializer
+        for record_spec in chain(
+            metadata_serialized["input_spec"].values(), metadata_serialized["output_spec"].values()
+        ):
+            record_spec["_type"] = "FieldSpec"
+        return metadata_serialized
+
+
+class FlowNodeMetadataSerializer(serializers.Serializer):
+    input_spec = DictField(child=RecordSpecSerializer())
+    output_spec = DictField(child=RecordSpecSerializer())
+
+    def create(self, validated_data):
+        if "input_spec" in validated_data:
+            validated_data["input_spec"] = RecordSpec(**validated_data["input_spec"])
+        if "output_spec" in validated_data:
+            validated_data["output_spec"] = RecordSpec(**validated_data["output_spec"])
+        return FlowNodeMetadata(**validated_data)
+
+
 class FlowNode(UUIDModel, VersionedBlob):
     """
     A node represents a curried variant of a registered function with given arguments,
@@ -132,6 +172,10 @@ class FlowNode(UUIDModel, VersionedBlob):
     @property
     def is_committed(self) -> bool:
         return self.committed
+
+    @cached_property
+    def metadata_typed(self) -> FlowNodeMetadata:
+        return FlowNodeMetadata.from_dict(self.metadata)
 
     def shallow_copy(self, **kwargs) -> FlowNode:
         return FlowNode(

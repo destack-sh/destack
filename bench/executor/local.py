@@ -4,6 +4,7 @@ import threading
 import time
 import uuid
 from collections import defaultdict
+from functools import cached_property
 from itertools import chain
 from queue import Empty, Queue
 from typing import Dict, Mapping, Optional, Tuple, Union, cast
@@ -34,12 +35,14 @@ from bench.executor.base import (
     ResourceRequirements,
     make_execution_plan,
     prepare_execution_manifest,
+    prepare_function_arguments,
     save_execution_manifest,
     validate_record_batch_type,
 )
 from bench.executor.utils import get_model_iid
 from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
-from bench.model.base import ModelHandler, load_model
+from bench.model.accessor import get_model_version_handler
+from bench.model.base import ModelHandler
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.dataset import DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
@@ -131,6 +134,15 @@ class LocalExecutor(Executor):
     def _get_dataset_handler(self, dataset: DatasetVersion) -> DatasetHandler:
         return get_dataset_version_handler(dataset)
 
+    @cached_property
+    def _artifact_handler_loaders(self):
+        return {
+            MODEL_TYPE: lambda model: self._get_model_handler(terrible_cast(ModelVersion, model)),
+            DATASET_TYPE: lambda dataset: self._get_dataset_handler(
+                terrible_cast(DatasetVersion, dataset)
+            ),
+        }
+
     def load_model(
         self, model: ModelVersion, requirements: Optional[ResourceRequirements]
     ) -> ModelHandler:
@@ -145,13 +157,7 @@ class LocalExecutor(Executor):
             requirements=requirements,
         )
         log.info("model_load")
-        model_handler: ModelHandler = load_model(
-            model.handler_id,
-            version=model.version,
-            storage_uri=model.storage_uri,
-            arguments=model.config_arguments,
-            spec=model.spec,
-        )
+        model_handler: ModelHandler = get_model_version_handler(model)
         self._loaded_models_by_iid[model_iid] = model_handler
         log.info("model_loaded")
         return model_handler
@@ -408,19 +414,11 @@ class LocalExecutor(Executor):
     def _load_functions(self, plan: FlowExecutionPlan) -> dict[UUID, RecordFunction]:
         functions: dict[UUID, RecordFunction] = {}
         for node in plan.nodes.values():
-            config_arguments = node.config_arguments
-            artifact_arguments: dict[str, Union[ModelHandler, DatasetHandler]] = {}
-            for name, artifact_connection in plan.artifact_arguments.get(node.id, {}).items():
-                if artifact_connection.artifact_type == MODEL_TYPE:
-                    model = terrible_cast(ModelVersion, artifact_connection.artifact)
-                    artifact_arguments[name] = self._get_model_handler(model)
-                elif artifact_connection.artifact_type == DATASET_TYPE:
-                    dataset = terrible_cast(DatasetVersion, artifact_connection.artifact)
-                    artifact_arguments[name] = self._get_dataset_handler(dataset)
-                else:
-                    raise ValueError(f"unknown artifact type: {artifact_connection}")
-
-            arguments = {**config_arguments, **artifact_arguments}
+            arguments = prepare_function_arguments(
+                node,
+                node_artifact_arguments=plan.artifact_arguments.get(node.id, {}).values(),
+                handler_loaders=self._artifact_handler_loaders,
+            )
             function = load_function(node.function_id, arguments=arguments)
             if not isinstance(function, RecordFunction):
                 raise ValueError(f"function not yet supported: {function}")

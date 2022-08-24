@@ -120,9 +120,10 @@ import type {
   FlowRuntimeData,
   FlowVersion,
 } from "@/types/flows";
-import type { FieldSpec } from "@/types/spec";
+import { isEmptySpec, type FieldSpec } from "@/types/spec";
 import {
   flowPorts,
+  getPortSpec,
   isPortSatisfied,
   isValidEdge,
   makeFlowNodePort,
@@ -264,10 +265,13 @@ function buildVueFlowGraph() {
   // "virtual" inputs (artifacts or record inputs, only supporting record input for now)
   const virtualInputNodes = flowPorts(props.flow, metaStore.functionHandlersById, "input")
     .filter((port) => !isPortSatisfied(props.flow, port))
+    // show only input fields where we have a known port spec
+    .filter((port) => !isEmptySpec(getPortSpec(port, metaStore.functionHandlersById, true)))
     .map((port) => {
       const id = port.id + "-virtual-input-node";
       const nodeRect = getNodeRect(id);
       const inputSpec = portSpec(port, metaStore.functionHandlersById, true);
+      console.log(inputSpec.type);
       return {
         id,
         label: port.id,

@@ -47,5 +47,5 @@ function isOptional(field: FieldSpec): boolean | undefined {
   return isFieldType(field.type) && (field.type as FieldTypePrimitive).optional;
 }
 
-const specs: Ref<FieldSpec[]> = computed(() => unravelSpec(props.spec).filter(isFieldSpec));
+const specs: Ref<FieldSpec[]> = computed(() => unravelSpec(props.spec));
 </script>

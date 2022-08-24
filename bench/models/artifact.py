@@ -46,7 +46,7 @@ class Artifact(UUIDModel, VersionedRepository):
         constraints = [models.UniqueConstraint(name="bench_artifact_name_ak", fields=["name"])]
 
 
-def _generate_artifact_version(nbytes: int = 4) -> str:
+def _generate_artifact_version(nbytes: int = 3) -> str:
     return secrets.token_hex(nbytes)
 
 

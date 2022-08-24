@@ -155,6 +155,18 @@ class ArtifactConnection:
     def artifact_type(self) -> str:
         return self.artifact.artifact.type
 
+    @staticmethod
+    def from_edge(edge: FlowArtifactEdge) -> ArtifactConnection:
+        connection_type = ExecutionArtifactConnection.ConnectionType(edge.connection_type)
+        return ArtifactConnection(
+            type=connection_type,
+            name=edge.connection_name,
+            artifact=edge.dependency,
+            edge=edge,
+            view=edge.view,
+            view_inline=edge.view_inline,
+        )
+
 
 @dataclasses.dataclass
 class FlowNodeConnection:
@@ -315,15 +327,7 @@ def _get_static_connections(nodes: Iterable[FlowNode]):
     for node in nodes:
         artifact_dependencies = [art for art in artifacts_dependencies if art.dependent == node]
         for edge in artifact_dependencies:
-            connection_type = ExecutionArtifactConnection.ConnectionType(edge.connection_type)
-            connection = ArtifactConnection(
-                type=connection_type,
-                name=edge.connection_name,
-                artifact=edge.dependency,
-                edge=edge,
-                view=edge.view,
-                view_inline=edge.view_inline,
-            )
+            connection = ArtifactConnection.from_edge(edge)
             if edge.connection_type == FlowArtifactEdge.ConnectionType.Input:
                 static_inputs[node.id][edge.connection_name] = connection
             elif edge.connection_type == FlowArtifactEdge.ConnectionType.Argument:
@@ -472,6 +476,21 @@ def save_execution_manifest(manifest: FlowExecutionManifest):
     Execution.objects.bulk_create(chain(manifest.node_executions.values()))
     ExecutionArtifactConnection.objects.bulk_create(manifest.execution_connections.values())
     logger.debug("execute_manifest_bulk_create", took=time.time() - start)
+
+
+def prepare_function_arguments(
+    node: FlowNode,
+    node_artifact_arguments: Iterable[ArtifactConnection],
+    handler_loaders: Mapping[str, Callable[[ArtifactVersion], ArtifactHandler]],
+) -> dict:
+    config_arguments = node.config_arguments
+    artifact_arguments: dict[str, Union[ArtifactHandler]] = {}
+    for artifact_connection in node_artifact_arguments:
+        artifact_loader = handler_loaders.get(artifact_connection.artifact_type)
+        if artifact_loader is None:
+            raise ValueError(f"unknown artifact type: {artifact_connection}")
+        artifact_arguments[artifact_connection.name] = artifact_loader(artifact_connection.artifact)
+    return {**config_arguments, **artifact_arguments}
 
 
 def validate_record_batch_type(
