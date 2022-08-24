@@ -6,7 +6,7 @@ import spacy
 from bench.model.base import ModelHandler, ModelHandlerMetadata, models
 from bench.model.utils import TOKENS_SPEC, make_entities_spec, make_scored_labels_spec
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ClassLabelType, ModelType, RecordSpec, convert_to_record_spec
+from bench.utils.spec import ClassLabelType, ModelType, convert_to_record_spec
 
 
 class SpacyModelBase(ModelHandler, abc.ABC):
@@ -24,11 +24,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         return self.infer_spec()
 
     def infer_spec(self) -> ModelType:
-        input_spec = RecordSpec(
-            name="input",
-            description="",
-            type=convert_to_record_spec({"text": str}),
-        )
+        input_spec = convert_to_record_spec(name="input", description="", spec={"text": str})
         output_type = {"text": str, "tokens": TOKENS_SPEC}
         if self.has_entities:
             labels = self.nlp.get_pipe("ner").labels
@@ -42,11 +38,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
             category_type = ClassLabelType(num_classes=len(pipe.labels), names=list(pipe.labels))
             output_type["classes"] = make_scored_labels_spec(category_type)
 
-        output_spec = RecordSpec(
-            name="output",
-            description="",
-            type=convert_to_record_spec(output_type),
-        )
+        output_spec = convert_to_record_spec(name="output", description="", spec=output_type)
         return ModelType(input_spec=input_spec, output_spec=output_spec)
 
     def _map_doc_to_record(self, doc: spacy.language.Doc) -> Record:

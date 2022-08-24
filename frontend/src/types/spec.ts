@@ -105,6 +105,10 @@ export function isAnySpec(obj: any) {
   return ["FieldSpec", "ArtifactSpec"].includes(obj._type);
 }
 
+export function isEmptySpec(obj: any): boolean {
+  return obj == null || Object.keys(obj.type).length == 0;
+}
+
 export type DatasetHandlerSpec = _Spec & {
   _type: "DatasetHandlerSpec";
   id: string;
