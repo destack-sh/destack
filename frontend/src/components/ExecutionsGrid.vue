@@ -9,7 +9,7 @@ unravelSpecmapNameVersion
         <th
           scope="col"
           v-for="column in columns"
-          :key="column.name"
+          :key="column.key"
           class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8"
         >
           {{ column.name }}
@@ -85,7 +85,8 @@ function datasetToFriendlyName(execution: Execution, connection: ExecutionArtifa
   if (execution.type == "flow") {
     const [flowName, _] = mapNameVersion(execution.flow);
     if (dataset.startsWith(flowName)) {
-      dataset = dataset.split(".", 2)[1];
+      // TODO @Robustness: datasetToFriendlyName assumes all executions are prefixed with flow name
+      dataset = dataset.split(".").slice(1).join(".");
     }
   }
   return dataset;
@@ -109,7 +110,7 @@ const datasetColumns = computed(() => {
 
 type PaginatedDataset = LimitPaginatedResult<Record<string, any>>;
 
-const columns = computed(() => [{ name: "state" }, ...datasetColumns.value]);
+const columns = computed(() => [{ name: "state", key: "state" }, ...datasetColumns.value]);
 const { getTimeFromNow } = useTimeFromNow();
 
 const rows = computed(() =>
