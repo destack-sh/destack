@@ -12,9 +12,11 @@ from bench.models import (
     FlowArtifactEdge,
     FlowNode,
     FlowNodeEdge,
+    FlowVersion,
     ModelVersion,
 )
 from bench.models.execution import ExecutionArtifactConnection
+from bench.models.flow import FlowNodeMetadata
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch
@@ -74,3 +76,19 @@ def get_flow_node_specs(
         )
 
     return function_specs
+
+
+def update_flow_spec(flow: FlowVersion) -> list[FlowNode]:
+    flow_node_specs = get_flow_node_specs(
+        nodes=flow.nodes.all(),
+        node_edges=flow.node_edges.all(),
+        artifact_edges=flow.artifact_edges.all(),
+    )
+    updated_nodes = []
+    for node in flow.nodes.all():
+        spec = flow_node_specs[node.id]
+        new_metadata = FlowNodeMetadata(spec.input_spec, spec.output_spec).to_dict()
+        if new_metadata != node.metadata:
+            node.metadata = new_metadata
+            updated_nodes.append(node)
+    return updated_nodes

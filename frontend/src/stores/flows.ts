@@ -131,6 +131,30 @@ export const useFlowsStore = defineStore("flows", {
       return this._cacheFlowVersion(flowVersion);
     },
 
+    async createFlow(flow: Pick<Flow, "name" | "description">): Promise<Flow> {
+      return api
+        .post<Flow>(`/flows`, flow)
+        .then((response) => response.data)
+        .then(this._addFlow);
+    },
+
+    async createFlowVersion(
+      flow: Flow,
+      flowVersion: Pick<FlowVersion, "name" | "description" | "parents">
+    ): Promise<FlowVersion> {
+      return api
+        .post<FlowVersion>(`/flows/${flow.name}/versions`, flowVersion)
+        .then((response) => response.data)
+        .then(this._cacheFlowVersion)
+        .then((flowVersion) => {
+          // if flow doesn't have a head yet, assign it
+          if (flow.latest_version == null) {
+            flow.latest_version = flowVersion;
+          }
+          return flowVersion;
+        });
+    },
+
     _addFlowNode(flow: FlowVersion, node: FlowNode) {
       if (flow.nodes == null) {
         flow.nodes = [];
@@ -189,6 +213,82 @@ export const useFlowsStore = defineStore("flows", {
       flow.artifact_edges = flow.artifact_edges.filter((e) => e.id != flowEdgeId);
     },
 
+    async _updateSpec(flow: FlowVersion) {
+      const updatedFlowNodes = await api
+        .post<FlowNode[]>(`${_flowUrl(flow)}/update_spec`)
+        .then((response) => response.data);
+      updatedFlowNodes.forEach((node) => this._updateFlowNode(flow, node));
+      return flow;
+    },
+
+    async createFlowNode(flow: FlowVersion, flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">) {
+      const node = await api
+        .post<FlowNode>(`${_flowUrl(flow)}/nodes`, flowNode)
+        .then((response) => response.data)
+        .then((node) => this._addFlowNode(flow, node));
+      await this._updateSpec(flow);
+      return node;
+    },
+
+    async updateFlowNode(flow: FlowVersion, flowNode: Partial<FlowNode> & Pick<FlowNode, "id">) {
+      const node = await api
+        .patch<FlowNode>(`${_flowUrl(flow)}/nodes/${flowNode.id}`, flowNode)
+        .then((response) => response.data)
+        .then((node) => this._updateFlowNode(flow, node));
+      await this._updateSpec(flow);
+      return node;
+    },
+
+    async deleteFlowNode(flow: FlowVersion, flowNode: FlowNode) {
+      await api.delete(`${_flowUrl(flow)}/nodes/${flowNode.id}`);
+      this._deleteFlowNode(flow, flowNode);
+      await this._updateSpec(flow);
+    },
+
+    async createFlowNodeEdge(flow: FlowVersion, flowNodeEdge: Omit<FlowNodeEdge, "id">): Promise<FlowNodeEdge> {
+      const edge = await api
+        .post<FlowNodeEdge>(`/flows/${flow.flow}/versions/${flow.version}/node_edges`, flowNodeEdge)
+        .then((response) => response.data)
+        .then((edge) => this._addFlowNodeEdge(flow, edge));
+      await this._updateSpec(flow);
+      return edge;
+    },
+
+    async createFlowArtifactEdge(
+      flow: FlowVersion,
+      flowArtifactEdge: Omit<FlowArtifactEdge, "id">
+    ): Promise<FlowArtifactEdge> {
+      const edge = await api
+        .post<FlowArtifactEdge>(`/flows/${flow.flow}/versions/${flow.version}/artifact_edges`, flowArtifactEdge)
+        .then((response) => response.data)
+        .then((edge) => this._addFlowArtifactEdge(flow, edge));
+      await this._updateSpec(flow);
+      return edge;
+    },
+
+    async updateFlowArtifactEdge(
+      flow: FlowVersion,
+      flowArtifactEdge: Pick<FlowArtifactEdge, "id"> & Partial<FlowArtifactEdge>
+    ): Promise<FlowArtifactEdge> {
+      const edge = await api
+        .patch<FlowArtifactEdge>(
+          `/flows/${flow.flow}/versions/${flow.version}/artifact_edges/${flowArtifactEdge.id}`,
+          flowArtifactEdge
+        )
+        .then((response) => response.data)
+        .then((edge) => this._updateFlowArtifactEdge(flow, edge));
+      await this._updateSpec(flow);
+      return edge;
+    },
+
+    async deleteFlowArtifactEdge(flow: FlowVersion, id: string): Promise<void> {
+      await api
+        .patch<void>(`/flows/${flow.flow}/versions/${flow.version}/artifact_edges/${id}`)
+        .then((response) => response.data)
+        .then(() => this._deleteFlowArtifactEdge(flow, id));
+      await this._updateSpec(flow);
+    },
+
     async connectFlowNode(flow: FlowVersion, dependent: FlowNode, connection: FlowNodeConnection) {
       return await this.createFlowNodeEdge(flow, {
         ...connection,
@@ -238,86 +338,6 @@ export const useFlowsStore = defineStore("flows", {
         );
         await Promise.all(redundantConnections.map((edge) => this.deleteFlowArtifactEdge(flow, edge.id)));
       }
-    },
-
-    async createFlowNode(flow: FlowVersion, flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">) {
-      return api
-        .post<FlowNode>(`${_flowUrl(flow)}/nodes`, flowNode)
-        .then((response) => response.data)
-        .then((node) => this._addFlowNode(flow, node));
-    },
-
-    async updateFlowNode(flow: FlowVersion, flowNode: Partial<FlowNode> & Pick<FlowNode, "id">) {
-      return api
-        .patch<FlowNode>(`${_flowUrl(flow)}/nodes/${flowNode.id}`, flowNode)
-        .then((response) => response.data)
-        .then((node) => this._updateFlowNode(flow, node));
-    },
-
-    async deleteFlowNode(flow: FlowVersion, flowNode: FlowNode) {
-      await api.delete(`${_flowUrl(flow)}/nodes/${flowNode.id}`);
-      this._deleteFlowNode(flow, flowNode);
-    },
-
-    async createFlow(flow: Pick<Flow, "name" | "description">): Promise<Flow> {
-      return api
-        .post<Flow>(`/flows`, flow)
-        .then((response) => response.data)
-        .then(this._addFlow);
-    },
-
-    async createFlowVersion(
-      flow: Flow,
-      flowVersion: Pick<FlowVersion, "name" | "description" | "parents">
-    ): Promise<FlowVersion> {
-      return api
-        .post<FlowVersion>(`/flows/${flow.name}/versions`, flowVersion)
-        .then((response) => response.data)
-        .then(this._cacheFlowVersion)
-        .then((flowVersion) => {
-          // if flow doesn't have a head yet, assign it
-          if (flow.latest_version == null) {
-            flow.latest_version = flowVersion;
-          }
-          return flowVersion;
-        });
-    },
-
-    async createFlowNodeEdge(flow: FlowVersion, flowNodeEdge: Omit<FlowNodeEdge, "id">): Promise<FlowNodeEdge> {
-      return api
-        .post<FlowNodeEdge>(`/flows/${flow.flow}/versions/${flow.version}/node_edges`, flowNodeEdge)
-        .then((response) => response.data)
-        .then((edge) => this._addFlowNodeEdge(flow, edge));
-    },
-
-    async createFlowArtifactEdge(
-      flow: FlowVersion,
-      flowArtifactEdge: Omit<FlowArtifactEdge, "id">
-    ): Promise<FlowArtifactEdge> {
-      return api
-        .post<FlowArtifactEdge>(`/flows/${flow.flow}/versions/${flow.version}/artifact_edges`, flowArtifactEdge)
-        .then((response) => response.data)
-        .then((edge) => this._addFlowArtifactEdge(flow, edge));
-    },
-
-    async updateFlowArtifactEdge(
-      flow: FlowVersion,
-      flowArtifactEdge: Pick<FlowArtifactEdge, "id"> & Partial<FlowArtifactEdge>
-    ): Promise<FlowArtifactEdge> {
-      return api
-        .patch<FlowArtifactEdge>(
-          `/flows/${flow.flow}/versions/${flow.version}/artifact_edges/${flowArtifactEdge.id}`,
-          flowArtifactEdge
-        )
-        .then((response) => response.data)
-        .then((edge) => this._updateFlowArtifactEdge(flow, edge));
-    },
-
-    async deleteFlowArtifactEdge(flow: FlowVersion, id: string): Promise<void> {
-      return api
-        .patch<void>(`/flows/${flow.flow}/versions/${flow.version}/artifact_edges/${id}`)
-        .then((response) => response.data)
-        .then(() => this._deleteFlowArtifactEdge(flow, id));
     },
   },
 });

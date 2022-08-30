@@ -5,6 +5,7 @@ from uuid import UUID
 import structlog
 from django.core.validators import RegexValidator
 from django.db import models
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, validators, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -17,9 +18,9 @@ from bench.api.execution import ExecutionSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions, FlowRawArgument
-from bench.function.spec import get_flow_node_specs
+from bench.function.spec import update_flow_spec
 from bench.models import ArtifactVersion, Flow, FlowNode
-from bench.models.flow import FlowArtifactEdge, FlowNodeEdge, FlowNodeMetadata, FlowVersion
+from bench.models.flow import FlowArtifactEdge, FlowNodeEdge, FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
 
 # ========================
@@ -240,22 +241,22 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
             # copy flow nodes and edges from parent
             instance.copy_from(parents[0])
 
+    # TODO @Performance: update flow spec directly on edit rather than "manually" post-edit
     @action(methods=["POST"], detail=True)
-    def spec(self, request: Request, flow: str, version: str) -> Response:
+    @extend_schema(responses=FlowNodeSerializer(many=True))
+    def update_spec(self, request: Request, flow: str, version: str) -> Response:
         flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
-        flow_node_specs = get_flow_node_specs(
-            nodes=flow_instance.nodes.all(),
-            node_edges=flow_instance.node_edges.all(),
-            artifact_edges=flow_instance.artifact_edges.all(),
-        )
-        for node in flow_instance.nodes.all():
-            spec = flow_node_specs[node.id]
-            node.metadata = FlowNodeMetadata(spec.input_spec, spec.output_spec).to_dict()
-            node.save()  # TODO @Performance: bulk update nodes in flow spec update
+        updated_nodes = update_flow_spec(flow_instance)
 
-        return Response()
+        # TODO @Performance: bulk update nodes in flow spec update
+        for node in updated_nodes:
+            node.save()
+
+        serialized_updated_nodes = FlowNodeSerializer(updated_nodes, many=True).data
+        return Response(serialized_updated_nodes)
 
     @action(methods=["POST"], detail=True)
+    @extend_schema(responses=ExecutionSerializer())
     def execute(self, request: Request, flow: str, version: str) -> Response:
         logger.debug("execute_attempt", flow=flow, version=version)
         flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
