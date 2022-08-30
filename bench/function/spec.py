@@ -1,6 +1,8 @@
 from typing import Callable, Union
 from uuid import UUID
 
+import structlog
+
 from bench.artifact.base import ArtifactHandler
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import ArtifactConnection, prepare_function_arguments
@@ -21,6 +23,8 @@ from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import FunctionType
+
+logger = structlog.stdlib.get_logger()
 
 
 class StubError(NotImplementedError):
@@ -61,8 +65,15 @@ def get_flow_node_specs(
             and art.connection_type == ExecutionArtifactConnection.ConnectionType.Argument
         ]
 
-        arguments = prepare_function_arguments(node, node_artifact_arguments, stub_artifact_loaders)
-        function = load_function(node.function_id, arguments=arguments)
+        try:
+            arguments = prepare_function_arguments(
+                node, node_artifact_arguments, stub_artifact_loaders
+            )
+            function = load_function(node.function_id, arguments=arguments)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"failed to load function while updating spec for node {node}: {e}")
+            continue
+
         if not isinstance(function, RecordFunction):
             raise ValueError(f"function not yet supported: {function}")
         functions[node.id] = function
@@ -70,6 +81,10 @@ def get_flow_node_specs(
     # base function specs only dependent on artifacts
     function_specs: dict[UUID, FunctionType] = {}
     for node in nodes:
+        if node.id not in functions:
+            # couldn't load that function
+            continue
+
         function = functions[node.id]
         function_specs[node.id] = FunctionType(
             input_spec=function.input_spec, output_spec=function.output_spec
@@ -86,6 +101,8 @@ def update_flow_spec(flow: FlowVersion) -> list[FlowNode]:
     )
     updated_nodes = []
     for node in flow.nodes.all():
+        if node.id not in flow_node_specs:
+            continue  # spec could not be computed
         spec = flow_node_specs[node.id]
         new_metadata = FlowNodeMetadata(spec.input_spec, spec.output_spec).to_dict()
         if new_metadata != node.metadata:
