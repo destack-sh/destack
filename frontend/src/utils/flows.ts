@@ -238,6 +238,7 @@ export function getOrderedNodes(flow: FlowVersion): FlowNode[] {
   }
 
   // naive order by created date
+  // TODO @Feature: sort nodes properly - but in what order?
   const orderedNodes: FlowNode[] = [];
   orderedNodes.push(...flow.nodes);
   orderedNodes.sort((a, b) => a.created_at.localeCompare(b.created_at));
