@@ -57,7 +57,7 @@ unravelSpecmapNameVersion
 <script lang="ts" setup>
 import { api } from "@/api";
 import { useTimeFromNow } from "@/composables/useNow";
-import { computedAsync, useArtifactsStore, type AsyncResult } from "@/stores";
+import { computedAsync, useArtifactsStore, useFlowsStore, useMetaStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
   unravelSpec,
@@ -66,9 +66,11 @@ import {
   type Execution,
   type ExecutionArtifactConnection,
   type FieldSpec,
+  type FlowNodePortType,
   type LimitPaginatedResult,
   type RecordSpec,
 } from "@/types";
+import { getOrderedNodes, nodePorts } from "@/utils/flows";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
 import { DateTime } from "luxon";
 import qs from "qs";
@@ -92,20 +94,54 @@ function datasetToFriendlyName(execution: Execution, connection: ExecutionArtifa
   return dataset;
 }
 
+const flowsStore = useFlowsStore();
+const metaStore = useMetaStore();
 const datasetColumns = computed(() => {
   // use "schema" of latest completed execution (for now)
   const schemaExecution = props.executions.find((execution) => execution.state == "completed");
-  return schemaExecution == null
-    ? []
-    : getAllConnectedDatasets(schemaExecution).map((connection) => {
-        const [dataset] = mapNameVersion(connection.artifact);
-        return {
-          name: datasetToFriendlyName(schemaExecution, connection),
-          key: dataset,
-          connection: connection,
-          artifact: connection.artifact,
-        };
-      });
+  if (schemaExecution == null) {
+    return [];
+  }
+
+  const connectedDatasets = getAllConnectedDatasets(schemaExecution);
+
+  // attempt to automatically order columns if these are flow executions
+  if (schemaExecution.type == "flow" && flowsStore.cachedVersions[schemaExecution.flow] != null) {
+    const flow = flowsStore.cachedVersions[schemaExecution.flow];
+    const orderedArtifacts: string[] = [];
+
+    // add ports for ordered nodes in order
+    // note that this only works if we assume a common naming scheme for datasets and port ids
+    // TODO @Cleanup: use actual artifact connections to bind node order to execution artifact column order
+    for (const node of getOrderedNodes(flow)) {
+      for (const portType of ["input", "argument", "output"] as FlowNodePortType[]) {
+        for (const port of nodePorts(node, metaStore.functionHandlersById, portType)) {
+          let portName;
+          const version = "0";
+          if (port.name != "*") {
+            portName = `${flow.flow}.${port.node.name}.${port.type}s.${port.name}@${version}`;
+          } else {
+            portName = `${flow.flow}.${port.node.name}.${port.type}s@${version}`;
+          }
+          orderedArtifacts.push(portName);
+        }
+      }
+    }
+
+    console.log("suggest execution artifact order", orderedArtifacts);
+    // sort datasets
+    connectedDatasets.sort((a, b) => orderedArtifacts.indexOf(a.artifact) - orderedArtifacts.indexOf(b.artifact));
+  }
+
+  return connectedDatasets.map((connection) => {
+    const [dataset] = mapNameVersion(connection.artifact);
+    return {
+      name: datasetToFriendlyName(schemaExecution, connection),
+      key: dataset,
+      connection: connection,
+      artifact: connection.artifact,
+    };
+  });
 });
 
 type PaginatedDataset = LimitPaginatedResult<Record<string, any>>;
