@@ -46,10 +46,10 @@ from bench.model.base import ModelHandler
 from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.dataset import DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
-from bench.models.flow import FlowNodeEdge, FlowVersion
+from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
-from bench.utils.func import dict_to_ordered, terrible_cast
+from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import ArtifactType, FieldTypePrimitive, FieldTypeSpec
 
@@ -252,12 +252,7 @@ class LocalExecutor(Executor):
         # load functions with corresponding arguments
         functions = self._load_functions(plan)
 
-        # update specs for special functions (like identity) where input/output spec is dynamic
-        # TODO @Cleanup @Architecture: don't update function specs at runtime
-        #  Ideally we set this ahead of time, e.g. by the user configuring input specs and by
-        #  setting specs for dynamic spec functions whenever the flow changes.
-        self._patch_dynamic_function_specs(functions, plan)
-
+        # run actual execution
         self._run_execution_loop(functions, plan)
 
         # update dynamic (node and final) connections with view data
@@ -424,26 +419,3 @@ class LocalExecutor(Executor):
                 raise ValueError(f"function not yet supported: {function}")
             functions[node.id] = function
         return functions
-
-    def _patch_dynamic_function_specs(
-        self, functions: dict[UUID, RecordFunction], plan: FlowExecutionPlan
-    ):
-        for node_id, function in functions.items():
-            # only bench.identity is "dynamic"(ally) dependent on other functions right now
-            if plan.nodes[node_id].function_id != "bench.identity":
-                continue
-
-            input_node_connection = plan.node_inputs.get(node_id, {}).get("*")
-            if input_node_connection is not None:
-                input_function = functions[input_node_connection.edge.dependency_id]
-                function.input_spec = input_function.output_spec
-                function.output_spec = function.input_spec
-                continue
-            output_node_connections = plan.connected_inverse[node_id].get("*")
-            for output_node_connection in output_node_connections or []:
-                if output_node_connection.edge.connection_type != FlowNodeEdge.ConnectionType.Input:
-                    continue
-                output_function = functions[output_node_connection.edge.dependent_id]
-                function.output_spec = dict_to_ordered(output_function.input_spec)
-                function.input_spec = function.output_spec
-                break
