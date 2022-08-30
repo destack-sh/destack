@@ -1,10 +1,10 @@
 from collections import OrderedDict
-from typing import Union
+from typing import Optional, Union, cast
 
-from bench.function.base import FunctionMetadata, RecordTransform, functions
+from bench.function.base import FunctionMetadata, RecordTransform, SingleRecordTransform, functions
 from bench.model.base import ModelHandler
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import BLANK_RECORD_SPEC
+from bench.utils.spec import BLANK_RECORD_SPEC, convert_to_record_spec
 
 
 @functions.register("bench.identity")
@@ -38,3 +38,20 @@ class ModelRecordTransform(RecordTransform):
 
     def transform_batch(self, records: RecordBatch) -> RecordBatch:
         return self.model.predict_batch(records)
+
+
+@functions.register("bench.count")
+class CountRecordTransform(SingleRecordTransform):
+    metadata = FunctionMetadata("Count", "Counts elements in an array-like")
+
+    input_spec = {"*": BLANK_RECORD_SPEC}
+    output_spec = OrderedDict([("*", convert_to_record_spec(int))])
+
+    def __init__(self, key: Optional[str] = None):
+        self.key = key
+
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
+        if self.key is not None:
+            record = cast(dict, record)[self.key]
+
+        return len(record)

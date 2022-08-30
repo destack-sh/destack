@@ -70,7 +70,12 @@ export const useFlowsStore = defineStore("flows", {
   },
   actions: {
     async hydrate() {
-      (await api.get<Flow[]>("/flows")).data.forEach(this._addFlow);
+      (await api.get<Flow[]>("/flows")).data.forEach((flow) => {
+        this._addFlow(flow);
+        if (flow.latest_version != null) {
+          this._cacheFlowVersion(flow.latest_version);
+        }
+      });
     },
     async dehydrate() {
       this.$reset();

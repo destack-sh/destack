@@ -106,7 +106,7 @@ export function getFlowNodePortId(port: Omit<FlowNodePort, "id">): string {
   if (port.name != "*") {
     return `${port.node.id}.${port.type}s.${port.name}`;
   } else {
-    return `${port.node.id}.${port.type}`;
+    return `${port.node.id}.${port.type}s`;
   }
 }
 
@@ -144,7 +144,7 @@ export function nodePorts(
   const specs: Record<FlowNodePortType, Record<string, any>> = {
     input: functionSpec.base_spec.input_spec,
     output: functionSpec.base_spec.output_spec,
-    argument: functionSpec.config_spec.type,
+    argument: functionSpec.config_spec,
   };
   return types.flatMap((type) => Object.keys(specs[type]).map((name) => makeFlowNodePort(name, node, type)));
 }
@@ -230,4 +230,16 @@ export function isValidEdge(flow: FlowVersion, edge: Omit<FlowNodeEdge, "id">): 
   // TODO @Feature: detect incompatible node types
 
   return { valid: true };
+}
+
+export function getOrderedNodes(flow: FlowVersion): FlowNode[] {
+  if (flow.nodes == null) {
+    return [];
+  }
+
+  // naive order by created date
+  const orderedNodes: FlowNode[] = [];
+  orderedNodes.push(...flow.nodes);
+  orderedNodes.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return orderedNodes;
 }

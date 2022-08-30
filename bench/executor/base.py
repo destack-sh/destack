@@ -295,9 +295,9 @@ def _make_node_connections(
         node_dependencies: QuerySet[FlowNodeEdge] = FlowNodeEdge.objects.filter(dependent=node)
         for edge in node_dependencies:
             if edge.connection_type in captured_connection_types or edge.id in captured_edges:
-                output_id = f"{flow_name}.{edge.dependency.name}.outputs"
-                if edge.connection_name_dependency != DEFAULT_CONNECTION_NAME:
-                    output_id = f"{output_id}.{edge.connection_name_dependency}"
+                output_id = _port_id(
+                    flow_name, edge.dependency.name, "outputs", edge.connection_name_dependency
+                )
                 output_dataset = Dataset.objects.get_or_create_dataset_version(
                     name=output_id, version="0", metadata=DatasetMetadata.default_db()
                 )
@@ -338,7 +338,7 @@ def _get_static_connections(nodes: Iterable[FlowNode]):
     return static_arguments, static_inputs
 
 
-def _argument_name(flow_name: str, node_name: str, argument_kind: str, argument_name: str) -> str:
+def _port_id(flow_name: str, node_name: str, argument_kind: str, argument_name: str) -> str:
     if argument_name == DEFAULT_CONNECTION_NAME:
         return f"{flow_name}.{node_name}.{argument_kind}"
     else:
@@ -360,12 +360,12 @@ def make_execution_plan(
     # convert given inputs/arguments to persisted artifacts as needed
     extra_inputs = _convert_arguments_to_artifact_connections(
         inputs,
-        lambda nid, name: _argument_name(flow.flow.name, nodes[nid].name, "inputs", name),
+        lambda nid, name: _port_id(flow.flow.name, nodes[nid].name, "inputs", name),
         connection_type=ExecutionArtifactConnection.ConnectionType.Input,
     )
     extra_arguments = _convert_arguments_to_artifact_connections(
         arguments,
-        lambda nid, name: _argument_name(flow.flow.name, nodes[nid].name, "arguments", name),
+        lambda nid, name: _port_id(flow.flow.name, nodes[nid].name, "arguments", name),
         connection_type=ExecutionArtifactConnection.ConnectionType.Argument,
     )
     logger.debug("execute_converted")

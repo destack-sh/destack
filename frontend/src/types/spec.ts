@@ -28,7 +28,7 @@ export function isFieldType(obj: any) {
   return FIELD_TYPES.includes(obj._type);
 }
 
-export type FieldValuePrimitive = string | number | object;
+export type FieldValuePrimitive = string | number | boolean;
 export type FieldValue = any;
 
 export type FieldType = FieldTypePrimitive | FieldSpec | Array<FieldSpec> | Record<string, FieldSpec>;
