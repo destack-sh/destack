@@ -103,7 +103,16 @@ const datasetColumns = computed(() => {
     return [];
   }
 
-  const connectedDatasets = getAllConnectedDatasets(schemaExecution);
+  let connectedDatasets = getAllConnectedDatasets(schemaExecution);
+
+  // deduplicate dataset columns
+  const deduplicatedDatasets: Record<string, ExecutionArtifactConnection> = {};
+  for (const connection of connectedDatasets) {
+    const [dataset] = mapNameVersion(connection.artifact);
+    // we (probably?) don't care which artifact connection this column comes from
+    deduplicatedDatasets[dataset] = connection;
+  }
+  connectedDatasets = Object.values(deduplicatedDatasets);
 
   // attempt to automatically order columns if these are flow executions
   if (schemaExecution.type == "flow" && flowsStore.cachedVersions[schemaExecution.flow] != null) {
