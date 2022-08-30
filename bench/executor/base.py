@@ -295,7 +295,7 @@ def _make_node_connections(
         node_dependencies: QuerySet[FlowNodeEdge] = FlowNodeEdge.objects.filter(dependent=node)
         for edge in node_dependencies:
             if edge.connection_type in captured_connection_types or edge.id in captured_edges:
-                output_id = f"{flow_name}.{node.name}.outputs"
+                output_id = f"{flow_name}.{edge.dependency.name}.outputs"
                 if edge.connection_name_dependency != DEFAULT_CONNECTION_NAME:
                     output_id = f"{output_id}.{edge.connection_name_dependency}"
                 output_dataset = Dataset.objects.get_or_create_dataset_version(
