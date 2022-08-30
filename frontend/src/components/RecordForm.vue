@@ -18,16 +18,9 @@ unravelSpec
   </form>
 </template>
 <script lang="ts" setup>
-import {
-  isFieldSpec,
-  isFieldType,
-  unravelSpec,
-  type FieldSpec,
-  type FieldTypePrimitive,
-  type RecordSpec,
-} from "@/types";
-import { computed, type Ref } from "vue";
 import FieldValueInterface from "@/components/FieldValueInterface.vue";
+import { isFieldType, unravelSpec, type FieldSpec, type FieldTypePrimitive, type RecordSpec } from "@/types";
+import { computed, type Ref } from "vue";
 
 const props = defineProps<{
   spec: RecordSpec[];
