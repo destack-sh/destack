@@ -22,24 +22,32 @@
             'whitespace-pre-wrap text-sm font-medium',
           ]"
         >
-          <SpanTextDisplay v-if="row.text != undefined" :model-value="row" :spec="props.fields" />
-          <span v-else class="font-normal">{{ row[column.name] }}</span>
+          <SpanTextDisplay v-if="(row as any).text != undefined" :model-value="row" :spec="props.fields" />
+          <span v-else class="font-normal">{{ getRowValue(row, column) }}</span>
         </td>
       </tr>
     </tbody>
   </table>
 </template>
 <script lang="ts" setup>
-import type { FieldSpec } from "@/types";
+import type { FieldSpec, FieldValuePrimitive } from "@/types";
 import SpanTextDisplay from "@/displays/SpanTextDisplay.vue";
 import { computed } from "vue";
 const props = defineProps<{
   fields: Array<FieldSpec>;
-  records: Array<Record<string, any>>;
+  records: Array<FieldValuePrimitive | Record<string, any>>;
 }>();
 
 // TODO @Cleanup @Architecture: support general multi-field displays & interfaces
 //  (across interfaces/displays for preview, grid, form, etc.)
 const columns = computed(() => props.fields.filter((f) => !["entities", "tokens"].includes(f.name)));
 const rows = computed(() => props.records);
+
+function getRowValue(row: any, field: FieldSpec): any {
+  if (field.name != "") {
+    return row[field.name];
+  } else {
+    return row;
+  }
+}
 </script>
