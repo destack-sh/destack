@@ -37,7 +37,6 @@ from bench.executor.base import (
     prepare_execution_manifest,
     prepare_function_arguments,
     save_execution_manifest,
-    validate_record_batch_type,
 )
 from bench.executor.utils import get_model_iid
 from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
@@ -52,6 +51,7 @@ from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import ArtifactType, FieldTypePrimitive, FieldTypeSpec
+from bench.utils.validate import validate_record_batch_type
 
 logger = structlog.stdlib.get_logger()
 
@@ -409,6 +409,7 @@ class LocalExecutor(Executor):
     def _load_functions(self, plan: FlowExecutionPlan) -> dict[UUID, RecordFunction]:
         functions: dict[UUID, RecordFunction] = {}
         for node in plan.nodes.values():
+            # prepare arguments
             arguments = prepare_function_arguments(
                 node,
                 node_artifact_arguments=plan.artifact_arguments.get(node.id, {}).values(),

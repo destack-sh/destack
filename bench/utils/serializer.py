@@ -55,6 +55,8 @@ class SpecField(serializers.Field):
             return type(obj)(
                 (self.to_representation(k), self.to_representation(v)) for k, v in obj.items()
             )
+        elif isinstance(obj, type):
+            return obj.__module__ + "." + obj.__name__
         else:
             return copy.deepcopy(obj)
 

@@ -82,6 +82,7 @@ class EnumType(_Type):
     values: List[FieldValuePrimitive]
     optional: bool = False
     default: Optional[FieldValuePrimitive] = None
+    ptype: Optional[Type[enum.Enum]] = None
 
     def __instancecheck__(self, instance):
         return instance in self.values
@@ -394,7 +395,9 @@ def _impl_type_to_type(
     if issubclass(value, enum.Enum):
         if isinstance(default, enum.Enum):
             default = default.value
-        return EnumType(values=[item.name for item in value], optional=optional, default=default)
+        return EnumType(
+            values=[item.name for item in value], optional=optional, default=default, ptype=value
+        )
 
     if ignore_unknown:
         return value

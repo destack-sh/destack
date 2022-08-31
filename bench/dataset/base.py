@@ -2,14 +2,13 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional, Tuple, Type
 
-import cachetools
-from cachetools import LRUCache
 from fsspec import AbstractFileSystem
 
 from bench.artifact.base import ArtifactHandler
+from bench.artifact.utils import map_to_artifact_cls
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import ConfigTypeSpec, DatasetType, RecordSpec, infer_config_type
+from bench.utils.spec import DatasetType, RecordSpec
 
 
 @dataclass
@@ -85,27 +84,25 @@ class DatasetWriter(DatasetHandler, abc.ABC):
         raise NotImplementedError
 
 
-def map_to_dataset_cls(func: Any, impl: Optional[Type[DatasetHandler]]) -> Type[DatasetHandler]:
+def map_to_dataset_cls(dataset_cls: Type[DatasetHandler], impl, *args) -> Type[DatasetHandler]:
     if impl is not None:
         raise ValueError("specifying impl type is not supported")
+    return map_to_artifact_cls(dataset_cls)
 
-    return func
 
-
-# TODO @Feature: figure out better registration mechanism for registered objects
 datasets: Registry[Type[DatasetHandler]] = Registry(("datasets",), mapper=map_to_dataset_cls)
-import bench.dataset.activeloop  # noqa
-import bench.dataset.db  # noqa
-import bench.dataset.huggingface  # noqa
+
+
+def _import_datasets():
+    # TODO @Feature: figure out better registration mechanism for registered objects
+    import bench.dataset.activeloop  # noqa
+    import bench.dataset.db  # noqa
+    import bench.dataset.huggingface  # noqa
 
 
 def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:
+    _import_datasets()
     return datasets[handler_id]
-
-
-@cachetools.cached(cache=LRUCache(maxsize=1024), key=lambda cls: cls.__name__)
-def _get_dataset_handler_config_type(cls: Type[DatasetHandler]) -> ConfigTypeSpec:
-    return infer_config_type(cls)
 
 
 def get_file_system(storage_uri: str) -> Tuple[AbstractFileSystem, str]:
@@ -132,7 +129,7 @@ def load_dataset(
     @param storage_uri: The storage location of the dataset (if any)
     @param version: The version of the dataset (if any)
     @param spec: The known spec to use (if any)
-    @param kwargs: additional arguments passed to the handler
+    @param arguments: Arguments passed to the handler
     """
 
     dataset_cls = get_dataset_cls(handler_id)
@@ -141,7 +138,7 @@ def load_dataset(
     else:
         fs, path = None, None
 
-    config_type = _get_dataset_handler_config_type(dataset_cls)
+    config_type = dataset_cls.config_spec
     arguments = dict(**arguments, fs=fs, path=path)
     # filter arguments to only those listed
     arguments = {key: value for key, value in arguments.items() if key in config_type}

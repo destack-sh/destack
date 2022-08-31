@@ -20,6 +20,8 @@ from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
     AnySpec,
     ArtifactSetType,
+    ArtifactSpec,
+    ConfigTypeSpec,
     FieldSpec,
     FunctionType,
     RecordSpec,
@@ -29,6 +31,7 @@ from bench.utils.spec import (
     infer_name,
     reduce_to_record_type_spec,
 )
+from bench.utils.validate import cast_config_arguments, validate_config_type
 
 
 @dataclass
@@ -173,12 +176,12 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
 
     inferred_config_spec = infer_config_type(func)
     try:
-        inferred_input_type = reduce_to_record_type_spec(inferred_config_spec.type)
+        inferred_input_type = reduce_to_record_type_spec(inferred_config_spec)
     except ValueError as e:
         raise ValueError("callable function definition has non-FieldType parameters") from e
     inferred_input_spec = convert_to_record_spec(inferred_input_type)
 
-    actual_config_spec = {}  # actual config is empty
+    actual_config_spec: ConfigTypeSpec = {}  # actual config is empty
     attrs: dict = {
         "__call__": func,
         "config_spec": actual_config_spec,
@@ -189,7 +192,7 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
     if issubclass(impl, RecordFunction):
         attrs["input_spec"] = inferred_input_spec
         if issubclass(impl, RecordTransform):
-            if len(inferred_config_spec.type) != 1:
+            if len(inferred_config_spec) != 1:
                 raise ValueError(
                     f"mapping callable {get_qualified_name(func)} with !=1 arguments is not supported"
                 )
@@ -205,13 +208,24 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
 
 
 functions: Registry[Type[Function]] = Registry(("functions",), mapper=map_to_function_cls)
-# TODO @Cleanup: figure out better registration mechanism for registered objects
-import bench.function.metrics  # noqa
-import bench.function.test  # noqa
-import bench.function.transform.text  # noqa
-import bench.function.utils  # noqa
+
+
+def _import_functions():
+    # TODO @Cleanup: figure out better registration mechanism for registered objects
+    import bench.function.metrics  # noqa
+    import bench.function.test  # noqa
+    import bench.function.transform.text  # noqa
+    import bench.function.utils  # noqa
+
 
 FunctionHandlerType = Union[Literal["RecordTransform"], Literal["Metric"], Literal["Test"]]
+
+
+def get_function_cls(handler_id: str) -> Type[Function]:
+    _import_functions()
+
+    function_cls: Type[Function] = functions[handler_id]
+    return function_cls
 
 
 @dataclass
@@ -221,11 +235,13 @@ class FunctionHandlerSpec:
     description: str
     tags: list[str]
     type: Union[Literal["RecordTransform"], Literal["Metric"], Literal["Test"]]
-    config_spec: Mapping[str, FieldSpec]
+    config_spec: Mapping[str, Union[FieldSpec, ArtifactSpec]]
     base_spec: FunctionType
 
 
 def get_function_handler_specs() -> list[FunctionHandlerSpec]:
+    _import_functions()
+
     function_handler_specs = []
     for handler_id in functions.names():
         function_handler_spec = get_function_handler_spec(handler_id)
@@ -267,13 +283,21 @@ def get_function_handler_spec(handler_id: str) -> FunctionHandlerSpec:
     return function_handler_spec
 
 
-def get_function_cls(handler_id: str) -> Type[Function]:
-    function_cls: Type[Function] = functions[handler_id]
-    return function_cls
+def get_function_config_type(handler_id: str) -> ConfigTypeSpec:
+    return get_function_cls(handler_id).config_spec
 
 
 def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
     function_cls = get_function_cls(function_id)
+
+    # validate arguments
+    config_type = function_cls.config_spec
+    validate_config_type(arguments, config_type, ignore_extraneous=True)
+    arguments = cast_config_arguments(arguments, config_type)
+
+    # filter arguments to remove extraneous
+    arguments = {key: value for key, value in arguments.items() if key in config_type}
+
     # noinspection PyArgumentList
     function = function_cls(**arguments)
     return function

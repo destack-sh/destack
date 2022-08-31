@@ -1,21 +1,25 @@
 import abc
 from dataclasses import dataclass
-from typing import AbstractSet, Any, List, Mapping, Optional, Type, Union
+from typing import (
+    AbstractSet,
+    Any,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    Union,
+    cast,
+)
 
 from fsspec import AbstractFileSystem
 
 from bench.artifact.base import ArtifactHandler
+from bench.artifact.utils import map_to_artifact_cls
 from bench.dataset.accessor import get_file_system
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
-from bench.utils.spec import (
-    FieldSpec,
-    ModelType,
-    RecordSpec,
-    convert_to_config_type_spec,
-    convert_to_record_spec,
-    infer_config_type,
-)
+from bench.utils.spec import FieldSpec, ModelType, RecordSpec, convert_to_record_spec
+from bench.utils.validate import cast_config_arguments, validate_config_type
 
 
 @dataclass
@@ -93,24 +97,24 @@ class BatchedModelHandler(ModelHandler, abc.ABC):
 
 
 def map_to_model_cls(model_cls: Type[ModelHandler], *args) -> Type[ModelHandler]:
-    if hasattr(model_cls, "config_spec"):
-        declared_config_spec = convert_to_config_type_spec(model_cls.config_spec)
-    else:
-        declared_config_spec = None
-    # TODO @Robustness: check declared_config_spec against inferred_config_spec
-    inferred_config_spec = infer_config_type(model_cls.__init__)  # noqa
-
-    # overwrite config spec with clean config
-    config_spec = declared_config_spec or inferred_config_spec
-    model_cls.config_spec = config_spec
-    return model_cls
+    return map_to_artifact_cls(model_cls)
 
 
 models: Registry[Type[ModelHandler]] = Registry(("models",), mapper=map_to_model_cls)
-# TODO @Feature: figure out better registration mechanism for registered objects
-import bench.model.huggingface  # noqa
-import bench.model.openai  # noqa
-import bench.model.spacy_  # noqa
+
+
+def _import_models():
+    # TODO @Feature: figure out better registration mechanism for registered objects
+    import bench.model.huggingface  # noqa
+    import bench.model.openai  # noqa
+    import bench.model.spacy_  # noqa
+
+
+def get_model_cls(handler_id: str) -> Type[ModelHandler]:
+    _import_models()
+
+    model_cls: Type[ModelHandler] = models[handler_id]
+    return model_cls
 
 
 @dataclass
@@ -124,6 +128,8 @@ class ModelHandlerSpec:
 
 
 def get_model_handler_specs() -> List[ModelHandlerSpec]:
+    _import_models()
+
     model_handler_specs = []
     for handler_id in models.names():
         model_handler_spec = get_model_handler_spec(handler_id)
@@ -160,15 +166,11 @@ def get_model_base_spec(handler_id: str) -> ModelType:
     return model_spec
 
 
-def get_model_cls(handler_id: str) -> Type[ModelHandler]:
-    model_cls: Type[ModelHandler] = models[handler_id]
-    return model_cls
-
-
 def get_variable_config_keys(handler_id: str) -> AbstractSet[str]:
     model_cls = get_model_cls(handler_id)
     config_spec = convert_to_record_spec(model_cls.config_spec)
-    all_keys = config_spec.type.keys()
+    # all config types for models are assumed to be dicts
+    all_keys = cast(dict, config_spec.type).keys()
     static_keys = model_cls.config_static_keys or set()
     variable_keys = all_keys - static_keys
     return variable_keys
@@ -192,9 +194,12 @@ def load_model(
     else:
         fs, path = None, None
 
-    config_type = infer_config_type(model_cls)
+    config_type = model_cls.config_spec
+    validate_config_type(arguments, config_type, ignore_extraneous=True)
+    arguments = cast_config_arguments(arguments, config_type)
+
     arguments = dict(**arguments, fs=fs, path=path)
-    # filter arguments to only those listed
+    # filter arguments to remove extraneous
     arguments = {key: value for key, value in arguments.items() if key in config_type}
     model = model_cls(spec=spec, version=version, **arguments)  # noqa
     return model

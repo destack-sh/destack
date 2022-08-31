@@ -25,8 +25,8 @@ class OpenAIModel(UnbatchedModelHandler, abc.ABC):
         self,
         api_key: str,
         engine_id: Engine = Engine.Ada,
-        max_tokens: int = 16,
-        temperature: float = 1.0,
+        max_tokens: int = 128,
+        temperature: float = 0.7,
         top_p: float = 1.0,
         n: int = 1,
         stop: List[str] = None,
@@ -64,6 +64,7 @@ class OpenAIModelForCompletion(OpenAIModel):
         input_spec=convert_to_record_spec({"text": str}),
         output_spec=convert_to_record_spec({"generated_text": str}),
     )
+    base_spec = spec
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
@@ -92,6 +93,7 @@ class OpenAIModelForClassification(OpenAIModel):
         ),
         output_spec=convert_to_record_spec({"text": str, "classes": make_scored_labels_spec(str)}),
     )
+    base_spec = spec
 
     def predict(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
