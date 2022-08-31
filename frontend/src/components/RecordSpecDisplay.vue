@@ -1,8 +1,8 @@
 <template>
-  <div>{{ spec.type }}</div>
+  <div>{{ spec }}</div>
 </template>
 <script lang="ts" setup>
-import type { RecordSpec } from "@/types";
+import type { RecordSpec, RecordType } from "@/types";
 
-const props = defineProps<{ spec: RecordSpec }>();
+const props = defineProps<{ spec: RecordSpec | RecordType }>();
 </script>
