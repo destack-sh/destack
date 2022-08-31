@@ -47,14 +47,14 @@ export function makeFieldSpec(name: string, type: FieldType | Array<FieldSpec> |
 // Complex types
 
 export type ArtifactType = _Type;
-export type ModelType = ArtifactSpec & {
+export type ModelType = ArtifactType & {
   _type: "ModelType";
   input_spec: RecordSpec | RecordType;
   output_spec: RecordSpec | RecordType;
   optiona?: boolean;
 };
 
-export type DatasetType = ArtifactSpec & {
+export type DatasetType = ArtifactType & {
   _type: "DatasetType";
   record_spec: RecordSpec | RecordType;
   optiona?: boolean;

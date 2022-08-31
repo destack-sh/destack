@@ -30,9 +30,18 @@
             {{ artifact.name }}
           </li>
         </ComboboxOption>
-        <div v-if="query !== '' && filteredArtifacts.length === 0" class="py-4 px-4 text-center sm:px-14">
-          <ChipIcon class="mx-auto h-6 w-6 text-gray-400" aria-hidden="true" />
-          <p class="mt-4 text-sm text-gray-900">No artifacts found using that search term.</p>
+        <div
+          v-if="(query !== '' || relevantArtifacts.length == 0) && filteredArtifacts.length === 0"
+          class="py-4 px-4 text-center sm:px-14"
+        >
+          <Manif class="mx-auto h-6 w-6 text-gray-400" aria-hidden="true" />
+          <p class="mt-4 text-sm text-gray-900">No matching artifacts found matching these filters.</p>
+          <p v-if="props.type" class="mt-4 text-sm text-gray-900">
+            <template v-if="props.type._type == 'DatasetType'">
+              Using spec filter
+              <RecordSpecDisplay :spec="(props.type as DatasetType).record_spec" />
+            </template>
+          </p>
         </div>
       </ComboboxOptions>
     </div>
@@ -41,24 +50,54 @@
 
 <script lang="ts" setup>
 import { useArtifactsStore } from "@/stores";
-import type { Artifact } from "@/types";
+import type { Artifact, ArtifactType, DatasetMetadata, DatasetType, RecordSpec } from "@/types";
+import { specContains } from "@/utils/spec";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { ChipIcon, SelectorIcon } from "@heroicons/vue/outline";
 import { computed, ref, type Ref } from "vue";
+import RecordSpecDisplay from "./RecordSpecDisplay.vue";
 
-const props = defineProps<{ modelValue?: Artifact; static?: boolean }>();
+const props = defineProps<{ type?: ArtifactType; modelValue?: Artifact; static?: boolean }>();
 
 const query: Ref<string> = ref("");
 
+function getDatasetRecordSpec(dataset: Artifact): RecordSpec | undefined {
+  if (dataset.latest_version == undefined) {
+    return undefined;
+  }
+
+  const datasetMetadata = dataset.latest_version.metadata as DatasetMetadata;
+  return datasetMetadata.record_spec;
+}
+
 const artifactsStore = useArtifactsStore();
-const filteredArtifacts = computed(() =>
-  artifactsStore.models.filter((artifact) => {
+const relevantArtifacts = computed(() => {
+  let relevantArtifacts: Artifact[];
+  if (props.type?._type == "DatasetType") {
+    relevantArtifacts = artifactsStore.datasets.filter((dataset) => {
+      if (dataset.latest_version == null) {
+        return false;
+      }
+
+      const datasetSpec = getDatasetRecordSpec(dataset);
+      return datasetSpec != null && specContains(datasetSpec, (props.type as DatasetType).record_spec);
+    });
+  } else if (props.type?._type == "ModelType") {
+    relevantArtifacts = artifactsStore.models;
+  } else {
+    relevantArtifacts = artifactsStore.artifacts;
+  }
+  return relevantArtifacts;
+});
+
+const filteredArtifacts = computed(() => {
+  return relevantArtifacts.value.filter((artifact) => {
     if (!props.static && query.value.trim().length == 0) {
       return [];
     }
     return artifact.name.toLowerCase().includes(query.value.toLowerCase());
-  })
-);
+  });
+});
 
 const emit = defineEmits(["select", "update:modelValue"]);
 function onSelect(artifact: Artifact) {

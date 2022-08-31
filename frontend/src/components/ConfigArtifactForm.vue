@@ -7,6 +7,7 @@
       </label>
       <div class="mt-1 flex rounded-md">
         <ArtifactSelect
+          :type="field.type"
           :modelValue="artifact(modelValue[field.name])"
           @select="(artifact) => setArtifactConnection(field, artifact)"
         />

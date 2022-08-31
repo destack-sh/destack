@@ -14,6 +14,9 @@ export const useArtifactsStore = defineStore("artifacts", {
     artifact(): (name: string) => Artifact | undefined {
       return (name) => this.artifactsByName[name];
     },
+    artifactsOfType(): (type: string) => Artifact[] {
+      return (type) => this.artifacts.filter((artifact) => artifact.type == type);
+    },
     models(): Artifact[] {
       return this.artifacts.filter((artifact) => artifact.type == "model");
     },
