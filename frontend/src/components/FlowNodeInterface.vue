@@ -55,21 +55,29 @@
       </Menu>
     </div>
     <div class="px-6 py-2 text-sm">
-      <ConfigArtifactForm :model-value="configArtifacts" :spec="Object.values(configSpec).filter(isArtifactSpec)" />
+      <div class="sm:col-span-4" v-for="field in artifactSpecs" :key="field.name">
+        <label for="username" class="block text-sm font-medium text-gray-700">
+          {{ field.name }}
+          <span v-if="isOptional(field)" class="font-normal text-gray-500">(optional)</span>
+        </label>
+        <router-link :to="'/models/' + artifact(configArtifacts[field.name])?.name" class="hover:text-gray-700">
+          {{ artifact(configArtifacts[field.name])?.name }}
+        </router-link>
+      </div>
     </div>
   </div>
 </template>
 <script lang="ts" setup>
-import { useMetaStore } from "@/stores";
-import type { FlowNode, FlowVersion } from "@/types/flows";
+import { useIcons } from "@/composables/useIcons";
+import { useArtifactsStore, useMetaStore } from "@/stores";
+import type { ArtifactConnection, FlowNode, FlowVersion } from "@/types/flows";
+import { isArtifactSpec, isArtifactType, type ArtifactSpec, type ArtifactType } from "@/types/spec";
+import { artifactConnections } from "@/utils/flows";
+import { splitNameVersion } from "@/utils/versioning";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { DotsVerticalIcon, DuplicateIcon, PencilAltIcon, TrashIcon } from "@heroicons/vue/solid";
-import { computed, ref } from "vue";
-import ConfigArtifactForm from "@/components/ConfigArtifactForm.vue";
-import { artifactConnections } from "@/utils/flows";
-import { isArtifactSpec } from "@/types/spec";
-import { useIcons } from "@/composables/useIcons";
 import { useElementSize } from "@vueuse/core";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   flow: FlowVersion;
@@ -109,4 +117,20 @@ const container = ref(null);
 const elementSize = useElementSize(container);
 
 defineExpose({ elementSize });
+
+const artifactSpecs = computed(() => Object.values(configSpec.value).filter(isArtifactSpec) as ArtifactSpec[]);
+
+const artifactsStore = useArtifactsStore();
+
+function artifact(connection?: ArtifactConnection) {
+  if (connection == null) {
+    return undefined;
+  }
+  const artifact = splitNameVersion(connection.dependency)[0];
+  return artifactsStore.artifact(artifact);
+}
+
+function isOptional(field: ArtifactSpec): boolean | undefined {
+  return isArtifactType(field.type) && (field.type as ArtifactType).optional;
+}
 </script>

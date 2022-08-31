@@ -271,7 +271,6 @@ function buildVueFlowGraph() {
       const id = port.id + "-virtual-input-node";
       const nodeRect = getNodeRect(id);
       const inputSpec = portSpec(port, metaStore.functionHandlersById, true);
-      console.log(inputSpec.type);
       return {
         id,
         label: port.id,

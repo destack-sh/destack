@@ -256,21 +256,6 @@ watch(
 );
 
 async function setupPlayground(flow: FlowVersion, models: string[]) {
-  // create main input node
-  const inputNode = await flowsStore.createFlowNode(flow, {
-    name: "input-0",
-    function_id: "bench.identity",
-  });
-  const modelNodes = await addModels(flow, models);
-  await Promise.all(
-    modelNodes.map((modelNode) =>
-      flowsStore.connectFlowNode(flow, modelNode, {
-        connection_type: "input",
-        dependency: inputNode.id,
-        connection_name_dependency: "*",
-        connection_name_dependent: "*",
-      })
-    )
-  );
+  await addModels(flow, models);
 }
 </script>
