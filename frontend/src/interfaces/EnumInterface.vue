@@ -11,7 +11,7 @@
       >
         <span class="block truncate">{{ modelValue }}</span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
+          <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
         </span>
       </ListboxButton>
 
@@ -58,7 +58,7 @@
 </template>
 <script lang="ts" setup>
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { CheckIcon, SelectorIcon } from "@heroicons/vue/solid";
+import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/24/solid";
 import { ref, watchEffect } from "vue";
 
 const props = defineProps<{

@@ -11,7 +11,7 @@ from rest_framework import serializers
 
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import DATASET_TYPE
-from bench.utils.serializer import RecordSpecSerializer
+from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import DatasetType, RecordSpec
 
 
@@ -78,7 +78,7 @@ class DatasetMetadata:
 class DatasetMetadataSerializer(serializers.Serializer):
     handler_id = serializers.CharField()
     config_arguments = serializers.JSONField()
-    record_spec = RecordSpecSerializer(required=False)
+    record_spec = FieldSpecSerializer(required=False)
 
     def create(self, validated_data):
         if "record_spec" in validated_data:

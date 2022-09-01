@@ -52,21 +52,21 @@
 
 <script setup lang="ts">
 import Sidebar from "@/components/Sidebar.vue";
-import { CheckCircleIcon, PlusSmIcon, ServerIcon, TableIcon, UserGroupIcon } from "@heroicons/vue/outline";
+import { CheckCircleIcon, PlusSmallIcon, ServerIcon, TableCellsIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 
 // TODO @Feature: replace placeholder actions in Home screen
 const actions = [
   {
     title: "Add model",
     to: "#",
-    icon: PlusSmIcon,
+    icon: PlusSmallIcon,
     iconForeground: "text-teal-700",
     iconBackground: "bg-teal-50",
   },
   {
     title: "Add dataset",
     to: "#",
-    icon: PlusSmIcon,
+    icon: PlusSmallIcon,
     iconForeground: "text-yellow-700",
     iconBackground: "bg-yellow-50",
   },
@@ -80,7 +80,7 @@ const actions = [
   {
     title: "Curate dataset",
     to: "#",
-    icon: TableIcon,
+    icon: TableCellsIcon,
     iconForeground: "text-sky-700",
     iconBackground: "bg-sky-50",
   },

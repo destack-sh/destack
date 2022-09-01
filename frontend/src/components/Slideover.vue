@@ -31,7 +31,7 @@
                           @click="open = false"
                         >
                           <span class="sr-only">Close panel</span>
-                          <XIcon class="h-6 w-6" aria-hidden="true" />
+                          <XMarkIcon class="h-6 w-6" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from "@headlessui/vue";
-import { XIcon } from "@heroicons/vue/outline";
+import { XMarkIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
 
 defineProps<{ title?: string }>();

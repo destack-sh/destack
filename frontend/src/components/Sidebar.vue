@@ -41,7 +41,7 @@
                     @click="sidebarOpen = false"
                   >
                     <span class="sr-only">Close sidebar</span>
-                    <XIcon class="h-6 w-6 text-white" aria-hidden="true" />
+                    <XMarkIcon class="h-6 w-6 text-white" aria-hidden="true" />
                   </button>
                 </div>
               </TransitionChild>
@@ -118,7 +118,7 @@
           @click="sidebarOpen = true"
         >
           <span class="sr-only">Open sidebar</span>
-          <MenuIcon class="h-6 w-6" aria-hidden="true" />
+          <Bars3BottomLeftIcon class="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
       <main class="h-full w-full flex-1">
@@ -131,20 +131,20 @@
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
 import {
   CheckCircleIcon,
-  ChipIcon,
+  CpuChipIcon,
   CubeIcon,
-  DatabaseIcon,
-  MenuIcon,
+  CircleStackIcon,
+  Bars3BottomLeftIcon,
   VariableIcon,
-  XIcon,
-} from "@heroicons/vue/outline";
+  XMarkIcon,
+} from "@heroicons/vue/24/outline";
 import { ref } from "vue";
 
 const navigation = [
   //   { name: "Dashboards", to: "/dashboards", icon: ChartBarIcon, current: true },
   //   { name: "Projects", to: "/projects", icon: FolderIcon, current: false },
-  { name: "Models", to: "/models", icon: ChipIcon, current: false },
-  { name: "Datasets", to: "/datasets", icon: DatabaseIcon, current: false },
+  { name: "Models", to: "/models", icon: CpuChipIcon, current: false },
+  { name: "Datasets", to: "/datasets", icon: CircleStackIcon, current: false },
   { name: "Flows", to: "/flows", icon: VariableIcon, current: false },
   { name: "Tests", to: "/tests", icon: CheckCircleIcon, current: false },
   // { name: "Issues", to: "/issues", icon: ExclamationCircleIcon, current: false },

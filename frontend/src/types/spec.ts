@@ -1,3 +1,5 @@
+import type internal from "stream";
+
 type _Type = {
   _type: string;
   optional?: boolean;
@@ -21,11 +23,18 @@ export type EnumType = _Type & {
   optional?: boolean;
 };
 
-export type FieldTypePrimitive = ValueType | EnumType;
-const FIELD_TYPES = ["ValueType", "EnumType"];
+export type ClassLabelType = _Type & {
+  _type: "ClassLabelType";
+  names?: string[];
+  num_classes: internal;
+  optional?: boolean;
+};
 
-export function isFieldType(obj: any) {
-  return FIELD_TYPES.includes(obj._type);
+export type FieldTypePrimitive = ValueType | EnumType | ClassLabelType;
+const FIELD_TYPES_PRIMITIVES = ["ValueType", "EnumType", "ClassLabelType"];
+
+export function isFieldTypePrimitive(obj: any) {
+  return FIELD_TYPES_PRIMITIVES.includes(obj._type);
 }
 
 export type FieldValuePrimitive = string | number | boolean;
@@ -134,31 +143,3 @@ export type FunctionHandlerSpec = _Spec & {
   base_spec: FunctionType;
   config_spec: ConfigType;
 };
-
-// Helper methods
-
-export function unravelSpec(spec: AnySpec | AnySpec[]): AnySpec[] {
-  if (Array.isArray(spec)) {
-    return spec.flatMap(unravelSpec);
-  } else if (isFieldSpec(spec)) {
-    if (isFieldType(spec.type)) {
-      return [spec];
-    } else if (isFieldSpec(spec) && isFieldSpec(spec.type)) {
-      // if the spec type is just a blank spec it's just a level of annotation
-      return unravelSpec(spec.type as FieldSpec);
-    } else if (Array.isArray(spec.type)) {
-      return spec.type;
-    } else {
-      return Object.values(spec.type);
-    }
-  } else {
-    // don't unravel non-field specs (nothing to unravel)
-    return [spec];
-  }
-}
-
-export function reduceToFieldSpec(spec: AnySpec[]): FieldSpec[] {
-  return unravelSpec(Object.values(spec))
-    .filter((spec) => isFieldSpec(spec))
-    .flatMap((spec) => unravelSpec(spec as FieldSpec) as FieldSpec[]);
-}

@@ -18,7 +18,7 @@
             class="flex items-center rounded-full text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-100"
           >
             <span class="sr-only">Open options</span>
-            <DotsVerticalIcon class="h-5 w-5" aria-hidden="true" />
+            <EllipsisVerticalIcon class="h-5 w-5" aria-hidden="true" />
           </MenuButton>
         </div>
 
@@ -75,7 +75,7 @@ import { isArtifactSpec, isArtifactType, type ArtifactSpec, type ArtifactType } 
 import { artifactConnections } from "@/utils/flows";
 import { splitNameVersion } from "@/utils/versioning";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { DotsVerticalIcon, DuplicateIcon, PencilAltIcon, TrashIcon } from "@heroicons/vue/solid";
+import { EllipsisVerticalIcon, DocumentDuplicateIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -89,7 +89,7 @@ const actions = [
   {
     action: () => emit("edit"),
     key: "edit",
-    icon: PencilAltIcon,
+    icon: PencilIcon,
     label: "Edit",
   },
   {
@@ -101,7 +101,7 @@ const actions = [
   {
     action: () => ({}),
     key: "Duplicate",
-    icon: DuplicateIcon,
+    icon: DocumentDuplicateIcon,
     label: "Duplicate",
   },
 ];

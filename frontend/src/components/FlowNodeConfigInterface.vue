@@ -23,7 +23,7 @@
     </div>
     <div class="pt-4" v-if="selectedFunctionHandler">
       <RecordForm
-        :spec="reduceToFieldSpec(Object.values(selectedFunctionHandler.config_spec))"
+        :spec="flatMapFieldSpecs(Object.values(selectedFunctionHandler.config_spec))"
         v-model="configRecord"
       />
       <ConfigArtifactForm
@@ -51,13 +51,13 @@ import RecordForm from "@/components/RecordForm.vue";
 import { useMetaStore } from "@/stores";
 import {
   isArtifactSpec,
-  reduceToFieldSpec,
   type ArtifactConnection,
   type FlowNode,
   type FlowVersion,
   type FunctionHandlerSpec,
 } from "@/types";
 import { artifactConnections } from "@/utils/flows";
+import { flatMapFieldSpecs } from "@/utils/spec";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
 

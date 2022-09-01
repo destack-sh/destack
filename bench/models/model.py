@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
 from bench.models.utils import MODEL_TYPE
-from bench.utils.serializer import RecordSpecSerializer
+from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import ModelType, RecordSpec
 
 
@@ -79,8 +79,8 @@ class ModelMetadata:
 class ModelMetadataSerializer(serializers.Serializer):
     handler_id = serializers.CharField()
     config_arguments = serializers.JSONField()
-    input_spec = RecordSpecSerializer(required=False)
-    output_spec = RecordSpecSerializer(required=False)
+    input_spec = FieldSpecSerializer(required=False)
+    output_spec = FieldSpecSerializer(required=False)
 
     def create(self, validated_data):
         if "input_spec" in validated_data:
