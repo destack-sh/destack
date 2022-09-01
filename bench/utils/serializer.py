@@ -95,28 +95,28 @@ class FieldSpecField(SpecField):
         super().__init__(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES], **kwargs)
 
 
-class FieldSpecSerializer(SpecSerializer):
-    type = SpecField(types=[*FIELD_TYPES, *FIELD_SPEC_TYPES])
-
-
 class ConfigSpecSerializer(SpecSerializer):
     type = ConfigSpecField()
 
 
-class RecordSpecSerializer(SpecSerializer):
+class FieldSpecSerializer(SpecSerializer):
+    _type = serializers.SerializerMethodField()
     type = FieldSpecField()
+
+    def get__type(self, *args):
+        return "FieldSpec"
 
     def create(self, validated_data):
         return RecordSpec(**validated_data)
 
 
 class DatasetTypeSerializer(serializers.Serializer):
-    record_spec = RecordSpecSerializer()
+    record_spec = FieldSpecSerializer()
 
 
 class ModelTypeSerializer(serializers.Serializer):
-    input_spec = RecordSpecSerializer()
-    output_spec = RecordSpecSerializer()
+    input_spec = FieldSpecSerializer()
+    output_spec = FieldSpecSerializer()
 
 
 class ArtifactSpecSerializer(SpecSerializer):

@@ -24,7 +24,7 @@
           class="inline-flex items-center rounded-full border border-transparent bg-orange-600 p-1 text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           @click="emit('addNode', {})"
         >
-          <PlusSmIcon class="h-5 w-5" aria-hidden="true" />
+          <PlusSmallIcon class="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
       <!-- Real nodes -->
@@ -144,8 +144,8 @@ import {
   type Edge,
   type Node,
 } from "@braks/vue-flow";
-import { PencilIcon } from "@heroicons/vue/outline";
-import { PlusSmIcon } from "@heroicons/vue/solid";
+import { PencilIcon } from "@heroicons/vue/24/outline";
+import { PlusSmallIcon } from "@heroicons/vue/24/solid";
 import ELK, { type ElkEdge, type ElkNode } from "elkjs";
 import { computed, ref, watch, type Ref } from "vue";
 

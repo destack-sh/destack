@@ -1,6 +1,12 @@
 import { useMetaStore } from "@/stores";
 import type { FlowNode } from "@/types";
-import { CheckCircleIcon, ChipIcon, QuestionMarkCircleIcon, ScaleIcon, VariableIcon } from "@heroicons/vue/outline";
+import {
+  CheckCircleIcon,
+  CpuChipIcon,
+  QuestionMarkCircleIcon,
+  ScaleIcon,
+  VariableIcon,
+} from "@heroicons/vue/24/outline";
 
 export function useIcons() {
   const metaStore = useMetaStore();
@@ -9,7 +15,7 @@ export function useIcons() {
     const functionHandlerSpec = metaStore.functionHandlersById[node.function_id];
 
     if (node.function_id == "bench.model") {
-      return ChipIcon;
+      return CpuChipIcon;
     } else if (functionHandlerSpec.type == "RecordTransform") {
       return VariableIcon;
     } else if (functionHandlerSpec.type == "Metric") {

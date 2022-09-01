@@ -61,8 +61,8 @@ class OpenAIModelForCompletion(OpenAIModel):
         tags=["openai", "hosted"],
     )
     spec = ModelType(
-        input_spec=convert_to_record_spec({"text": str}),
-        output_spec=convert_to_record_spec({"generated_text": str}),
+        input_spec=convert_to_record_spec(name="input", spec={"text": str}),
+        output_spec=convert_to_record_spec(name="output", spec={"generated_text": str}),
     )
     base_spec = spec
 

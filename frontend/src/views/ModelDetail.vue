@@ -41,7 +41,7 @@
       </div>
     </div>
     <div v-if="versionsPaginated?.count == 0" class="mt-10 text-center">
-      <ChipIcon class="mx-auto h-12 w-12 text-gray-400" />
+      <CpuChipIcon class="mx-auto h-12 w-12 text-gray-400" />
       <h3 class="mt-2 text-sm font-medium text-gray-900">Empty model</h3>
       <p class="mt-1 text-sm text-gray-500">Get started by initializing from a template</p>
       <div class="mt-6">
@@ -91,7 +91,7 @@ import RecordSpecDisplay from "@/components/RecordSpecDisplay.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore } from "@/stores";
 import type { ModelMetadata } from "@/types";
-import { ChipIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/vue/outline";
+import { CpuChipIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref } from "@vue/reactivity";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";

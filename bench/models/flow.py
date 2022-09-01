@@ -12,7 +12,7 @@ from rest_framework.fields import DictField
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
-from bench.utils.serializer import RecordSpecSerializer
+from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import RecordSpec
 
 
@@ -131,8 +131,8 @@ class FlowNodeMetadata:
 
 
 class FlowNodeMetadataSerializer(serializers.Serializer):
-    input_spec = DictField(child=RecordSpecSerializer())
-    output_spec = DictField(child=RecordSpecSerializer())
+    input_spec = DictField(child=FieldSpecSerializer())
+    output_spec = DictField(child=FieldSpecSerializer())
 
     def create(self, validated_data):
         if "input_spec" in validated_data:

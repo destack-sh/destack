@@ -60,7 +60,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { computedAsync, useArtifactsStore, useFlowsStore, useMetaStore, type AsyncResult } from "@/stores";
 import {
   getAllConnectedDatasets,
-  unravelSpec,
+  isFieldSpec,
   type ArtifactVersion,
   type DatasetMetadata,
   type Execution,
@@ -71,6 +71,7 @@ import {
   type RecordSpec,
 } from "@/types";
 import { getOrderedNodes, nodePorts } from "@/utils/flows";
+import { unravelSpec } from "@/utils/spec";
 import { mapNameVersion, toNameVersion } from "@/utils/versioning";
 import { DateTime } from "luxon";
 import qs from "qs";
@@ -206,7 +207,7 @@ function specFor(dataset: string): FieldSpec[] {
     return [];
   }
 
-  return unravelSpec(spec as RecordSpec);
+  return unravelSpec(spec as RecordSpec).filter(isFieldSpec) as FieldSpec[];
 }
 
 function isValidSpec(spec: RecordSpec | undefined | null): boolean {

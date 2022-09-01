@@ -19,7 +19,8 @@ unravelSpec
 </template>
 <script lang="ts" setup>
 import FieldValueInterface from "@/components/FieldValueInterface.vue";
-import { isFieldType, unravelSpec, type FieldSpec, type FieldTypePrimitive, type RecordSpec } from "@/types";
+import { isFieldTypePrimitive, type FieldSpec, type FieldTypePrimitive, type RecordSpec } from "@/types";
+import { unravelSpec } from "@/utils/spec";
 import { computed, type Ref } from "vue";
 
 const props = defineProps<{
@@ -37,7 +38,7 @@ function setRecordField(field: FieldSpec, value: any) {
 }
 
 function isOptional(field: FieldSpec): boolean | undefined {
-  return isFieldType(field.type) && (field.type as FieldTypePrimitive).optional;
+  return isFieldTypePrimitive(field.type) && (field.type as FieldTypePrimitive).optional;
 }
 
 const specs: Ref<FieldSpec[]> = computed(() => unravelSpec(props.spec));

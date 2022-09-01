@@ -11,7 +11,7 @@
         v-if="!props.static"
         class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
       >
-        <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
+        <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
       </ComboboxButton>
 
       <ComboboxOptions
@@ -34,11 +34,11 @@
           v-if="(query !== '' || relevantArtifacts.length == 0) && filteredArtifacts.length === 0"
           class="py-4 px-4 text-center sm:px-14"
         >
-          <Manif class="mx-auto h-6 w-6 text-gray-400" aria-hidden="true" />
-          <p class="mt-4 text-sm text-gray-900">No matching artifacts found matching these filters.</p>
+          <MagnifyingGlassIcon class="mx-auto h-6 w-6 text-gray-400" aria-hidden="true" />
+          <p class="mt-4 text-sm text-gray-900">No matching artifacts found.</p>
           <p v-if="props.type" class="mt-4 text-sm text-gray-900">
             <template v-if="props.type._type == 'DatasetType'">
-              Using spec filter
+              Need a dataset like
               <RecordSpecDisplay :spec="(props.type as DatasetType).record_spec" />
             </template>
           </p>
@@ -53,7 +53,7 @@ import { useArtifactsStore } from "@/stores";
 import type { Artifact, ArtifactType, DatasetMetadata, DatasetType, RecordSpec } from "@/types";
 import { specContains } from "@/utils/spec";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { ChipIcon, SelectorIcon } from "@heroicons/vue/outline";
+import { MagnifyingGlassIcon, ChevronUpDownIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 import RecordSpecDisplay from "./RecordSpecDisplay.vue";
 

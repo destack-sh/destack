@@ -30,7 +30,7 @@
 <script lang="ts" setup>
 import { useFlowsStore } from "@/stores/flows";
 import type { Flow } from "@/types/flows";
-import { VariableIcon } from "@heroicons/vue/outline";
+import { VariableIcon } from "@heroicons/vue/24/outline";
 
 const flowsStore = useFlowsStore();
 

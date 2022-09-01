@@ -74,7 +74,11 @@ class ValueType(_Type):
 
     def __instancecheck__(self, instance):
         ptype = DTYPE_TO_PTYPE[self.dtype]
-        return isinstance(instance, cast(type, ptype))
+        if ptype == float:
+            # special case since both float and int are valid as floats
+            return isinstance(instance, (float, int))
+        else:
+            return isinstance(instance, cast(type, ptype))
 
 
 @dataclass
