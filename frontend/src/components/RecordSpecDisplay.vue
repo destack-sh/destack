@@ -1,22 +1,32 @@
 <template>
   <div
     :class="{
-      'border-m rounded-l-md py-1 pl-3 text-left': true,
-      'border border-l-2 ': !isWrapper,
+      'py-1 pl-2 text-left': true,
+      'w-full rounded-md border border-gray-300 pr-2 shadow-sm': !isWrapper,
+      'bg-white': !isList && !isWrapper,
     }"
   >
-    <div class="text-sm font-medium text-gray-700" v-if="name">{{ name }}</div>
-    <div class="text-sm text-gray-500" v-if="description">{{ description }}</div>
-    <!-- complex type -->
-    <div class="flex flex-col gap-1" v-if="childFieldSpecs.length > 0">
-      <RecordSpecDisplay v-for="field in childFieldSpecs" :key="field.name" :spec="field" />
-    </div>
-    <!-- primitive type -->
-    <div v-else-if="primitiveType?._type == 'ValueType'">
-      {{ primitiveType.dtype }}
-    </div>
-    <div v-else-if="primitiveType?._type == 'EnumType'">enum ({{ primitiveType.values.length }})</div>
-    <div v-else-if="primitiveType?._type == 'ClassLabelType'">label ({{ primitiveType.num_classes }})</div>
+    <template v-if="childFieldSpecs.length > 0">
+      <span class="text-sm font-medium text-gray-700" v-if="name">{{ name }}</span>
+      <span class="ml-2 text-sm text-gray-500" v-if="description">{{ description }}</span>
+
+      <!-- complex type -->
+      <div class="flex flex-col gap-1">
+        <RecordSpecDisplay v-for="field in childFieldSpecs" :key="field.name" :spec="field" />
+      </div>
+    </template>
+    <template v-else>
+      <!-- primitive type -->
+      <div class="flex flex-row text-sm">
+        <span class="flex-1 font-medium text-gray-700" v-if="name">{{ name }}</span>
+        <span v-if="primitiveType?._type == 'ValueType'">
+          {{ primitiveType.dtype }}
+        </span>
+        <span v-else-if="primitiveType?._type == 'EnumType'">enum ({{ primitiveType.values.length }})</span>
+        <span v-else-if="primitiveType?._type == 'ClassLabelType'">label ({{ primitiveType.num_classes }})</span>
+      </div>
+      <span class="text-sm text-gray-500" v-if="description">{{ description }}</span>
+    </template>
   </div>
 </template>
 <script lang="ts" setup>
@@ -56,7 +66,9 @@ const childFieldSpecs = computed(() => {
   }
 });
 
-const isWrapper = computed(() => primitiveType.value == null);
+const isList = computed(() => isFieldSpec(props.spec) && Array.isArray((props.spec as FieldSpec).type));
+// wrappers are just a level of annotation for a collection of fields
+const isWrapper = computed(() => primitiveType.value == null && !isList.value);
 
 const name: Ref<string | undefined> = computed(() => asSpec.value?.name);
 const description: Ref<string | undefined> = computed(() => asSpec.value?.description);

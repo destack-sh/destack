@@ -77,10 +77,12 @@
       {{ model?.latest_version?.storage_uri }}
       {{ latestMetadata?.config_arguments }}
       <h3 class="mt-2 text-sm font-medium text-gray-900">Spec</h3>
-      <div class="p-3" v-if="latestMetadata?.input_spec != null && latestMetadata?.output_spec != null">
-        <RecordSpecDisplay :spec="latestMetadata?.input_spec" />
-        =>
-        <RecordSpecDisplay :spec="latestMetadata?.output_spec" />
+      <div
+        class="flex max-w-xl flex-row gap-2 self-center p-3"
+        v-if="latestMetadata?.input_spec != null && latestMetadata?.output_spec != null"
+      >
+        <RecordSpecDisplay class="flex-1" :spec="latestMetadata?.input_spec" />
+        <RecordSpecDisplay class="flex-1" :spec="latestMetadata?.output_spec" />
       </div>
     </div>
   </Sidebar>

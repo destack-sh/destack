@@ -22,10 +22,9 @@
             Reset to runtime spec
           </button>
         </div>
-        <div class="p-3" v-if="modelSpec?.input_spec != null && modelSpec?.output_spec != null">
-          <RecordSpecDisplay :spec="modelSpec.input_spec" />
-          =>
-          <RecordSpecDisplay :spec="modelSpec.output_spec" />
+        <div class="flex flex-row gap-2" v-if="modelSpec?.input_spec != null && modelSpec?.output_spec != null">
+          <RecordSpecDisplay class="flex-1" :spec="modelSpec.input_spec" />
+          <RecordSpecDisplay class="flex-1" :spec="modelSpec.output_spec" />
         </div>
       </div>
       <div>
