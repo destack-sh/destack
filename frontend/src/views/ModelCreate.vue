@@ -8,42 +8,8 @@
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-          <div class="sm:col-span-4">
-            <label for="name" class="block text-sm font-medium text-gray-700"> Model name </label>
-            <div class="mt-1 flex rounded-md shadow-sm">
-              <span
-                class="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm"
-              >
-                symbolx.co/models/
-              </span>
-              <input
-                v-model="name"
-                type="text"
-                name="name"
-                id="name"
-                autocomplete="name"
-                minlength="3"
-                maxlength="64"
-                required
-                class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div class="sm:col-span-6">
-            <label for="description" class="block text-sm font-medium text-gray-700">
-              Description <span class="font-normal text-gray-500">(optional)</span>
-            </label>
-            <div class="mt-1">
-              <textarea
-                v-model="description"
-                id="description"
-                name="description"
-                rows="1"
-                class="block w-full rounded-md border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-              />
-            </div>
-          </div>
+          <TextInput label="Name" v-model="name" class="sm:col-span-4" />
+          <TextInput label="Description" v-model="description" optional class="sm:col-span-6" />
         </div>
       </div>
       <div>
@@ -79,6 +45,7 @@ import { useArtifactsStore } from "@/stores";
 import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
+import TextInput from "@/components/basic/TextInput.vue";
 
 const name: Ref<string> = ref("");
 const description: Ref<string> = ref("");

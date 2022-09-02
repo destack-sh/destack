@@ -40,14 +40,10 @@
             <template v-if="props.type._type == 'DatasetType'">
               Need a dataset like
               <RecordSpecDisplay :spec="(props.type as DatasetType).record_spec" />
-              <button
-                type="button"
-                class="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                @click="promptCreateDataset"
-              >
+              <SButton variant="solid" color="slate" @click="promptCreateDataset">
                 <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
                 Create dataset
-              </button>
+              </SButton>
             </template>
           </p>
         </div>
@@ -64,6 +60,7 @@ import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOption
 import { MagnifyingGlassIcon, ChevronUpDownIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 import RecordSpecDisplay from "./RecordSpecDisplay.vue";
+import SButton from "@/components/basic/SButton.vue";
 
 const props = defineProps<{ type?: ArtifactType; modelValue?: Artifact; static?: boolean }>();
 
