@@ -137,6 +137,7 @@ import {
   Bars3BottomLeftIcon,
   VariableIcon,
   XMarkIcon,
+  SwatchIcon,
 } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
 
@@ -145,12 +146,13 @@ const navigation = [
   //   { name: "Projects", to: "/projects", icon: FolderIcon, current: false },
   { name: "Models", to: "/models", icon: CpuChipIcon, current: false },
   { name: "Datasets", to: "/datasets", icon: CircleStackIcon, current: false },
+  { name: "Schema", to: "/schema", icon: SwatchIcon, current: false },
   { name: "Flows", to: "/flows", icon: VariableIcon, current: false },
   { name: "Tests", to: "/tests", icon: CheckCircleIcon, current: false },
   // { name: "Issues", to: "/issues", icon: ExclamationCircleIcon, current: false },
   { name: "Playground", to: "/playground", icon: CubeIcon, current: false },
   // { name: "Laboratory", to: "/laboratory", icon: BeakerIcon, current: false },
-  //   { name: "Resources", to: "/resources", icon: ServerIcon, current: false },
+  // { name: "Resources", to: "/resources", icon: ServerStackIcon, current: false },
 ];
 
 const sidebarOpen = ref(false);

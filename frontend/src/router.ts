@@ -1,4 +1,5 @@
 import { useFlowsStore } from "@/stores";
+import Datasets from "@/views/Datasets.vue";
 import FlowDetail from "@/views/FlowDetail.vue";
 import FlowEdit from "@/views/FlowEdit.vue";
 import Flows from "@/views/Flows.vue";
@@ -23,6 +24,10 @@ const routes = [
   { path: "/models/new", component: ModelCreate },
   { path: "/models/:model", component: ModelDetail, props: forwardQueryAndParams },
   { path: "/models/:model/edit", component: ModelEdit, props: forwardQueryAndParams },
+  { path: "/datasets", component: Datasets },
+  { path: "/datasets/new", component: ModelCreate },
+  { path: "/datasets/:dataset", component: ModelDetail, props: forwardQueryAndParams },
+  { path: "/datasets/:dataset/edit", component: ModelEdit, props: forwardQueryAndParams },
   {
     path: "/playground",
     name: "playground",

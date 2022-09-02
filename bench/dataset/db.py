@@ -5,7 +5,7 @@ from uuid import UUID
 from django.db import connection
 
 from bench.artifact.base import ArtifactVersionHandler
-from bench.dataset.base import DatasetReader, DatasetWriter, datasets
+from bench.dataset.base import DatasetHandlerMetadata, DatasetReader, DatasetWriter, datasets
 from bench.models import DatasetVersion
 from bench.models import Record as DbRecord
 from bench.models.record import (
@@ -32,6 +32,12 @@ from bench.utils.spec import DatasetType, FieldValue, RecordSpec
 #  See DatasetAccessor for an attempt at abstracting this and further discussion.
 @datasets.register("bench.db")
 class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
+    metadata = DatasetHandlerMetadata(
+        name="In-DB dataset",
+        description="Convenient versioned in-DB datasets up to M records",
+        tags=["local"],
+    )
+
     def __init__(
         self,
         artifact_id: UUID,

@@ -29,11 +29,19 @@ export const useArtifactsStore = defineStore("artifacts", {
   },
   actions: {
     async hydrate() {
-      this.artifacts = (await api.get<Artifact[]>("/artifacts")).data;
-      this.artifacts.forEach((artifact) => (this.artifactsByName[artifact.name] = artifact));
+      const artifacts = (await api.get<Artifact[]>("/artifacts")).data;
+      artifacts.forEach(this._addArtifact);
     },
     async dehydrate() {
       this.$reset();
+    },
+
+    _addArtifact(artifact: Artifact) {
+      this.artifacts.push(artifact);
+      this.artifactsByName[artifact.name] = artifact;
+      if (artifact.latest_version != null) {
+        this._cacheArtifactVersion(artifact.latest_version);
+      }
     },
 
     clearVersionCache(artifact?: string, version?: string) {
@@ -83,6 +91,38 @@ export const useArtifactsStore = defineStore("artifacts", {
     async getVersionByTag(artifactName: string, tag: string) {
       const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactName}/tags/${tag}`)).data;
       return this._cacheArtifactVersion(artifactVersion);
+    },
+
+    async createArtifact(
+      type: "model" | "dataset",
+      name: string,
+      description?: string,
+      initialVersion?: Partial<ArtifactVersion>
+    ): Promise<Artifact> {
+      const artifact = await api
+        .post<Artifact>(`/${type}s`, {
+          name,
+          description,
+        })
+        .then((response) => response.data);
+
+      // TODO @Robustness: create model and initialize from template should be atomic
+      const latestVersion = await api
+        .post<ArtifactVersion>(`/${type}s/${name}/versions`, initialVersion)
+        .then((response) => response.data);
+      artifact.latest_version = latestVersion;
+
+      this._addArtifact(artifact);
+
+      return artifact;
+    },
+
+    async commitArtifactVersion(name: string, version: Partial<ArtifactVersion>): Promise<ArtifactVersion> {
+      const committedVersion = await api
+        .post<ArtifactVersion>(`/artifacts/${name}/versions`, version)
+        .then((response) => response.data);
+      this._cacheArtifactVersion(committedVersion);
+      return committedVersion;
     },
   },
 });
