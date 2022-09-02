@@ -40,6 +40,14 @@
             <template v-if="props.type._type == 'DatasetType'">
               Need a dataset like
               <RecordSpecDisplay :spec="(props.type as DatasetType).record_spec" />
+              <button
+                type="button"
+                class="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                @click="promptCreateDataset"
+              >
+                <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+                Create dataset
+              </button>
             </template>
           </p>
         </div>
@@ -53,7 +61,7 @@ import { useArtifactsStore } from "@/stores";
 import type { Artifact, ArtifactType, DatasetMetadata, DatasetType, RecordSpec } from "@/types";
 import { specContains } from "@/utils/spec";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { MagnifyingGlassIcon, ChevronUpDownIcon } from "@heroicons/vue/24/outline";
+import { MagnifyingGlassIcon, ChevronUpDownIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 import RecordSpecDisplay from "./RecordSpecDisplay.vue";
 
@@ -98,6 +106,8 @@ const filteredArtifacts = computed(() => {
     return artifact.name.toLowerCase().includes(query.value.toLowerCase());
   });
 });
+
+function promptCreateDataset() {}
 
 const emit = defineEmits(["select", "update:modelValue"]);
 function onSelect(artifact: Artifact) {

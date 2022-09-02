@@ -72,14 +72,13 @@
   </Sidebar>
 </template>
 <script lang="ts" setup>
-import { api } from "@/api";
+import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { useArtifactsStore } from "@/stores";
-import type { Artifact, ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
+import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
 
 const name: Ref<string> = ref("");
 const description: Ref<string> = ref("");
@@ -91,30 +90,21 @@ const selectedHandler: Ref<ModelHandlerSpec | null> = ref(null);
 const modelConfigRecord: Ref<Record<string, any>> = ref({});
 
 async function submit() {
-  const artifact = await api
-    .post<Artifact>("/models", {
-      name: name.value,
-      description: description.value,
-    })
-    .then((response) => response.data);
-
   if (selectedHandler.value != null) {
-    // TODO @Robustness: create model and initialize from template should be atomic
-    // initialize repo
     const metadata: ModelMetadata = {
       handler_id: selectedHandler.value.id,
       config_arguments: modelConfigRecord.value,
     };
-    await api.post<ArtifactVersion>(`/models/${artifact.name}/versions`, {
+    const initialVersion = {
       parents: [], // initial version
       metadata,
       name: "Create model",
-      description: `Initialized from template ${selectedHandler.value.id}`,
-    } as Partial<ArtifactVersion>);
-  }
+      description: `Create new ${selectedHandler.value.id} model`,
+    } as Partial<ArtifactVersion>;
 
-  // clear and redirect to model
-  artifactsStore.hydrate();
-  router.push(`/models/${artifact.name}`);
+    const artifact = await artifactsStore.createArtifact("model", name.value, description.value, initialVersion);
+    // clear and redirect to model
+    router.push(`/models/${artifact.name}`);
+  }
 }
 </script>

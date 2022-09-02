@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional, Tuple, Type
+from typing import Any, Iterable, Mapping, Optional, Tuple, Type
 
 from fsspec import AbstractFileSystem
 
@@ -8,7 +8,7 @@ from bench.artifact.base import ArtifactHandler
 from bench.artifact.utils import map_to_artifact_cls
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
-from bench.utils.spec import DatasetType, RecordSpec
+from bench.utils.spec import DatasetType, FieldSpec, RecordSpec, convert_to_record_spec
 
 
 @dataclass
@@ -98,6 +98,53 @@ def _import_datasets():
     import bench.dataset.activeloop  # noqa
     import bench.dataset.db  # noqa
     import bench.dataset.huggingface  # noqa
+
+
+@dataclass
+class DatasetHandlerSpec:
+    id: str
+    name: str
+    description: str
+    tags: list[str]
+    base_spec: Optional[DatasetType]
+    config_spec: Mapping[str, FieldSpec]
+
+
+def get_dataset_handler_specs() -> list[DatasetHandlerSpec]:
+    _import_datasets()
+
+    dataset_handler_specs = []
+    for handler_id in datasets.names():
+        dataset_handler_spec = get_dataset_handler_spec(handler_id)
+        dataset_handler_specs.append(dataset_handler_spec)
+    return dataset_handler_specs
+
+
+def get_dataset_handler_spec(handler_id: str):
+    dataset_cls = get_dataset_cls(handler_id)
+    base_spec = get_dataset_base_spec(handler_id)
+    dataset_handler_spec = DatasetHandlerSpec(
+        id=handler_id,
+        name=dataset_cls.metadata.name,
+        description=dataset_cls.metadata.description,
+        tags=dataset_cls.metadata.tags,
+        base_spec=base_spec,
+        config_spec=dataset_cls.config_spec,
+    )
+    return dataset_handler_spec
+
+
+def get_dataset_base_spec(handler_id: str) -> DatasetType:
+    dataset_cls = get_dataset_cls(handler_id)
+
+    # if available, use defined base spec, else use blank input/output spec
+    if dataset_cls.base_spec is not None:
+        record_spec = convert_to_record_spec(dataset_cls.base_spec.record_spec)
+    else:
+        record_spec = RecordSpec(name="", description="", type={})
+
+    dataset_spec = DatasetType(record_spec)
+    return dataset_spec
 
 
 def get_dataset_cls(handler_id: str) -> Type[DatasetHandler]:

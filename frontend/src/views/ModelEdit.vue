@@ -157,13 +157,14 @@ async function commit() {
     input_spec: modelSpec.value?.input_spec,
     output_spec: modelSpec.value?.output_spec,
   };
-  await api.post<ArtifactVersion>(`/models/${props.model}/versions`, {
-    parents: [],
+  const newVersion = {
+    parents: props.parent ? [props.parent] : [],
     metadata,
     name: commitTitle.value,
     description: commitDescription.value || null,
-  } as Partial<ArtifactVersion>);
-  await artifactsStore.hydrate();
+  } as Partial<ArtifactVersion>;
+
+  await artifactsStore.commitArtifactVersion(props.model, newVersion);
   router.push(`/models/${props.model}`);
 }
 </script>
