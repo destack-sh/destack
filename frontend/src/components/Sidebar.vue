@@ -144,9 +144,9 @@ import { ref } from "vue";
 const navigation = [
   //   { name: "Dashboards", to: "/dashboards", icon: ChartBarIcon, current: true },
   //   { name: "Projects", to: "/projects", icon: FolderIcon, current: false },
+  { name: "Schema", to: "/schema", icon: SwatchIcon, current: false },
   { name: "Models", to: "/models", icon: CpuChipIcon, current: false },
   { name: "Datasets", to: "/datasets", icon: CircleStackIcon, current: false },
-  { name: "Schema", to: "/schema", icon: SwatchIcon, current: false },
   { name: "Flows", to: "/flows", icon: VariableIcon, current: false },
   { name: "Tests", to: "/tests", icon: CheckCircleIcon, current: false },
   // { name: "Issues", to: "/issues", icon: ExclamationCircleIcon, current: false },
