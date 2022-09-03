@@ -86,7 +86,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
 class SpacyModelBundled(SpacyModelBase):
     metadata = ModelHandlerMetadata(
         name="SpaCy model bundled",
-        description="SpaCy model pre-bundled (with SpaCy " + spacy.__version__ + ")",
+        description="SpaCy model pre-bundled (from SpaCy " + spacy.__version__ + ")",
         tags=["spacy"],
     )
     config_static_keys = {"model_name"}
@@ -107,7 +107,7 @@ class SpacyModelBundled(SpacyModelBase):
 class SpacyModelCustom(SpacyModelBase):
     metadata = ModelHandlerMetadata(
         name="SpaCy model custom",
-        description="SpaCy model custom (for SpaCy " + spacy.__version__ + ")",
+        description="Custom SpaCy model (compatible with SpaCy " + spacy.__version__ + ")",
         tags=["spacy"],
     )
     config_static_keys = {"model_path", "config_path"}

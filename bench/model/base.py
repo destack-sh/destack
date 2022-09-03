@@ -10,6 +10,7 @@ from typing import (
     Union,
     cast,
 )
+from uuid import UUID
 
 from fsspec import AbstractFileSystem
 
@@ -41,12 +42,13 @@ class ModelHandler(ArtifactHandler):
 
     def __init__(
         self,
+        artifact_id: UUID,
+        version: Optional[str] = None,
         fs: Optional[AbstractFileSystem] = None,
         path: Optional[str] = None,
-        version: Optional[str] = None,
         spec: Optional[ModelType] = None,
     ):
-        super().__init__(fs=fs, path=path, version=version)
+        super().__init__(artifact_id=artifact_id, version=version, fs=fs, path=path)
         if spec is None:
             if self.base_spec is None:
                 raise ValueError("ModelHandler must define `base_spec` or get `spec` argument")
@@ -96,8 +98,11 @@ class BatchedModelHandler(ModelHandler, abc.ABC):
             return output_records
 
 
+SPECIAL_MODEL_CONFIG_KEYS = {"fs", "path", "artifact_id", "version", "spec"}
+
+
 def map_to_model_cls(model_cls: Type[ModelHandler], *args) -> Type[ModelHandler]:
-    return map_to_artifact_cls(model_cls)
+    return map_to_artifact_cls(model_cls, ignore_keys=SPECIAL_MODEL_CONFIG_KEYS)
 
 
 models: Registry[Type[ModelHandler]] = Registry(("models",), mapper=map_to_model_cls)
@@ -159,8 +164,8 @@ def get_model_base_spec(handler_id: str) -> ModelType:
         input_spec = convert_to_record_spec(model_cls.base_spec.input_spec)
         output_spec = convert_to_record_spec(model_cls.base_spec.output_spec)
     else:
-        input_spec = RecordSpec(name="", description="", type={})
-        output_spec = RecordSpec(name="", description="", type={})
+        input_spec = RecordSpec(name="input", description="unspecified record (blank)", type={})
+        output_spec = RecordSpec(name="output", description="unspecified record (blank)", type={})
 
     model_spec = ModelType(input_spec=input_spec, output_spec=output_spec)
     return model_spec
@@ -183,6 +188,7 @@ def get_static_config_keys(handler_id: str) -> set[str]:
 
 def load_model(
     handler_id: str,
+    artifact_id: UUID,
     storage_uri: Optional[str],
     version: Optional[str],
     arguments: dict[str, Any],
@@ -198,8 +204,10 @@ def load_model(
     validate_config_type(arguments, config_type, ignore_extraneous=True)
     arguments = cast_config_arguments(arguments, config_type)
 
-    arguments = dict(**arguments, fs=fs, path=path)
-    # filter arguments to remove extraneous
+    # first add optional special arguments (also see SPECIAL_DATASET_CONFIG_KEYS)
+    arguments = dict(**arguments, fs=fs, path=path, artifact_id=artifact_id)
+    # filter arguments to only those listed
     arguments = {key: value for key, value in arguments.items() if key in config_type}
-    model = model_cls(spec=spec, version=version, **arguments)  # noqa
+    # all handlers must take id, version & spec, so add mandatory arguments last
+    model = model_cls(spec=spec, artifact_id=artifact_id, version=version, **arguments)  # noqa
     return model

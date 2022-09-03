@@ -3,7 +3,7 @@
     <form class="mx-auto max-w-xl space-y-8 divide-y divide-gray-200 pt-8" action="">
       <div>
         <div>
-          <h3 class="text-lg font-medium leading-6 text-gray-900">Create a new model</h3>
+          <h3 class="text-lg font-medium leading-6 text-gray-900">Create a new dataset</h3>
           <p class="mt-1 text-sm text-gray-500">Choose from ready-to-use templates or connect your own</p>
         </div>
 
@@ -13,12 +13,12 @@
         </div>
       </div>
       <div>
-        <ModelHandlerSelect v-model="selectedHandler" />
+        <DatasetHandlerSelect v-model="selectedHandler" />
         <RecordForm
           class="mt-3"
           v-if="selectedHandler != null"
           :spec="Object.values(selectedHandler.config_spec)"
-          v-model="modelConfigRecord"
+          v-model="datasetConfigRecord"
         />
       </div>
 
@@ -30,15 +30,15 @@
   </Sidebar>
 </template>
 <script lang="ts" setup>
-import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
+import DatasetHandlerSelect from "@/components/DatasetHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { useArtifactsStore } from "@/stores";
-import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
+import type { ArtifactVersion, DatasetHandlerSpec, DatasetMetadata } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import TextInput from "@/components/basic/TextInput.vue";
-import SButton from "../components/basic/SButton.vue";
+import SButton from "@/components/basic/SButton.vue";
 
 const name: Ref<string> = ref("");
 const description: Ref<string> = ref("");
@@ -46,8 +46,8 @@ const description: Ref<string> = ref("");
 const router = useRouter();
 const artifactsStore = useArtifactsStore();
 
-const selectedHandler: Ref<ModelHandlerSpec | null> = ref(null);
-const modelConfigRecord: Ref<Record<string, any>> = ref({});
+const selectedHandler: Ref<DatasetHandlerSpec | null> = ref(null);
+const datasetConfigRecord: Ref<Record<string, any>> = ref({});
 
 async function submit() {
   if (selectedHandler.value != null) {
@@ -55,14 +55,14 @@ async function submit() {
       parents: [], // initial version
       metadata: {
         handler_id: selectedHandler.value.id,
-        config_arguments: modelConfigRecord.value,
-      } as ModelMetadata,
-      name: "Create model",
-      description: `Create new ${selectedHandler.value.id} model`,
+        config_arguments: datasetConfigRecord.value,
+      } as DatasetMetadata,
+      name: "Create dataset",
+      description: `Create new ${selectedHandler.value.id} dataset`,
     } as Partial<ArtifactVersion>;
 
-    const artifact = await artifactsStore.createArtifact("model", name.value, description.value, initialVersion);
-    router.push(`/models/${artifact.name}`);
+    const artifact = await artifactsStore.createArtifact("dataset", name.value, description.value, initialVersion);
+    router.push(`/datasets/${artifact.name}`);
   }
 }
 </script>

@@ -1,12 +1,12 @@
 <template>
   <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
-    <ListboxLabel class="mt-2 block text-sm font-medium text-gray-700"> Model spec </ListboxLabel>
+    <ListboxLabel class="mt-2 block text-sm font-medium text-gray-700"> Model handler </ListboxLabel>
     <div class="relative mt-1">
       <ListboxButton
         class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
       >
         <span class="block truncate" :class="modelValue == null ? 'text-gray-500' : ''">
-          {{ modelValue?.name || "No spec" }}
+          {{ modelValue?.name || emptyText || "Select an option" }}
         </span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
           <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -14,7 +14,7 @@
       </ListboxButton>
 
       <transition
-        leave-active-class="transition ease-in duration-100"
+        leave-active-class="transition duration-100 ease-in"
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
@@ -23,23 +23,26 @@
         >
           <ListboxOption
             as="template"
-            v-for="template in availableTemplates"
-            :key="template.name"
-            :value="template"
+            v-for="option in options"
+            :key="option.name"
+            :value="option"
             v-slot="{ active, selected }"
           >
             <li
               :class="[
                 active ? 'bg-orange-600 text-white' : 'text-gray-900',
-                'relative cursor-default select-none py-2 pl-8 pr-4',
+                withCheck ? 'pl-8 pr-4' : 'px-4',
+                'relative cursor-default select-none py-2',
               ]"
             >
-              <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
-                {{ template.name }}
-              </span>
+              <slot name="option" :option="option" :active="active" :selected="selected">
+                <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
+                  {{ option.name }}
+                </span>
+              </slot>
 
               <span
-                v-if="selected"
+                v-if="selected && withCheck"
                 :class="[
                   active ? 'text-white' : 'text-orange-600',
                   'absolute inset-y-0 left-0 flex items-center pl-1.5',
@@ -55,28 +58,9 @@
   </Listbox>
 </template>
 <script lang="ts" setup>
-import { makeFieldSpec, type ModelSpecEditable } from "@/types";
 import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/24/solid";
 
-type ModelSpecTemplate = ModelSpecEditable & {
-  id: string;
-  name: string;
-};
-
-const availableTemplates: ModelSpecTemplate[] = [
-  {
-    id: "text-generation",
-    name: "Text generation",
-    input_spec: makeFieldSpec("input", {
-      text: makeFieldSpec("text", { _type: "ValueType", dtype: "string" }),
-    }),
-    output_spec: makeFieldSpec("output", {
-      text: makeFieldSpec("generated_text", { _type: "ValueType", dtype: "string" }),
-    }),
-  },
-];
-
-defineProps<{ modelValue?: ModelSpecEditable }>();
-defineEmits<{ (e: "update:modelValue", value: ModelSpecEditable): void }>();
+defineProps<{ modelValue: any; options: any[]; emptyText?: string; withCheck?: boolean }>();
+defineEmits<{ (e: "update:modelValue", value: any): void }>();
 </script>

@@ -1,6 +1,7 @@
 import abc
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Tuple, Type
+from uuid import UUID
 
 from fsspec import AbstractFileSystem
 
@@ -9,6 +10,7 @@ from bench.artifact.utils import map_to_artifact_cls
 from bench.utils.record import Record, RecordBatch
 from bench.utils.registry import Registry
 from bench.utils.spec import DatasetType, FieldSpec, RecordSpec, convert_to_record_spec
+from bench.utils.validate import cast_config_arguments, validate_config_type
 
 
 @dataclass
@@ -30,12 +32,13 @@ class DatasetHandler(ArtifactHandler):
 
     def __init__(
         self,
+        artifact_id: UUID,
+        version: Optional[str] = None,
         fs: AbstractFileSystem = None,
         path: Optional[str] = None,
-        version: Optional[str] = None,
         spec: Optional[DatasetType] = None,
     ):
-        super().__init__(fs=fs, path=path, version=version)
+        super().__init__(artifact_id=artifact_id, version=version, fs=fs, path=path)
         if spec is None:
             if self.base_spec is None:
                 raise ValueError("DatasetHandler must define `base_spec` or get `spec` argument")
@@ -84,10 +87,13 @@ class DatasetWriter(DatasetHandler, abc.ABC):
         raise NotImplementedError
 
 
+SPECIAL_DATASET_CONFIG_KEYS = {"fs", "path", "artifact_id", "version", "spec"}
+
+
 def map_to_dataset_cls(dataset_cls: Type[DatasetHandler], impl, *args) -> Type[DatasetHandler]:
     if impl is not None:
         raise ValueError("specifying impl type is not supported")
-    return map_to_artifact_cls(dataset_cls)
+    return map_to_artifact_cls(dataset_cls, ignore_keys=SPECIAL_DATASET_CONFIG_KEYS)
 
 
 datasets: Registry[Type[DatasetHandler]] = Registry(("datasets",), mapper=map_to_dataset_cls)
@@ -95,7 +101,6 @@ datasets: Registry[Type[DatasetHandler]] = Registry(("datasets",), mapper=map_to
 
 def _import_datasets():
     # TODO @Feature: figure out better registration mechanism for registered objects
-    import bench.dataset.activeloop  # noqa
     import bench.dataset.db  # noqa
     import bench.dataset.huggingface  # noqa
 
@@ -141,7 +146,7 @@ def get_dataset_base_spec(handler_id: str) -> DatasetType:
     if dataset_cls.base_spec is not None:
         record_spec = convert_to_record_spec(dataset_cls.base_spec.record_spec)
     else:
-        record_spec = RecordSpec(name="", description="", type={})
+        record_spec = RecordSpec(name="record", description="unspecified record (blank)", type={})
 
     dataset_spec = DatasetType(record_spec)
     return dataset_spec
@@ -165,6 +170,7 @@ def get_file_system(storage_uri: str) -> Tuple[AbstractFileSystem, str]:
 
 def load_dataset(
     handler_id: str,
+    artifact_id: UUID,
     storage_uri: Optional[str],
     version: Optional[str],
     spec: Optional[DatasetType],
@@ -173,6 +179,7 @@ def load_dataset(
     """
     Loads a handler for interacting with the given dataset
     @param handler_id: The handler to use
+    @param artifact_id: The ID of the parent artifact
     @param storage_uri: The storage location of the dataset (if any)
     @param version: The version of the dataset (if any)
     @param spec: The known spec to use (if any)
@@ -186,46 +193,13 @@ def load_dataset(
         fs, path = None, None
 
     config_type = dataset_cls.config_spec
+    validate_config_type(arguments, config_type, ignore_extraneous=True)
+    arguments = cast_config_arguments(arguments, config_type)
+
+    # first add optional special arguments (also see SPECIAL_DATASET_CONFIG_KEYS)
     arguments = dict(**arguments, fs=fs, path=path)
     # filter arguments to only those listed
     arguments = {key: value for key, value in arguments.items() if key in config_type}
-    dataset = dataset_cls(spec=spec, version=version, **arguments)  # noqa
+    # all handlers must take id, version & spec, so add mandatory arguments last
+    dataset = dataset_cls(spec=spec, artifact_id=artifact_id, version=version, **arguments)  # noqa
     return dataset
-
-
-def get_dataset_reader(
-    handler_id: str,
-    storage_uri: Optional[str],
-    version: Optional[str],
-    spec: Optional[DatasetType],
-    arguments: dict[str, Any],
-) -> DatasetReader:
-    dataset_handler = load_dataset(
-        handler_id=handler_id,
-        storage_uri=storage_uri,
-        version=version,
-        spec=spec,
-        arguments=arguments,
-    )
-    if not isinstance(dataset_handler, DatasetReader):
-        raise ValueError(f"dataset handler does not support reading: {dataset_handler}")
-    return dataset_handler
-
-
-def get_dataset_writer(
-    handler_id: str,
-    storage_uri: Optional[str],
-    version: Optional[str],
-    spec: Optional[DatasetType],
-    **kwargs,
-) -> DatasetWriter:
-    dataset_handler = load_dataset(
-        handler_id=handler_id,
-        storage_uri=storage_uri,
-        version=version,
-        spec=spec,
-        **kwargs,
-    )
-    if not isinstance(dataset_handler, DatasetWriter):
-        raise ValueError(f"dataset handler does not support writing: {dataset_handler}")
-    return dataset_handler
