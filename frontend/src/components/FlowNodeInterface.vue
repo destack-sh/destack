@@ -60,7 +60,10 @@
           {{ field.name }}
           <span v-if="isOptional(field)" class="font-normal text-gray-500">(optional)</span>
         </label>
-        <router-link :to="'/models/' + artifact(configArtifacts[field.name])?.name" class="hover:text-gray-700">
+        <router-link
+          :to="`/${artifact(configArtifacts[field.name])?.type}s/` + artifact(configArtifacts[field.name])?.name"
+          class="hover:text-gray-700"
+        >
           {{ artifact(configArtifacts[field.name])?.name }}
         </router-link>
       </div>
