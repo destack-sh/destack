@@ -21,30 +21,10 @@
           <RecordSpecDisplay class="flex-1" :spec="modelSpec.output_spec" />
         </div>
       </div>
-      <div>
-        <h3 class="mt-3 text-lg font-medium leading-6 text-gray-900">Commit changes</h3>
-        <TextInput class="mt-2 sm:col-span-4" v-model="commitTitle" label="Commit title" label-hidden />
-        <TextInput
-          class="sm:col-span-6"
-          v-model="commitDescription"
-          label="Commit description"
-          label-hidden
-          placeholder="Describe your change in depth..."
-          :rows="3"
-        />
-        <div class="pt-3">
-          <div class="flex justify-end">
-            <!-- TODO @Feature: use proper form validation -->
-            <button
-              type="submit"
-              class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-              @click.prevent="commit"
-            >
-              Commit
-            </button>
-          </div>
-        </div>
-      </div>
+      <CommitEditor
+        :suggestedTitle="isFirst ? 'Create model' : 'Update model'"
+        @commit="({ commitTitle, commitDescription }) => commit(commitTitle, commitDescription)"
+      />
     </form>
   </Sidebar>
 </template>
@@ -54,12 +34,12 @@ import ModelHandlerSelect from "@/components/ModelHandlerSelect.vue";
 import RecordForm from "@/components/RecordForm.vue";
 import Sidebar from "@/components/Sidebar.vue";
 import { computedAsync, useArtifactsStore, useMetaStore } from "@/stores";
-import type { ModelSpecEditable, ModelMetadata, ArtifactVersion, ModelHandlerSpec, ModelType } from "@/types";
-import { computed, ref, watch, watchEffect, type Ref } from "vue";
+import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata, ModelSpecEditable, ModelType } from "@/types";
+import { computed, ref, watch, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
-import TextInput from "@/components/basic/TextInput.vue";
 import SButton from "../components/basic/SButton.vue";
+import CommitEditor from "../components/CommitEditor.vue";
+import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
 
 const props = defineProps({
   model: { type: String, required: true },
@@ -85,19 +65,7 @@ function restoreRuntimeSpec() {
   }
 }
 
-const commitTitle: Ref<string> = ref("Initial commit");
-const commitDescription: Ref<string> = ref("");
-const isInitial = computed(() => props.parent == null);
-
-// update commit title / description depending on initial
-watchEffect(() => {
-  if (isInitial.value) {
-    commitTitle.value = `Create model`;
-  } else {
-    commitTitle.value = "Update model";
-  }
-});
-
+const isFirst = computed(() => props.parent == null);
 const artifactsStore = useArtifactsStore();
 const { result: parentVersion } = computedAsync(() => {
   if (props.parent != null) {
@@ -122,7 +90,7 @@ watch(parentVersion, () => {
 });
 
 const router = useRouter();
-async function commit() {
+async function commit(commitTitle: string, commitDescription?: string) {
   if (selectedHandler.value == null) {
     throw new Error("no model handler selected");
   }
@@ -136,8 +104,8 @@ async function commit() {
   const newVersion = {
     parents: props.parent ? [props.parent] : [],
     metadata,
-    name: commitTitle.value,
-    description: commitDescription.value || null,
+    name: commitTitle,
+    description: commitDescription || null,
   } as Partial<ArtifactVersion>;
 
   await artifactsStore.commitArtifactVersion(props.model, newVersion);

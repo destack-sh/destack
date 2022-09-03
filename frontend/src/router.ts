@@ -1,14 +1,16 @@
+import DatasetDetail from "@/routes/DatasetDetail.vue";
+import DatasetNew from "@/routes/DatasetNew.vue";
+import Datasets from "@/routes/Datasets.vue";
+import FlowDetail from "@/routes/FlowDetail.vue";
+import FlowDetailEdit from "@/routes/FlowDetailEdit.vue";
+import Flows from "@/routes/Flows.vue";
+import Home from "@/routes/Home.vue";
+import ModelDetail from "@/routes/ModelDetail.vue";
+import ModelDetailEdit from "@/routes/ModelDetailEdit.vue";
+import ModelNew from "@/routes/ModelNew.vue";
+import Models from "@/routes/Models.vue";
+import NotFound from "@/routes/NotFound.vue";
 import { useFlowsStore } from "@/stores";
-import Datasets from "@/views/Datasets.vue";
-import FlowDetail from "@/views/FlowDetail.vue";
-import FlowEdit from "@/views/FlowEdit.vue";
-import Flows from "@/views/Flows.vue";
-import Home from "@/views/Home.vue";
-import ModelCreate from "@/views/ModelCreate.vue";
-import ModelDetail from "@/views/ModelDetail.vue";
-import ModelEdit from "@/views/ModelEdit.vue";
-import Models from "@/views/Models.vue";
-import NotFound from "@/views/NotFound.vue";
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 
@@ -21,13 +23,13 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 const routes = [
   { path: "/", component: Home },
   { path: "/models", component: Models },
-  { path: "/models/new", component: ModelCreate },
+  { path: "/models/new", component: ModelNew },
   { path: "/models/:model", component: ModelDetail, props: forwardQueryAndParams },
-  { path: "/models/:model/edit", component: ModelEdit, props: forwardQueryAndParams },
-  { path: "/datasets", component: Datasets },
-  { path: "/datasets/new", component: ModelCreate },
-  { path: "/datasets/:dataset", component: ModelDetail, props: forwardQueryAndParams },
-  { path: "/datasets/:dataset/edit", component: ModelEdit, props: forwardQueryAndParams },
+  { path: "/models/:model/edit", component: ModelDetailEdit, props: forwardQueryAndParams },
+  { path: "/datasets", component: Datasets, props: forwardQueryAndParams },
+  { path: "/datasets/new", component: DatasetNew, props: forwardQueryAndParams },
+  { path: "/datasets/:dataset", component: DatasetDetail, props: forwardQueryAndParams },
+  // { path: "/datasets/:dataset/edit", component: ModelEdit, props: forwardQueryAndParams },
   {
     path: "/playground",
     name: "playground",
@@ -52,7 +54,7 @@ const routes = [
   },
   { path: "/flows", component: Flows },
   { path: "/flows/:flow", component: FlowDetail, props: forwardQueryAndParams },
-  { path: "/flows/:flow/edit", component: FlowEdit, props: forwardQueryAndParams },
+  { path: "/flows/:flow/edit", component: FlowDetailEdit, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];

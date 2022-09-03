@@ -55,7 +55,7 @@ class DbDataset(DatasetReader, DatasetWriter, ArtifactVersionHandler):
             self._dataset.record_tree_root = new_root
             self._dataset.save()
 
-        super().__init__(version=version, spec=spec or self._dataset.spec)
+        super().__init__(artifact_id=artifact_id, version=version, spec=spec or self._dataset.spec)
 
     @property
     def root(self) -> RecordTree:

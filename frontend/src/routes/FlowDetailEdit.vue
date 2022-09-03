@@ -46,7 +46,7 @@
 <script lang="ts" setup>
 import FlowGraphInterface from "@/components/FlowGraphInterface.vue";
 import Sidebar from "@/components/Sidebar.vue";
-import Slideover from "@/components/Slideover.vue";
+import Slideover from "@/components/container/Slideover.vue";
 import { useFlowExecution } from "@/composables/useFlowExecution";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useArtifactsStore, useFlowsStore } from "@/stores";
