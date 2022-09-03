@@ -22,17 +22,9 @@
         />
       </div>
 
-      <div class="pt-5">
-        <div class="flex justify-end">
-          <!-- TODO @Feature: use proper form validation -->
-          <button
-            type="submit"
-            class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            @click.prevent="submit"
-          >
-            Create
-          </button>
-        </div>
+      <div class="flex justify-end pt-5">
+        <!-- TODO @Feature: use proper form validation -->
+        <SButton type="submit" variant="solid" color="orange" @click.prevent="submit"> Create </SButton>
       </div>
     </form>
   </Sidebar>
@@ -46,6 +38,7 @@ import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import TextInput from "@/components/basic/TextInput.vue";
+import SButton from "../components/basic/SButton.vue";
 
 const name: Ref<string> = ref("");
 const description: Ref<string> = ref("");

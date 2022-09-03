@@ -15,6 +15,8 @@
         :id="inputId"
         :name="inputId"
         :rows="rows || 1"
+        :minlength="minlength"
+        :maxlength="maxlength"
         :required="!optional"
         class="block w-full rounded-md border border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
       />
@@ -27,11 +29,13 @@ import { computed } from "vue";
 const props = defineProps<{
   modelValue: string;
   placeholder?: string;
-  rows?: number;
   label?: string;
   labelHidden?: boolean;
   id?: string;
   optional?: boolean;
+  rows?: number;
+  minlength?: number;
+  maxlength?: number;
 }>();
 
 defineEmits<{ e: "update:modelValue"; value: string }>();

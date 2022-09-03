@@ -19,13 +19,9 @@
       <!-- Custom controls -->
       <!-- Not sure if controls should be here or in FlowEdit/wrapper -->
       <div class="absolute top-2 right-2 z-10" v-if="editable">
-        <button
-          type="button"
-          class="inline-flex items-center rounded-full border border-transparent bg-orange-600 p-1 text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click="emit('addNode', {})"
-        >
+        <SButton @click="emit('addNode', {})" variant="solid" color="orange">
           <PlusSmallIcon class="h-5 w-5" aria-hidden="true" />
-        </button>
+        </SButton>
       </div>
       <!-- Real nodes -->
       <template #node-custom-real="props">
@@ -148,6 +144,7 @@ import { PencilIcon } from "@heroicons/vue/24/outline";
 import { PlusSmallIcon } from "@heroicons/vue/24/solid";
 import ELK, { type ElkEdge, type ElkNode } from "elkjs";
 import { computed, ref, watch, type Ref } from "vue";
+import SButton from "./basic/SButton.vue";
 
 const props = defineProps<{
   flow: FlowVersion;

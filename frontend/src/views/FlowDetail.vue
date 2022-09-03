@@ -6,15 +6,10 @@
         <h3 class="text text-gray-700" v-if="flow">created {{ getTimeFromNowString(flow.created_at) }}</h3>
       </div>
       <div>
-        <router-link :to="`/flows/${props.flow}/edit`">
-          <button
-            type="button"
-            class="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          >
-            Edit
-            <PencilIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-          </button>
-        </router-link>
+        <SButton variant="solid" color="orange" :to="`/flows/${props.flow}/edit`">
+          Edit
+          <PencilIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+        </SButton>
       </div>
     </div>
     <FlowGraphInterface
@@ -43,6 +38,7 @@ import { PencilIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 import FlowGraphInterface from "../components/FlowGraphInterface.vue";
 import Sidebar from "../components/Sidebar.vue";
+import SButton from "../components/basic/SButton.vue";
 const props = defineProps<{ flow: string }>();
 
 const flowsStore = useFlowsStore();
