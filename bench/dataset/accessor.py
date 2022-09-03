@@ -4,14 +4,7 @@ from typing import Optional, Union
 import structlog.stdlib
 from fsspec import AbstractFileSystem
 
-from bench.dataset.base import (
-    DatasetHandler,
-    DatasetReader,
-    DatasetWriter,
-    get_dataset_reader,
-    get_dataset_writer,
-    load_dataset,
-)
+from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter, load_dataset
 from bench.models import ArtifactVersion, Dataset, DatasetVersion
 from bench.models.dataset import DatasetMetadata, DatasetMetadataSerializer, DatasetViewData
 from bench.utils.record import Record, RecordBatch, RecordList
@@ -45,7 +38,8 @@ class DatasetAccessor:
 
 def _to_handler_args(version: DatasetVersion) -> dict:
     return {
-        "arguments": {**version.config_arguments, "artifact_id": version.artifact.id},
+        "arguments": version.config_arguments,
+        "artifact_id": version.artifact.id,
         "handler_id": version.handler_id,
         "storage_uri": version.storage_uri,
         "version": version.version,
@@ -58,11 +52,17 @@ def get_dataset_version_handler(version: DatasetVersion) -> DatasetHandler:
 
 
 def get_dataset_version_reader(version: DatasetVersion) -> DatasetReader:
-    return get_dataset_reader(**_to_handler_args(version))
+    dataset = load_dataset(**_to_handler_args(version))
+    if not isinstance(dataset, DatasetReader):
+        raise ValueError(f"dataset cannot be read: {dataset}")
+    return dataset
 
 
 def get_dataset_version_writer(version: DatasetVersion) -> DatasetWriter:
-    return get_dataset_writer(**_to_handler_args(version))
+    dataset = load_dataset(**_to_handler_args(version))
+    if not isinstance(dataset, DatasetWriter):
+        raise ValueError(f"dataset cannot be written: {dataset}")
+    return dataset
 
 
 def records_to_batch(records: Union[Record, RecordBatch]) -> RecordBatch:

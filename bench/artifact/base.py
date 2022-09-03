@@ -1,5 +1,6 @@
 import abc
 from typing import Mapping, Optional, cast
+from uuid import UUID
 
 from fsspec import AbstractFileSystem
 
@@ -30,9 +31,10 @@ class ArtifactHandler(abc.ABC):
 
     def __init__(
         self,
+        artifact_id: UUID,
+        version: Optional[str],
         fs: Optional[AbstractFileSystem],
         path: Optional[str],
-        version: Optional[str],
     ):
         """
         Creates a handler for this artifact using the given storage.

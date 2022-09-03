@@ -5,6 +5,7 @@ from bench.models import ModelVersion
 def get_model_version_handler(model: ModelVersion):
     return load_model(
         handler_id=model.handler_id,
+        artifact_id=model.artifact.id,
         version=model.version,
         storage_uri=model.storage_uri,
         arguments=model.config_arguments,
