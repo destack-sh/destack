@@ -1,21 +1,22 @@
 <template>
   <router-link v-if="to" :to="to">
-    <button type="button" :class="style">
+    <button :type="type" :class="style">
       <slot>{{ text }}</slot>
     </button>
   </router-link>
-  <button v-else type="button" :class="style">
+  <button v-else :type="type" :class="style">
     <slot>{{ text }}</slot>
   </button>
 </template>
 <script lang="ts" setup>
-import { computed } from "vue";
+import { computed, type PropType } from "vue";
 
 const props = defineProps({
-  variant: { type: String, default: "solid" },
-  color: { type: String, default: "orange" },
+  variant: { type: String as PropType<"solid" | "outline">, default: "solid" },
+  color: { type: String as PropType<"slate" | "orange" | "white">, default: "orange" },
+  type: { type: String as PropType<"button" | "submit">, default: "button" },
   text: String,
-  to: String,
+  to: [String, Object] as PropType<string | object>,
 });
 
 const baseStyles: Record<string, string> = {

@@ -10,14 +10,10 @@
           </h3>
         </div>
         <div>
-          <button
-            type="button"
-            class="inline-flex items-center rounded-md border border-transparent bg-orange-100 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            @click="_delete"
-          >
+          <SButton variant="outline" color="slate" @click="_delete">
             Delete
             <TrashIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-          </button>
+          </SButton>
         </div>
       </div>
       <div class="mx-auto flex w-full justify-end">
@@ -45,33 +41,25 @@
       <h3 class="mt-2 text-sm font-medium text-gray-900">Empty model</h3>
       <p class="mt-1 text-sm text-gray-500">Get started by initializing from a template</p>
       <div class="mt-6">
-        <router-link :to="`/models/${props.model}/edit`">
-          <button
-            type="button"
-            class="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          >
-            <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-            Select template
-          </button>
-        </router-link>
+        <SButton variant="solid" color="orange" :to="`/models/${props.model}/edit`">
+          <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+          Select template
+        </SButton>
       </div>
     </div>
     <div v-else class="mt-10 text-center">
       <!-- TODO @Feature: display model config & spec more attractively -->
-      <router-link
+      <SButton
+        variant="solid"
+        color="orange"
         :to="{
           path: `/models/${props.model}/edit`,
           query: { parent: model?.latest_version?.version },
         }"
       >
-        <button
-          type="button"
-          class="inline-flex items-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-        >
-          Edit
-          <PencilIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-        </button>
-      </router-link>
+        Edit
+        <PencilIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+      </SButton>
       <h3 class="mt-2 text-sm font-medium text-gray-900">Config</h3>
       {{ latestMetadata?.handler_id }}
       {{ model?.latest_version?.storage_uri }}
@@ -97,6 +85,7 @@ import { CpuChipIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/vue/24/
 import { computed, type Ref } from "@vue/reactivity";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
+import SButton from "../components/basic/SButton.vue";
 
 const props = defineProps<{ model: string }>();
 

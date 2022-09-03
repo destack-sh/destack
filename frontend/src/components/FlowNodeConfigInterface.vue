@@ -4,22 +4,7 @@
       <FunctionHandlerSelect label="Function" v-model="selectedFunctionHandler" />
     </div>
     <div class="grid grid-cols-1 gap-y-6 gap-x-4 pt-4 sm:grid-cols-6">
-      <div class="sm:col-span-4">
-        <label for="name" class="block text-sm font-medium text-gray-700"> Node name </label>
-        <div class="mt-1 flex rounded-md shadow-sm">
-          <input
-            v-model="name"
-            type="text"
-            name="name"
-            id="name"
-            autocomplete="name"
-            minlength="3"
-            maxlength="64"
-            required
-            class="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
-          />
-        </div>
-      </div>
+      <TextInput class="sm:col-span-4" v-model="name" label="Name" :minlength="3" :maxlength="64" />
     </div>
     <div class="pt-4" v-if="selectedFunctionHandler">
       <RecordForm
@@ -31,16 +16,8 @@
         v-model="configArtifacts"
       />
     </div>
-    <div class="pt-4">
-      <div class="flex justify-end">
-        <button
-          type="submit"
-          class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          @click.prevent="submit"
-        >
-          {{ creating ? "Create" : "Update" }}
-        </button>
-      </div>
+    <div class="flex justify-end pt-4">
+      <SButton type="submit" @click.prevent="submit" :text="creating ? 'Create' : 'Update'" />
     </div>
   </form>
 </template>
@@ -59,6 +36,8 @@ import {
 import { artifactConnections } from "@/utils/flows";
 import { flatMapFieldSpecs } from "@/utils/spec";
 import { computed, ref, toRef, watch, type Ref } from "vue";
+import SButton from "./basic/SButton.vue";
+import TextInput from "./basic/TextInput.vue";
 const selectedFunctionHandler: Ref<FunctionHandlerSpec | null> = ref(null);
 
 const name: Ref<string> = ref("");

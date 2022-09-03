@@ -14,12 +14,7 @@
           v-if="modelSpec != null && runtimeModelSpec != null && modelSpec != runtimeModelSpec"
           class="flex justify-end"
         >
-          <button
-            class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-            @click.prevent="restoreRuntimeSpec"
-          >
-            Reset to runtime spec
-          </button>
+          <SButton variant="solid" color="slate" text="Reset spec" @click="restoreRuntimeSpec" />
         </div>
         <div class="flex flex-row gap-2" v-if="modelSpec?.input_spec != null && modelSpec?.output_spec != null">
           <RecordSpecDisplay class="flex-1" :spec="modelSpec.input_spec" />
@@ -64,6 +59,7 @@ import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
 import TextInput from "@/components/basic/TextInput.vue";
+import SButton from "../components/basic/SButton.vue";
 
 const props = defineProps({
   model: { type: String, required: true },
