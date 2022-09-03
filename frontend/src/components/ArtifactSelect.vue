@@ -111,7 +111,7 @@ function promptCreateDatasetWithSpec() {
     path: "/datasets/new",
     query: {
       suggested: {
-        spec: props.type,
+        spec: (props.type as DatasetType).record_spec,
       },
     },
   });

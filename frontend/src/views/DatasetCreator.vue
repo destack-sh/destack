@@ -79,6 +79,7 @@ async function submit() {
       metadata: {
         handler_id: handler.value.id,
         config_arguments: datasetConfigRecord.value,
+        record_spec: spec.value,
       } as DatasetMetadata,
       name: "Create dataset",
       description: `Create new ${handler.value.id} dataset`,
