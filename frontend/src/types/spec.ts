@@ -66,7 +66,7 @@ export type ModelType = ArtifactType & {
 export type DatasetType = ArtifactType & {
   _type: "DatasetType";
   record_spec: RecordSpec | RecordType;
-  optiona?: boolean;
+  optional?: boolean;
 };
 
 export type FunctionType = _Type & {
