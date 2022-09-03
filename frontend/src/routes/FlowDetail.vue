@@ -47,5 +47,5 @@ const runtimeData: Ref<FlowRuntimeData> = ref({});
 const interactionData: Ref<FlowInteractionData> = ref(makeInteractionData());
 
 const { getTimeFromNowString } = useTimeFromNow();
-const { executions, execute } = useFlowExecution(flow, runtimeData, ref(true));
+const { execute } = useFlowExecution(flow, runtimeData, ref(true));
 </script>

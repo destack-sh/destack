@@ -1,6 +1,6 @@
 <template>
   <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
-    <ListboxLabel class="mt-2 block text-sm font-medium text-gray-700"> Model handler </ListboxLabel>
+    <ListboxLabel v-if="label" class="block text-sm font-medium text-gray-700"> {{ label }} </ListboxLabel>
     <div class="relative mt-1">
       <ListboxButton
         class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
@@ -61,6 +61,6 @@
 import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/24/solid";
 
-defineProps<{ modelValue: any; options: any[]; emptyText?: string; withCheck?: boolean }>();
+defineProps<{ modelValue: any; options: any[]; label?: string; emptyText?: string; withCheck?: boolean }>();
 defineEmits<{ (e: "update:modelValue", value: any): void }>();
 </script>

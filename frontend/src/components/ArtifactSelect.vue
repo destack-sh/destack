@@ -40,7 +40,7 @@
             <template v-if="props.type._type == 'DatasetType'">
               Need a dataset like
               <RecordSpecDisplay :spec="(props.type as DatasetType).record_spec" />
-              <SButton variant="solid" color="slate" @click="promptCreateDataset">
+              <SButton variant="solid" color="slate" @click="promptCreateDatasetWithSpec">
                 <PlusIcon class="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
                 Create dataset
               </SButton>
@@ -61,6 +61,7 @@ import { MagnifyingGlassIcon, ChevronUpDownIcon, PlusIcon } from "@heroicons/vue
 import { computed, ref, type Ref } from "vue";
 import RecordSpecDisplay from "./RecordSpecDisplay.vue";
 import SButton from "@/components/basic/SButton.vue";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{ type?: ArtifactType; modelValue?: Artifact; static?: boolean }>();
 
@@ -104,7 +105,17 @@ const filteredArtifacts = computed(() => {
   });
 });
 
-function promptCreateDataset() {}
+const router = useRouter();
+function promptCreateDatasetWithSpec() {
+  router.push({
+    path: "/datasets/new",
+    query: {
+      suggested: {
+        spec: props.type,
+      },
+    },
+  });
+}
 
 const emit = defineEmits(["select", "update:modelValue"]);
 function onSelect(artifact: Artifact) {

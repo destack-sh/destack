@@ -1,5 +1,6 @@
 <template>
   <ListboxSelect
+    label="Function handler"
     :model-value="modelValue"
     with-check
     @update:model-value="(selected) => $emit('update:modelValue', selected)"
