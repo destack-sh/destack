@@ -7,7 +7,7 @@ export type Flow = Taggable & {
   name: string;
   description?: string;
   versions: string[]; // fk to FlowVersion.id
-  latest_version?: FlowVersion;
+  head?: FlowVersion;
   created_at: string;
 };
 

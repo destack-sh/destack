@@ -15,6 +15,7 @@ from bench.executor import executor
 from bench.models import Artifact, ArtifactVersion
 from bench.models.artifact import ArtifactView
 from bench.models.utils import MAX_NAME_LENGTH
+from bench.models.versioning import get_head
 from bench.utils.serializer import DatasetTypeSerializer, ModelTypeSerializer
 from bench.utils.spec import DatasetType, ModelType
 
@@ -37,28 +38,16 @@ class ArtifactSerializer(TaggedItemSerializerMixin, serializers.HyperlinkedModel
     versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="version"
     )
-    latest_version = serializers.SerializerMethodField(required=False, read_only=True)
+    head = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Artifact
-        fields = [
-            "id",
-            "type",
-            "created_at",
-            "name",
-            "latest_version",
-            "versions",
-            "description",
-            "tags",
-        ]
-        read_only_fields = ["id", "created_at", "latest_version", "versions"]
+        fields = ["id", "type", "created_at", "name", "versions", "description", "head", "tags"]
+        read_only_fields = ["id", "created_at", "head", "versions"]
 
-    def get_latest_version(self, obj: Artifact):
-        latest_version = obj.versions.all().order_by("-created_at").first()
-        if latest_version is not None:
-            return ArtifactVersionSerializer(latest_version).data
-        else:
-            return None
+    def get_head(self, obj: Artifact):
+        head = get_head(obj)
+        return ArtifactVersionSerializer(head).data if head is not None else None
 
 
 class ArtifactVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):

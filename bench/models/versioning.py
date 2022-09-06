@@ -17,6 +17,7 @@ We deviate from Git in that:
 """
 import hashlib
 import json
+from typing import Optional
 
 from django.db import models
 
@@ -99,3 +100,12 @@ class VersionedCommit(VersionedObject):
 
     class Meta:
         abstract = True
+
+
+# TODO @Feature: implement proper versioning
+def get_head(repository: VersionedRepository) -> Optional:
+    return repository.versions.all().order_by("-created_at").first()
+
+
+def get_branches_tags(repository: VersionedRepository) -> Optional:
+    return []

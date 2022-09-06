@@ -27,6 +27,7 @@ from bench.models.utils import MAX_NAME_LENGTH
 # ========================
 # General Flow serializers
 # ========================
+from bench.models.versioning import get_head
 from bench.utils.func import get_first
 from bench.utils.record import RecordList
 
@@ -46,19 +47,16 @@ class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
             ),
         ],
     )
-    latest_version = serializers.SerializerMethodField(required=False, read_only=True)
+    head = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Flow
-        fields = ["id", "name", "description", "created_at", "latest_version", "tags"]
-        read_only_fields = ["id", "created_at", "latest_version"]
+        fields = ["id", "name", "description", "created_at", "head", "tags"]
+        read_only_fields = ["id", "created_at", "head", "versions"]
 
-    def get_latest_version(self, obj: Flow):
-        latest_version = obj.versions.all().order_by("-created_at").first()
-        if latest_version is not None:
-            return FlowVersionSerializer(latest_version).data
-        else:
-            return None
+    def get_head(self, obj: Flow):
+        head = get_head(obj)
+        return FlowVersionSerializer(head).data if head is not None else None
 
 
 class FlowNodeSerializer(serializers.ModelSerializer):

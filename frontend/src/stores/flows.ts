@@ -27,13 +27,13 @@ export const useFlowsStore = defineStore("flows", {
   getters: {
     lastOpenedFlow(): FlowVersion | undefined {
       function getAccessedDt(flow: Flow): string {
-        return flow.latest_version?.created_at || flow.created_at;
+        return flow.head?.created_at || flow.created_at;
       }
 
       return this.flows
-        .filter((flow) => flow.latest_version != null)
+        .filter((flow) => flow.head != null)
         .sort((a, b) => getAccessedDt(b).localeCompare(getAccessedDt(a)))
-        .map((flow) => flow.latest_version as FlowVersion)[0];
+        .map((flow) => flow.head as FlowVersion)[0];
     },
     flow(): (name: string) => Flow | undefined {
       return (name) => this.flowsByName[name];
@@ -42,7 +42,7 @@ export const useFlowsStore = defineStore("flows", {
       return (name) => this.flow(name) != null;
     },
     isHead(): (version: FlowVersion) => boolean | undefined {
-      return (version) => this.flow(version.flow)?.latest_version?.id == version.id;
+      return (version) => this.flow(version.flow)?.head?.id == version.id;
     },
     newName(): () => string {
       return () => {
@@ -72,8 +72,8 @@ export const useFlowsStore = defineStore("flows", {
     async hydrate() {
       (await api.get<Flow[]>("/flows")).data.forEach((flow) => {
         this._addFlow(flow);
-        if (flow.latest_version != null) {
-          this._cacheFlowVersion(flow.latest_version);
+        if (flow.head != null) {
+          this._cacheFlowVersion(flow.head);
         }
       });
     },
@@ -153,8 +153,8 @@ export const useFlowsStore = defineStore("flows", {
         .then(this._cacheFlowVersion)
         .then((flowVersion) => {
           // if flow doesn't have a head yet, assign it
-          if (flow.latest_version == null) {
-            flow.latest_version = flowVersion;
+          if (flow.head == null) {
+            flow.head = flowVersion;
           }
           return flowVersion;
         });

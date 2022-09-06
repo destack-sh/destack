@@ -17,13 +17,13 @@
         </div>
       </div>
       <div class="mx-auto flex w-full justify-end">
-        <div v-if="model?.latest_version">
+        <div v-if="model?.head">
           <div class="mt-6">
             <router-link
               class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-              :to="`/models/${props.model}/versions/${model.latest_version?.version}`"
+              :to="`/models/${props.model}/versions/${model.head?.version}`"
             >
-              {{ model.latest_version.version }}
+              {{ model.head.version }}
               {{ latestVersionDtFromNow }}
             </router-link>
             <router-link
@@ -54,7 +54,7 @@
         color="orange"
         :to="{
           path: `/models/${props.model}/edit`,
-          query: { parent: model?.latest_version?.version },
+          query: { parent: model?.head?.version },
         }"
       >
         Edit
@@ -62,7 +62,7 @@
       </SButton>
       <h3 class="mt-2 text-sm font-medium text-gray-900">Config</h3>
       {{ latestMetadata?.handler_id }}
-      {{ model?.latest_version?.storage_uri }}
+      {{ model?.head?.storage_uri }}
       {{ latestMetadata?.config_arguments }}
       <h3 class="mt-2 text-sm font-medium text-gray-900">Spec</h3>
       <div
@@ -92,17 +92,17 @@ const props = defineProps<{ model: string }>();
 const artifactsStore = useArtifactsStore();
 const model = computed(() => artifactsStore.artifact(props.model));
 const latestMetadata = computed(() => {
-  if (model.value?.latest_version == null) {
+  if (model.value?.head == null) {
     return null;
   } else {
-    return model.value?.latest_version.metadata as ModelMetadata;
+    return model.value?.head.metadata as ModelMetadata;
   }
 });
 
 const { result: versionsPaginated } = computedAsync(() => artifactsStore.getVersions(props.model));
 const latestVersionDtFromNow: Ref<string | null> = computed(() => {
-  if (model.value?.latest_version == null) return null;
-  return DateTime.fromISO(model.value.latest_version.created_at).toRelative({ locale: "en-US" });
+  if (model.value?.head == null) return null;
+  return DateTime.fromISO(model.value.head.created_at).toRelative({ locale: "en-US" });
 });
 
 const router = useRouter();

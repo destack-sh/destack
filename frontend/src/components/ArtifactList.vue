@@ -25,7 +25,7 @@
             <p v-if="artifact.description" class="mt-1 truncate text-sm text-gray-500">
               {{ artifact.description }}
             </p>
-            <p v-if="artifact.latest_version" class="mt-1 truncate text-xs text-gray-500">
+            <p v-if="artifact.head" class="mt-1 truncate text-xs text-gray-500">
               {{ metadata(artifact)?.handler_id }}
             </p>
             <span
@@ -81,15 +81,15 @@ const relevantArtifacts = computed(() => {
 });
 
 function metadata(artifact: Artifact): ModelMetadata | DatasetMetadata | null {
-  return (artifact.latest_version?.metadata as ModelMetadata | DatasetMetadata | undefined) || null;
+  return (artifact.head?.metadata as ModelMetadata | DatasetMetadata | undefined) || null;
 }
 
 function modelMetadata(artifact: Artifact): ModelMetadata | null {
-  return (artifact.latest_version?.metadata as ModelMetadata | undefined) || null;
+  return (artifact.head?.metadata as ModelMetadata | undefined) || null;
 }
 
 function datasetMetadata(artifact: Artifact): DatasetMetadata | null {
-  return (artifact.latest_version?.metadata as DatasetMetadata | undefined) || null;
+  return (artifact.head?.metadata as DatasetMetadata | undefined) || null;
 }
 
 function getIconForArtifact(artifact: Artifact) {
