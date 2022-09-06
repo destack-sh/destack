@@ -7,7 +7,7 @@ export type Artifact = Taggable & {
   name: string;
   description?: string;
   versions?: string[]; // fk to ArtifactVersion.version
-  latest_version?: ArtifactVersion;
+  head?: ArtifactVersion;
   created_at: string;
 };
 

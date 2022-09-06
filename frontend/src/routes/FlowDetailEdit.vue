@@ -66,7 +66,7 @@ import FlowNodeConfigInterface from "../components/FlowNodeConfigInterface.vue";
 const props = defineProps<{ flow: string; playground?: boolean; models?: string[] }>();
 
 const flowsStore = useFlowsStore();
-const flow = computed(() => flowsStore.flow(props.flow)?.latest_version || null);
+const flow = computed(() => flowsStore.flow(props.flow)?.head || null);
 const runtimeData: Ref<FlowRuntimeData> = ref({});
 const interactionData: Ref<FlowInteractionData> = ref(makeInteractionData());
 
@@ -116,7 +116,7 @@ async function addModels(flow: FlowVersion, models: string[]) {
     let [name, version] = splitNameVersion(model);
     // TODO @Feature handle tags other than HEAD in added models to flow
     if (version == "HEAD") {
-      version = artifactsStore.artifact(name)?.latest_version?.version;
+      version = artifactsStore.artifact(name)?.head?.version;
     }
     return `${name}@${version}`;
   });

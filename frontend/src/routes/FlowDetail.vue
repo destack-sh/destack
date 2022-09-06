@@ -42,7 +42,7 @@ import SButton from "../components/basic/SButton.vue";
 const props = defineProps<{ flow: string }>();
 
 const flowsStore = useFlowsStore();
-const flow: Ref<FlowVersion | null> = computed(() => flowsStore.flow(props.flow)?.latest_version || null);
+const flow: Ref<FlowVersion | null> = computed(() => flowsStore.flow(props.flow)?.head || null);
 const runtimeData: Ref<FlowRuntimeData> = ref({});
 const interactionData: Ref<FlowInteractionData> = ref(makeInteractionData());
 

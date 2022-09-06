@@ -68,11 +68,11 @@ const props = defineProps<{ type?: ArtifactType; modelValue?: Artifact; static?:
 const query: Ref<string> = ref("");
 
 function getDatasetRecordSpec(dataset: Artifact): RecordSpec | undefined {
-  if (dataset.latest_version == undefined) {
+  if (dataset.head == undefined) {
     return undefined;
   }
 
-  const datasetMetadata = dataset.latest_version.metadata as DatasetMetadata;
+  const datasetMetadata = dataset.head.metadata as DatasetMetadata;
   return datasetMetadata.record_spec;
 }
 
@@ -81,7 +81,7 @@ const relevantArtifacts = computed(() => {
   let relevantArtifacts: Artifact[];
   if (props.type?._type == "DatasetType") {
     relevantArtifacts = artifactsStore.datasets.filter((dataset) => {
-      if (dataset.latest_version == null) {
+      if (dataset.head == null) {
         return false;
       }
 

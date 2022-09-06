@@ -46,14 +46,14 @@ function unsetArtifactConnection(field: ArtifactSpec) {
 }
 
 function setArtifactConnection(field: ArtifactSpec, value: Artifact) {
-  if (value.latest_version == null) {
+  if (value.head == null) {
     throw new Error(`${value.name} does not have a latest version and that's all ArtifactSelect can handle`);
   }
 
   const newRecord: Record<string, ArtifactConnection> = { ...props.modelValue };
   newRecord[field.name] = {
     // use specific latest version if available since dependency needs to be name@version not @tag
-    dependency: `${value.name}@${value.latest_version?.version}`,
+    dependency: `${value.name}@${value.head?.version}`,
     connection_name: field.name,
     connection_type: "argument",
   };

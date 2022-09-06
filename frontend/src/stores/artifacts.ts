@@ -24,7 +24,7 @@ export const useArtifactsStore = defineStore("artifacts", {
       return this.artifacts.filter((artifact) => artifact.type == "dataset");
     },
     isHead(): (version: ArtifactVersion) => boolean | undefined {
-      return (version) => this.artifact(version.artifact)?.latest_version?.id == version.id;
+      return (version) => this.artifact(version.artifact)?.head?.id == version.id;
     },
   },
   actions: {
@@ -39,8 +39,8 @@ export const useArtifactsStore = defineStore("artifacts", {
     _addArtifact(artifact: Artifact) {
       this.artifacts.push(artifact);
       this.artifactsByName[artifact.name] = artifact;
-      if (artifact.latest_version != null) {
-        this._cacheArtifactVersion(artifact.latest_version);
+      if (artifact.head != null) {
+        this._cacheArtifactVersion(artifact.head);
       }
     },
 
@@ -110,7 +110,7 @@ export const useArtifactsStore = defineStore("artifacts", {
       const latestVersion = await api
         .post<ArtifactVersion>(`/${type}s/${name}/versions`, initialVersion)
         .then((response) => response.data);
-      artifact.latest_version = latestVersion;
+      artifact.head = latestVersion;
 
       this._addArtifact(artifact);
 

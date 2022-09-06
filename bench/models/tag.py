@@ -136,6 +136,7 @@ class TaggableMixin:
 
 TAG_TYPE_HEAD = "head"
 TAG_TYPE_BRANCH = "branch"
+TAG_TYPE_RELEASE = "release"
 TAG_TYPE_STAGE = "stage"
 TAG_TYPE_ALIAS = "alias"
 TAG_TYPE_CAPABILITY = "capability"
