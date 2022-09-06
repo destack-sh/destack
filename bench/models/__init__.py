@@ -5,7 +5,14 @@ from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecuti
 from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
 from .model import Model, ModelVersion
 from .record import Record, RecordTree, RecordTreeReference
-from .tag import TAG_ALIAS, TAG_BRANCH, TAG_CAPABILITY, TAG_STAGE, Tag
+from .tag import (
+    TAG_KIND_ALIAS,
+    TAG_KIND_BRANCH,
+    TAG_KIND_CAPABILITY,
+    TAG_KIND_HEAD,
+    TAG_KIND_STAGE,
+    Tag,
+)
 
 __all__ = [
     "Artifact",
@@ -19,10 +26,11 @@ __all__ = [
     "ModelVersion",
     "Controller",
     "Tag",
-    "TAG_ALIAS",
-    "TAG_BRANCH",
-    "TAG_STAGE",
-    "TAG_CAPABILITY",
+    "TAG_KIND_ALIAS",
+    "TAG_KIND_HEAD",
+    "TAG_KIND_BRANCH",
+    "TAG_KIND_STAGE",
+    "TAG_KIND_CAPABILITY",
     "Flow",
     "FlowVersion",
     "FlowNode",
