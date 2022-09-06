@@ -10,7 +10,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.api.tags import TaggedItemSerializerMixin
+from bench.api.tag import TaggedItemSerializerMixin
 from bench.executor import executor
 from bench.models import Artifact, ArtifactVersion
 from bench.models.artifact import ArtifactView

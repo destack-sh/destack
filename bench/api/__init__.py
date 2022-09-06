@@ -19,7 +19,7 @@ from bench.api.flow import (
 )
 from bench.api.meta import list_dataset_handlers, list_function_handlers, list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
-from bench.api.tags import TagViewSet
+from bench.api.tag import TagViewSet
 
 
 def _get_lookup_regex_simple(viewset: Type[ViewSetMixin], lookup_prefix: str = "") -> str:

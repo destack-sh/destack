@@ -4,6 +4,7 @@ import secrets
 
 from django.db import models
 
+from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.models.versioning import VersionedCommit, VersionedRepository
 
@@ -12,7 +13,7 @@ class ArtifactManager(models.Manager):
     pass
 
 
-class Artifact(UUIDModel, VersionedRepository):
+class Artifact(VersionedRepository, TaggableMixin, UUIDModel):
     """
     A data artifact of any type with a unique name, produced by some process.
 
@@ -50,7 +51,7 @@ def _generate_artifact_version(nbytes: int = 3) -> str:
     return secrets.token_hex(nbytes)
 
 
-class ArtifactVersion(UUIDModel, VersionedCommit):
+class ArtifactVersion(VersionedCommit, TaggableMixin, UUIDModel):
     """
     An artifact version is a specific (generally) immutable state of an artifact.
 
@@ -93,7 +94,7 @@ class ArtifactVersion(UUIDModel, VersionedCommit):
         ]
 
 
-class ArtifactView(UUIDModel):
+class ArtifactView(TaggableMixin, UUIDModel):
     """
     A generally immutable view of an Artifact. The data remains with the
     Artifact (or, rather, a specific version) and can be accessed through the view.

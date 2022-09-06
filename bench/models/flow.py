@@ -10,6 +10,7 @@ from django.db import models, transaction
 from rest_framework import serializers
 from rest_framework.fields import DictField
 
+from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
 from bench.utils.serializer import FieldSpecSerializer
@@ -25,7 +26,7 @@ class FlowManager(models.Manager):
         return flow_version
 
 
-class Flow(UUIDModel, VersionedRepository):
+class Flow(VersionedRepository, TaggableMixin, UUIDModel):
     """
     A directed acyclic graph of Functions represented as Nodes connected by Edges.
 
@@ -49,7 +50,7 @@ def _generate_flow_version(nbytes: int = 3) -> str:
     return secrets.token_hex(nbytes)
 
 
-class FlowVersion(UUIDModel, VersionedCommit):
+class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     """
     A flow version is a specific (generally) immutable specification of a flow.
     """

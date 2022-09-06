@@ -1,7 +1,8 @@
 import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
 import type { RecordSpec } from "@/types/spec";
+import type { Taggable } from "@/types/tags";
 
-export type Flow = {
+export type Flow = Taggable & {
   id: string;
   name: string;
   description?: string;
@@ -10,7 +11,7 @@ export type Flow = {
   created_at: string;
 };
 
-export type FlowVersion = {
+export type FlowVersion = Taggable & {
   id: string;
   name: string;
   version: string;

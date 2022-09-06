@@ -47,6 +47,7 @@ from bench.models.dataset import DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
+from bench.models.tag import TAG_SOURCE_INPUTS
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
@@ -192,6 +193,7 @@ class LocalExecutor(Executor):
         with execution.capture(start=False):
             # record inputs
             input_dataset, view = write_to_dataset(f"{model.artifact.name}.inputs", "0", record)
+            input_dataset.set_tag(TAG_SOURCE_INPUTS)
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Input,
                 connection_name=DEFAULT_CONNECTION_NAME,
@@ -210,6 +212,7 @@ class LocalExecutor(Executor):
 
             # record outputs
             output_dataset, view = write_to_dataset(f"{model.artifact.name}.outputs", "0", output)
+            output_dataset.set_tag(TAG_SOURCE_INPUTS)
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
                 connection_name=DEFAULT_CONNECTION_NAME,
@@ -282,6 +285,7 @@ class LocalExecutor(Executor):
                         dataset, artifact_connection.view_data
                     )
                     input_spec = functions[node_id].input_spec[input_key]
+                    # TODO @Cleanup: dataset spec should not derive from input spec at execution time
                     update_dataset_spec(dataset, input_spec)
                 else:
                     raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
