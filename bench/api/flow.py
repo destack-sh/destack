@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework_dataclasses.serializers import DataclassSerializer, _strip_empty_sentinels
 
 from bench.api.execution import ExecutionSerializer
+from bench.api.tags import TaggedItemSerializerMixin
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions, FlowRawArgument
@@ -32,7 +33,7 @@ from bench.utils.record import RecordList
 logger = structlog.stdlib.get_logger()
 
 
-class FlowSerializer(serializers.ModelSerializer):
+class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
         validators=[
@@ -49,7 +50,7 @@ class FlowSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Flow
-        fields = ["id", "name", "description", "created_at", "latest_version"]
+        fields = ["id", "name", "description", "created_at", "latest_version", "tags"]
         read_only_fields = ["id", "created_at", "latest_version"]
 
     def get_latest_version(self, obj: Flow):
@@ -110,7 +111,7 @@ class FlowArtifactEdgeSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class FlowVersionSerializer(serializers.ModelSerializer):
+class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     flow: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=Flow.objects.all(), slug_field="name"
     )
@@ -134,6 +135,7 @@ class FlowVersionSerializer(serializers.ModelSerializer):
             "node_edges",
             "artifact_edges",
             "committed",
+            "tags",
         ]
         read_only_fields = ["id", "created_at", "parents", "flow", "version", "committed"]
 

@@ -10,6 +10,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bench.api.tags import TaggedItemSerializerMixin
 from bench.executor import executor
 from bench.models import Artifact, ArtifactVersion
 from bench.models.artifact import ArtifactView
@@ -20,7 +21,7 @@ from bench.utils.spec import DatasetType, ModelType
 logger = structlog.stdlib.get_logger()
 
 
-class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
+class ArtifactSerializer(TaggedItemSerializerMixin, serializers.HyperlinkedModelSerializer):
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
         validators=[
@@ -40,7 +41,16 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Artifact
-        fields = ["id", "type", "created_at", "name", "latest_version", "versions", "description"]
+        fields = [
+            "id",
+            "type",
+            "created_at",
+            "name",
+            "latest_version",
+            "versions",
+            "description",
+            "tags",
+        ]
         read_only_fields = ["id", "created_at", "latest_version", "versions"]
 
     def get_latest_version(self, obj: Artifact):
@@ -51,7 +61,7 @@ class ArtifactSerializer(serializers.HyperlinkedModelSerializer):
             return None
 
 
-class ArtifactVersionSerializer(serializers.ModelSerializer):
+class ArtifactVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=Artifact.objects.all(), slug_field="name"
     )
@@ -70,11 +80,12 @@ class ArtifactVersionSerializer(serializers.ModelSerializer):
             "storage_uri",
             "metadata",
             "committed",
+            "tags",
         ]
         read_only_fields = ["id", "created_at", "parents", "version", "content_hash", "committed"]
 
 
-class ArtifactViewSerializer(serializers.ModelSerializer):
+class ArtifactViewSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=ArtifactView.objects.all(), slug_field="name"
     )
@@ -93,6 +104,7 @@ class ArtifactViewSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "data",
+            "tags",
         ]
         read_only_fields = ["id", "created_at"]
 

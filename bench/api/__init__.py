@@ -19,6 +19,7 @@ from bench.api.flow import (
 )
 from bench.api.meta import list_dataset_handlers, list_function_handlers, list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
+from bench.api.tags import TagViewSet
 
 
 def _get_lookup_regex_simple(viewset: Type[ViewSetMixin], lookup_prefix: str = "") -> str:
@@ -116,6 +117,7 @@ class ExtendedNestedRouter(routers.NestedSimpleRouter):
 
 router = ExtendedDefaultRouter(lookup_omit_field=True)
 router.register("executions", ExecutionViewSet)
+router.register("tags", TagViewSet)
 
 artifacts_router = router.register_nested("artifacts", ArtifactViewSet, lookup="artifact")
 artifacts_router.register("versions", ArtifactVersionViewSet)
