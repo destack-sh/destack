@@ -1,15 +1,29 @@
-from typing import Optional
+from typing import Optional, cast
 
 from rest_framework import serializers, viewsets
 
 from bench.models import Tag
-from bench.models.tag import TaggedItem
+from bench.models.tag import TaggableMixin, TaggedItem
 
 
 class TagSerializer(serializers.ModelSerializer):
+    references_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Tag
-        fields = ["name", "description", "created_at", "updated_at", "metadata"]
+        fields = [
+            "type",
+            "name",
+            "description",
+            "created_at",
+            "updated_at",
+            "metadata",
+            "references_count",
+        ]
+        read_only_fields = ["type", "references_count"]
+
+    def get_references_count(self, obj):
+        return TaggedItem.objects.filter(tag_id=obj.id).count()
 
 
 class TaggedItemSerializerMixin(serializers.Serializer):
@@ -26,18 +40,7 @@ class TaggedItemSerializerMixin(serializers.Serializer):
     def _set_tags(self, obj, tags: Optional[list[str]]):
         if obj is None or tags is None:
             return
-
-        current_tags = set(tags)  # deduplicate
-        # create/set new tags
-        tagged_item_instances = []
-        for tag in current_tags:
-            tag_instance, _ = Tag.objects.get_or_create(name=tag)
-            tagged_item_instance, _ = obj.tagged_items.get_or_create(tag_id=tag_instance.id)
-            tagged_item_instances.append(tagged_item_instance)
-        # delete extraneous tagged
-        obj.tagged_items.exclude(tag__name__in=current_tags).delete()
-
-        obj.prefetched_tags = tagged_item_instances
+        cast(TaggableMixin, obj).set_tags(tags)
 
     def create(self, validated_data):
         validated_data.pop("tags", None)

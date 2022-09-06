@@ -1,13 +1,14 @@
+from typing import Optional, Union
+
 from django.db import models
 from django.db.models import Q
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
-TAG_KIND_HEAD = "head"
-TAG_KIND_BRANCH = "branch"
-TAG_KIND_STAGE = "stage"
-TAG_KIND_ALIAS = "alias"
-TAG_KIND_CAPABILITY = "capability"
+
+class TagManager(models.Manager):
+    def of_type(self, typ: str) -> models.QuerySet:
+        return Tag.objects.filter(name__startswith=typ + ":")
 
 
 class Tag(UUIDModel):
@@ -15,7 +16,7 @@ class Tag(UUIDModel):
     A generic label for associating groups and/or parts of primitives like
     artifacts, functions and executions with some metadata.
 
-    The tag name can specify a kind by prefixing '<kind>:' to its name. Certain kinds of tags
+    The tag name can specify a type by prefixing '<type>:' to its name. Certain kinds of tags
     have special rules on when & how they can be used and on what metadata they need.
     """
 
@@ -25,18 +26,30 @@ class Tag(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     metadata = models.JSONField(default=dict)
 
+    objects = TagManager()
+
+    @property
+    def type(self) -> Optional[str]:
+        name_parts = self.name.split(":")
+        if len(name_parts) != 1 and len(name_parts[0]) >= 1:
+            return name_parts[0]
+        else:
+            return None
+
     class Meta:
         constraints = [models.UniqueConstraint(name="bench_tag_name", fields=["name"])]
 
 
-RELATED_MODELS = ("artifact", "artifact_version", "artifact_view", "flow", "flow_version")
+# Must keep in sync with the actual fields of TaggedItem.
+RELATED_FIELDS = ("artifact", "artifact_version", "artifact_view", "flow", "flow_version")
+RELATED_MODELS = ("Artifact", "ArtifactVersion", "ArtifactView", "Flow", "FlowVersion")
 
 
 def make_single_field_populated_check():
     any_single_populated_qs: list[Q] = []
-    for field in RELATED_MODELS:
+    for field in RELATED_FIELDS:
         single_populated_qs = [
-            (f"{other_field}__isnull", other_field != field) for other_field in RELATED_MODELS
+            (f"{other_field}__isnull", other_field != field) for other_field in RELATED_FIELDS
         ]
         any_single_populated_qs.append(Q(*single_populated_qs, _connector="AND"))
     return models.CheckConstraint(
@@ -53,7 +66,7 @@ def make_uniqueness_checks():
             condition=Q((f"{field}__isnull", False)),
         )
 
-    return (make_partial_uniqueness_check(field) for field in RELATED_MODELS)
+    return (make_partial_uniqueness_check(field) for field in RELATED_FIELDS)
 
 
 class TaggedItem(UUIDModel):
@@ -82,3 +95,57 @@ class TaggedItem(UUIDModel):
     class Meta:
         # enforce only one related model field is set and tag + model field are unique
         constraints = [make_single_field_populated_check(), *make_uniqueness_checks()]
+
+
+class TaggableMixin:
+    """Tags utilities for models that can be tagged (via TaggedItem)"""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # Help anyone thinking that adding 'TaggableMixin' is enough to make a model taggable.
+        if (
+            cls._meta.concrete_model.__name__ not in RELATED_MODELS
+            and cls.__name__ not in RELATED_MODELS
+        ):
+            raise RuntimeError("Taggable models must have fields in TaggedItem")
+
+    tagged_items: models.QuerySet
+
+    def set_tags(self, tags: list[str]):
+        current_tags = set(tags)  # deduplicate
+        # create/set new tags
+        tagged_item_instances = []
+        for tag in current_tags:
+            tag_instance, _ = Tag.objects.get_or_create(name=tag)
+            tagged_item_instance, _ = self.tagged_items.get_or_create(tag_id=tag_instance.id)
+            tagged_item_instances.append(tagged_item_instance)
+        # delete extraneous tagged items
+        self.tagged_items.exclude(tag__name__in=current_tags).delete()
+
+        self.prefetched_tags = tagged_item_instances
+
+    def set_tag(self, tag: Union[Tag, str]) -> Tag:
+        if isinstance(tag, str):
+            tag_instance, _ = Tag.objects.get_or_create(name=tag)
+        else:
+            tag_instance = tag
+        self.tagged_items.get_or_create(tag_id=tag_instance.id)
+        return tag_instance
+
+
+TAG_TYPE_HEAD = "head"
+TAG_TYPE_BRANCH = "branch"
+TAG_TYPE_STAGE = "stage"
+TAG_TYPE_ALIAS = "alias"
+TAG_TYPE_CAPABILITY = "capability"
+TAG_TYPE_SOURCE = "source"
+
+
+def _make_tag(name: str, description: str) -> Tag:
+    tag, _ = Tag.objects.get_or_create(name=name, defaults=dict(description=description))
+    return tag
+
+
+TAG_SOURCE_INPUTS = _make_tag("source:inputs", "Assigned to artifacts representing inputs")
+TAG_SOURCE_OUTPUTS = _make_tag("source:outputs", "Assigned to artifacts representing outputs")

@@ -36,6 +36,7 @@ from bench.models.execution import (
 )
 from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
+from bench.models.tag import TAG_SOURCE_INPUTS, TAG_SOURCE_OUTPUTS
 from bench.models.utils import UUIDT
 from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import ArtifactType
@@ -226,6 +227,7 @@ def _convert_arguments_to_artifact_connections(
             view_inline = None
             if isinstance(artifact, RecordBatch):
                 artifact, view_slice = write_to_dataset(node_argument_id, "0", artifact)
+                artifact.set_tag(TAG_SOURCE_INPUTS)
                 view_inline = DatasetViewData.from_slice(view_slice).asdict
             elif not isinstance(artifact, ArtifactVersion):
                 raise ValueError(
@@ -264,6 +266,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
             output_dataset = Dataset.objects.get_or_create_dataset_version(
                 name=output_id, version="0", metadata=DatasetMetadata.default_db()
             )
+            output_dataset.set_tag(TAG_SOURCE_OUTPUTS)
             final_outputs[node.id][output_name] = ArtifactConnection(
                 type=ExecutionArtifactConnection.ConnectionType.Output,
                 name=output_id,
@@ -291,6 +294,7 @@ def _make_node_connections(
                 output_dataset = Dataset.objects.get_or_create_dataset_version(
                     name=output_id, version="0", metadata=DatasetMetadata.default_db()
                 )
+                output_dataset.set_tag(TAG_SOURCE_OUTPUTS)
                 connection = FlowNodeConnection(
                     edge=edge,
                     intermediate_artifact=output_dataset,

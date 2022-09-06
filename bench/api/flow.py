@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework_dataclasses.serializers import DataclassSerializer, _strip_empty_sentinels
 
 from bench.api.execution import ExecutionSerializer
-from bench.api.tags import TaggedItemSerializerMixin
+from bench.api.tag import TaggedItemSerializerMixin
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions, FlowRawArgument

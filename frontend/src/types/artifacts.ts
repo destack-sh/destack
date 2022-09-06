@@ -1,6 +1,7 @@
 import type { FieldValuePrimitive, RecordSpec } from "@/types/spec";
+import type { Taggable } from "@/types/tags";
 
-export type Artifact = {
+export type Artifact = Taggable & {
   id: string;
   type: string;
   name: string;
@@ -10,7 +11,7 @@ export type Artifact = {
   created_at: string;
 };
 
-export type ArtifactVersion = {
+export type ArtifactVersion = Taggable & {
   id: string;
   artifact: string; // fk to Artifact.name
   version: string;
@@ -29,7 +30,7 @@ export type DatasetIndexSliceView = ArtifactViewData & {
   end: number;
 };
 
-export type ArtifactView = {
+export type ArtifactView = Taggable & {
   id: string;
   type: string;
   artifact: string; // fk to Artifact.name

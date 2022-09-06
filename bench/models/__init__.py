@@ -6,12 +6,14 @@ from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
 from .model import Model, ModelVersion
 from .record import Record, RecordTree, RecordTreeReference
 from .tag import (
-    TAG_KIND_ALIAS,
-    TAG_KIND_BRANCH,
-    TAG_KIND_CAPABILITY,
-    TAG_KIND_HEAD,
-    TAG_KIND_STAGE,
+    TAG_TYPE_ALIAS,
+    TAG_TYPE_BRANCH,
+    TAG_TYPE_CAPABILITY,
+    TAG_TYPE_HEAD,
+    TAG_TYPE_STAGE,
     Tag,
+    TaggableMixin,
+    TaggedItem,
 )
 
 __all__ = [
@@ -26,11 +28,13 @@ __all__ = [
     "ModelVersion",
     "Controller",
     "Tag",
-    "TAG_KIND_ALIAS",
-    "TAG_KIND_HEAD",
-    "TAG_KIND_BRANCH",
-    "TAG_KIND_STAGE",
-    "TAG_KIND_CAPABILITY",
+    "TaggedItem",
+    "TaggableMixin",
+    "TAG_TYPE_ALIAS",
+    "TAG_TYPE_HEAD",
+    "TAG_TYPE_BRANCH",
+    "TAG_TYPE_STAGE",
+    "TAG_TYPE_CAPABILITY",
     "Flow",
     "FlowVersion",
     "FlowNode",

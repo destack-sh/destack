@@ -28,6 +28,13 @@
             <p v-if="artifact.latest_version" class="mt-1 truncate text-xs text-gray-500">
               {{ metadata(artifact)?.handler_id }}
             </p>
+            <span
+              class="mt-1 inline-flex items-center rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800"
+              v-for="tag in artifact.tags"
+              :key="tag"
+            >
+              {{ tag }}
+            </span>
           </div>
         </div>
         <div v-if="artifact.type == 'model'" class="-mt-px flex divide-x divide-gray-200">
