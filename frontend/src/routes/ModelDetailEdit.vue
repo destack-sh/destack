@@ -2,7 +2,7 @@
   <Sidebar>
     <form class="mx-auto max-w-xl space-y-8 divide-y divide-gray-200 pt-8" action="">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-900">{{ model }}</h1>
+        <h1 class="text-2xl font-semibold text-gray-900">Edit {{ model }}</h1>
         <ModelHandlerSelect v-model="selectedHandler" />
         <RecordForm
           class="mt-3"
