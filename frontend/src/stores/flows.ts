@@ -136,7 +136,7 @@ export const useFlowsStore = defineStore("flows", {
       return this._cacheFlowVersion(flowVersion);
     },
 
-    async createFlow(flow: Pick<Flow, "name" | "description">): Promise<Flow> {
+    async createFlow(flow: Pick<Flow, "name" | "description" | "tags">): Promise<Flow> {
       return api
         .post<Flow>(`/flows`, flow)
         .then((response) => response.data)
@@ -145,7 +145,7 @@ export const useFlowsStore = defineStore("flows", {
 
     async createFlowVersion(
       flow: Flow,
-      flowVersion: Pick<FlowVersion, "name" | "description" | "parents">
+      flowVersion: Pick<FlowVersion, "name" | "description" | "parents" | "tags">
     ): Promise<FlowVersion> {
       return api
         .post<FlowVersion>(`/flows/${flow.name}/versions`, flowVersion)

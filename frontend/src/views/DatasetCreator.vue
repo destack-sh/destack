@@ -85,7 +85,11 @@ async function submit() {
       description: `Create new ${handler.value.id} dataset`,
     } as Partial<ArtifactVersion>;
 
-    const artifact = await artifactsStore.createArtifact("dataset", name.value, description.value, initialVersion);
+    const artifact = await artifactsStore.createArtifact(
+      "dataset",
+      { name: name.value, description: description.value },
+      initialVersion
+    );
     router.push(`/datasets/${artifact.name}`);
   }
 }
