@@ -58,7 +58,11 @@ async function submit() {
       description: `Create new ${selectedHandler.value.id} model`,
     } as Partial<ArtifactVersion>;
 
-    const artifact = await artifactsStore.createArtifact("model", name.value, description.value, initialVersion);
+    const artifact = await artifactsStore.createArtifact(
+      "model",
+      { name: name.value, description: description.value },
+      initialVersion
+    );
     router.push(`/models/${artifact.name}`);
   }
 }

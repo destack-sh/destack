@@ -239,7 +239,7 @@ watch(
       // create flow instance if needed
       let flowInstance = flowsStore.flow(props.flow);
       if (!flowInstance) {
-        flowInstance = await flowsStore.createFlow({ name: props.flow });
+        flowInstance = await flowsStore.createFlow({ name: props.flow, tags: [] });
       }
 
       // init playground

@@ -95,26 +95,20 @@ export const useArtifactsStore = defineStore("artifacts", {
 
     async createArtifact(
       type: "model" | "dataset",
-      name: string,
-      description?: string,
+      artifact: Pick<Artifact, "name" | "description" | "tags">,
       initialVersion?: Partial<ArtifactVersion>
     ): Promise<Artifact> {
-      const artifact = await api
-        .post<Artifact>(`/${type}s`, {
-          name,
-          description,
-        })
-        .then((response) => response.data);
+      const artifactInstance = await api.post<Artifact>(`/${type}s`, artifact).then((response) => response.data);
 
       // TODO @Robustness: create model and initialize from template should be atomic
       const latestVersion = await api
         .post<ArtifactVersion>(`/${type}s/${name}/versions`, initialVersion)
         .then((response) => response.data);
-      artifact.head = latestVersion;
+      artifactInstance.head = latestVersion;
 
-      this._addArtifact(artifact);
+      this._addArtifact(artifactInstance);
 
-      return artifact;
+      return artifactInstance;
     },
 
     async commitArtifactVersion(name: string, version: Partial<ArtifactVersion>): Promise<ArtifactVersion> {
