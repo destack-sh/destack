@@ -37,9 +37,9 @@ import { computedAsync, useArtifactsStore, useMetaStore } from "@/stores";
 import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata, ModelSpecEditable, ModelType } from "@/types";
 import { computed, ref, watch, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import SButton from "../components/basic/SButton.vue";
-import CommitEditor from "../components/CommitEditor.vue";
-import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
+import SButton from "@/components/basic/SButton.vue";
+import CommitEditor from "@/components/CommitEditor.vue";
+import RecordSpecDisplay from "@/components/RecordSpecDisplay.vue";
 
 const props = defineProps({
   model: { type: String, required: true },

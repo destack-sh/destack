@@ -60,8 +60,8 @@ import {
 } from "@/types";
 import { splitNameVersion } from "@/utils/versioning";
 import { computed, ref, toRef, watch, type Ref } from "vue";
-import ExecutionsGrid from "../components/ExecutionsGrid.vue";
-import FlowNodeConfigInterface from "../components/FlowNodeConfigInterface.vue";
+import ExecutionsGrid from "@/components/ExecutionsGrid.vue";
+import FlowNodeConfigInterface from "@/components/FlowNodeConfigInterface.vue";
 
 const props = defineProps<{ flow: string; playground?: boolean; models?: string[] }>();
 

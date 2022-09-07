@@ -42,8 +42,8 @@ import type { ArtifactVersion, DatasetHandlerSpec, DatasetMetadata, RecordSpec }
 import { ref, toRef, watch, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import TextInput from "@/components/basic/TextInput.vue";
-import SButton from "../components/basic/SButton.vue";
-import RecordSpecDisplay from "../components/RecordSpecDisplay.vue";
+import SButton from "@/components/basic/SButton.vue";
+import RecordSpecDisplay from "@/components/RecordSpecDisplay.vue";
 
 const props = defineProps<{ suggested?: { name?: string; description?: string; spec: RecordSpec } }>();
 

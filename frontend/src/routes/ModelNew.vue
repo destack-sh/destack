@@ -5,5 +5,5 @@
 </template>
 <script lang="ts" setup>
 import Sidebar from "@/components/Sidebar.vue";
-import ModelCreator from "../views/ModelCreator.vue";
+import ModelCreator from "@/views/ModelCreator.vue";
 </script>
