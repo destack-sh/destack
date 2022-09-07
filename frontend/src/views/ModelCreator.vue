@@ -35,7 +35,7 @@ import type { ArtifactVersion, ModelHandlerSpec, ModelMetadata } from "@/types";
 import { ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import TextInput from "@/components/basic/TextInput.vue";
-import SButton from "../components/basic/SButton.vue";
+import SButton from "@/components/basic/SButton.vue";
 
 const name: Ref<string> = ref("");
 const description: Ref<string> = ref("");

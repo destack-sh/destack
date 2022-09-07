@@ -85,7 +85,7 @@ import { CpuChipIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/vue/24/
 import { computed, type Ref } from "@vue/reactivity";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import SButton from "../components/basic/SButton.vue";
+import SButton from "@/components/basic/SButton.vue";
 
 const props = defineProps<{ model: string }>();
 

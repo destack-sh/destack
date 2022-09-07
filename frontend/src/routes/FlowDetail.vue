@@ -36,9 +36,9 @@ import { useFlowsStore } from "@/stores";
 import { makeInteractionData, type FlowInteractionData, type FlowRuntimeData, type FlowVersion } from "@/types";
 import { PencilIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
-import FlowGraphInterface from "../components/FlowGraphInterface.vue";
-import Sidebar from "../components/Sidebar.vue";
-import SButton from "../components/basic/SButton.vue";
+import FlowGraphInterface from "@/components/FlowGraphInterface.vue";
+import Sidebar from "@/components/Sidebar.vue";
+import SButton from "@/components/basic/SButton.vue";
 const props = defineProps<{ flow: string }>();
 
 const flowsStore = useFlowsStore();

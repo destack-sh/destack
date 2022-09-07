@@ -10,5 +10,5 @@
 <script lang="ts" setup>
 import Sidebar from "@/components/Sidebar.vue";
 import SButton from "@/components/basic/SButton.vue";
-import ArtifactList from "../components/ArtifactList.vue";
+import ArtifactList from "@/components/ArtifactList.vue";
 </script>
