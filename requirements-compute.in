@@ -3,7 +3,7 @@
 # update the corresponding locked .txt file:
 #  `pip-compile requirements-compute.in`
 # Then - optionally - update your installed packages:
-#  `pip-sync requirements.txt requirements-compute.txt requirements-dev.txt`
+#  `pip-sync requirements.txt requirements-dev.txt requirements-compute.txt`
 
 -c requirements.txt
 

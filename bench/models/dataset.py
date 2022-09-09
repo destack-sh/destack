@@ -60,6 +60,7 @@ class DatasetMetadata:
     handler_id: str
     config_arguments: Dict[str, Any] = dataclasses.field(default_factory=dict)
     record_spec: RecordSpec = RecordSpec(name="", description="", type={})
+    metadata_spec: RecordSpec = RecordSpec(name="", description="", type={})
 
     @staticmethod
     def from_dict(obj: dict) -> DatasetMetadata:
@@ -79,6 +80,7 @@ class DatasetMetadataSerializer(serializers.Serializer):
     handler_id = serializers.CharField()
     config_arguments = serializers.JSONField()
     record_spec = FieldSpecSerializer(required=False)
+    metadata_spec = FieldSpecSerializer(required=False)
 
     def create(self, validated_data):
         if "record_spec" in validated_data:

@@ -64,38 +64,3 @@ class ArtifactHandler(abc.ABC):
         if self._path is None:
             raise ValueError("path is not set")
         return self._path
-
-
-class ArtifactVersionHandler(ArtifactHandler):
-    """
-    Base for interacting with versioned artifacts.
-    """
-
-    @property
-    def version(self) -> str:
-        if self._version is None:
-            raise ValueError(f"artifact is not versioned: {self}")
-        return self._version
-
-    @property
-    def history(self) -> list[str]:
-        """
-        Gets the linear log of versions
-        TODO @Feature: support branches in artifact version handler
-        """
-        raise NotImplementedError
-
-    def commit(self):
-        """
-        Commits the current version as immutable.
-        """
-        raise NotImplementedError
-
-    def checkout(self, version: str) -> "ArtifactVersionHandler":
-        """
-        Returns a new handler with the given version checked out (creating it if necessary), where
-        the new version is based on the state of this version.
-        TODO @Feature: ArtifactVersionHandler.checkout should have create flag?
-         (as in, whether to create a new version from the current or check out an existing version)
-        """
-        raise NotImplementedError

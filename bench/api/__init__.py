@@ -8,7 +8,7 @@ from rest_framework.viewsets import ViewSetMixin
 from rest_framework_nested import routers
 
 from bench.api.artifact import ArtifactTagsViewSet, ArtifactVersionViewSet, ArtifactViewSet
-from bench.api.dataset import DatasetVersionViewSet, DatasetViewSet, RecordViewSet
+from bench.api.dataset import DatasetRecordViewSet, DatasetVersionViewSet, DatasetViewSet
 from bench.api.execution import ExecutionViewSet
 from bench.api.flow import (
     FlowArtifactEdgeViewSet,
@@ -127,7 +127,7 @@ datasets_router = router.register_nested("datasets", DatasetViewSet, lookup="art
 datasets_versions_router = datasets_router.register_nested(
     "versions", DatasetVersionViewSet, lookup="version"
 )
-datasets_versions_router.register("records", RecordViewSet)
+datasets_versions_router.register("records", DatasetRecordViewSet)
 
 models_router = router.register_nested("models", ModelViewSet, lookup="artifact")
 models_router.register("versions", ModelVersionViewSet)
