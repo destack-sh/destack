@@ -4,7 +4,7 @@ from .dataset import Dataset, DatasetVersion
 from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecution
 from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
 from .model import Model, ModelVersion
-from .record import Record, RecordTree, RecordTreeReference
+from .record import DbRecord, DbRecordTree, DbRecordTreeReference
 from .tag import (
     TAG_TYPE_ALIAS,
     TAG_TYPE_BRANCH,
@@ -19,9 +19,9 @@ from .tag import (
 __all__ = [
     "Artifact",
     "ArtifactVersion",
-    "Record",
-    "RecordTree",
-    "RecordTreeReference",
+    "DbRecord",
+    "DbRecordTree",
+    "DbRecordTreeReference",
     "Dataset",
     "DatasetVersion",
     "Model",

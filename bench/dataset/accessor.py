@@ -1,39 +1,141 @@
 import dataclasses
-from typing import Optional, Union
+from typing import Any, Iterable, Iterator, Optional, Sequence, Union
 
 import structlog.stdlib
+from django.db import connection
+from django.db.models import QuerySet
 from fsspec import AbstractFileSystem
 
+import bench.models.record as db_record
 from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter, load_dataset
 from bench.models import ArtifactVersion, Dataset, DatasetVersion
 from bench.models.dataset import DatasetMetadata, DatasetMetadataSerializer, DatasetViewData
+from bench.models.record import DbRecord, DbRecordTree, DbRecordTreeReference
+from bench.models.utils import proxies
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import BLANK_RECORD_SPEC, RecordSpec, is_blank_spec
+from bench.utils.spec import BLANK_RECORD_SPEC, FieldValue, RecordSpec, is_blank_spec
 
 logger = structlog.stdlib.get_logger()
 
 
+@dataclasses.dataclass
+class DatasetRecord:
+    __slots__ = ["data", "metadata"]
+
+    data: dict[str, Any]
+    metadata: Optional[dict[str, Any]]
+
+
+AnyDatasetRecord = Union[DatasetRecord, DbRecord]
+
+
 class DatasetAccessor:
-    def __init__(self, dataset: Dataset):
+    """Manages all access to datasets managed by us, including any indices."""
+
+    def __init__(self, dataset: DatasetVersion):
+        if dataset.handler_id != "bench.db":
+            raise ValueError("primary dataset accessor only works with our datasets")
+
         self.dataset = dataset
 
-    def commit(self):
-        pass
+    @property
+    def root(self) -> DbRecordTree:
+        # auto-create record tree root if we don't have one yet
+        # TODO @Cleanup: move/guard record tree creation on write access?
+        if self.dataset.record_tree_root is None:
+            new_root = DbRecordTree()
+            new_root.save()
+            self.dataset.record_tree_root = new_root
+            self.dataset.save()
+        return self.dataset.record_tree_root
 
-    def checkout(self):
-        pass
+    def get_record(self, index: int) -> AnyDatasetRecord:
+        return db_record.get_record(self.root, index)
 
-    def append(self, record: Record):
-        raise NotImplementedError
+    def get_records_slice(
+        self, start: int, stop: Optional[int] = None
+    ) -> Sequence[AnyDatasetRecord]:
+        stop = stop if stop is not None else 0
+        return db_record.get_records_slice(self.root, start, stop)
 
-    def extend(self, records: RecordBatch):
-        raise NotImplementedError
+    def get_records_data_field(self, key: str) -> list[FieldValue]:
+        return db_record.get_records_field(self.root, key)
 
-    def update(self, index: int, record: Record):
-        raise NotImplementedError
+    def __iter__(self) -> Iterator[AnyDatasetRecord]:
+        for record in db_record.iter_record_tree(self.root):
+            yield record
+
+    def append(self, record: DatasetRecord) -> int:
+        return db_record.append_record(
+            self.root, DbRecord.objects.create(data=record.data, metadata=record.metadata)
+        )
+
+    def extend(self, records: Iterable[DatasetRecord]) -> tuple[int, int]:
+        db_records = [DbRecord(data=record.data, metadata=record.metadata) for record in records]
+        DbRecord.objects.bulk_create(db_records)
+        return db_record.append_records(self.root, db_records)
+
+    def update(self, index: int, record: DatasetRecord):
+        # Note that this always creates a new record even if we just want to change some metadata.
+        # We might want another endpoint to just update metadata in-place (for realz) later.
+        db_record.update_record(self.root, index, data=record.data, metadata=record.metadata)
 
     def delete(self, index: int):
-        raise NotImplementedError
+        db_record.delete_record(self.root, index)
+
+    def __len__(self) -> int:
+        return self.root.max_index + 1
+
+    @staticmethod
+    def checkout_from_parents(dataset: DatasetVersion):
+        parents: QuerySet[DatasetVersion] = proxies(dataset.parents.all(), DatasetVersion)
+        if parents:
+            # this should be caught in DatasetVersionSerializer validation
+            if len(parents) != 1:
+                raise RuntimeError("creating versions with multiple parents is not supported yet")
+
+            # note: parent metadata is copied in ArtifactVersionViewSet.create prior to actual create
+            # create a new version of the dataset state based on the parent
+            # TODO @Architecture: creating new version logic should be elsewhere (DatasetAccessor?)
+            #  because it is a shared concern and needs to drill down into (partial) sub-datasets.
+            parent = parents[0]
+            DatasetAccessor(parent).checkout(dataset.version)
+        return DatasetAccessor(dataset)
+
+    def commit(self):
+        has_subtrees = (
+            DbRecordTreeReference.objects.filter(tree=self.root).exclude(subtree=None).exists()
+        )
+        if has_subtrees:
+            raise NotImplementedError("committing trees with subtrees is not supported yet")
+        if self.dataset.committed:
+            raise ValueError(f"cannot commit dataset, already committed: {self.dataset}")
+
+        self.root.committed = True
+        self.root.save()
+        self.dataset.committed = True
+        self.dataset.save()
+
+    def checkout(self, version: str):
+        new_dataset: DatasetVersion = DatasetVersion.objects.filter(
+            artifact_id=self.dataset.artifact.id, version=version
+        ).get()
+        if new_dataset.record_tree_root is not None:
+            raise RuntimeError(f"new dataset {new_dataset} already has record root")
+
+        # create new tree root for new dataset
+        new_root = DbRecordTree.objects.create(committed=False)
+        new_dataset.record_tree_root = new_root
+        new_dataset.save()
+
+        # copy root tree references for new tree
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO bench_recordtreereference (tree_id, [index], record_id, subtree_id)"
+                " SELECT %s, [index], record_id, subtree_id"
+                " FROM bench_recordtreereference WHERE tree_id = %s",
+                params=[str(new_root.id), str(new_root.id)],
+            )
 
 
 def _to_handler_args(version: DatasetVersion) -> dict:

@@ -2,7 +2,6 @@ import json
 from typing import Union, cast
 
 import structlog
-from django.db import models
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, viewsets
@@ -18,13 +17,10 @@ from bench.api.artifact import (
     ArtifactVersionViewSet,
     ArtifactViewSet,
 )
-from bench.artifact.base import ArtifactVersionHandler
-from bench.dataset.accessor import get_dataset_version_handler
-from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter
-from bench.models import Dataset, DatasetVersion, Record
+from bench.dataset.accessor import DatasetAccessor, DatasetRecord
+from bench.models import Dataset, DatasetVersion
 from bench.models.dataset import DatasetMetadata, DatasetViewData
-from bench.models.utils import DATASET_TYPE, proxies
-from tasks.synchronize import copy_dataset_version
+from bench.models.utils import DATASET_TYPE
 
 logger = structlog.stdlib.get_logger()
 
@@ -70,11 +66,14 @@ class DatasetVersionSerializer(ArtifactVersionSerializer):
         return value
 
 
-class RecordSerializer(serializers.ModelSerializer):
+class DatasetRecordSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(required=False)
+    data_ = serializers.JSONField(source="data")
+    metadata = serializers.JSONField()
+
     class Meta:
-        model = Record
-        fields = ["id", "content_hash", "data", "metadata"]
-        read_only_fields = ["id", "content_hash"]
+        fields = ["id", "data", "metadata"]
+        read_only_fields = ["id"]
 
 
 class DatasetViewSet(ArtifactViewSet):
@@ -88,54 +87,29 @@ class DatasetVersionViewSet(ArtifactVersionViewSet):
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         instance: DatasetVersion = serializer.save(committed=False)
-        parents: models.QuerySet[DatasetVersion] = proxies(instance.parents.all(), DatasetVersion)
-        if parents:
-            # this should be caught in DatasetVersionSerializer validation
-            if len(parents) != 1:
-                raise RuntimeError("creating versions with multiple parents is not supported yet")
-
-            # note: parent metadata is copied in ArtifactVersionViewSet.create prior to actual create
-            # create a new version of the dataset state based on the parent
-            # TODO @Architecture: creating new version logic should be elsewhere (DatasetAccessor?)
-            #  because it is a shared concern and needs to drill down into (partial) sub-datasets.
-            parent = parents[0]
-            parent_handler = _get_dataset_handler_by_instance(parent)
-            if not isinstance(parent_handler, ArtifactVersionHandler):
-                logger.info("create_version_fallback_copy", parent=parent, instance=instance)
-                # TODO @Performance: copy dataset version as background job
-                copy_dataset_version(parent, instance)
-            else:
-                parent_handler.checkout(instance.version)
+        DatasetAccessor.checkout_from_parents(instance)
 
     @action(methods=["POST"], detail=True)
     def commit(self, request: Request, *args, **kwargs) -> Response:
         instance: DatasetVersion = self.get_object()
-        if instance.committed:
-            raise serializers.ValidationError("already committed")
-        writer = _to_dataset_writer(_get_dataset_handler_by_instance(instance))
-        if isinstance(writer, ArtifactVersionHandler):
-            writer.commit()
-        instance.committed = True
-        instance.save()
+        DatasetAccessor(instance).commit()
         return Response(status=status.HTTP_200_OK)
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
-        instance: DatasetVersion = self.get_object()
-        writer = _to_dataset_writer(_get_dataset_handler_by_instance(instance))
-        writer.clear()
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        # instance: DatasetVersion = self.get_object()
+        # TODO @Feature: delete dataset versions
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
 
-class RecordPagination(LimitOffsetPagination):
+class DatasetRecordPagination(LimitOffsetPagination):
     default_limit = 100
     max_limit = 1000
 
 
-class RecordViewSet(viewsets.GenericViewSet):
+class DatasetRecordViewSet(viewsets.GenericViewSet):
     lookup_field = "index"
-    serializer_class = RecordSerializer
-    pagination_class = RecordPagination
+    serializer_class = DatasetRecordSerializer
+    pagination_class = DatasetRecordPagination
 
     @property
     def view(self) -> DatasetViewData:
@@ -150,70 +124,45 @@ class RecordViewSet(viewsets.GenericViewSet):
             raise Http404()
         return index
 
+    def get_dataset_instance(self, artifact: str, version: str) -> DatasetVersion:
+        return get_object_or_404(DatasetVersion, artifact__name=artifact, version=version)
+
     def list(self, request: Request, artifact: str, version: str) -> Response:
-        dataset, reader = _get_dataset_reader(artifact, version)
-        paginator = cast(RecordPagination, self.paginator)
+        accessor = DatasetAccessor(self.get_dataset_instance(artifact, version))
+        paginator = cast(DatasetRecordPagination, self.paginator)
         offset: int = paginator.get_offset(request)
         limit: int = cast(int, paginator.get_limit(request))
-        records = list(reader[self.view_apply(offset) : self.view_apply(offset + limit)])
+        records = list(
+            accessor.get_records_slice(self.view_apply(offset), self.view_apply(offset + limit))
+        )
         return Response({"limit": limit, "offset": offset, "results": records})
 
     def create(self, request: Request, artifact: str, version: str) -> Response:
-        dataset, writer = _get_dataset_writer(artifact, version)
+        accessor = DatasetAccessor(self.get_dataset_instance(artifact, version))
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        record = serializer.save()
-        # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
-        writer.append(record.data)
+        ds_record: DatasetRecord = serializer.save()
+        accessor.append(ds_record)
 
-        return Response(record.data, status=status.HTTP_201_CREATED)
+        return Response(DatasetRecordSerializer(ds_record).data, status=status.HTTP_201_CREATED)
 
     def update(self, request: Request, index: str, artifact: str, version: str) -> Response:
-        dataset, writer = _get_dataset_writer(artifact, version)
+        accessor = DatasetAccessor(self.get_dataset_instance(artifact, version))
         index_int: int = self.view_apply(_positive_int(index))
 
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # TODO @Feature: use DatasetAccessor or similar to support reading/writing record metadata
-        writer.update(index_int, serializer.validated_data["data"])
+        ds_record: DatasetRecord = serializer.save()
+        accessor.update(index_int, ds_record)
 
-        reader = _get_dataset_reader(artifact, version)
-        record = reader[index_int]
-        return Response(record)
+        ds_record = accessor.get_record(index_int)
+        return Response(DatasetRecordSerializer(ds_record).data)
 
     def retrieve(self, request: Request, index: str, artifact: str, version: str) -> Response:
-        dataset, reader = _get_dataset_reader(artifact, version)
+        accessor = DatasetAccessor(self.get_dataset_instance(artifact, version))
         index_int: int = self.view_apply(_positive_int(index))
         try:
-            record = reader[index_int]
+            ds_record = accessor.get_record(index_int)
         except LookupError:
             raise Http404("No record matches the given query.")
-        return Response(record)
-
-
-def _get_dataset_reader(artifact: str, version: str) -> tuple[DatasetVersion, DatasetReader]:
-    dataset_version = get_object_or_404(DatasetVersion, artifact__name=artifact, version=version)
-    handler = _get_dataset_handler_by_instance(dataset_version)
-    return dataset_version, _to_dataset_reader(handler)
-
-
-def _to_dataset_reader(handler: DatasetHandler) -> DatasetReader:
-    if not isinstance(handler, DatasetReader):
-        raise ValueError("dataset version is not readable")
-    return handler
-
-
-def _get_dataset_writer(artifact: str, version: str) -> tuple[DatasetVersion, DatasetWriter]:
-    dataset_version = get_object_or_404(DatasetVersion, artifact__name=artifact, version=version)
-    handler = _get_dataset_handler_by_instance(dataset_version)
-    return dataset_version, _to_dataset_writer(handler)
-
-
-def _to_dataset_writer(handler: DatasetHandler) -> DatasetWriter:
-    if not isinstance(handler, DatasetWriter):
-        raise ValueError("dataset version is not writable")
-    return handler
-
-
-def _get_dataset_handler_by_instance(version: DatasetVersion) -> DatasetHandler:
-    return get_dataset_version_handler(version)
+        return Response(DatasetRecordSerializer(ds_record).data)
