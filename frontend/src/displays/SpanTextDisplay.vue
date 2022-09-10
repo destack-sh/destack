@@ -12,7 +12,6 @@
   </template>
 </template>
 <script lang="ts" setup>
-import type { FieldSpec } from "@/types";
 import { computed } from "vue";
 
 type Span = {
@@ -34,9 +33,8 @@ const props = defineProps<{
   modelValue: {
     text: string;
     tokens?: Span[];
-    entities?: LabeledSpan[];
+    spans?: LabeledSpan[];
   };
-  spec: FieldSpec[];
 }>();
 
 const displaySpans = computed(() => {
@@ -47,24 +45,24 @@ const displaySpans = computed(() => {
   function text(start: number, end: number): string {
     return props.modelValue.text.slice(start, end);
   }
-  if (props.modelValue.entities == null) {
+  if (props.modelValue.spans == null) {
     return [makeSpan(0, props.modelValue.text.length)];
   }
 
   const displaySpans: DisplaySpan[] = [];
   var lastPos = 0;
-  for (const entitySpan of props.modelValue.entities) {
-    if (lastPos != entitySpan.start) {
-      displaySpans.push(makeSpan(lastPos, entitySpan.start));
+  for (const span of props.modelValue.spans) {
+    if (lastPos != span.start) {
+      displaySpans.push(makeSpan(lastPos, span.start));
     }
 
     displaySpans.push({
-      ...entitySpan,
-      text: text(entitySpan.start, entitySpan.end),
+      ...span,
+      text: text(span.start, span.end),
       markStyle: "",
     });
 
-    lastPos = entitySpan.end;
+    lastPos = span.end;
   }
   displaySpans.push(makeSpan(lastPos, props.modelValue.text.length));
 

@@ -1,5 +1,6 @@
 from typing import Optional, Union
 
+import cachetools
 from django.db import models
 from django.db.models import Q
 
@@ -105,7 +106,8 @@ class TaggableMixin:
 
         # Help anyone thinking that adding 'TaggableMixin' is enough to make a model taggable.
         if (
-            cls._meta.concrete_model.__name__ not in RELATED_MODELS
+            hasattr(cls, "_meta")
+            and cls._meta.concrete_model.__name__ not in RELATED_MODELS
             and cls.__name__ not in RELATED_MODELS
         ):
             raise RuntimeError("Taggable models must have fields in TaggedItem")
@@ -143,10 +145,23 @@ TAG_TYPE_CAPABILITY = "capability"
 TAG_TYPE_SOURCE = "source"
 
 
-def _make_tag(name: str, description: str) -> Tag:
-    tag, _ = Tag.objects.get_or_create(name=name, defaults=dict(description=description))
+def _make_tag(name: str, description: str, metadata: Optional[dict]) -> Tag:
+    tag, _ = Tag.objects.get_or_create(
+        name=name, defaults=dict(description=description, metadata=metadata)
+    )
     return tag
 
 
-TAG_SOURCE_INPUTS = _make_tag("source:inputs", "Assigned to artifacts representing inputs")
-TAG_SOURCE_OUTPUTS = _make_tag("source:outputs", "Assigned to artifacts representing outputs")
+_DEFAULT_TAG_PROPERTIES = {
+    "source:inputs": ("Artifacts representing inputs", None),
+    "source:outputs": ("Artifacts representing inputs", None),
+}
+
+
+@cachetools.cached
+def default_tag(name: str) -> Tag:
+    if name not in _DEFAULT_TAG_PROPERTIES:
+        raise ValueError(f"unknown default tag: {name}")
+
+    description, metadata = _DEFAULT_TAG_PROPERTIES[name]
+    return _make_tag(name, description, metadata)

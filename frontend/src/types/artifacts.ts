@@ -42,6 +42,12 @@ export type DatasetMetadata = {
   handler_id: string;
   config_arguments: Record<string, any>;
   record_spec?: RecordSpec;
+  metadata_spec?: RecordSpec;
+};
+
+export type DatasetRecord = {
+  data: Record<string, any>;
+  metadata?: Record<string, any>;
 };
 
 export type ModelMetadata = {

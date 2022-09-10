@@ -1,6 +1,6 @@
 import { api } from "@/api";
 import type { LimitPaginatedResult } from "@/types";
-import type { Artifact, ArtifactVersion } from "@/types/artifacts";
+import type { Artifact, ArtifactVersion, DatasetIndexSliceView, DatasetRecord } from "@/types/artifacts";
 import { toNameVersion } from "@/utils/versioning";
 import { defineStore } from "pinia";
 
@@ -102,7 +102,7 @@ export const useArtifactsStore = defineStore("artifacts", {
 
       // TODO @Robustness: create model and initialize from template should be atomic
       const latestVersion = await api
-        .post<ArtifactVersion>(`/${type}s/${name}/versions`, initialVersion)
+        .post<ArtifactVersion>(`/${type}s/${artifact.name}/versions`, initialVersion)
         .then((response) => response.data);
       artifactInstance.head = latestVersion;
 
@@ -117,6 +117,14 @@ export const useArtifactsStore = defineStore("artifacts", {
         .then((response) => response.data);
       this._cacheArtifactVersion(committedVersion);
       return committedVersion;
+    },
+
+    async getDatasetRecords(name: string, version?: string): Promise<LimitPaginatedResult<DatasetRecord>> {
+      const datasetUrl = version ? `/datasets/${name}/versions/${version}` : `/datasets/${name}`;
+
+      return await api
+        .get<LimitPaginatedResult<DatasetRecord>>(`${datasetUrl}/records`)
+        .then((response) => response.data);
     },
   },
 });
