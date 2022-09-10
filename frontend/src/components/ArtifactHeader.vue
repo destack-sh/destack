@@ -11,7 +11,7 @@
       <div class="flex flex-row gap-2">
         <!-- <SButton variant="outline" color="slate" @click="_delete">
           Delete
-          <TrashIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+          <TrashIcon class="w-5 h-5 ml-2 -mr-1" aria-hidden="true" />
         </SButton> -->
         <SButton variant="solid" color="slate" :to="`/${artifact.type}s/${props.artifact}/settings`">
           Settings
@@ -44,7 +44,7 @@
             :to="`/${artifact.type}s/${props.artifact}/versions`"
             class="ml-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
           >
-            {{ versionsPaginated?.count || 0 }} versions
+            {{ artifact?.versions?.length || 0 }} versions
           </router-link>
         </div>
       </div>
@@ -52,28 +52,21 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { api } from "@/api";
-import router from "@/router";
-import { computedAsync, useArtifactsStore } from "@/stores";
-import { Cog6ToothIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/outline";
-import { DateTime } from "luxon";
-import { computed, type Ref } from "vue";
 import SButton from "@/components/basic/SButton.vue";
+import { useTimeFromNow } from "@/composables/useNow";
+import { useArtifactsStore } from "@/stores";
+import { Cog6ToothIcon, PencilIcon } from "@heroicons/vue/24/outline";
+import { computed, type Ref } from "vue";
 
 const props = defineProps<{ artifact: string }>();
 
 const artifactsStore = useArtifactsStore();
 const artifact = computed(() => artifactsStore.artifact(props.artifact));
 
-const { result: versionsPaginated } = computedAsync(() => artifactsStore.getVersions(props.model));
+const { getTimeFromNowString } = useTimeFromNow();
+
 const headDtFromNow: Ref<string | null> = computed(() => {
   if (artifact.value?.head == null) return null;
-  return DateTime.fromISO(artifact.value.head.created_at).toRelative({ locale: "en-US" });
+  return getTimeFromNowString(artifact.value.head.created_at);
 });
-
-async function _delete() {
-  await api.delete(`/models/${props.artifact}`);
-  await artifactsStore.hydrate();
-  router.push("/models");
-}
 </script>

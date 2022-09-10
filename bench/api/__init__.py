@@ -124,6 +124,7 @@ artifacts_router.register("versions", ArtifactVersionViewSet)
 artifacts_router.register("tags", ArtifactTagsViewSet)
 
 datasets_router = router.register_nested("datasets", DatasetViewSet, lookup="artifact")
+datasets_router.register("records", DatasetRecordViewSet)
 datasets_versions_router = datasets_router.register_nested(
     "versions", DatasetVersionViewSet, lookup="version"
 )

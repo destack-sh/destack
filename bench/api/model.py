@@ -13,6 +13,8 @@ from bench.api.execution import ExecutionSerializer
 from bench.executor import executor
 from bench.models import Model, ModelVersion
 from bench.models.utils import MODEL_TYPE
+from bench.models.versioning import get_head
+from bench.utils.func import terrible_cast
 
 
 class ModelSerializer(ArtifactSerializer):
@@ -39,6 +41,11 @@ class ModelViewSet(ArtifactViewSet):
     queryset = Model.objects.all()
     serializer_class = ModelSerializer
 
+    @action(methods=["POST"], detail=True)
+    def predict(self, request: Request):
+        model = terrible_cast(ModelVersion, get_head(self.get_object()))
+        return _predict_response(model, request)
+
 
 class ModelVersionViewSet(ArtifactVersionViewSet):
     queryset = ModelVersion.objects.filter(artifact__type=MODEL_TYPE).all()
@@ -47,12 +54,16 @@ class ModelVersionViewSet(ArtifactVersionViewSet):
     @action(methods=["POST"], detail=True)
     def predict(self, request: Request, *args, **kwargs) -> Response:
         model = self.get_object()
-        input_record = {"text": request.data.get("text")}
-        execution, prediction = executor.run_model(
-            model,
-            record=input_record,
-            blocking=True,
-            load_if_needed=True,
-        )
-        serialized_execution = ExecutionSerializer(execution).data
-        return Response(serialized_execution)
+        return _predict_response(model, request)
+
+
+def _predict_response(model: ModelVersion, request: Request):
+    input_record = {"text": request.data.get("text")}
+    execution, prediction = executor.run_model(
+        model,
+        record=input_record,
+        blocking=True,
+        load_if_needed=True,
+    )
+    serialized_execution = ExecutionSerializer(execution).data
+    return Response(serialized_execution)

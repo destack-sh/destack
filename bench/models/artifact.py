@@ -70,7 +70,7 @@ class ArtifactVersion(VersionedCommit, TaggableMixin, UUIDModel):
 
     # snapshot data (may move into separate ArtifactSnapshot table/tree object at some point)
     record_tree_root = models.ForeignKey(
-        "RecordTree", on_delete=models.RESTRICT, blank=True, null=True
+        "DbRecordTree", on_delete=models.RESTRICT, blank=True, null=True
     )
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
     metadata = models.JSONField()
