@@ -29,7 +29,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
         if self.has_entities:
             labels = self.nlp.get_pipe("ner").labels
             entity_type = ClassLabelType(num_classes=len(labels), names=list(labels))
-            output_type["entities"] = make_entities_spec(entity_type)
+            output_type["spans"] = make_entities_spec(entity_type)
         if self.has_categories:
             if self.nlp.has_pipe("textcat"):
                 pipe = self.nlp.get_pipe("textcat")
@@ -62,7 +62,7 @@ class SpacyModelBase(ModelHandler, abc.ABC):
                     "label": span.label_,
                 }
                 entities.append(entity)
-            output["entities"] = entities
+            output["spans"] = entities
         if self.has_categories:
             output["categories"] = [
                 {"label": label, "score": score} for label, score in doc.cats.items()
