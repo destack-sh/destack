@@ -6,6 +6,8 @@ from bench.models.organization import Organization
 
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
+        fields = ["name", "slug", "created_at", "updated_at", "teams", "members"]
+        read_only_fields = ["id", "slug", "created_at", "updated_at"]
         model = Organization
 
 

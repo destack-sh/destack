@@ -4,11 +4,24 @@ from bench.models import Organization, Project
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-    organization = serializers.SlugRelatedField(
+    organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
         slug_field="slug", queryset=Organization.objects.all()
+    )
+    artifacts: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="name", read_only=True
     )
 
     class Meta:
+        fields = [
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "updated_at",
+            "organization",
+            "artifacts",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
         model = Project
 
 

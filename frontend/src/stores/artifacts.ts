@@ -1,6 +1,7 @@
 import { api } from "@/api";
+import { useUserStore } from "@/stores/user";
 import type { LimitPaginatedResult } from "@/types";
-import type { Artifact, ArtifactVersion, DatasetIndexSliceView, DatasetRecord } from "@/types/artifacts";
+import type { Artifact, ArtifactVersion, DatasetRecord } from "@/types/artifacts";
 import { toNameVersion } from "@/utils/versioning";
 import { defineStore } from "pinia";
 
@@ -11,6 +12,16 @@ export const useArtifactsStore = defineStore("artifacts", {
     cachedVersions: {} as Record<string, ArtifactVersion>,
   }),
   getters: {
+    apiUrl(): (type: "artifact" | "model" | "dataset", name?: string) => string {
+      const userStore = useUserStore();
+      return (type, name) => {
+        if (name != null) {
+          return `/${type}s/${userStore.currentOrganization}/${name}`;
+        } else {
+          return `/${type}s/${userStore.currentOrganization}`;
+        }
+      };
+    },
     artifact(): (name: string) => Artifact | undefined {
       return (name) => this.artifactsByName[name];
     },
@@ -29,7 +40,7 @@ export const useArtifactsStore = defineStore("artifacts", {
   },
   actions: {
     async hydrate() {
-      const artifacts = (await api.get<Artifact[]>("/artifacts")).data;
+      const artifacts = (await api.get<Artifact[]>(this.apiUrl("artifact"))).data;
       artifacts.forEach(this._addArtifact);
     },
     async dehydrate() {
@@ -69,9 +80,9 @@ export const useArtifactsStore = defineStore("artifacts", {
       return artifactVersion;
     },
 
-    async getVersions(artifactName: string, branch = "main", limit = 10, after?: string) {
+    async getVersions(name: string, branch = "main", limit = 10, after?: string) {
       const versionsPaginated = (
-        await api.get<LimitPaginatedResult<ArtifactVersion>>(`/artifacts/${artifactName}/versions`, {
+        await api.get<LimitPaginatedResult<ArtifactVersion>>(`${this.apiUrl("artifact", name)}/versions`, {
           params: { branch, limit, after },
         })
       ).data;
@@ -79,17 +90,13 @@ export const useArtifactsStore = defineStore("artifacts", {
       return versionsPaginated;
     },
 
-    async getVersion(artifactName: string, version: string) {
-      const artifact = `${artifactName}@${version}`;
+    async getVersion(name: string, version: string) {
+      const artifact = `${name}@${version}`;
       if (this.cachedVersions[artifact] != null) {
         return this.cachedVersions[artifact];
       }
-      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactName}/versions/${version}`)).data;
-      return this._cacheArtifactVersion(artifactVersion);
-    },
-
-    async getVersionByTag(artifactName: string, tag: string) {
-      const artifactVersion = (await api.get<ArtifactVersion>(`/artifacts/${artifactName}/tags/${tag}`)).data;
+      const artifactVersion = (await api.get<ArtifactVersion>(`${this.apiUrl("artifact", name)}/versions/${version}`))
+        .data;
       return this._cacheArtifactVersion(artifactVersion);
     },
 
@@ -102,7 +109,7 @@ export const useArtifactsStore = defineStore("artifacts", {
 
       // TODO @Robustness: create model and initialize from template should be atomic
       const latestVersion = await api
-        .post<ArtifactVersion>(`/${type}s/${artifact.name}/versions`, initialVersion)
+        .post<ArtifactVersion>(`${this.apiUrl(type, artifact.name)}/versions`, initialVersion)
         .then((response) => response.data);
       artifactInstance.head = latestVersion;
 
@@ -113,14 +120,14 @@ export const useArtifactsStore = defineStore("artifacts", {
 
     async commitArtifactVersion(name: string, version: Partial<ArtifactVersion>): Promise<ArtifactVersion> {
       const committedVersion = await api
-        .post<ArtifactVersion>(`/artifacts/${name}/versions`, version)
+        .post<ArtifactVersion>(`${this.apiUrl("artifact", name)}/versions`, version)
         .then((response) => response.data);
       this._cacheArtifactVersion(committedVersion);
       return committedVersion;
     },
 
     async getDatasetRecords(name: string, version?: string): Promise<LimitPaginatedResult<DatasetRecord>> {
-      const datasetUrl = version ? `/datasets/${name}/versions/${version}` : `/datasets/${name}`;
+      const datasetUrl = version ? `${this.apiUrl("dataset", name)}/versions/${version}` : this.apiUrl("dataset", name);
 
       return await api
         .get<LimitPaginatedResult<DatasetRecord>>(`${datasetUrl}/records`)

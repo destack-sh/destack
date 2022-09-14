@@ -26,8 +26,8 @@ class User(AbstractUser, UUIDModel):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
 
+    email: models.EmailField = models.EmailField(_("email address"), unique=True)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
-    email: models.EmailField = models.EmailField(_("email address"), unique=True)
 
     objects: UserManager = UserManager()  # type: ignore

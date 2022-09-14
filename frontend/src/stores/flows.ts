@@ -1,5 +1,6 @@
 import { api } from "@/api";
 import { getRandomName } from "@/composables/useRandomName";
+import { useUserStore } from "@/stores/user";
 import type {
   ArtifactConnection,
   Flow,
@@ -14,10 +15,6 @@ import { artifactEdges, flowNode } from "@/utils/flows";
 import { toNameVersion } from "@/utils/versioning";
 import { defineStore } from "pinia";
 
-function _flowUrl(flow: FlowVersion) {
-  return `/flows/${flow.flow}/versions/${flow.version}`;
-}
-
 export const useFlowsStore = defineStore("flows", {
   state: () => ({
     flows: [] as Flow[],
@@ -25,6 +22,20 @@ export const useFlowsStore = defineStore("flows", {
     cachedVersions: {} as Record<string, FlowVersion>,
   }),
   getters: {
+    apiUrl(): (name?: string, version?: string) => string {
+      const userStore = useUserStore();
+      return (name, version) => {
+        if (name != null) {
+          if (version != null) {
+            return `/flows/${userStore.currentOrganization}/${name}/versions/${version}`;
+          } else {
+            return `/flows/${userStore.currentOrganization}/${name}`;
+          }
+        } else {
+          return `/flows/${userStore.currentOrganization}`;
+        }
+      };
+    },
     lastOpenedFlow(): FlowVersion | undefined {
       function getAccessedDt(flow: Flow): string {
         return flow.head?.created_at || flow.created_at;
@@ -70,7 +81,7 @@ export const useFlowsStore = defineStore("flows", {
   },
   actions: {
     async hydrate() {
-      (await api.get<Flow[]>("/flows")).data.forEach((flow) => {
+      (await api.get<Flow[]>(this.apiUrl())).data.forEach((flow) => {
         this._addFlow(flow);
         if (flow.head != null) {
           this._cacheFlowVersion(flow.head);
@@ -112,9 +123,9 @@ export const useFlowsStore = defineStore("flows", {
       return flowVersion;
     },
 
-    async getVersions(flowId: string, branch = "main", limit = 10, after?: string) {
+    async getVersions(name: string, branch = "main", limit = 10, after?: string) {
       const versionsPaginated = (
-        await api.get<LimitPaginatedResult<FlowVersion>>(`/flows/${flowId}/versions`, {
+        await api.get<LimitPaginatedResult<FlowVersion>>(`${this.apiUrl(name)}/versions`, {
           params: { branch, limit, after },
         })
       ).data;
@@ -122,23 +133,18 @@ export const useFlowsStore = defineStore("flows", {
       return versionsPaginated;
     },
 
-    async getVersion(flowId: string, version: string) {
-      const flow = `${flowId}@${version}`;
+    async getVersion(name: string, version: string) {
+      const flow = `${name}@${version}`;
       if (this.cachedVersions[flow] != null) {
         return this.cachedVersions[flow];
       }
-      const flowVersion = (await api.get<FlowVersion>(`/flows/${flowId}/versions/${version}`)).data;
-      return this._cacheFlowVersion(flowVersion);
-    },
-
-    async getVersionByTag(flowId: string, tag: string) {
-      const flowVersion = (await api.get<FlowVersion>(`/flows/${flowId}/tags/${tag}`)).data;
+      const flowVersion = (await api.get<FlowVersion>(`${this.apiUrl(name)}/versions/${version}`)).data;
       return this._cacheFlowVersion(flowVersion);
     },
 
     async createFlow(flow: Pick<Flow, "name" | "description" | "tags">): Promise<Flow> {
       return api
-        .post<Flow>(`/flows`, flow)
+        .post<Flow>(this.apiUrl(flow.name), flow)
         .then((response) => response.data)
         .then(this._addFlow);
     },
@@ -148,7 +154,7 @@ export const useFlowsStore = defineStore("flows", {
       flowVersion: Pick<FlowVersion, "name" | "description" | "parents" | "tags">
     ): Promise<FlowVersion> {
       return api
-        .post<FlowVersion>(`/flows/${flow.name}/versions`, flowVersion)
+        .post<FlowVersion>(`${this.apiUrl(flow.name)}/versions`, flowVersion)
         .then((response) => response.data)
         .then(this._cacheFlowVersion)
         .then((flowVersion) => {
@@ -220,7 +226,7 @@ export const useFlowsStore = defineStore("flows", {
 
     async _updateSpec(flow: FlowVersion) {
       const updatedFlowNodes = await api
-        .post<FlowNode[]>(`${_flowUrl(flow)}/update_spec`)
+        .post<FlowNode[]>(`${this.apiUrl(flow.flow, flow.version)}/update_spec`)
         .then((response) => response.data);
       updatedFlowNodes.forEach((node) => this._updateFlowNode(flow, node));
       return flow;
@@ -228,7 +234,7 @@ export const useFlowsStore = defineStore("flows", {
 
     async createFlowNode(flow: FlowVersion, flowNode: Pick<FlowNode, "name" | "function_id" | "config_arguments">) {
       const node = await api
-        .post<FlowNode>(`${_flowUrl(flow)}/nodes`, flowNode)
+        .post<FlowNode>(`${this.apiUrl(flow.flow, flow.version)}/nodes`, flowNode)
         .then((response) => response.data)
         .then((node) => this._addFlowNode(flow, node));
       await this._updateSpec(flow);
@@ -237,7 +243,7 @@ export const useFlowsStore = defineStore("flows", {
 
     async updateFlowNode(flow: FlowVersion, flowNode: Partial<FlowNode> & Pick<FlowNode, "id">) {
       const node = await api
-        .patch<FlowNode>(`${_flowUrl(flow)}/nodes/${flowNode.id}`, flowNode)
+        .patch<FlowNode>(`${this.apiUrl(flow.flow, flow.version)}/nodes/${flowNode.id}`, flowNode)
         .then((response) => response.data)
         .then((node) => this._updateFlowNode(flow, node));
       await this._updateSpec(flow);
@@ -245,14 +251,14 @@ export const useFlowsStore = defineStore("flows", {
     },
 
     async deleteFlowNode(flow: FlowVersion, flowNode: FlowNode) {
-      await api.delete(`${_flowUrl(flow)}/nodes/${flowNode.id}`);
+      await api.delete(`${this.apiUrl(flow.flow, flow.version)}/nodes/${flowNode.id}`);
       this._deleteFlowNode(flow, flowNode);
       await this._updateSpec(flow);
     },
 
     async createFlowNodeEdge(flow: FlowVersion, flowNodeEdge: Omit<FlowNodeEdge, "id">): Promise<FlowNodeEdge> {
       const edge = await api
-        .post<FlowNodeEdge>(`/flows/${flow.flow}/versions/${flow.version}/node_edges`, flowNodeEdge)
+        .post<FlowNodeEdge>(`${this.apiUrl(flow.flow)}/versions/${flow.version}/node_edges`, flowNodeEdge)
         .then((response) => response.data)
         .then((edge) => this._addFlowNodeEdge(flow, edge));
       await this._updateSpec(flow);
@@ -264,7 +270,7 @@ export const useFlowsStore = defineStore("flows", {
       flowArtifactEdge: Omit<FlowArtifactEdge, "id">
     ): Promise<FlowArtifactEdge> {
       const edge = await api
-        .post<FlowArtifactEdge>(`/flows/${flow.flow}/versions/${flow.version}/artifact_edges`, flowArtifactEdge)
+        .post<FlowArtifactEdge>(`${this.apiUrl(flow.flow)}/versions/${flow.version}/artifact_edges`, flowArtifactEdge)
         .then((response) => response.data)
         .then((edge) => this._addFlowArtifactEdge(flow, edge));
       await this._updateSpec(flow);
@@ -277,7 +283,7 @@ export const useFlowsStore = defineStore("flows", {
     ): Promise<FlowArtifactEdge> {
       const edge = await api
         .patch<FlowArtifactEdge>(
-          `/flows/${flow.flow}/versions/${flow.version}/artifact_edges/${flowArtifactEdge.id}`,
+          `${this.apiUrl(flow.flow)}/versions/${flow.version}/artifact_edges/${flowArtifactEdge.id}`,
           flowArtifactEdge
         )
         .then((response) => response.data)
@@ -288,7 +294,7 @@ export const useFlowsStore = defineStore("flows", {
 
     async deleteFlowArtifactEdge(flow: FlowVersion, id: string): Promise<void> {
       await api
-        .patch<void>(`/flows/${flow.flow}/versions/${flow.version}/artifact_edges/${id}`)
+        .patch<void>(`${this.apiUrl(flow.flow)}/versions/${flow.version}/artifact_edges/${id}`)
         .then((response) => response.data)
         .then(() => this._deleteFlowArtifactEdge(flow, id));
       await this._updateSpec(flow);
