@@ -6,7 +6,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from bench.api.artifact import ArtifactViewSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.dataset.accessor import get_dataset_version_reader
-from bench.models import DatasetVersion, Execution
+from bench.models import DatasetVersion, Execution, Organization
 from bench.models.dataset import DatasetViewData
 from bench.models.execution import ExecutionArtifactConnection
 from bench.utils.func import terrible_cast
@@ -60,6 +60,9 @@ class ExecutionSerializer(serializers.ModelSerializer):
     model = ArtifactVersionListingField(read_only=True)
     children = serializers.SerializerMethodField(read_only=True)
     connected_artifacts = ExecutionArtifactConnectionSerializer(many=True)
+    organization = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Organization.objects.all()
+    )
 
     def get_children(self, data: Execution):
         # specify children as method field because we need ExecutionSerializer (recursive)
@@ -82,6 +85,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
             "flow_node",
             "model",
             "connected_artifacts",
+            "organization",
         ]
         read_only_fields = fields
         depth = 1
@@ -109,3 +113,8 @@ class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = LimitOffsetPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = ExecutionFilter
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
+        return queryset

@@ -1,4 +1,9 @@
 # Application definition
+import os
+from datetime import timedelta
+
+from bench.settings.base import DEBUG, TEST
+from bench.settings.utils import get_from_env, str_to_bool
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -7,13 +12,18 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
     "rest_framework",
+    "loginas",
+    "corsheaders",
+    "social_django",
+    "django_filters",
+    "django_prometheus",
     "drf_spectacular",
     "bench.apps.BenchConfig",
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django_structlog.middlewares.RequestMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -23,6 +33,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "bench.urls"
@@ -46,6 +57,64 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "bench.wsgi.application"
 ASGI_APPLICATION = "bench.asgi.application"
+
+# Auth
+
+AUTH_USER_MODEL = "bench.User"
+
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+SOCIAL_AUTH_USER_MODEL = "bench.User"
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = get_from_env(
+    "SOCIAL_AUTH_REDIRECT_IS_HTTPS", not DEBUG, type_cast=str_to_bool
+)
+SOCIAL_AUTH_URL_NAMESPACE = "social"
+
+AUTHENTICATION_BACKENDS: list[str] = [
+    "axes.backends.AxesBackend",
+    "social_core.backends.github.GithubOAuth2",
+    "social_core.backends.gitlab.GitLabOAuth2",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+# TODO @Feature: hook up social auth pipeline (and auth generally)
+SOCIAL_AUTH_PIPELINE = (
+    "social_core.pipeline.social_auth.social_details",
+    "social_core.pipeline.social_auth.social_uid",
+    "social_core.pipeline.social_auth.auth_allowed",
+    "social_core.pipeline.social_auth.social_user",
+    "social_core.pipeline.social_auth.associate_by_email",
+    "bench.api.signup.social_create_user",
+    "social_core.pipeline.social_auth.associate_user",
+    "social_core.pipeline.social_auth.load_extra_data",
+    "social_core.pipeline.user.user_details",
+)
+
+SOCIAL_AUTH_STRATEGY = "social_django.strategy.DjangoStrategy"
+SOCIAL_AUTH_STORAGE = "social_django.models.DjangoStorage"
+SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = [
+    "invite_id",
+    "user_name",
+    "email_opt_in",
+    "organization_name",
+]
+
+# Auth - social GitHub
+SOCIAL_AUTH_GITHUB_SCOPE = ["user:email"]
+SOCIAL_AUTH_GITHUB_KEY = os.environ.get("SOCIAL_AUTH_GITHUB_KEY")
+SOCIAL_AUTH_GITHUB_SECRET = os.environ.get("SOCIAL_AUTH_GITHUB_SECRET")
+
+# Auth - via GitLab
+SOCIAL_AUTH_GITLAB_SCOPE = ["read_user"]
+SOCIAL_AUTH_GITLAB_KEY = os.environ.get("SOCIAL_AUTH_GITLAB_KEY")
+SOCIAL_AUTH_GITLAB_SECRET = os.environ.get("SOCIAL_AUTH_GITLAB_SECRET")
+SOCIAL_AUTH_GITLAB_API_URL = os.environ.get("SOCIAL_AUTH_GITLAB_API_URL", "https://gitlab.com")
+
+# Axes
+
+AXES_ENABLED = get_from_env("AXES_ENABLED", not TEST, type_cast=str_to_bool)
+AXES_HANDLER = "axes.handlers.cache.AxesCacheHandler"
+AXES_FAILURE_LIMIT = get_from_env("AXES_FAILURE_LIMIT", 30, type_cast=int)
+AXES_COOLOFF_TIME = timedelta(minutes=10)
 
 
 # Password validation
@@ -84,6 +153,9 @@ USE_TZ = True
 STATIC_URL = "/static/"
 
 # Extra misc settings
+
+
+CSRF_COOKIE_NAME = "bench_csrftoken"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

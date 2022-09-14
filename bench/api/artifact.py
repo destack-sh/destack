@@ -28,12 +28,15 @@ class ArtifactSerializer(TaggedItemSerializerMixin, serializers.HyperlinkedModel
         validators=[
             validators.UniqueValidator(
                 queryset=Artifact.objects.all(),
-                message="There is already an artifact with the given name",
+                message="There is already an artifact with the given name in this organization",
             ),
             RegexValidator(
                 regex=r"^[\w.\-]+$", message="Artifact names must follow pattern [\\w.\\-]+"
             ),
         ],
+    )
+    organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="slug", read_only=True
     )
     versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="version"
@@ -42,8 +45,18 @@ class ArtifactSerializer(TaggedItemSerializerMixin, serializers.HyperlinkedModel
 
     class Meta:
         model = Artifact
-        fields = ["id", "type", "created_at", "name", "versions", "description", "head", "tags"]
-        read_only_fields = ["id", "created_at", "head", "versions"]
+        fields = [
+            "id",
+            "type",
+            "created_at",
+            "organization",
+            "name",
+            "versions",
+            "description",
+            "head",
+            "tags",
+        ]
+        read_only_fields = ["id", "created_at", "organization", "head", "versions"]
 
     def get_head(self, obj: Artifact):
         head = get_head(obj)
@@ -116,6 +129,11 @@ class ArtifactViewSet(viewsets.ModelViewSet):
     lookup_field = "name"
     lookup_value_regex = r"[\w.\-]+"
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
+        return queryset
+
 
 class ArtifactVersionViewSet(viewsets.ModelViewSet):
     queryset = ArtifactVersion.objects.all()
@@ -126,7 +144,10 @@ class ArtifactVersionViewSet(viewsets.ModelViewSet):
     pagination_class = LimitOffsetPagination
 
     def get_queryset(self) -> models.QuerySet[ArtifactVersion]:
-        return self.queryset.filter(artifact__name=self.kwargs.get("artifact"))
+        return self.queryset.filter(
+            artifact__organization__slug=self.kwargs.get("organization"),
+            artifact__name=self.kwargs.get("artifact"),
+        )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         request.data["artifact"] = kwargs.pop("artifact")
@@ -166,5 +187,7 @@ class ArtifactTagsViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         #  Need to figure out where to put tags first - on the object/in the project/workspace?
         if self.kwargs.get("pk") != "HEAD":
             raise serializers.ValidationError("tag must be HEAD")
-        name = self.kwargs.get("artifact")
-        return self.queryset.filter(artifact__name=name).order_by("-created_at")[:1]
+        return self.queryset.filter(
+            artifact__organization__slug=self.kwargs.get("organization"),
+            artifact__name=(self.kwargs.get("artifact")),
+        ).order_by("-created_at")[:1]

@@ -406,12 +406,16 @@ def prepare_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> Fl
     Makes the actual execution objects and links them together
     """
 
-    execution = FlowExecution(type=FLOW_EXECUTION_TYPE, flow=flow)
+    execution = FlowExecution(type=FLOW_EXECUTION_TYPE, flow=flow, organization=flow.organization)
     node_executions: dict[UUID, FlowNodeExecution] = {}
     execution_connections: dict[UUID, ExecutionArtifactConnection] = {}
     for node in plan.nodes.values():
         node_execution = FlowNodeExecution(
-            type=FLOW_NODE_EXECUTION_TYPE, flow=flow, flow_node=node, parent=execution
+            type=FLOW_NODE_EXECUTION_TYPE,
+            flow=flow,
+            flow_node=node,
+            parent=execution,
+            organization=flow.organization,
         )
 
         # static inputs

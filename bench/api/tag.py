@@ -2,12 +2,15 @@ from typing import Optional, cast
 
 from rest_framework import serializers, viewsets
 
-from bench.models import Tag
+from bench.models import Organization, Tag
 from bench.models.tag import TaggableMixin, TaggedItem
 
 
 class TagSerializer(serializers.ModelSerializer):
     references_count = serializers.SerializerMethodField()
+    organization = serializers.SlugRelatedField(
+        slug_field="organization", queryset=Organization.objects.all()
+    )
 
     class Meta:
         model = Tag
@@ -19,6 +22,7 @@ class TagSerializer(serializers.ModelSerializer):
             "updated_at",
             "metadata",
             "references_count",
+            "organization",
         ]
         read_only_fields = ["type", "references_count"]
 
@@ -58,6 +62,11 @@ class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     lookup_field = "name"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
+        return queryset
 
 
 class TaggedItemViewSetMixin(viewsets.GenericViewSet):

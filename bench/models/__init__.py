@@ -4,6 +4,8 @@ from .dataset import Dataset, DatasetVersion
 from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecution
 from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
 from .model import Model, ModelVersion
+from .organization import Organization
+from .project import Project
 from .record import DbRecord, DbRecordTree, DbRecordTreeReference
 from .tag import (
     TAG_TYPE_ALIAS,
@@ -15,6 +17,7 @@ from .tag import (
     TaggableMixin,
     TaggedItem,
 )
+from .user import User
 
 __all__ = [
     "Artifact",
@@ -44,4 +47,7 @@ __all__ = [
     "FlowExecution",
     "FlowNodeExecution",
     "ModelExecution",
+    "Organization",
+    "Project",
+    "User",
 ]

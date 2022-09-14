@@ -188,7 +188,7 @@ class LocalExecutor(Executor):
         if not blocking:
             # TODO @Performance: run_model is always blocking
             raise NotImplementedError("running non-blocking is not supported")
-        execution = ModelExecution.objects.create(model=model)
+        execution = ModelExecution.objects.create(model=model, organization=model.organization)
 
         with execution.capture(start=False):
             # record inputs

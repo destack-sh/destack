@@ -40,19 +40,19 @@ class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
         validators=[
             validators.UniqueValidator(
                 queryset=Flow.objects.all(),
-                message="There is already a flow with the given name",
-            ),
-            RegexValidator(
-                regex=r"^[\w.\-]+$", message="Flow names must follow pattern [\\w.\\-]+"
+                message="There is already a flow with the given name in this organization",
             ),
         ],
     )
     head = serializers.SerializerMethodField(required=False, read_only=True)
+    organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="slug", read_only=True
+    )
 
     class Meta:
         model = Flow
-        fields = ["id", "name", "description", "created_at", "head", "tags"]
-        read_only_fields = ["id", "created_at", "head", "versions"]
+        fields = ["id", "name", "description", "created_at", "organization", "head", "tags"]
+        read_only_fields = ["id", "created_at", "organization", "head", "versions"]
 
     def get_head(self, obj: Flow):
         head = get_head(obj)
@@ -209,12 +209,16 @@ class FlowExecutionRequestSerializer(serializers.Serializer):
 class FlowViewSet(viewsets.ModelViewSet):
     queryset = Flow.objects.order_by("-created_at").all()
     serializer_class = FlowSerializer
-    lookup_field = "name"
-    lookup_value_regex = r"[\w.\-]+"
+    lookup_field = "id"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
+        return queryset
 
 
 class FlowVersionViewSet(viewsets.ModelViewSet):
-    queryset = FlowVersion.objects.order_by("-created_at").all()
+    queryset = FlowVersion.objects.all()
     serializer_class = FlowVersionSerializer
     lookup_field = "version"
     lookup_value_regex = r"[\w.]+"
@@ -222,7 +226,10 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
     pagination_class = LimitOffsetPagination
 
     def get_queryset(self) -> models.QuerySet[FlowVersion]:
-        return self.queryset.filter(flow__name=self.kwargs.get("flow"))
+        return self.queryset.filter(
+            flow__organization__slug=self.kwargs.get("organization"),
+            flow__name=self.kwargs.get("flow"),
+        )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         request.data["flow"] = kwargs.pop("flow")

@@ -19,7 +19,10 @@ from bench.api.flow import (
 )
 from bench.api.meta import list_dataset_handlers, list_function_handlers, list_model_handlers
 from bench.api.model import ModelVersionViewSet, ModelViewSet
+from bench.api.organization import OrganizationViewSet
 from bench.api.tag import TagViewSet
+from bench.api.team import TeamViewSet
+from bench.api.user import UserViewSet
 
 
 def _get_lookup_regex_simple(viewset: Type[ViewSetMixin], lookup_prefix: str = "") -> str:
@@ -116,8 +119,14 @@ class ExtendedNestedRouter(routers.NestedSimpleRouter):
 
 
 router = ExtendedDefaultRouter(lookup_omit_field=True)
-router.register("executions", ExecutionViewSet)
-router.register("tags", TagViewSet)
+
+organizations_router = router.register_nested(
+    "organizations", OrganizationViewSet, lookup="organization"
+)
+organizations_router.register("tags", TagViewSet)
+organizations_router.register("executions", ExecutionViewSet)
+teams_router = organizations_router.register_nested("teams", TeamViewSet, lookup="team")
+users_router = router.register_nested("users", UserViewSet, lookup="user")
 
 artifacts_router = router.register_nested("artifacts", ArtifactViewSet, lookup="artifact")
 artifacts_router.register("versions", ArtifactVersionViewSet)
@@ -125,12 +134,14 @@ artifacts_router.register("tags", ArtifactTagsViewSet)
 
 datasets_router = router.register_nested("datasets", DatasetViewSet, lookup="artifact")
 datasets_router.register("records", DatasetRecordViewSet)
+datasets_router.register("tags", ArtifactTagsViewSet)
 datasets_versions_router = datasets_router.register_nested(
     "versions", DatasetVersionViewSet, lookup="version"
 )
 datasets_versions_router.register("records", DatasetRecordViewSet)
 
 models_router = router.register_nested("models", ModelViewSet, lookup="artifact")
+models_router.register("tags", ArtifactTagsViewSet)
 models_router.register("versions", ModelVersionViewSet)
 
 flows_router = router.register_nested("flows", FlowViewSet, lookup="flow")
