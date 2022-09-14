@@ -5,7 +5,13 @@ from bench.models.user import User
 
 
 class UserSerializer(serializers.ModelSerializer):
+    organizations: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="slug", read_only=True, many=True
+    )
+
     class Meta:
+        fields = ["id", "email", "created_at", "updated_at", "organizations"]
+        read_only_fields = ["id", "created_at", "updated_at"]
         model = User
 
 
