@@ -71,6 +71,7 @@ class DatasetVersionSerializer(ArtifactVersionSerializer):
 
 class DatasetRecordSerializer(serializers.Serializer):
     id = serializers.UUIDField(required=False)
+    index = serializers.IntegerField(required=False)
     data = serializers.JSONField()
     metadata = serializers.JSONField(required=False, default=None)
 
@@ -78,8 +79,8 @@ class DatasetRecordSerializer(serializers.Serializer):
         return DatasetRecord(**validated_data)
 
     class Meta:
-        fields = ["id", "data", "metadata"]
-        read_only_fields = ["id"]
+        fields = ["id", "data", "metadata", "index"]
+        read_only_fields = ["id", "index"]
 
 
 class DatasetViewSet(ArtifactViewSet):
