@@ -28,6 +28,10 @@ class Artifact(VersionedRepository, TaggableMixin, UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    organization: models.ForeignKey = models.ForeignKey(
+        "bench.Organization", on_delete=models.CASCADE, related_name="artifacts"
+    )
     controller = models.ForeignKey("Controller", on_delete=models.SET_NULL, blank=True, null=True)
 
     objects = ArtifactManager()
@@ -44,7 +48,11 @@ class Artifact(VersionedRepository, TaggableMixin, UUIDModel):
             models.Index(name="bench_artifact_type_idx", fields=["type"]),
             models.Index(name="bench_artifact_name_idx", fields=["name"]),
         ]
-        constraints = [models.UniqueConstraint(name="bench_artifact_name_ak", fields=["name"])]
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_organization_artifact_name_ak", fields=["organization_id", "name"]
+            )
+        ]
 
 
 def _generate_artifact_version(nbytes: int = 3) -> str:
@@ -77,6 +85,10 @@ class ArtifactVersion(VersionedCommit, TaggableMixin, UUIDModel):
 
     def __str__(self):
         return self.name_version
+
+    @property
+    def organization(self):
+        return self.artifact.organization
 
     @property
     def name_version(self) -> str:

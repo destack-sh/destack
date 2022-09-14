@@ -27,6 +27,10 @@ class Tag(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     metadata = models.JSONField(default=dict)
 
+    organization: models.ForeignKey = models.ForeignKey(
+        "bench.Organization", on_delete=models.CASCADE, related_name="tags"
+    )
+
     objects = TagManager()
 
     @property

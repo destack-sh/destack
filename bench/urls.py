@@ -17,4 +17,6 @@ urlpatterns = [
     path("api/schema/swagger/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"),
     *[path("api/", include(r.urls)) for r in api_routers],
     *api_patterns,
+    path("", include("django_prometheus.urls")),
+    path("", include("social_django.urls", namespace="social")),
 ]

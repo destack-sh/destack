@@ -37,13 +37,21 @@ class Flow(VersionedRepository, TaggableMixin, UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    organization: models.ForeignKey = models.ForeignKey(
+        "bench.Organization", on_delete=models.CASCADE, related_name="flows"
+    )
+
     objects = FlowManager()
 
     class Meta:
         indexes = [
             models.Index(name="bench_flow_name_idx", fields=["name"]),
         ]
-        constraints = [models.UniqueConstraint(name="bench_flow_name_ak", fields=["name"])]
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_flow_organization_name_ak", fields=["organization_id", "name"]
+            )
+        ]
 
 
 def _generate_flow_version(nbytes: int = 3) -> str:
@@ -58,6 +66,10 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     version = models.CharField(max_length=256, default=_generate_flow_version)
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
+
+    @property
+    def organization(self):
+        return self.flow.organization
 
     @property
     def name_version(self) -> str:

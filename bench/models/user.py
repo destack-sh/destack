@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, cast
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -19,19 +19,15 @@ class UserManager(BaseUserManager[AbstractUser]):
         if password is not None:
             user.set_password(password)
         user.save()
-        return user
+        return cast(User, user)
 
 
 class User(AbstractUser, UUIDModel):
     USERNAME_FIELD = "email"
+    REQUIRED_FIELDS: list[str] = []
 
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
     email: models.EmailField = models.EmailField(_("email address"), unique=True)
 
-    organization = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="members"
-    )
-    team = models.ForeignKey("Team", on_delete=models.CASCADE, related_name="members")
-
-    objects = UserManager()
+    objects: UserManager = UserManager()  # type: ignore
