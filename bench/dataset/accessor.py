@@ -24,6 +24,11 @@ class DatasetRecord:
 
     data: dict[str, Any]
     metadata: Optional[dict[str, Any]]
+    index: Optional[int] = None
+
+    @staticmethod
+    def from_db_record(record: DbRecord, index: int = None) -> "DatasetRecord":
+        return DatasetRecord(data=record.data, metadata=record.metadata, index=index)
 
 
 AnyDatasetRecord = Union[DatasetRecord, DbRecord]
@@ -50,13 +55,17 @@ class DatasetAccessor:
         return self.dataset.record_tree_root
 
     def get_record(self, index: int) -> AnyDatasetRecord:
-        return db_record.get_record(self.root, index)
+        return DatasetRecord.from_db_record(db_record.get_record(self.root, index), index)
 
     def get_records_slice(
         self, start: int, stop: Optional[int] = None
     ) -> Sequence[AnyDatasetRecord]:
         stop = stop if stop is not None else 0
-        return db_record.get_records_slice(self.root, start, stop)
+        db_records = db_record.get_records_slice(self.root, start, stop)
+        ds_records = []
+        for i, record in enumerate(db_records):
+            ds_records.append(DatasetRecord.from_db_record(record, start + i))
+        return ds_records
 
     def get_records_data_field(self, key: str) -> list[FieldValue]:
         return db_record.get_records_field(self.root, key)
