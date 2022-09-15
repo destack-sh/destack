@@ -12,7 +12,7 @@ from rest_framework.response import Response
 
 from bench.api.tag import TaggedItemSerializerMixin
 from bench.executor import executor
-from bench.models import Artifact, ArtifactVersion
+from bench.models import Artifact, ArtifactVersion, Organization
 from bench.models.artifact import ArtifactView
 from bench.models.utils import MAX_NAME_LENGTH
 from bench.models.versioning import get_head
@@ -36,7 +36,7 @@ class ArtifactSerializer(TaggedItemSerializerMixin, serializers.HyperlinkedModel
         ],
     )
     organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        slug_field="slug", read_only=True
+        slug_field="slug", queryset=Organization.objects.all()
     )
     versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="version"
@@ -56,7 +56,7 @@ class ArtifactSerializer(TaggedItemSerializerMixin, serializers.HyperlinkedModel
             "head",
             "tags",
         ]
-        read_only_fields = ["id", "created_at", "organization", "head", "versions"]
+        read_only_fields = ["id", "created_at", "head", "versions"]
 
     def get_head(self, obj: Artifact):
         head = get_head(obj)
@@ -128,6 +128,11 @@ class ArtifactViewSet(viewsets.ModelViewSet):
     serializer_class = ArtifactSerializer
     lookup_field = "name"
     lookup_value_regex = r"[\w.\-]+"
+
+    def create(self, request: Request, *args, **kwargs):
+        # add organization from path argument
+        request.data["organization"] = kwargs.pop("organization")
+        return super().create(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = super().get_queryset()
