@@ -1,4 +1,5 @@
 from .artifact import Artifact, ArtifactVersion
+from .batch import Batch
 from .controller import Controller
 from .dataset import Dataset, DatasetVersion
 from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecution
@@ -17,6 +18,7 @@ from .tag import (
     TaggableMixin,
     TaggedItem,
 )
+from .task import Task
 from .user import User
 
 __all__ = [
@@ -49,5 +51,7 @@ __all__ = [
     "ModelExecution",
     "Organization",
     "Project",
+    "Batch",
+    "Task",
     "User",
 ]

@@ -42,30 +42,30 @@ class Execution(UUIDModel):
     An execution may be hierarchically nested inside other executions via the 'parent' field.
     """
 
-    class State(models.TextChoices):
+    class Status(models.TextChoices):
         Created = "created"
         Scheduled = "scheduled"
         Queued = "queued"
         Running = "running"
         Aborting = "aborting"
-        # terminal states
+        # terminal statuses
         Aborted = "aborted"
         Failed = "failed"
         Completed = "completed"
 
-    TERMINAL_STATES = {State.Aborted, State.Failed, State.Completed}
-    PENDING_STATES = set(State) - TERMINAL_STATES
+    TERMINAL_STATUSES = {Status.Aborted, Status.Failed, Status.Completed}
+    PENDING_STATUSES = set(Status) - TERMINAL_STATUSES
 
     type = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(
-        blank=True, null=True, help_text="Time of transition to RUNNING state."
+        blank=True, null=True, help_text="Time of transition to RUNNING status."
     )
     terminated_at = models.DateTimeField(
-        blank=True, null=True, help_text="Time of transition to a terminal state."
+        blank=True, null=True, help_text="Time of transition to a terminal status."
     )
-    state = models.CharField(max_length=32, choices=State.choices, default=State.Created)
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.Created)
     metadata = models.JSONField(null=True, blank=True)
 
     parent = models.ForeignKey(
@@ -81,44 +81,52 @@ class Execution(UUIDModel):
     model = models.ForeignKey(
         "ModelVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
+    # relation to organizational units
     organization: models.ForeignKey = models.ForeignKey(
         "bench.Organization", on_delete=models.CASCADE, related_name="executions+"
+    )
+    project: models.ForeignKey = models.ForeignKey(
+        "bench.Project", on_delete=models.CASCADE, related_name="executions+"
     )
 
     objects = ExecutionManager()
 
-    def _set_transition_metadata(self, state: Execution.State, transition_metadata: Optional[dict]):
+    def _set_transition_metadata(
+        self, status: Execution.Status, transition_metadata: Optional[dict]
+    ):
         if transition_metadata is None:
             return
         if self.metadata is None:
             self.metadata = {}
-        self.metadata[state.value] = transition_metadata
+        self.metadata[status.value] = transition_metadata
 
-    def update_state(self, state: Execution.State, transition_metadata: Optional[dict] = None):
-        self.state = state
-        self._set_transition_metadata(state, transition_metadata)
+    def update_status(self, status: Execution.Status, transition_metadata: Optional[dict] = None):
+        self.status = status
+        self._set_transition_metadata(status, transition_metadata)
         self.save()
 
     def start(
-        self, state: Execution.State = State.Running, transition_metadata: Optional[dict] = None
+        self, status: Execution.Status = Status.Running, transition_metadata: Optional[dict] = None
     ):
         """
-        Marks this execution as started in the given state
+        Marks this execution as started in the given status
         """
         self.started_at = datetime.utcnow().astimezone(tz=timezone.utc)
-        self.state = state
-        self._set_transition_metadata(state, transition_metadata)
+        self.status = status
+        self._set_transition_metadata(status, transition_metadata)
         self.save()
 
     def terminate(
-        self, state: Execution.State = State.Completed, transition_metadata: Optional[dict] = None
+        self,
+        status: Execution.Status = Status.Completed,
+        transition_metadata: Optional[dict] = None,
     ):
         """
-        Marks this execution as terminated in the given state
+        Marks this execution as terminated in the given status
         """
         self.terminated_at = datetime.utcnow().astimezone(tz=timezone.utc)
-        self.state = state
-        self._set_transition_metadata(state, transition_metadata)
+        self.status = status
+        self._set_transition_metadata(status, transition_metadata)
         self.save()
 
     @contextmanager
@@ -131,7 +139,7 @@ class Execution(UUIDModel):
         except Exception as e:
             stacktrace = traceback.format_stack()
             self.terminate(
-                state=Execution.State.Failed,
+                status=Execution.Status.Failed,
                 transition_metadata={"error": str(e), "stacktrace": stacktrace},
             )
             raise

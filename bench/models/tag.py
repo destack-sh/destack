@@ -46,8 +46,26 @@ class Tag(UUIDModel):
 
 
 # Must keep in sync with the actual fields of TaggedItem.
-RELATED_FIELDS = ("artifact", "artifact_version", "artifact_view", "flow", "flow_version")
-RELATED_MODELS = ("Artifact", "ArtifactVersion", "ArtifactView", "Flow", "FlowVersion")
+RELATED_FIELDS = (
+    "artifact",
+    "artifact_version",
+    "artifact_view",
+    "flow",
+    "flow_version",
+    "project",
+    "batch",
+    "task",
+)
+RELATED_MODELS = (
+    "Artifact",
+    "ArtifactVersion",
+    "ArtifactView",
+    "Flow",
+    "FlowVersion",
+    "Project",
+    "Batch",
+    "Task",
+)
 
 
 def make_single_field_populated_check():
@@ -96,6 +114,15 @@ class TaggedItem(UUIDModel):
     flow_version = models.ForeignKey(
         "FlowVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
+    project = models.ForeignKey(
+        "Project", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    )
+    batch = models.ForeignKey(
+        "Batch", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    )
+    task = models.ForeignKey(
+        "Task", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    )
 
     class Meta:
         # enforce only one related model field is set and tag + model field are unique
@@ -113,8 +140,9 @@ class TaggableMixin:
             hasattr(cls, "_meta")
             and cls._meta.concrete_model.__name__ not in RELATED_MODELS
             and cls.__name__ not in RELATED_MODELS
+            and cls.__module__ != "__fake__"  # used during SQLite migrations
         ):
-            raise RuntimeError("Taggable models must have fields in TaggedItem")
+            raise RuntimeError(f"Taggable models must have fields in TaggedItem: {cls}")
 
     tagged_items: models.QuerySet
 
