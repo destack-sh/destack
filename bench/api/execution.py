@@ -6,7 +6,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from bench.api.artifact import ArtifactViewSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.dataset.accessor import get_dataset_version_reader
-from bench.models import DatasetVersion, Execution, Organization
+from bench.models import DatasetVersion, Execution, Organization, Project
 from bench.models.dataset import DatasetViewData
 from bench.models.execution import ExecutionArtifactConnection
 from bench.utils.func import terrible_cast
@@ -60,8 +60,11 @@ class ExecutionSerializer(serializers.ModelSerializer):
     model = ArtifactVersionListingField(read_only=True)
     children = serializers.SerializerMethodField(read_only=True)
     connected_artifacts = ExecutionArtifactConnectionSerializer(many=True)
-    organization = serializers.SlugRelatedField(
+    organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
         slug_field="slug", queryset=Organization.objects.all()
+    )
+    project: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Project.objects.all()
     )
 
     def get_children(self, data: Execution):
@@ -77,7 +80,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
             "updated_at",
             "started_at",
             "terminated_at",
-            "state",
+            "status",
             "metadata",
             "parent",
             "children",
@@ -104,7 +107,7 @@ class ExecutionFilter(filters.FilterSet):
 
     class Meta:
         model = Execution
-        fields = ["id", "type", "flow", "flow_node", "model", "state", "parent"]
+        fields = ["id", "type", "flow", "flow_node", "model", "status", "parent"]
 
 
 class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):

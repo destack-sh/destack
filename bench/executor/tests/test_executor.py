@@ -54,7 +54,7 @@ def test_local_execute_empty_flow(local_executor: LocalExecutor):
     execution, outputs = local_executor.run_flow(
         flow, inputs={}, arguments={}, options=FlowExecutionOptions.default_blocking()
     )
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
     assert len(outputs) == 0, "no outputs"
 
 
@@ -71,7 +71,7 @@ def test_local_execute_one_node_identity_flow(local_executor: LocalExecutor):
         flow, inputs=inputs, arguments={}, options=FlowExecutionOptions.default_blocking()
     )
 
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
     assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[identity_node.id]) == 1, "node has one output key"
     output_records = read_dataset_version(cast(DatasetVersion, outputs[identity_node.id]["*"]))
@@ -102,7 +102,7 @@ def test_local_execute_two_node_identity_flow(local_executor: LocalExecutor):
         flow, inputs=inputs, arguments={}, options=FlowExecutionOptions.default_blocking()
     )
 
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
     assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[identity_node_2.id]) == 1, "node has one output key"
     output_records = read_dataset_version(cast(DatasetVersion, outputs[identity_node_2.id]["*"]))
@@ -133,7 +133,7 @@ def test_local_execute_two_node_augmented_flow(local_executor: LocalExecutor):
         flow, inputs=inputs, arguments={}, options=FlowExecutionOptions.default_blocking()
     )
 
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
     assert len(outputs) == 1, "one node has final outputs"
     assert len(outputs[augment_node_2.id]) == 1, "node has one output key"
     output_records = read_dataset_version(cast(DatasetVersion, outputs[augment_node_2.id]["*"]))
@@ -161,7 +161,7 @@ def test_local_execute_model_flow(local_executor: LocalExecutor):
         options=FlowExecutionOptions.default_blocking(),
     )
 
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
 
 
 @pytest.mark.django_db
@@ -189,7 +189,7 @@ def test_local_execute_dataset_flow(local_executor: LocalExecutor):
         options=FlowExecutionOptions.default_blocking(),
     )
 
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
     output_records = read_dataset_version(outputs[swap_node_1.id]["*"])
     assert output_records == [{"text": "1 2 buzz 4 buzz"}, {"text": "4 lightyear 6"}]
 
@@ -248,6 +248,6 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
     )
     models._unregister("test.stub")
 
-    assert execution.state == Execution.State.Completed
+    assert execution.status == Execution.Status.Completed
     output_records = read_dataset_version(outputs[test_node_3.id]["*"])
     assert output_records == [{"result": True}]

@@ -113,14 +113,14 @@ class LocalExecutor(Executor):
 
     def mark_dead_executions_failed(self):
         dead_executions = Execution.objects.filter(
-            Q(state__in=[state.value for state in Execution.PENDING_STATES])
+            Q(status__in=[status.value for status in Execution.PENDING_STATUSES])
             & Q(metadata__queued__executor_type="local")
             & ~Q(metadata__queued__executor_id=self.executor_id),
         )
         for execution in dead_executions:
             logger.warning("mark_dead_queued_execution_failed", execution=execution)
             execution.terminate(
-                state=Execution.State.Failed, transition_metadata={"message": "dead"}
+                status=Execution.Status.Failed, transition_metadata={"message": "dead"}
             )
 
     def _get_model_handler(self, model: ModelVersion, load_if_needed: bool = True) -> ModelHandler:
@@ -244,8 +244,8 @@ class LocalExecutor(Executor):
                 self._do_execute(plan, manifest)
             logger.info("execute_terminated", execution=manifest.execution)
         else:
-            manifest.execution.update_state(
-                state=FlowExecution.State.Queued, transition_metadata=executor_metadata
+            manifest.execution.update_status(
+                status=FlowExecution.Status.Queued, transition_metadata=executor_metadata
             )
             self._executions_queue.put((plan, manifest))
 
