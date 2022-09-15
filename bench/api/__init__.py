@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import List
 
-from django.urls import path
 from rest_framework.routers import BaseRouter
 
 from bench.api.artifact import ArtifactVersionViewSet, ArtifactViewSet
@@ -15,7 +14,9 @@ from bench.api.flow import (
     FlowVersionViewSet,
     FlowViewSet,
 )
-from bench.api.meta import list_dataset_handlers, list_function_handlers, list_model_handlers
+from bench.api.meta import list_dataset_handlers  # noqa: F401,F403
+from bench.api.meta import list_function_handlers  # noqa: F401,F403
+from bench.api.meta import list_model_handlers  # noqa: F401,F403
 from bench.api.model import ModelVersionViewSet, ModelViewSet
 from bench.api.organization import OrganizationViewSet
 from bench.api.project import ProjectViewSet
@@ -81,9 +82,4 @@ flows_versions_router.register("node_edges", FlowNodeEdgeViewSet)
 # /flows/<organization>/<flow>/versions/<version>/artifact_edges
 flows_versions_router.register("artifact_edges", FlowArtifactEdgeViewSet)
 
-api_routers: List[BaseRouter] = [router, *router.descendant_routers]
-api_patterns = [
-    path("api/meta/models", list_model_handlers),
-    path("api/meta/datasets", list_dataset_handlers),
-    path("api/meta/functions", list_function_handlers),
-]
+routers: List[BaseRouter] = [router, *router.descendant_routers]

@@ -20,7 +20,7 @@ from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions, FlowRawArgument
 from bench.function.spec import update_flow_spec
-from bench.models import ArtifactVersion, Flow, FlowNode
+from bench.models import ArtifactVersion, Flow, FlowNode, Organization
 from bench.models.flow import FlowArtifactEdge, FlowNodeEdge, FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
 
@@ -46,13 +46,13 @@ class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     )
     head = serializers.SerializerMethodField(required=False, read_only=True)
     organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        slug_field="slug", read_only=True
+        slug_field="slug", queryset=Organization.objects.all()
     )
 
     class Meta:
         model = Flow
         fields = ["id", "name", "description", "created_at", "organization", "head", "tags"]
-        read_only_fields = ["id", "created_at", "organization", "head", "versions"]
+        read_only_fields = ["id", "created_at", "head", "versions"]
 
     def get_head(self, obj: Flow):
         head = get_head(obj)
@@ -211,6 +211,11 @@ class FlowViewSet(viewsets.ModelViewSet):
     serializer_class = FlowSerializer
     lookup_field = "id"
 
+    def create(self, request: Request, *args, **kwargs):
+        # add organization from path argument
+        request.data["organization"] = kwargs.pop("organization")
+        return super().create(request, *args, **kwargs)
+
     def get_queryset(self):
         queryset = super().get_queryset()
         queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
@@ -232,6 +237,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
+        # add flow from path arguments
         request.data["flow"] = kwargs.pop("flow")
         return super().create(request, *args, **kwargs)
 
