@@ -4,6 +4,7 @@ from typing import Optional, Union, cast
 import structlog
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -17,7 +18,7 @@ from bench.api.artifact import (
     ArtifactVersionViewSet,
     ArtifactViewSet,
 )
-from bench.dataset.accessor import DatasetAccessor, DatasetRecord
+from bench.dataset.accessor import DatasetAccessor, DatasetRecord, DatasetSearch
 from bench.models import Dataset, DatasetVersion
 from bench.models.dataset import DatasetMetadata, DatasetViewData
 from bench.models.utils import DATASET_TYPE
@@ -83,6 +84,13 @@ class DatasetRecordSerializer(serializers.Serializer):
         read_only_fields = ["id", "index"]
 
 
+class DatasetSearchSerializer(serializers.Serializer):
+    text_like = serializers.CharField(required=False)
+
+    def create(self, validated_data):
+        return DatasetSearch(**validated_data)
+
+
 class DatasetViewSet(ArtifactViewSet):
     queryset = Dataset.objects.all()
     serializer_class = DatasetSerializer
@@ -131,19 +139,32 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
             raise Http404()
         return index
 
-    def list(self, request: Request, artifact: str, version: str = None) -> Response:
-        accessor = get_dataset_accessor(artifact, version)
+    @extend_schema(request=DatasetSearchSerializer)
+    def list(
+        self, request: Request, organization: str, artifact: str, version: str = None
+    ) -> Response:
+        accessor = get_dataset_accessor(organization, artifact, version)
         paginator = cast(DatasetRecordPagination, self.paginator)
         offset: int = paginator.get_offset(request)
         limit: int = cast(int, paginator.get_limit(request))
-        records = list(
-            accessor.get_records_slice(self.view_apply(offset), self.view_apply(offset + limit))
-        )
+
+        if request.query_params:
+            # search was specified
+            search_serializer = DatasetSearchSerializer(data=request.query_params)
+            search_serializer.is_valid(raise_exception=True)
+            search: DatasetSearch = search_serializer.save()
+            records = accessor.search_records(limit=limit, offset=offset, search=search)
+        else:
+            records = list(
+                accessor.get_records_slice(self.view_apply(offset), self.view_apply(offset + limit))
+            )
         records_data = DatasetRecordSerializer(records, many=True).data
         return Response({"limit": limit, "offset": offset, "results": records_data})
 
-    def create(self, request: Request, artifact: str, version: str = None) -> Response:
-        accessor = get_dataset_accessor(artifact, version)
+    def create(
+        self, request: Request, organization: str, artifact: str, version: str = None
+    ) -> Response:
+        accessor = get_dataset_accessor(organization, artifact, version)
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         ds_record: DatasetRecord = serializer.save()
@@ -151,8 +172,10 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
 
         return Response(DatasetRecordSerializer(ds_record).data, status=status.HTTP_201_CREATED)
 
-    def update(self, request: Request, index: str, artifact: str, version: str = None) -> Response:
-        accessor = get_dataset_accessor(artifact, version)
+    def update(
+        self, request: Request, index: str, organization: str, artifact: str, version: str = None
+    ) -> Response:
+        accessor = get_dataset_accessor(organization, artifact, version)
         index_int: int = self.view_apply(_positive_int(index))
 
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
@@ -163,8 +186,10 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
         # get actually written record
         return Response(DatasetRecordSerializer(accessor.get_record(index_int)).data)
 
-    def retrieve(self, index: str, artifact: str, version: str = None) -> Response:
-        accessor = get_dataset_accessor(artifact, version)
+    def retrieve(
+        self, index: str, organization: str, artifact: str, version: str = None
+    ) -> Response:
+        accessor = get_dataset_accessor(organization, artifact, version)
         index_int: int = self.view_apply(_positive_int(index))
         try:
             ds_record = accessor.get_record(index_int)
@@ -173,12 +198,19 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
         return Response(DatasetRecordSerializer(ds_record).data)
 
 
-def get_dataset_accessor(artifact: str, version: Optional[str]) -> DatasetAccessor:
-    return DatasetAccessor(get_dataset_version(artifact, version))
+def get_dataset_accessor(
+    organization: str, artifact: str, version: Optional[str]
+) -> DatasetAccessor:
+    return DatasetAccessor(get_dataset_version(organization, artifact, version))
 
 
-def get_dataset_version(artifact: str, version: Optional[str]) -> DatasetVersion:
+def get_dataset_version(organization: str, artifact: str, version: Optional[str]) -> DatasetVersion:
     if version is not None:
-        return get_object_or_404(DatasetVersion, artifact__name=artifact, version=version)
+        return get_object_or_404(
+            DatasetVersion,
+            artifact__name=artifact,
+            organization__slug=organization,
+            version=version,
+        )
     else:
         return terrible_cast(DatasetVersion, get_head(get_object_or_404(Dataset, name=artifact)))

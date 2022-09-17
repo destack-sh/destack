@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from django.db import transaction
 from django.db.models import QuerySet
@@ -14,31 +14,40 @@ from bench.models.utils import DATASET_TYPE
 from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import DatasetType, RecordSpec
 
+if TYPE_CHECKING:
+    from bench.models import Organization
+
 
 class DatasetManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Dataset]:
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
-    def create_dataset_version(self, name: str, metadata: DatasetMetadata) -> DatasetVersion:
+    def create_dataset_version(
+        self, name: str, organization: Organization, metadata: DatasetMetadata
+    ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
-            dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
+            dataset, _ = Dataset.objects.get_or_create(
+                type=DATASET_TYPE, organization=organization, name=name
+            )
             return DatasetVersion.objects.create(artifact=dataset, metadata=metadata.to_dict())
 
     def get_or_create_dataset_version(
-        self, name: str, version: str, metadata: DatasetMetadata
+        self, name: str, version: str, organization: Organization, metadata: DatasetMetadata
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
-        try:
-            return DatasetVersion.objects.select_related("record_tree_root").get(
-                artifact__name=name, version=version
-            )
-        except DatasetVersion.DoesNotExist:
-            with transaction.atomic():
-                dataset, _ = Dataset.objects.get_or_create(type=DATASET_TYPE, name=name)
-                return DatasetVersion.objects.create(
-                    artifact=dataset, version=version, metadata=metadata.to_dict()
-                )
+        dataset, _ = Dataset.objects.get_or_create(
+            type=DATASET_TYPE, organization=organization, name=name
+        )
+        dataset_version, _ = DatasetVersion.objects.select_related(
+            "record_tree_root"
+        ).get_or_create(
+            artifact__name=name,
+            organization=organization,
+            version=version,
+            defaults={"metadata": metadata.to_dict()},
+        )
+        return dataset_version
 
 
 class Dataset(Artifact):
@@ -100,6 +109,10 @@ class DatasetVersion(ArtifactVersion):
     @property
     def handler_id(self) -> str:
         return self.metadata_typed.handler_id
+
+    @handler_id.setter
+    def handler_id(self, value: str):
+        self.metadata["handler_id"] = value
 
     @property
     def config_arguments(self):

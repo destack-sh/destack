@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+    db:
+        image: postgres:14.5-alpine
+        restart: on-failure
+        environment:
+            POSTGRES_USER: bench
+            POSTGRES_DB: bench
+            POSTGRES_PASSWORD: bench
+        ports:
+            - '5432:5432'
+
+    object_storage:
+        image: minio/minio:RELEASE.2022-09-17T00-09-45Z
+        restart: on-failure
+        ports:
+            - '19000:19000'
+            - '19001:19001'
+        environment:
+            MINIO_ROOT_USER: object_storage_root_user
+            MINIO_ROOT_PASSWORD: object_storage_root_password
+        entrypoint: sh
+        # create the 'bench' bucket before starting the service
+        command: -c 'mkdir -p /data/bench && minio server --address ":19000" --console-address ":19001" /data'

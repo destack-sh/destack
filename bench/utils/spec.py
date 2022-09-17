@@ -40,6 +40,8 @@ from pydantic.typing import ForwardRef, evaluate_forwardref
 
 from bench.utils.registry import get_qualified_name
 
+# TODO @Cleanup @Architecture: simplify spec schema
+
 
 @dataclass
 class _Type(abc.ABC):

@@ -61,9 +61,12 @@ dill==0.3.4
     #   multiprocess
 distlib==0.3.4
     # via virtualenv
+dj-database-url==1.0.0
+    # via -r requirements.in
 django==4.0.4
     # via
     #   -r requirements.in
+    #   dj-database-url
     #   django-axes
     #   django-cors-headers
     #   django-filter
@@ -180,12 +183,14 @@ pandas==1.4.2
     # via datasets
 platformdirs==2.5.1
     # via virtualenv
-posthoganalytics==1.4.6
+posthoganalytics==2.1.2
     # via -r requirements.in
 prometheus-client==0.14.1
     # via django-prometheus
 protobuf==3.20.0
     # via ray
+psycopg2==2.9.3
+    # via -r requirements.in
 pyarrow==7.0.0
     # via datasets
 pycparser==2.21
@@ -232,7 +237,7 @@ responses==0.18.0
     # via datasets
 rich==12.3.0
     # via docarray
-sentry-sdk==1.5.8
+sentry-sdk==1.9.0
     # via -r requirements.in
 six==1.16.0
     # via
@@ -262,6 +267,7 @@ uritemplate==4.1.1
     # via drf-spectacular
 urllib3==1.26.9
     # via
+    #   -r requirements.in
     #   requests
     #   responses
     #   sentry-sdk

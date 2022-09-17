@@ -38,7 +38,8 @@ class OrganizationMembership(UUIDModel):
     # kept in sync with OrganizationMembership.Level
     class Level(models.IntegerChoices):
         Member = 1
-        Administrator = 8
+        Author = 6
+        Administrator = 12
         Owner = 16
 
     organization: models.ForeignKey = models.ForeignKey(
