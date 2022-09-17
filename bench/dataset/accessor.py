@@ -1,8 +1,9 @@
 import dataclasses
 from typing import Any, Iterable, Iterator, Optional, Sequence, Union
+from uuid import UUID
 
 import structlog.stdlib
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import QuerySet
 from fsspec import AbstractFileSystem
 
@@ -20,15 +21,25 @@ logger = structlog.stdlib.get_logger()
 
 @dataclasses.dataclass
 class DatasetRecord:
-    __slots__ = ["data", "metadata"]
+    __slots__ = ["data", "metadata", "index", "id"]
 
-    data: dict[str, Any]
+    data: Record
     metadata: Optional[dict[str, Any]]
-    index: Optional[int] = None
+    index: Optional[int]
+    id: Optional[UUID]
+
+    @staticmethod
+    def make(data: Record, metadata: dict[str, Any] = None, index: int = None, id: UUID = None):
+        return DatasetRecord(data=data, metadata=metadata, index=index, id=id)
 
     @staticmethod
     def from_db_record(record: DbRecord, index: int = None) -> "DatasetRecord":
-        return DatasetRecord(data=record.data, metadata=record.metadata, index=index)
+        return DatasetRecord(data=record.data, metadata=record.metadata, id=record.id, index=index)
+
+
+@dataclasses.dataclass
+class DatasetSearch:
+    text_like: Optional[str] = None
 
 
 AnyDatasetRecord = Union[DatasetRecord, DbRecord]
@@ -53,6 +64,15 @@ class DatasetAccessor:
             self.dataset.record_tree_root = new_root
             self.dataset.save()
         return self.dataset.record_tree_root
+
+    def search_records(
+        self, search: DatasetSearch, limit: int, offset: int
+    ) -> Sequence[AnyDatasetRecord]:
+        db_query = DbRecord.objects.filter(data__search=search.text_like)
+        db_records = db_query[offset : offset + limit]
+        # TODO @Feature: set correct index for dataset records within search
+        # TODO @Feature: apply limit & offset
+        return [DatasetRecord.from_db_record(record) for record in db_records]
 
     def get_record(self, index: int) -> AnyDatasetRecord:
         return DatasetRecord.from_db_record(db_record.get_record(self.root, index), index)
@@ -145,6 +165,30 @@ class DatasetAccessor:
                 " FROM bench_recordtreereference WHERE tree_id = %s",
                 params=[str(new_root.id), str(new_root.id)],
             )
+
+
+# TODO @Performance: internalize_dataset should be a background job
+def internalize_dataset(dataset: DatasetVersion, batch_size: int = 512):
+    # converts a dataset into our in-DB indexed dataset format
+    if dataset.handler_id == "bench.db":
+        # already internalized
+        return
+
+    logger.info("internalize_dataset", dataset=dataset)
+    source_reader = get_dataset_version_reader(dataset)
+    with transaction.atomic():
+        dataset.handler_id = "bench.db"
+        target_ds = DatasetAccessor(dataset)
+
+        source_len = len(source_reader)
+        for i in range(0, source_len, batch_size):
+            logger.info("internalize_dataset", dataset=dataset, i=i, batch_size=batch_size)
+            end = min(i + batch_size, source_len)
+            ds_records = [DatasetRecord.make(record) for record in source_reader[i:end]]
+            target_ds.extend(ds_records)
+
+        dataset.save()
+    logger.info("internalize_dataset_done", dataset=dataset)
 
 
 def _to_handler_args(version: DatasetVersion) -> dict:

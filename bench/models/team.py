@@ -26,7 +26,9 @@ class TeamMembership(UUIDModel):
     # kept in sync with OrganizationMembership.Level
     class Level(models.IntegerChoices):
         Member = 1
-        Administrator = 8
+        Author = 6
+        Administrator = 12
+        # Owner = 16
 
     team: models.ForeignKey = models.ForeignKey(
         Team, on_delete=models.CASCADE, related_name="memberships"

@@ -38,15 +38,13 @@ class DbDataset(DatasetReader, DatasetWriter):
         pass
 
     def append(self, record: Record) -> int:
-        return self._ds_accessor.append(DatasetRecord(data=record, metadata=None))
+        return self._ds_accessor.append(DatasetRecord.make(record))
 
     def extend(self, records: typing.Iterable[Record]) -> tuple[int, int]:
-        return self._ds_accessor.extend(
-            DatasetRecord(data=record, metadata=None) for record in records
-        )
+        return self._ds_accessor.extend(DatasetRecord.make(record) for record in records)
 
     def update(self, index: int, record: Record):
-        self.db_update(index, DatasetRecord(data=record, metadata=None))
+        self.db_update(index, DatasetRecord.make(record))
 
     def delete(self, index: int):
         delete_record(self.root, index)
