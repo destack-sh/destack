@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Iterator, Optional, Tuple, cast
 
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector
 from django.db import models, transaction
 from django.db.models import Q, QuerySet, Subquery
 
@@ -41,7 +42,10 @@ class DbRecord(UUIDModel, VersionedBlob):
         super().save(*args, **kwargs)
 
     class Meta:
-        indexes = [GinIndex(name="bench_record_metadata", fields=["metadata"])]
+        indexes = [
+            GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
+            GinIndex(SearchVector("metadata", config="simple"), name="bench_record_metadata"),
+        ]
 
 
 class DbRecordTree(UUIDModel, VersionedTree):
