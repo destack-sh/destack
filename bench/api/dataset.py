@@ -117,8 +117,8 @@ class DatasetVersionViewSet(ArtifactVersionViewSet):
 
 
 class DatasetRecordPagination(LimitOffsetPagination):
-    default_limit = 100
-    max_limit = 1000
+    default_limit = 20
+    max_limit = 100
 
 
 class DatasetRecordViewSet(viewsets.GenericViewSet):

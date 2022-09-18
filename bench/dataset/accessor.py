@@ -68,11 +68,30 @@ class DatasetAccessor:
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
     ) -> Sequence[AnyDatasetRecord]:
-        db_query = DbRecord.objects.filter(data__search=search.text_like)
-        db_records = db_query[offset : offset + limit]
-        # TODO @Feature: set correct index for dataset records within search
-        # TODO @Feature: apply limit & offset
-        return [DatasetRecord.from_db_record(record) for record in db_records]
+        # TODO @Cleanup: use db_record search to move this to db_record?
+        # TODO @Performance: ensure below query uses indices!
+        # also note that the below query does not order by the index for performance
+        raw_search_sql = (
+            "select"
+            "    bench_dbrecord.id,"
+            "    bench_dbrecord.data,"
+            "    bench_dbrecord.metadata,"
+            "    bench_dbrecordtreereference.index as index"
+            "    from bench_dbrecord"
+            "\njoin"
+            "    bench_dbrecordtreereference"
+            "    on bench_dbrecordtreereference.record_id = bench_dbrecord.id"
+            "\nwhere"
+            "    to_tsvector('simple', data) @@ to_tsquery('simple', %s)"
+            # check that the record belongs to the current version
+            "    and bench_dbrecordtreereference.tree_id = %s"
+            "\nlimit %s"
+            "\noffset %s"
+        )
+        db_records = DbRecord.objects.raw(
+            raw_search_sql, [search.text_like, self.dataset.record_tree_root_id, limit, offset]
+        )
+        return [DatasetRecord.from_db_record(record, index=record.index) for record in db_records]
 
     def get_record(self, index: int) -> AnyDatasetRecord:
         return DatasetRecord.from_db_record(db_record.get_record(self.root, index), index)
