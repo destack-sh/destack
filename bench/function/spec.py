@@ -32,10 +32,10 @@ class StubError(NotImplementedError):
 
 
 class StubModelHandler(ModelHandler):
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         raise StubError
 
-    def predict_batch(self, records: RecordBatch) -> RecordBatch:
+    def run_batch(self, records: RecordBatch) -> RecordBatch:
         raise StubError
 
 

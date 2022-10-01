@@ -1,4 +1,5 @@
 import os
+from typing import TYPE_CHECKING
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
@@ -63,7 +64,7 @@ elif os.getenv("BENCH_DB_NAME"):
         ssl_configuration,
     )
 
-else:
+elif not TYPE_CHECKING:
     raise ImproperlyConfigured(
-        "A postgres-like database must be configured via 'DATABASE_URL' or 'BENCH_DB_NAME'"
+        "A Postgres-compatible database must be configured via 'DATABASE_URL' or 'BENCH_DB_NAME'"
     )

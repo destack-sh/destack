@@ -34,10 +34,10 @@ class ModelRecordTransform(RecordTransform):
         self.output_spec = OrderedDict([("*", self.model.spec.output_spec)])
 
     def transform(self, record: Record) -> Union[Record, RecordBatch]:
-        return self.model.predict(record)
+        return self.model.run(record)
 
     def transform_batch(self, records: RecordBatch) -> RecordBatch:
-        return self.model.predict_batch(records)
+        return self.model.run_batch(records)
 
 
 @functions.register("bench.count")
