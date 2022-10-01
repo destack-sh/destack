@@ -66,7 +66,7 @@ class OpenAIModelForCompletion(OpenAIModel):
     )
     base_spec = spec
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         output = openai.Completion.create(prompt=record["text"], **self._get_params())
         output_records = [choice for choice in output["choices"]]
@@ -95,7 +95,7 @@ class OpenAIModelForClassification(OpenAIModel):
     )
     base_spec = spec
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         output = openai.Classification.create(
             prompt=record["text"],

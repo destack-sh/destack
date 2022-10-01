@@ -231,7 +231,7 @@ def test_local_execute_test_flow(local_executor: LocalExecutor):
     class StubModel(UnbatchedModelHandler):
         config_static_keys: set[str] = set()
 
-        def predict(self, record: Record) -> Union[Record, RecordBatch]:
+        def run(self, record: Record) -> Union[Record, RecordBatch]:
             return {**record, "score": 1}
 
     model = Model.objects.create_model_version(

@@ -36,7 +36,7 @@ class HuggingFaceModelForSequenceClassification(UnbatchedModelHandler):
         )
         super().__init__(**kwargs)
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         tokenized_text = self.tokenizer(record["text"], return_tensors="pt")
         tokens = self.tokenizer.convert_ids_to_tokens(
@@ -64,7 +64,7 @@ class HuggingFaceHostedModel(UnbatchedModelHandler):
     def headers(self) -> dict:
         return {"Authorization": f"Bearer {self.bearer_token}"}
 
-    def predict(self, record: Record) -> Record:
+    def run(self, record: Record) -> Record:
         data = cast(dict, record)
         response = requests.request(
             "POST", self.api_url, headers=self.headers, data=json.dumps(data)
@@ -94,10 +94,10 @@ class HuggingFaceHostedGenerationModel(HuggingFaceHostedModel):
         output_spec=convert_to_record_spec({"generated_text": str}),
     )
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         # TODO @Cleanup @Architecture: generalise model/flow node input/output remapping
         if "text" in record:
             record = {"inputs": record["text"]}
-        output = super().predict(record)
+        output = super().run(record)
         return {**record, **output}

@@ -206,9 +206,9 @@ class LocalExecutor(Executor):
             execution.start()
             output: Union[Record, RecordBatch]
             if isinstance(record, RecordBatch):
-                output = model_handler.predict_batch(record)
+                output = model_handler.run_batch(record)
             else:
-                output = model_handler.predict(record)
+                output = model_handler.run(record)
 
             # record outputs
             output_dataset, view = write_to_dataset(f"{model.artifact.name}.outputs", "0", output)
@@ -330,6 +330,10 @@ class LocalExecutor(Executor):
                     continue
 
                 visited_node_ids.add(node_id)
+
+                # actually run node
+                # TODO @Performance: cache (deterministic) flow node executions
+                # TODO @Performance: parallelize flow node per-record execution (within node?)
                 if isinstance(function, RecordTransform):
                     # assume record transforms have only one default connection in and out
                     input_batch = input_batches[DEFAULT_CONNECTION_NAME]

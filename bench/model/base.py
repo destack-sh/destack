@@ -60,10 +60,10 @@ class ModelHandler(ArtifactHandler):
     def update_config(self, **kwargs):
         pass
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
-    def predict_batch(self, records: RecordBatch) -> RecordBatch:
+    def run_batch(self, records: RecordBatch) -> RecordBatch:
         raise NotImplementedError
 
 
@@ -72,10 +72,10 @@ class UnbatchedModelHandler(ModelHandler, abc.ABC):
     A naive ModelHandler.predict_batch implementation that just iterates over predict.
     """
 
-    def predict_batch(self, records: RecordBatch) -> RecordBatch:
+    def run_batch(self, records: RecordBatch) -> RecordBatch:
         output_records: List[Record] = []
         for record in records:
-            output = self.predict(record)
+            output = self.run(record)
             # if we're getting batches, flatten them into output
             if isinstance(output, RecordBatch):
                 output_records.extend(output)
@@ -89,9 +89,9 @@ class BatchedModelHandler(ModelHandler, abc.ABC):
     A naive ModelHandler.predict implementation that just aggregates into lists.
     """
 
-    def predict(self, record: Record) -> Union[Record, RecordBatch]:
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
         input_records = RecordList([record])
-        output_records = self.predict_batch(input_records)
+        output_records = self.run_batch(input_records)
         if len(output_records) == 1:
             return output_records[0]
         else:
