@@ -38,7 +38,7 @@ class DbRecord(UUIDModel, VersionedBlob):
     def save(self, *args, **kwargs):
         # set content hash if not yet set
         if not self.content_hash and self._state.adding:
-            self.content_hash = VersionedObject.hash_content({"data": self.data})
+            self.content_hash = VersionedObject.hash_content(self.data)
         super().save(*args, **kwargs)
 
     class Meta:

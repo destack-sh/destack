@@ -1,4 +1,5 @@
 import abc
+import asyncio
 from dataclasses import dataclass
 from typing import (
     AbstractSet,
@@ -9,6 +10,7 @@ from typing import (
     Type,
     Union,
     cast,
+    final,
 )
 from uuid import UUID
 
@@ -69,12 +71,42 @@ class ModelHandler(ArtifactHandler):
 
 class UnbatchedModelHandler(ModelHandler, abc.ABC):
     """
-    A naive ModelHandler.predict_batch implementation that just iterates over predict.
+    A naive batch runner that just iterates over run.
     """
 
     def run_batch(self, records: RecordBatch) -> RecordBatch:
         output_records: List[Record] = []
         for record in records:
+            output = self.run(record)
+            # if we're getting batches, flatten them into output
+            if isinstance(output, RecordBatch):
+                output_records.extend(output)
+            else:
+                output_records.append(output)
+        return RecordList(output_records)
+
+
+class AsyncBatchedModelHandler(ModelHandler, abc.ABC):
+    """
+    An asynchronously batched runner that simultaneously dispatches all .
+    """
+
+    async def run_async(self, record: Record) -> Union[Record, RecordBatch]:
+        raise NotImplementedError
+
+    @final
+    def run(self, record: Record) -> Union[Record, RecordBatch]:
+        return asyncio.get_event_loop().run_until_complete(self.run_async(record))
+
+    def run_batch(self, records: RecordBatch) -> RecordBatch:
+        # TODO @Robustness: set limit on simultaneous requests for run_async
+        event_loop = asyncio.get_event_loop()
+        batch_task = asyncio.gather(
+            *[self.run_async(record) for record in records], return_exceptions=False
+        )
+        outputs: list[Union[Record, RecordBatch]] = event_loop.run_until_complete(batch_task)
+        output_records: List[Record] = []
+        for record in outputs:
             output = self.run(record)
             # if we're getting batches, flatten them into output
             if isinstance(output, RecordBatch):

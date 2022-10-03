@@ -177,10 +177,35 @@ class FlowNode(UUIDModel, VersionedBlob):
         symmetrical=False,
     )
     connected_artifacts = models.ManyToManyField("ArtifactVersion", through="FlowArtifactEdge")
-    controller = models.ForeignKey("Controller", on_delete=models.RESTRICT, blank=True, null=True)
 
     def __str__(self):
         return f"{self.flow.name_version}/{self.name or self.id}"
+
+    def _to_content_object(self) -> dict:
+        node_argument_edges = [
+            edge
+            for edge in self.node_edges_as_dependent
+            if edge.type == FlowNodeEdge.ConnectionType.Argument
+        ]
+        if node_argument_edges:
+            raise NotImplementedError("content object does not consider node arguments")
+
+        return {
+            "function_id": self.function_id,
+            "config_arguments": self.config_arguments,
+            # don't care which nodes it depends on as long as they're not arguments
+            "depends_on_nodes": {},
+            "connected_artifacts": [
+                {"name": artifact.name, "version": artifact.version}
+                for artifact in self.connected_artifacts.all()
+            ],
+        }
+
+    def save(self, *args, **kwargs):
+        # set content hash if not yet set
+        if not self.content_hash and self._state.adding:
+            self.content_hash = FlowNode.hash_content(self._to_content_object())
+        super().save(*args, **kwargs)
 
     @property
     def is_committed(self) -> bool:
@@ -222,8 +247,12 @@ class FlowNodeEdge(UUIDModel):
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name_dependent = models.CharField(max_length=64)
     connection_name_dependency = models.CharField(max_length=64)
-    dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
-    dependency = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="+")
+    dependent = models.ForeignKey(
+        FlowNode, on_delete=models.CASCADE, related_name="node_edges_as_dependent"
+    )
+    dependency = models.ForeignKey(
+        FlowNode, on_delete=models.CASCADE, related_name="node_edges_as_dependency"
+    )
 
     def shallow_copy(self, **kwargs) -> FlowNodeEdge:
         return FlowNodeEdge(
