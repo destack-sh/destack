@@ -1,6 +1,5 @@
 from .artifact import Artifact, ArtifactVersion
 from .batch import Batch
-from .controller import Controller
 from .dataset import Dataset, DatasetVersion
 from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecution
 from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
@@ -31,7 +30,6 @@ __all__ = [
     "DatasetVersion",
     "Model",
     "ModelVersion",
-    "Controller",
     "Tag",
     "TaggedItem",
     "TaggableMixin",
