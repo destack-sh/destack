@@ -41,12 +41,13 @@ from bench.executor.base import (
 )
 from bench.executor.utils import get_model_iid
 from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
+from bench.function.utils import ModelRecordTransform
 from bench.model.accessor import get_model_version_handler
 from bench.model.base import ModelHandler
 from bench.models import ArtifactVersion, DatasetVersion, DbRecord, FlowExecution, ModelExecution
 from bench.models.dataset import Dataset, DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
-from bench.models.flow import FlowVersion
+from bench.models.flow import FlowArtifactEdge, FlowNode, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.tag import default_tag
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
@@ -192,6 +193,17 @@ class LocalExecutor(Executor):
         execution = ModelExecution.objects.create(model=model, organization=model.organization)
 
         with execution.capture(start=False):
+            model_handler = self._get_model_handler(model, load_if_needed)
+
+            # wrap the model as a function to pipe into the same execution and caching system
+            model_function = ModelRecordTransform(model_handler)
+            model_function_content = FlowNode.to_content(
+                "bench.model",
+                config_arguments={},
+                connected_artifacts={(FlowArtifactEdge.ConnectionType.Argument, "model"): model},
+            )
+            model_function_hash = FlowNode.hash_content(model_function_content).hex()
+
             # record inputs
             input_dataset = Dataset.objects.get_or_create_dataset_version(
                 f"{model.artifact.name}.inputs", model.organization
@@ -206,19 +218,16 @@ class LocalExecutor(Executor):
             )
 
             # run model
-            model_handler = self._get_model_handler(model, load_if_needed)
             execution.start()
-            output: Union[Record, RecordBatch]
-            if isinstance(record, RecordBatch):
-                output = model_handler.run_batch(record)
-            else:
-                output = model_handler.run(record)
+            outputs = self._run_function_record_transform(
+                model_function, model_function_hash, record
+            )
 
             # record outputs
             output_dataset = Dataset.objects.get_or_create_dataset_version(
                 f"{model.artifact.name}.outputs", model.organization
             )
-            view = write_dataset(output_dataset, output)
+            view = write_dataset(output_dataset, outputs)
             output_dataset.set_tag(default_tag("source:outputs", model.organization))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
@@ -227,7 +236,7 @@ class LocalExecutor(Executor):
                 view_inline=DatasetViewData.from_slice(view).asdict,
             )
 
-        return execution, output
+        return execution, outputs
 
     def run_flow(
         self,
@@ -271,22 +280,7 @@ class LocalExecutor(Executor):
     def _run_execution_loop(self, functions: dict[UUID, RecordFunction], plan: FlowExecutionPlan):
         # start actual execution
         # keep track of not yet processed data by input node in `pending_data`
-        pending_data: dict[UUID, dict[str, list[AnyDatasetRecord]]] = defaultdict(dict)
-        for node_id, named_inputs in plan.artifact_inputs.items():
-            for input_key, artifact_connection in named_inputs.items():
-                if artifact_connection.artifact.artifact.type == DATASET_TYPE:
-                    dataset = cast(DatasetVersion, artifact_connection.artifact)
-                    inputs = DatasetAccessor(dataset).get_records_view(
-                        artifact_connection.view_data
-                    )
-                    pending_data[node_id][artifact_connection.name] = inputs
-
-                    # update input spec given function it is assigned to (not great)
-                    # TODO @Cleanup: dataset spec should not derive from input spec at execution time
-                    input_spec = functions[node_id].input_spec[input_key]
-                    update_dataset_spec(dataset, input_spec)
-                else:
-                    raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
+        pending_data = self._collect_initial_data(functions, plan)
 
         # general settings
         validate = plan.options.validate in (FlowRuntimeValidation.Lazy, FlowRuntimeValidation.Full)
@@ -335,80 +329,12 @@ class LocalExecutor(Executor):
 
                 visited_node_ids.add(node_id)
 
-                # actually run node
-                function_hash = plan.nodes[node_id].content_hash.hex()
-                if isinstance(function, RecordTransform):
-                    # assume record transforms have only one default connection in and out
-                    input_batch = input_batches[DEFAULT_CONNECTION_NAME]
-
-                    # get cached outputs with the same input + function hash
-                    input_hashes = [DbRecord.hash_content_hex(r.data) for r in input_batch]
-                    cached_outputs = DbRecord.objects.filter(
-                        metadata__source__function_hash=function_hash,
-                        metadata__source__input_hash__in=input_hashes,
-                        metadata__source__cached=False,  # get original outputs only
-                    )
-                    cached_outputs_by_input_hashes = defaultdict(list)
-                    for output_db_record in cached_outputs:
-                        input_hash = output_db_record.metadata["source"]["input_hash"]
-                        cached_outputs_by_input_hashes[input_hash].append(output_db_record)
-
-                    # compute outputs for uncached inputs
-                    missing_inputs = [
-                        record.data
-                        for i, record in enumerate(input_batch)
-                        if input_hashes[i] not in cached_outputs_by_input_hashes
-                    ]
-                    computed_outputs = function.transform_batch(RecordList(missing_inputs))
-                    # assumes consistent input -> output stride
-                    if input_batch:
-                        output_stride = len(computed_outputs) // len(missing_inputs)
-                    else:
-                        output_stride = 1
-
-                    # re-assemble output batch from cached + computed
-                    output_batch: list[DatasetRecord] = []
-                    for i, input_hash in enumerate(input_hashes):
-                        cached_outputs = cached_outputs_by_input_hashes.get(input_hash)
-                        if cached_outputs:
-                            # cache hit
-                            output_metadata = {
-                                "source": {
-                                    "input_hash": input_hash,
-                                    "function_hash": function_hash,
-                                    "cached": True,
-                                }
-                            }
-                            output_batch.extend(
-                                DatasetRecord.make(output, output_metadata)
-                                for output in cached_outputs
-                            )
-                        else:
-                            # cache miss, get from computed outputs
-                            output_metadata = {
-                                "source": {
-                                    "input_hash": input_hash,
-                                    "function_hash": function_hash,
-                                    "cached": False,
-                                }
-                            }
-                            outputs = computed_outputs[i * output_stride : (i + 1) * output_stride]
-                            output_batch.extend(
-                                DatasetRecord.make(output, output_metadata) for output in outputs
-                            )
-
-                    output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
-                elif isinstance(function, Metric):
-                    # assume input batches contains all required inputs (as checked above)
-                    output_data = function.compute(**input_batches)
-                    output_batch = [DatasetRecord.make(output_data)]
-                    output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
-                else:
-                    raise RuntimeError(f"unexpected function: {function}")
+                output_batches = self._run_function(function, input_batches, node_id, plan)
 
                 # validate output against output spec
-                output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
-                _validate_records(node_id, output_batch, output_spec.type)
+                for connection_name, output_batch in output_batches.items():
+                    output_spec = function.output_spec[connection_name]
+                    _validate_records(node_id, output_batch, output_spec.type)
 
                 # write to next input nodes and intermediate output artifacts (if any)
                 for node_connection in flatten(plan.connected_inverse[node_id].values()):
@@ -450,6 +376,107 @@ class LocalExecutor(Executor):
             pending_data = new_pending_data
             new_pending_data = defaultdict(dict)
             iteration += 1
+
+    def _collect_initial_data(self, functions: dict[UUID, RecordFunction], plan: FlowExecutionPlan):
+        pending_data: dict[UUID, dict[str, list[AnyDatasetRecord]]] = defaultdict(dict)
+        for node_id, named_inputs in plan.artifact_inputs.items():
+            for input_key, artifact_connection in named_inputs.items():
+                if artifact_connection.artifact.artifact.type == DATASET_TYPE:
+                    dataset = cast(DatasetVersion, artifact_connection.artifact)
+                    inputs = DatasetAccessor(dataset).get_records_view(
+                        artifact_connection.view_data
+                    )
+                    pending_data[node_id][artifact_connection.name] = inputs
+
+                    # update input spec given function it is assigned to (not great)
+                    # TODO @Cleanup: dataset spec should not derive from input spec at execution time
+                    input_spec = functions[node_id].input_spec[input_key]
+                    update_dataset_spec(dataset, input_spec)
+                else:
+                    raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
+        return pending_data
+
+    def _run_function(
+        self,
+        function: RecordFunction,
+        input_batches: dict[str, list[DatasetRecord]],
+        node_id: UUID,
+        plan: FlowExecutionPlan,
+    ) -> dict[str, list[DatasetRecord]]:
+        # actually run node
+        if isinstance(function, RecordTransform):
+            function = cast(RecordFunction, function)
+            # assume record transforms have only one default connection in and out
+            input_batch = input_batches[DEFAULT_CONNECTION_NAME]
+            function_hash = plan.nodes[node_id].content_hash.hex()
+            output_batch = self._run_function_record_transform(function, function_hash, input_batch)
+
+            return {DEFAULT_CONNECTION_NAME: output_batch}
+        elif isinstance(function, Metric):
+            function = cast(Metric, function)
+            # assume input batches contains all required inputs (as checked above)
+            output_data = function.compute(**input_batches)
+            output_batch = [DatasetRecord.make(output_data)]
+            return {DEFAULT_CONNECTION_NAME: output_batch}
+        else:
+            raise RuntimeError(f"unexpected function: {function}")
+
+    def _run_function_record_transform(
+        self,
+        function: RecordTransform,
+        function_hash: str,
+        input_batch: list[DatasetRecord],
+    ):
+        """
+        Runs a given loaded function on the given inputs, automatically handling caching.
+        """
+
+        # get cached outputs with the same input + function hash
+        input_hashes = [DbRecord.hash_content_hex(r.data) for r in input_batch]
+        cached_outputs = DbRecord.objects.filter(
+            metadata__source__function_hash=function_hash,
+            metadata__source__input_hash__in=input_hashes,
+            metadata__source__cached=False,  # get original outputs only
+        )
+        cached_outputs_by_input_hashes = defaultdict(list)
+        for output_db_record in cached_outputs:
+            input_hash = output_db_record.metadata["source"]["input_hash"]
+            cached_outputs_by_input_hashes[input_hash].append(output_db_record)
+        # compute outputs for uncached inputs
+        missing_inputs = [
+            record.data
+            for i, record in enumerate(input_batch)
+            if input_hashes[i] not in cached_outputs_by_input_hashes
+        ]
+        computed_outputs = function.transform_batch(RecordList(missing_inputs))
+        # assumes consistent input -> output stride
+        if input_batch:
+            output_stride = len(computed_outputs) // len(missing_inputs)
+        else:
+            output_stride = 1
+        # re-assemble output batch from cached + computed
+        output_batch: list[DatasetRecord] = []
+        for i, input_hash in enumerate(input_hashes):
+            cached_outputs = cached_outputs_by_input_hashes.get(input_hash)
+            output_metadata = {
+                "source": {
+                    "input_hash": input_hash,
+                    "function_hash": function_hash,
+                    "cached": cached_outputs is not None,
+                }
+            }
+            if cached_outputs:
+                # cache hit
+                output_batch.extend(
+                    DatasetRecord.make(output, output_metadata) for output in cached_outputs
+                )
+            else:
+                # cache miss, get from computed outputs
+                outputs = computed_outputs[i * output_stride : (i + 1) * output_stride]
+                output_batch.extend(
+                    DatasetRecord.make(output, output_metadata) for output in outputs
+                )
+        return output_batch
 
     def _update_dynamic_connections(self, manifest: FlowExecutionManifest, plan: FlowExecutionPlan):
         dynamic_connections = flatten(

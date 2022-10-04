@@ -18,7 +18,7 @@ from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import RecordSpec
 
 if TYPE_CHECKING:
-    from bench.models import Organization
+    from bench.models import ArtifactVersion, Organization
 
 
 class FlowManager(models.Manager):
@@ -185,6 +185,21 @@ class FlowNode(UUIDModel, VersionedBlob):
     def __str__(self):
         return f"{self.flow.name_version}/{self.name or self.id}"
 
+    @staticmethod
+    def to_content(
+        function_id: str,
+        config_arguments: dict,
+        connected_artifacts: dict[tuple[FlowArtifactEdge.ConnectionType, str], ArtifactVersion],
+    ) -> dict:
+        return {
+            "function_id": function_id,
+            "config_arguments": config_arguments,
+            "connected_artifacts": [
+                {"type": typ.value, "key": key, "name": artifact.name, "version": artifact.version}
+                for (typ, key), artifact in connected_artifacts.items()
+            ],
+        }
+
     def _to_content_object(self) -> dict:
         node_argument_edges = [
             edge
@@ -194,16 +209,15 @@ class FlowNode(UUIDModel, VersionedBlob):
         if node_argument_edges:
             raise NotImplementedError("content object does not consider node arguments")
 
-        return {
-            "function_id": self.function_id,
-            "config_arguments": self.config_arguments,
-            # don't care which nodes it depends on as long as they're not arguments
-            "depends_on_nodes": {},
-            "connected_artifacts": [
-                {"name": artifact.name, "version": artifact.version}
-                for artifact in self.connected_artifacts.all()
-            ],
+        connected_artifacts = {
+            (edge.connection_type, edge.connection_name): edge.artifact
+            for edge in self.artifact_edges.all()
         }
+        return FlowNode.to_content(
+            function_id=self.function_id,
+            config_arguments=self.config_arguments,
+            connected_artifacts=connected_artifacts,
+        )
 
     def save(self, *args, **kwargs):
         # set content hash if not yet set
