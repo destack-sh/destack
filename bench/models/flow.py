@@ -5,6 +5,7 @@ import secrets
 from dataclasses import dataclass
 from functools import cached_property
 from itertools import chain
+from typing import TYPE_CHECKING
 
 from django.db import models, transaction
 from rest_framework import serializers
@@ -16,9 +17,12 @@ from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRep
 from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import RecordSpec
 
+if TYPE_CHECKING:
+    from bench.models import Organization
+
 
 class FlowManager(models.Manager):
-    def create_flow_version_by_name(self, name: str) -> FlowVersion:
+    def create_flow_version_by_name(self, name: str, organization: Organization) -> FlowVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             flow, _ = Flow.objects.get_or_create(name=name)

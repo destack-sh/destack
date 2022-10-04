@@ -15,7 +15,7 @@ import structlog
 from django.db.models import QuerySet
 
 from bench.artifact.base import ArtifactHandler
-from bench.dataset.accessor import write_to_dataset
+from bench.dataset.accessor import write_dataset
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -26,7 +26,7 @@ from bench.models import (
     ModelExecution,
 )
 from bench.models.artifact import ArtifactView
-from bench.models.dataset import DatasetMetadata, DatasetVersion, DatasetViewData
+from bench.models.dataset import DatasetVersion, DatasetViewData
 from bench.models.execution import (
     DEFAULT_CONNECTION_NAME,
     FLOW_EXECUTION_TYPE,
@@ -214,26 +214,32 @@ class FlowExecutionManifest:
     execution_connections: Mapping[UUID, ExecutionArtifactConnection]  # by execution id
 
 
-def _convert_arguments_to_artifact_connections(
-    arguments: Mapping[UUID, Mapping[str, FlowRawArgument]],
-    argument_id_func: Callable[[UUID, str], str],
+def _convert_parameters_to_artifact_connections(
+    flow: FlowVersion,
+    parameters: Mapping[UUID, Mapping[str, FlowRawArgument]],
     connection_type: ExecutionArtifactConnection.ConnectionType,
 ) -> Mapping[UUID, Mapping[str, ArtifactConnection]]:
-    converted_arguments: dict[UUID, Mapping[str, ArtifactConnection]] = {}
-    for node_id, node_arguments in arguments.items():
-        converted_node_arguments: dict[str, ArtifactConnection] = {}
-        for name, artifact in node_arguments.items():
-            node_argument_id = argument_id_func(node_id, name)
+    nodes: Mapping[UUID, FlowNode] = {node.id: node for node in flow.nodes.all()}
+    converted_parameters: dict[UUID, Mapping[str, ArtifactConnection]] = {}
+    for node_id, node_parameters in parameters.items():
+        converted_node_parameters: dict[str, ArtifactConnection] = {}
+        for name, artifact in node_parameters.items():
+            node_parameter_id = _port_id(
+                flow.flow.name, nodes[node_id].name, connection_type.value + "s", name
+            )
             view_inline = None
             if isinstance(artifact, RecordBatch):
-                artifact, view_slice = write_to_dataset(node_argument_id, "0", artifact)
-                artifact.set_tag(default_tag("source:inputs"))
+                dataset = Dataset.objects.get_or_create_dataset_version(
+                    node_parameter_id, flow.organization
+                )
+                view_slice = write_dataset(dataset, artifact)
+                dataset.set_tag(default_tag("source:inputs"))
                 view_inline = DatasetViewData.from_slice(view_slice).asdict
             elif not isinstance(artifact, ArtifactVersion):
                 raise ValueError(
-                    f"node argument {node_argument_id} has unexpected type: {artifact}"
+                    f"node parameter {node_parameter_id} has unexpected type: {artifact}"
                 )
-            converted_node_arguments[name] = ArtifactConnection(
+            converted_node_parameters[name] = ArtifactConnection(
                 type=connection_type,
                 name=name,
                 edge=None,
@@ -245,8 +251,8 @@ def _convert_arguments_to_artifact_connections(
                 "execute_converted_partial", type=connection_type, artifact=artifact, name=name
             )
 
-        converted_arguments[node_id] = converted_node_arguments
-    return converted_arguments
+        converted_parameters[node_id] = converted_node_parameters
+    return converted_parameters
 
 
 def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
@@ -264,7 +270,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
             else:
                 output_id = f"{flow.flow.name}.{node.name}.outputs.{output_name}"
             output_dataset = Dataset.objects.get_or_create_dataset_version(
-                name=output_id, version="0", metadata=DatasetMetadata.default_db()
+                name=output_id, version="0", organization=flow.organization
             )
             output_dataset.set_tag(default_tag("source:outputs"))
             final_outputs[node.id][output_name] = ArtifactConnection(
@@ -277,7 +283,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
 
 
 def _make_node_connections(
-    flow_name: str,
+    flow: FlowVersion,
     nodes: Iterable[FlowNode],
     captured_connection_types: list[FlowNodeEdge.ConnectionType],
     captured_edges: list[UUID],
@@ -289,10 +295,10 @@ def _make_node_connections(
         for edge in node_dependencies:
             if edge.connection_type in captured_connection_types or edge.id in captured_edges:
                 output_id = _port_id(
-                    flow_name, edge.dependency.name, "outputs", edge.connection_name_dependency
+                    flow.flow.name, edge.dependency.name, "outputs", edge.connection_name_dependency
                 )
                 output_dataset = Dataset.objects.get_or_create_dataset_version(
-                    name=output_id, version="0", metadata=DatasetMetadata.default_db()
+                    name=output_id, version="0", organization=flow.organization
                 )
                 output_dataset.set_tag(default_tag("source:outputs"))
                 connection = FlowNodeConnection(
@@ -352,15 +358,11 @@ def make_execution_plan(
     nodes: Mapping[UUID, FlowNode] = {node.id: node for node in flow.nodes.all()}
 
     # convert given inputs/arguments to persisted artifacts as needed
-    extra_inputs = _convert_arguments_to_artifact_connections(
-        inputs,
-        lambda nid, name: _port_id(flow.flow.name, nodes[nid].name, "inputs", name),
-        connection_type=ExecutionArtifactConnection.ConnectionType.Input,
+    extra_inputs = _convert_parameters_to_artifact_connections(
+        flow, inputs, ExecutionArtifactConnection.ConnectionType.Input
     )
-    extra_arguments = _convert_arguments_to_artifact_connections(
-        arguments,
-        lambda nid, name: _port_id(flow.flow.name, nodes[nid].name, "arguments", name),
-        connection_type=ExecutionArtifactConnection.ConnectionType.Argument,
+    extra_arguments = _convert_parameters_to_artifact_connections(
+        flow, arguments, ExecutionArtifactConnection.ConnectionType.Argument
     )
     logger.debug("execute_converted")
 
@@ -371,7 +373,7 @@ def make_execution_plan(
 
     # define node<->node connections (with corresponding artifacts as needed)
     node_inputs, node_arguments = _make_node_connections(
-        flow_name=flow.flow.name,
+        flow=flow,
         nodes=nodes.values(),
         captured_connection_types=options.captured_connection_types,
         captured_edges=options.captured_edges,

@@ -5,7 +5,7 @@ from rest_framework.pagination import LimitOffsetPagination
 
 from bench.api.artifact import ArtifactViewSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
-from bench.dataset.accessor import get_dataset_version_reader
+from bench.dataset.accessor import DatasetAccessor
 from bench.models import DatasetVersion, Execution, Organization, Project
 from bench.models.dataset import DatasetViewData
 from bench.models.execution import ExecutionArtifactConnection
@@ -27,11 +27,11 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
         # TODO @Performance: enable configuring execution connection records preview via api
         offset = 0
         limit = 3
-        reader = get_dataset_version_reader(dataset)
+        accessor = DatasetAccessor(dataset)
         start = view.apply(offset)
         end = view.apply(offset + limit)
-        records = list(reader[start:end])
-        count = view.apply(len(reader)) - view.apply(0)
+        records = list(accessor.get_records_slice(start, end))
+        count = view.apply(accessor.rlist) - view.apply(0)
         return {
             "limit": limit,
             "count": count,

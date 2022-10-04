@@ -32,13 +32,8 @@ class Artifact(VersionedRepository, TaggableMixin, UUIDModel):
     organization: models.ForeignKey = models.ForeignKey(
         "bench.Organization", on_delete=models.CASCADE, related_name="artifacts"
     )
-    controller = models.ForeignKey("Controller", on_delete=models.SET_NULL, blank=True, null=True)
 
     objects = ArtifactManager()
-
-    @property
-    def owned(self):
-        return self.controller is None
 
     def __str__(self):
         return f"{self.type}:{self.name}"
@@ -77,8 +72,8 @@ class ArtifactVersion(VersionedCommit, TaggableMixin, UUIDModel):
     parents = models.ManyToManyField("ArtifactVersion", symmetrical=False)
 
     # snapshot data (may move into separate ArtifactSnapshot table/tree object at some point)
-    record_tree_root = models.ForeignKey(
-        "DbRecordTree", on_delete=models.RESTRICT, blank=True, null=True
+    record_list = models.ForeignKey(
+        "DbRecordList", on_delete=models.RESTRICT, blank=True, null=True
     )
     storage_uri = models.CharField(max_length=512, blank=True, null=True)
     metadata = models.JSONField()

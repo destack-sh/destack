@@ -6,7 +6,7 @@ from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
 from .model import Model, ModelVersion
 from .organization import Organization
 from .project import Project
-from .record import DbRecord, DbRecordTree, DbRecordTreeReference
+from .record import DbRecord, DbRecordList, DbRecordListReference
 from .tag import (
     TAG_TYPE_ALIAS,
     TAG_TYPE_BRANCH,
@@ -24,8 +24,8 @@ __all__ = [
     "Artifact",
     "ArtifactVersion",
     "DbRecord",
-    "DbRecordTree",
-    "DbRecordTreeReference",
+    "DbRecordList",
+    "DbRecordListReference",
     "Dataset",
     "DatasetVersion",
     "Model",
