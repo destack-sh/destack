@@ -1,4 +1,4 @@
-from typing import Union, cast
+from typing import Union
 
 import pytest
 
@@ -6,7 +6,7 @@ from bench.dataset.accessor import read_dataset, write_dataset
 from bench.executor import LocalExecutor
 from bench.executor.base import FlowExecutionOptions, make_execution_plan
 from bench.model.base import UnbatchedModelHandler, models
-from bench.models import Dataset, DatasetVersion, Flow, FlowNode, FlowNodeEdge, Model, Organization
+from bench.models import Dataset, Flow, FlowNode, FlowNodeEdge, Model, Organization
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution
 from bench.models.model import ModelMetadata
 from bench.utils.record import Record, RecordBatch, RecordList
@@ -99,6 +99,7 @@ def test_local_execute_two_node_identity_flow(
     identity_node_2.depends_on_nodes.add(
         identity_node_1,
         through_defaults=dict(
+            flow=flow,
             connection_type=FlowNodeEdge.ConnectionType.Input,
             connection_name_dependency="*",
             connection_name_dependent="*",
@@ -114,7 +115,7 @@ def test_local_execute_two_node_identity_flow(
     assert execution.status == Execution.Status.Completed
     assert len(plan.final_outputs) == 1, "one node has final outputs"
     assert len(plan.final_outputs[identity_node_2.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, plan.final_outputs[identity_node_2.id]["*"]))
+    output_records = read_dataset(plan.final_outputs[identity_node_2.id]["*"].artifact)
     assert output_records == inputs[identity_node_1.id]["*"], "outputs match inputs"
 
 
@@ -127,11 +128,12 @@ def test_local_execute_two_node_augmented_flow(
         function_id="bench.identity", name="identity_1", config_arguments={}
     )
     augment_node_2: FlowNode = flow.nodes.create(
-        function_id="bench.text.upper_case", name="upper_case_2", config_arguments={}
+        function_id="bench.text.case.upper", name="upper_case_2", config_arguments={}
     )
     augment_node_2.depends_on_nodes.add(
         identity_node_1,
         through_defaults=dict(
+            flow=flow,
             connection_type=FlowNodeEdge.ConnectionType.Input,
             connection_name_dependency="*",
             connection_name_dependent="*",
@@ -147,7 +149,7 @@ def test_local_execute_two_node_augmented_flow(
     assert execution.status == Execution.Status.Completed
     assert len(plan.final_outputs) == 1, "one node has final outputs"
     assert len(plan.final_outputs[augment_node_2.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, plan.final_outputs[augment_node_2.id]["*"]))
+    output_records = read_dataset(plan.final_outputs[augment_node_2.id]["*"].artifact)
     assert output_records[0] == {"text": "TEST"}, "outputs match augmented inputs"
 
 
@@ -159,6 +161,7 @@ def test_local_execute_model_flow(local_executor: LocalExecutor, test_organizati
     )
     model = Model.objects.create_model_version(
         "spacy_en_core_web_sm",
+        test_organization,
         metadata=ModelMetadata(
             handler_id="bench.spacy.bundled", config_arguments={"model_name": "en_core_web_sm"}
         ),
@@ -179,7 +182,7 @@ def test_local_execute_model_flow(local_executor: LocalExecutor, test_organizati
 def test_local_execute_dataset_flow(local_executor: LocalExecutor, test_organization: Organization):
     flow = Flow.objects.create_flow_version_by_name("dataset", test_organization)
     swap_node_1: FlowNode = flow.nodes.create(
-        function_id="bench.text.swap", name="swap_1", config_arguments={}
+        function_id="bench.text.substitute", name="swap_1", config_arguments={}
     )
     dataset = Dataset.objects.create_dataset_version("badword_replacements", test_organization)
     write_dataset(
@@ -215,21 +218,23 @@ def test_local_execute_test_flow(local_executor: LocalExecutor, test_organizatio
         config_arguments={"prediction_key": "score", "reference_key": "score"},
     )
     test_node_3: FlowNode = flow.nodes.create(
-        function_id="bench.test.comparison_static",
+        function_id="bench.test.compare_constant",
         name="test_3",
-        config_arguments={"operator": "gte", "value": 0.5, "key": "accuracy"},
+        config_arguments={"operator": "Gte", "value": 0.5, "key": "accuracy"},
     )
     metric_node_2.depends_on_nodes.add(
         model_node_1,
         through_defaults=dict(
+            flow=flow,
             connection_type=FlowNodeEdge.ConnectionType.Input,
-            connection_name_dependent="*",
-            connection_name_dependency="predictions",
+            connection_name_dependent="predictions",
+            connection_name_dependency="*",
         ),
     )
     test_node_3.depends_on_nodes.add(
         metric_node_2,
         through_defaults=dict(
+            flow=flow,
             connection_type=FlowNodeEdge.ConnectionType.Input,
             connection_name_dependent="*",
             connection_name_dependency="*",
@@ -244,7 +249,7 @@ def test_local_execute_test_flow(local_executor: LocalExecutor, test_organizatio
             return {**record, "score": 1}
 
     model = Model.objects.create_model_version(
-        "stub_model", metadata=ModelMetadata(handler_id="test.stub")
+        "stub_model", test_organization, metadata=ModelMetadata(handler_id="test.stub")
     )
     execution, plan = local_executor.run_flow(
         flow,

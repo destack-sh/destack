@@ -51,7 +51,6 @@ class DatasetAccessor:
     def __init__(self, dataset: DatasetVersion):
         if dataset.handler_id != "bench.db":
             raise ValueError("primary dataset accessor only works with our datasets")
-
         self.dataset = dataset
 
     @property
@@ -59,10 +58,14 @@ class DatasetAccessor:
         # auto-create record tree list if we don't have one yet
         # TODO @Cleanup: move/guard record tree creation on write access?
         if self.dataset.record_list is None:
-            new_list = DbRecordList()
-            new_list.save()
-            self.dataset.record_list = new_list
-            self.dataset.save()
+            # ensure record_list is loaded from the DB to avoid creating duplicates
+            self.dataset.refresh_from_db()
+        with transaction.atomic():
+            if self.dataset.record_list is None:
+                new_list = DbRecordList()
+                new_list.save()
+                self.dataset.record_list = new_list
+                self.dataset.save()
         return self.dataset.record_list
 
     def search_records(
