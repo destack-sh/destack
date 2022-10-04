@@ -1,10 +1,15 @@
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import cachetools
 from django.db import models
 from django.db.models import Q
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+
+if TYPE_CHECKING:
+    from bench.models import Organization
+else:
+    Organization = object
 
 
 class TagManager(models.Manager):
@@ -25,7 +30,7 @@ class Tag(UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    metadata = models.JSONField(default=dict)
+    metadata = models.JSONField(default=dict, null=True)
 
     organization: models.ForeignKey = models.ForeignKey(
         "bench.Organization", on_delete=models.CASCADE, related_name="tags"
@@ -177,9 +182,13 @@ TAG_TYPE_CAPABILITY = "capability"
 TAG_TYPE_SOURCE = "source"
 
 
-def _make_tag(name: str, description: str, metadata: Optional[dict]) -> Tag:
+def _make_tag(
+    name: str, organization: Organization, description: str, metadata: Optional[dict]
+) -> Tag:
     tag, _ = Tag.objects.get_or_create(
-        name=name, defaults=dict(description=description, metadata=metadata)
+        organization=organization,
+        name=name,
+        defaults=dict(description=description, metadata=metadata),
     )
     return tag
 
@@ -190,10 +199,10 @@ _DEFAULT_TAG_PROPERTIES = {
 }
 
 
-@cachetools.cached
-def default_tag(name: str) -> Tag:
+@cachetools.cached(cache={})
+def default_tag(name: str, organization: Organization) -> Tag:
     if name not in _DEFAULT_TAG_PROPERTIES:
         raise ValueError(f"unknown default tag: {name}")
 
     description, metadata = _DEFAULT_TAG_PROPERTIES[name]
-    return _make_tag(name, description, metadata)
+    return _make_tag(name, organization, description, metadata)

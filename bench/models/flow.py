@@ -25,7 +25,7 @@ class FlowManager(models.Manager):
     def create_flow_version_by_name(self, name: str, organization: Organization) -> FlowVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
-            flow, _ = Flow.objects.get_or_create(name=name)
+            flow, _ = Flow.objects.get_or_create(name=name, organization=organization)
             flow_version = FlowVersion.objects.create(flow=flow)
         return flow_version
 
@@ -188,7 +188,7 @@ class FlowNode(UUIDModel, VersionedBlob):
     def _to_content_object(self) -> dict:
         node_argument_edges = [
             edge
-            for edge in self.node_edges_as_dependent
+            for edge in self.node_edges_as_dependent.all()
             if edge.type == FlowNodeEdge.ConnectionType.Argument
         ]
         if node_argument_edges:

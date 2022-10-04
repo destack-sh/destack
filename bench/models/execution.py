@@ -86,7 +86,7 @@ class Execution(UUIDModel):
         "bench.Organization", on_delete=models.CASCADE, related_name="executions+"
     )
     project: models.ForeignKey = models.ForeignKey(
-        "bench.Project", on_delete=models.CASCADE, related_name="executions+"
+        "bench.Project", on_delete=models.CASCADE, null=True, related_name="executions+"
     )
 
     objects = ExecutionManager()

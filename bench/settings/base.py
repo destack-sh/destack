@@ -8,6 +8,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
 TEST: bool = (
     "test" in sys.argv
-    or sys.argv[0].endswith("pytest")
+    or "pytest" in sys.argv[0]
     or get_from_env("TEST", False, type_cast=str_to_bool)
 )
