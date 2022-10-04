@@ -197,7 +197,7 @@ class LocalExecutor(Executor):
                 f"{model.artifact.name}.inputs", model.organization
             )
             view = write_dataset(input_dataset, record)
-            input_dataset.set_tag(default_tag("source:inputs"))
+            input_dataset.set_tag(default_tag("source:inputs", model.organization))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Input,
                 connection_name=DEFAULT_CONNECTION_NAME,
@@ -219,7 +219,7 @@ class LocalExecutor(Executor):
                 f"{model.artifact.name}.outputs", model.organization
             )
             view = write_dataset(output_dataset, output)
-            output_dataset.set_tag(default_tag("source:outputs"))
+            output_dataset.set_tag(default_tag("source:outputs", model.organization))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
                 connection_name=DEFAULT_CONNECTION_NAME,
@@ -336,13 +336,13 @@ class LocalExecutor(Executor):
                 visited_node_ids.add(node_id)
 
                 # actually run node
-                function_hash = plan.nodes[node_id].content_hash
+                function_hash = plan.nodes[node_id].content_hash.hex()
                 if isinstance(function, RecordTransform):
                     # assume record transforms have only one default connection in and out
                     input_batch = input_batches[DEFAULT_CONNECTION_NAME]
 
                     # get cached outputs with the same input + function hash
-                    input_hashes = [DbRecord.hash_content(r.data) for r in input_batch]
+                    input_hashes = [DbRecord.hash_content_hex(r.data) for r in input_batch]
                     cached_outputs = DbRecord.objects.filter(
                         metadata__source__function_hash=function_hash,
                         metadata__source__input_hash__in=input_hashes,
@@ -361,7 +361,10 @@ class LocalExecutor(Executor):
                     ]
                     computed_outputs = function.transform_batch(RecordList(missing_inputs))
                     # assumes consistent input -> output stride
-                    output_stride = len(computed_outputs) / len(missing_inputs)
+                    if input_batch:
+                        output_stride = len(computed_outputs) // len(missing_inputs)
+                    else:
+                        output_stride = 1
 
                     # re-assemble output batch from cached + computed
                     output_batch: list[DatasetRecord] = []

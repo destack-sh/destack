@@ -223,32 +223,32 @@ def _convert_parameters_to_artifact_connections(
     converted_parameters: dict[UUID, Mapping[str, ArtifactConnection]] = {}
     for node_id, node_parameters in parameters.items():
         converted_node_parameters: dict[str, ArtifactConnection] = {}
-        for name, artifact in node_parameters.items():
+        for name, parameter in node_parameters.items():
             node_parameter_id = _port_id(
                 flow.flow.name, nodes[node_id].name, connection_type.value + "s", name
             )
             view_inline = None
-            if isinstance(artifact, RecordBatch):
-                dataset = Dataset.objects.get_or_create_dataset_version(
+            if isinstance(parameter, RecordBatch):
+                artifact = Dataset.objects.get_or_create_dataset_version(
                     node_parameter_id, flow.organization
                 )
-                view_slice = write_dataset(dataset, artifact)
-                dataset.set_tag(default_tag("source:inputs"))
+                artifact.set_tag(default_tag("source:inputs", flow.organization))
+                view_slice = write_dataset(artifact, parameter)
                 view_inline = DatasetViewData.from_slice(view_slice).asdict
-            elif not isinstance(artifact, ArtifactVersion):
-                raise ValueError(
-                    f"node parameter {node_parameter_id} has unexpected type: {artifact}"
+                connection = ArtifactConnection(
+                    type=connection_type, name=name, artifact=artifact, view_inline=view_inline
                 )
-            converted_node_parameters[name] = ArtifactConnection(
-                type=connection_type,
-                name=name,
-                edge=None,
-                artifact=artifact,
-                view=None,
-                view_inline=view_inline,
-            )
+            elif isinstance(parameter, ArtifactVersion):
+                connection = ArtifactConnection(
+                    type=connection_type, name=name, artifact=parameter, view_inline=view_inline
+                )
+            else:
+                raise ValueError(
+                    f"node parameter {node_parameter_id} has unexpected type: {parameter}"
+                )
+            converted_node_parameters[name] = connection
             logger.debug(
-                "execute_converted_partial", type=connection_type, artifact=artifact, name=name
+                "execute_converted_partial", type=connection_type, artifact=parameter, name=name
             )
 
         converted_parameters[node_id] = converted_node_parameters
@@ -272,7 +272,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
             output_dataset = Dataset.objects.get_or_create_dataset_version(
                 name=output_id, version="0", organization=flow.organization
             )
-            output_dataset.set_tag(default_tag("source:outputs"))
+            output_dataset.set_tag(default_tag("source:outputs", flow.organization))
             final_outputs[node.id][output_name] = ArtifactConnection(
                 type=ExecutionArtifactConnection.ConnectionType.Output,
                 name=output_id,
@@ -300,7 +300,7 @@ def _make_node_connections(
                 output_dataset = Dataset.objects.get_or_create_dataset_version(
                     name=output_id, version="0", organization=flow.organization
                 )
-                output_dataset.set_tag(default_tag("source:outputs"))
+                output_dataset.set_tag(default_tag("source:outputs", flow.organization))
                 connection = FlowNodeConnection(
                     edge=edge,
                     intermediate_artifact=output_dataset,

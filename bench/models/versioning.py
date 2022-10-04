@@ -17,17 +17,24 @@ We deviate from Git in that:
 """
 import hashlib
 import json
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from django.db import models
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
+
+if TYPE_CHECKING:
+    from bench.models import Tag
+else:
+    Tag = object
 
 
 class VersionedRepository(models.Model):
     """
     A versioned repository containing versioned objects, similar to Git.
     """
+
+    versions: Any
 
     class Meta:
         abstract = True
@@ -45,12 +52,14 @@ class VersionedObject(models.Model):
 
     @staticmethod
     def hash_content(content: dict) -> bytes:
-        # TODO @Robustness @Performance: hash object content in Postgres directly?
-        #  See https://www.postgresql.org/docs/14/functions-binarystring.html
-        #  and https://docs.djangoproject.com/en/4.0/ref/models/database-functions/#sha1-sha224-sha256-sha384-and-sha512
         serialized_content = json.dumps(content, sort_keys=True)
         content_hash = hashlib.sha3_256(serialized_content.encode()).digest()
         return content_hash
+
+    @staticmethod
+    def hash_content_hex(content: dict) -> str:
+        content_hash = VersionedObject.hash_content(content)
+        return content_hash.hex()
 
     @property
     def is_committed(self) -> bool:
@@ -103,9 +112,9 @@ class VersionedCommit(VersionedObject):
 
 
 # TODO @Feature: implement proper versioning
-def get_head(repository: VersionedRepository) -> Optional:
+def get_head(repository: VersionedRepository) -> Optional[Any]:
     return repository.versions.all().order_by("-created_at").first()
 
 
-def get_branches_tags(repository: VersionedRepository) -> Optional:
+def get_branches_tags(repository: VersionedRepository) -> Optional[Tag]:
     return []

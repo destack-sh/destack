@@ -1,10 +1,13 @@
 import os
 
 import dj_database_url
+import structlog
 from django.core.exceptions import ImproperlyConfigured
 
 from bench.settings import get_from_env
-from bench.settings.base import DEBUG, TEST
+from bench.settings.base import BASE_DIR, DEBUG, TEST
+
+logger = structlog.stdlib.get_logger()
 
 # Django Database settings
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -62,6 +65,14 @@ elif os.getenv("BENCH_DB_NAME"):
         DATABASES["default"]["NAME"],
         ssl_configuration,
     )
+elif TEST:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
+    }
+    logger.warning("incompatible_database", databases=DATABASES, reason="test_fallback")
 else:
     raise ImproperlyConfigured(
         "A Postgres-compatible database must be configured via 'DATABASE_URL' or 'BENCH_DB_NAME'"

@@ -50,7 +50,7 @@ def local_executor() -> LocalExecutor:
 
 @pytest.fixture()
 def test_organization() -> Organization:
-    return Organization(name="test")
+    return Organization.objects.create(name="test")
 
 
 @pytest.mark.django_db
@@ -81,7 +81,7 @@ def test_local_execute_one_node_identity_flow(
     assert execution.status == Execution.Status.Completed
     assert len(plan.final_outputs) == 1, "one node has final outputs"
     assert len(plan.final_outputs[identity_node.id]) == 1, "node has one output key"
-    output_records = read_dataset(cast(DatasetVersion, plan.final_outputs[identity_node.id]["*"]))
+    output_records = read_dataset(plan.final_outputs[identity_node.id]["*"].artifact)
     assert output_records == inputs[identity_node.id]["*"], "outputs match inputs"
 
 

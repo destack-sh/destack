@@ -47,12 +47,19 @@ class DatasetManager(ArtifactManager):
         dataset, _ = Dataset.objects.get_or_create(
             type=DATASET_TYPE, organization=organization, name=name
         )
-        dataset_version, _ = DatasetVersion.objects.select_related("record_list").get_or_create(
-            artifact__name=name,
-            organization=organization,
-            version=version,
-            defaults={"metadata": metadata.to_dict()},
-        )
+        dv = DatasetVersion.objects.select_related("record_list")
+        if version is not None:
+            dataset_version, _ = dv.get_or_create(
+                artifact=dataset,
+                version=version,
+                defaults={"metadata": metadata.to_dict()},
+            )
+        else:
+            dataset_version, _ = dv.get_or_create(
+                artifact=dataset,
+                defaults={"metadata": metadata.to_dict()},
+            )
+
         return dataset_version
 
 
