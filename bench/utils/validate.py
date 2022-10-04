@@ -12,7 +12,7 @@ from bench.utils.spec import (
 
 
 def validate_record_batch_type(
-    records: RecordBatch,
+    records: Union[RecordBatch, list[Record]],
     record_type: Union[FieldTypeSpec, FieldTypePrimitive],
     ignore_extraneous: bool,
     lazy: bool,
@@ -79,8 +79,7 @@ def validate_config_type(
 ):
     for key, value in arguments.items():
         # value_type is not actually guaranteed to be this type but unknown types are just ignored
-        value_type = cast(Union[FieldTypeSpec, FieldTypePrimitive], config_type[key])
-        _validate_rec([key], value, value_type)
+        _validate_rec([key], value, config_type[key])
 
 
 def _walk_rec(
@@ -120,6 +119,4 @@ def cast_config_arguments(arguments: dict[str, Any], config_type: ConfigTypeSpec
             return value
 
     # config_type is not actually guaranteed to be this type but unknown types are just ignored
-    return _walk_rec(
-        [], arguments, cast(Union[FieldTypeSpec, FieldTypePrimitive], config_type), cast_argument
-    )
+    return _walk_rec([], arguments, config_type, cast_argument)

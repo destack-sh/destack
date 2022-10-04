@@ -9,12 +9,12 @@ from fsspec import AbstractFileSystem
 
 import bench.models.record as db_record
 from bench.dataset.base import DatasetHandler, DatasetReader, DatasetWriter, load_dataset
-from bench.models import ArtifactVersion, Dataset, DatasetVersion
-from bench.models.dataset import DatasetMetadata, DatasetMetadataSerializer, DatasetViewData
-from bench.models.record import DbRecord, DbRecordTree, DbRecordTreeReference
+from bench.models import DatasetVersion
+from bench.models.dataset import DatasetMetadataSerializer, DatasetViewData
+from bench.models.record import DbRecord, DbRecordList
 from bench.models.utils import proxies
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import BLANK_RECORD_SPEC, FieldValue, RecordSpec, is_blank_spec
+from bench.utils.spec import FieldValue, RecordSpec, is_blank_spec
 
 logger = structlog.stdlib.get_logger()
 
@@ -55,15 +55,15 @@ class DatasetAccessor:
         self.dataset = dataset
 
     @property
-    def root(self) -> DbRecordTree:
-        # auto-create record tree root if we don't have one yet
+    def rlist(self) -> DbRecordList:
+        # auto-create record tree list if we don't have one yet
         # TODO @Cleanup: move/guard record tree creation on write access?
-        if self.dataset.record_tree_root is None:
-            new_root = DbRecordTree()
-            new_root.save()
-            self.dataset.record_tree_root = new_root
+        if self.dataset.record_list is None:
+            new_list = DbRecordList()
+            new_list.save()
+            self.dataset.record_list = new_list
             self.dataset.save()
-        return self.dataset.record_tree_root
+        return self.dataset.record_list
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -76,63 +76,71 @@ class DatasetAccessor:
             "    bench_dbrecord.id,"
             "    bench_dbrecord.data,"
             "    bench_dbrecord.metadata,"
-            "    bench_dbrecordtreereference.index as index"
+            "    bench_dbrecordlistreference.index as index"
             "    from bench_dbrecord"
             "\njoin"
-            "    bench_dbrecordtreereference"
-            "    on bench_dbrecordtreereference.record_id = bench_dbrecord.id"
+            "    bench_dbrecordlistreference"
+            "    on bench_dbrecordlistreference.record_id = bench_dbrecord.id"
             "\nwhere"
             "    to_tsvector('simple', data) @@ to_tsquery('simple', %s)"
             # check that the record belongs to the current version
-            "    and bench_dbrecordtreereference.tree_id = %s"
+            "    and bench_dbrecordlistreference.tree_id = %s"
             "\nlimit %s"
             "\noffset %s"
         )
         db_records = DbRecord.objects.raw(
-            raw_search_sql, [search.text_like, self.dataset.record_tree_root_id, limit, offset]
+            raw_search_sql, [search.text_like, self.dataset.record_list_id, limit, offset]
         )
         return [DatasetRecord.from_db_record(record, index=record.index) for record in db_records]
 
     def get_record(self, index: int) -> AnyDatasetRecord:
-        return DatasetRecord.from_db_record(db_record.get_record(self.root, index), index)
+        return DatasetRecord.from_db_record(db_record.get_record(self.rlist, index), index)
 
-    def get_records_slice(
-        self, start: int, stop: Optional[int] = None
-    ) -> Sequence[AnyDatasetRecord]:
+    def get_records_view(self, view_data: Optional[DatasetViewData]) -> list[AnyDatasetRecord]:
+        if view_data is None:
+            return self.get_records_slice(0, len(self))
+        else:
+            # note that this only works with slice-based views
+            return self.get_records_slice(view_data.apply(0), view_data.apply(len(self)))
+
+    def get_records_slice(self, start: int, stop: Optional[int] = None) -> list[AnyDatasetRecord]:
         stop = stop if stop is not None else 0
-        db_records = db_record.get_records_slice(self.root, start, stop)
+        db_records = db_record.get_records_slice(self.rlist, start, stop)
         ds_records = []
         for i, record in enumerate(db_records):
             ds_records.append(DatasetRecord.from_db_record(record, start + i))
         return ds_records
 
     def get_records_data_field(self, key: str) -> list[FieldValue]:
-        return db_record.get_records_field(self.root, key)
+        return db_record.get_records_field(self.rlist, key)
 
     def __iter__(self) -> Iterator[AnyDatasetRecord]:
-        for record in db_record.iter_record_tree(self.root):
+        for record in db_record.iter_record_list(self.rlist):
             yield record
 
     def append(self, record: DatasetRecord) -> int:
         return db_record.append_record(
-            self.root, DbRecord.objects.create(data=record.data, metadata=record.metadata)
+            self.rlist, DbRecord.objects.create(data=record.data, metadata=record.metadata)
         )
 
     def extend(self, records: Iterable[DatasetRecord]) -> tuple[int, int]:
         db_records = [DbRecord(data=record.data, metadata=record.metadata) for record in records]
         DbRecord.objects.bulk_create(db_records)
-        return db_record.append_records(self.root, db_records)
+        return db_record.append_records(self.rlist, db_records)
 
     def update(self, index: int, record: DatasetRecord):
         # Note that this always creates a new record even if we just want to change some metadata.
         # We might want another endpoint to just update metadata in-place (for realz) later.
-        db_record.update_record(self.root, index, data=record.data, metadata=record.metadata)
+        db_record.update_record(self.rlist, index, data=record.data, metadata=record.metadata)
 
     def delete(self, index: int):
-        db_record.delete_record(self.root, index)
+        db_record.delete_record(self.rlist, index)
+
+    def clear(self):
+        db_record.clear_record_list(self.rlist)
 
     def __len__(self) -> int:
-        return self.root.max_index + 1
+        return self.rlist.max_index + 1
 
     @staticmethod
     def checkout_from_parents(dataset: DatasetVersion):
@@ -151,16 +159,11 @@ class DatasetAccessor:
         return DatasetAccessor(dataset)
 
     def commit(self):
-        has_subtrees = (
-            DbRecordTreeReference.objects.filter(tree=self.root).exclude(subtree=None).exists()
-        )
-        if has_subtrees:
-            raise NotImplementedError("committing trees with subtrees is not supported yet")
         if self.dataset.committed:
             raise ValueError(f"cannot commit dataset, already committed: {self.dataset}")
 
-        self.root.committed = True
-        self.root.save()
+        self.rlist.committed = True
+        self.rlist.save()
         self.dataset.committed = True
         self.dataset.save()
 
@@ -168,21 +171,21 @@ class DatasetAccessor:
         new_dataset: DatasetVersion = DatasetVersion.objects.filter(
             artifact_id=self.dataset.artifact.id, version=version
         ).get()
-        if new_dataset.record_tree_root is not None:
-            raise RuntimeError(f"new dataset {new_dataset} already has record root")
+        if new_dataset.record_list is not None:
+            raise RuntimeError(f"new dataset {new_dataset} already has record list")
 
-        # create new tree root for new dataset
-        new_root = DbRecordTree.objects.create(committed=False)
-        new_dataset.record_tree_root = new_root
+        # create new record list for new dataset
+        new_list = DbRecordList.objects.create(committed=False)
+        new_dataset.record_list = new_list
         new_dataset.save()
 
-        # copy root tree references for new tree
+        # copy record list references into new tree
         with connection.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO bench_recordtreereference (tree_id, [index], record_id, subtree_id)"
-                " SELECT %s, [index], record_id, subtree_id"
-                " FROM bench_recordtreereference WHERE tree_id = %s",
-                params=[str(new_root.id), str(new_root.id)],
+                "INSERT INTO bench_recordlistreference (tree_id, [index], record_id)"
+                " SELECT %s, [index], record_id"
+                " FROM bench_recordlistreference WHERE tree_id = %s",
+                params=[str(new_list.id), str(new_list.id)],
             )
 
 
@@ -239,14 +242,16 @@ def get_dataset_version_writer(version: DatasetVersion) -> DatasetWriter:
     return dataset
 
 
-def records_to_batch(records: Union[Record, RecordBatch]) -> RecordBatch:
+def records_to_batch(records: Union[Record, list[Record], RecordBatch]) -> RecordBatch:
     if isinstance(records, RecordBatch):
         return records
+    elif isinstance(records, list):
+        return RecordList(records)
     else:
         return RecordList([records])
 
 
-def read_dataset_version(
+def read_dataset(
     version: DatasetVersion, view_data: Optional[DatasetViewData] = None
 ) -> RecordBatch:
     reader = get_dataset_version_reader(version)
@@ -267,33 +272,12 @@ def update_dataset_spec(
         dataset.save()
 
 
-def write_to_dataset(
-    name: str,
-    version: str,
-    records: Union[Record, RecordBatch],
-    record_spec: Optional[RecordSpec] = None,
-    append=True,
-) -> tuple[ArtifactVersion, tuple[int, int]]:
-    dataset = Dataset.objects.get_or_create_dataset_version(
-        name,
-        version,
-        metadata=DatasetMetadata(
-            handler_id="bench.db", record_spec=record_spec or BLANK_RECORD_SPEC
-        ),
-    )
-    update_dataset_spec(dataset, record_spec)
-    view_slice = write_to_dataset_version(dataset, records, append=append)
-    return dataset, view_slice
-
-
-def write_to_dataset_version(
+def write_dataset(
     version: DatasetVersion,
-    records: Union[Record, RecordBatch],
-    record_spec: Optional[RecordSpec] = None,
+    records: Union[Record, list[Record], RecordBatch],
     append: bool = True,
 ) -> tuple[int, int]:
     writer = get_dataset_version_writer(version)
-    update_dataset_spec(version, record_spec)
     if not append:
         writer.clear()
     batch = records_to_batch(records)

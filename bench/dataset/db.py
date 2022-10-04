@@ -5,7 +5,6 @@ from uuid import UUID
 from bench.dataset.accessor import DatasetAccessor, DatasetRecord
 from bench.dataset.base import DatasetHandlerMetadata, DatasetReader, DatasetWriter, datasets
 from bench.models import DatasetVersion
-from bench.models.record import clear_record_tree, delete_record
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import DatasetType, FieldValue, RecordSpec
 
@@ -47,10 +46,10 @@ class DbDataset(DatasetReader, DatasetWriter):
         self.db_update(index, DatasetRecord.make(record))
 
     def delete(self, index: int):
-        delete_record(self.root, index)
+        self._ds_accessor.delete(index)
 
     def clear(self):
-        clear_record_tree(self.root)
+        self._ds_accessor.clear()
 
     @typing.overload
     def __getitem__(self, index: int) -> Record:

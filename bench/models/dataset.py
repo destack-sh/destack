@@ -23,9 +23,11 @@ class DatasetManager(ArtifactManager):
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
     def create_dataset_version(
-        self, name: str, organization: Organization, metadata: DatasetMetadata
+        self, name: str, organization: Organization, metadata: Optional[DatasetMetadata] = None
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
+        if metadata is None:
+            metadata = DatasetMetadata.default_db()
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(
                 type=DATASET_TYPE, organization=organization, name=name
@@ -33,15 +35,19 @@ class DatasetManager(ArtifactManager):
             return DatasetVersion.objects.create(artifact=dataset, metadata=metadata.to_dict())
 
     def get_or_create_dataset_version(
-        self, name: str, version: str, organization: Organization, metadata: DatasetMetadata
+        self,
+        name: str,
+        organization: Organization,
+        version: Optional[str] = None,
+        metadata: Optional[DatasetMetadata] = None,
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
+        if metadata is None:
+            metadata = DatasetMetadata.default_db()
         dataset, _ = Dataset.objects.get_or_create(
             type=DATASET_TYPE, organization=organization, name=name
         )
-        dataset_version, _ = DatasetVersion.objects.select_related(
-            "record_tree_root"
-        ).get_or_create(
+        dataset_version, _ = DatasetVersion.objects.select_related("record_list").get_or_create(
             artifact__name=name,
             organization=organization,
             version=version,

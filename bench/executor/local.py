@@ -16,11 +16,12 @@ from more_itertools import flatten
 
 from bench.artifact.base import ArtifactHandler
 from bench.dataset.accessor import (
+    AnyDatasetRecord,
+    DatasetAccessor,
+    DatasetRecord,
     get_dataset_version_handler,
-    read_dataset_version,
     update_dataset_spec,
-    write_to_dataset,
-    write_to_dataset_version,
+    write_dataset,
 )
 from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
@@ -42,8 +43,8 @@ from bench.executor.utils import get_model_iid
 from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
 from bench.model.accessor import get_model_version_handler
 from bench.model.base import ModelHandler
-from bench.models import ArtifactVersion, DatasetVersion, FlowExecution, ModelExecution
-from bench.models.dataset import DatasetViewData
+from bench.models import ArtifactVersion, DatasetVersion, DbRecord, FlowExecution, ModelExecution
+from bench.models.dataset import Dataset, DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
 from bench.models.flow import FlowVersion
 from bench.models.model import ModelVersion
@@ -192,7 +193,10 @@ class LocalExecutor(Executor):
 
         with execution.capture(start=False):
             # record inputs
-            input_dataset, view = write_to_dataset(f"{model.artifact.name}.inputs", "0", record)
+            input_dataset = Dataset.objects.get_or_create_dataset_version(
+                f"{model.artifact.name}.inputs", model.organization
+            )
+            view = write_dataset(input_dataset, record)
             input_dataset.set_tag(default_tag("source:inputs"))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Input,
@@ -211,8 +215,11 @@ class LocalExecutor(Executor):
                 output = model_handler.run(record)
 
             # record outputs
-            output_dataset, view = write_to_dataset(f"{model.artifact.name}.outputs", "0", output)
-            output_dataset.set_tag(default_tag("source:inputs"))
+            output_dataset = Dataset.objects.get_or_create_dataset_version(
+                f"{model.artifact.name}.outputs", model.organization
+            )
+            view = write_dataset(output_dataset, output)
+            output_dataset.set_tag(default_tag("source:outputs"))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
                 connection_name=DEFAULT_CONNECTION_NAME,
@@ -262,30 +269,21 @@ class LocalExecutor(Executor):
         self._update_dynamic_connections(manifest, plan)
 
     def _run_execution_loop(self, functions: dict[UUID, RecordFunction], plan: FlowExecutionPlan):
-        # organise functions by type
-        record_transforms: dict[UUID, RecordTransform] = {}
-        metric_functions: dict[UUID, Metric] = {}
-        for node_id, function in functions.items():
-            if isinstance(function, RecordTransform):
-                record_transforms[node_id] = function
-            elif isinstance(function, Metric):
-                metric_functions[node_id] = function
-            else:
-                # TODO @Feature: support all function types
-                raise ValueError(f"function is not supported at {node_id}: {function}")
-
         # start actual execution
         # keep track of not yet processed data by input node in `pending_data`
-        pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
+        pending_data: dict[UUID, dict[str, list[AnyDatasetRecord]]] = defaultdict(dict)
         for node_id, named_inputs in plan.artifact_inputs.items():
             for input_key, artifact_connection in named_inputs.items():
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
                     dataset = cast(DatasetVersion, artifact_connection.artifact)
-                    pending_data[node_id][artifact_connection.name] = read_dataset_version(
-                        dataset, artifact_connection.view_data
+                    inputs = DatasetAccessor(dataset).get_records_view(
+                        artifact_connection.view_data
                     )
-                    input_spec = functions[node_id].input_spec[input_key]
+                    pending_data[node_id][artifact_connection.name] = inputs
+
+                    # update input spec given function it is assigned to (not great)
                     # TODO @Cleanup: dataset spec should not derive from input spec at execution time
+                    input_spec = functions[node_id].input_spec[input_key]
                     update_dataset_spec(dataset, input_spec)
                 else:
                     raise ValueError(f"non-dataset artifacts not supported: {artifact_connection}")
@@ -296,22 +294,28 @@ class LocalExecutor(Executor):
 
         def _validate_records(
             source_node_id: UUID,
-            records: RecordBatch,
+            records: list[DatasetRecord],
             spec_type: Union[FieldTypeSpec, FieldTypePrimitive],
         ):
             if not validate:
                 return
 
             try:
+                if validate_lazy and len(records) > 2:
+                    # we know that lazy validation only runs on first and last items
+                    records_data = [records[0].data, records[-1].data]
+                else:
+                    records_data = [r.data for r in records]
+
                 validate_record_batch_type(
-                    records, spec_type, ignore_extraneous=True, lazy=validate_lazy
+                    records_data, spec_type, ignore_extraneous=True, lazy=validate_lazy
                 )
             except ValueError as e:
                 raise RuntimeError(f"node {plan.nodes[source_node_id]} failed validation: {e}", e)
 
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
-        new_pending_data: dict[UUID, dict[str, RecordBatch]] = defaultdict(dict)
+        new_pending_data: dict[UUID, dict[str, list[DatasetRecord]]] = defaultdict(dict)
         max_iterations = len(plan.nodes) ** 2  # set arbitrarily high to catch loops
         iteration = 0
         while True:
@@ -332,17 +336,69 @@ class LocalExecutor(Executor):
                 visited_node_ids.add(node_id)
 
                 # actually run node
-                # TODO @Performance: cache (deterministic) flow node executions
-                # TODO @Performance: parallelize flow node per-record execution (within node?)
+                function_hash = plan.nodes[node_id].content_hash
                 if isinstance(function, RecordTransform):
                     # assume record transforms have only one default connection in and out
                     input_batch = input_batches[DEFAULT_CONNECTION_NAME]
-                    output_batch = record_transforms[node_id].transform_batch(input_batch)
+
+                    # get cached outputs with the same input + function hash
+                    input_hashes = [DbRecord.hash_content(r.data) for r in input_batch]
+                    cached_outputs = DbRecord.objects.filter(
+                        metadata__source__function_hash=function_hash,
+                        metadata__source__input_hash__in=input_hashes,
+                        metadata__source__cached=False,  # get original outputs only
+                    )
+                    cached_outputs_by_input_hashes = defaultdict(list)
+                    for output_db_record in cached_outputs:
+                        input_hash = output_db_record.metadata["source"]["input_hash"]
+                        cached_outputs_by_input_hashes[input_hash].append(output_db_record)
+
+                    # compute outputs for uncached inputs
+                    missing_inputs = [
+                        data
+                        for i, data in enumerate(input_batch)
+                        if input_hashes[i] not in cached_outputs_by_input_hashes
+                    ]
+                    computed_outputs = function.transform_batch(RecordList(missing_inputs))
+                    # assumes consistent input -> output stride
+                    output_stride = len(computed_outputs) / len(missing_inputs)
+
+                    # re-assemble output batch from cached + computed
+                    output_batch: list[DatasetRecord] = []
+                    for i, input_hash in enumerate(input_hashes):
+                        cached_outputs = cached_outputs_by_input_hashes.get(input_hash)
+                        if cached_outputs:
+                            # cache hit
+                            output_metadata = {
+                                "source": {
+                                    "input_hash": input_hash,
+                                    "function_hash": function_hash,
+                                    "cached": True,
+                                }
+                            }
+                            output_batch.extend(
+                                DatasetRecord.make(output, output_metadata)
+                                for output in cached_outputs
+                            )
+                        else:
+                            # cache miss, get from computed outputs
+                            output_metadata = {
+                                "source": {
+                                    "input_hash": input_hash,
+                                    "function_hash": function_hash,
+                                    "cached": False,
+                                }
+                            }
+                            outputs = computed_outputs[i * output_stride : (i + 1) * output_stride]
+                            output_batch.extend(
+                                DatasetRecord.make(output, output_metadata) for output in outputs
+                            )
+
                     output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
                 elif isinstance(function, Metric):
-                    # assume input batches contains all required inputs (for now)
-                    output_record = metric_functions[node_id].compute(**input_batches)
-                    output_batch = RecordList([output_record])
+                    # assume input batches contains all required inputs (as checked above)
+                    output_data = function.compute(**input_batches)
+                    output_batch = [DatasetRecord.make(output_data)]
                     output_batches = {DEFAULT_CONNECTION_NAME: output_batch}
                 else:
                     raise RuntimeError(f"unexpected function: {function}")
@@ -366,12 +422,11 @@ class LocalExecutor(Executor):
 
                     if node_connection.intermediate_artifact is not None:
                         output_spec = function.output_spec[node_connection.dependency_name]
-                        view = write_to_dataset_version(
-                            node_connection.intermediate_artifact,
-                            output_batch,
-                            record_spec=output_spec,
+                        update_dataset_spec(node_connection.intermediate_artifact, output_spec)
+                        write_view = DatasetAccessor(node_connection.intermediate_artifact).extend(
+                            output_batch
                         )
-                        node_connection.view_inline = DatasetViewData.from_slice(view).asdict
+                        node_connection.view_inline = DatasetViewData.from_slice(write_view).asdict
 
                 # write to final outputs (if any)
                 for artifact_connection in plan.final_outputs.get(node_id, {}).values():
@@ -381,12 +436,10 @@ class LocalExecutor(Executor):
                         )
 
                     output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
-                    view = write_to_dataset_version(
-                        cast(DatasetVersion, artifact_connection.artifact),
-                        output_batch,
-                        record_spec=output_spec,
-                    )
-                    artifact_connection.view_inline = DatasetViewData.from_slice(view).asdict
+                    dataset = cast(DatasetVersion, artifact_connection.artifact)
+                    update_dataset_spec(dataset, output_spec)
+                    write_view = DatasetAccessor(dataset).extend(output_batch)
+                    artifact_connection.view_inline = DatasetViewData.from_slice(write_view).asdict
 
             # clear already processed nodes from pending and stop if everything is processed
             if len(new_pending_data) == 0:
