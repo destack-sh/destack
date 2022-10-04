@@ -4,7 +4,7 @@ import copy
 import dataclasses
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from django.db import transaction
 from django.db.models import QuerySet
@@ -15,6 +15,11 @@ from bench.models.utils import MODEL_TYPE
 from bench.utils.serializer import FieldSpecSerializer
 from bench.utils.spec import ModelType, RecordSpec
 
+if TYPE_CHECKING:
+    from bench.models import Organization
+else:
+    Organization = object
+
 
 class ModelManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Model]:
@@ -23,19 +28,26 @@ class ModelManager(ArtifactManager):
     def create_model(
         self,
         name: str,
+        organization: Organization,
         description: Optional[str],
         metadata: ModelMetadata,
     ) -> Model:
         """Creates the given model with an initial version"""
-        model = Model(type=MODEL_TYPE, name=name, description=description)
+        model = Model(
+            type=MODEL_TYPE, name=name, organization=organization, description=description
+        )
         model.versions.create(metadata=metadata.to_dict())
         model.save()
         return model
 
-    def create_model_version(self, name: str, metadata: ModelMetadata) -> ModelVersion:
+    def create_model_version(
+        self, name: str, organization: Organization, metadata: ModelMetadata
+    ) -> ModelVersion:
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
-            model, _ = Model.objects.get_or_create(type=MODEL_TYPE, name=name)
+            model, _ = Model.objects.get_or_create(
+                type=MODEL_TYPE, name=name, organization=organization
+            )
             model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())
             model_version.save()
         return model_version

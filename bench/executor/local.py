@@ -355,8 +355,8 @@ class LocalExecutor(Executor):
 
                     # compute outputs for uncached inputs
                     missing_inputs = [
-                        data
-                        for i, data in enumerate(input_batch)
+                        record.data
+                        for i, record in enumerate(input_batch)
                         if input_hashes[i] not in cached_outputs_by_input_hashes
                     ]
                     computed_outputs = function.transform_batch(RecordList(missing_inputs))

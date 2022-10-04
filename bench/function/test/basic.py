@@ -50,24 +50,11 @@ class TestConstantComparison(SingleRecordTransform, Test):
         return {"result": result}
 
 
-@functions.register("bench.test.compare_constant_int")
+@functions.register("bench.test.compare_constant")
 class TestConstantComparisonInt(TestConstantComparison):
     metadata = FunctionMetadata(
         name="Compare constant int",
         description="Compare value to constant integer",
-        tags=["compare"],
-    )
-    input_spec = {"*": convert_to_record_spec(int)}
-
-    def __init__(self, operator: ComparisonOperator, value: int, key: Optional[str] = None):
-        super().__init__(operator, value, key)
-
-
-@functions.register("bench.test.compare_constant_float")
-class TestConstantComparisonFloat(TestConstantComparison):
-    metadata = FunctionMetadata(
-        name="Compare constant float",
-        description="Compare value to constant floating point number",
         tags=["compare"],
     )
     input_spec = {"*": convert_to_record_spec(float)}
