@@ -12,9 +12,19 @@ from bench.models.model import ModelMetadata
 from bench.utils.record import Record, RecordBatch, RecordList
 
 
+@pytest.fixture()
+def local_executor() -> LocalExecutor:
+    return LocalExecutor()
+
+
+@pytest.fixture()
+def test_organization() -> Organization:
+    return Organization.objects.create(name="test")
+
+
 @pytest.mark.django_db
-def test_plan_empty_flow():
-    flow = Flow.objects.create_flow_version_by_name("empty")
+def test_plan_empty_flow(test_organization: Organization):
+    flow = Flow.objects.create_flow_version_by_name("empty", test_organization)
     plan = make_execution_plan(
         flow, inputs={}, arguments={}, options=FlowExecutionOptions.default()
     )
@@ -27,8 +37,8 @@ def test_plan_empty_flow():
 
 
 @pytest.mark.django_db
-def test_plan_identity_flow():
-    flow = Flow.objects.create_flow_version_by_name("identity")
+def test_plan_identity_flow(test_organization: Organization):
+    flow = Flow.objects.create_flow_version_by_name("identity", test_organization)
     identity_node: FlowNode = flow.nodes.create(function_id="bench.identity", config_arguments={})
 
     plan = make_execution_plan(
@@ -41,16 +51,6 @@ def test_plan_identity_flow():
     assert plan.node_arguments == {}
     assert identity_node.id in plan.final_outputs
     assert DEFAULT_CONNECTION_NAME in plan.final_outputs[identity_node.id]
-
-
-@pytest.fixture()
-def local_executor() -> LocalExecutor:
-    return LocalExecutor()
-
-
-@pytest.fixture()
-def test_organization() -> Organization:
-    return Organization.objects.create(name="test")
 
 
 @pytest.mark.django_db

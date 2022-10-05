@@ -210,7 +210,7 @@ class FlowNode(UUIDModel, VersionedBlob):
             raise NotImplementedError("content object does not consider node arguments")
 
         connected_artifacts = {
-            (edge.connection_type, edge.connection_name): edge.artifact
+            (edge.connection_type, edge.connection_name): edge.dataset
             for edge in self.artifact_edges.all()
         }
         return FlowNode.to_content(
@@ -294,7 +294,7 @@ class FlowArtifactEdge(UUIDModel):
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="artifact_edges")
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64)
-    dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE)
+    dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="artifact_edges")
     dependency = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)
     view = models.ForeignKey("ArtifactView", on_delete=models.RESTRICT, null=True, blank=True)
     view_inline = models.JSONField(null=True, blank=True)

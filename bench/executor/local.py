@@ -53,7 +53,7 @@ from bench.models.tag import default_tag
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ArtifactType, FieldTypePrimitive, FieldTypeSpec
+from bench.utils.spec import ArtifactType, FieldTypePrimitive, FieldTypeSpec, RecordSpec
 from bench.utils.validate import validate_record_batch_type
 
 logger = structlog.stdlib.get_logger()
@@ -307,6 +307,13 @@ class LocalExecutor(Executor):
             except ValueError as e:
                 raise RuntimeError(f"node {plan.nodes[source_node_id]} failed validation: {e}", e)
 
+        def _validate_batches(
+            batches: dict[str, list[DatasetRecord]], specs: Mapping[str, RecordSpec]
+        ):
+            for name, batch in batches.items():
+                spec = specs[name]
+                _validate_records(node_id, batch, spec.type)
+
         # process all pending data until nothing is left
         visited_node_ids: set[UUID] = set()
         new_pending_data: dict[UUID, dict[str, list[DatasetRecord]]] = defaultdict(dict)
@@ -320,54 +327,46 @@ class LocalExecutor(Executor):
             logger.debug("local_execute", iteration=iteration, pending_data=pending_data, plan=plan)
             for node_id, input_batches in pending_data.items():
                 function = functions[node_id]
+
+                # wait until all inputs are provided, skip this node in the current iteration
+                # if inputs are never provided, we terminate via the catch at the top
                 missing_input_keys = function.input_spec.keys() - input_batches.keys()
                 if missing_input_keys:
-                    # wait until all inputs are provided, skip this node in the current iteration
                     new_pending_data[node_id].update(input_batches)
-                    # if inputs are never provided, terminate via the catch at the top
                     continue
 
+                # crudely break cycles by observing visited nodes
+                if node_id in visited_node_ids:
+                    raise RuntimeError(f"cycle in plan {plan} at {node_id}")
                 visited_node_ids.add(node_id)
 
+                _validate_batches(input_batches, function.input_spec)
                 output_batches = self._run_function(function, input_batches, node_id, plan)
+                _validate_batches(output_batches, function.output_spec)
 
-                # validate output against output spec
-                for connection_name, output_batch in output_batches.items():
-                    output_spec = function.output_spec[connection_name]
-                    _validate_records(node_id, output_batch, output_spec.type)
-
-                # write to next input nodes and intermediate output artifacts (if any)
+                # write to next nodes and intermediate datasets
                 for node_connection in flatten(plan.connected_inverse[node_id].values()):
                     dependent_id = node_connection.edge.dependent.id
-                    if dependent_id in visited_node_ids:
-                        raise RuntimeError(f"cycle between {node_id} and {dependent_id}")
-
                     output_batch = output_batches[node_connection.dependency_name]
                     new_pending_data[dependent_id][node_connection.dependent_name] = output_batch
 
-                    # validate output against next input spec
-                    input_spec = functions[dependent_id].input_spec[node_connection.dependent_name]
-                    _validate_records(node_id, output_batch, input_spec.type)
-
-                    if node_connection.intermediate_artifact is not None:
+                    if node_connection.dataset is not None:
                         output_spec = function.output_spec[node_connection.dependency_name]
-                        update_dataset_spec(node_connection.intermediate_artifact, output_spec)
-                        write_view = DatasetAccessor(node_connection.intermediate_artifact).extend(
-                            output_batch
-                        )
+                        update_dataset_spec(node_connection.dataset, output_spec)
+                        write_view = DatasetAccessor(node_connection.dataset).extend(output_batch)
                         node_connection.view_inline = DatasetViewData.from_slice(write_view).asdict
 
                 # write to final outputs (if any)
                 for artifact_connection in plan.final_outputs.get(node_id, {}).values():
-                    if artifact_connection.artifact_type != DATASET_TYPE:
+                    if artifact_connection.dependency_name is None:
                         raise ValueError(
-                            f"non-dataset artifacts not supported: {artifact_connection}"
+                            f"final output must have dependency name: {artifact_connection}"
                         )
 
-                    output_spec = function.output_spec[DEFAULT_CONNECTION_NAME]
-                    dataset = cast(DatasetVersion, artifact_connection.artifact)
-                    update_dataset_spec(dataset, output_spec)
-                    write_view = DatasetAccessor(dataset).extend(output_batch)
+                    output_batch = output_batches[artifact_connection.dependency_name]
+                    output_spec = function.output_spec[artifact_connection.dependency_name]
+                    update_dataset_spec(artifact_connection.dataset, output_spec)
+                    write_view = DatasetAccessor(artifact_connection.dataset).extend(output_batch)
                     artifact_connection.view_inline = DatasetViewData.from_slice(write_view).asdict
 
             # clear already processed nodes from pending and stop if everything is processed

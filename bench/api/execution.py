@@ -18,7 +18,7 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
     view = ArtifactViewSerializer()
 
     def get_dataset_preview(self, obj: ExecutionArtifactConnection):
-        if obj.artifact.artifact.type != "dataset":
+        if obj.artifact.dataset.type != "dataset":
             return None
 
         dataset = terrible_cast(DatasetVersion, obj.artifact)
