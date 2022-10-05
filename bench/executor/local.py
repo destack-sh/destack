@@ -220,14 +220,14 @@ class LocalExecutor(Executor):
             # run model
             execution.start()
             outputs = self._run_function_record_transform(
-                model_function, model_function_hash, record
+                model_function, model_function_hash, [DatasetRecord.make(record)]
             )
 
             # record outputs
             output_dataset = Dataset.objects.get_or_create_dataset_version(
                 f"{model.artifact.name}.outputs", model.organization
             )
-            view = write_dataset(output_dataset, outputs)
+            view = DatasetAccessor(output_dataset).extend(outputs)
             output_dataset.set_tag(default_tag("source:outputs", model.organization))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
@@ -449,7 +449,7 @@ class LocalExecutor(Executor):
         ]
         computed_outputs = function.transform_batch(RecordList(missing_inputs))
         # assumes consistent input -> output stride
-        if input_batch:
+        if missing_inputs:
             output_stride = len(computed_outputs) // len(missing_inputs)
         else:
             output_stride = 1
@@ -467,7 +467,7 @@ class LocalExecutor(Executor):
             if cached_outputs:
                 # cache hit
                 output_batch.extend(
-                    DatasetRecord.make(output, output_metadata) for output in cached_outputs
+                    DatasetRecord.make(output.data, output_metadata) for output in cached_outputs
                 )
             else:
                 # cache miss, get from computed outputs

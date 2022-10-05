@@ -4,6 +4,7 @@ from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
 from bench.api.artifact import ArtifactViewSerializer
+from bench.api.dataset import DatasetRecordSerializer
 from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.dataset.accessor import DatasetAccessor
 from bench.models import DatasetVersion, Execution, Organization, Project
@@ -18,7 +19,7 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
     view = ArtifactViewSerializer()
 
     def get_dataset_preview(self, obj: ExecutionArtifactConnection):
-        if obj.artifact.dataset.type != "dataset":
+        if obj.artifact.artifact.type != "dataset":
             return None
 
         dataset = terrible_cast(DatasetVersion, obj.artifact)
@@ -31,12 +32,12 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
         start = view.apply(offset)
         end = view.apply(offset + limit)
         records = list(accessor.get_records_slice(start, end))
-        count = view.apply(accessor.rlist) - view.apply(0)
+        count = view.apply(len(accessor)) - view.apply(0)
         return {
             "limit": limit,
             "count": count,
             "offset": offset,
-            "results": records,
+            "results": DatasetRecordSerializer(records, many=True).data,
         }
 
     class Meta:
@@ -64,7 +65,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
         slug_field="slug", queryset=Organization.objects.all()
     )
     project: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        slug_field="slug", queryset=Project.objects.all()
+        slug_field="slug", allow_empty=True, queryset=Project.objects.all()
     )
 
     def get_children(self, data: Execution):
@@ -89,6 +90,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
             "model",
             "connected_artifacts",
             "organization",
+            "project",
         ]
         read_only_fields = fields
         depth = 1

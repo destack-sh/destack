@@ -1,5 +1,4 @@
 import abc
-import enum
 from typing import Union, cast
 
 import aiohttp
@@ -13,18 +12,10 @@ from bench.utils.spec import ModelType, convert_to_record_spec
 class OpenAIModel(AsyncBatchedModelHandler, abc.ABC):
     config_static_keys: set[str] = set()  # entire config can be changed dynamically
 
-    class Engine(enum.Enum):
-        Ada = "text-ada-001"
-        Babbage = "text-babbage-001"
-        Curie = "text-curie-001"
-        Davinci = "text-davinci-002"
-        CodexDavinci = "code-davinci-002"
-        CodexCushman = "code-cushman-001"
-
     def __init__(
         self,
         api_key: str,
-        model: Engine = Engine.Ada,
+        model: str,
         max_tokens: int = 128,
         temperature: float = 0.7,
         top_p: float = 1.0,
@@ -34,7 +25,7 @@ class OpenAIModel(AsyncBatchedModelHandler, abc.ABC):
     ):
         super().__init__(**kwargs)
         self._api_key = api_key
-        self.model = model.value
+        self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.top_p = top_p
