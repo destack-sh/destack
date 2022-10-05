@@ -89,17 +89,17 @@ class SpacyModelBundled(SpacyModelBase):
         description="SpaCy model pre-bundled (from SpaCy " + spacy.__version__ + ")",
         tags=["spacy"],
     )
-    config_static_keys = {"model_name"}
+    config_static_keys = {"model"}
 
-    def __init__(self, model_name: str, **kwargs):
+    def __init__(self, model: str, **kwargs):
         try:
-            nlp = spacy.load(model_name)
+            nlp = spacy.load(model)
         except OSError:
             # load failed, try downloading model and then retry
             from spacy.cli import download
 
-            download(model_name)
-            nlp = spacy.load(model_name)
+            download(model)
+            nlp = spacy.load(model)
         super().__init__(nlp, **kwargs)
 
 

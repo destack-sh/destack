@@ -42,7 +42,7 @@ class ModelViewSet(ArtifactViewSet):
     serializer_class = ModelSerializer
 
     @action(methods=["POST"], detail=True)
-    def predict(self, request: Request):
+    def predict(self, request: Request, *args, **kwargs):
         model = terrible_cast(ModelVersion, get_head(self.get_object()))
         return _predict_response(model, request)
 

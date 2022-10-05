@@ -79,7 +79,9 @@ def validate_config_type(
 ):
     for key, value in arguments.items():
         # value_type is not actually guaranteed to be this type but unknown types are just ignored
-        _validate_rec([key], value, config_type[key])
+        # and this cast is necessary for e.g. enums
+        value_type = cast(Union[FieldTypeSpec, FieldTypePrimitive], config_type[key])  # type: ignore
+        _validate_rec([key], value, value_type)
 
 
 def _walk_rec(

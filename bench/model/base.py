@@ -1,6 +1,7 @@
 import abc
 import asyncio
 from dataclasses import dataclass
+from functools import cached_property
 from typing import (
     AbstractSet,
     Any,
@@ -94,17 +95,24 @@ class AsyncBatchedModelHandler(ModelHandler, abc.ABC):
     async def run_async(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
+    @cached_property
+    def async_enabled(self):
+        try:
+            asyncio.get_event_loop()
+            return True
+        except RuntimeError:
+            return False
+
     @final
     def run(self, record: Record) -> Union[Record, RecordBatch]:
         return asyncio.get_event_loop().run_until_complete(self.run_async(record))
 
     def run_batch(self, records: RecordBatch) -> RecordBatch:
         # TODO @Robustness: set limit on simultaneous requests for run_async
-        event_loop = asyncio.get_event_loop()
         batch_task = asyncio.gather(
             *[self.run_async(record) for record in records], return_exceptions=False
         )
-        outputs: list[Union[Record, RecordBatch]] = event_loop.run_until_complete(batch_task)
+        outputs: list[Union[Record, RecordBatch]] = asyncio.run(batch_task)
         output_records: List[Record] = []
         for record in outputs:
             output = self.run(record)
@@ -233,8 +241,8 @@ def load_model(
         fs, path = None, None
 
     config_type = model_cls.config_spec
-    validate_config_type(arguments, config_type, ignore_extraneous=True)
     arguments = cast_config_arguments(arguments, config_type)
+    validate_config_type(arguments, config_type, ignore_extraneous=True)
 
     # first add optional special arguments (also see SPECIAL_DATASET_CONFIG_KEYS)
     arguments = dict(**arguments, fs=fs, path=path, artifact_id=artifact_id)
