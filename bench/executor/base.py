@@ -8,7 +8,16 @@ import uuid
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
-from typing import Callable, Dict, Iterable, Mapping, Optional, Tuple, Union
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import structlog
@@ -37,7 +46,7 @@ from bench.models.execution import (
 from bench.models.flow import FlowNodeEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.tag import default_tag
-from bench.models.utils import UUIDT
+from bench.models.utils import DATASET_TYPE, UUIDT
 from bench.utils.record import Record, RecordBatch
 from bench.utils.spec import ArtifactType
 
@@ -130,10 +139,17 @@ class ArtifactConnection:
     type: ExecutionArtifactConnection.ConnectionType
     name: str
     artifact: ArtifactVersion
+    dependency_name: Optional[str] = None
     view: Optional[ArtifactView] = None
     view_inline: Optional[dict] = None
     edge: Optional[FlowArtifactEdge] = None
     manifested_id: Optional[uuid.UUID] = None
+
+    @property
+    def dataset(self):
+        if self.artifact.artifact.type != DATASET_TYPE:
+            raise ValueError(f"expected artifact to be a dataset: {self.artifact}")
+        return cast(DatasetVersion, self.artifact)
 
     @property
     def view_data(self) -> DatasetViewData:
@@ -162,7 +178,7 @@ class ArtifactConnection:
 @dataclasses.dataclass
 class FlowNodeConnection:
     edge: FlowNodeEdge
-    intermediate_artifact: Optional[DatasetVersion] = None
+    dataset: Optional[DatasetVersion] = None
     view_inline: Optional[dict] = None
     manifested_id: Optional[uuid.UUID] = None
 
@@ -276,6 +292,7 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
             final_outputs[node.id][output_name] = ArtifactConnection(
                 type=ExecutionArtifactConnection.ConnectionType.Output,
                 name=output_id,
+                dependency_name=output_name,
                 artifact=output_dataset,
                 view_inline=DatasetViewData.empty().asdict,
             )
@@ -301,13 +318,9 @@ def _make_node_connections(
                     name=output_id, version="0", organization=flow.organization
                 )
                 output_dataset.set_tag(default_tag("source:outputs", flow.organization))
-                connection = FlowNodeConnection(
-                    edge=edge,
-                    intermediate_artifact=output_dataset,
-                    view_inline=DatasetViewData.empty().asdict,
-                )
+                connection = FlowNodeConnection(edge=edge, dataset=output_dataset)
             else:
-                connection = FlowNodeConnection(edge=edge, intermediate_artifact=None)
+                connection = FlowNodeConnection(edge=edge)
 
             if edge.connection_type == FlowNodeEdge.ConnectionType.Input:
                 node_inputs[node.id][edge.connection_name_dependent] = connection
@@ -436,7 +449,7 @@ def prepare_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> Fl
 
         # inter-node connections
         for name, node_connection in plan.connected(node_id=node.id):
-            if node_connection.intermediate_artifact is None:
+            if node_connection.dataset is None:
                 continue
 
             connection_type = (
@@ -448,7 +461,7 @@ def prepare_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> Fl
                 execution=node_execution,
                 connection_type=connection_type,
                 connection_name=name,
-                artifact=node_connection.intermediate_artifact,
+                artifact=node_connection.dataset,
                 view_inline=node_connection.view_inline,
             )
             execution_connections[connection.id] = connection
