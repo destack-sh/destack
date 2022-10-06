@@ -66,7 +66,7 @@ class OpenAIModelForCompletion(OpenAIModel):
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.post(
-                "https://api.openai.com/v1/completions", data=request
+                "https://api.openai.com/v1/completions", json=request
             ) as response:
                 output = await response.json()
 
@@ -108,7 +108,7 @@ class OpenAIModelForClassification(OpenAIModel):
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.post(
-                "https://api.openai.com/v1/classifications", data=request
+                "https://api.openai.com/v1/classifications", json=request
             ) as response:
                 output = await response.json()
 
