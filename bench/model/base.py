@@ -1,7 +1,6 @@
 import abc
 import asyncio
 from dataclasses import dataclass
-from functools import cached_property
 from typing import (
     AbstractSet,
     Any,
@@ -20,6 +19,7 @@ from fsspec import AbstractFileSystem
 from bench.artifact.base import ArtifactHandler
 from bench.artifact.utils import map_to_artifact_cls
 from bench.dataset.accessor import get_file_system
+from bench.utils.asyncio import ensure_event_loop
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry
 from bench.utils.spec import FieldSpec, ModelType, RecordSpec, convert_to_record_spec
@@ -95,27 +95,20 @@ class AsyncBatchedModelHandler(ModelHandler, abc.ABC):
     async def run_async(self, record: Record) -> Union[Record, RecordBatch]:
         raise NotImplementedError
 
-    @cached_property
-    def async_enabled(self):
-        try:
-            asyncio.get_event_loop()
-            return True
-        except RuntimeError:
-            return False
-
     @final
     def run(self, record: Record) -> Union[Record, RecordBatch]:
         return asyncio.get_event_loop().run_until_complete(self.run_async(record))
 
     def run_batch(self, records: RecordBatch) -> RecordBatch:
+        # TODO @Cleanup: find better way of getting event loops in async code
+        loop = ensure_event_loop()
         # TODO @Robustness: set limit on simultaneous requests for run_async
         batch_task = asyncio.gather(
             *[self.run_async(record) for record in records], return_exceptions=False
         )
-        outputs: list[Union[Record, RecordBatch]] = asyncio.run(batch_task)
+        outputs: list[Union[Record, RecordBatch]] = loop.run_until_complete(batch_task)
         output_records: List[Record] = []
-        for record in outputs:
-            output = self.run(record)
+        for output in outputs:
             # if we're getting batches, flatten them into output
             if isinstance(output, RecordBatch):
                 output_records.extend(output)

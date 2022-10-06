@@ -43,6 +43,7 @@ click==8.0.4
     # via
     #   -r requirements.in
     #   ray
+    #   uvicorn
 commonmark==0.9.1
     # via rich
 cryptography==38.0.1
@@ -131,6 +132,8 @@ grpcio==1.43.0
     # via ray
 gunicorn==20.1.0
     # via -r requirements.in
+h11==0.14.0
+    # via uvicorn
 huggingface-hub==0.5.1
     # via datasets
 idna==3.3
@@ -271,6 +274,8 @@ urllib3==1.26.9
     #   requests
     #   responses
     #   sentry-sdk
+uvicorn==0.18.3
+    # via -r requirements.in
 virtualenv==20.14.1
     # via ray
 xxhash==3.0.0

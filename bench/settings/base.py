@@ -11,3 +11,7 @@ TEST: bool = (
     or "pytest" in sys.argv[0]
     or get_from_env("TEST", False, type_cast=str_to_bool)
 )
+
+PROMETHEUS_EXPORT_MIGRATIONS: bool = get_from_env(
+    "PROMETHEUS_EXPORT_MIGRATIONS", False, type_cast=str_to_bool
+)
