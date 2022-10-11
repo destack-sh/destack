@@ -74,6 +74,7 @@ export function useFlowExecution(
     return eagerConnections;
   }
 
+  // const user = useUserStore();
   async function execute() {
     if (flow.value == null) {
       throw new Error("cannot execute: flow is not initialized");
@@ -107,7 +108,7 @@ export function useFlowExecution(
       },
     };
     await api
-      .post<Execution>(`/flows/${flow.value.flow}/versions/${flow.value.version}/execute`, plan)
+      .post<Execution>(`/flows/local/${flow.value.flow}/versions/${flow.value.version}/execute`, plan)
       .then((response) => response.data)
       .then((execution) => {
         // automatically insert preview datasets for arguments we passed in to give quicker feedback
@@ -124,7 +125,9 @@ export function useFlowExecution(
 
   function fetchExecutions(flow: string, limit = 10) {
     api
-      .get<LimitPaginatedResult<Execution>>(`/executions`, { params: { type: "flow", flow, limit } })
+      .get<LimitPaginatedResult<Execution>>(`/organizations/local/executions`, {
+        params: { type: "flow", flow, limit },
+      })
       .then((result) => result.data)
       .then((result) => (executions.value = result.results));
   }
@@ -137,13 +140,13 @@ export function useFlowExecution(
       return;
     }
 
-    const pendingExecutions = executions.value.filter((execution) => !isTerminal(execution.state));
+    const pendingExecutions = executions.value.filter((execution) => !isTerminal(execution.status));
     if (pendingExecutions.length == 0) {
       return;
     }
 
     const updatedExecutions = await api
-      .get<LimitPaginatedResult<Execution>>(`/executions`, {
+      .get<LimitPaginatedResult<Execution>>(`/organizations/local/executions`, {
         params: {
           // TODO @Performance: filter for id__in when polling pending executions
           //  Currently not doing this as it messes with django-filters array conversion somehow.

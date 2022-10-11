@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+import traceback
 import uuid
 from collections import defaultdict
 from functools import cached_property
@@ -11,7 +12,6 @@ from typing import Dict, Mapping, Optional, Tuple, Union, cast
 from uuid import UUID
 
 import structlog
-from django.db.models import Q
 from more_itertools import flatten
 
 from bench.artifact.base import ArtifactHandler
@@ -87,6 +87,8 @@ class LocalExecutorThread(threading.Thread):
                     self._executor._do_execute(plan, manifest)
                 logger.info("execute_terminated", execution=manifest.execution)
             except Exception as e:
+                # print stacktrace for e to terminal
+                traceback.print_exception(type(e), e, e.__traceback__)
                 logger.error("execute_failed", execution=manifest.execution, error=e)
 
     def stop(self):
@@ -115,9 +117,8 @@ class LocalExecutor(Executor):
 
     def mark_dead_executions_failed(self):
         dead_executions = Execution.objects.filter(
-            Q(status__in=[status.value for status in Execution.PENDING_STATUSES])
-            & Q(metadata__queued__executor_type="local")
-            & ~Q(metadata__queued__executor_id=self.executor_id),
+            status__in=[status.value for status in Execution.PENDING_STATUSES],
+            metadata__queued__executor_type="local",
         )
         for execution in dead_executions:
             logger.warning("mark_dead_queued_execution_failed", execution=execution)
@@ -404,7 +405,6 @@ class LocalExecutor(Executor):
     ) -> dict[str, list[DatasetRecord]]:
         # actually run node
         if isinstance(function, RecordTransform):
-            function = cast(RecordFunction, function)
             # assume record transforms have only one default connection in and out
             input_batch = input_batches[DEFAULT_CONNECTION_NAME]
             function_hash = plan.nodes[node_id].content_hash.hex()
@@ -412,7 +412,6 @@ class LocalExecutor(Executor):
 
             return {DEFAULT_CONNECTION_NAME: output_batch}
         elif isinstance(function, Metric):
-            function = cast(Metric, function)
             # assume input batches contains all required inputs (as checked above)
             output_data = function.compute(**input_batches)
             output_batch = [DatasetRecord.make(output_data)]

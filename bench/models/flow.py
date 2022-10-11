@@ -71,6 +71,9 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
 
+    def __str__(self) -> str:
+        return self.name_version
+
     @property
     def organization(self):
         return self.flow.organization
@@ -263,8 +266,8 @@ class FlowNodeEdge(UUIDModel):
 
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="node_edges")
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
-    connection_name_dependent = models.CharField(max_length=64)
-    connection_name_dependency = models.CharField(max_length=64)
+    connection_name_dependent = models.CharField(max_length=64, default="*")
+    connection_name_dependency = models.CharField(max_length=64, default="*")
     dependent = models.ForeignKey(
         FlowNode, on_delete=models.CASCADE, related_name="node_edges_as_dependent"
     )

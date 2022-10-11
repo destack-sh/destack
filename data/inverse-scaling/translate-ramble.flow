@@ -1,0 +1,13 @@
+[
+  {
+    "name": "generate-samples",
+    "function": "bench.text.templatize",
+    "rambles": "inverse-scaling.rambles",
+    "template": "[$RAMBLES.type ramble:\n$RAMBLES.text\n]Rephrase the following to be more like a $INPUT.type ramble:\n$INPUT.text\nRephrased like $INPUT.type:"
+  },
+  {
+    "name": "run-model",
+    "function": "bench.model",
+    "model": "openai.text-davinci-002"
+  }
+]

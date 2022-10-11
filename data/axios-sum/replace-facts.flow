@@ -1,0 +1,30 @@
+[
+  {
+    "name": "generate-questions",
+    "function": "bench.text.templatize",
+    "capitals": "inverse-scaling.capitals",
+    "inputs": "inverse-scaling.questions"
+  },
+  {
+    "name": "generate-prompts",
+    "function": "bench.text.templatize",
+    "questions": "generate-questions",
+    "inputs": "inverse-scaling.intents"
+  },
+  {
+    "name": "model",
+    "function": "bench.model",
+    "model": "openai.text-davinci-002"
+  },
+  {
+    "name": "extract-answer",
+    "function": "custom",
+    "code": "return re.match(r'Answer:(\\w)'), input.text)"
+  },
+  {
+    "name": "evaluate-answer",
+    "function": "evaluate-classification",
+    "references": "inverse-scaling.questions",
+    "references_key": "answer"
+  }
+]

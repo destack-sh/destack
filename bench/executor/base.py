@@ -24,7 +24,7 @@ import structlog
 from django.db.models import QuerySet
 
 from bench.artifact.base import ArtifactHandler
-from bench.dataset.accessor import write_dataset
+from bench.dataset.accessor import DatasetAccessor, DatasetRecord
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -249,7 +249,8 @@ def _convert_parameters_to_artifact_connections(
                     node_parameter_id, flow.organization
                 )
                 artifact.set_tag(default_tag("source:inputs", flow.organization))
-                view_slice = write_dataset(artifact, parameter)
+                accessor = DatasetAccessor(artifact)
+                view_slice = accessor.extend([DatasetRecord.make(data=data) for data in parameter])
                 view_inline = DatasetViewData.from_slice(view_slice).asdict
                 connection = ArtifactConnection(
                     type=connection_type, name=name, artifact=artifact, view_inline=view_inline

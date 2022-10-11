@@ -209,7 +209,8 @@ class FlowExecutionRequestSerializer(serializers.Serializer):
 class FlowViewSet(viewsets.ModelViewSet):
     queryset = Flow.objects.order_by("-created_at").all()
     serializer_class = FlowSerializer
-    lookup_field = "id"
+    lookup_field = "name"
+    lookup_value_regex = r"[\w.\-]+"
 
     def create(self, request: Request, *args, **kwargs):
         # add organization from path argument
@@ -257,8 +258,10 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
     # TODO @Performance: update flow spec directly on edit rather than "manually" post-edit
     @action(methods=["POST"], detail=True)
     @extend_schema(responses=FlowNodeSerializer(many=True))
-    def update_spec(self, request: Request, flow: str, version: str) -> Response:
-        flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
+    def update_spec(self, request: Request, flow: str, version: str, organization: str) -> Response:
+        flow_instance = get_object_or_404(
+            FlowVersion, flow__organization__slug=organization, flow__name=flow, version=version
+        )
         updated_nodes = update_flow_spec(flow_instance)
 
         # TODO @Performance: bulk update nodes in flow spec update
@@ -270,9 +273,11 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=True)
     @extend_schema(responses=ExecutionSerializer())
-    def execute(self, request: Request, flow: str, version: str) -> Response:
+    def execute(self, request: Request, flow: str, version: str, organization: str) -> Response:
         logger.debug("execute_attempt", flow=flow, version=version)
-        flow_instance = get_object_or_404(FlowVersion, flow__name=flow, version=version)
+        flow_instance = get_object_or_404(
+            FlowVersion, flow__organization__slug=organization, flow__name=flow, version=version
+        )
 
         request_serializer = FlowExecutionRequestSerializer(data=request.data)
         request_serializer.is_valid(raise_exception=True)

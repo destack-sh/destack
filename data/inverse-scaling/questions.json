@@ -1,0 +1,10 @@
+[
+  {
+    "question": "What is the capital of $CAPITALS.country?",
+    "answer": "$CAPITALS.city"
+  },
+  {
+    "question": "Which city is the capital of $CAPITALS.country?",
+    "answer": "$CAPITALS.city"
+  }
+]

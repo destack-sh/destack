@@ -1,8 +1,8 @@
 import abc
 import re
-from typing import Tuple, Union, cast
+from typing import Any, Tuple, Union, cast
 
-from bench.dataset.base import DatasetReader
+from bench.dataset.base import DatasetHandler, DatasetReader
 from bench.function.base import FunctionMetadata, SingleRecordTransform, functions
 from bench.utils.func import dict_to_ordered
 from bench.utils.record import Record, RecordBatch, RecordList
@@ -83,3 +83,37 @@ class TemplateTextSwapper(TextTransform):
             if transformed_text != text:
                 break
         return transformed_text
+
+
+@functions.register("bench.text.templatize")
+class TemplatizeTextTransform(SingleRecordTransform):
+    metadata = FunctionMetadata("Templatize", "Transforms text to template", tags=["text"])
+
+    def __init__(self, template: str, **kwargs):
+        self.dataset_variables: dict[str, DatasetHandler] = {
+            key.upper(): val for key, val in kwargs.items()
+        }
+        self.template = template
+
+    @staticmethod
+    def render_template(template: str, parameters: dict[str, Any]) -> str:
+        # find variables in template that look like $VARIABLE or $VARIABLE.field
+        slots = re.findall(r"\$(\w+)(?:\.(\w+))?", template)
+        rendered_text = template
+        for slot in slots:
+            if len(slot) == 2:
+                variable_name, field_name = slot
+                variable_value = parameters[variable_name][field_name]
+            else:
+                variable_value = parameters[slot[0]]
+
+            # TODO @Broken: render all variable values in templatize, not just the first
+            if isinstance(variable_value, list):
+                variable_value = variable_value[0]
+
+            # replace slot with value in rendered text
+            rendered_text = rendered_text.replace(f"${'.'.join(slot)}", variable_value)
+        return rendered_text
+
+    def transform(self, record: dict) -> str:
+        return self.render_template(self.template, {**self.dataset_variables, "INPUT": record})
