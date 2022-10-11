@@ -72,7 +72,7 @@ const interactionData: Ref<FlowInteractionData> = ref(makeInteractionData());
 
 const artifactsStore = useArtifactsStore();
 const { getTimeFromNowString } = useTimeFromNow();
-const { executions, execute } = useFlowExecution(flow, runtimeData, ref(true));
+const { executions, execute } = useFlowExecution(flow, runtimeData, ref(false));
 
 const inputNode: Ref<FlowNode | null> = computed(
   () => flow.value?.nodes?.find((node) => node.name == "input-0") || null

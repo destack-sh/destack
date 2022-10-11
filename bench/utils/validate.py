@@ -78,6 +78,11 @@ def validate_config_type(
     arguments: dict[str, Any], config_type: ConfigTypeSpec, ignore_extraneous: bool
 ):
     for key, value in arguments.items():
+        if key not in config_type:
+            # TODO @Robustness: validate "extra" kwargs arguments with type
+            # ignore extraneous arguments
+            continue
+
         # value_type is not actually guaranteed to be this type but unknown types are just ignored
         # and this cast is necessary for e.g. enums
         value_type = cast(Union[FieldTypeSpec, FieldTypePrimitive], config_type[key])  # type: ignore

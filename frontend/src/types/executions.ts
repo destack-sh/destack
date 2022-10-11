@@ -1,7 +1,7 @@
 import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
 import type { LimitPaginatedResult } from "@/types/utils";
 
-export type ExecutionState =
+export type ExecutionStatus =
   | "created"
   | "scheduled"
   | "queued"
@@ -11,8 +11,8 @@ export type ExecutionState =
   | "failed"
   | "completed";
 
-export function isTerminal(state: ExecutionState) {
-  return ["aborted", "failed", "completed"].includes(state);
+export function isTerminal(status: ExecutionStatus) {
+  return ["aborted", "failed", "completed"].includes(status);
 }
 
 export type Execution = {
@@ -22,7 +22,7 @@ export type Execution = {
   started_at?: string;
   updated_at: string;
   terminated_at?: string;
-  state: ExecutionState;
+  status: ExecutionStatus;
   metadata: Record<string, any>;
   parent: string; // fk to Execution.parent
   children: Execution[];

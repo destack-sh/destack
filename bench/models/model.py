@@ -25,6 +25,10 @@ class ModelManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Model]:
         return super().get_queryset().filter(type__exact=MODEL_TYPE)
 
+    def get_or_create(self, *args, **kwargs):
+        kwargs["type"] = MODEL_TYPE
+        return super().get_or_create(*args, **kwargs)
+
     def create_model(
         self,
         name: str,
@@ -41,12 +45,12 @@ class ModelManager(ArtifactManager):
         return model
 
     def create_model_version(
-        self, name: str, organization: Organization, metadata: ModelMetadata
+        self, name: str, organization: Organization, metadata: ModelMetadata, **kwargs
     ) -> ModelVersion:
         """Creates model version and corresponding model if it doesn't exist"""
         with transaction.atomic():
             model, _ = Model.objects.get_or_create(
-                type=MODEL_TYPE, name=name, organization=organization
+                type=MODEL_TYPE, name=name, organization=organization, defaults=kwargs
             )
             model_version = ModelVersion(artifact=model, metadata=metadata.to_dict())
             model_version.save()

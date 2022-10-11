@@ -293,10 +293,9 @@ def load_function(function_id: str, arguments: Dict[str, Any]) -> Function:
     # validate arguments
     config_type = function_cls.config_spec
     validate_config_type(arguments, config_type, ignore_extraneous=True)
-    arguments = cast_config_arguments(arguments, config_type)
-
-    # filter arguments to remove extraneous
-    arguments = {key: value for key, value in arguments.items() if key in config_type}
+    # combine arguments that weren't cast (not in the config_type) with typecast arguments
+    # TODO @Robustness: cleanup "extra" kwargs handling (also see validate_config_type)
+    arguments = {**arguments, **cast_config_arguments(arguments, config_type)}
 
     # noinspection PyArgumentList
     function = function_cls(**arguments)

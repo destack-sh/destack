@@ -1,0 +1,13 @@
+[
+  {
+    "name": "generate-samples",
+    "function": "bench.text.templatize",
+    "emotions": "axios-sum.emotions",
+    "template": "[$EMOTIONS.text\nEmotion: $EMOTIONS.label\n]Make the following more like $INPUT.emotion\n$INPUT.text\nRephrased like $INPUT.emotion:"
+  },
+  {
+    "name": "run-model",
+    "function": "bench.model",
+    "model": "openai.text-davinci-002"
+  }
+]

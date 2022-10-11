@@ -25,7 +25,7 @@ unravelSpecmapNameVersion
           ]"
         >
           <div class="inline-flex flex-col">
-            {{ row["state"] }}
+            {{ row["status"] }}
             <span class="font-normal text-gray-700">{{ row["updated"] }}</span>
             <span class="font-normal text-gray-700">{{ row["duration"] || "..." }}</span>
           </div>
@@ -99,7 +99,7 @@ const flowsStore = useFlowsStore();
 const metaStore = useMetaStore();
 const datasetColumns = computed(() => {
   // use "schema" of latest completed execution (for now)
-  const schemaExecution = props.executions.find((execution) => execution.state == "completed");
+  const schemaExecution = props.executions.find((execution) => execution.status == "completed");
   if (schemaExecution == null) {
     return [];
   }
@@ -182,7 +182,7 @@ const rows = computed(() =>
       .reduce((previous, { dataset, result }) => ({ ...previous, [dataset]: result }), {});
     return {
       id: execution.id,
-      state: execution.state,
+      status: execution.status,
       started: execution.started_at ? getTimeFromNow(DateTime.fromISO(execution.started_at)) : null,
       updated: execution.updated_at ? getTimeFromNow(DateTime.fromISO(execution.updated_at)) : null,
       duration:

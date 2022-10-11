@@ -135,8 +135,6 @@ def test_local_execute_two_node_augmented_flow(
         through_defaults=dict(
             flow=flow,
             connection_type=FlowNodeEdge.ConnectionType.Input,
-            connection_name_dependency="*",
-            connection_name_dependent="*",
         ),
     )
 

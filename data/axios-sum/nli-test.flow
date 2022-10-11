@@ -1,0 +1,12 @@
+[
+  {
+    "name": "generate-prompt",
+    "function": "bench.text.templatize",
+    "template": "Premise: $TEST.premise\nHypothesis: $TEST.hypothesis\nRelation can be entailment, neutral, contradiction. Relation:')"
+  },
+  {
+    "name": "model",
+    "function": "bench.model",
+    "model": "openai.text-davinci-002"
+  }
+]

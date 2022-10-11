@@ -1,0 +1,13 @@
+[
+  {
+    "name": "generate-prompt",
+    "function": "bench.text.templatize",
+    "emotions": "axios-sum.emotions",
+    "input": "$EMOTIONS.text\nEmotion: $EMOTIONS.emotion\n$INPUT.text\nEmotion:"
+  },
+  {
+    "name": "model",
+    "function": "bench.model",
+    "model": "openai.text-davinci-002"
+  }
+]

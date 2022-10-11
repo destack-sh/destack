@@ -22,8 +22,16 @@ class DatasetManager(ArtifactManager):
     def get_queryset(self) -> QuerySet[Dataset]:
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
+    def get_or_create(self, *args, **kwargs):
+        kwargs["type"] = DATASET_TYPE
+        return super().get_or_create(*args, **kwargs)
+
     def create_dataset_version(
-        self, name: str, organization: Organization, metadata: Optional[DatasetMetadata] = None
+        self,
+        name: str,
+        organization: Organization,
+        metadata: Optional[DatasetMetadata] = None,
+        **kwargs,
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         if metadata is None:
@@ -32,7 +40,9 @@ class DatasetManager(ArtifactManager):
             dataset, _ = Dataset.objects.get_or_create(
                 type=DATASET_TYPE, organization=organization, name=name
             )
-            return DatasetVersion.objects.create(artifact=dataset, metadata=metadata.to_dict())
+            return DatasetVersion.objects.create(
+                artifact=dataset, metadata=metadata.to_dict(), **kwargs
+            )
 
     def get_or_create_dataset_version(
         self,
@@ -40,6 +50,7 @@ class DatasetManager(ArtifactManager):
         organization: Organization,
         version: Optional[str] = None,
         metadata: Optional[DatasetMetadata] = None,
+        **kwargs,
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         if metadata is None:

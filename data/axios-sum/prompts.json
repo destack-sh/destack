@@ -1,0 +1,8 @@
+[
+  {
+    "text": "$SAMPLES.text\nTLDR: $SAMPLES.summary\nWhy it matters: $SAMPLES.relevance"
+  },
+  {
+    "text": "A news outlet just published the following article:\n$SAMPLES.text\n---\nWe'll give it a short, accurate and informative title and summary.\nWe will also describe why it matters if the significance of this news was mentioned, otherwise we say <not mentioned>.\nWe only describe facts and use quotes as necessary\n\nTitle: $SAMPLES.title\nSummary: $SAMPLES.summary\nWhy it matters: $SAMPLES.relevance"
+  }
+]
