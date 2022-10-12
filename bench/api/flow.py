@@ -222,6 +222,12 @@ class FlowViewSet(viewsets.ModelViewSet):
         queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
         return queryset
 
+    @action(methods=["POST"], detail=True)
+    @extend_schema(responses=ExecutionSerializer())
+    def execute(self, request: Request, organization: str, name: str) -> Response:
+        flow: Flow = get_object_or_404(Flow, organization__slug=organization, name=name)
+        return _execute_response(get_head(flow), request)
+
 
 class FlowVersionViewSet(viewsets.ModelViewSet):
     queryset = FlowVersion.objects.all()
@@ -258,12 +264,11 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
     # TODO @Performance: update flow spec directly on edit rather than "manually" post-edit
     @action(methods=["POST"], detail=True)
     @extend_schema(responses=FlowNodeSerializer(many=True))
-    def update_spec(self, request: Request, flow: str, version: str, organization: str) -> Response:
+    def update_spec(self, request: Request, organization: str, flow: str, version: str) -> Response:
         flow_instance = get_object_or_404(
             FlowVersion, flow__organization__slug=organization, flow__name=flow, version=version
         )
         updated_nodes = update_flow_spec(flow_instance)
-
         # TODO @Performance: bulk update nodes in flow spec update
         for node in updated_nodes:
             node.save()
@@ -273,37 +278,38 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=True)
     @extend_schema(responses=ExecutionSerializer())
-    def execute(self, request: Request, flow: str, version: str, organization: str) -> Response:
-        logger.debug("execute_attempt", flow=flow, version=version)
+    def execute(self, request: Request, organization: str, flow: str, version: str) -> Response:
         flow_instance = get_object_or_404(
             FlowVersion, flow__organization__slug=organization, flow__name=flow, version=version
         )
+        return _execute_response(flow_instance, request)
 
-        request_serializer = FlowExecutionRequestSerializer(data=request.data)
-        request_serializer.is_valid(raise_exception=True)
-        exec_request: FlowExecutionRequest = request_serializer.save()
 
-        # assemble plan arguments into inputs/arguments dicts
-        inputs: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
-        arguments: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
-        for named_arguments in exec_request.arguments.values():
-            for named_argument in named_arguments:
-                value = get_first(named_argument, ("artifact", "records"))
-                # convert record RecordBatch
-                if not isinstance(value, ArtifactVersion):
-                    value = RecordList(value)
+def _execute_response(flow: FlowVersion, request: Request) -> Response:
+    logger.debug("execute_attempt", flow=flow)
+    request_serializer = FlowExecutionRequestSerializer(data=request.data)
+    request_serializer.is_valid(raise_exception=True)
+    exec_request: FlowExecutionRequest = request_serializer.save()
+    # assemble plan arguments into inputs/arguments dicts
+    inputs: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
+    arguments: dict[UUID, dict[str, FlowRawArgument]] = defaultdict(dict)
+    for named_arguments in exec_request.arguments.values():
+        for named_argument in named_arguments:
+            value = get_first(named_argument, ("artifact", "records"))
+            # convert record RecordBatch
+            if not isinstance(value, ArtifactVersion):
+                value = RecordList(value)
 
-                node: FlowNode = named_argument["node"]
-                name: str = named_argument["name"]
-                if named_argument["type"] == "input":
-                    inputs[node.id][name] = value
-                elif named_argument["type"] == "argument":
-                    arguments[node.id][name] = value
-
-        execution, _ = executor.run_flow(flow_instance, inputs, arguments, exec_request.options)
-        serialized_execution = ExecutionSerializer(execution).data
-        logger.info("execute_serialized")
-        return Response(serialized_execution)
+            node: FlowNode = named_argument["node"]
+            name: str = named_argument["name"]
+            if named_argument["type"] == "input":
+                inputs[node.id][name] = value
+            elif named_argument["type"] == "argument":
+                arguments[node.id][name] = value
+    execution, _ = executor.run_flow(flow, inputs, arguments, exec_request.options)
+    serialized_execution = ExecutionSerializer(execution).data
+    logger.info("execute_serialized", flow=flow)
+    return Response(serialized_execution)
 
 
 class FlowNodeViewSet(viewsets.ModelViewSet):

@@ -82,6 +82,19 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     def name_version(self) -> str:
         return f"{self.flow.name}@{self.version}"
 
+    @property
+    def first_node(self) -> FlowNode:
+        """Gets the first node in this flow (assuming it is linear), errors if there is none"""
+        # take first node without any dependencies (no depends_on_nodes)
+        first_node = self.nodes.filter(depends_on_nodes=None).first()
+        if first_node is None:
+            raise ValueError(f"flow {self} has no first node")
+        return first_node
+
+    def get_node_by_name(self, name: str) -> FlowNode:
+        """Gets a node by name"""
+        return self.nodes.get(name=name)
+
     def copy_from(self, parent: FlowVersion):
         """Copies nodes and edges from a parent version"""
 

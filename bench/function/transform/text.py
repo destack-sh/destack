@@ -88,6 +88,8 @@ class TemplateTextSwapper(TextTransform):
 @functions.register("bench.text.templatize")
 class TemplatizeTextTransform(SingleRecordTransform):
     metadata = FunctionMetadata("Templatize", "Transforms text to template", tags=["text"])
+    input_spec = {"*": convert_to_record_spec({"text": str})}
+    output_spec = dict_to_ordered({"*": convert_to_record_spec({"text": str})})
 
     def __init__(self, template: str, **kwargs):
         self.dataset_variables: dict[str, DatasetHandler] = {
@@ -105,20 +107,29 @@ class TemplatizeTextTransform(SingleRecordTransform):
         rendered_text = template
         for slot in slots:
             if len(slot) == 2:
-                variable_name, field_name = slot
-                variable_value = parameters[variable_name][field_name]
+                var_name, field_name = slot
             else:
-                variable_value = parameters[slot[0]]
+                var_name, field_name = slot[0], None
+
+            if var_name not in parameters:
+                raise ValueError(f"variable {var_name} not set")
+            var_value = parameters[var_name]
+            if field_name is not None:
+                if isinstance(var_value, dict) and field_name not in var_value:
+                    raise ValueError(
+                        f"variable {var_name} does not have field {field_name}: {var_value}"
+                    )
+                var_value = var_value[field_name]
 
             # TODO @Broken: render all variable values in templatize, not just the first
-            if isinstance(variable_value, list):
-                variable_value = variable_value[0]
+            if isinstance(var_value, list):
+                var_value = var_value[0]
 
             # replace slot with value in rendered text
-            rendered_text = rendered_text.replace(f"${'.'.join(slot)}", variable_value)
+            rendered_text = rendered_text.replace(f"${'.'.join(slot)}", var_value)
         return rendered_text
 
     def transform(self, record: dict) -> str:
         return self.render_template(
-            self.template, {**self.dataset_variables, "INPUT": {**self.other_variables, **record}}
+            self.template, {**self.dataset_variables, "INPUT": {**self.input_variables, **record}}
         )
