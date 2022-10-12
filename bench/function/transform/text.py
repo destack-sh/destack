@@ -91,7 +91,10 @@ class TemplatizeTextTransform(SingleRecordTransform):
 
     def __init__(self, template: str, **kwargs):
         self.dataset_variables: dict[str, DatasetHandler] = {
-            key.upper(): val for key, val in kwargs.items()
+            key.upper(): val for key, val in kwargs.items() if isinstance(val, DatasetHandler)
+        }
+        self.input_variables: dict[str, Any] = {
+            key.upper(): val for key, val in kwargs.items() if not isinstance(val, DatasetHandler)
         }
         self.template = template
 
@@ -116,4 +119,6 @@ class TemplatizeTextTransform(SingleRecordTransform):
         return rendered_text
 
     def transform(self, record: dict) -> str:
-        return self.render_template(self.template, {**self.dataset_variables, "INPUT": record})
+        return self.render_template(
+            self.template, {**self.dataset_variables, "INPUT": {**self.other_variables, **record}}
+        )
