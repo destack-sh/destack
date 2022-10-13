@@ -85,9 +85,38 @@ class TemplateTextSwapper(TextTransform):
         return transformed_text
 
 
+def render_template(template: str, parameters: dict[str, Any]) -> str:
+    # find variables in template that look like $VARIABLE or $VARIABLE.field
+    slots = re.findall(r"\$(\w+)(?:\.(\w+))?", template)
+    rendered_text = template
+    for slot in slots:
+        if len(slot) == 2:
+            var_name, field_name = slot
+        else:
+            var_name, field_name = slot[0], None
+
+        if var_name not in parameters:
+            raise ValueError(f"variable {var_name} not set")
+        var_value = parameters[var_name]
+        if field_name is not None:
+            if isinstance(var_value, dict) and field_name not in var_value:
+                raise ValueError(
+                    f"variable {var_name} does not have field {field_name}: {var_value}"
+                )
+            var_value = var_value[field_name]
+
+        # TODO @Broken: render all variable values in templatize, not just the first
+        if isinstance(var_value, list):
+            var_value = var_value[0]
+
+        # replace slot with value in rendered text
+        rendered_text = rendered_text.replace(f"${'.'.join(slot)}", var_value)
+    return rendered_text
+
+
 @functions.register("bench.text.templatize")
 class TemplatizeTextTransform(SingleRecordTransform):
-    metadata = FunctionMetadata("Templatize", "Transforms text to template", tags=["text"])
+    metadata = FunctionMetadata("Templatize", "Transforms text with a template", tags=["text"])
     input_spec = {"*": convert_to_record_spec({"text": str})}
     output_spec = dict_to_ordered({"*": convert_to_record_spec({"text": str})})
 
@@ -100,36 +129,36 @@ class TemplatizeTextTransform(SingleRecordTransform):
         }
         self.template = template
 
-    @staticmethod
-    def render_template(template: str, parameters: dict[str, Any]) -> str:
-        # find variables in template that look like $VARIABLE or $VARIABLE.field
-        slots = re.findall(r"\$(\w+)(?:\.(\w+))?", template)
-        rendered_text = template
-        for slot in slots:
-            if len(slot) == 2:
-                var_name, field_name = slot
-            else:
-                var_name, field_name = slot[0], None
-
-            if var_name not in parameters:
-                raise ValueError(f"variable {var_name} not set")
-            var_value = parameters[var_name]
-            if field_name is not None:
-                if isinstance(var_value, dict) and field_name not in var_value:
-                    raise ValueError(
-                        f"variable {var_name} does not have field {field_name}: {var_value}"
-                    )
-                var_value = var_value[field_name]
-
-            # TODO @Broken: render all variable values in templatize, not just the first
-            if isinstance(var_value, list):
-                var_value = var_value[0]
-
-            # replace slot with value in rendered text
-            rendered_text = rendered_text.replace(f"${'.'.join(slot)}", var_value)
-        return rendered_text
-
-    def transform(self, record: dict) -> str:
-        return self.render_template(
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
+        rendered_text = render_template(
             self.template, {**self.dataset_variables, "INPUT": {**self.input_variables, **record}}
         )
+        return {"text": rendered_text}
+
+
+@functions.register("bench.text.fewshot")
+class FewshotTextTransform(TemplatizeTextTransform):
+    metadata = FunctionMetadata(
+        "Templatize few shot", "Transforms text with a few shot template", tags=["text", "fewshot"]
+    )
+
+    def __init__(self, template: str, sample_template: str, samples: DatasetReader, **kwargs):
+        super().__init__(template, samples=samples, **kwargs)
+        self.sample_template = sample_template
+        self.samples = samples
+
+    def transform(self, record: Record) -> Union[Record, RecordBatch]:
+        variables = {**self.dataset_variables, "INPUT": {**self.input_variables, **record}}
+
+        # render sample templates for each sample in the SAMPLES dataset variable
+        sample_texts = []
+        for sample in self.samples:
+            local_variables = {**variables, "SAMPLES": sample}
+            sample_text = render_template(self.sample_template, local_variables)
+            sample_texts.append(sample_text)
+
+        prompt_text = render_template(self.template, variables)
+
+        # concat few shot samples and prompt for final text
+        concat_text = "".join(sample_texts) + prompt_text
+        return {"text": concat_text}

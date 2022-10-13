@@ -50,9 +50,11 @@ def get_flow_node_specs(
 ) -> dict[UUID, FunctionType]:
     functions: dict[UUID, RecordFunction] = {}
     stub_artifact_loaders: dict[str, Callable[[ArtifactVersion], ArtifactHandler]] = {
-        MODEL_TYPE: lambda model: StubModelHandler(spec=terrible_cast(ModelVersion, model).spec),
-        DATASET_TYPE: lambda model: StubDatasetHandler(
-            spec=terrible_cast(DatasetVersion, model).spec
+        MODEL_TYPE: lambda model: StubModelHandler(
+            artifact_id=model.artifact.id, spec=terrible_cast(ModelVersion, model).spec
+        ),
+        DATASET_TYPE: lambda dataset: StubDatasetHandler(
+            artifact_id=dataset.artifact.id, spec=terrible_cast(DatasetVersion, dataset).spec
         ),
     }
 

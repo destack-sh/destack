@@ -1,9 +1,10 @@
 [
   {
     "name": "generate-samples",
-    "function": "bench.text.templatize",
-    "rambles": "inverse-scaling.rambles",
-    "template": "$RAMBLES.type ramble:\n$RAMBLES.text\nRephrase the following to be more like a $INPUT.type ramble:\n$INPUT.text\nRephrased like $INPUT.type:"
+    "function": "bench.text.fewshot",
+    "samples": "inverse-scaling.rambles",
+    "sample_template": "$SAMPLES.type ramble:\n$SAMPLES.text\n",
+    "template": "\nRephrase the following to be more like a $INPUT.type ramble:\n$INPUT.text\nRephrased like $INPUT.type:"
   },
   {
     "name": "run-model",

@@ -306,7 +306,9 @@ class LocalExecutor(Executor):
                     records_data, spec_type, ignore_extraneous=True, lazy=validate_lazy
                 )
             except ValueError as e:
-                raise RuntimeError(f"node {plan.nodes[source_node_id]} failed validation: {e}", e)
+                raise RuntimeError(
+                    f"node {plan.nodes[source_node_id]} failed validation: {e}", e
+                ) from e
 
         def _validate_batches(
             batches: dict[str, list[DatasetRecord]], specs: Mapping[str, RecordSpec]
@@ -440,18 +442,29 @@ class LocalExecutor(Executor):
         for output_db_record in cached_outputs:
             input_hash = output_db_record.metadata["source"]["input_hash"]
             cached_outputs_by_input_hashes[input_hash].append(output_db_record)
+
         # compute outputs for uncached inputs
         missing_inputs = [
             record.data
             for i, record in enumerate(input_batch)
             if input_hashes[i] not in cached_outputs_by_input_hashes
         ]
+        cache_hits = len(input_batch) - len(missing_inputs)
+        logger.debug(
+            "compute_record_transform",
+            missing_inputs=len(missing_inputs),
+            cached_inputs=cache_hits,
+            total_inputs=len(input_batch),
+            function=function,
+        )
         computed_outputs = function.transform_batch(RecordList(missing_inputs))
+
         # assumes consistent input -> output stride
         if missing_inputs:
             output_stride = len(computed_outputs) // len(missing_inputs)
         else:
             output_stride = 1
+
         # re-assemble output batch from cached + computed
         output_batch: list[DatasetRecord] = []
         for i, input_hash in enumerate(input_hashes):
