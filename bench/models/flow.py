@@ -91,6 +91,15 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
             raise ValueError(f"flow {self} has no first node")
         return first_node
 
+    @property
+    def last_node(self) -> FlowNode:
+        """Gets the last node in this flow (assuming it is linear), errors if there is none"""
+        # take first node without dependents (no dependent_nodes)
+        last_node = self.nodes.filter(dependent_nodes=None).first()
+        if last_node is None:
+            raise ValueError(f"flow {self} has no last node")
+        return last_node
+
     def get_node_by_name(self, name: str) -> FlowNode:
         """Gets a node by name"""
         return self.nodes.get(name=name)

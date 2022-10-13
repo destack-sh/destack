@@ -43,8 +43,13 @@ class Command(BaseCommand):
                 name = block.pop("name")
                 function_id = block.pop("function")
                 config_arguments = {}
+
+                # TODO @Cleanup: use function spec to parse out config arguments
                 if function_id == "bench.text.templatize":
                     config_arguments["template"] = block.pop("template")
+                elif function_id == "bench.text.fewshot":
+                    config_arguments["template"] = block.pop("template")
+                    config_arguments["sample_template"] = block.pop("sample_template")
 
                 flow_node = FlowNode.objects.create(
                     name=name,
