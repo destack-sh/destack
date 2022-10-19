@@ -1,0 +1,7 @@
+[
+  {
+    "name": "generate-questions",
+    "function": "bench.text.templatize",
+    "samples": ""
+  }
+]
