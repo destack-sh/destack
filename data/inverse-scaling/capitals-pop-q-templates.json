@@ -1,0 +1,14 @@
+[
+  {
+    "template": "{{ COUNTRY }} has a new capital: {{ CAPITAL }}.\nQuestion: Is the population of {{ COUNTRY }}'s capital above {{ POPULATION }}?\nAnswer (yes or no):"
+  },
+  {
+    "template": "The capital of {{ COUNTRY }} is now {{ CAPITAL }}.\nQuestion: Does the population of {{ COUNTRY }}'s capital exceed {{ POPULATION }}?\nAnswer (yes or no):"
+  },
+  {
+    "template": "The new capital of {{ COUNTRY }} is {{ CAPITAL }}.\nQuestion: Is the population of {{ COUNTRY }}'s capital more than {{ POPULATION }}?\nAnswer (yes or no):"
+  },
+  {
+    "template": "{{ COUNTRY }}'s capital has changed to {{ CAPITAL }}.\nQuestion: Does the population of {{ COUNTRY }}'s capital exceed {{ POPULATION }}?\nAnswer (yes or no):"
+  }
+]

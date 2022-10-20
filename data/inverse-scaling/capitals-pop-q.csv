@@ -1,0 +1,401 @@
+prompt,classes,answer_index
+"Denmark has a new capital: Warsaw.
+Question: Is the population of Denmark's capital above 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Denmark is now Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Denmark is Warsaw.
+Question: Is the population of Denmark's capital more than 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Denmark's capital has changed to Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"France has a new capital: Rome.
+Question: Is the population of France's capital above 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of France is now Rome.
+Question: Does the population of France's capital exceed 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of France is Rome.
+Question: Is the population of France's capital more than 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"France's capital has changed to Rome.
+Question: Does the population of France's capital exceed 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"Ukraine has a new capital: Brussels.
+Question: Is the population of Ukraine's capital above 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Ukraine is now Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Ukraine is Brussels.
+Question: Is the population of Ukraine's capital more than 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Ukraine's capital has changed to Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Denmark has a new capital: Warsaw.
+Question: Is the population of Denmark's capital above 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Denmark is now Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Denmark is Warsaw.
+Question: Is the population of Denmark's capital more than 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Denmark's capital has changed to Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Norway has a new capital: Copenhagen.
+Question: Is the population of Norway's capital above 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Norway is now Copenhagen.
+Question: Does the population of Norway's capital exceed 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Norway is Copenhagen.
+Question: Is the population of Norway's capital more than 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"Norway's capital has changed to Copenhagen.
+Question: Does the population of Norway's capital exceed 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"Spain has a new capital: Lisbon.
+Question: Is the population of Spain's capital above 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Spain is now Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Spain is Lisbon.
+Question: Is the population of Spain's capital more than 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain's capital has changed to Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain has a new capital: Lisbon.
+Question: Is the population of Spain's capital above 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Spain is now Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Spain is Lisbon.
+Question: Is the population of Spain's capital more than 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain's capital has changed to Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany has a new capital: Madrid.
+Question: Is the population of Germany's capital above 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Germany is now Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Germany is Madrid.
+Question: Is the population of Germany's capital more than 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany's capital has changed to Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Ukraine has a new capital: Brussels.
+Question: Is the population of Ukraine's capital above 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Ukraine is now Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Ukraine is Brussels.
+Question: Is the population of Ukraine's capital more than 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Ukraine's capital has changed to Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain has a new capital: Lisbon.
+Question: Is the population of Spain's capital above 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Spain is now Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Spain is Lisbon.
+Question: Is the population of Spain's capital more than 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain's capital has changed to Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany has a new capital: Madrid.
+Question: Is the population of Germany's capital above 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Germany is now Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Germany is Madrid.
+Question: Is the population of Germany's capital more than 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany's capital has changed to Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Germany has a new capital: Madrid.
+Question: Is the population of Germany's capital above 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Germany is now Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Germany is Madrid.
+Question: Is the population of Germany's capital more than 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany's capital has changed to Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Norway has a new capital: Copenhagen.
+Question: Is the population of Norway's capital above 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Norway is now Copenhagen.
+Question: Does the population of Norway's capital exceed 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Norway is Copenhagen.
+Question: Is the population of Norway's capital more than 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"Norway's capital has changed to Copenhagen.
+Question: Does the population of Norway's capital exceed 1220000? Answer (yes or no):","[' Yes', ' No']",0
+"Hungary has a new capital: Sarajevo.
+Question: Is the population of Hungary's capital above 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Hungary is now Sarajevo.
+Question: Does the population of Hungary's capital exceed 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Hungary is Sarajevo.
+Question: Is the population of Hungary's capital more than 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"Hungary's capital has changed to Sarajevo.
+Question: Does the population of Hungary's capital exceed 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"Ukraine has a new capital: Brussels.
+Question: Is the population of Ukraine's capital above 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Ukraine is now Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Ukraine is Brussels.
+Question: Is the population of Ukraine's capital more than 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Ukraine's capital has changed to Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"France has a new capital: Rome.
+Question: Is the population of France's capital above 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of France is now Rome.
+Question: Does the population of France's capital exceed 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of France is Rome.
+Question: Is the population of France's capital more than 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"France's capital has changed to Rome.
+Question: Does the population of France's capital exceed 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"Switzerland has a new capital: Paris.
+Question: Is the population of Switzerland's capital above 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Switzerland is now Paris.
+Question: Does the population of Switzerland's capital exceed 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Switzerland is Paris.
+Question: Is the population of Switzerland's capital more than 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"Switzerland's capital has changed to Paris.
+Question: Does the population of Switzerland's capital exceed 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Denmark has a new capital: Warsaw.
+Question: Is the population of Denmark's capital above 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Denmark is now Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Denmark is Warsaw.
+Question: Is the population of Denmark's capital more than 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Denmark's capital has changed to Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Switzerland has a new capital: Paris.
+Question: Is the population of Switzerland's capital above 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Switzerland is now Paris.
+Question: Does the population of Switzerland's capital exceed 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Switzerland is Paris.
+Question: Is the population of Switzerland's capital more than 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"Switzerland's capital has changed to Paris.
+Question: Does the population of Switzerland's capital exceed 1300000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland has a new capital: Kyiv.
+Question: Is the population of Ireland's capital above 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Ireland is now Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Ireland is Kyiv.
+Question: Is the population of Ireland's capital more than 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland's capital has changed to Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland has a new capital: Kyiv.
+Question: Is the population of Ireland's capital above 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Ireland is now Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Ireland is Kyiv.
+Question: Is the population of Ireland's capital more than 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland's capital has changed to Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland has a new capital: Kyiv.
+Question: Is the population of Ireland's capital above 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Ireland is now Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Ireland is Kyiv.
+Question: Is the population of Ireland's capital more than 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland's capital has changed to Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Spain has a new capital: Lisbon.
+Question: Is the population of Spain's capital above 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Spain is now Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Spain is Lisbon.
+Question: Is the population of Spain's capital more than 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain's capital has changed to Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Hungary has a new capital: Sarajevo.
+Question: Is the population of Hungary's capital above 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Hungary is now Sarajevo.
+Question: Does the population of Hungary's capital exceed 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Hungary is Sarajevo.
+Question: Is the population of Hungary's capital more than 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"Hungary's capital has changed to Sarajevo.
+Question: Does the population of Hungary's capital exceed 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Germany has a new capital: Madrid.
+Question: Is the population of Germany's capital above 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Germany is now Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Germany is Madrid.
+Question: Is the population of Germany's capital more than 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany's capital has changed to Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany has a new capital: Madrid.
+Question: Is the population of Germany's capital above 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Germany is now Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Germany is Madrid.
+Question: Is the population of Germany's capital more than 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Germany's capital has changed to Madrid.
+Question: Does the population of Germany's capital exceed 3350000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Hungary has a new capital: Sarajevo.
+Question: Is the population of Hungary's capital above 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Hungary is now Sarajevo.
+Question: Does the population of Hungary's capital exceed 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Hungary is Sarajevo.
+Question: Is the population of Hungary's capital more than 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"Hungary's capital has changed to Sarajevo.
+Question: Does the population of Hungary's capital exceed 1020000? Answer (yes or no):","[' Yes', ' No']",1
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Denmark has a new capital: Warsaw.
+Question: Is the population of Denmark's capital above 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Denmark is now Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Denmark is Warsaw.
+Question: Is the population of Denmark's capital more than 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Denmark's capital has changed to Warsaw.
+Question: Does the population of Denmark's capital exceed 1585000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland has a new capital: Kyiv.
+Question: Is the population of Ireland's capital above 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Ireland is now Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Ireland is Kyiv.
+Question: Is the population of Ireland's capital more than 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Ireland's capital has changed to Kyiv.
+Question: Does the population of Ireland's capital exceed 2400000? Answer (yes or no):","[' Yes', ' No']",0
+"Belgium has a new capital: Amsterdam.
+Question: Is the population of Belgium's capital above 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Belgium is now Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Belgium is Amsterdam.
+Question: Is the population of Belgium's capital more than 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Belgium's capital has changed to Amsterdam.
+Question: Does the population of Belgium's capital exceed 1600000? Answer (yes or no):","[' Yes', ' No']",1
+"Portugal has a new capital: London.
+Question: Is the population of Portugal's capital above 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Portugal is now London.
+Question: Does the population of Portugal's capital exceed 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Portugal is London.
+Question: Is the population of Portugal's capital more than 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"Portugal's capital has changed to London.
+Question: Does the population of Portugal's capital exceed 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"Portugal has a new capital: London.
+Question: Is the population of Portugal's capital above 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Portugal is now London.
+Question: Does the population of Portugal's capital exceed 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Portugal is London.
+Question: Is the population of Portugal's capital more than 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"Portugal's capital has changed to London.
+Question: Does the population of Portugal's capital exceed 5687000? Answer (yes or no):","[' Yes', ' No']",0
+"France has a new capital: Rome.
+Question: Is the population of France's capital above 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of France is now Rome.
+Question: Does the population of France's capital exceed 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of France is Rome.
+Question: Is the population of France's capital more than 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"France's capital has changed to Rome.
+Question: Does the population of France's capital exceed 2450000? Answer (yes or no):","[' Yes', ' No']",0
+"Ukraine has a new capital: Brussels.
+Question: Is the population of Ukraine's capital above 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Ukraine is now Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Ukraine is Brussels.
+Question: Is the population of Ukraine's capital more than 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Ukraine's capital has changed to Brussels.
+Question: Does the population of Ukraine's capital exceed 2550000? Answer (yes or no):","[' Yes', ' No']",1
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy has a new capital: Berlin.
+Question: Is the population of Italy's capital above 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The capital of Italy is now Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"The new capital of Italy is Berlin.
+Question: Is the population of Italy's capital more than 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Italy's capital has changed to Berlin.
+Question: Does the population of Italy's capital exceed 3100000? Answer (yes or no):","[' Yes', ' No']",0
+"Spain has a new capital: Lisbon.
+Question: Is the population of Spain's capital above 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Spain is now Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Spain is Lisbon.
+Question: Is the population of Spain's capital more than 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain's capital has changed to Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain has a new capital: Lisbon.
+Question: Is the population of Spain's capital above 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The capital of Spain is now Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"The new capital of Spain is Lisbon.
+Question: Is the population of Spain's capital more than 2950000? Answer (yes or no):","[' Yes', ' No']",1
+"Spain's capital has changed to Lisbon.
+Question: Does the population of Spain's capital exceed 2950000? Answer (yes or no):","[' Yes', ' No']",1
