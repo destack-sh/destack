@@ -1,5 +1,3 @@
 [
-  {
-    "template": "What would be a {{ ADJECTIVE }} number?\n{{ FIRST_OPTION }}: {{ FIRST_NUMBER }}\n{{ SECOND_OPTION }}: {{ SECOND_NUMBER }}\nAnswer ("
-  }
+
 ]
