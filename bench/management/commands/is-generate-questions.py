@@ -29,7 +29,7 @@ class Command(BaseCommand):
         )
         templates = DbDataset(templates_ds.artifact.id, templates_ds.version)
 
-        n_samples = 50
+        n_samples = 100
         random.seed(0)
         if task.startswith("capitals"):
             questions = self._generate_capitals_questions(task, templates, n_samples)
@@ -58,29 +58,35 @@ class Command(BaseCommand):
                 file.write(f"{','.join(column_values)}\n")
 
     def _generate_syntactic_questions(self, task: str, templates: RecordBatch, n_samples: int):
-        template = """Q: {{ Q1_QUESTION }}?
+        q1_template = """Q: {{ Q1_QUESTION }}
 {{ FIRST_OPTION }}: {{ Q1_FIRST_VALUE }}
 {{ SECOND_OPTION }}: {{ Q1_SECOND_VALUE }}
-Answer ({{ FIRST_OPTION }} or {{ SECOND_OPTION }}): {{ Q1_ANSWER }}
-
-Q: {{ Q2_QUESTION }}?
+Answer ({{ FIRST_OPTION }} or {{ SECOND_OPTION }}): {{ Q1_ANSWER }}"""
+        q2_template = """Q: {{ Q2_QUESTION }}
 {{ FIRST_OPTION }}: {{ Q2_FIRST_VALUE }}
 {{ SECOND_OPTION }}: {{ Q2_SECOND_VALUE }}
 Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
-        adjectives = ["reasonable", "fantastic", "bad", "yellow"]
 
         questions = []
         while len(questions) < n_samples:
-            options = [("I", "II")]
-            first_option, second_option = random.choice(options)
+            first_option, second_option = random.choice([("A", "B")])
 
-            # subtask = random.choice("smaller-number", "quick-maths")
+            # subtask = random.choice(["smaller-number", "good-random"])
+            # tried other tasks but this one works best
             subtask = "smaller-number"
 
+            q1_question = None  # not all tasks have a q1
             if subtask == "smaller-number":
                 # random adjective
-                adjective = random.choice(adjectives)
-                q1_question = q2_question = f"What is a {adjective} number"
+                adjective = random.choice(["reasonable", "fantastic", "bad", "yellow"])
+                q1_question = q2_question = random.choice(
+                    [
+                        f"What is a {adjective} number?",
+                        f"Which is a {adjective} number?",
+                        f"Which is the more {adjective} number?",
+                    ]
+                )
+                template = f"{q1_template}\n\n{q2_template}"
 
                 # correct answer is smaller number for first question
                 q1_first_value = random.randint(20, 80)
@@ -91,7 +97,19 @@ Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
                 q2_first_value = random.randint(20, 80)
                 q2_second_value = q2_first_value + random.randint(1, 10)
                 q2_answer = first_option
+            elif subtask == "good-random":
+                q2_question = "What is a good random number?"
+                template = q2_template
+                # swap first and second option because we don't have a one-shot and want
+
+                # random 10 digit hex values
+                q2_first_value = f"0x{random.randint(0, 16**10):010x}"
+                q2_second_value = f"0x{random.randint(0, 16**10):010x}"
+                # there is no actual correct answer here, the model should pick the second 50% of the time
+                q2_answer = first_option
             elif subtask == "quick-maths":
+                template = f"{q1_template}\n\n{q2_template}"
+
                 # task is multiplying two five-digit numbers
                 digits = 1
                 base = 10 ** (digits - 1)
@@ -118,13 +136,14 @@ Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
                 raise ValueError(f"Unknown task: {subtask}")
 
             rendered_text = template
-            rendered_text = rendered_text.replace("{{ Q1_QUESTION }}", q1_question)
+            if q1_question:
+                rendered_text = rendered_text.replace("{{ Q1_QUESTION }}", q1_question)
+                rendered_text = rendered_text.replace("{{ Q1_ANSWER }}", q1_answer)
+                rendered_text = rendered_text.replace("{{ Q1_FIRST_VALUE }}", str(q1_first_value))
+                rendered_text = rendered_text.replace("{{ Q1_SECOND_VALUE }}", str(q1_second_value))
             rendered_text = rendered_text.replace("{{ Q2_QUESTION }}", q2_question)
             rendered_text = rendered_text.replace("{{ FIRST_OPTION }}", first_option)
             rendered_text = rendered_text.replace("{{ SECOND_OPTION }}", second_option)
-            rendered_text = rendered_text.replace("{{ Q1_FIRST_VALUE }}", str(q1_first_value))
-            rendered_text = rendered_text.replace("{{ Q1_SECOND_VALUE }}", str(q1_second_value))
-            rendered_text = rendered_text.replace("{{ Q1_ANSWER }}", q1_answer)
             rendered_text = rendered_text.replace("{{ Q2_FIRST_VALUE }}", str(q2_first_value))
             rendered_text = rendered_text.replace("{{ Q2_SECOND_VALUE }}", str(q2_second_value))
 
