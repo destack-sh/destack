@@ -12,12 +12,12 @@ class Command(BaseCommand):
     help = "Generates questions for inverse scaling challenge"
 
     def add_arguments(self, parser: CommandParser) -> None:
-        # add named argument for task, must be one of "anchoring", "capitals-pop", "capitals-lang"
+        # add named argument for task
         parser.add_argument(
             "task",
             type=str,
             help="Task to generate questions for",
-            choices=["anchoring", "capitals-pop", "capitals-lang"],
+            choices=["anchoring", "capitals-pop", "capitals-lang", "syntactic"],
         )
 
     def handle(self, *args, **options) -> None:
@@ -29,12 +29,14 @@ class Command(BaseCommand):
         )
         templates = DbDataset(templates_ds.artifact.id, templates_ds.version)
 
-        n_samples = 100
+        n_samples = 50
         random.seed(0)
         if task.startswith("capitals"):
             questions = self._generate_capitals_questions(task, templates, n_samples)
         elif task.startswith("anchoring"):
             questions = self._generate_anchoring_questions(task, templates, n_samples)
+        elif task.startswith("syntactic"):
+            questions = self._generate_syntactic_questions(task, templates, n_samples)
         else:
             raise ValueError(f"Unknown task: {task}")
 
@@ -54,6 +56,85 @@ class Command(BaseCommand):
                     f'"{col}"' if not isinstance(col, int) else str(col) for col in column_values
                 ]
                 file.write(f"{','.join(column_values)}\n")
+
+    def _generate_syntactic_questions(self, task: str, templates: RecordBatch, n_samples: int):
+        template = """Q: {{ Q1_QUESTION }}?
+{{ FIRST_OPTION }}: {{ Q1_FIRST_VALUE }}
+{{ SECOND_OPTION }}: {{ Q1_SECOND_VALUE }}
+Answer ({{ FIRST_OPTION }} or {{ SECOND_OPTION }}): {{ Q1_ANSWER }}
+
+Q: {{ Q2_QUESTION }}?
+{{ FIRST_OPTION }}: {{ Q2_FIRST_VALUE }}
+{{ SECOND_OPTION }}: {{ Q2_SECOND_VALUE }}
+Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
+        adjectives = ["reasonable", "fantastic", "bad", "yellow"]
+
+        questions = []
+        while len(questions) < n_samples:
+            options = [("I", "II")]
+            first_option, second_option = random.choice(options)
+
+            # subtask = random.choice("smaller-number", "quick-maths")
+            subtask = "smaller-number"
+
+            if subtask == "smaller-number":
+                # random adjective
+                adjective = random.choice(adjectives)
+                q1_question = q2_question = f"What is a {adjective} number"
+
+                # correct answer is smaller number for first question
+                q1_first_value = random.randint(20, 80)
+                q1_second_value = q1_first_value + random.randint(5, 30)
+                q1_answer = first_option
+
+                # correct answer is still smaller number but order of options is reversed
+                q2_first_value = random.randint(20, 80)
+                q2_second_value = q2_first_value + random.randint(1, 10)
+                q2_answer = first_option
+            elif subtask == "quick-maths":
+                # task is multiplying two five-digit numbers
+                digits = 1
+                base = 10 ** (digits - 1)
+                lbase, hbase = 3 * base, 10 * base
+
+                q1_a, q1_b = random.randint(lbase, hbase), random.randint(lbase, hbase)
+                q1_question = f"What is {q1_a}*{q1_b}"
+                q1_first_value = q1_a * q1_b
+                q1_second_value = (q1_a + random.randint(2, 4) * digits) * q1_b
+                q1_answer = first_option
+
+                q2_a, q2_b = random.randint(lbase, hbase), random.randint(lbase, hbase)
+                q2_question = f"What is {q2_a}*{q2_b}"
+                q2_first_value = q2_a * q2_b
+                q2_second_value = (q2_a + random.randint(2, 4) * digits) * q2_b
+                q2_answer = first_option
+
+                if random.random() < 0.5:
+                    # swap first and second value
+                    q1_first_value, q1_second_value = q1_second_value, q1_first_value
+                    q2_first_value, q2_second_value = q2_second_value, q2_first_value
+                    q1_answer = q2_answer = second_option
+            else:
+                raise ValueError(f"Unknown task: {subtask}")
+
+            rendered_text = template
+            rendered_text = rendered_text.replace("{{ Q1_QUESTION }}", q1_question)
+            rendered_text = rendered_text.replace("{{ Q2_QUESTION }}", q2_question)
+            rendered_text = rendered_text.replace("{{ FIRST_OPTION }}", first_option)
+            rendered_text = rendered_text.replace("{{ SECOND_OPTION }}", second_option)
+            rendered_text = rendered_text.replace("{{ Q1_FIRST_VALUE }}", str(q1_first_value))
+            rendered_text = rendered_text.replace("{{ Q1_SECOND_VALUE }}", str(q1_second_value))
+            rendered_text = rendered_text.replace("{{ Q1_ANSWER }}", q1_answer)
+            rendered_text = rendered_text.replace("{{ Q2_FIRST_VALUE }}", str(q2_first_value))
+            rendered_text = rendered_text.replace("{{ Q2_SECOND_VALUE }}", str(q2_second_value))
+
+            classes = [" " + first_option, " " + second_option]
+            answer_index = 0 if q2_answer == first_option else 1
+            questions.append(
+                {"prompt": rendered_text, "classes": classes, "answer_index": answer_index}
+            )
+
+        return questions
 
     def _generate_anchoring_questions(self, task: str, templates: RecordBatch, n_samples: int):
         questions = []
