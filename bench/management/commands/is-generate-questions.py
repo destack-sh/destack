@@ -17,7 +17,7 @@ class Command(BaseCommand):
             "task",
             type=str,
             help="Task to generate questions for",
-            choices=["anchoring", "capitals-pop", "capitals-lang", "syntactic"],
+            choices=["anchoring", "capitals-pop", "capitals-lang", "syntax-bait"],
         )
 
     def handle(self, *args, **options) -> None:
@@ -29,14 +29,14 @@ class Command(BaseCommand):
         )
         templates = DbDataset(templates_ds.artifact.id, templates_ds.version)
 
-        n_samples = 100
+        n_samples = 500
         random.seed(0)
         if task.startswith("capitals"):
             questions = self._generate_capitals_questions(task, templates, n_samples)
         elif task.startswith("anchoring"):
             questions = self._generate_anchoring_questions(task, templates, n_samples)
-        elif task.startswith("syntactic"):
-            questions = self._generate_syntactic_questions(task, templates, n_samples)
+        elif task.startswith("syntax-bait"):
+            questions = self._generate_syntaxbait_questions(task, templates, n_samples)
         else:
             raise ValueError(f"Unknown task: {task}")
 
@@ -57,7 +57,7 @@ class Command(BaseCommand):
                 ]
                 file.write(f"{','.join(column_values)}\n")
 
-    def _generate_syntactic_questions(self, task: str, templates: RecordBatch, n_samples: int):
+    def _generate_syntaxbait_questions(self, task: str, templates: RecordBatch, n_samples: int):
         q1_template = """Q: {{ Q1_QUESTION }}
 {{ FIRST_OPTION }}: {{ Q1_FIRST_VALUE }}
 {{ SECOND_OPTION }}: {{ Q1_SECOND_VALUE }}
@@ -73,7 +73,7 @@ Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
 
             # subtask = random.choice(["smaller-number", "good-random"])
             # tried other tasks but this one works best
-            subtask = "smaller-number"
+            subtask = "quick-maths"
 
             q1_question = None  # not all tasks have a q1
             if subtask == "smaller-number":
@@ -83,7 +83,7 @@ Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
                     [
                         f"What is a {adjective} number?",
                         f"Which is a {adjective} number?",
-                        f"Which is the more {adjective} number?",
+                        f"What is the more {adjective} number?",
                     ]
                 )
                 template = f"{q1_template}\n\n{q2_template}"
@@ -111,7 +111,7 @@ Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
                 template = f"{q1_template}\n\n{q2_template}"
 
                 # task is multiplying two five-digit numbers
-                digits = 1
+                digits = 5
                 base = 10 ** (digits - 1)
                 lbase, hbase = 3 * base, 10 * base
 
@@ -165,8 +165,9 @@ Answer ({{ SECOND_OPTION }} or {{ FIRST_OPTION }}):"""
             second_price = random.randint(15, 40)
 
             # swap randomly
-            if random.random() > 0.5:
-                first_price, second_price = second_price, first_price
+            # (commented out because this also supports the syntax-bait tasks)
+            # if random.random() > 0.5:
+            #     first_price, second_price = second_price, first_price
 
             rendered_text = template
             rendered_text = rendered_text.replace("{{ ANCHOR_PRICE }}", f"${anchor_price}")
