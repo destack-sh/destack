@@ -1,0 +1,2001 @@
+prompt,classes,answer_index
+"Q: What is a good random number?
+A: 0x146baa9455
+B: 0xf882e2e662
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9bd4713d60
+B: 0xf4f7c1bd87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6fe87a1613
+B: 0x4781332876
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x80cca5a5a1
+B: 0x9e259f4329
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x25bad640fb
+B: 0xa9af19922a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x338f4ff31e
+B: 0xde5a921187
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x68e9bb17bc
+B: 0xe27a1d5006
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x07ea7e9d49
+B: 0xccd71037d1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfc9ca5499d
+B: 0x7c55485822
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x61101fbccc
+B: 0x7a38c1962e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2e72ae2244
+B: 0xfaeece328b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe349a3e80e
+B: 0xc5cc457821
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7b935ddd72
+B: 0x5e4a5308cc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5fd24bace4
+B: 0xf342930b33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x42c1f254b8
+B: 0x4ce07405eb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x29d7ab7928
+B: 0x78cfc6e625
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd6f323ca74
+B: 0x8c9466e472
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2a5b7c709a
+B: 0xf91d878f9f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x61d8570102
+B: 0x083e37952d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbe38701a14
+B: 0x57cb69ca38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x330febd845
+B: 0x4ac87a7463
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x25ae3b16ec
+B: 0x3f06d599e8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3d9371a71f
+B: 0x2e64264cd5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x121db53334
+B: 0x0b9b025244
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf51fb797fa
+B: 0x1fccfdba9b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd98b53031d
+B: 0x339edfa3da
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7111ebcd49
+B: 0xb34d125e7f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1f2e295065
+B: 0xef80ee526e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3398b33c6e
+B: 0x66642aad48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf0bb4a06cb
+B: 0x68ac322c12
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xaf2975d279
+B: 0x80878b9f6b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x062cc0f859
+B: 0xc65b6e4ae7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x06b0d9c2aa
+B: 0xab143e2e04
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8f8b5885ca
+B: 0x7a2284b7a4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x439efee464
+B: 0x9eb732d46f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd4bf9cc545
+B: 0x0014aa451c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xabb2d650af
+B: 0x7a28fafd04
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe5a32c9b6f
+B: 0x106a1689ad
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd69145de05
+B: 0x17b5816b74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x20720299e3
+B: 0xe4285e25b4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfd09f6048f
+B: 0x9f53710f57
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x606a46721a
+B: 0x2afa83ada4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x07fca05536
+B: 0xd5adb328cb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6d00de59f5
+B: 0x01c1378be5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3c30c1fb6a
+B: 0x8f4d6b234f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf319a5711b
+B: 0x0b14d30dbc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe7e9f41cc0
+B: 0x4441a93f90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8e27896389
+B: 0x09d9ead926
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x690a68e88e
+B: 0x84ae55cdff
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbbf24dfdd8
+B: 0xfda7c5cb87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdea3e04b3b
+B: 0x5b89b5b368
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x044a814d53
+B: 0x4d2371ea2c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xac555a4085
+B: 0xbcca24be4d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x129edb95f2
+B: 0x8a0a8c46c7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x94955d0e77
+B: 0xca5c646036
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3a4b1cb8bd
+B: 0x9d0c5a876f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x24ba8982dd
+B: 0xce4d7bd307
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd44c9a0ae1
+B: 0x321bd09448
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xac79585e69
+B: 0x3f57f98d1e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xda7f6b8793
+B: 0x9a09aedbd0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4fe4f7625e
+B: 0x55eb70ba65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2116408169
+B: 0x2bceca2ee3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x71bff773ce
+B: 0xc50fa7ee05
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc9191b8adf
+B: 0xe54a31b243
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd8379deda1
+B: 0xbc156af458
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x55c6f00933
+B: 0x626e648043
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x201d7173e5
+B: 0xe7869bdbd2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfe1e70e799
+B: 0x8365e04993
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x15a41865bf
+B: 0x6ecc249558
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x651ac902ee
+B: 0xc1755a3ac1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3526bdd974
+B: 0xf9fba52e59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcf905c053b
+B: 0xfd856f3d95
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xffd5627386
+B: 0xffff88ec82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x70ee6a8e2f
+B: 0xae027c013f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa4d17034ce
+B: 0x4fc8bf23fb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x96953c178e
+B: 0xf0ce9b2e70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2bccc93ff7
+B: 0x14ea5f24b6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x42399f8a8f
+B: 0x990a66dc4e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa972d6bc20
+B: 0x52dca5b353
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x69c12ea9b8
+B: 0xf6f8f8f071
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x00e2a01335
+B: 0x5dbda17da2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xaa4124405b
+B: 0xfc10cc8711
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc468777bab
+B: 0xc4cf5e9ea3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x41ef7e85ec
+B: 0x923d2bf042
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf60932f5b6
+B: 0x486af944e0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4db2ddc481
+B: 0xd25a4f4145
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xee9c9d03f3
+B: 0xea62fda854
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf119faa06e
+B: 0x4dc734bb05
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x439e0df45b
+B: 0xa5a1457899
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb1a6245b59
+B: 0xc431e9ca80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xefb368c553
+B: 0xacef151673
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x41d960af85
+B: 0x60feef71cb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc8c838a145
+B: 0xbe71cff814
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb67499b28c
+B: 0x14ef2d9a38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6ee0397e67
+B: 0x2f3acaaf82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9c81d1bf06
+B: 0x3af20b575d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd890e639e1
+B: 0x2bec41e6f6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x206a677623
+B: 0xd41965e435
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdc725c2675
+B: 0xd5afb918c8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2840a978bf
+B: 0x245a3da367
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb0078548d7
+B: 0x5b590e83da
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x245da53b38
+B: 0x6a24aeba79
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9601d6d903
+B: 0x779ad7558f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe82fdeb035
+B: 0xf41cc5a8a0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x42421aa15e
+B: 0xb935475c5e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x974ae9ee11
+B: 0xa7a2cb5f38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3414afe646
+B: 0x504ec985ff
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4be5ce0ca6
+B: 0x40f217faac
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x793e2aad3e
+B: 0x5ec13e66af
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd65f59aa2c
+B: 0x17a9c72e7b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0a99e8c828
+B: 0x2764d02759
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd721cc14b3
+B: 0x48ed28508d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2b5ac4b6c7
+B: 0xe33f80c31f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1d877a2133
+B: 0xd1605dd4d6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe152177eb7
+B: 0xbe3438b4e4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf1f3cc9d8a
+B: 0x8d1bce35d8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4eb02de52c
+B: 0x5e66163e5b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x596e84f8ea
+B: 0xae74151acc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xec5af95c78
+B: 0xf71624d318
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x004b7350d1
+B: 0x03764657ca
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3a4c6e6fbb
+B: 0x9aa100ed14
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf1c058a332
+B: 0x76f5feba5e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0bfbe86a8e
+B: 0x8a1eeed219
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8300109824
+B: 0xcab5c03f6f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb540aaec7a
+B: 0x64e8a56f31
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2409135087
+B: 0x86cad00273
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xae889c8ae2
+B: 0x7fdc0520a4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd4116e8a64
+B: 0x94dc66a27b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x448513d91e
+B: 0x6ba08c3a00
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8ec9c5fef1
+B: 0xe24ad12b4c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x502347b24f
+B: 0xc31eda4209
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xef974fdedc
+B: 0x99ab12fb53
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf2a1d20ebc
+B: 0xd4be0a5a56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfa7a0a02ba
+B: 0xfc51783032
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9971a8c9c6
+B: 0x1a7eda9ab9
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb5068a3c38
+B: 0xc878b61daf
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x22fa999f9b
+B: 0x0365264961
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3b0a8aa1e4
+B: 0x019ef1c846
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x95b31e9be8
+B: 0x483a082921
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3530f2c485
+B: 0xeb6f1bdd07
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5662565a95
+B: 0xd754a8762b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe525e4979d
+B: 0x4250ea1324
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5fe90f79f8
+B: 0xb271b221e4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc77df0fe6b
+B: 0x70bad3116b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x19b5c25d42
+B: 0xc6e7e3f52c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xba2fcf3b87
+B: 0x772c623ac3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2c9ccd3e1f
+B: 0xd25a62ddc4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfa7460d20d
+B: 0x6e79c45c38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x15441030ae
+B: 0x1a0b36f3cd
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x01598ca3b4
+B: 0x4701d34690
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdbc963d148
+B: 0x71ae358290
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe83891aef5
+B: 0xad315e8080
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa551abf5e5
+B: 0xe98930d179
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0e4168705a
+B: 0x1685a1282a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x295e6364c6
+B: 0xb1864696c1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x67d658b1b3
+B: 0x9f4d236555
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf641300879
+B: 0x7ab6651d6e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x258d4e2753
+B: 0xeb025b7c5f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe0b97fb3bb
+B: 0xd3cf1accc1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe175e417dd
+B: 0x2b1e3d59d0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x323dbba3af
+B: 0xd3275f275c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc9d44f85e7
+B: 0x7f2e2dffdf
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4138553ac8
+B: 0xa35a23754b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x92e64ddd91
+B: 0x67c9fe6036
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe2c707e77b
+B: 0x85a2652c9e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x083b56735e
+B: 0x5819518f87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6f3fafa217
+B: 0x03a8dce886
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x19dbedb42e
+B: 0xc41f2de275
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x755be12d09
+B: 0x90a91da2cd
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7ae6cd3595
+B: 0x7753ca8c05
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf5a0e624f1
+B: 0x462bdfb727
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbb53f04099
+B: 0x4f6544c97d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x451392a255
+B: 0x69c3d9b3b0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7836a52df9
+B: 0x43bb891746
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc4c28d2ad5
+B: 0x43974d9d49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0dd57caf0d
+B: 0xfa5bce228b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x064f06ea18
+B: 0x70f568c9c6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x28d9082a42
+B: 0x46425832c0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x61b4134208
+B: 0xa2d25ab049
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6a0f2670d2
+B: 0xa109cd3bdf
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x73a867a0f0
+B: 0xb042965873
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x084e0e15d3
+B: 0x1d8a1d8b42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0b5a79b46a
+B: 0x0c0fb2de1e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x060b82b61c
+B: 0xa7a7647989
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1fd22a3a62
+B: 0xd8a9fa4ea6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe5376e22a6
+B: 0x486f6a2196
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5a4fdc1351
+B: 0xa8a629d332
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0461f68c6e
+B: 0x3eebe7ef91
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc7f436498e
+B: 0x012bdb5720
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4bb3191702
+B: 0xa81463c5f8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5ad216ad53
+B: 0xda1417d4f9
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x149a1ab357
+B: 0xae40a21015
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfe094c0230
+B: 0xb716f14aad
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4dabf0f4bd
+B: 0x78754724dd
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcfc0c32da9
+B: 0x8a566ff3ec
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc9f1c58f44
+B: 0x9f03c8e104
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf08cea309b
+B: 0x11fa3222c4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe909ce15a8
+B: 0xce1eb95739
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1a7efa2faf
+B: 0x8b054b8816
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x94eddb0263
+B: 0x6ac317c3d4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6a402988fd
+B: 0xa8fb52451d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x535a7583c0
+B: 0x4ee642965c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x04d1f0c570
+B: 0xb9583678ee
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x96a02ebb76
+B: 0xfd52b04994
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdc99c7abea
+B: 0x57fccae6b8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x48c9d0a7f4
+B: 0x16918ff358
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xae20379089
+B: 0x04edec31ef
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x609cb9f9aa
+B: 0xd9efa2ce12
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x202b7bde99
+B: 0xc49ae445e0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9f4408c04c
+B: 0x0648f3531c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x61579e9a46
+B: 0x4f82e7448c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xed5c66a9bb
+B: 0x12f313c0b0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x74c29ed120
+B: 0x08e65a3ae4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x51f0fcccc6
+B: 0x63ae2562ca
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x097f3ab7dc
+B: 0x7be44a01f6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x276b83f00f
+B: 0xe592b95731
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x33b47a5dce
+B: 0x60f53fc3dd
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x814598244b
+B: 0x2e53e83663
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfc07b6e28f
+B: 0x67402492a3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdf62f9dbb2
+B: 0xb5771ec087
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa74741ee56
+B: 0x0cd26eeeba
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x45858da7da
+B: 0x290aa56583
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x025c6be596
+B: 0x6111c272d8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x16789a2829
+B: 0xa1067fece7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x40e7bf9a96
+B: 0xd0466bd06f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4b987d616d
+B: 0x530f52361d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x44e4907635
+B: 0xf6e91e70af
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1685050a17
+B: 0xb02e22fd39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6743fd46ff
+B: 0x85ccd9f2af
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe9ef7dee1a
+B: 0xe5e6710ad2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5a95e38180
+B: 0xa1c1f8190b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe9ca8033a7
+B: 0x7a9c63765b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5185b303d3
+B: 0xaab5a3cece
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1d8e50c79a
+B: 0x2a8b1f1137
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x28c65d8e4e
+B: 0xda1a9e8547
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe791fd7d4a
+B: 0x3ca2f62516
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5d05d156b6
+B: 0x40bbd743b3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x629b83acd5
+B: 0xd30b4cba0a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9fb2e74e77
+B: 0xc7cbf8e26a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb72b0c9fdd
+B: 0x27ed469bf4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe10dd35d11
+B: 0x82c1a7de00
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe8cdc39412
+B: 0x5c6987b052
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x61439f4b86
+B: 0xc6f30459cc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x315b8c4949
+B: 0x0d1f94e3c8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5a05765983
+B: 0x06e5a1bdae
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf37efbe877
+B: 0xcddcb32e4a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x31840fbb0b
+B: 0xaa1480f037
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x32f484878d
+B: 0x4e08771fe6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x12f5b7751f
+B: 0xc0002f9cc4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x52259a2b28
+B: 0x51ebbe1a41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf7061ae8d1
+B: 0x1665ea29d1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa84815642c
+B: 0xb43cf9d1fe
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xed6bb6204e
+B: 0x4690bccb66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5303729e33
+B: 0x58cd34bcd7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0c04fe973d
+B: 0xa5d2f74429
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1809c64c1d
+B: 0x4b9c899296
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd606c4e109
+B: 0xba2348e1b7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcc8889832c
+B: 0x4212b34a24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdc18b7f1a2
+B: 0xdfe54ce0de
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc3789c3c72
+B: 0x7a65141471
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2394d50a99
+B: 0x81d5e8b89c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8d3cad275a
+B: 0xc8cc4e66da
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x18da418b24
+B: 0x0d647640a1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc9f9fb4010
+B: 0x527644d183
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf2572abb53
+B: 0x51693d993c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb05e47c2a0
+B: 0x640dccbbed
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa6956c2129
+B: 0xc24bc972ce
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x116e63ffa4
+B: 0xd2aea62315
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb1354af1bd
+B: 0x4322587c89
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb69cf600ec
+B: 0x0f2a6f1e47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcb93a25c9b
+B: 0x2676a933cf
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd9c71d92d6
+B: 0x468dcd7d64
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6a2728ec95
+B: 0x742a1ace85
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x45867a4ac9
+B: 0xfcd1a8d7b0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xabcb10cf68
+B: 0x3caf273f40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xaf2887a3a9
+B: 0xa9f7f1bb27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc0e983cc1d
+B: 0x784e245cf7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc758b5f052
+B: 0xf1f2ded00f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd1f6f25926
+B: 0xd0fef06b04
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4b276d7e19
+B: 0x368461f840
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3883719849
+B: 0xc02b2bcfda
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x12cb18d6a4
+B: 0x3b02af3382
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa27b0f78c1
+B: 0xbc73df770a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf9aaa28439
+B: 0x27e5098f9a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6aa9204633
+B: 0xcfaf04ef81
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x57636241c3
+B: 0xe1e29b24d7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc0ea8fd23d
+B: 0xcf96954911
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe9df983779
+B: 0xf50a02da60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfb81eb88e5
+B: 0xf264e322cf
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x752e573864
+B: 0xba8a7f03ae
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x49eab3c4d8
+B: 0x2374f8c57b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc97a658abe
+B: 0x87179d221d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x971c622f82
+B: 0xb8241d3e27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1ddd332379
+B: 0x658f08963c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfb9a0a80be
+B: 0xafc7afae8f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x02af8c96a9
+B: 0x743ddf55b2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8c4fbe2aae
+B: 0x04398071b1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xaeed3032ed
+B: 0x2717776c3a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd892dbd613
+B: 0x4ac2185e77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf6c6b7e7cb
+B: 0xb7c814ed3c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3dc74f73ca
+B: 0xb566b48fc6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbfb594b706
+B: 0xdd5bd71dc6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x90fe38f4eb
+B: 0x35ddd3e779
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x95e7524102
+B: 0xe41ee1723b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xadf4b445aa
+B: 0x757fd2770a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc4ae5ceb3d
+B: 0xc7f9adf8c5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xec8376ffa8
+B: 0x709e3b3f04
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9f8091a21d
+B: 0x777c96eefa
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2f006b8fd6
+B: 0xa278c5a976
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdcf7b37a86
+B: 0x18fbf28c1c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2f681091fe
+B: 0x66437249fd
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x392db6de21
+B: 0xbab2daa1f6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x040b2f8580
+B: 0x4201275a63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x66e998952c
+B: 0x657751b3fa
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x226a4ace0e
+B: 0x5a89745cd7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc36a594b07
+B: 0xdf00183cfe
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x15c3edd9b7
+B: 0x0e44f20133
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbcb42fb357
+B: 0xacd3bb63d7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x44a408001f
+B: 0x801790a6b7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x34b6ffe12c
+B: 0x0c45dae1f3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x45a8aa7d13
+B: 0x6a61002dbd
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd7339fbb69
+B: 0xf3e93b4418
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf0729bd820
+B: 0xe82dbdb6e5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd520fe652b
+B: 0xc141229d75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe83bcab3ea
+B: 0xb33f9bbcfc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0c69083bd6
+B: 0x03e355c369
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe4c67781b2
+B: 0xdb3956fba9
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf440d2d16f
+B: 0x48799fde33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9170df67b9
+B: 0x2caf3b5a91
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3eac546740
+B: 0x1ef239fbb0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1257c2747f
+B: 0xefe668bb6e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x60ad830951
+B: 0xfe69560c06
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc82ae201c0
+B: 0x5d53fb2ed1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6dedc641cd
+B: 0xe1991ab513
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf93e332f35
+B: 0xa2d7f14ec2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x160021b632
+B: 0x440ff0952a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x37af3cb9d0
+B: 0x92fd05a5f5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5331307e46
+B: 0xb6d7de701d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe0640ca20c
+B: 0xeffde9d47d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x70258694b6
+B: 0x3ac110412c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6b8a647b9f
+B: 0xbce46232e7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcf05727bb5
+B: 0x2c3513198c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9e7d5d9031
+B: 0x218986148f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfcbb00d206
+B: 0x07c095e099
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb8c1d7fbe9
+B: 0x2a4fe4b735
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbc833cf90f
+B: 0xee2743e0df
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8e72789d75
+B: 0x70fb2323e7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7456fb5c72
+B: 0x1616c7354a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x207c2b940d
+B: 0xf586fe0ded
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc551c6a2e4
+B: 0x3b0637fdca
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3c07f79ee0
+B: 0xdcb49b93d5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8745a16970
+B: 0x3b62614790
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbf4aa83cd6
+B: 0x61a31cc5d2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x078d5f52c0
+B: 0x84dcebef56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb0233e3834
+B: 0xd58fad725d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf820d5c16e
+B: 0xb1393031a6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6fb5178761
+B: 0x5afedcb8f9
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6766270136
+B: 0xe0becba4c8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8928702bb1
+B: 0xb2e5039055
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xee37503d77
+B: 0xa0d4062cce
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x00c503ccb5
+B: 0xa7d1bfbaba
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1152c1b3c7
+B: 0x95039d60ba
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb18dff06d2
+B: 0xe5dd7516f5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3e68bfbf7e
+B: 0xedfabbc6b6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x972c94151d
+B: 0x92b2e02961
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x89d87d3afc
+B: 0xa25028361f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7fb55dc442
+B: 0x8423d83f22
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc6c9345ce7
+B: 0x8f6b291a13
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd81f7550bc
+B: 0x565fdd5329
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf4ced4dd7c
+B: 0x0f623a35ae
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9d14c30b50
+B: 0x07700b1433
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd386861f29
+B: 0xff3f1cd31b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xce44bfc434
+B: 0xf16e771359
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb686343347
+B: 0x7f33d4a096
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5f25323fd3
+B: 0x5c06f9f4e6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd5b8c5ee78
+B: 0x7c2826ef27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0abdf2b5a1
+B: 0xebb8d13539
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd20ff73f25
+B: 0xc32af595a3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc53665b6a5
+B: 0x347e4132ad
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2cdb160641
+B: 0x0588662aba
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe665578e91
+B: 0x8dac91c01e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb0f9154865
+B: 0xcaa96e2bf4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x27b9e7f780
+B: 0x1bdaace3a3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe4b17078ee
+B: 0xe63fbdaeed
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x064a0609aa
+B: 0x4b992e7dea
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb7aab6941b
+B: 0x98f6b4160b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0b2234c40f
+B: 0xad659badcb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe14d29d77a
+B: 0xf323aa9e67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb254f5edf7
+B: 0xc29a642c24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcd94291726
+B: 0x9880635ef2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xdc3055d84e
+B: 0x873765002d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x478278e1e5
+B: 0x84577aa515
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe94d390362
+B: 0x1a86d77094
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x83f7de1a61
+B: 0x09119b0fb4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x3498e16bc0
+B: 0x83db0dff11
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5ee55b88ff
+B: 0x589e3f4f15
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0444864d26
+B: 0x08a81b3fe3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x55edaeec39
+B: 0x78d273dcbe
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xffd2bddb3b
+B: 0xb9bd03c81f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x072c14af79
+B: 0xb445c55e39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x64624aadae
+B: 0x5e51bb91c1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1b00b425aa
+B: 0x109abf3e69
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2b80a17176
+B: 0x9e6b58996c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xad0fbc0318
+B: 0x46f8b55fb5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf8463e4336
+B: 0xf6fa2225d7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x27a55dc720
+B: 0x51c1308a09
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x84832e9e1e
+B: 0xd772a2761a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x39c99d5f9e
+B: 0xf6f6b1465d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd9c3ac232c
+B: 0x8d43215bf4
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb6a2a1fa45
+B: 0x0413218ef7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x079b9a9bf5
+B: 0x46f4105d94
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc568795e63
+B: 0xa006ec9ad0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x73fc7aad95
+B: 0x6b0c780f2f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0ee70a26e9
+B: 0xccc83235cc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x98b40eb501
+B: 0xcf681d30de
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4a8adab689
+B: 0x41e6e4ac85
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x937837e506
+B: 0x8144933c86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4f48df480e
+B: 0x48c5cf255f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x03550c54d4
+B: 0xa925365ca8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbe160d0b9e
+B: 0x813504e26c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf07c34e6eb
+B: 0x291598734a
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc470525bb6
+B: 0xcec6cbb179
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xda8d20dbea
+B: 0x2584c65027
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4b503a65d5
+B: 0x24e11a15c3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x1127e8aeae
+B: 0x3b90b15e3d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x89863c6992
+B: 0x9a90b6e394
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xcd7a1a262b
+B: 0xee9f519184
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x13808ea422
+B: 0xc4b9a6edc1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0383278f64
+B: 0xf313b2cc15
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xde5e349e31
+B: 0x3981ffbbc1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb791e54b3a
+B: 0x5c5da23c06
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf844ee5071
+B: 0xd6f26ce972
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x78c504644f
+B: 0x52b9c3a78f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x54eda04e30
+B: 0xc5d545de36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf7948c52c8
+B: 0x58abbebd4f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc86df5e2aa
+B: 0xbc3cbafcaa
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7b4b9368d9
+B: 0x82361c57ab
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xbee28cfc3c
+B: 0xe9f13a9049
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xac996d6642
+B: 0xa4257ea412
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x83c2862234
+B: 0x588ce67bdc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf572678417
+B: 0x2dcd59bece
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6be79d1be2
+B: 0xc74b32bc86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x678301c5b9
+B: 0xa1681e5658
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x620b177efd
+B: 0x64f4e35152
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2975555ded
+B: 0xd67c8765b6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc5b27338fc
+B: 0x3aea289858
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9e7028dab4
+B: 0xf6ea8760aa
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2dad283c0d
+B: 0x29b9e789c6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa9835875c3
+B: 0x31fe9f9ff6
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x15052ba051
+B: 0x30c9e8060c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8e32a564ff
+B: 0x514ba4d5e2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4639dc2c06
+B: 0x843a72a669
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9bc9d9db15
+B: 0x8a9dbff93f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4514147ca8
+B: 0xd0a9f15f7c
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0896bad500
+B: 0xf5a892d63b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8abdc5a588
+B: 0x02387787e2
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6ad2ebe96b
+B: 0x01acea35a3
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4a208d549b
+B: 0xe92ca5f0cb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x76714d85bd
+B: 0x60b51e3a7b
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfa598c8a5c
+B: 0xb445ac1564
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x9237c67f46
+B: 0xc88d682a61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc02cd9f51a
+B: 0x30a6d5eb2e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x4975f80092
+B: 0x856c2c90a7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x871184d8fb
+B: 0xc053b9a632
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc7dcd29168
+B: 0x9c08e7a744
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6b6a75e179
+B: 0x6877fd7fd1
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2cfd642ae2
+B: 0x3e66f0f769
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x102afd65c3
+B: 0x7733964543
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd060c36cdd
+B: 0x6f32dec6d5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x6217426bd0
+B: 0xf1ccea521d
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xb059cd83d9
+B: 0x69c9d4e1bb
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x65f9873b5e
+B: 0x6e70c742d0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x03d35f581e
+B: 0x7924b27e83
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x2e78ca810e
+B: 0x8d9ab1874e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa864661891
+B: 0x2dabbd2fe0
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfed39dd7ca
+B: 0x75169e98ce
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x7ae1289e96
+B: 0x09db5bf01f
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x49486cf4d6
+B: 0xbda2237d40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xa3524bba5b
+B: 0xb8135981c7
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xd9b2835bff
+B: 0xc1bcd635cc
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x49091523be
+B: 0x2770dd4704
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xfa9a347cda
+B: 0x4f59949066
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x876dec9a46
+B: 0x6cbdb63f32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x50f118ac10
+B: 0xe223a8eb6e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x5befd9373e
+B: 0x13d6cadf41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xf0c0038e5a
+B: 0x2b92a97177
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x331938d096
+B: 0x7d7e88c933
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xee16159755
+B: 0x85d24cc9b8
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xc0cb020672
+B: 0x792997e899
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x51848d77e3
+B: 0xfef4634a81
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x73035e4eb9
+B: 0x5a9ee08eef
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x8f1b08fdc1
+B: 0x8a18700fd5
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x481322439a
+B: 0x1e73961f8e
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x825536212a
+B: 0xd0a322e658
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x0be7d37bcc
+B: 0x97fbdc2233
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x49b888cb65
+B: 0x6d85dc1819
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x05dfeddf7e
+B: 0x80c3e53827
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x98334f97a4
+B: 0xe3184dc518
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0x86a5b466b4
+B: 0x2b4e681568
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a good random number?
+A: 0xe6251bf764
+B: 0xc506b9370b
+Answer (B or A):","[' A', ' B']",0

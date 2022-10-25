@@ -1,0 +1,4501 @@
+prompt,classes,answer_index
+"Q: What is 9*3
+A: 27
+B: 36
+Answer (A or B): A
+
+Q: What is 10*9
+A: 90
+B: 117
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*5
+A: 30
+B: 45
+Answer (A or B): A
+
+Q: What is 5*4
+A: 20
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 28
+B: 44
+Answer (A or B): A
+
+Q: What is 4*8
+A: 32
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*8
+A: 72
+B: 104
+Answer (A or B): A
+
+Q: What is 6*10
+A: 60
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*3
+A: 15
+B: 9
+Answer (A or B): B
+
+Q: What is 9*3
+A: 39
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 80
+B: 48
+Answer (A or B): B
+
+Q: What is 4*6
+A: 48
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 48
+B: 40
+Answer (A or B): B
+
+Q: What is 8*10
+A: 100
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*8
+A: 64
+B: 32
+Answer (A or B): B
+
+Q: What is 6*7
+A: 63
+B: 42
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*6
+A: 66
+B: 48
+Answer (A or B): B
+
+Q: What is 5*6
+A: 42
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is 5*5
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*6
+A: 54
+B: 42
+Answer (A or B): B
+
+Q: What is 9*7
+A: 84
+B: 63
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*8
+A: 32
+B: 64
+Answer (A or B): A
+
+Q: What is 4*10
+A: 40
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*3
+A: 30
+B: 18
+Answer (A or B): B
+
+Q: What is 7*4
+A: 44
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*9
+A: 90
+B: 72
+Answer (A or B): B
+
+Q: What is 4*5
+A: 40
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*4
+A: 28
+B: 12
+Answer (A or B): B
+
+Q: What is 6*4
+A: 36
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*3
+A: 15
+B: 9
+Answer (A or B): B
+
+Q: What is 5*4
+A: 32
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*9
+A: 63
+B: 27
+Answer (A or B): B
+
+Q: What is 4*7
+A: 42
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*9
+A: 72
+B: 90
+Answer (A or B): A
+
+Q: What is 3*10
+A: 30
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*7
+A: 42
+B: 63
+Answer (A or B): A
+
+Q: What is 10*5
+A: 50
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 25
+B: 40
+Answer (A or B): A
+
+Q: What is 7*4
+A: 28
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 70
+B: 30
+Answer (A or B): B
+
+Q: What is 9*7
+A: 91
+B: 63
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*3
+A: 24
+B: 15
+Answer (A or B): B
+
+Q: What is 4*8
+A: 64
+B: 32
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*6
+A: 48
+B: 30
+Answer (A or B): B
+
+Q: What is 8*7
+A: 84
+B: 56
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*9
+A: 63
+B: 99
+Answer (A or B): A
+
+Q: What is 9*4
+A: 36
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*6
+A: 30
+B: 42
+Answer (A or B): A
+
+Q: What is 10*9
+A: 90
+B: 126
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*9
+A: 63
+B: 27
+Answer (A or B): B
+
+Q: What is 9*3
+A: 33
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 90
+B: 50
+Answer (A or B): B
+
+Q: What is 10*3
+A: 36
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 39
+B: 30
+Answer (A or B): B
+
+Q: What is 6*4
+A: 40
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*9
+A: 81
+B: 108
+Answer (A or B): A
+
+Q: What is 3*6
+A: 18
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*6
+A: 24
+B: 36
+Answer (A or B): A
+
+Q: What is 6*7
+A: 42
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 40
+B: 70
+Answer (A or B): A
+
+Q: What is 4*3
+A: 12
+B: 21
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*5
+A: 55
+B: 35
+Answer (A or B): B
+
+Q: What is 8*4
+A: 40
+B: 32
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*3
+A: 9
+B: 15
+Answer (A or B): A
+
+Q: What is 7*8
+A: 56
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*10
+A: 140
+B: 100
+Answer (A or B): B
+
+Q: What is 9*8
+A: 104
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*3
+A: 27
+B: 21
+Answer (A or B): B
+
+Q: What is 5*7
+A: 56
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*8
+A: 64
+B: 32
+Answer (A or B): B
+
+Q: What is 3*3
+A: 18
+B: 9
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*9
+A: 108
+B: 72
+Answer (A or B): B
+
+Q: What is 5*7
+A: 49
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*7
+A: 21
+B: 35
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*4
+A: 36
+B: 44
+Answer (A or B): A
+
+Q: What is 10*10
+A: 100
+B: 130
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 60
+B: 40
+Answer (A or B): B
+
+Q: What is 10*9
+A: 108
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 81
+B: 45
+Answer (A or B): B
+
+Q: What is 4*4
+A: 24
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*9
+A: 27
+B: 45
+Answer (A or B): A
+
+Q: What is 4*9
+A: 36
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*6
+A: 60
+B: 78
+Answer (A or B): A
+
+Q: What is 4*8
+A: 32
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*9
+A: 45
+B: 63
+Answer (A or B): A
+
+Q: What is 8*4
+A: 32
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*6
+A: 72
+B: 60
+Answer (A or B): B
+
+Q: What is 10*9
+A: 117
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*5
+A: 40
+B: 30
+Answer (A or B): B
+
+Q: What is 6*10
+A: 90
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*10
+A: 60
+B: 40
+Answer (A or B): B
+
+Q: What is 9*9
+A: 117
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*10
+A: 140
+B: 100
+Answer (A or B): B
+
+Q: What is 6*6
+A: 48
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*3
+A: 24
+B: 36
+Answer (A or B): A
+
+Q: What is 5*7
+A: 35
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*10
+A: 90
+B: 70
+Answer (A or B): B
+
+Q: What is 4*3
+A: 18
+B: 12
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*3
+A: 21
+B: 30
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*9
+A: 72
+B: 108
+Answer (A or B): A
+
+Q: What is 3*4
+A: 12
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*6
+A: 54
+B: 72
+Answer (A or B): A
+
+Q: What is 9*10
+A: 90
+B: 120
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*3
+A: 9
+B: 21
+Answer (A or B): A
+
+Q: What is 5*7
+A: 35
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 40
+B: 70
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 25
+B: 35
+Answer (A or B): A
+
+Q: What is 7*8
+A: 56
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*5
+A: 60
+B: 45
+Answer (A or B): B
+
+Q: What is 4*5
+A: 35
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*10
+A: 110
+B: 90
+Answer (A or B): B
+
+Q: What is 4*10
+A: 60
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*4
+A: 32
+B: 48
+Answer (A or B): A
+
+Q: What is 8*6
+A: 48
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*3
+A: 24
+B: 12
+Answer (A or B): B
+
+Q: What is 10*8
+A: 112
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 45
+B: 72
+Answer (A or B): A
+
+Q: What is 4*6
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*6
+A: 48
+B: 66
+Answer (A or B): A
+
+Q: What is 8*4
+A: 32
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*7
+A: 70
+B: 84
+Answer (A or B): A
+
+Q: What is 6*6
+A: 36
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 28
+B: 36
+Answer (A or B): A
+
+Q: What is 9*9
+A: 81
+B: 99
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*4
+A: 28
+B: 16
+Answer (A or B): B
+
+Q: What is 5*3
+A: 24
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*10
+A: 60
+B: 30
+Answer (A or B): B
+
+Q: What is 7*4
+A: 40
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*8
+A: 24
+B: 48
+Answer (A or B): A
+
+Q: What is 5*3
+A: 15
+B: 21
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*6
+A: 42
+B: 30
+Answer (A or B): B
+
+Q: What is 6*4
+A: 40
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 30
+B: 18
+Answer (A or B): B
+
+Q: What is 5*10
+A: 70
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*3
+A: 15
+B: 21
+Answer (A or B): A
+
+Q: What is 8*8
+A: 64
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*5
+A: 40
+B: 60
+Answer (A or B): A
+
+Q: What is 4*4
+A: 16
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*5
+A: 55
+B: 45
+Answer (A or B): B
+
+Q: What is 6*8
+A: 80
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*8
+A: 80
+B: 56
+Answer (A or B): B
+
+Q: What is 3*5
+A: 35
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*5
+A: 20
+B: 35
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 99
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 72
+B: 56
+Answer (A or B): B
+
+Q: What is 6*10
+A: 100
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*9
+A: 99
+B: 81
+Answer (A or B): B
+
+Q: What is 9*8
+A: 96
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*9
+A: 108
+B: 90
+Answer (A or B): B
+
+Q: What is 9*9
+A: 99
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*5
+A: 40
+B: 55
+Answer (A or B): A
+
+Q: What is 10*4
+A: 40
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 70
+B: 30
+Answer (A or B): B
+
+Q: What is 10*3
+A: 36
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 81
+B: 45
+Answer (A or B): B
+
+Q: What is 10*4
+A: 56
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*7
+A: 63
+B: 91
+Answer (A or B): A
+
+Q: What is 3*4
+A: 12
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*7
+A: 21
+B: 42
+Answer (A or B): A
+
+Q: What is 9*10
+A: 90
+B: 110
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*6
+A: 42
+B: 66
+Answer (A or B): A
+
+Q: What is 4*3
+A: 12
+B: 18
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*4
+A: 48
+B: 32
+Answer (A or B): B
+
+Q: What is 6*5
+A: 40
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*5
+A: 35
+B: 55
+Answer (A or B): A
+
+Q: What is 6*4
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 70
+B: 49
+Answer (A or B): B
+
+Q: What is 8*5
+A: 50
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*9
+A: 81
+B: 117
+Answer (A or B): A
+
+Q: What is 10*5
+A: 50
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*9
+A: 90
+B: 108
+Answer (A or B): A
+
+Q: What is 10*10
+A: 100
+B: 140
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 30
+B: 60
+Answer (A or B): A
+
+Q: What is 5*10
+A: 50
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 24
+B: 48
+Answer (A or B): A
+
+Q: What is 9*3
+A: 27
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*3
+A: 36
+B: 27
+Answer (A or B): B
+
+Q: What is 3*4
+A: 28
+B: 12
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*6
+A: 54
+B: 42
+Answer (A or B): B
+
+Q: What is 7*6
+A: 54
+B: 42
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*5
+A: 60
+B: 45
+Answer (A or B): B
+
+Q: What is 9*9
+A: 99
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*5
+A: 40
+B: 50
+Answer (A or B): A
+
+Q: What is 5*10
+A: 50
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*10
+A: 90
+B: 120
+Answer (A or B): A
+
+Q: What is 6*6
+A: 36
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*3
+A: 33
+B: 27
+Answer (A or B): B
+
+Q: What is 4*5
+A: 35
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*7
+A: 70
+B: 42
+Answer (A or B): B
+
+Q: What is 4*7
+A: 49
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*10
+A: 120
+B: 90
+Answer (A or B): B
+
+Q: What is 7*10
+A: 90
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*3
+A: 9
+B: 15
+Answer (A or B): A
+
+Q: What is 8*3
+A: 24
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*9
+A: 36
+B: 72
+Answer (A or B): A
+
+Q: What is 6*9
+A: 54
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*8
+A: 80
+B: 48
+Answer (A or B): B
+
+Q: What is 4*4
+A: 28
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*7
+A: 70
+B: 56
+Answer (A or B): B
+
+Q: What is 3*6
+A: 36
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*6
+A: 36
+B: 54
+Answer (A or B): A
+
+Q: What is 7*7
+A: 49
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*8
+A: 80
+B: 112
+Answer (A or B): A
+
+Q: What is 6*3
+A: 18
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 30
+B: 60
+Answer (A or B): A
+
+Q: What is 10*3
+A: 30
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is 4*6
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*6
+A: 54
+B: 72
+Answer (A or B): A
+
+Q: What is 4*9
+A: 36
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*5
+A: 15
+B: 25
+Answer (A or B): A
+
+Q: What is 10*6
+A: 60
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*8
+A: 64
+B: 88
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*10
+A: 110
+B: 70
+Answer (A or B): B
+
+Q: What is 10*7
+A: 91
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*5
+A: 40
+B: 20
+Answer (A or B): B
+
+Q: What is 9*6
+A: 66
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 33
+Answer (A or B): A
+
+Q: What is 9*7
+A: 63
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*7
+A: 56
+B: 42
+Answer (A or B): B
+
+Q: What is 6*4
+A: 40
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 80
+B: 48
+Answer (A or B): B
+
+Q: What is 10*7
+A: 98
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*8
+A: 96
+B: 64
+Answer (A or B): B
+
+Q: What is 3*5
+A: 30
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*5
+A: 20
+B: 30
+Answer (A or B): A
+
+Q: What is 10*6
+A: 60
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*8
+A: 72
+B: 104
+Answer (A or B): A
+
+Q: What is 5*10
+A: 50
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*10
+A: 80
+B: 110
+Answer (A or B): A
+
+Q: What is 7*3
+A: 21
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*10
+A: 140
+B: 100
+Answer (A or B): B
+
+Q: What is 8*4
+A: 44
+B: 32
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 72
+B: 48
+Answer (A or B): B
+
+Q: What is 9*3
+A: 33
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*10
+A: 80
+B: 120
+Answer (A or B): A
+
+Q: What is 6*7
+A: 42
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 56
+B: 24
+Answer (A or B): B
+
+Q: What is 3*5
+A: 30
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 30
+B: 18
+Answer (A or B): B
+
+Q: What is 3*6
+A: 42
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*9
+A: 90
+B: 72
+Answer (A or B): B
+
+Q: What is 6*10
+A: 90
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*8
+A: 72
+B: 40
+Answer (A or B): B
+
+Q: What is 9*9
+A: 99
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 42
+B: 30
+Answer (A or B): B
+
+Q: What is 4*9
+A: 63
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*4
+A: 20
+B: 32
+Answer (A or B): A
+
+Q: What is 6*5
+A: 30
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*4
+A: 32
+B: 20
+Answer (A or B): B
+
+Q: What is 4*10
+A: 80
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*8
+A: 56
+B: 88
+Answer (A or B): A
+
+Q: What is 9*3
+A: 27
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 52
+B: 40
+Answer (A or B): B
+
+Q: What is 7*5
+A: 50
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 72
+B: 45
+Answer (A or B): B
+
+Q: What is 7*10
+A: 100
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 42
+B: 30
+Answer (A or B): B
+
+Q: What is 7*3
+A: 30
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*8
+A: 72
+B: 96
+Answer (A or B): A
+
+Q: What is 3*3
+A: 9
+B: 18
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 49
+B: 77
+Answer (A or B): A
+
+Q: What is 6*8
+A: 48
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*4
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 8*6
+A: 48
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 40
+B: 25
+Answer (A or B): B
+
+Q: What is 3*3
+A: 21
+B: 9
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*7
+A: 56
+B: 84
+Answer (A or B): A
+
+Q: What is 7*8
+A: 56
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*3
+A: 21
+B: 15
+Answer (A or B): B
+
+Q: What is 3*10
+A: 50
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*7
+A: 70
+B: 98
+Answer (A or B): A
+
+Q: What is 6*4
+A: 24
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 25
+B: 35
+Answer (A or B): A
+
+Q: What is 5*4
+A: 20
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*7
+A: 63
+B: 84
+Answer (A or B): A
+
+Q: What is 7*3
+A: 21
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 56
+B: 80
+Answer (A or B): A
+
+Q: What is 6*9
+A: 54
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*8
+A: 72
+B: 96
+Answer (A or B): A
+
+Q: What is 3*9
+A: 27
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 56
+B: 24
+Answer (A or B): B
+
+Q: What is 5*6
+A: 54
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 18
+B: 42
+Answer (A or B): A
+
+Q: What is 6*7
+A: 42
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 60
+B: 40
+Answer (A or B): B
+
+Q: What is 10*4
+A: 48
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*9
+A: 81
+B: 108
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*3
+A: 21
+B: 30
+Answer (A or B): A
+
+Q: What is 3*7
+A: 21
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*9
+A: 81
+B: 117
+Answer (A or B): A
+
+Q: What is 3*10
+A: 30
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 72
+B: 56
+Answer (A or B): B
+
+Q: What is 9*10
+A: 130
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*8
+A: 80
+B: 64
+Answer (A or B): B
+
+Q: What is 4*6
+A: 48
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*8
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 8*9
+A: 72
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*5
+A: 45
+B: 65
+Answer (A or B): A
+
+Q: What is 5*9
+A: 45
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 25
+B: 40
+Answer (A or B): A
+
+Q: What is 3*3
+A: 9
+B: 21
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*8
+A: 72
+B: 40
+Answer (A or B): B
+
+Q: What is 4*4
+A: 32
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*7
+A: 42
+B: 63
+Answer (A or B): A
+
+Q: What is 7*7
+A: 49
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*5
+A: 50
+B: 60
+Answer (A or B): A
+
+Q: What is 5*3
+A: 15
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*10
+A: 100
+B: 60
+Answer (A or B): B
+
+Q: What is 6*10
+A: 100
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 90
+B: 50
+Answer (A or B): B
+
+Q: What is 3*4
+A: 28
+B: 12
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*9
+A: 36
+B: 72
+Answer (A or B): A
+
+Q: What is 8*10
+A: 80
+B: 110
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*5
+A: 35
+B: 20
+Answer (A or B): B
+
+Q: What is 3*5
+A: 35
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*3
+A: 18
+B: 27
+Answer (A or B): A
+
+Q: What is 3*7
+A: 21
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*4
+A: 32
+B: 44
+Answer (A or B): A
+
+Q: What is 3*10
+A: 30
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*10
+A: 70
+B: 100
+Answer (A or B): A
+
+Q: What is 5*3
+A: 15
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*4
+A: 48
+B: 36
+Answer (A or B): B
+
+Q: What is 4*4
+A: 24
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 36
+B: 27
+Answer (A or B): B
+
+Q: What is 10*10
+A: 130
+B: 100
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*7
+A: 77
+B: 63
+Answer (A or B): B
+
+Q: What is 4*4
+A: 28
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 36
+B: 30
+Answer (A or B): B
+
+Q: What is 7*3
+A: 27
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*5
+A: 35
+B: 25
+Answer (A or B): B
+
+Q: What is 5*6
+A: 54
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*9
+A: 108
+B: 90
+Answer (A or B): B
+
+Q: What is 6*6
+A: 60
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 64
+B: 48
+Answer (A or B): B
+
+Q: What is 5*9
+A: 72
+B: 45
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 33
+Answer (A or B): A
+
+Q: What is 3*9
+A: 27
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*3
+A: 9
+B: 18
+Answer (A or B): A
+
+Q: What is 3*3
+A: 9
+B: 15
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 45
+B: 25
+Answer (A or B): B
+
+Q: What is 9*3
+A: 36
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*5
+A: 45
+B: 30
+Answer (A or B): B
+
+Q: What is 6*9
+A: 72
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*9
+A: 63
+B: 36
+Answer (A or B): B
+
+Q: What is 6*10
+A: 90
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*10
+A: 60
+B: 90
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 50
+B: 30
+Answer (A or B): B
+
+Q: What is 7*3
+A: 33
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*3
+A: 12
+B: 18
+Answer (A or B): A
+
+Q: What is 9*3
+A: 27
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*4
+A: 52
+B: 36
+Answer (A or B): B
+
+Q: What is 10*10
+A: 120
+B: 100
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*5
+A: 65
+B: 45
+Answer (A or B): B
+
+Q: What is 7*4
+A: 40
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 30
+B: 36
+Answer (A or B): A
+
+Q: What is 7*5
+A: 35
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*3
+A: 36
+B: 27
+Answer (A or B): B
+
+Q: What is 9*3
+A: 39
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 64
+B: 48
+Answer (A or B): B
+
+Q: What is 5*4
+A: 36
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*9
+A: 81
+B: 108
+Answer (A or B): A
+
+Q: What is 4*4
+A: 16
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 25
+B: 35
+Answer (A or B): A
+
+Q: What is 5*6
+A: 30
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*7
+A: 56
+B: 84
+Answer (A or B): A
+
+Q: What is 8*4
+A: 32
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*8
+A: 40
+B: 72
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*9
+A: 81
+B: 54
+Answer (A or B): B
+
+Q: What is 9*10
+A: 130
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*4
+A: 36
+B: 52
+Answer (A or B): A
+
+Q: What is 5*5
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*4
+A: 24
+B: 36
+Answer (A or B): A
+
+Q: What is 5*9
+A: 45
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*8
+A: 32
+B: 64
+Answer (A or B): A
+
+Q: What is 10*8
+A: 80
+B: 96
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*10
+A: 70
+B: 90
+Answer (A or B): A
+
+Q: What is 5*4
+A: 20
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*5
+A: 15
+B: 35
+Answer (A or B): A
+
+Q: What is 9*6
+A: 54
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*3
+A: 21
+B: 33
+Answer (A or B): A
+
+Q: What is 5*9
+A: 45
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*4
+A: 36
+B: 52
+Answer (A or B): A
+
+Q: What is 9*8
+A: 72
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 70
+B: 30
+Answer (A or B): B
+
+Q: What is 4*7
+A: 56
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*7
+A: 84
+B: 70
+Answer (A or B): B
+
+Q: What is 6*8
+A: 64
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is 10*9
+A: 90
+B: 126
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*10
+A: 90
+B: 70
+Answer (A or B): B
+
+Q: What is 4*7
+A: 42
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*3
+A: 27
+B: 15
+Answer (A or B): B
+
+Q: What is 5*6
+A: 42
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 40
+B: 52
+Answer (A or B): A
+
+Q: What is 8*8
+A: 64
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*10
+A: 90
+B: 60
+Answer (A or B): B
+
+Q: What is 7*6
+A: 54
+B: 42
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*4
+A: 28
+B: 16
+Answer (A or B): B
+
+Q: What is 9*6
+A: 78
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*6
+A: 30
+B: 48
+Answer (A or B): A
+
+Q: What is 6*10
+A: 60
+B: 100
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*9
+A: 99
+B: 63
+Answer (A or B): B
+
+Q: What is 5*4
+A: 32
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 80
+B: 48
+Answer (A or B): B
+
+Q: What is 8*9
+A: 99
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*4
+A: 40
+B: 28
+Answer (A or B): B
+
+Q: What is 7*4
+A: 40
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*8
+A: 64
+B: 40
+Answer (A or B): B
+
+Q: What is 6*4
+A: 40
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*10
+A: 140
+B: 100
+Answer (A or B): B
+
+Q: What is 6*9
+A: 90
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*3
+A: 24
+B: 30
+Answer (A or B): A
+
+Q: What is 10*8
+A: 80
+B: 104
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*3
+A: 39
+B: 27
+Answer (A or B): B
+
+Q: What is 3*9
+A: 45
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*4
+A: 20
+B: 28
+Answer (A or B): A
+
+Q: What is 8*3
+A: 24
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*3
+A: 27
+B: 33
+Answer (A or B): A
+
+Q: What is 4*6
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*9
+A: 27
+B: 45
+Answer (A or B): A
+
+Q: What is 5*6
+A: 30
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*3
+A: 30
+B: 39
+Answer (A or B): A
+
+Q: What is 6*9
+A: 54
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 56
+B: 24
+Answer (A or B): B
+
+Q: What is 8*8
+A: 96
+B: 64
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*7
+A: 28
+B: 42
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*6
+A: 54
+B: 78
+Answer (A or B): A
+
+Q: What is 8*6
+A: 48
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 60
+B: 40
+Answer (A or B): B
+
+Q: What is 10*10
+A: 120
+B: 100
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 45
+B: 72
+Answer (A or B): A
+
+Q: What is 9*4
+A: 36
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*6
+A: 78
+B: 60
+Answer (A or B): B
+
+Q: What is 10*9
+A: 108
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*10
+A: 110
+B: 90
+Answer (A or B): B
+
+Q: What is 9*6
+A: 72
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*10
+A: 60
+B: 90
+Answer (A or B): A
+
+Q: What is 8*10
+A: 80
+B: 120
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*6
+A: 42
+B: 24
+Answer (A or B): B
+
+Q: What is 4*3
+A: 18
+B: 12
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 80
+B: 50
+Answer (A or B): B
+
+Q: What is 6*9
+A: 81
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*8
+A: 24
+B: 56
+Answer (A or B): A
+
+Q: What is 6*8
+A: 48
+B: 64
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*10
+A: 90
+B: 50
+Answer (A or B): B
+
+Q: What is 6*10
+A: 80
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*3
+A: 24
+B: 18
+Answer (A or B): B
+
+Q: What is 3*5
+A: 25
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*9
+A: 36
+B: 72
+Answer (A or B): A
+
+Q: What is 7*8
+A: 56
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*8
+A: 64
+B: 96
+Answer (A or B): A
+
+Q: What is 10*9
+A: 90
+B: 117
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is 6*4
+A: 24
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*6
+A: 78
+B: 60
+Answer (A or B): B
+
+Q: What is 3*3
+A: 18
+B: 9
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*6
+A: 54
+B: 78
+Answer (A or B): A
+
+Q: What is 3*5
+A: 15
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*9
+A: 63
+B: 99
+Answer (A or B): A
+
+Q: What is 4*4
+A: 16
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*6
+A: 18
+B: 36
+Answer (A or B): A
+
+Q: What is 8*7
+A: 56
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 10*7
+A: 70
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*9
+A: 81
+B: 54
+Answer (A or B): B
+
+Q: What is 8*6
+A: 72
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*5
+A: 30
+B: 15
+Answer (A or B): B
+
+Q: What is 10*4
+A: 56
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 33
+Answer (A or B): A
+
+Q: What is 9*5
+A: 45
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*6
+A: 66
+B: 54
+Answer (A or B): B
+
+Q: What is 7*7
+A: 70
+B: 49
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*6
+A: 48
+B: 72
+Answer (A or B): A
+
+Q: What is 3*8
+A: 24
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*3
+A: 42
+B: 30
+Answer (A or B): B
+
+Q: What is 7*8
+A: 72
+B: 56
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*4
+A: 48
+B: 36
+Answer (A or B): B
+
+Q: What is 4*4
+A: 32
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*8
+A: 48
+B: 64
+Answer (A or B): A
+
+Q: What is 6*5
+A: 30
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*6
+A: 78
+B: 54
+Answer (A or B): B
+
+Q: What is 10*8
+A: 96
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*6
+A: 36
+B: 54
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*8
+A: 32
+B: 56
+Answer (A or B): A
+
+Q: What is 8*3
+A: 24
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*5
+A: 20
+B: 40
+Answer (A or B): A
+
+Q: What is 7*6
+A: 42
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*9
+A: 36
+B: 72
+Answer (A or B): A
+
+Q: What is 9*4
+A: 36
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*5
+A: 40
+B: 55
+Answer (A or B): A
+
+Q: What is 6*9
+A: 54
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*3
+A: 21
+B: 9
+Answer (A or B): B
+
+Q: What is 7*4
+A: 44
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 42
+B: 18
+Answer (A or B): B
+
+Q: What is 5*7
+A: 63
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*7
+A: 63
+B: 91
+Answer (A or B): A
+
+Q: What is 6*7
+A: 42
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 52
+B: 40
+Answer (A or B): B
+
+Q: What is 8*5
+A: 60
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 33
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*3
+A: 39
+B: 30
+Answer (A or B): B
+
+Q: What is 9*4
+A: 52
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*9
+A: 63
+B: 90
+Answer (A or B): A
+
+Q: What is 10*3
+A: 30
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*6
+A: 48
+B: 36
+Answer (A or B): B
+
+Q: What is 6*7
+A: 56
+B: 42
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*5
+A: 15
+B: 25
+Answer (A or B): A
+
+Q: What is 9*5
+A: 45
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*6
+A: 54
+B: 30
+Answer (A or B): B
+
+Q: What is 7*3
+A: 33
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*9
+A: 45
+B: 27
+Answer (A or B): B
+
+Q: What is 9*9
+A: 99
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*5
+A: 20
+B: 30
+Answer (A or B): A
+
+Q: What is 3*4
+A: 12
+B: 20
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*10
+A: 90
+B: 130
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*5
+A: 20
+B: 40
+Answer (A or B): A
+
+Q: What is 6*6
+A: 36
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 40
+B: 60
+Answer (A or B): A
+
+Q: What is 10*5
+A: 50
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*5
+A: 15
+B: 30
+Answer (A or B): A
+
+Q: What is 8*8
+A: 64
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*3
+A: 24
+B: 15
+Answer (A or B): B
+
+Q: What is 6*9
+A: 81
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 50
+B: 80
+Answer (A or B): A
+
+Q: What is 8*8
+A: 64
+B: 96
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*7
+A: 91
+B: 63
+Answer (A or B): B
+
+Q: What is 6*6
+A: 54
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 80
+B: 50
+Answer (A or B): B
+
+Q: What is 7*9
+A: 90
+B: 63
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*7
+A: 42
+B: 63
+Answer (A or B): A
+
+Q: What is 4*3
+A: 12
+B: 18
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*6
+A: 18
+B: 30
+Answer (A or B): A
+
+Q: What is 5*8
+A: 40
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*3
+A: 21
+B: 9
+Answer (A or B): B
+
+Q: What is 5*7
+A: 49
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*8
+A: 80
+B: 64
+Answer (A or B): B
+
+Q: What is 9*4
+A: 52
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*7
+A: 42
+B: 21
+Answer (A or B): B
+
+Q: What is 6*9
+A: 72
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*5
+A: 70
+B: 50
+Answer (A or B): B
+
+Q: What is 9*6
+A: 66
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*4
+A: 20
+B: 32
+Answer (A or B): A
+
+Q: What is 7*8
+A: 56
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 8*7
+A: 56
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 40
+B: 28
+Answer (A or B): B
+
+Q: What is 5*4
+A: 36
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*9
+A: 90
+B: 126
+Answer (A or B): A
+
+Q: What is 5*9
+A: 45
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*5
+A: 20
+B: 40
+Answer (A or B): A
+
+Q: What is 10*7
+A: 70
+B: 98
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 63
+B: 49
+Answer (A or B): B
+
+Q: What is 8*4
+A: 40
+B: 32
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*4
+A: 32
+B: 20
+Answer (A or B): B
+
+Q: What is 9*10
+A: 110
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*9
+A: 72
+B: 36
+Answer (A or B): B
+
+Q: What is 6*3
+A: 24
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*9
+A: 27
+B: 45
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*5
+A: 50
+B: 70
+Answer (A or B): A
+
+Q: What is 5*6
+A: 30
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*7
+A: 70
+B: 91
+Answer (A or B): A
+
+Q: What is 7*6
+A: 42
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*3
+A: 12
+B: 24
+Answer (A or B): A
+
+Q: What is 7*5
+A: 35
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*8
+A: 32
+B: 48
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*8
+A: 32
+B: 48
+Answer (A or B): A
+
+Q: What is 7*10
+A: 70
+B: 100
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*4
+A: 16
+B: 28
+Answer (A or B): A
+
+Q: What is 10*9
+A: 90
+B: 117
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*6
+A: 24
+B: 36
+Answer (A or B): A
+
+Q: What is 9*8
+A: 72
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*3
+A: 24
+B: 15
+Answer (A or B): B
+
+Q: What is 4*4
+A: 32
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*10
+A: 110
+B: 80
+Answer (A or B): B
+
+Q: What is 8*10
+A: 120
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*8
+A: 96
+B: 72
+Answer (A or B): B
+
+Q: What is 3*6
+A: 42
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*9
+A: 72
+B: 108
+Answer (A or B): A
+
+Q: What is 6*3
+A: 18
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*3
+A: 33
+B: 24
+Answer (A or B): B
+
+Q: What is 5*8
+A: 64
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 18
+B: 42
+Answer (A or B): A
+
+Q: What is 10*8
+A: 80
+B: 112
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*10
+A: 70
+B: 30
+Answer (A or B): B
+
+Q: What is 5*9
+A: 81
+B: 45
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*3
+A: 30
+B: 18
+Answer (A or B): B
+
+Q: What is 10*5
+A: 70
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*5
+A: 65
+B: 45
+Answer (A or B): B
+
+Q: What is 9*9
+A: 99
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*6
+A: 54
+B: 36
+Answer (A or B): B
+
+Q: What is 6*8
+A: 72
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*8
+A: 56
+B: 40
+Answer (A or B): B
+
+Q: What is 5*7
+A: 63
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*10
+A: 120
+B: 100
+Answer (A or B): B
+
+Q: What is 5*8
+A: 72
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*6
+A: 78
+B: 60
+Answer (A or B): B
+
+Q: What is 9*7
+A: 91
+B: 63
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*3
+A: 24
+B: 30
+Answer (A or B): A
+
+Q: What is 6*6
+A: 36
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*7
+A: 28
+B: 56
+Answer (A or B): A
+
+Q: What is 7*10
+A: 70
+B: 100
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*4
+A: 12
+B: 20
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*9
+A: 90
+B: 63
+Answer (A or B): B
+
+Q: What is 8*6
+A: 72
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*3
+A: 24
+B: 12
+Answer (A or B): B
+
+Q: What is 8*4
+A: 48
+B: 32
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*7
+A: 28
+B: 42
+Answer (A or B): A
+
+Q: What is 9*5
+A: 45
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 63
+B: 49
+Answer (A or B): B
+
+Q: What is 5*6
+A: 42
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*10
+A: 100
+B: 70
+Answer (A or B): B
+
+Q: What is 5*7
+A: 49
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*6
+A: 30
+B: 54
+Answer (A or B): A
+
+Q: What is 3*8
+A: 24
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 28
+B: 44
+Answer (A or B): A
+
+Q: What is 7*6
+A: 42
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*9
+A: 45
+B: 27
+Answer (A or B): B
+
+Q: What is 5*10
+A: 90
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*5
+A: 30
+B: 45
+Answer (A or B): A
+
+Q: What is 8*10
+A: 80
+B: 100
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*4
+A: 24
+B: 36
+Answer (A or B): A
+
+Q: What is 10*7
+A: 70
+B: 91
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*7
+A: 70
+B: 42
+Answer (A or B): B
+
+Q: What is 9*4
+A: 44
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 50
+B: 70
+Answer (A or B): A
+
+Q: What is 9*7
+A: 63
+B: 91
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*7
+A: 49
+B: 28
+Answer (A or B): B
+
+Q: What is 8*9
+A: 108
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*5
+A: 45
+B: 65
+Answer (A or B): A
+
+Q: What is 5*3
+A: 15
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*10
+A: 60
+B: 80
+Answer (A or B): A
+
+Q: What is 9*4
+A: 36
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*5
+A: 60
+B: 50
+Answer (A or B): B
+
+Q: What is 6*6
+A: 48
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*4
+A: 52
+B: 36
+Answer (A or B): B
+
+Q: What is 6*6
+A: 48
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*5
+A: 40
+B: 20
+Answer (A or B): B
+
+Q: What is 6*9
+A: 90
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 30
+B: 39
+Answer (A or B): A
+
+Q: What is 8*6
+A: 48
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*6
+A: 84
+B: 60
+Answer (A or B): B
+
+Q: What is 6*3
+A: 24
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*7
+A: 28
+B: 56
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*4
+A: 16
+B: 28
+Answer (A or B): A
+
+Q: What is 8*4
+A: 32
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*3
+A: 18
+B: 27
+Answer (A or B): A
+
+Q: What is 7*5
+A: 35
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*4
+A: 20
+B: 36
+Answer (A or B): A
+
+Q: What is 8*8
+A: 64
+B: 96
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*6
+A: 54
+B: 36
+Answer (A or B): B
+
+Q: What is 9*9
+A: 108
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*7
+A: 56
+B: 28
+Answer (A or B): B
+
+Q: What is 5*6
+A: 54
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 72
+B: 45
+Answer (A or B): B
+
+Q: What is 6*4
+A: 32
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*3
+A: 24
+B: 15
+Answer (A or B): B
+
+Q: What is 10*4
+A: 56
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*10
+A: 40
+B: 60
+Answer (A or B): A
+
+Q: What is 3*3
+A: 9
+B: 21
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*7
+A: 98
+B: 70
+Answer (A or B): B
+
+Q: What is 7*9
+A: 81
+B: 63
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 90
+B: 50
+Answer (A or B): B
+
+Q: What is 6*3
+A: 24
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*5
+A: 35
+B: 25
+Answer (A or B): B
+
+Q: What is 4*7
+A: 42
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*9
+A: 81
+B: 63
+Answer (A or B): B
+
+Q: What is 4*5
+A: 35
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*9
+A: 90
+B: 63
+Answer (A or B): B
+
+Q: What is 3*7
+A: 49
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*6
+A: 30
+B: 54
+Answer (A or B): A
+
+Q: What is 6*10
+A: 60
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*9
+A: 63
+B: 99
+Answer (A or B): A
+
+Q: What is 5*8
+A: 40
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*7
+A: 42
+B: 56
+Answer (A or B): A
+
+Q: What is 10*7
+A: 70
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 40
+B: 28
+Answer (A or B): B
+
+Q: What is 5*10
+A: 70
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*7
+A: 21
+B: 49
+Answer (A or B): A
+
+Q: What is 9*10
+A: 90
+B: 130
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*3
+A: 24
+B: 15
+Answer (A or B): B
+
+Q: What is 4*9
+A: 72
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*7
+A: 98
+B: 70
+Answer (A or B): B
+
+Q: What is 9*5
+A: 65
+B: 45
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 36
+B: 18
+Answer (A or B): B
+
+Q: What is 7*4
+A: 44
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*6
+A: 66
+B: 48
+Answer (A or B): B
+
+Q: What is 9*5
+A: 65
+B: 45
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*10
+A: 120
+B: 100
+Answer (A or B): B
+
+Q: What is 8*9
+A: 99
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*10
+A: 40
+B: 60
+Answer (A or B): A
+
+Q: What is 4*3
+A: 12
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*6
+A: 60
+B: 78
+Answer (A or B): A
+
+Q: What is 4*9
+A: 36
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*7
+A: 35
+B: 56
+Answer (A or B): A
+
+Q: What is 4*8
+A: 32
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*8
+A: 56
+B: 32
+Answer (A or B): B
+
+Q: What is 10*6
+A: 72
+B: 60
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*5
+A: 50
+B: 35
+Answer (A or B): B
+
+Q: What is 9*3
+A: 33
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*7
+A: 70
+B: 42
+Answer (A or B): B
+
+Q: What is 4*7
+A: 42
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 30
+B: 18
+Answer (A or B): B
+
+Q: What is 5*10
+A: 70
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 50
+B: 90
+Answer (A or B): A
+
+Q: What is 3*9
+A: 27
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 28
+B: 44
+Answer (A or B): A
+
+Q: What is 9*6
+A: 54
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*8
+A: 96
+B: 80
+Answer (A or B): B
+
+Q: What is 9*3
+A: 39
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*8
+A: 56
+B: 88
+Answer (A or B): A
+
+Q: What is 8*10
+A: 80
+B: 120
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 56
+B: 80
+Answer (A or B): A
+
+Q: What is 5*5
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*8
+A: 24
+B: 48
+Answer (A or B): A
+
+Q: What is 7*6
+A: 42
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*6
+A: 48
+B: 30
+Answer (A or B): B
+
+Q: What is 8*5
+A: 50
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*8
+A: 96
+B: 80
+Answer (A or B): B
+
+Q: What is 6*6
+A: 48
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*9
+A: 72
+B: 36
+Answer (A or B): B
+
+Q: What is 7*6
+A: 54
+B: 42
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*3
+A: 24
+B: 30
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*3
+A: 18
+B: 12
+Answer (A or B): B
+
+Q: What is 8*9
+A: 108
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*10
+A: 100
+B: 70
+Answer (A or B): B
+
+Q: What is 3*9
+A: 63
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 45
+B: 81
+Answer (A or B): A
+
+Q: What is 9*9
+A: 81
+B: 117
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*8
+A: 104
+B: 80
+Answer (A or B): B
+
+Q: What is 9*5
+A: 60
+B: 45
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*7
+A: 84
+B: 70
+Answer (A or B): B
+
+Q: What is 6*8
+A: 64
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*5
+A: 25
+B: 40
+Answer (A or B): A
+
+Q: What is 4*4
+A: 16
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*5
+A: 40
+B: 30
+Answer (A or B): B
+
+Q: What is 9*9
+A: 99
+B: 81
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*3
+A: 21
+B: 27
+Answer (A or B): A
+
+Q: What is 10*5
+A: 50
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 49
+B: 70
+Answer (A or B): A
+
+Q: What is 9*3
+A: 27
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is 7*6
+A: 42
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*4
+A: 48
+B: 36
+Answer (A or B): B
+
+Q: What is 3*3
+A: 15
+B: 9
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*3
+A: 21
+B: 27
+Answer (A or B): A
+
+Q: What is 3*3
+A: 9
+B: 15
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 40
+B: 56
+Answer (A or B): A
+
+Q: What is 5*3
+A: 15
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*4
+A: 16
+B: 32
+Answer (A or B): A
+
+Q: What is 4*6
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*4
+A: 28
+B: 16
+Answer (A or B): B
+
+Q: What is 10*5
+A: 70
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*5
+A: 45
+B: 55
+Answer (A or B): A
+
+Q: What is 3*6
+A: 18
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*8
+A: 64
+B: 96
+Answer (A or B): A
+
+Q: What is 9*7
+A: 63
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*9
+A: 72
+B: 45
+Answer (A or B): B
+
+Q: What is 7*8
+A: 88
+B: 56
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*5
+A: 30
+B: 15
+Answer (A or B): B
+
+Q: What is 6*5
+A: 40
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*5
+A: 65
+B: 50
+Answer (A or B): B
+
+Q: What is 7*5
+A: 45
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*6
+A: 48
+B: 72
+Answer (A or B): A
+
+Q: What is 4*10
+A: 40
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*4
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 6*8
+A: 48
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*8
+A: 88
+B: 72
+Answer (A or B): B
+
+Q: What is 8*6
+A: 66
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*5
+A: 50
+B: 35
+Answer (A or B): B
+
+Q: What is 3*7
+A: 49
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 39
+Answer (A or B): A
+
+Q: What is 7*6
+A: 42
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 88
+B: 56
+Answer (A or B): B
+
+Q: What is 4*5
+A: 35
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*7
+A: 91
+B: 63
+Answer (A or B): B
+
+Q: What is 3*7
+A: 35
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*5
+A: 40
+B: 55
+Answer (A or B): A
+
+Q: What is 6*6
+A: 36
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*10
+A: 140
+B: 100
+Answer (A or B): B
+
+Q: What is 8*8
+A: 88
+B: 64
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*8
+A: 72
+B: 88
+Answer (A or B): A
+
+Q: What is 10*6
+A: 60
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*6
+A: 42
+B: 18
+Answer (A or B): B
+
+Q: What is 10*9
+A: 117
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*10
+A: 90
+B: 130
+Answer (A or B): A
+
+Q: What is 6*7
+A: 42
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*7
+A: 49
+B: 21
+Answer (A or B): B
+
+Q: What is 5*4
+A: 28
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*9
+A: 90
+B: 63
+Answer (A or B): B
+
+Q: What is 9*10
+A: 120
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*7
+A: 49
+B: 77
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 99
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*9
+A: 81
+B: 54
+Answer (A or B): B
+
+Q: What is 9*3
+A: 33
+B: 27
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*3
+A: 27
+B: 21
+Answer (A or B): B
+
+Q: What is 10*9
+A: 126
+B: 90
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*10
+A: 140
+B: 100
+Answer (A or B): B
+
+Q: What is 5*3
+A: 27
+B: 15
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*4
+A: 44
+B: 36
+Answer (A or B): B
+
+Q: What is 4*5
+A: 40
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*8
+A: 104
+B: 80
+Answer (A or B): B
+
+Q: What is 5*10
+A: 80
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*8
+A: 24
+B: 56
+Answer (A or B): A
+
+Q: What is 7*9
+A: 63
+B: 99
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*5
+A: 35
+B: 55
+Answer (A or B): A
+
+Q: What is 5*5
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*3
+A: 9
+B: 18
+Answer (A or B): A
+
+Q: What is 10*4
+A: 40
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*5
+A: 70
+B: 50
+Answer (A or B): B
+
+Q: What is 7*4
+A: 40
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*8
+A: 80
+B: 96
+Answer (A or B): A
+
+Q: What is 8*4
+A: 32
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 49
+B: 77
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*9
+A: 81
+B: 117
+Answer (A or B): A
+
+Q: What is 6*4
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*10
+A: 90
+B: 120
+Answer (A or B): A
+
+Q: What is 5*9
+A: 45
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 36
+B: 28
+Answer (A or B): B
+
+Q: What is 10*8
+A: 104
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*6
+A: 60
+B: 48
+Answer (A or B): B
+
+Q: What is 10*5
+A: 70
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*5
+A: 60
+B: 50
+Answer (A or B): B
+
+Q: What is 10*8
+A: 96
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*7
+A: 56
+B: 35
+Answer (A or B): B
+
+Q: What is 4*4
+A: 28
+B: 16
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*8
+A: 72
+B: 56
+Answer (A or B): B
+
+Q: What is 6*7
+A: 70
+B: 42
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*6
+A: 72
+B: 60
+Answer (A or B): B
+
+Q: What is 7*4
+A: 36
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*10
+A: 90
+B: 120
+Answer (A or B): A
+
+Q: What is 5*5
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*9
+A: 36
+B: 72
+Answer (A or B): A
+
+Q: What is 4*7
+A: 28
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*7
+A: 63
+B: 42
+Answer (A or B): B
+
+Q: What is 5*10
+A: 90
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 72
+B: 45
+Answer (A or B): B
+
+Q: What is 5*5
+A: 45
+B: 25
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 40
+B: 52
+Answer (A or B): A
+
+Q: What is 9*7
+A: 63
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*5
+A: 55
+B: 40
+Answer (A or B): B
+
+Q: What is 6*6
+A: 48
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*4
+A: 48
+B: 36
+Answer (A or B): B
+
+Q: What is 6*4
+A: 36
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*10
+A: 110
+B: 80
+Answer (A or B): B
+
+Q: What is 10*7
+A: 91
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*6
+A: 66
+B: 42
+Answer (A or B): B
+
+Q: What is 4*7
+A: 49
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*9
+A: 90
+B: 117
+Answer (A or B): A
+
+Q: What is 8*8
+A: 64
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*3
+A: 27
+B: 15
+Answer (A or B): B
+
+Q: What is 10*5
+A: 60
+B: 50
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*4
+A: 28
+B: 20
+Answer (A or B): B
+
+Q: What is 8*7
+A: 84
+B: 56
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*6
+A: 18
+B: 42
+Answer (A or B): A
+
+Q: What is 5*8
+A: 40
+B: 64
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*6
+A: 72
+B: 54
+Answer (A or B): B
+
+Q: What is 3*6
+A: 42
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*9
+A: 27
+B: 45
+Answer (A or B): A
+
+Q: What is 6*4
+A: 24
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*7
+A: 70
+B: 49
+Answer (A or B): B
+
+Q: What is 8*9
+A: 99
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*10
+A: 110
+B: 70
+Answer (A or B): B
+
+Q: What is 8*9
+A: 108
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*3
+A: 27
+B: 21
+Answer (A or B): B
+
+Q: What is 10*7
+A: 91
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*10
+A: 50
+B: 70
+Answer (A or B): A
+
+Q: What is 5*6
+A: 30
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*5
+A: 25
+B: 45
+Answer (A or B): A
+
+Q: What is 10*4
+A: 40
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*4
+A: 20
+B: 28
+Answer (A or B): A
+
+Q: What is 3*4
+A: 12
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*6
+A: 54
+B: 30
+Answer (A or B): B
+
+Q: What is 8*8
+A: 80
+B: 64
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*8
+A: 40
+B: 72
+Answer (A or B): A
+
+Q: What is 6*6
+A: 36
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*5
+A: 35
+B: 20
+Answer (A or B): B
+
+Q: What is 4*6
+A: 48
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*8
+A: 72
+B: 56
+Answer (A or B): B
+
+Q: What is 10*8
+A: 112
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 33
+Answer (A or B): A
+
+Q: What is 6*8
+A: 48
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*4
+A: 48
+B: 36
+Answer (A or B): B
+
+Q: What is 4*10
+A: 80
+B: 40
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 9*3
+A: 27
+B: 36
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*5
+A: 25
+B: 15
+Answer (A or B): B
+
+Q: What is 8*10
+A: 120
+B: 80
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*10
+A: 70
+B: 100
+Answer (A or B): A
+
+Q: What is 3*9
+A: 27
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*5
+A: 35
+B: 20
+Answer (A or B): B
+
+Q: What is 8*7
+A: 84
+B: 56
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 3*8
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 9*3
+A: 27
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*9
+A: 36
+B: 72
+Answer (A or B): A
+
+Q: What is 10*5
+A: 50
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*8
+A: 72
+B: 40
+Answer (A or B): B
+
+Q: What is 5*4
+A: 28
+B: 20
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*6
+A: 72
+B: 60
+Answer (A or B): B
+
+Q: What is 9*8
+A: 96
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*3
+A: 30
+B: 39
+Answer (A or B): A
+
+Q: What is 10*9
+A: 90
+B: 108
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*9
+A: 63
+B: 27
+Answer (A or B): B
+
+Q: What is 8*6
+A: 72
+B: 48
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*7
+A: 49
+B: 35
+Answer (A or B): B
+
+Q: What is 4*8
+A: 64
+B: 32
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*5
+A: 35
+B: 50
+Answer (A or B): A
+
+Q: What is 3*4
+A: 12
+B: 20
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*4
+A: 32
+B: 16
+Answer (A or B): B
+
+Q: What is 6*4
+A: 32
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*5
+A: 30
+B: 20
+Answer (A or B): B
+
+Q: What is 3*10
+A: 60
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*4
+A: 48
+B: 40
+Answer (A or B): B
+
+Q: What is 3*6
+A: 30
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*4
+A: 36
+B: 28
+Answer (A or B): B
+
+Q: What is 8*3
+A: 36
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*7
+A: 56
+B: 42
+Answer (A or B): B
+
+Q: What is 9*8
+A: 88
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*4
+A: 32
+B: 44
+Answer (A or B): A
+
+Q: What is 5*8
+A: 40
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*9
+A: 27
+B: 45
+Answer (A or B): A
+
+Q: What is 9*10
+A: 90
+B: 120
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*4
+A: 56
+B: 40
+Answer (A or B): B
+
+Q: What is 3*3
+A: 15
+B: 9
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*6
+A: 54
+B: 30
+Answer (A or B): B
+
+Q: What is 4*3
+A: 18
+B: 12
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 63
+B: 45
+Answer (A or B): B
+
+Q: What is 8*9
+A: 108
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*3
+A: 27
+B: 18
+Answer (A or B): B
+
+Q: What is 10*3
+A: 36
+B: 30
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*6
+A: 36
+B: 48
+Answer (A or B): A
+
+Q: What is 6*4
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*5
+A: 35
+B: 45
+Answer (A or B): A
+
+Q: What is 9*7
+A: 63
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*5
+A: 65
+B: 50
+Answer (A or B): B
+
+Q: What is 6*9
+A: 81
+B: 54
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*3
+A: 36
+B: 24
+Answer (A or B): B
+
+Q: What is 6*6
+A: 60
+B: 36
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*4
+A: 24
+B: 16
+Answer (A or B): B
+
+Q: What is 5*7
+A: 49
+B: 35
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 5*9
+A: 72
+B: 45
+Answer (A or B): B
+
+Q: What is 3*8
+A: 40
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 10*7
+A: 91
+B: 70
+Answer (A or B): B
+
+Q: What is 3*6
+A: 42
+B: 18
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*7
+A: 28
+B: 49
+Answer (A or B): A
+
+Q: What is 8*7
+A: 56
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*7
+A: 56
+B: 70
+Answer (A or B): A
+
+Q: What is 8*6
+A: 48
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 6*9
+A: 54
+B: 72
+Answer (A or B): A
+
+Q: What is 7*5
+A: 35
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 3*9
+A: 63
+B: 27
+Answer (A or B): B
+
+Q: What is 4*7
+A: 56
+B: 28
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*4
+A: 32
+B: 16
+Answer (A or B): B
+
+Q: What is 9*8
+A: 88
+B: 72
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 7*7
+A: 49
+B: 63
+Answer (A or B): A
+
+Q: What is 10*7
+A: 70
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 4*10
+A: 40
+B: 60
+Answer (A or B): A
+
+Q: What is 8*9
+A: 72
+B: 99
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 5*10
+A: 50
+B: 90
+Answer (A or B): A
+
+Q: What is 8*5
+A: 40
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 9*10
+A: 120
+B: 90
+Answer (A or B): B
+
+Q: What is 7*10
+A: 90
+B: 70
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 4*10
+A: 40
+B: 80
+Answer (A or B): A
+
+Q: What is 5*4
+A: 20
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*4
+A: 40
+B: 28
+Answer (A or B): B
+
+Q: What is 7*3
+A: 33
+B: 21
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 8*6
+A: 48
+B: 60
+Answer (A or B): A
+
+Q: What is 5*4
+A: 20
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 56
+B: 80
+Answer (A or B): A
+
+Q: What is 6*9
+A: 54
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 8*5
+A: 60
+B: 40
+Answer (A or B): B
+
+Q: What is 3*8
+A: 40
+B: 24
+Answer (B or A):","[' A', ' B']",1
+"Q: What is 6*4
+A: 24
+B: 40
+Answer (A or B): A
+
+Q: What is 4*10
+A: 40
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 56
+B: 88
+Answer (A or B): A
+
+Q: What is 4*6
+A: 24
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 7*8
+A: 56
+B: 72
+Answer (A or B): A
+
+Q: What is 8*7
+A: 56
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is 10*5
+A: 60
+B: 50
+Answer (A or B): B
+
+Q: What is 4*10
+A: 80
+B: 40
+Answer (B or A):","[' A', ' B']",1

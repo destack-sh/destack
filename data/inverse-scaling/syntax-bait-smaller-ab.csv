@@ -1,0 +1,4501 @@
+prompt,classes,answer_index
+"Q: What is a yellow number?
+A: 36
+B: 57
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 51
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 57
+B: 68
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 52
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 59
+B: 89
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 36
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 66
+B: 73
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 77
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 47
+B: 62
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 59
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 36
+B: 42
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 71
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 73
+B: 90
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 65
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 66
+B: 81
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 65
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 71
+B: 80
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 71
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 40
+B: 61
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 79
+B: 87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 38
+B: 65
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 27
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 55
+B: 78
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 38
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 56
+B: 68
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 38
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 59
+B: 85
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 36
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 68
+B: 77
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 76
+B: 79
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 79
+B: 101
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 63
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 77
+B: 103
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 57
+B: 64
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 62
+B: 87
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 64
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 27
+B: 47
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 57
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 66
+B: 79
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 27
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 47
+B: 53
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 26
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 60
+B: 82
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 58
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 32
+B: 56
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 73
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 43
+B: 51
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 22
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 65
+B: 73
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 50
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 47
+B: 71
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 26
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 61
+B: 75
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 42
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 49
+B: 55
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 58
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 42
+B: 70
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 50
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 70
+B: 96
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 30
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 58
+B: 77
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 62
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 46
+B: 69
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 75
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 73
+B: 99
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 36
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 25
+B: 40
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 67
+B: 68
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 68
+B: 88
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 42
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 80
+B: 105
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 74
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 67
+B: 85
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 73
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 41
+B: 51
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 35
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 76
+B: 102
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 56
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 56
+B: 74
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 69
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 36
+B: 63
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 30
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 51
+B: 66
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 39
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 55
+B: 80
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 25
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 46
+B: 61
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 20
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 53
+B: 77
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 26
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 37
+B: 64
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 31
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 25
+B: 30
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 37
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 61
+B: 82
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 72
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 74
+B: 79
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 22
+B: 23
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 40
+B: 56
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 80
+B: 90
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 61
+B: 80
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 60
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 44
+B: 67
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 38
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 41
+B: 56
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 70
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 22
+B: 28
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 37
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 45
+B: 67
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 28
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 35
+B: 41
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 39
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 73
+B: 88
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 39
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 78
+B: 98
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 50
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 27
+B: 54
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 51
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 67
+B: 93
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 77
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 25
+B: 32
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 71
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 44
+B: 49
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 26
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 70
+B: 93
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 65
+B: 69
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 34
+B: 47
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 57
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 27
+B: 34
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 72
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 51
+B: 68
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 36
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 29
+B: 37
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 32
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 72
+B: 81
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 26
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 45
+B: 70
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 63
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 51
+B: 76
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 62
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 65
+B: 93
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 77
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 29
+B: 42
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 58
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 65
+B: 95
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 50
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 34
+B: 43
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 22
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 75
+B: 85
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 71
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 44
+B: 65
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 52
+B: 53
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 47
+B: 76
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 33
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 58
+B: 81
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 34
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 52
+B: 75
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 36
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 80
+B: 94
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 69
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 30
+B: 55
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 79
+B: 82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 73
+B: 88
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 23
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 51
+B: 75
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 65
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 22
+B: 46
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 49
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 50
+B: 79
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 29
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 40
+B: 48
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 64
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 70
+B: 99
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 69
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 64
+B: 83
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 59
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 78
+B: 95
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 71
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 70
+B: 87
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 48
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 70
+B: 95
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 24
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 77
+B: 82
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 80
+B: 89
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 69
+B: 94
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 69
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 29
+B: 47
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 77
+B: 87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 46
+B: 53
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 26
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 47
+B: 73
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 46
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 36
+B: 43
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 42
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 21
+B: 37
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 42
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 24
+B: 48
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 77
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 62
+B: 88
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 66
+B: 68
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 64
+B: 69
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 79
+B: 89
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 49
+B: 57
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 50
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 33
+B: 49
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 41
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 60
+B: 75
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 31
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 57
+B: 71
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 30
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 40
+B: 61
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 35
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 46
+B: 72
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 22
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 64
+B: 71
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 28
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 79
+B: 88
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 57
+B: 64
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 35
+B: 54
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 60
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 20
+B: 38
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 66
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 38
+B: 58
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 25
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 55
+B: 79
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 64
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 69
+B: 87
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 47
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 79
+B: 100
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 29
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 68
+B: 79
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 38
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 33
+B: 47
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 27
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 68
+B: 88
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 25
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 60
+B: 65
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 27
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 45
+B: 66
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 76
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 67
+B: 80
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 42
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 24
+B: 54
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 36
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 75
+B: 87
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 77
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 38
+B: 59
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 28
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 60
+B: 82
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 45
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 56
+B: 81
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 28
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 45
+B: 68
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 49
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 50
+B: 78
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 46
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 52
+B: 67
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 51
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 67
+B: 87
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 23
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 50
+B: 67
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 76
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 80
+B: 108
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 79
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 27
+B: 51
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 20
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 68
+B: 91
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 38
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 65
+B: 80
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 44
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 77
+B: 103
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 47
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 40
+B: 49
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 33
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 47
+B: 77
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 51
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 80
+B: 91
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 57
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 60
+B: 67
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 75
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 60
+B: 86
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 31
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 75
+B: 96
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 68
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 23
+B: 48
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 64
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 36
+B: 63
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 50
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 22
+B: 28
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 30
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 20
+B: 29
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 24
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 78
+B: 90
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 49
+B: 53
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 76
+B: 83
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 70
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 36
+B: 41
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 53
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 33
+B: 54
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 42
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 66
+B: 94
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 39
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 42
+B: 69
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 35
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 49
+B: 69
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 66
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 49
+B: 68
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 27
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 72
+B: 101
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 29
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 24
+B: 42
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 55
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 51
+B: 63
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 28
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 26
+B: 48
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 77
+B: 82
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 52
+B: 76
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 49
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 21
+B: 29
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 59
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 33
+B: 47
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 76
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 44
+B: 69
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 37
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 65
+B: 92
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 54
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 53
+B: 67
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 63
+B: 69
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 50
+B: 64
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 57
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 52
+B: 67
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 43
+B: 53
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 29
+B: 39
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 52
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 56
+B: 85
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 64
+B: 68
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 68
+B: 85
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 42
+B: 52
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 59
+B: 64
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 53
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 39
+B: 44
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 34
+B: 43
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 50
+B: 72
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 40
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 45
+B: 72
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 32
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 33
+B: 39
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 40
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 66
+B: 92
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 62
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 30
+B: 44
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 21
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 21
+B: 41
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 60
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 20
+B: 32
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 80
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 62
+B: 80
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 28
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 42
+B: 56
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 31
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 46
+B: 59
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 54
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 78
+B: 86
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 46
+B: 53
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 28
+B: 52
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 75
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 35
+B: 45
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 35
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 25
+B: 43
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 79
+B: 89
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 29
+B: 53
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 58
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 66
+B: 83
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 21
+B: 22
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 38
+B: 64
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 29
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 67
+B: 96
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 45
+B: 51
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 20
+B: 34
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 53
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 56
+B: 78
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 36
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 27
+B: 44
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 42
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 67
+B: 73
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 36
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 53
+B: 68
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 44
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 41
+B: 71
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 80
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 41
+B: 69
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 72
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 43
+B: 57
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 60
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 58
+B: 76
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 30
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 28
+B: 43
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 79
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 59
+B: 70
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 24
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 53
+B: 63
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 24
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 37
+B: 51
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 38
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 54
+B: 75
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 55
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 70
+B: 88
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 70
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 64
+B: 94
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 56
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 55
+B: 73
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 60
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 53
+B: 63
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 63
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 66
+B: 94
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 35
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 80
+B: 109
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 79
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 67
+B: 94
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 48
+B: 57
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 48
+B: 55
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 79
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 47
+B: 76
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 69
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 21
+B: 41
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 20
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 47
+B: 76
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 60
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 73
+B: 96
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 28
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 45
+B: 65
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 78
+B: 87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 56
+B: 72
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 43
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 27
+B: 53
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 54
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 40
+B: 57
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 77
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 29
+B: 53
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 29
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 28
+B: 37
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 78
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 64
+B: 92
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 64
+B: 71
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 72
+B: 79
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 25
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 71
+B: 84
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 40
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 68
+B: 87
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 55
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 52
+B: 58
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 77
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 70
+B: 89
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 59
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 41
+B: 66
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 28
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 41
+B: 46
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 72
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 42
+B: 65
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 48
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 27
+B: 36
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 40
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 41
+B: 65
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 32
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 39
+B: 69
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 44
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 46
+B: 52
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 48
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 74
+B: 104
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 49
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 71
+B: 84
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 32
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 27
+B: 32
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 42
+B: 43
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 64
+B: 89
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 77
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 67
+B: 94
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 51
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 75
+B: 92
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 70
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 41
+B: 57
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 26
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 60
+B: 90
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 38
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 30
+B: 52
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 64
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 60
+B: 86
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 35
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 76
+B: 101
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 63
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 60
+B: 74
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 41
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 30
+B: 48
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 49
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 69
+B: 74
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 30
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 71
+B: 81
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 29
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 20
+B: 26
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 23
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 70
+B: 87
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 70
+B: 71
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 78
+B: 104
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 41
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 33
+B: 55
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 45
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 62
+B: 78
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 26
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 44
+B: 56
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 78
+B: 85
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 78
+B: 101
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 24
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 21
+B: 45
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 59
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 59
+B: 74
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 75
+B: 82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 65
+B: 82
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 21
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 65
+B: 84
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 58
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 50
+B: 68
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 30
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 42
+B: 51
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 60
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 76
+B: 89
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 31
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 60
+B: 66
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 38
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 46
+B: 59
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 44
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 27
+B: 51
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 42
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 45
+B: 64
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 24
+B: 26
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 29
+B: 40
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 30
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 42
+B: 66
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 67
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 69
+B: 82
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 77
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 64
+B: 73
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 78
+B: 85
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 42
+B: 59
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 80
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 72
+B: 80
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 63
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 58
+B: 83
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 65
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 61
+B: 85
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 52
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 25
+B: 55
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 22
+B: 23
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 50
+B: 65
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 26
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 51
+B: 81
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 69
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 78
+B: 88
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 21
+B: 24
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 65
+B: 91
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 45
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 30
+B: 49
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 56
+B: 57
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 57
+B: 74
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 41
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 59
+B: 67
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 37
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 36
+B: 46
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 34
+B: 43
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 74
+B: 98
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 73
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 50
+B: 67
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 56
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 34
+B: 42
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 38
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 62
+B: 68
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 72
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 75
+B: 92
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 55
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 55
+B: 71
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 75
+B: 81
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 34
+B: 54
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 73
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 51
+B: 67
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 80
+B: 89
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 39
+B: 62
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 47
+B: 51
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 34
+B: 48
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 79
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 44
+B: 68
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 28
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 75
+B: 95
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 34
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 42
+B: 59
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 69
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 27
+B: 46
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 29
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 51
+B: 63
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 27
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 49
+B: 72
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 73
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 39
+B: 59
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 34
+B: 40
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 40
+B: 57
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 77
+B: 81
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 69
+B: 75
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 46
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 40
+B: 50
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 27
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 80
+B: 86
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 20
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 72
+B: 96
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 58
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 74
+B: 79
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 53
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 31
+B: 43
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 34
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 47
+B: 58
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 44
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 42
+B: 69
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 43
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 53
+B: 60
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 36
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 64
+B: 73
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 59
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 62
+B: 77
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 32
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 78
+B: 98
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 27
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 49
+B: 71
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 41
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 25
+B: 48
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 52
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 42
+B: 62
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 69
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 76
+B: 81
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 55
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 35
+B: 48
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 50
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 38
+B: 54
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 61
+B: 69
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 39
+B: 60
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 60
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 22
+B: 37
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 75
+B: 85
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 63
+B: 74
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 46
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 23
+B: 53
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 80
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 53
+B: 75
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 65
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 64
+B: 88
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 51
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 35
+B: 55
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 77
+B: 87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 22
+B: 28
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 28
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 63
+B: 71
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 75
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 41
+B: 61
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 63
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 73
+B: 89
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 65
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 40
+B: 59
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 24
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 79
+B: 96
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 80
+B: 88
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 22
+B: 27
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 45
+B: 49
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 56
+B: 86
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 46
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 28
+B: 49
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 61
+B: 69
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 54
+B: 61
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 46
+B: 70
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 68
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 21
+B: 50
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 71
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 49
+B: 62
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 27
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 44
+B: 61
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 67
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 36
+B: 43
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 22
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 53
+B: 73
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 47
+B: 53
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 47
+B: 71
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 62
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 65
+B: 83
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 35
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 27
+B: 43
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 38
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 52
+B: 74
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 20
+B: 23
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 75
+B: 88
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 41
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 55
+B: 73
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 70
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 24
+B: 47
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 28
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 26
+B: 48
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 73
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 32
+B: 56
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 64
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 66
+B: 82
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 55
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 28
+B: 41
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 55
+B: 56
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 75
+B: 102
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 70
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 20
+B: 34
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 71
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 52
+B: 74
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 42
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 54
+B: 72
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 27
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 38
+B: 50
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 60
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 73
+B: 78
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 60
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 55
+B: 80
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 38
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 58
+B: 64
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 70
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 34
+B: 47
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 80
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 27
+B: 45
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 43
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 71
+B: 91
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 44
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 26
+B: 36
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 77
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 53
+B: 71
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 27
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 37
+B: 54
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 47
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 76
+B: 97
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 42
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 71
+B: 85
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 70
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 21
+B: 31
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 34
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 28
+B: 51
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 63
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 67
+B: 72
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 66
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 30
+B: 47
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 52
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 53
+B: 73
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 26
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 20
+B: 48
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 35
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 42
+B: 68
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 45
+B: 50
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 35
+B: 63
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 33
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 48
+B: 60
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 48
+B: 51
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 29
+B: 45
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 62
+B: 68
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 61
+B: 88
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 36
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 79
+B: 90
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 58
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 48
+B: 57
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 50
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 58
+B: 75
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 45
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 72
+B: 101
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 56
+B: 60
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 36
+B: 57
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 30
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 36
+B: 54
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 39
+B: 47
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 49
+B: 76
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 24
+B: 25
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 70
+B: 75
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 72
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 43
+B: 67
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 71
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 58
+B: 68
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 73
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 67
+B: 83
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 74
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 64
+B: 69
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 69
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 67
+B: 78
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 75
+B: 82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 70
+B: 80
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 51
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 23
+B: 41
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 77
+B: 87
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 25
+B: 43
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 39
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 28
+B: 43
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 62
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 78
+B: 93
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 37
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 52
+B: 65
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 55
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 30
+B: 54
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 79
+B: 86
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 69
+B: 77
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 73
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 66
+B: 74
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 63
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 60
+B: 76
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 52
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 58
+B: 63
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 69
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 70
+B: 90
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 76
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 64
+B: 81
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 61
+B: 71
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 46
+B: 51
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 23
+B: 33
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 66
+B: 93
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 39
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 73
+B: 92
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 76
+B: 85
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 33
+B: 56
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 30
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 36
+B: 47
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 45
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 60
+B: 74
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 29
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 20
+B: 48
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 72
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 68
+B: 75
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 25
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 41
+B: 67
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 51
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 48
+B: 65
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 69
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 24
+B: 36
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 29
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 29
+B: 38
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 22
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 37
+B: 60
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 39
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 72
+B: 87
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 67
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 69
+B: 90
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 22
+B: 29
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 20
+B: 32
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 56
+B: 58
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 47
+B: 76
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 59
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 56
+B: 72
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 22
+B: 28
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 51
+B: 71
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 68
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 61
+B: 81
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 67
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 50
+B: 71
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 62
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 76
+B: 99
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 50
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 58
+B: 84
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 31
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 40
+B: 58
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 56
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 43
+B: 60
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 38
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 54
+B: 77
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 75
+B: 81
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 41
+B: 65
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 60
+B: 63
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 74
+B: 103
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 36
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 50
+B: 61
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 64
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 71
+B: 78
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 54
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 37
+B: 58
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 32
+B: 38
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 21
+B: 27
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 32
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 36
+B: 57
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 38
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 67
+B: 94
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 75
+B: 82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 41
+B: 51
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 68
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 77
+B: 95
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 74
+B: 82
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 25
+B: 53
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 25
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 72
+B: 96
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 26
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 70
+B: 78
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 72
+B: 77
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 28
+B: 57
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 77
+B: 87
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 30
+B: 40
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 57
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 36
+B: 56
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 70
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 25
+B: 34
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 77
+B: 84
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 21
+B: 37
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 54
+B: 62
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 77
+B: 105
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 64
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 77
+B: 86
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 72
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 29
+B: 49
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 54
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 31
+B: 50
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 40
+B: 48
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 65
+B: 76
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 26
+B: 32
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 54
+B: 77
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 38
+B: 42
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 31
+B: 48
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 27
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 75
+B: 94
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 29
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 67
+B: 74
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 36
+B: 44
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 23
+B: 39
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 73
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 65
+B: 87
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 56
+B: 59
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 48
+B: 69
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 68
+B: 78
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 33
+B: 50
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 25
+B: 27
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 63
+B: 82
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 67
+B: 70
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 35
+B: 43
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 58
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more reasonable number?
+A: 33
+B: 54
+Answer (A or B): A
+
+Q: What is the more reasonable number?
+A: 32
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 79
+B: 87
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 52
+B: 55
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 45
+B: 70
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 78
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 42
+B: 71
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 70
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 33
+B: 54
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 63
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 49
+B: 69
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 25
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 41
+B: 69
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 66
+B: 71
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 43
+B: 67
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 59
+B: 61
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 78
+B: 90
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 74
+B: 75
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a bad number?
+A: 53
+B: 78
+Answer (A or B): A
+
+Q: What is a bad number?
+A: 43
+B: 46
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 63
+B: 91
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 24
+B: 30
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 53
+B: 80
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 47
+B: 54
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a reasonable number?
+A: 48
+B: 55
+Answer (A or B): A
+
+Q: What is a reasonable number?
+A: 38
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 29
+B: 52
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 29
+B: 39
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 33
+B: 41
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 80
+B: 83
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 47
+B: 57
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 73
+B: 74
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 25
+B: 51
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 43
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 53
+B: 59
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 21
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a yellow number?
+A: 67
+B: 90
+Answer (A or B): A
+
+Q: Which is a yellow number?
+A: 36
+B: 45
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 60
+B: 68
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 63
+B: 73
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 79
+B: 104
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 35
+B: 36
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 58
+B: 84
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 69
+B: 72
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 26
+B: 39
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 26
+B: 31
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more bad number?
+A: 46
+B: 52
+Answer (A or B): A
+
+Q: What is the more bad number?
+A: 65
+B: 67
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a yellow number?
+A: 42
+B: 57
+Answer (A or B): A
+
+Q: What is a yellow number?
+A: 36
+B: 43
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a reasonable number?
+A: 61
+B: 73
+Answer (A or B): A
+
+Q: Which is a reasonable number?
+A: 33
+B: 35
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more fantastic number?
+A: 33
+B: 52
+Answer (A or B): A
+
+Q: What is the more fantastic number?
+A: 40
+B: 41
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 53
+B: 75
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 28
+B: 34
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 26
+B: 45
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 61
+B: 66
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a bad number?
+A: 25
+B: 41
+Answer (A or B): A
+
+Q: Which is a bad number?
+A: 29
+B: 37
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 48
+B: 54
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 60
+B: 65
+Answer (B or A):","[' A', ' B']",0
+"Q: What is the more yellow number?
+A: 73
+B: 96
+Answer (A or B): A
+
+Q: What is the more yellow number?
+A: 67
+B: 76
+Answer (B or A):","[' A', ' B']",0
+"Q: What is a fantastic number?
+A: 37
+B: 45
+Answer (A or B): A
+
+Q: What is a fantastic number?
+A: 73
+B: 80
+Answer (B or A):","[' A', ' B']",0
+"Q: Which is a fantastic number?
+A: 76
+B: 96
+Answer (A or B): A
+
+Q: Which is a fantastic number?
+A: 36
+B: 45
+Answer (B or A):","[' A', ' B']",0
