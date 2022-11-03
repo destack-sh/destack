@@ -2,51 +2,96 @@ import json
 from typing import Optional, Union, cast
 
 import structlog
+from django.core.validators import RegexValidator
+from django.db import models
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework import serializers, status, viewsets
+from rest_framework import serializers, status, validators, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination, _positive_int
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.api.artifact import (
-    ArtifactSerializer,
-    ArtifactVersionSerializer,
-    ArtifactVersionViewSet,
-    ArtifactViewSet,
+from bench.api.dataset import (
+    DatasetSerializer,
+    DatasetVersionSerializer,
+    DatasetVersionViewSet,
+    DatasetViewSet,
 )
-from bench.dataset.accessor import DatasetAccessor, DatasetRecord, DatasetSearch
-from bench.models import Dataset, DatasetVersion
-from bench.models.dataset import DatasetMetadata, DatasetViewData
-from bench.models.utils import DATASET_TYPE
+from bench.api.tag import TaggedItemSerializerMixin
+from bench.models import Dataset, DatasetVersion, Organization
+from bench.models.dataset import DatasetRecord, DatasetSearch, DatasetViewData
+from bench.models.utils import DATASET_TYPE, MAX_NAME_LENGTH
 from bench.models.versioning import get_head
 from bench.utils.func import terrible_cast
 
 logger = structlog.stdlib.get_logger()
 
 
-class DatasetSerializer(ArtifactSerializer):
+class DatasetSerializer(DatasetSerializer):
     type = serializers.CharField(max_length=64, default=DATASET_TYPE)
+    name = serializers.CharField(
+        max_length=MAX_NAME_LENGTH,
+        validators=[
+            validators.UniqueValidator(
+                queryset=Dataset.objects.all(),
+                message="There is already an dataset with the given name in this organization",
+            ),
+            RegexValidator(
+                regex=r"^[\w.\-]+$", message="Dataset names must follow pattern [\\w.\\-]+"
+            ),
+        ],
+    )
+    organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Organization.objects.all()
+    )
+    versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        many=True, read_only=True, slug_field="version"
+    )
+    head = serializers.SerializerMethodField(required=False, read_only=True)
 
-    class Meta(ArtifactSerializer.Meta):
+    class Meta:
         model = Dataset
+        fields = [
+            "id",
+            "type",
+            "created_at",
+            "organization",
+            "name",
+            "versions",
+            "description",
+            "head",
+            "tags",
+        ]
+        read_only_fields = ["id", "created_at", "head", "versions"]
+
+    def get_head(self, obj: Dataset):
+        head = get_head(obj)
+        return DatasetVersionSerializer(head).data if head is not None else None
 
 
-class DatasetVersionSerializer(ArtifactVersionSerializer):
-    artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
+class DatasetVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
+    dataset: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=Dataset.objects.all(), slug_field="name"
     )
     parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=DatasetVersion.objects.all(), slug_field="version", many=True
     )
-    metadata = serializers.JSONField(default=DatasetMetadata.default_db().to_dict())
 
-    class Meta(ArtifactVersionSerializer.Meta):
+    class Meta(DatasetVersionSerializer.Meta):
         model = DatasetVersion
-        # fields/read_only_fields same as super
+        fields = [
+            "id",
+            "created_at",
+            "parents",
+            "version",
+            "artifact",
+            "committed",
+            "tags",
+        ]
+        read_only_fields = ["id", "created_at", "parents", "version", "content_hash", "committed"]
 
     def validate(self, data):
         if len(data["parents"]) > 1:
@@ -58,16 +103,6 @@ class DatasetVersionSerializer(ArtifactVersionSerializer):
             raise serializers.ValidationError("all parent versions must be committed")
 
         return data
-
-    def validate_metadata(self, value: Union[str, dict]):
-        try:
-            # should be valid JSON because metadata is a JSONField
-            if isinstance(value, str):
-                value = json.loads(value)
-            DatasetMetadata.from_dict(value)
-        except (ValueError, KeyError) as e:
-            raise serializers.ValidationError(f"metadata is invalid: {e}")
-        return value
 
 
 class DatasetRecordSerializer(serializers.Serializer):
@@ -90,23 +125,53 @@ class DatasetSearchSerializer(serializers.Serializer):
         return DatasetSearch(**validated_data)
 
 
-class DatasetViewSet(ArtifactViewSet):
+class DatasetViewSet(viewsets.ModelViewSet):
     queryset = Dataset.objects.all()
     serializer_class = DatasetSerializer
 
+    lookup_field = "name"
+    lookup_value_regex = r"[\w.\-]+"
 
-class DatasetVersionViewSet(ArtifactVersionViewSet):
-    queryset = DatasetVersion.objects.filter(artifact__type=DATASET_TYPE).all()
+    def create(self, request: Request, *args, **kwargs):
+        # add organization from path argument
+        request.data["organization"] = kwargs.pop("organization")
+        return super().create(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
+        return queryset
+
+
+class DatasetVersionViewSet(viewsets.ModelViewSet):
+    queryset = DatasetVersion.objects.filter(dataset__type=DATASET_TYPE).all()
     serializer_class = DatasetVersionSerializer
+
+    def get_queryset(self) -> models.QuerySet[DatasetVersion]:
+        return self.queryset.filter(
+            artifact__organization__slug=self.kwargs.get("organization"),
+            artifact__name=self.kwargs.get("artifact"),
+        )
+
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        request.data["artifact"] = kwargs.pop("artifact")
+        # auto-insert parent metadata if not explicitly given and there is only one parent
+        if request.data.get("parents"):
+            parents_field_serializer = self.get_serializer().fields["parents"]  # type: ignore
+            parents = parents_field_serializer.to_internal_value(request.data.get("parents"))
+            if len(parents) == 1 and "metadata" not in request.data:
+                request.data["metadata"] = parents[0].metadata.copy()
+
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer: serializers.BaseSerializer) -> None:
         instance: DatasetVersion = serializer.save(committed=False)
-        DatasetAccessor.checkout_from_parents(instance)
+        instance.checkout_from_parents()
 
     @action(methods=["POST"], detail=True)
     def commit(self, request: Request, *args, **kwargs) -> Response:
         instance: DatasetVersion = self.get_object()
-        DatasetAccessor(instance).commit()
+        instance.commit()
         return Response(status=status.HTTP_200_OK)
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
@@ -140,9 +205,9 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
 
     @extend_schema(request=DatasetSearchSerializer)
     def list(
-        self, request: Request, organization: str, artifact: str, version: str = None
+        self, request: Request, organization: str, dataset: str, version: str = None
     ) -> Response:
-        accessor = get_dataset_accessor(organization, artifact, version)
+        dataset = get_dataset_version(organization, dataset, version)
         paginator = cast(DatasetRecordPagination, self.paginator)
         offset: int = paginator.get_offset(request)
         limit: int = cast(int, paginator.get_limit(request))
@@ -152,55 +217,49 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
             search_serializer = DatasetSearchSerializer(data=request.query_params)
             search_serializer.is_valid(raise_exception=True)
             search: DatasetSearch = search_serializer.save()
-            records = accessor.search_records(limit=limit, offset=offset, search=search)
+            records = dataset.search_records(limit=limit, offset=offset, search=search)
         else:
             records = list(
-                accessor.get_records_slice(self.view_apply(offset), self.view_apply(offset + limit))
+                dataset.get_records_slice(self.view_apply(offset), self.view_apply(offset + limit))
             )
         records_data = DatasetRecordSerializer(records, many=True).data
         return Response({"limit": limit, "offset": offset, "results": records_data})
 
     def create(
-        self, request: Request, organization: str, artifact: str, version: str = None
+        self, request: Request, organization: str, dataset: str, version: str = None
     ) -> Response:
-        accessor = get_dataset_accessor(organization, artifact, version)
+        dataset = get_dataset_version(organization, dataset, version)
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         ds_record: DatasetRecord = serializer.save()
-        accessor.append(ds_record)
+        dataset.append(ds_record)
 
         return Response(DatasetRecordSerializer(ds_record).data, status=status.HTTP_201_CREATED)
 
     def update(
-        self, request: Request, index: str, organization: str, artifact: str, version: str = None
+        self, request: Request, index: str, organization: str, dataset: str, version: str = None
     ) -> Response:
-        accessor = get_dataset_accessor(organization, artifact, version)
+        dataset = get_dataset_version(organization, dataset, version)
         index_int: int = self.view_apply(_positive_int(index))
 
         serializer: serializers.BaseSerializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         ds_record: DatasetRecord = serializer.save()
-        accessor.update(index_int, ds_record)
+        dataset.update(index_int, ds_record)
 
         # get actually written record
-        return Response(DatasetRecordSerializer(accessor.get_record(index_int)).data)
+        return Response(DatasetRecordSerializer(dataset.get_record(index_int)).data)
 
     def retrieve(
-        self, index: str, organization: str, artifact: str, version: str = None
+        self, index: str, organization: str, dataset: str, version: str = None
     ) -> Response:
-        accessor = get_dataset_accessor(organization, artifact, version)
+        dataset = get_dataset_version(organization, dataset, version)
         index_int: int = self.view_apply(_positive_int(index))
         try:
-            ds_record = accessor.get_record(index_int)
+            ds_record = dataset.get_record(index_int)
         except LookupError:
             raise Http404("No record matches the given query.")
         return Response(DatasetRecordSerializer(ds_record).data)
-
-
-def get_dataset_accessor(
-    organization: str, artifact: str, version: Optional[str]
-) -> DatasetAccessor:
-    return DatasetAccessor(get_dataset_version(organization, artifact, version))
 
 
 def get_dataset_version(organization: str, artifact: str, version: Optional[str]) -> DatasetVersion:

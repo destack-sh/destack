@@ -1,24 +1,29 @@
 from __future__ import annotations
 
-import copy
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Sequence
 
-from django.db import transaction
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector
+from django.db import connection, models, transaction
 from django.db.models import QuerySet
-from rest_framework import serializers
 
-from bench.models.artifact import Artifact, ArtifactManager, ArtifactVersion
-from bench.models.utils import DATASET_TYPE
-from bench.utils.serializer import FieldSpecSerializer
-from bench.utils.spec import DatasetType, RecordSpec
+from bench.models.utils import (
+    DATASET_TYPE,
+    MAX_DESCRIPTION_LENGTH,
+    MAX_NAME_LENGTH,
+    UUIDModel,
+    proxies,
+)
+from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
+from bench.utils.spec import FieldValue
 
 if TYPE_CHECKING:
-    from bench.models import Organization
+    from bench.models import Organization, TaggableMixin
 
 
-class DatasetManager(ArtifactManager):
+class DatasetManager(models.Manager):
     def get_queryset(self) -> QuerySet[Dataset]:
         return super().get_queryset().filter(type__exact=DATASET_TYPE)
 
@@ -30,128 +35,280 @@ class DatasetManager(ArtifactManager):
         self,
         name: str,
         organization: Organization,
-        metadata: Optional[DatasetMetadata] = None,
         **kwargs,
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
-        if metadata is None:
-            metadata = DatasetMetadata.default_db()
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(
                 type=DATASET_TYPE, organization=organization, name=name
             )
-            return DatasetVersion.objects.create(
-                artifact=dataset, metadata=metadata.to_dict(), **kwargs
-            )
+            return DatasetVersion.objects.create(dataset=dataset, **kwargs)
 
     def get_or_create_dataset_version(
         self,
         name: str,
         organization: Organization,
         version: Optional[str] = None,
-        metadata: Optional[DatasetMetadata] = None,
         **kwargs,
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
-        if metadata is None:
-            metadata = DatasetMetadata.default_db()
         dataset, _ = Dataset.objects.get_or_create(
             type=DATASET_TYPE, organization=organization, name=name
         )
         dv = DatasetVersion.objects.select_related("record_list")
         if version is not None:
-            dataset_version, _ = dv.get_or_create(
-                artifact=dataset,
-                version=version,
-                defaults={"metadata": metadata.to_dict()},
-            )
+            dataset_version, _ = dv.get_or_create(dataset=dataset, version=version)
         else:
-            dataset_version, _ = dv.get_or_create(
-                artifact=dataset,
-                defaults={"metadata": metadata.to_dict()},
-            )
+            dataset_version, _ = dv.get_or_create(dataset=dataset)
 
         return dataset_version
 
 
-class Dataset(Artifact):
+class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
     """
-    A dataset is an artifact representing a set of records of arbitrary format.
+    A dataset contains a list of JSON records.
 
     Datasets include machine learning datasets, function inputs/outputs, lexicons.
-    Handling, storage and management of the dataset may be delegated to external services.
     """
 
+    type = models.CharField(max_length=64)
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    organization: models.ForeignKey = models.ForeignKey(
+        "bench.Organization", on_delete=models.CASCADE, related_name="artifacts"
+    )
     objects = DatasetManager()
 
     class Meta:
-        proxy = True
+        indexes = [
+            models.Index(name="bench_dataset_type_idx", fields=["type"]),
+            models.Index(name="bench_dataset_name_idx", fields=["name"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_organization_dataset_name_ak", fields=["organization_id", "name"]
+            ),
+        ]
 
 
-@dataclass(frozen=True)
-class DatasetMetadata:
-    handler_id: str
-    config_arguments: Dict[str, Any] = dataclasses.field(default_factory=dict)
-    record_spec: RecordSpec = RecordSpec(name="", description="", type={})
-    metadata_spec: RecordSpec = RecordSpec(name="", description="", type={})
-
-    @staticmethod
-    def from_dict(obj: dict) -> DatasetMetadata:
-        serializer = DatasetMetadataSerializer(data=copy.deepcopy(obj))
-        serializer.is_valid(raise_exception=True)
-        return serializer.save()
-
-    def to_dict(self) -> dict:
-        return DatasetMetadataSerializer(self).data
-
-    @staticmethod
-    def default_db():
-        return DatasetMetadata(handler_id="bench.db")
-
-
-class DatasetMetadataSerializer(serializers.Serializer):
-    handler_id = serializers.CharField()
-    config_arguments = serializers.JSONField()
-    record_spec = FieldSpecSerializer(required=False)
-    metadata_spec = FieldSpecSerializer(required=False)
-
-    def create(self, validated_data):
-        if "record_spec" in validated_data:
-            validated_data["record_spec"] = RecordSpec(**validated_data["record_spec"])
-        return DatasetMetadata(**validated_data)
-
-
-class DatasetVersion(ArtifactVersion):
+class DatasetRecord(UUIDModel, VersionedBlob):
     """
-    A Dataset-specific thin proxy of ArtifactVersion exposing typed attributes.
+    An individual immutable record of a dataset-like Artifact.
+
+    Data represents the in-DB part of the record's data corresponding to the artifact's
+    schema, while metadata is additional data derived from or relevant to the data.
+    Both data and metadata may include pointers to outside-DB storage.
     """
 
-    @property
-    def metadata_typed(self) -> DatasetMetadata:
-        return DatasetMetadata.from_dict(self.metadata)
+    dataset = models.ForeignKey("DatasetVersion", on_delete=models.CASCADE, related_name="records")
+    index = models.IntegerField()
+    data = models.JSONField()
+    metadata = models.JSONField(null=True, blank=True)
 
-    @property
-    def handler_id(self) -> str:
-        return self.metadata_typed.handler_id
-
-    @handler_id.setter
-    def handler_id(self, value: str):
-        self.metadata["handler_id"] = value
-
-    @property
-    def config_arguments(self):
-        return self.metadata_typed.config_arguments
-
-    @property
-    def record_spec(self):
-        return self.metadata_typed.record_spec
-
-    @property
-    def spec(self) -> DatasetType:
-        return DatasetType(record_spec=self.metadata_typed.record_spec)
+    def is_committed(self) -> bool:
+        return True
 
     class Meta:
-        proxy = True
+        # order by index ascending by default
+        ordering = ["index"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset", "index"], name="bench_record_dataset_index_ak"
+            ),
+        ]
+        indexes = [
+            GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
+            GinIndex(SearchVector("metadata", config="simple"), name="bench_record_metadata"),
+        ]
+
+
+@dataclasses.dataclass
+class DatasetSearch:
+    text_like: Optional[str] = None
+
+
+class DatasetVersion(VersionedCommit, TaggableMixin, UUIDModel):
+    """
+    A Dataset-specific thin proxy of DatasetVersion exposing typed attributes.
+    """
+
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="versions")
+    parents = models.ManyToManyField("DatasetVersion", symmetrical=False)
+    length = models.IntegerField(default=0)
+    record_spec = models.JSONField()
+
+    def __str__(self):
+        return self.name_version
+
+    @property
+    def organization(self):
+        return self.dataset.organization
+
+    @property
+    def name_version(self) -> str:
+        return f"{self.dataset.name}@{self.version}"
+
+    def search_records(
+        self, search: DatasetSearch, limit: int, offset: int
+    ) -> Sequence[DatasetRecord]:
+        # TODO @Performance: ensure below query uses indices!
+        # also note that the below query does not order by the index for performance
+        raw_search_sql = (
+            "select"
+            "    bench_dbrecord.id,"
+            "    bench_dbrecord.data,"
+            "    bench_dbrecord.metadata,"
+            "    bench_dbrecordlistreference.index as index"
+            "    from bench_dbrecord"
+            "\njoin"
+            "    bench_dbrecordlistreference"
+            "    on bench_dbrecordlistreference.record_id = bench_dbrecord.id"
+            "\nwhere"
+            "    to_tsvector('simple', data) @@ to_tsquery('simple', %s)"
+            # check that the record belongs to the current version
+            "    and bench_dbrecordlistreference.tree_id = %s"
+            "\nlimit %s"
+            "\noffset %s"
+        )
+        db_records = DatasetRecord.objects.raw(
+            raw_search_sql, [search.text_like, self.dataset.record_list_id, limit, offset]
+        )
+        return db_records
+
+    def get_record(self, index: int) -> DatasetRecord:
+        return DatasetRecord.objects.get(dataset=self, index=index)
+
+    def get_records_view(self, view_data: Optional[DatasetViewData]) -> list[DatasetRecord]:
+        if view_data is None:
+            return self.get_records_slice(0, len(self))
+        else:
+            # note that this only works with slice-based views
+            return self.get_records_slice(view_data.apply(0), view_data.apply(len(self)))
+
+    def get_records_slice(self, start: int, stop: Optional[int] = None) -> list[DatasetRecord]:
+        stop = stop if stop is not None else 0
+        return DatasetRecord.objects.filter(dataset=self)[start:stop]
+
+    def get_records_data_field(self, key: str) -> list[FieldValue]:
+        return DatasetRecord.objects.filter(dataset=self).values_list("data__" + key, flat=True)
+
+    def __iter__(self) -> Iterator[DatasetRecord]:
+        for record in DatasetRecord.objects.filter(dataset=self):
+            yield record
+
+    def append(self, record: DatasetRecord) -> int:
+        with transaction.atomic():
+            DatasetRecord.objects.create(
+                dataset=self, index=self.length, data=record.data, metadata=record.metadata
+            )
+            self.length += 1
+            self.save()
+        return self.length
+
+    def extend(self, records: Iterable[DatasetRecord]) -> tuple[int, int]:
+        start_length = self.length
+        db_records = []
+        # create db_records with incrementing index
+        with transaction.atomic():
+            for record in records:
+                db_records.append(
+                    DatasetRecord(
+                        dataset=self, index=self.length, data=record.data, metadata=record.metadata
+                    )
+                )
+                self.length += 1
+            DatasetRecord.objects.bulk_create(db_records)
+            self.save()
+
+        return start_length, self.length
+
+    def update(self, index: int, record: DatasetRecord):
+        with transaction.atomic():
+            db_record = self.get_record(index)
+            db_record.data = record.data
+            db_record.metadata = record.metadata
+            db_record.save()
+
+    def delete_(self, index: int):
+        with transaction.atomic():
+            db_record = self.get_record(index)
+            db_record.delete()
+            # update the index of all records indices after the deleted one
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "update bench_datasetrecord"
+                    " set index = index - 1"
+                    " where dataset_id = %s and index > %s",
+                    [self.dataset.id, index],
+                )
+            self.length -= 1
+            self.save()
+
+    def clear(self):
+        with transaction.atomic():
+            DatasetRecord.objects.filter(dataset=self).delete()
+            self.length = 0
+            self.save()
+
+    def __len__(self) -> int:
+        return self.length
+
+    @staticmethod
+    def checkout_from_parents(dataset: DatasetVersion):
+        parents: QuerySet[DatasetVersion] = proxies(dataset.parents.all(), DatasetVersion)
+        if parents:
+            # this should be caught in DatasetVersionSerializer validation
+            if len(parents) != 1:
+                raise RuntimeError("creating versions with multiple parents is not supported yet")
+
+            # note: parent metadata is copied in ArtifactVersionViewSet.create prior to actual create
+            # create a new version of the dataset state based on the parent
+            # TODO @Architecture: creating new version logic should be elsewhere (DatasetAccessor?)
+            #  because it is a shared concern and needs to drill down into (partial) sub-datasets.
+            parent = parents[0]
+            parent.checkout(dataset.version)
+        return dataset
+
+    def commit(self):
+        if self.committed:
+            raise ValueError(f"cannot commit dataset, already committed: {self.dataset}")
+
+        self.committed = True
+        self.save()
+
+    class Meta:
+        indexes = [
+            models.Index(name="bench_dataset_version_idx", fields=["version"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_dataset_version_dataset_version_ak",
+                fields=["dataset", "version"],
+            ),
+        ]
+
+
+class DatasetView(TaggableMixin, UUIDModel):
+    """
+    A generally immutable view of an Dataset. The data remains with the
+    Dataset (or, rather, a specific version) and can be accessed through the view.
+
+    If this view works only with specific versions, then it must specify the compatible
+    versions in 'compatible_versions'. If empty, this view is assumed to work with all versions.
+    """
+
+    type = models.CharField(max_length=64)
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="views")
+    compatible_versions = models.ManyToManyField(DatasetVersion, related_name="views")
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    data = models.JSONField()
+
+    def __str__(self):
+        return f"{self.name}[{self.name}]"
 
 
 # TODO @Feature: support more complex dataset views (e.g. filters)

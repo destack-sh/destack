@@ -19,7 +19,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        organization, team, user = User.objects.bootstrap(
+        organization, user = User.objects.bootstrap(
             email="test@symbolx.com",
             password="password",
             first_name="Yatima",

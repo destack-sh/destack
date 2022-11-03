@@ -5,7 +5,7 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.dataset.accessor import DatasetAccessor, DatasetRecord
+from bench.dataset.accessor import DatasetHandler, DatasetRecord
 from bench.models import Dataset, DatasetVersion, Organization
 from bench.models.versioning import get_head
 
@@ -53,5 +53,5 @@ def update_dataset(
 
     # assume new_data_records must be an array of data-only records
     dataset_records = [DatasetRecord.make(data=data) for data in records]
-    DatasetAccessor(dataset_version).extend(dataset_records)
+    DatasetHandler(dataset_version).extend(dataset_records)
     return dataset_version

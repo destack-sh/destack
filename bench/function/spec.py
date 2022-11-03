@@ -32,14 +32,6 @@ class StubError(NotImplementedError):
 
 
 class StubModelHandler(ModelHandler):
-    def run(self, record: Record) -> Union[Record, RecordBatch]:
-        raise StubError
-
-    def run_batch(self, records: RecordBatch) -> RecordBatch:
-        raise StubError
-
-
-class StubDatasetHandler(DatasetHandler):
     pass
 
 

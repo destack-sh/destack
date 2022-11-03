@@ -2,7 +2,6 @@ import abc
 import re
 from typing import Any, Tuple, Union, cast
 
-from bench.dataset.base import DatasetHandler, DatasetReader
 from bench.function.base import FunctionMetadata, SingleRecordTransform, functions
 from bench.utils.func import dict_to_ordered
 from bench.utils.record import Record, RecordBatch, RecordList
@@ -69,7 +68,7 @@ class TemplateTextSwapper(TextTransform):
         },
     )
 
-    def __init__(self, swaps_dataset: DatasetReader, spread_original: bool = False):
+    def __init__(self, swaps_dataset: RecordBatch, spread_original: bool = False):
         super().__init__(spread_original=spread_original)
         self.swaps_dataset = swaps_dataset
         swaps_patterns = cast(list[str], swaps_dataset["pattern"])
@@ -121,11 +120,11 @@ class TemplatizeTextTransform(SingleRecordTransform):
     output_spec = dict_to_ordered({"*": convert_to_record_spec({"text": str})})
 
     def __init__(self, template: str, **kwargs):
-        self.dataset_variables: dict[str, DatasetHandler] = {
-            key.upper(): val for key, val in kwargs.items() if isinstance(val, DatasetHandler)
+        self.dataset_variables: dict[str, RecordBatch] = {
+            key.upper(): val for key, val in kwargs.items() if isinstance(val, RecordBatch)
         }
         self.input_variables: dict[str, Any] = {
-            key.upper(): val for key, val in kwargs.items() if not isinstance(val, DatasetHandler)
+            key.upper(): val for key, val in kwargs.items() if not isinstance(val, RecordBatch)
         }
         self.template = template
 
@@ -142,7 +141,7 @@ class FewshotTextTransform(TemplatizeTextTransform):
         "Templatize few shot", "Transforms text with a few shot template", tags=["text", "fewshot"]
     )
 
-    def __init__(self, template: str, sample_template: str, samples: DatasetReader, **kwargs):
+    def __init__(self, template: str, sample_template: str, samples: RecordBatch, **kwargs):
         super().__init__(template, samples=samples, **kwargs)
         self.sample_template = sample_template
         self.samples = samples
