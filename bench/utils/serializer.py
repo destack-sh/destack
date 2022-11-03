@@ -132,20 +132,6 @@ class FunctionSpecSerializer(SpecSerializer):
     type = FunctionTypeSerializer()
 
 
-class DatasetHandlerSpecSerializer(SpecSerializer):
-    id = serializers.CharField()
-    tags = serializers.ListField(child=serializers.CharField())
-    base_spec = DatasetTypeSerializer()
-    config_spec = DictField(child=ConfigSpecField())
-
-
-class ModelHandlerSpecSerializer(SpecSerializer):
-    id = serializers.CharField()
-    tags = serializers.ListField(child=serializers.CharField())
-    base_spec = ModelTypeSerializer()
-    config_spec = DictField(child=ConfigSpecField())
-
-
 class FunctionHandlerSpecSerializer(SpecSerializer):
     id = serializers.CharField()
     tags = serializers.ListField(child=serializers.CharField())

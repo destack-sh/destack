@@ -4,7 +4,6 @@ from typing import List
 
 from rest_framework.routers import BaseRouter
 
-from bench.api.artifact import ArtifactVersionViewSet, ArtifactViewSet
 from bench.api.dataset import DatasetRecordViewSet, DatasetVersionViewSet, DatasetViewSet
 from bench.api.execution import ExecutionViewSet
 from bench.api.flow import (
@@ -17,12 +16,11 @@ from bench.api.flow import (
 from bench.api.meta import list_dataset_handlers  # noqa: F401,F403
 from bench.api.meta import list_function_handlers  # noqa: F401,F403
 from bench.api.meta import list_model_handlers  # noqa: F401,F403
-from bench.api.model import ModelVersionViewSet, ModelViewSet
+from bench.api.model import ModelViewSet
 from bench.api.organization import OrganizationViewSet
 from bench.api.project import ProjectViewSet
 from bench.api.routing import ExtendedDefaultRouter
 from bench.api.tag import TagViewSet
-from bench.api.team import TeamViewSet
 from bench.api.user import UserViewSet
 
 router = ExtendedDefaultRouter(lookup_omit_field=True)
@@ -35,21 +33,12 @@ organizations_router = router.register_nested(
 organizations_router.register("tags", TagViewSet)
 # /organizations/<organization>/executions
 organizations_router.register("executions", ExecutionViewSet)
-# /organizations/<organization>/teams
-teams_router = organizations_router.register_nested("teams", TeamViewSet, lookup="team")
 
 # /organizations/<organization>/projects
 projects_router = organizations_router.register_nested("projects", ProjectViewSet, lookup="project")
 
 # /users
 users_router = router.register_nested("users", UserViewSet, lookup="user")
-
-# /artifacts/<organization> and /artifacts/<organization>/<artifact>
-artifacts_router = router.register_nested(
-    "artifacts", ArtifactViewSet, lookup=("organization", "artifact")
-)
-# /artifacts/<organization>/<artifact>/versions
-artifacts_router.register("versions", ArtifactVersionViewSet)
 
 # /datasets/<organization> and /datasets/<organization>/<artifact>
 datasets_router = router.register_nested(
@@ -66,8 +55,6 @@ datasets_versions_router.register("records", DatasetRecordViewSet)
 
 # /models/<organization> and /models/<organization>/<model>
 models_router = router.register_nested("models", ModelViewSet, lookup=("organization", "artifact"))
-# /models/<organization>/<model>/versions
-models_router.register("versions", ModelVersionViewSet)
 
 # /flows/<organization>/<flow>
 flows_router = router.register_nested("flows", FlowViewSet, lookup=("organization", "flow"))

@@ -121,21 +121,6 @@ class Array2dType(_Type):
     optional: bool = False
 
 
-@dataclass
-class AudioType(_Type):
-    pass
-
-
-@dataclass
-class ImageType(_Type):
-    pass
-
-
-@dataclass
-class VideoType(_Type):
-    pass
-
-
 # The (Python) implementation type of a field.
 if TYPE_CHECKING:
     import PIL.Image
@@ -165,18 +150,12 @@ FieldTypePrimitive = Union[
     Array1dType,
     Array2dType,
     EnumType,
-    AudioType,
-    ImageType,
-    VideoType,
 ]
 FIELD_TYPES: List[Type[_Type]] = [
     ValueType,
     ClassLabelType,
     Array1dType,
     Array2dType,
-    AudioType,
-    ImageType,
-    VideoType,
 ]
 if TYPE_CHECKING:
     # mypy cannot handle recursive types: https://github.com/python/mypy/issues/731
@@ -375,13 +354,12 @@ def convert_to_config_type_spec(spec: ConfigType) -> ConfigTypeSpec:
 def _impl_type_to_type(
     value: Type, optional: bool, default: Optional[Any], ignore_unknown: bool = False
 ) -> AnyType:
-    from bench.dataset.base import DatasetHandler
     from bench.model.base import ModelHandler
     from bench.utils.record import RecordBatch
 
     # default implementation types to their generic spec types
     impl_type_to_type: List[Tuple[Type, AnyType]] = [
-        (DatasetHandler, DatasetType(record_spec={}, optional=optional)),
+        (RecordBatch, DatasetType(record_spec={}, optional=optional)),
         (ModelHandler, ModelType(input_spec={}, output_spec={}, optional=optional)),
         (RecordBatch, {}),
         *(

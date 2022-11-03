@@ -7,7 +7,6 @@ from django.utils.translation import gettext_lazy as _
 
 from bench.models import Organization
 from bench.models.organization import OrganizationMembership
-from bench.models.team import DEFAULT_TEAM_NAME, Team, TeamMembership
 from bench.models.utils import UUIDModel
 
 
@@ -20,12 +19,11 @@ class UserManager(BaseUserManager[AbstractUser]):
         password: Optional[str],
         first_name: str,
         organization_name: str,
-        team_name: str = DEFAULT_TEAM_NAME,
         organization_kwargs: Optional[dict] = None,
         team_kwargs: Optional[dict] = None,
         user_kwargs: Optional[dict] = None,
         is_staff: bool = False,
-    ) -> tuple[Organization, Team, "User"]:
+    ) -> tuple[Organization, "User"]:
         organization_kwargs = organization_kwargs or {}
         team_kwargs = team_kwargs or {}
         user_kwargs = user_kwargs or {}
@@ -34,7 +32,6 @@ class UserManager(BaseUserManager[AbstractUser]):
             organization = Organization.objects.create(
                 name=organization_name, **organization_kwargs
             )
-            team = Team.objects.create(organization=organization, name=team_name, **team_kwargs)
             user = self.create_user(
                 email=email,
                 password=password,
@@ -43,9 +40,8 @@ class UserManager(BaseUserManager[AbstractUser]):
                 **user_kwargs
             )
             user.join_organization(organization, level=OrganizationMembership.Level.Owner)
-            user.join_team(team, level=TeamMembership.Level.Administrator)
 
-        return organization, team, user
+        return organization, user
 
     def create_user(self, email: str, password: Optional[str], first_name: str, **kwargs) -> "User":
         email = self.normalize_email(email)
@@ -72,8 +68,4 @@ class User(AbstractUser, UUIDModel):
         membership = OrganizationMembership.objects.create(
             user=self, organization=organization, level=level
         )
-        return membership
-
-    def join_team(self, team: Team, level: TeamMembership.Level) -> TeamMembership:
-        membership = TeamMembership.objects.create(user=self, team=team, level=level)
         return membership

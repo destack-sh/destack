@@ -1,4 +1,5 @@
-from rest_framework import serializers
+from django.core.validators import RegexValidator
+from rest_framework import serializers, validators
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -11,30 +12,43 @@ from bench.api.artifact import (
 )
 from bench.api.execution import ExecutionSerializer
 from bench.executor import executor
-from bench.models import Model, ModelVersion
-from bench.models.utils import MODEL_TYPE
+from bench.models import Model, ModelVersion, Organization
+from bench.models.utils import MAX_NAME_LENGTH, MODEL_TYPE
 from bench.models.versioning import get_head
 from bench.utils.func import terrible_cast
 
 
 class ModelSerializer(ArtifactSerializer):
-    type = serializers.CharField(max_length=64, default=MODEL_TYPE)
+    name = serializers.CharField(
+        max_length=MAX_NAME_LENGTH,
+        validators=[
+            validators.UniqueValidator(
+                queryset=Model.objects.all(),
+                message="There is already an artifact with the given name in this organization",
+            ),
+            RegexValidator(
+                regex=r"^[\w.\-]+$", message="Artifact names must follow pattern [\\w.\\-]+"
+            ),
+        ],
+    )
+    organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Organization.objects.all()
+    )
 
     class Meta(ArtifactSerializer.Meta):
         model = Model
-
-
-class ModelVersionSerializer(ArtifactVersionSerializer):
-    artifact: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        queryset=Model.objects.all(), slug_field="name"
-    )
-    parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        queryset=ModelVersion.objects.all(), slug_field="version", many=True
-    )
-
-    class Meta(ArtifactVersionSerializer.Meta):
-        model = ModelVersion
-        # fields/read_only_fields same as super
+        fields = [
+            "id",
+            "type",
+            "created_at",
+            "organization",
+            "name",
+            "versions",
+            "description",
+            "head",
+            "tags",
+        ]
+        read_only_fields = ["id", "created_at", "head", "versions"]
 
 
 class ModelViewSet(ArtifactViewSet):
@@ -44,16 +58,6 @@ class ModelViewSet(ArtifactViewSet):
     @action(methods=["POST"], detail=True)
     def predict(self, request: Request, *args, **kwargs):
         model = terrible_cast(ModelVersion, get_head(self.get_object()))
-        return _predict_response(model, request)
-
-
-class ModelVersionViewSet(ArtifactVersionViewSet):
-    queryset = ModelVersion.objects.filter(artifact__type=MODEL_TYPE).all()
-    serializer_class = ModelVersionSerializer
-
-    @action(methods=["POST"], detail=True)
-    def predict(self, request: Request, *args, **kwargs) -> Response:
-        model = self.get_object()
         return _predict_response(model, request)
 
 

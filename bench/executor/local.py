@@ -14,16 +14,6 @@ from uuid import UUID
 import structlog
 from more_itertools import flatten
 
-from bench.artifact.base import ArtifactHandler
-from bench.dataset.accessor import (
-    AnyDatasetRecord,
-    DatasetAccessor,
-    DatasetRecord,
-    get_dataset_version_handler,
-    update_dataset_spec,
-    write_dataset,
-)
-from bench.dataset.base import DatasetHandler
 from bench.executor.base import (
     ArtifactConnection,
     Executor,
@@ -42,18 +32,16 @@ from bench.executor.base import (
 from bench.executor.utils import get_model_iid
 from bench.function.base import Metric, RecordFunction, RecordTransform, load_function
 from bench.function.utils import ModelRecordTransform
-from bench.model.accessor import get_model_version_handler
 from bench.model.base import ModelHandler
-from bench.models import ArtifactVersion, DatasetVersion, DbRecord, FlowExecution, ModelExecution
+from bench.models import DatasetRecord, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.dataset import Dataset, DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
 from bench.models.flow import FlowArtifactEdge, FlowNode, FlowVersion
-from bench.models.model import ModelVersion
 from bench.models.tag import default_tag
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ArtifactType, FieldTypePrimitive, FieldTypeSpec, RecordSpec
+from bench.utils.spec import FieldTypePrimitive, FieldTypeSpec, RecordSpec
 from bench.utils.validate import validate_record_batch_type
 
 logger = structlog.stdlib.get_logger()
@@ -166,21 +154,6 @@ class LocalExecutor(Executor):
         log.info("model_loaded")
         return model_handler
 
-    def load_artifact(
-        self,
-        artifact: ArtifactVersion,
-        requirements: Optional[ResourceRequirements] = None,
-    ) -> ArtifactHandler:
-        if artifact.artifact.type == MODEL_TYPE:
-            return self.load_model(terrible_cast(ModelVersion, artifact), requirements)
-        elif artifact.artifact.type == DATASET_TYPE:
-            return get_dataset_version_handler(terrible_cast(DatasetVersion, artifact))
-        else:
-            raise NotImplementedError(f"cannot load: {artifact}")
-
-    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactType:
-        return self.load_artifact(artifact).runtime_spec
-
     def run_model(
         self,
         model: ModelVersion,
@@ -228,7 +201,7 @@ class LocalExecutor(Executor):
             output_dataset = Dataset.objects.get_or_create_dataset_version(
                 f"{model.artifact.name}.outputs", model.organization
             )
-            view = DatasetAccessor(output_dataset).extend(outputs)
+            view = DatasetHandler(output_dataset).extend(outputs)
             output_dataset.set_tag(default_tag("source:outputs", model.organization))
             execution.connected_artifacts.create(
                 connection_type=ExecutionArtifactConnection.ConnectionType.Output,
@@ -356,7 +329,7 @@ class LocalExecutor(Executor):
                     if node_connection.dataset is not None:
                         output_spec = function.output_spec[node_connection.dependency_name]
                         update_dataset_spec(node_connection.dataset, output_spec)
-                        write_view = DatasetAccessor(node_connection.dataset).extend(output_batch)
+                        write_view = DatasetHandler(node_connection.dataset).extend(output_batch)
                         node_connection.view_inline = DatasetViewData.from_slice(write_view).asdict
 
                 # write to final outputs (if any)
@@ -369,7 +342,7 @@ class LocalExecutor(Executor):
                     output_batch = output_batches[artifact_connection.dependency_name]
                     output_spec = function.output_spec[artifact_connection.dependency_name]
                     update_dataset_spec(artifact_connection.dataset, output_spec)
-                    write_view = DatasetAccessor(artifact_connection.dataset).extend(output_batch)
+                    write_view = DatasetHandler(artifact_connection.dataset).extend(output_batch)
                     artifact_connection.view_inline = DatasetViewData.from_slice(write_view).asdict
 
             # clear already processed nodes from pending and stop if everything is processed
@@ -385,9 +358,7 @@ class LocalExecutor(Executor):
             for input_key, artifact_connection in named_inputs.items():
                 if artifact_connection.artifact.artifact.type == DATASET_TYPE:
                     dataset = cast(DatasetVersion, artifact_connection.artifact)
-                    inputs = DatasetAccessor(dataset).get_records_view(
-                        artifact_connection.view_data
-                    )
+                    inputs = DatasetHandler(dataset).get_records_view(artifact_connection.view_data)
                     pending_data[node_id][artifact_connection.name] = inputs
 
                     # update input spec given function it is assigned to (not great)
@@ -432,8 +403,8 @@ class LocalExecutor(Executor):
         """
 
         # get cached outputs with the same input + function hash
-        input_hashes = [DbRecord.hash_content_hex(r.data) for r in input_batch]
-        cached_outputs = DbRecord.objects.filter(
+        input_hashes = [DatasetRecord.hash_content_hex(r.data) for r in input_batch]
+        cached_outputs = DatasetRecord.objects.filter(
             metadata__source__function_hash=function_hash,
             metadata__source__input_hash__in=input_hashes,
             metadata__source__cached=False,  # get original outputs only

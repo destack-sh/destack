@@ -1,9 +1,8 @@
 from typing import Type, TypeVar
 
-from bench.artifact.base import ArtifactHandler
 from bench.utils.spec import convert_to_config_type_spec, infer_config_type
 
-ArtifactT = TypeVar("ArtifactT", bound=ArtifactHandler)
+ArtifactT = TypeVar("ArtifactT")
 
 
 def map_to_artifact_cls(artifact_cls: Type[ArtifactT], ignore_keys: set[str]) -> Type[ArtifactT]:

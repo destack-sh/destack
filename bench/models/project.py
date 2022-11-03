@@ -13,6 +13,10 @@ class Project(TaggableMixin, UUIDModel):
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
     )
+    program: models.ForeignKey = models.ForeignKey(
+        "Flow", on_delete=models.CASCADE, related_name="projects"
+    )
+    flows = models.ManyToManyField("Flow", related_name="projects")
     artifacts: models.ManyToManyField = models.ManyToManyField(
         "Artifact", through="ProjectArtifactLink", related_name="projects"
     )

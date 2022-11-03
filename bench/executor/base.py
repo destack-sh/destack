@@ -24,7 +24,9 @@ import structlog
 from django.db.models import QuerySet
 
 from bench.artifact.base import ArtifactHandler
-from bench.dataset.accessor import DatasetAccessor, DatasetRecord
+from bench.dataset.accessor import DatasetHandler, DatasetRecord
+from bench.dataset.base import DatasetHandler
+from bench.model.base import ModelHandler
 from bench.models import (
     ArtifactVersion,
     Dataset,
@@ -34,7 +36,7 @@ from bench.models import (
     FlowNodeExecution,
     ModelExecution,
 )
-from bench.models.artifact import ArtifactView
+from bench.models.artifact import DatasetView
 from bench.models.dataset import DatasetVersion, DatasetViewData
 from bench.models.execution import (
     DEFAULT_CONNECTION_NAME,
@@ -48,7 +50,6 @@ from bench.models.model import ModelVersion
 from bench.models.tag import default_tag
 from bench.models.utils import DATASET_TYPE, UUIDT
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ArtifactType
 
 logger = structlog.stdlib.get_logger()
 Resource = str
@@ -88,23 +89,6 @@ class Executor(abc.ABC):
     Base executor for orchestrating, routing and executing resources.
     """
 
-    def load_artifact(
-        self,
-        model: ArtifactVersion,
-        requirements: Optional[ResourceRequirements] = None,
-    ) -> ArtifactHandler:
-        """
-        Make the artifact available in this executor with the given resources.
-        """
-        raise NotImplementedError
-
-    def get_runtime_artifact_spec(self, artifact: ArtifactVersion) -> ArtifactType:
-        """
-        Gets the runtime/actual specification of the given artifact (instead of the configured).
-        This may require loading the given artifact and performing other expensive operations.
-        """
-        raise NotImplementedError
-
     def run_model(
         self,
         model: ModelVersion,
@@ -140,7 +124,7 @@ class ArtifactConnection:
     name: str
     artifact: ArtifactVersion
     dependency_name: Optional[str] = None
-    view: Optional[ArtifactView] = None
+    view: Optional[DatasetView] = None
     view_inline: Optional[dict] = None
     edge: Optional[FlowArtifactEdge] = None
     manifested_id: Optional[uuid.UUID] = None
@@ -249,7 +233,7 @@ def _convert_parameters_to_artifact_connections(
                     node_parameter_id, flow.organization
                 )
                 artifact.set_tag(default_tag("source:inputs", flow.organization))
-                accessor = DatasetAccessor(artifact)
+                accessor = DatasetHandler(artifact)
                 view_slice = accessor.extend([DatasetRecord.make(data=data) for data in parameter])
                 view_inline = DatasetViewData.from_slice(view_slice).asdict
                 connection = ArtifactConnection(
@@ -495,7 +479,8 @@ def save_execution_manifest(manifest: FlowExecutionManifest):
 def prepare_function_arguments(
     node: FlowNode,
     node_artifact_arguments: Iterable[ArtifactConnection],
-    handler_loaders: Mapping[str, Callable[[ArtifactVersion], ArtifactHandler]],
+    model_loaders: Mapping[str, Callable[[ModelVersion], ModelHandler]],
+    dataset_loaders: Mapping[str, Callable[[DatasetVersion], DatasetHandler]],
 ) -> dict:
     config_arguments = node.config_arguments
     artifact_arguments: dict[str, Union[ArtifactHandler]] = {}

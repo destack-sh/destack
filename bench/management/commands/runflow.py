@@ -5,7 +5,7 @@ from uuid import UUID
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
-from bench.dataset.accessor import DatasetAccessor
+from bench.dataset.accessor import DatasetHandler
 from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions
 from bench.function.spec import update_flow_spec
@@ -76,7 +76,7 @@ class Command(BaseCommand):
 
         # print outputs
         output = plan.final_outputs[flow_version.last_node.id][DEFAULT_CONNECTION_NAME]
-        output_records = DatasetAccessor(output.artifact).get_records_view(output.view_data)
+        output_records = DatasetHandler(output.artifact).get_records_view(output.view_data)
         output_records_data = [record.data for record in output_records]
 
         output_data_str = json.dumps(output_records_data, indent=4)

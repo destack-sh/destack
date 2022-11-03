@@ -3,15 +3,13 @@ from typing import Union, cast
 
 import aiohttp
 
-from bench.model.base import AsyncBatchedModelHandler, ModelHandlerMetadata, models
+from bench.model.base import ModelHandler, ModelHandlerMetadata, models
 from bench.model.utils import make_scored_labels_spec
 from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.spec import ModelType, convert_to_record_spec
 
 
-class OpenAIModel(AsyncBatchedModelHandler, abc.ABC):
-    config_static_keys: set[str] = set()  # entire config can be changed dynamically
-
+class OpenAIModel(ModelHandler, abc.ABC):
     def __init__(
         self,
         api_key: str,
@@ -47,11 +45,11 @@ class OpenAIModel(AsyncBatchedModelHandler, abc.ABC):
         )
 
 
-@models.register("bench.openai.text_generation")
+@models.register("bench.openai")
 class OpenAIModelForCompletion(OpenAIModel):
     metadata = ModelHandlerMetadata(
         name="OpenAI text generation",
-        description="OpenAI hosted model for text generation",
+        description="OpenAI hosted model",
         tags=["openai", "hosted"],
     )
     spec = ModelType(
@@ -60,7 +58,7 @@ class OpenAIModelForCompletion(OpenAIModel):
     )
     base_spec = spec
 
-    async def run_async(self, record: Record) -> Union[Record, RecordBatch]:
+    async def generate(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         request = {"model": self.model, "prompt": record["text"], **self._get_params()}
 
@@ -96,7 +94,7 @@ class OpenAIModelForClassification(OpenAIModel):
     )
     base_spec = spec
 
-    async def run_async(self, record: Record) -> Union[Record, RecordBatch]:
+    async def classify(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
         request = {
             "model": self.model,

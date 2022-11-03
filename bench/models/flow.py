@@ -37,6 +37,7 @@ class Flow(VersionedRepository, TaggableMixin, UUIDModel):
     Flows are versioned. All versions are available in 'versions'.
     """
 
+    type = models.CharField(max_length=64)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -320,6 +321,16 @@ class FlowArtifactEdge(UUIDModel):
     connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
     connection_name = models.CharField(max_length=64)
     dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="artifact_edges")
-    dependency = models.ForeignKey("ArtifactVersion", on_delete=models.RESTRICT)
-    view = models.ForeignKey("ArtifactView", on_delete=models.RESTRICT, null=True, blank=True)
+    model = models.ForeignKey("ModelVersion", null=True, blank=True, on_delete=models.RESTRICT)
+    dataset = models.ForeignKey("DatasetVersion", null=True, blank=True, on_delete=models.RESTRICT)
+    view = models.ForeignKey("DatasetView", on_delete=models.RESTRICT, null=True, blank=True)
     view_inline = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        # constraint to ensure either model or dataset is set
+        constraints = [
+            models.CheckConstraint(
+                name="flow_artifact_edge_model_xor_dataset",
+                check=models.Q(model__isnull=False) ^ models.Q(dataset__isnull=False),
+            )
+        ]
