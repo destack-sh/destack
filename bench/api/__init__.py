@@ -8,8 +8,8 @@ from bench.api.dataset import DatasetRecordViewSet, DatasetVersionViewSet, Datas
 from bench.api.execution import ExecutionViewSet
 from bench.api.flow import (
     FlowArtifactEdgeViewSet,
-    FlowNodeEdgeViewSet,
-    FlowNodeViewSet,
+    FlowInstructionEdgeViewSet,
+    FlowInstructionViewSet,
     FlowVersionViewSet,
     FlowViewSet,
 )
@@ -63,9 +63,9 @@ flows_versions_router = flows_router.register_nested(
     "versions", FlowVersionViewSet, lookup="version"
 )
 # /flows/<organization>/<flow>/versions/<version>/nodes
-flows_versions_router.register("nodes", FlowNodeViewSet)
+flows_versions_router.register("nodes", FlowInstructionViewSet)
 # /flows/<organization>/<flow>/versions/<version>/node_edges
-flows_versions_router.register("node_edges", FlowNodeEdgeViewSet)
+flows_versions_router.register("node_edges", FlowInstructionEdgeViewSet)
 # /flows/<organization>/<flow>/versions/<version>/artifact_edges
 flows_versions_router.register("artifact_edges", FlowArtifactEdgeViewSet)
 

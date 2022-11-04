@@ -55,7 +55,7 @@ class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
 
 class ExecutionSerializer(serializers.ModelSerializer):
     flow = FlowVersionListingField(read_only=True)
-    flow_node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+    flow_instruction: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         read_only=True
     )
     model = ArtifactVersionListingField(read_only=True)
@@ -86,7 +86,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
             "parent",
             "children",
             "flow",
-            "flow_node",
+            "flow_instruction",
             "model",
             "connected_artifacts",
             "organization",
@@ -109,7 +109,7 @@ class ExecutionFilter(filters.FilterSet):
 
     class Meta:
         model = Execution
-        fields = ["id", "type", "flow", "flow_node", "model", "status", "parent"]
+        fields = ["id", "type", "flow", "flow_instruction", "model", "status", "parent"]
 
 
 class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):

@@ -4,7 +4,14 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.models import Artifact, Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, Organization
+from bench.models import (
+    Artifact,
+    Flow,
+    FlowArtifactEdge,
+    FlowInstruction,
+    FlowInstructionEdge,
+    Organization,
+)
 from bench.models.versioning import get_head
 
 
@@ -35,7 +42,7 @@ class Command(BaseCommand):
         with open(options["path"], "r") as f:
             flow_blocks = json.load(f)
 
-        flow_nodes: list[FlowNode] = []
+        flow_instructions: list[FlowInstruction] = []
         for i, block in enumerate(flow_blocks):
             block = {**block}  # do not modify original
 
@@ -51,7 +58,7 @@ class Command(BaseCommand):
                     config_arguments["template"] = block.pop("template")
                     config_arguments["sample_template"] = block.pop("sample_template")
 
-                flow_node = FlowNode.objects.create(
+                flow_instruction = FlowInstruction.objects.create(
                     name=name,
                     function_id=function_id,
                     config_arguments=config_arguments,
@@ -61,7 +68,7 @@ class Command(BaseCommand):
                 # assume remaining arguments are artifact edges
                 for argument_name, artifact_name in block.items():
                     artifact = Artifact.objects.get(name=artifact_name, organization=organization)
-                    flow_node.connected_artifacts.add(
+                    flow_instruction.connected_artifacts.add(
                         get_head(artifact),
                         through_defaults=dict(
                             flow=flow_version,
@@ -77,15 +84,15 @@ class Command(BaseCommand):
                 raise e
 
             # link node to previous node if exists
-            if flow_nodes:
-                previous_node = flow_nodes[-1]
-                flow_node.depends_on_nodes.add(
+            if flow_instructions:
+                previous_node = flow_instructions[-1]
+                flow_instruction.depends_on_nodes.add(
                     previous_node,
                     through_defaults=dict(
                         flow=flow_version,
-                        connection_type=FlowNodeEdge.ConnectionType.Input,
+                        connection_type=FlowInstructionEdge.ConnectionType.Input,
                     ),
                 )
-            flow_nodes.append(flow_node)
+            flow_instructions.append(flow_instruction)
 
         self.stdout.write(self.style.SUCCESS(f"Updated flow with new version: {flow_version}"))

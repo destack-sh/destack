@@ -32,8 +32,8 @@ from bench.models import (
     Dataset,
     FlowArtifactEdge,
     FlowExecution,
-    FlowNode,
-    FlowNodeExecution,
+    FlowInstruction,
+    FlowInstructionExecution,
     ModelExecution,
 )
 from bench.models.artifact import DatasetView
@@ -41,11 +41,11 @@ from bench.models.dataset import DatasetVersion, DatasetViewData
 from bench.models.execution import (
     DEFAULT_CONNECTION_NAME,
     FLOW_EXECUTION_TYPE,
-    FLOW_NODE_EXECUTION_TYPE,
     Execution,
     ExecutionArtifactConnection,
+    flow_instruction_EXECUTION_TYPE,
 )
-from bench.models.flow import FlowNodeEdge, FlowVersion
+from bench.models.flow import FlowInstructionEdge, FlowVersion
 from bench.models.model import ModelVersion
 from bench.models.tag import default_tag
 from bench.models.utils import DATASET_TYPE, UUIDT
@@ -71,7 +71,7 @@ class FlowExecutionOptions:
     blocking: bool
     validate: FlowRuntimeValidation
     captured_edges: list[UUID] = dataclasses.field(default_factory=list)
-    captured_connection_types: list[FlowNodeEdge.ConnectionType] = dataclasses.field(
+    captured_connection_types: list[FlowInstructionEdge.ConnectionType] = dataclasses.field(
         default_factory=list
     )
 
@@ -160,8 +160,8 @@ class ArtifactConnection:
 
 
 @dataclasses.dataclass
-class FlowNodeConnection:
-    edge: FlowNodeEdge
+class FlowInstructionConnection:
+    edge: FlowInstructionEdge
     dataset: Optional[DatasetVersion] = None
     view_inline: Optional[dict] = None
     manifested_id: Optional[uuid.UUID] = None
@@ -177,11 +177,11 @@ class FlowNodeConnection:
 
 @dataclasses.dataclass
 class FlowExecutionPlan:
-    nodes: Mapping[UUID, FlowNode]
+    nodes: Mapping[UUID, FlowInstruction]
     artifact_inputs: Mapping[UUID, Mapping[str, ArtifactConnection]]
     artifact_arguments: Mapping[UUID, Mapping[str, ArtifactConnection]]
-    node_inputs: Mapping[UUID, Mapping[str, FlowNodeConnection]]
-    node_arguments: Mapping[UUID, Mapping[str, FlowNodeConnection]]
+    node_inputs: Mapping[UUID, Mapping[str, FlowInstructionConnection]]
+    node_arguments: Mapping[UUID, Mapping[str, FlowInstructionConnection]]
     final_outputs: Mapping[UUID, Mapping[str, ArtifactConnection]]
     options: FlowExecutionOptions
 
@@ -191,14 +191,14 @@ class FlowExecutionPlan:
             self.artifact_arguments.get(node_id, {}).items(),
         )
 
-    def connected(self, node_id: UUID) -> Iterable[Tuple[str, FlowNodeConnection]]:
+    def connected(self, node_id: UUID) -> Iterable[Tuple[str, FlowInstructionConnection]]:
         return chain(
             self.node_inputs.get(node_id, {}).items(), self.node_arguments.get(node_id, {}).items()
         )
 
     @cached_property
-    def connected_inverse(self) -> Mapping[UUID, Mapping[str, list[FlowNodeConnection]]]:
-        inverse: dict[UUID, dict[str, list[FlowNodeConnection]]] = defaultdict(
+    def connected_inverse(self) -> Mapping[UUID, Mapping[str, list[FlowInstructionConnection]]]:
+        inverse: dict[UUID, dict[str, list[FlowInstructionConnection]]] = defaultdict(
             lambda: defaultdict(list)
         )
         for node_inputs in chain(self.node_inputs.values(), self.node_arguments.values()):
@@ -210,7 +210,7 @@ class FlowExecutionPlan:
 @dataclasses.dataclass
 class FlowExecutionManifest:
     execution: FlowExecution
-    node_executions: Mapping[UUID, FlowNodeExecution]  # by node id
+    node_executions: Mapping[UUID, FlowInstructionExecution]  # by node id
     execution_connections: Mapping[UUID, ExecutionArtifactConnection]  # by execution id
 
 
@@ -219,7 +219,7 @@ def _convert_parameters_to_artifact_connections(
     parameters: Mapping[UUID, Mapping[str, FlowRawArgument]],
     connection_type: ExecutionArtifactConnection.ConnectionType,
 ) -> Mapping[UUID, Mapping[str, ArtifactConnection]]:
-    nodes: Mapping[UUID, FlowNode] = {node.id: node for node in flow.nodes.all()}
+    nodes: Mapping[UUID, FlowInstruction] = {node.id: node for node in flow.nodes.all()}
     converted_parameters: dict[UUID, Mapping[str, ArtifactConnection]] = {}
     for node_id, node_parameters in parameters.items():
         converted_node_parameters: dict[str, ArtifactConnection] = {}
@@ -256,10 +256,10 @@ def _convert_parameters_to_artifact_connections(
     return converted_parameters
 
 
-def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
+def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowInstruction]):
     final_outputs: dict[UUID, dict[str, ArtifactConnection]] = defaultdict(dict)
     for node in nodes:
-        is_intermediate = FlowNodeEdge.objects.filter(dependency=node).exists()
+        is_intermediate = FlowInstructionEdge.objects.filter(dependency=node).exists()
         if is_intermediate:
             continue
 
@@ -286,14 +286,16 @@ def _make_final_outputs(flow: FlowVersion, nodes: Iterable[FlowNode]):
 
 def _make_node_connections(
     flow: FlowVersion,
-    nodes: Iterable[FlowNode],
-    captured_connection_types: list[FlowNodeEdge.ConnectionType],
+    nodes: Iterable[FlowInstruction],
+    captured_connection_types: list[FlowInstructionEdge.ConnectionType],
     captured_edges: list[UUID],
 ):
-    node_inputs: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)
-    node_arguments: dict[UUID, dict[str, FlowNodeConnection]] = defaultdict(dict)
+    node_inputs: dict[UUID, dict[str, FlowInstructionConnection]] = defaultdict(dict)
+    node_arguments: dict[UUID, dict[str, FlowInstructionConnection]] = defaultdict(dict)
     for node in nodes:
-        node_dependencies: QuerySet[FlowNodeEdge] = FlowNodeEdge.objects.filter(dependent=node)
+        node_dependencies: QuerySet[FlowInstructionEdge] = FlowInstructionEdge.objects.filter(
+            dependent=node
+        )
         for edge in node_dependencies:
             if edge.connection_type in captured_connection_types or edge.id in captured_edges:
                 output_id = _port_id(
@@ -303,20 +305,20 @@ def _make_node_connections(
                     name=output_id, version="0", organization=flow.organization
                 )
                 output_dataset.set_tag(default_tag("source:outputs", flow.organization))
-                connection = FlowNodeConnection(edge=edge, dataset=output_dataset)
+                connection = FlowInstructionConnection(edge=edge, dataset=output_dataset)
             else:
-                connection = FlowNodeConnection(edge=edge)
+                connection = FlowInstructionConnection(edge=edge)
 
-            if edge.connection_type == FlowNodeEdge.ConnectionType.Input:
+            if edge.connection_type == FlowInstructionEdge.ConnectionType.Input:
                 node_inputs[node.id][edge.connection_name_dependent] = connection
-            elif edge.connection_type == FlowNodeEdge.ConnectionType.Argument:
+            elif edge.connection_type == FlowInstructionEdge.ConnectionType.Argument:
                 node_arguments[node.id][edge.connection_name_dependent] = connection
             else:
                 raise ValueError(f"unexpected connection type: {edge}")
     return node_inputs, node_arguments
 
 
-def _get_static_connections(nodes: Iterable[FlowNode]):
+def _get_static_connections(nodes: Iterable[FlowInstruction]):
     static_inputs: dict[UUID, dict[str, ArtifactConnection]] = defaultdict(dict)
     static_arguments: dict[UUID, dict[str, ArtifactConnection]] = defaultdict(dict)
     artifacts_dependencies: QuerySet[FlowArtifactEdge] = FlowArtifactEdge.objects.filter(
@@ -353,7 +355,7 @@ def make_execution_plan(
     Makes an execution plan and creates the corresponding artifacts
     """
 
-    nodes: Mapping[UUID, FlowNode] = {node.id: node for node in flow.nodes.all()}
+    nodes: Mapping[UUID, FlowInstruction] = {node.id: node for node in flow.nodes.all()}
 
     # convert given inputs/arguments to persisted artifacts as needed
     extra_inputs = _convert_parameters_to_artifact_connections(
@@ -407,13 +409,13 @@ def prepare_execution_manifest(flow: FlowVersion, plan: FlowExecutionPlan) -> Fl
     """
 
     execution = FlowExecution(type=FLOW_EXECUTION_TYPE, flow=flow, organization=flow.organization)
-    node_executions: dict[UUID, FlowNodeExecution] = {}
+    node_executions: dict[UUID, FlowInstructionExecution] = {}
     execution_connections: dict[UUID, ExecutionArtifactConnection] = {}
     for node in plan.nodes.values():
-        node_execution = FlowNodeExecution(
-            type=FLOW_NODE_EXECUTION_TYPE,
+        node_execution = FlowInstructionExecution(
+            type=flow_instruction_EXECUTION_TYPE,
             flow=flow,
-            flow_node=node,
+            flow_instruction=node,
             parent=execution,
             organization=flow.organization,
         )
@@ -477,7 +479,7 @@ def save_execution_manifest(manifest: FlowExecutionManifest):
 
 
 def prepare_function_arguments(
-    node: FlowNode,
+    node: FlowInstruction,
     node_artifact_arguments: Iterable[ArtifactConnection],
     model_loaders: Mapping[str, Callable[[ModelVersion], ModelHandler]],
     dataset_loaders: Mapping[str, Callable[[DatasetVersion], DatasetHandler]],

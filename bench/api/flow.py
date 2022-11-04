@@ -20,8 +20,8 @@ from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
 from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions, FlowRawArgument
 from bench.function.spec import update_flow_spec
-from bench.models import ArtifactVersion, Flow, FlowNode, Organization
-from bench.models.flow import FlowArtifactEdge, FlowNodeEdge, FlowVersion
+from bench.models import ArtifactVersion, Flow, FlowInstruction, Organization
+from bench.models.flow import FlowArtifactEdge, FlowInstructionEdge, FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
 
 # ========================
@@ -59,7 +59,7 @@ class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
         return FlowVersionSerializer(head).data if head is not None else None
 
 
-class FlowNodeSerializer(serializers.ModelSerializer):
+class FlowInstructionSerializer(serializers.ModelSerializer):
     flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
@@ -71,27 +71,27 @@ class FlowNodeSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = FlowNode
+        model = FlowInstruction
         fields = ["id", "flow", "name", "created_at", "function_id", "config_arguments", "metadata"]
         read_only_fields = ["id", "created_at", "committed"]
         validators = [
             validators.UniqueTogetherValidator(
-                queryset=FlowNode.objects.all(), fields=["flow", "name"]
+                queryset=FlowInstruction.objects.all(), fields=["flow", "name"]
             )
         ]
 
 
-class FlowNodeEdgeSerializer(serializers.ModelSerializer):
+class FlowInstructionEdgeSerializer(serializers.ModelSerializer):
     flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
     dependent: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all()
+        queryset=FlowInstruction.objects.all()
     )
     dependency: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all()
+        queryset=FlowInstruction.objects.all()
     )
 
     class Meta:
-        model = FlowNodeEdge
+        model = FlowInstructionEdge
         fields = "__all__"
         read_only_fields = ["id"]
 
@@ -99,7 +99,7 @@ class FlowNodeEdgeSerializer(serializers.ModelSerializer):
 class FlowArtifactEdgeSerializer(serializers.ModelSerializer):
     flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
     dependent: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all()
+        queryset=FlowInstruction.objects.all()
     )
     dependency = ArtifactVersionListingField(queryset=ArtifactVersion.objects.all())
 
@@ -117,8 +117,8 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
         queryset=FlowVersion.objects.all(), slug_field="version", many=True
     )
     # nodes, node_edges and artifact_edges are read only duplicates of the respective nested viewsets
-    nodes = FlowNodeSerializer(many=True, read_only=True)
-    node_edges = FlowNodeEdgeSerializer(many=True, read_only=True)
+    nodes = FlowInstructionSerializer(many=True, read_only=True)
+    node_edges = FlowInstructionEdgeSerializer(many=True, read_only=True)
     artifact_edges = FlowArtifactEdgeSerializer(many=True, read_only=True)
 
     class Meta:
@@ -153,14 +153,14 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
 # Execution-specific Flow serializers
 # ===================================
 
-FLOW_NODE_ARGUMENT_KEYS: set[str] = {"other_node", "records", "artifact"}
-FLOW_NODE_INPUT_KEYS: set[str] = {"records", "artifacts"}
+flow_instruction_ARGUMENT_KEYS: set[str] = {"other_node", "records", "artifact"}
+flow_instruction_INPUT_KEYS: set[str] = {"records", "artifacts"}
 
 
-class FlowNodeArgumentDataSerializer(serializers.Serializer):
+class FlowInstructionArgumentDataSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=["input", "argument"])
     node: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowNode.objects.all()
+        queryset=FlowInstruction.objects.all()
     )
     name = serializers.CharField()
     # actual argument is union of either another node, an existing artifact or ad-hoc records
@@ -188,7 +188,7 @@ class FlowExecutionRequest(NamedTuple):
 
 
 class FlowExecutionRequestSerializer(serializers.Serializer):
-    arguments = serializers.DictField(child=FlowNodeArgumentDataSerializer(many=True))
+    arguments = serializers.DictField(child=FlowInstructionArgumentDataSerializer(many=True))
     options = FlowExecutionOptionsSerializer(required=False, default=FlowExecutionOptions.default)
 
     def create(self, validated_data) -> FlowExecutionRequest:
@@ -263,7 +263,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
 
     # TODO @Performance: update flow spec directly on edit rather than "manually" post-edit
     @action(methods=["POST"], detail=True)
-    @extend_schema(responses=FlowNodeSerializer(many=True))
+    @extend_schema(responses=FlowInstructionSerializer(many=True))
     def update_spec(self, request: Request, organization: str, flow: str, version: str) -> Response:
         flow_instance = get_object_or_404(
             FlowVersion, flow__organization__slug=organization, flow__name=flow, version=version
@@ -273,7 +273,7 @@ class FlowVersionViewSet(viewsets.ModelViewSet):
         for node in updated_nodes:
             node.save()
 
-        serialized_updated_nodes = FlowNodeSerializer(updated_nodes, many=True).data
+        serialized_updated_nodes = FlowInstructionSerializer(updated_nodes, many=True).data
         return Response(serialized_updated_nodes)
 
     @action(methods=["POST"], detail=True)
@@ -300,7 +300,7 @@ def _execute_response(flow: FlowVersion, request: Request) -> Response:
             if not isinstance(value, ArtifactVersion):
                 value = RecordList(value)
 
-            node: FlowNode = named_argument["node"]
+            node: FlowInstruction = named_argument["node"]
             name: str = named_argument["name"]
             if named_argument["type"] == "input":
                 inputs[node.id][name] = value
@@ -312,35 +312,35 @@ def _execute_response(flow: FlowVersion, request: Request) -> Response:
     return Response(serialized_execution)
 
 
-class FlowNodeViewSet(viewsets.ModelViewSet):
-    queryset = FlowNode.objects.all()
-    serializer_class = FlowNodeSerializer
+class FlowInstructionViewSet(viewsets.ModelViewSet):
+    queryset = FlowInstruction.objects.all()
+    serializer_class = FlowInstructionSerializer
 
-    # TODO @Cleanup: repetition of get_queryset/create mapping among FlowNode&Edges
-    def get_queryset(self) -> models.QuerySet[FlowNode]:
+    # TODO @Cleanup: repetition of get_queryset/create mapping among FlowInstruction&Edges
+    def get_queryset(self) -> models.QuerySet[FlowInstruction]:
         return self.queryset.filter(
             flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         # TODO @Cleanup: argument mapping could be in nested router?
-        # map nested arguments to FlowNode.flow representation
+        # map nested arguments to FlowInstruction.flow representation
         if "flow" in kwargs and "version" in kwargs:
             request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)
 
 
-class FlowNodeEdgeViewSet(viewsets.ModelViewSet):
-    queryset = FlowNodeEdge.objects.all()
-    serializer_class = FlowNodeEdgeSerializer
+class FlowInstructionEdgeViewSet(viewsets.ModelViewSet):
+    queryset = FlowInstructionEdge.objects.all()
+    serializer_class = FlowInstructionEdgeSerializer
 
-    def get_queryset(self) -> models.QuerySet[FlowNode]:
+    def get_queryset(self) -> models.QuerySet[FlowInstruction]:
         return self.queryset.filter(
             flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
-        # map nested arguments to FlowNode.flow representation
+        # map nested arguments to FlowInstruction.flow representation
         if "flow" in kwargs and "version" in kwargs:
             request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)
@@ -350,13 +350,13 @@ class FlowArtifactEdgeViewSet(viewsets.ModelViewSet):
     queryset = FlowArtifactEdge.objects.all()
     serializer_class = FlowArtifactEdgeSerializer
 
-    def get_queryset(self) -> models.QuerySet[FlowNode]:
+    def get_queryset(self) -> models.QuerySet[FlowInstruction]:
         return self.queryset.filter(
             flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
-        # map nested arguments to FlowNode.flow representation
+        # map nested arguments to FlowInstruction.flow representation
         if "flow" in kwargs and "version" in kwargs:
             request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)

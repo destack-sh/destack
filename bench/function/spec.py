@@ -12,13 +12,13 @@ from bench.models import (
     ArtifactVersion,
     DatasetVersion,
     FlowArtifactEdge,
-    FlowNode,
-    FlowNodeEdge,
+    FlowInstruction,
+    FlowInstructionEdge,
     FlowVersion,
     ModelVersion,
 )
 from bench.models.execution import ExecutionArtifactConnection
-from bench.models.flow import FlowNodeMetadata
+from bench.models.flow import FlowInstructionMetadata
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
 from bench.utils.record import Record, RecordBatch
@@ -35,9 +35,9 @@ class StubModelHandler(ModelHandler):
     pass
 
 
-def get_flow_node_specs(
-    nodes: list[FlowNode],
-    node_edges: list[FlowNodeEdge],
+def get_flow_instruction_specs(
+    nodes: list[FlowInstruction],
+    node_edges: list[FlowInstructionEdge],
     artifact_edges: list[FlowArtifactEdge],
 ) -> dict[UUID, FunctionType]:
     functions: dict[UUID, RecordFunction] = {}
@@ -87,18 +87,18 @@ def get_flow_node_specs(
     return function_specs
 
 
-def update_flow_spec(flow: FlowVersion) -> list[FlowNode]:
-    flow_node_specs = get_flow_node_specs(
+def update_flow_spec(flow: FlowVersion) -> list[FlowInstruction]:
+    flow_instruction_specs = get_flow_instruction_specs(
         nodes=flow.nodes.all(),
         node_edges=flow.node_edges.all(),
         artifact_edges=flow.artifact_edges.all(),
     )
     updated_nodes = []
     for node in flow.nodes.all():
-        if node.id not in flow_node_specs:
+        if node.id not in flow_instruction_specs:
             continue  # spec could not be computed
-        spec = flow_node_specs[node.id]
-        new_metadata = FlowNodeMetadata(spec.input_spec, spec.output_spec).to_dict()
+        spec = flow_instruction_specs[node.id]
+        new_metadata = FlowInstructionMetadata(spec.input_spec, spec.output_spec).to_dict()
         if new_metadata != node.metadata:
             node.metadata = new_metadata
             updated_nodes.append(node)

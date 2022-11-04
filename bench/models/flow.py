@@ -2,23 +2,16 @@ from __future__ import annotations
 
 import copy
 import secrets
-from dataclasses import dataclass
-from functools import cached_property
-from itertools import chain
 from typing import TYPE_CHECKING
 
 from django.db import models, transaction
-from rest_framework import serializers
-from rest_framework.fields import DictField
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
-from bench.utils.serializer import FieldSpecSerializer
-from bench.utils.spec import RecordSpec
 
 if TYPE_CHECKING:
-    from bench.models import ArtifactVersion, Organization
+    from bench.models import Organization
 
 
 class FlowManager(models.Manager):
@@ -32,7 +25,7 @@ class FlowManager(models.Manager):
 
 class Flow(VersionedRepository, TaggableMixin, UUIDModel):
     """
-    A directed acyclic graph of Functions represented as Nodes connected by Edges.
+    A hierarchical graph of nested Functions represented as Instructions connected by Edges.
 
     Flows are versioned. All versions are available in 'versions'.
     """
@@ -71,6 +64,9 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     version = models.CharField(max_length=256, default=_generate_flow_version)
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
+    root_instruction = models.ForeignKey(
+        "FlowInstruction", on_delete=models.CASCADE, related_name="flow+"
+    )
 
     def __str__(self) -> str:
         return self.name_version
@@ -83,61 +79,28 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     def name_version(self) -> str:
         return f"{self.flow.name}@{self.version}"
 
-    @property
-    def first_node(self) -> FlowNode:
-        """Gets the first node in this flow (assuming it is linear), errors if there is none"""
-        # take first node without any dependencies (no depends_on_nodes)
-        first_node = self.nodes.filter(depends_on_nodes=None).first()
-        if first_node is None:
-            raise ValueError(f"flow {self} has no first node")
-        return first_node
-
-    @property
-    def last_node(self) -> FlowNode:
-        """Gets the last node in this flow (assuming it is linear), errors if there is none"""
-        # take first node without dependents (no dependent_nodes)
-        last_node = self.nodes.filter(dependent_nodes=None).first()
-        if last_node is None:
-            raise ValueError(f"flow {self} has no last node")
-        return last_node
-
-    def get_node_by_name(self, name: str) -> FlowNode:
-        """Gets a node by name"""
-        return self.nodes.get(name=name)
-
     def copy_from(self, parent: FlowVersion):
-        """Copies nodes and edges from a parent version"""
+        """Copies instructions and edges from a parent version"""
 
         # TODO @Architecture: not sure if FlowVersion is the best place to manage versioning
 
-        # copy nodes
-        child_node_by_parent_node_id = {}
-        for parent_node in parent.nodes.all():
-            child_node = parent_node.shallow_copy(flow=self)
-            child_node_by_parent_node_id[parent_node.id] = child_node
-
-        # copy node edges
-        child_node_edges: list[FlowNodeEdge] = []
-        for parent_edge in parent.node_edges.all():
-            child_edge = parent_edge.shallow_copy(
-                flow=self,
-                dependent=child_node_by_parent_node_id[parent_edge.dependent_id],
-                dependency=child_node_by_parent_node_id[parent_edge.dependency_id],
-            )
-            child_node_edges.append(child_edge)
+        # copy instructions
+        child_instruction_by_parent_instruction_id = {}
+        for parent_instruction in parent.instructions.all():
+            child_instruction = parent_instruction.shallow_copy(flow=self)
+            child_instruction_by_parent_instruction_id[parent_instruction.id] = child_instruction
 
         # copy artifact edges
         child_artifact_edges: list[FlowArtifactEdge] = []
         for parent_edge in parent.artifact_edges.all():
             child_edge = parent_edge.shallow_copy(
                 flow=self,
-                dependent=child_node_by_parent_node_id[parent_edge.dependent_id],
+                dependent=child_instruction_by_parent_instruction_id[parent_edge.dependent_id],
                 dependency=parent_edge.dependency,
             )
-            child_node_edges.append(child_edge)
+            child_instruction_edges.append(child_edge)
 
-        FlowNode.objects.bulk_create(child_node_by_parent_node_id.values())
-        FlowNodeEdge.objects.bulk_create(child_node_edges)
+        FlowInstruction.objects.bulk_create(child_instruction_by_parent_instruction_id.values())
         FlowArtifactEdge.objects.bulk_create(child_artifact_edges)
 
     class Meta:
@@ -152,115 +115,48 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
         ]
 
 
-@dataclass(frozen=True)
-class FlowNodeMetadata:
-    input_spec: RecordSpec = RecordSpec(name="", description="", type={})
-    output_spec: RecordSpec = RecordSpec(name="", description="", type={})
-
-    @staticmethod
-    def from_dict(obj: dict) -> FlowNodeMetadata:
-        serializer = FlowNodeMetadataSerializer(data=copy.deepcopy(obj))
-        serializer.is_valid(raise_exception=True)
-        return serializer.save()
-
-    def to_dict(self) -> dict:
-        metadata_serialized = FlowNodeMetadataSerializer(self).data
-        # TODO @Cleanup: set type of inner input/output spec field directly in FlowNodeMetadataSerializer
-        for record_spec in chain(
-            metadata_serialized["input_spec"].values(), metadata_serialized["output_spec"].values()
-        ):
-            record_spec["_type"] = "FieldSpec"
-        return metadata_serialized
+class FlowInstructionFlowEdge(models.Model):
+    instruction = models.ForeignKey("FlowInstruction", on_delete=models.CASCADE)
+    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="+")
 
 
-class FlowNodeMetadataSerializer(serializers.Serializer):
-    input_spec = DictField(child=FieldSpecSerializer())
-    output_spec = DictField(child=FieldSpecSerializer())
-
-    def create(self, validated_data):
-        if "input_spec" in validated_data:
-            validated_data["input_spec"] = RecordSpec(**validated_data["input_spec"])
-        if "output_spec" in validated_data:
-            validated_data["output_spec"] = RecordSpec(**validated_data["output_spec"])
-        return FlowNodeMetadata(**validated_data)
-
-
-class FlowNode(UUIDModel, VersionedBlob):
+class FlowInstruction(UUIDModel, VersionedBlob):
     """
-    A node represents a curried variant of a registered function with given arguments,
-    including any required configured "init-time" artifacts like datasets and models.
+    An instruction is a curried Python function with high level arguments like datasets, models and flows.
     """
 
-    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="nodes")
+    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="instructions")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
-    committed = models.BooleanField(default=True)
+    parent = models.ForeignKey(
+        "FlowInstruction", on_delete=models.CASCADE, null=True, related_name="children"
+    )
 
     function_id = models.CharField(max_length=256)
     config_arguments = models.JSONField(default=dict)
-    metadata = models.JSONField(default=dict)
-    depends_on_nodes = models.ManyToManyField(
-        "FlowNode",
-        through="FlowNodeEdge",
-        through_fields=("dependent", "dependency"),  # this node is the dependent
-        related_name="dependent_nodes",
-        symmetrical=False,
-    )
-    connected_artifacts = models.ManyToManyField("ArtifactVersion", through="FlowArtifactEdge")
+    model_arguments = models.ManyToManyField("Model", through="FlowInstructionModelEdge")
+    dataset_arguments = models.ManyToManyField("Dataset", through="FlowInstructionDatasetEdge")
+    flow_arguments = models.ManyToManyField("Flow", through="FlowInstructionFlowEdge")
 
     def __str__(self):
         return f"{self.flow.name_version}/{self.name or self.id}"
 
-    @staticmethod
-    def to_content(
-        function_id: str,
-        config_arguments: dict,
-        connected_artifacts: dict[tuple[FlowArtifactEdge.ConnectionType, str], ArtifactVersion],
-    ) -> dict:
-        return {
-            "function_id": function_id,
-            "config_arguments": config_arguments,
-            "connected_artifacts": [
-                {"type": typ.value, "key": key, "name": artifact.name, "version": artifact.version}
-                for (typ, key), artifact in connected_artifacts.items()
-            ],
-        }
-
-    def _to_content_object(self) -> dict:
-        node_argument_edges = [
-            edge
-            for edge in self.node_edges_as_dependent.all()
-            if edge.type == FlowNodeEdge.ConnectionType.Argument
-        ]
-        if node_argument_edges:
-            raise NotImplementedError("content object does not consider node arguments")
-
-        connected_artifacts = {
-            (edge.connection_type, edge.connection_name): edge.dataset
-            for edge in self.artifact_edges.all()
-        }
-        return FlowNode.to_content(
-            function_id=self.function_id,
-            config_arguments=self.config_arguments,
-            connected_artifacts=connected_artifacts,
-        )
-
-    def save(self, *args, **kwargs):
-        # set content hash if not yet set
-        if not self.content_hash and self._state.adding:
-            self.content_hash = FlowNode.hash_content(self._to_content_object())
-        super().save(*args, **kwargs)
+    @property
+    def first_instruction(self) -> FlowInstruction:
+        """Gets the first instruction in this flow, errors if there is none"""
+        raise NotImplementedError
 
     @property
-    def is_committed(self) -> bool:
-        return self.committed
+    def last_instruction(self) -> FlowInstruction:
+        """Gets the last instruction in this flow, errors if there is none"""
+        raise NotImplementedError()
 
-    @cached_property
-    def metadata_typed(self) -> FlowNodeMetadata:
-        return FlowNodeMetadata.from_dict(self.metadata)
+    def get_instruction_by_name(self, name: str) -> FlowInstruction:
+        """Gets an instruction by name"""
+        return self.children.get(name=name)
 
-    def shallow_copy(self, **kwargs) -> FlowNode:
-        return FlowNode(
+    def shallow_copy(self, **kwargs) -> FlowInstruction:
+        return FlowInstruction(
             name=self.name,
             created_at=self.created_at,
             function_id=self.function_id,
@@ -273,64 +169,5 @@ class FlowNode(UUIDModel, VersionedBlob):
             models.UniqueConstraint(
                 name="bench_flow_version_name_ak",
                 fields=["flow", "name"],
-            )
-        ]
-
-
-class FlowNodeEdge(UUIDModel):
-    """
-    An edge connecting two Flow Nodes in some way.
-    """
-
-    class ConnectionType(models.TextChoices):
-        Argument = "argument"
-        Input = "input"
-        # "Output" is unnecessary because flow node connections are asymmetric.
-
-    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="node_edges")
-    connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
-    connection_name_dependent = models.CharField(max_length=64, default="*")
-    connection_name_dependency = models.CharField(max_length=64, default="*")
-    dependent = models.ForeignKey(
-        FlowNode, on_delete=models.CASCADE, related_name="node_edges_as_dependent"
-    )
-    dependency = models.ForeignKey(
-        FlowNode, on_delete=models.CASCADE, related_name="node_edges_as_dependency"
-    )
-
-    def shallow_copy(self, **kwargs) -> FlowNodeEdge:
-        return FlowNodeEdge(
-            connection_type=self.connection_type,
-            connection_name_dependent=self.connection_name_dependent,
-            connection_name_dependency=self.connection_name_dependency,
-            **kwargs,
-        )
-
-
-class FlowArtifactEdge(UUIDModel):
-    """
-    An edge connecting a flow node to an artifact in some way.
-    """
-
-    class ConnectionType(models.TextChoices):
-        Argument = "argument"
-        Input = "input"
-        Output = "output"
-
-    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="artifact_edges")
-    connection_type = models.CharField(max_length=32, choices=ConnectionType.choices)
-    connection_name = models.CharField(max_length=64)
-    dependent = models.ForeignKey(FlowNode, on_delete=models.CASCADE, related_name="artifact_edges")
-    model = models.ForeignKey("ModelVersion", null=True, blank=True, on_delete=models.RESTRICT)
-    dataset = models.ForeignKey("DatasetVersion", null=True, blank=True, on_delete=models.RESTRICT)
-    view = models.ForeignKey("DatasetView", on_delete=models.RESTRICT, null=True, blank=True)
-    view_inline = models.JSONField(null=True, blank=True)
-
-    class Meta:
-        # constraint to ensure either model or dataset is set
-        constraints = [
-            models.CheckConstraint(
-                name="flow_artifact_edge_model_xor_dataset",
-                check=models.Q(model__isnull=False) ^ models.Q(dataset__isnull=False),
             )
         ]
