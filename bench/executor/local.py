@@ -20,7 +20,7 @@ from bench.executor.base import (
     FlowExecutionManifest,
     FlowExecutionOptions,
     FlowExecutionPlan,
-    FlowNodeConnection,
+    FlowInstructionConnection,
     FlowRawArgument,
     FlowRuntimeValidation,
     ResourceRequirements,
@@ -36,7 +36,7 @@ from bench.model.base import ModelHandler
 from bench.models import DatasetRecord, DatasetVersion, FlowExecution, ModelExecution
 from bench.models.dataset import Dataset, DatasetViewData
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution, ExecutionArtifactConnection
-from bench.models.flow import FlowArtifactEdge, FlowNode, FlowVersion
+from bench.models.flow import FlowArtifactEdge, FlowInstruction, FlowVersion
 from bench.models.tag import default_tag
 from bench.models.utils import DATASET_TYPE, MODEL_TYPE
 from bench.utils.func import terrible_cast
@@ -171,12 +171,12 @@ class LocalExecutor(Executor):
 
             # wrap the model as a function to pipe into the same execution and caching system
             model_function = ModelRecordTransform(model_handler)
-            model_function_content = FlowNode.to_content(
+            model_function_content = FlowInstruction.to_content(
                 "bench.model",
                 config_arguments={},
                 connected_artifacts={(FlowArtifactEdge.ConnectionType.Argument, "model"): model},
             )
-            model_function_hash = FlowNode.hash_content(model_function_content).hex()
+            model_function_hash = FlowInstruction.hash_content(model_function_content).hex()
 
             # record inputs
             input_dataset = Dataset.objects.get_or_create_dataset_version(
@@ -468,7 +468,7 @@ class LocalExecutor(Executor):
             )
         )
         for connection in cast(
-            list[Union[FlowNodeConnection, ArtifactConnection]], dynamic_connections
+            list[Union[FlowInstructionConnection, ArtifactConnection]], dynamic_connections
         ):
             connection_id = connection.manifested_id
             if connection_id is not None:  # only if dynamic connection is actually manifested

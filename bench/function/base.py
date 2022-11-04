@@ -15,11 +15,9 @@ from typing import (
     cast,
 )
 
-from bench.utils.record import Record, RecordBatch, RecordList
 from bench.utils.registry import Registry, RegistryError, get_qualified_name
 from bench.utils.spec import (
     AnySpec,
-    ArtifactSetType,
     ArtifactSpec,
     ConfigTypeSpec,
     FieldSpec,
@@ -48,76 +46,8 @@ class Function(ABC):
 
     metadata: FunctionMetadata
     config_spec: Mapping[str, AnySpec]
-
-
-class ArtifactFunction(Function, ABC):
-    """
-    A pure function that operates on artifacts.
-    """
-
-    input_spec: Mapping[str, ArtifactSetType]
-    output_spec: OrderedDict[str, ArtifactSetType]
-
-
-class RecordFunction(Function, ABC):
-    """
-    A pure function that operates on records/batches.
-    """
-
     input_spec: Mapping[str, RecordSpec]
     output_spec: OrderedDict[str, RecordSpec]
-
-
-class Metric(RecordFunction):
-    """
-    A metric computed over an arbitrary set of input record batches.
-    """
-
-    def compute(self, **kwargs: RecordBatch) -> Record:
-        raise NotImplementedError
-
-
-class RecordTransform(RecordFunction, ABC):
-    """
-    A transformation function mapping input records to output records
-    """
-
-    def transform(self, record: Record) -> Union[Record, RecordBatch]:
-        raise NotImplementedError
-
-    def transform_batch(self, records: RecordBatch) -> RecordBatch:
-        raise NotImplementedError
-
-
-class SingleRecordTransform(RecordTransform, ABC):
-    def transform_batch(self, records: RecordBatch) -> RecordBatch:
-        outputs = []
-        for record in records:
-            output = self.transform(record)
-            if isinstance(output, RecordBatch):
-                outputs.extend(output)
-            else:
-                outputs.append(output)
-        return RecordList(outputs)
-
-
-class BatchRecordTransform(RecordTransform, ABC):
-    def transform(self, record: Record) -> Union[Record, RecordBatch]:
-        input_batch = RecordList([record])
-        output_batch = self.transform_batch(input_batch)
-        if len(output_batch) == 1:
-            return output_batch[0]
-        else:
-            return output_batch
-
-
-class Test(Function):
-    def __init__(self, result_key: str):
-        self.result_key = result_key
-
-    def passed(self, output: Record) -> bool:
-        output = cast(dict, output)  # assume output is dict
-        return cast(bool, output[self.result_key])
 
 
 def map_to_function_cls(func: Any, impl: Optional[Type[Function]]) -> Type[Function]:
@@ -185,22 +115,9 @@ def map_callable_to_function_cls(func: Callable, impl: Type[Function]) -> Type[F
     attrs: dict = {
         "__call__": func,
         "config_spec": actual_config_spec,
+        "input_spec": inferred_input_spec,
+        "output_spec": inferred_input_spec,
     }
-    # We currently only support one input type, one output type for
-    # callable RecordFunctions and assume that the spec is equal. This is
-    # very simplistic and we may want more complex behavior later.
-    if issubclass(impl, RecordFunction):
-        attrs["input_spec"] = inferred_input_spec
-        if issubclass(impl, RecordTransform):
-            if len(inferred_config_spec) != 1:
-                raise ValueError(
-                    f"mapping callable {get_qualified_name(func)} with !=1 arguments is not supported"
-                )
-            attrs["output_spec"] = inferred_input_spec
-    else:
-        raise ValueError(
-            f"mapping callable {get_qualified_name(func)} to non-Record functions it not supported"
-        )
 
     name = infer_name(func)
     func_cls: Type[Function] = cast(Type[Function], type(name, (impl,), attrs))
@@ -249,23 +166,9 @@ def get_function_handler_specs() -> list[FunctionHandlerSpec]:
     return function_handler_specs
 
 
-def get_function_handler_type(function_cls: Type[Function]) -> FunctionHandlerType:
-    if issubclass(function_cls, Test):
-        return "Test"
-    elif issubclass(function_cls, Metric):
-        return "Metric"
-    elif issubclass(function_cls, RecordTransform):
-        return "RecordTransform"
-    else:
-        raise ValueError(f"unexpected function type: {function_cls}")
-
-
 def get_function_handler_spec(handler_id: str) -> FunctionHandlerSpec:
     function_cls = get_function_cls(handler_id)
     function_type = get_function_handler_type(function_cls)
-
-    if not issubclass(function_cls, RecordFunction):
-        raise ValueError(f"unexpected function: {function_cls}")
 
     base_spec = FunctionType(
         input_spec=function_cls.input_spec,

@@ -1,7 +1,7 @@
 from .artifact import Artifact, ArtifactVersion
 from .dataset import Dataset, DatasetVersion
-from .execution import Execution, FlowExecution, FlowNodeExecution, ModelExecution
-from .flow import Flow, FlowArtifactEdge, FlowNode, FlowNodeEdge, FlowVersion
+from .execution import Execution, FlowExecution, FlowInstructionExecution, ModelExecution
+from .flow import Flow, FlowArtifactEdge, FlowInstruction, FlowInstructionEdge, FlowVersion
 from .model import Model, ModelVersion
 from .organization import Organization
 from .project import Project
@@ -38,12 +38,12 @@ __all__ = [
     "TAG_TYPE_CAPABILITY",
     "Flow",
     "FlowVersion",
-    "FlowNode",
-    "FlowNodeEdge",
+    "FlowInstruction",
+    "FlowInstructionEdge",
     "FlowArtifactEdge",
     "Execution",
     "FlowExecution",
-    "FlowNodeExecution",
+    "FlowInstructionExecution",
     "ModelExecution",
     "Organization",
     "Project",

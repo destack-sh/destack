@@ -11,7 +11,7 @@ from django.db.models import QuerySet
 from bench.models.utils import UUIDModel
 
 FLOW_EXECUTION_TYPE = "flow"
-FLOW_NODE_EXECUTION_TYPE = "flow_node"
+flow_instruction_EXECUTION_TYPE = "flow_instruction"
 MODEL_EXECUTION_TYPE = "model"
 JOB_EXECUTION_TYPE = "job"
 
@@ -75,8 +75,12 @@ class Execution(UUIDModel):
     flow = models.ForeignKey(
         "FlowVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
-    flow_node = models.ForeignKey(
-        "FlowNode", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
+    flow_instruction = models.ForeignKey(
+        "FlowInstruction",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions",
     )
     model = models.ForeignKey(
         "ModelVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
@@ -156,12 +160,12 @@ class FlowExecution(Execution):
         proxy = True
 
 
-class FlowNodeExecution(Execution):
+class FlowInstructionExecution(Execution):
     """
     The parameterised execution of a specific node in a Flow.
     """
 
-    objects = ExecutionManager(default_type=FLOW_NODE_EXECUTION_TYPE)
+    objects = ExecutionManager(default_type=flow_instruction_EXECUTION_TYPE)
 
     class Meta:
         proxy = True
