@@ -94,38 +94,9 @@ class EnumType(_Type):
         return instance in self.values
 
 
-@dataclass
-class ClassLabelType(_Type):
-    num_classes: int
-    names: Optional[List[str]] = None
-    optional: bool = False
-
-    def __instancecheck__(self, instance):
-        if self.names is None:
-            return instance in range(0, self.num_classes)
-        else:
-            return instance in self.names
-
-
-@dataclass
-class Array1dType(_Type):
-    shape: tuple[int]
-    dtype: str
-    optional: bool = False
-
-
-@dataclass
-class Array2dType(_Type):
-    shape: tuple[int]
-    dtype: str
-    optional: bool = False
-
-
 # The (Python) implementation type of a field.
 if TYPE_CHECKING:
-    import PIL.Image
-
-    FieldValuePrimitive = Union[str, int, float, np.ndarray, PIL.Image.Image]
+    FieldValuePrimitive = Union[str, int, float, np.ndarray, bool]
     # mypy cannot handle recursive types: https://github.com/python/mypy/issues/731
     FieldValue = Union[
         FieldValuePrimitive,
@@ -147,15 +118,11 @@ FieldTypePrimitive = Union[
     Type[FieldValuePrimitive],
     ValueType,
     ClassLabelType,
-    Array1dType,
-    Array2dType,
     EnumType,
 ]
 FIELD_TYPES: List[Type[_Type]] = [
     ValueType,
     ClassLabelType,
-    Array1dType,
-    Array2dType,
 ]
 if TYPE_CHECKING:
     # mypy cannot handle recursive types: https://github.com/python/mypy/issues/731

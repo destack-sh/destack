@@ -66,7 +66,7 @@ class DatasetManager(models.Manager):
 
 class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
     """
-    A dataset contains a list of JSON records.
+    A dataset of JSON records.
 
     Datasets include machine learning datasets, function inputs/outputs, lexicons.
     """
@@ -81,6 +81,9 @@ class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
     )
     objects = DatasetManager()
 
+    def __str__(self):
+        return f"{self.organization.slug}/{self.name}"
+
     class Meta:
         indexes = [
             models.Index(name="bench_dataset_type_idx", fields=["type"]),
@@ -93,37 +96,6 @@ class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
         ]
 
 
-class DatasetRecord(UUIDModel, VersionedBlob):
-    """
-    An individual immutable record of a dataset-like Artifact.
-
-    Data represents the in-DB part of the record's data corresponding to the artifact's
-    schema, while metadata is additional data derived from or relevant to the data.
-    Both data and metadata may include pointers to outside-DB storage.
-    """
-
-    dataset = models.ForeignKey("DatasetVersion", on_delete=models.CASCADE, related_name="records")
-    index = models.IntegerField()
-    data = models.JSONField()
-    metadata = models.JSONField(null=True, blank=True)
-
-    def is_committed(self) -> bool:
-        return True
-
-    class Meta:
-        # order by index ascending by default
-        ordering = ["index"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["dataset", "index"], name="bench_record_dataset_index_ak"
-            ),
-        ]
-        indexes = [
-            GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
-            GinIndex(SearchVector("metadata", config="simple"), name="bench_record_metadata"),
-        ]
-
-
 @dataclasses.dataclass
 class DatasetSearch:
     text_like: Optional[str] = None
@@ -131,16 +103,17 @@ class DatasetSearch:
 
 class DatasetVersion(VersionedCommit, TaggableMixin, UUIDModel):
     """
-    A Dataset-specific thin proxy of DatasetVersion exposing typed attributes.
+    A version of a JSON dataset.
     """
 
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="versions")
+    version = models.CharField(max_length=256, null=True)
     parents = models.ManyToManyField("DatasetVersion", symmetrical=False)
     length = models.IntegerField(default=0)
     record_spec = models.JSONField()
 
     def __str__(self):
-        return self.name_version
+        return f"{self.organization.slug}/{self.name_version}"
 
     @property
     def organization(self):
@@ -153,29 +126,7 @@ class DatasetVersion(VersionedCommit, TaggableMixin, UUIDModel):
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
     ) -> Sequence[DatasetRecord]:
-        # TODO @Performance: ensure below query uses indices!
-        # also note that the below query does not order by the index for performance
-        raw_search_sql = (
-            "select"
-            "    bench_dbrecord.id,"
-            "    bench_dbrecord.data,"
-            "    bench_dbrecord.metadata,"
-            "    bench_dbrecordlistreference.index as index"
-            "    from bench_dbrecord"
-            "\njoin"
-            "    bench_dbrecordlistreference"
-            "    on bench_dbrecordlistreference.record_id = bench_dbrecord.id"
-            "\nwhere"
-            "    to_tsvector('simple', data) @@ to_tsquery('simple', %s)"
-            # check that the record belongs to the current version
-            "    and bench_dbrecordlistreference.tree_id = %s"
-            "\nlimit %s"
-            "\noffset %s"
-        )
-        db_records = DatasetRecord.objects.raw(
-            raw_search_sql, [search.text_like, self.dataset.record_list_id, limit, offset]
-        )
-        return db_records
+        raise NotImplementedError
 
     def get_record(self, index: int) -> DatasetRecord:
         return DatasetRecord.objects.get(dataset=self, index=index)
@@ -290,13 +241,39 @@ class DatasetVersion(VersionedCommit, TaggableMixin, UUIDModel):
         ]
 
 
+class DatasetRecord(UUIDModel, VersionedBlob):
+    """
+    An individual immutable record of a dataset-like Artifact.
+    """
+
+    dataset = models.ForeignKey("DatasetVersion", on_delete=models.CASCADE, related_name="records")
+    index = models.IntegerField()
+    data = models.JSONField()
+    metadata = models.JSONField(null=True, blank=True)
+
+    def is_committed(self) -> bool:
+        return True
+
+    class Meta:
+        # order by index ascending by default
+        ordering = ["index"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset", "index"], name="bench_record_dataset_index_ak"
+            ),
+        ]
+        indexes = [
+            GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
+            GinIndex(SearchVector("metadata", config="simple"), name="bench_record_metadata"),
+        ]
+
+
 class DatasetView(TaggableMixin, UUIDModel):
     """
-    A generally immutable view of an Dataset. The data remains with the
-    Dataset (or, rather, a specific version) and can be accessed through the view.
+    A view of a Dataset.
 
     If this view works only with specific versions, then it must specify the compatible
-    versions in 'compatible_versions'. If empty, this view is assumed to work with all versions.
+    versions in 'compatible_versions'. If empty, we assume it works with all versions.
     """
 
     type = models.CharField(max_length=64)

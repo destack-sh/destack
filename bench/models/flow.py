@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import copy
-import secrets
 from typing import TYPE_CHECKING
 
 from django.db import models, transaction
@@ -41,6 +39,9 @@ class Flow(VersionedRepository, TaggableMixin, UUIDModel):
 
     objects = FlowManager()
 
+    def __str__(self):
+        return f"{self.organization.slug}/{self.name}"
+
     class Meta:
         indexes = [
             models.Index(name="bench_flow_name_idx", fields=["name"]),
@@ -52,24 +53,20 @@ class Flow(VersionedRepository, TaggableMixin, UUIDModel):
         ]
 
 
-def _generate_flow_version(nbytes: int = 3) -> str:
-    return secrets.token_hex(nbytes)
-
-
 class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
     """
     A flow version is a specific (generally) immutable specification of a flow.
     """
 
-    version = models.CharField(max_length=256, default=_generate_flow_version)
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
+    version = models.CharField(max_length=256, null=True)
     parents = models.ManyToManyField("FlowVersion", symmetrical=False)
     root_instruction = models.ForeignKey(
         "FlowInstruction", on_delete=models.CASCADE, related_name="flow+"
     )
 
     def __str__(self) -> str:
-        return self.name_version
+        return f"{self.organization.slug}/{self.name_version}"
 
     @property
     def organization(self):
@@ -80,28 +77,7 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
         return f"{self.flow.name}@{self.version}"
 
     def copy_from(self, parent: FlowVersion):
-        """Copies instructions and edges from a parent version"""
-
-        # TODO @Architecture: not sure if FlowVersion is the best place to manage versioning
-
-        # copy instructions
-        child_instruction_by_parent_instruction_id = {}
-        for parent_instruction in parent.instructions.all():
-            child_instruction = parent_instruction.shallow_copy(flow=self)
-            child_instruction_by_parent_instruction_id[parent_instruction.id] = child_instruction
-
-        # copy artifact edges
-        child_artifact_edges: list[FlowArtifactEdge] = []
-        for parent_edge in parent.artifact_edges.all():
-            child_edge = parent_edge.shallow_copy(
-                flow=self,
-                dependent=child_instruction_by_parent_instruction_id[parent_edge.dependent_id],
-                dependency=parent_edge.dependency,
-            )
-            child_instruction_edges.append(child_edge)
-
-        FlowInstruction.objects.bulk_create(child_instruction_by_parent_instruction_id.values())
-        FlowArtifactEdge.objects.bulk_create(child_artifact_edges)
+        raise NotImplementedError
 
     class Meta:
         indexes = [
@@ -115,14 +91,12 @@ class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
         ]
 
 
-class FlowInstructionFlowEdge(models.Model):
-    instruction = models.ForeignKey("FlowInstruction", on_delete=models.CASCADE)
-    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="+")
-
-
 class FlowInstruction(UUIDModel, VersionedBlob):
     """
     An instruction is a curried Python function with high level arguments like datasets, models and flows.
+
+    As an (async) Python function, instructions are defined as code (either in-place or as a built-in).
+    Instructions may contain and use other instructions, forming an instruction tree.
     """
 
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="instructions")
@@ -132,11 +106,12 @@ class FlowInstruction(UUIDModel, VersionedBlob):
         "FlowInstruction", on_delete=models.CASCADE, null=True, related_name="children"
     )
 
-    function_id = models.CharField(max_length=256)
-    config_arguments = models.JSONField(default=dict)
-    model_arguments = models.ManyToManyField("Model", through="FlowInstructionModelEdge")
-    dataset_arguments = models.ManyToManyField("Dataset", through="FlowInstructionDatasetEdge")
-    flow_arguments = models.ManyToManyField("Flow", through="FlowInstructionFlowEdge")
+    # either set code_id to in-built low level function or set code
+    code_id = models.CharField(blank=True, null=True, max_length=256)
+    code = models.CharField(blank=True, null=True)
+
+    # parameters to/from FlowInstructionParameter
+    # arguments to/from FlowInstructionArgument
 
     def __str__(self):
         return f"{self.flow.name_version}/{self.name or self.id}"
@@ -155,19 +130,65 @@ class FlowInstruction(UUIDModel, VersionedBlob):
         """Gets an instruction by name"""
         return self.children.get(name=name)
 
-    def shallow_copy(self, **kwargs) -> FlowInstruction:
-        return FlowInstruction(
-            name=self.name,
-            created_at=self.created_at,
-            function_id=self.function_id,
-            config_arguments=copy.copy(self.config_arguments),
-            **kwargs,
-        )
+    class Meta:
+        constraints = [
+            # ensure name is unique inside flow version
+            models.UniqueConstraint(
+                name="bench_flow_instruction_flow_name_ak",
+                fields=["flow", "name"],
+            ),
+            # ensure either code_id or code is set
+            models.CheckConstraint(
+                name="bench_flow_instruction_code_id_xor_code_ck",
+                check=(
+                    models.Q(code_id__isnull=False, code__isnull=True)
+                    | models.Q(code_id__isnull=True, code__isnull=False)
+                ),
+            ),
+        ]
+
+
+class FlowInstructionParameter(UUIDModel):
+    """
+    A parameter is a named argument to a function which is bound by a FlowInstructionArgument.
+
+    Parameters are typed..
+
+    ..as in Python (but restricted to primitive types and collections).
+      ..with some special imports and syntax for higher level stuff
+    ..as a JSON schema
+    """
+
+    instruction = models.ForeignKey(
+        FlowInstruction, on_delete=models.CASCADE, related_name="parameters"
+    )
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    type = models.CharField(max_length=64)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                name="bench_flow_version_name_ak",
-                fields=["flow", "name"],
+                name="bench_flow_instruction_parameter_ak",
+                fields=["instruction", "name"],
             )
         ]
+
+
+class FlowInstructionArgument(UUIDModel):
+    """
+    An argument is value binding an instruction parameter.
+    An argument can be one of a model, a dataset, a flow or a plain JSON value.
+    """
+
+    instruction = models.ForeignKey(
+        "FlowInstruction", on_delete=models.CASCADE, related_name="arguments"
+    )
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
+    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True, blank=True)
+    flow = models.ForeignKey("Flow", on_delete=models.CASCADE, null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        # TODO @Robustness: ensure that only one argument type is set
+        constraints = []

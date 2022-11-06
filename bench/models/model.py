@@ -51,5 +51,5 @@ class Model(TaggableMixin, UUIDModel):
 
     objects = ModelManager()
 
-    class Meta:
-        proxy = True
+    def __str__(self):
+        return f"{self.organization.slug}/{self.name}"

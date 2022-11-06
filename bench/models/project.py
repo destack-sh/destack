@@ -13,22 +13,9 @@ class Project(TaggableMixin, UUIDModel):
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
     )
+    # we'll likely have multiple programs per project soon
     program: models.ForeignKey = models.ForeignKey(
         "Flow", on_delete=models.CASCADE, related_name="projects"
     )
     flows = models.ManyToManyField("Flow", related_name="projects")
-    artifacts: models.ManyToManyField = models.ManyToManyField(
-        "Artifact", through="ProjectArtifactLink", related_name="projects"
-    )
-
-
-class ProjectArtifactLink(UUIDModel):
-    project: models.ForeignKey = models.ForeignKey("Project", on_delete=models.CASCADE)
-    artifact: models.ForeignKey = models.ForeignKey("Artifact", on_delete=models.RESTRICT)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_project_artifact_ak", fields=["project_id", "artifact_id"]
-            )
-        ]
+    datasets = models.ManyToManyField("Dataset", related_name="projects")

@@ -53,6 +53,10 @@ class UserManager(BaseUserManager[AbstractUser]):
 
 
 class User(AbstractUser, UUIDModel):
+    """
+    A user is an authenticated human working on a program in bench.
+    """
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
 
