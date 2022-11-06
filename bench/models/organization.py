@@ -14,6 +14,10 @@ class OrganizationManager(models.Manager):
 
 
 class Organization(UUIDModel):
+    """
+    An organization is a group of users and projects.
+    """
+
     name: models.CharField = models.CharField(max_length=256)
     slug: models.SlugField = models.SlugField(
         max_length=128, unique=True, validators=[validate_slug]
