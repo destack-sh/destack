@@ -47,8 +47,9 @@ class Flow(VersionedRepository, TaggableMixin, UUIDModel):
             models.Index(name="bench_flow_name_idx", fields=["name"]),
         ]
         constraints = [
+            # check that the name is unique within the project
             models.UniqueConstraint(
-                name="bench_flow_organization_name_ak", fields=["organization_id", "name"]
+                name="bench_flow_project_name_ak", fields=["project_id", "name"]
             )
         ]
 

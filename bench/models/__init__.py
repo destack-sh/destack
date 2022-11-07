@@ -1,11 +1,15 @@
-from .artifact import Artifact, ArtifactVersion
 from .dataset import Dataset, DatasetVersion
 from .execution import Execution, FlowExecution, FlowInstructionExecution, ModelExecution
-from .flow import Flow, FlowArtifactEdge, FlowInstruction, FlowInstructionEdge, FlowVersion
-from .model import Model, ModelVersion
+from .flow import (
+    Flow,
+    FlowInstruction,
+    FlowInstructionArgument,
+    FlowInstructionParameter,
+    FlowVersion,
+)
+from .model import Model
 from .organization import Organization
 from .project import Project
-from .record import DatasetRecord, DbRecordList, DbRecordListReference
 from .tag import (
     TAG_TYPE_ALIAS,
     TAG_TYPE_BRANCH,
@@ -19,15 +23,9 @@ from .tag import (
 from .user import User
 
 __all__ = [
-    "Artifact",
-    "ArtifactVersion",
-    "DatasetRecord",
-    "DbRecordList",
-    "DbRecordListReference",
     "Dataset",
     "DatasetVersion",
     "Model",
-    "ModelVersion",
     "Tag",
     "TaggedItem",
     "TaggableMixin",
@@ -39,8 +37,8 @@ __all__ = [
     "Flow",
     "FlowVersion",
     "FlowInstruction",
-    "FlowInstructionEdge",
-    "FlowArtifactEdge",
+    "FlowInstructionArgument",
+    "FlowInstructionParameter",
     "Execution",
     "FlowExecution",
     "FlowInstructionExecution",
