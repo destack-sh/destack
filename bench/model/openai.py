@@ -1,15 +1,12 @@
-import abc
-from typing import Union, cast
+from typing import Union
 
 import aiohttp
 
-from bench.model.base import ModelHandler, ModelHandlerMetadata, models
-from bench.model.utils import make_scored_labels_spec
+from bench.model.base import ModelHandler
 from bench.utils.record import Record, RecordBatch, RecordList
-from bench.utils.spec import ModelType, convert_to_record_spec
 
 
-class OpenAIModel(ModelHandler, abc.ABC):
+class OpenAIModel(ModelHandler):
     def __init__(
         self,
         api_key: str,
@@ -44,23 +41,8 @@ class OpenAIModel(ModelHandler, abc.ABC):
             stop=self.stop,
         )
 
-
-@models.register("bench.openai")
-class OpenAIModelForCompletion(OpenAIModel):
-    metadata = ModelHandlerMetadata(
-        name="OpenAI text generation",
-        description="OpenAI hosted model",
-        tags=["openai", "hosted"],
-    )
-    spec = ModelType(
-        input_spec=convert_to_record_spec(name="input", spec={"text": str}),
-        output_spec=convert_to_record_spec(name="output", spec={"generated_text": str}),
-    )
-    base_spec = spec
-
-    async def generate(self, record: Record) -> Union[Record, RecordBatch]:
-        record = cast(dict, record)
-        request = {"model": self.model, "prompt": record["text"], **self._get_params()}
+    async def generate(self, prompt: str) -> Union[Record, RecordBatch]:
+        request = {"model": self.model, "prompt": str, **self._get_params()}
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.post(
@@ -74,33 +56,14 @@ class OpenAIModelForCompletion(OpenAIModel):
         else:
             return RecordList(output_records)
 
-
-@models.register("bench.openai.text_classification")
-class OpenAIModelForClassification(OpenAIModel):
-    metadata = ModelHandlerMetadata(
-        name="OpenAI classification",
-        description="OpenAI hosted model for text classification",
-        tags=["openai", "hosted"],
-    )
-    spec = ModelType(
-        input_spec=convert_to_record_spec(
-            {
-                "text": str,
-                "examples": list[list[str]],
-                "labels": list[str],
-            }
-        ),
-        output_spec=convert_to_record_spec({"text": str, "classes": make_scored_labels_spec(str)}),
-    )
-    base_spec = spec
-
-    async def classify(self, record: Record) -> Union[Record, RecordBatch]:
-        record = cast(dict, record)
+    async def classify(
+        self, prompt: str, labels: list[str], examples: list[tuple[str, str]]
+    ) -> Union[Record, RecordBatch]:
         request = {
             "model": self.model,
-            "prompt": record["text"],
-            "examples": record["examples"],
-            "labels": record["labels"],
+            "prompt": prompt,
+            "labels": labels,
+            "examples": examples,
             **self._get_params(),
         }
 

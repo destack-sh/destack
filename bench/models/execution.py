@@ -11,7 +11,7 @@ from django.db.models import QuerySet
 from bench.models.utils import UUIDModel
 
 FLOW_EXECUTION_TYPE = "flow"
-flow_instruction_EXECUTION_TYPE = "flow_instruction"
+FLOW_INSTRUCTION_EXECUTION_TYPE = "flow_instruction"
 MODEL_EXECUTION_TYPE = "model"
 JOB_EXECUTION_TYPE = "job"
 
@@ -37,7 +37,7 @@ class ExecutionManager(models.Manager):
 
 class Execution(UUIDModel):
     """
-    The execution of some executable unit, like a function or a flow.
+    The execution of some executable unit, like a flow or instruction.
 
     An execution may be hierarchically nested inside other executions via the 'parent' field.
     """
@@ -83,7 +83,7 @@ class Execution(UUIDModel):
         related_name="executions",
     )
     model = models.ForeignKey(
-        "ModelVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
+        "Model", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
     # relation to organizational units
     organization: models.ForeignKey = models.ForeignKey(
@@ -165,7 +165,7 @@ class FlowInstructionExecution(Execution):
     The parameterised execution of a specific node in a Flow.
     """
 
-    objects = ExecutionManager(default_type=flow_instruction_EXECUTION_TYPE)
+    objects = ExecutionManager(default_type=FLOW_INSTRUCTION_EXECUTION_TYPE)
 
     class Meta:
         proxy = True
