@@ -21,7 +21,7 @@ from bench.executor import executor
 from bench.executor.base import FlowExecutionOptions, FlowRawArgument
 from bench.function.spec import update_flow_spec
 from bench.models import ArtifactVersion, Flow, FlowInstruction, Organization
-from bench.models.flow import FlowArtifactEdge, FlowInstructionEdge, FlowVersion
+from bench.models.flow import FlowVersion
 from bench.models.utils import MAX_NAME_LENGTH
 
 # ========================
@@ -81,34 +81,6 @@ class FlowInstructionSerializer(serializers.ModelSerializer):
         ]
 
 
-class FlowInstructionEdgeSerializer(serializers.ModelSerializer):
-    flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
-    dependent: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowInstruction.objects.all()
-    )
-    dependency: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowInstruction.objects.all()
-    )
-
-    class Meta:
-        model = FlowInstructionEdge
-        fields = "__all__"
-        read_only_fields = ["id"]
-
-
-class FlowArtifactEdgeSerializer(serializers.ModelSerializer):
-    flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
-    dependent: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
-        queryset=FlowInstruction.objects.all()
-    )
-    dependency = ArtifactVersionListingField(queryset=ArtifactVersion.objects.all())
-
-    class Meta:
-        model = FlowArtifactEdge
-        fields = "__all__"
-        read_only_fields = ["id"]
-
-
 class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     flow: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=Flow.objects.all(), slug_field="name"
@@ -117,9 +89,7 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
         queryset=FlowVersion.objects.all(), slug_field="version", many=True
     )
     # nodes, node_edges and artifact_edges are read only duplicates of the respective nested viewsets
-    nodes = FlowInstructionSerializer(many=True, read_only=True)
-    node_edges = FlowInstructionEdgeSerializer(many=True, read_only=True)
-    artifact_edges = FlowArtifactEdgeSerializer(many=True, read_only=True)
+    root_instruction = FlowInstructionSerializer(many=False, read_only=True)
 
     class Meta:
         model = FlowVersion
@@ -324,38 +294,6 @@ class FlowInstructionViewSet(viewsets.ModelViewSet):
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         # TODO @Cleanup: argument mapping could be in nested router?
-        # map nested arguments to FlowInstruction.flow representation
-        if "flow" in kwargs and "version" in kwargs:
-            request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
-        return super().create(request, *args, **kwargs)
-
-
-class FlowInstructionEdgeViewSet(viewsets.ModelViewSet):
-    queryset = FlowInstructionEdge.objects.all()
-    serializer_class = FlowInstructionEdgeSerializer
-
-    def get_queryset(self) -> models.QuerySet[FlowInstruction]:
-        return self.queryset.filter(
-            flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
-        )
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
-        # map nested arguments to FlowInstruction.flow representation
-        if "flow" in kwargs and "version" in kwargs:
-            request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
-        return super().create(request, *args, **kwargs)
-
-
-class FlowArtifactEdgeViewSet(viewsets.ModelViewSet):
-    queryset = FlowArtifactEdge.objects.all()
-    serializer_class = FlowArtifactEdgeSerializer
-
-    def get_queryset(self) -> models.QuerySet[FlowInstruction]:
-        return self.queryset.filter(
-            flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
-        )
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
         # map nested arguments to FlowInstruction.flow representation
         if "flow" in kwargs and "version" in kwargs:
             request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"

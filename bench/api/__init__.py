@@ -6,16 +6,7 @@ from rest_framework.routers import BaseRouter
 
 from bench.api.dataset import DatasetRecordViewSet, DatasetVersionViewSet, DatasetViewSet
 from bench.api.execution import ExecutionViewSet
-from bench.api.flow import (
-    FlowArtifactEdgeViewSet,
-    FlowInstructionEdgeViewSet,
-    FlowInstructionViewSet,
-    FlowVersionViewSet,
-    FlowViewSet,
-)
-from bench.api.meta import list_dataset_handlers  # noqa: F401,F403
-from bench.api.meta import list_function_handlers  # noqa: F401,F403
-from bench.api.meta import list_model_handlers  # noqa: F401,F403
+from bench.api.flow import FlowInstructionViewSet, FlowVersionViewSet, FlowViewSet
 from bench.api.model import ModelViewSet
 from bench.api.organization import OrganizationViewSet
 from bench.api.project import ProjectViewSet
@@ -40,17 +31,17 @@ projects_router = organizations_router.register_nested("projects", ProjectViewSe
 # /users
 users_router = router.register_nested("users", UserViewSet, lookup="user")
 
-# /datasets/<organization> and /datasets/<organization>/<artifact>
+# /datasets/<organization> and /datasets/<organization>/<dataset>
 datasets_router = router.register_nested(
     "datasets", DatasetViewSet, lookup=("organization", "artifact")
 )
-# /datasets/<organization>/<artifact>/records
+# /datasets/<organization>/<dataset>/records
 datasets_router.register("records", DatasetRecordViewSet)
-# /datasets/<organization>/<artifact>/versions
+# /datasets/<organization>/<dataset>/versions
 datasets_versions_router = datasets_router.register_nested(
     "versions", DatasetVersionViewSet, lookup="version"
 )
-# /datasets/<organization>/<artifact>/versions/<version>/records
+# /datasets/<organization>/<dataset>/versions/<version>/records
 datasets_versions_router.register("records", DatasetRecordViewSet)
 
 # /models/<organization> and /models/<organization>/<model>
@@ -62,11 +53,5 @@ flows_router = router.register_nested("flows", FlowViewSet, lookup=("organizatio
 flows_versions_router = flows_router.register_nested(
     "versions", FlowVersionViewSet, lookup="version"
 )
-# /flows/<organization>/<flow>/versions/<version>/nodes
-flows_versions_router.register("nodes", FlowInstructionViewSet)
-# /flows/<organization>/<flow>/versions/<version>/node_edges
-flows_versions_router.register("node_edges", FlowInstructionEdgeViewSet)
-# /flows/<organization>/<flow>/versions/<version>/artifact_edges
-flows_versions_router.register("artifact_edges", FlowArtifactEdgeViewSet)
 
 routers: List[BaseRouter] = [router, *router.descendant_routers]
