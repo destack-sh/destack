@@ -189,16 +189,6 @@ FIELD_SPEC_TYPES: List[Type[_Spec]] = [FieldSpec]
 
 
 @dataclass
-class ArtifactSpec(_Spec):
-    type: ArtifactType
-
-
-@dataclass
-class FunctionSpec(_Spec):
-    type: FunctionType
-
-
-@dataclass
 class ConfigSpec(_Spec):
     type: ConfigTypeSpec
 

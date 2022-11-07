@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import AbstractSet, Any, List, Mapping, Optional, Type, cast
 from uuid import UUID
 
-from bench.dataset.accessor import get_file_system
 from bench.utils.record import Record
 from bench.utils.registry import Registry
 from bench.utils.spec import (
@@ -31,13 +30,15 @@ class ModelHandler(abc.ABC):
     # Config spec to configure this handler.
     config_spec: Mapping[str, FieldSpec]
 
-    async def generate(self, record: Record) -> Record:
+    async def generate(self, prompt: str) -> Record:
         raise NotImplementedError
 
-    async def classify(self, text: str, options: list[str]) -> Record:
+    async def classify(
+        self, text: str, labels: list[str], examples: list[tuple[str, str]]
+    ) -> Record:
         raise NotImplementedError
 
-    async def embed(self, text: str) -> Record:
+    async def embed(self, text: str) -> bytes:
         raise NotImplementedError
 
 
@@ -145,17 +146,11 @@ def get_static_config_keys(handler_id: str) -> set[str]:
 def load_model(
     handler_id: str,
     artifact_id: UUID,
-    storage_uri: Optional[str],
-    version: Optional[str],
     arguments: dict[str, Any],
-    spec: Optional[ModelType],
 ) -> ModelHandler:
-    model_cls = get_model_cls(handler_id)
-    if storage_uri:
-        fs, path = get_file_system(storage_uri)
-    else:
-        fs, path = None, None
+    raise NotImplementedError
 
+    model_cls = get_model_cls(handler_id)
     config_type = model_cls.config_spec
     arguments = cast_config_arguments(arguments, config_type)
     validate_config_type(arguments, config_type, ignore_extraneous=True)

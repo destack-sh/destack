@@ -152,11 +152,7 @@ class FlowInstructionParameter(UUIDModel):
     """
     A parameter is a named argument to a function which is bound by a FlowInstructionArgument.
 
-    Parameters are typed..
-
-    ..as in Python (but restricted to primitive types and collections).
-      ..with some special imports and syntax for higher level stuff
-    ..as a JSON schema
+    Parameters are typed using ?
     """
 
     instruction = models.ForeignKey(
