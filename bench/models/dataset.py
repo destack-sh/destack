@@ -77,8 +77,9 @@ class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
 
     organization: models.ForeignKey = models.ForeignKey(
-        "bench.Organization", on_delete=models.CASCADE, related_name="artifacts"
+        "bench.Organization", on_delete=models.CASCADE, related_name="datasets"
     )
+    project = models.ForeignKey("bench.Project", on_delete=models.CASCADE, related_name="datasets")
     objects = DatasetManager()
 
     def __str__(self):
@@ -90,8 +91,9 @@ class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
             models.Index(name="bench_dataset_name_idx", fields=["name"]),
         ]
         constraints = [
+            # check that the name is unique within the project
             models.UniqueConstraint(
-                name="bench_organization_dataset_name_ak", fields=["organization_id", "name"]
+                name="bench_dataset_project_name_ak", fields=["project_id", "name"]
             ),
         ]
 
