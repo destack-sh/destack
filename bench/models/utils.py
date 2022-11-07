@@ -79,10 +79,6 @@ class UUIDModel(models.Model):
         abstract = True
 
 
-# Artifact types
-MODEL_TYPE = "model"
-DATASET_TYPE = "dataset"
-
 ModelT = TypeVar("ModelT", bound=models.Model)
 
 

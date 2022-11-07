@@ -5,6 +5,13 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDMode
 
 
 class Project(TaggableMixin, UUIDModel):
+    """
+    A project to instruct an AI to do something.
+
+    A project has a main program (the top-level flow).
+    Later, projects may also be "non-executable" libraries.
+    """
+
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     description: models.CharField = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)

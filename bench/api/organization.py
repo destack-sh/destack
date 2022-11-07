@@ -20,7 +20,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def get_object(self):
         lookup_value = self.kwargs[self.lookup_field]
         if lookup_value == "@current":
-            return self.request.user
+            raise NotImplementedError  # what even is the current organization?
         if not self.request.user.is_staff:
             raise PermissionDenied(f"cannot get organization except own: {self.request.user}")
         return super().get_object()

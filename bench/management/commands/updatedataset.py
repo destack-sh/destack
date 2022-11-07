@@ -52,6 +52,6 @@ def update_dataset(
             records = json.load(f)
 
     # assume new_data_records must be an array of data-only records
-    dataset_records = [DatasetRecord.make(data=data) for data in records]
-    DatasetHandler(dataset_version).extend(dataset_records)
+    dataset_version.clear()
+    dataset_version.extend(DatasetRecord(data=data) for data in records)
     return dataset_version

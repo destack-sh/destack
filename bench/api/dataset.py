@@ -23,15 +23,15 @@ from bench.api.dataset import (
 from bench.api.tag import TaggedItemSerializerMixin
 from bench.models import Dataset, DatasetVersion, Organization
 from bench.models.dataset import DatasetRecord, DatasetSearch, DatasetViewData
-from bench.models.utils import DATASET_TYPE, MAX_NAME_LENGTH
+from bench.models.utils import MAX_NAME_LENGTH
 from bench.models.versioning import get_head
 from bench.utils.func import terrible_cast
 
 logger = structlog.stdlib.get_logger()
 
 
-class DatasetSerializer(DatasetSerializer):
-    type = serializers.CharField(max_length=64, default=DATASET_TYPE)
+class DatasetSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(max_length=64)
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
         validators=[
