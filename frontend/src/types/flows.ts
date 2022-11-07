@@ -1,5 +1,3 @@
-import type { ArtifactView, ArtifactViewData } from "@/types/artifacts";
-import type { RecordSpec } from "@/types/spec";
 import type { Taggable } from "@/types/tags";
 
 export type Flow = Taggable & {
@@ -20,68 +18,11 @@ export type FlowVersion = Taggable & {
   flow: string; // fk to Flow.name
   created_at: string;
   committed: boolean;
-  // read-only flow
-  nodes?: FlowNode[];
-  node_edges?: FlowNodeEdge[];
-  artifact_edges?: FlowArtifactEdge[];
 };
 
-export type FlowNode = {
+export type FlowInstruction = Taggable & {
   id: string;
   name: string;
-  flow: string; // fk to FlowVersion.name@FlowVersion.id
-  created_at: string;
-  function_id: string;
-  config_arguments?: Record<string, any>;
-  metadata?: FlowNodeMetadata;
-};
-
-export type FlowNodeMetadata = {
-  input_spec?: Record<string, RecordSpec>;
-  output_spec?: Record<string, RecordSpec>;
-};
-
-export type FlowArtifactEdgeType = "input" | "argument" | "output";
-export type FlowArtifactEdge = {
-  id: string;
-  dependent: string; // fk to FlowNode.id
-  dependency: string; // fk to Artifact.name@ArtifactVersion.version
-  connection_type: FlowArtifactEdgeType;
-  connection_name: string;
-  view?: ArtifactView;
-  view_inline?: ArtifactViewData;
-};
-
-// like FlowArtifactEdge but untethered
-export type ArtifactConnection = Omit<FlowArtifactEdge, "id" | "dependent">;
-
-export type FlowNodeEdgeType = "input" | "argument"; // output is unnecessary because symmetry
-export type FlowNodeEdge = {
-  id: string;
-  dependent: string; // fk to FlowNode.id
-  dependency: string; // fk to FlowNode.id
-  connection_type: FlowNodeEdgeType;
-  connection_name_dependent: string;
-  connection_name_dependency: string;
-};
-
-// like FlowNodeEdge but untethered
-export type FlowNodeConnection = Omit<FlowNodeEdge, "id" | "dependent">;
-
-export type FlowNodePortType = "input" | "output" | "argument";
-export type FlowNodePort = {
-  id: string;
-  name: string;
-  node: FlowNode;
-  type: FlowNodePortType;
-};
-
-export type FlowNodeExecutionArgument = {
-  type: "input" | "argument";
-  node: string; // fk to FlowNode.id;
-  name: string;
-  artifact?: string; // fk to Artifact.name@ArtifactVersion.version
-  records?: any;
 };
 
 export type FlowRuntimeData = {
@@ -97,16 +38,3 @@ export type FlowExecutionOptions = {
   captured_connection_types?: Array<"input" | "argument">;
   captured_edges?: string[];
 };
-
-export type FlowExecutionPlan = {
-  arguments?: Record<string, FlowNodeExecutionArgument[]>; // key is FlowNode.id
-  options?: FlowExecutionOptions;
-};
-
-export type FlowInteractionData = {
-  selectedNode: FlowNode | null;
-};
-
-export function makeInteractionData(): FlowInteractionData {
-  return { selectedNode: null };
-}
