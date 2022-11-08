@@ -41,7 +41,7 @@ class OpenAIModel(ModelHandler):
             stop=self.stop,
         )
 
-    async def generate(self, prompt: str) -> Union[Record, RecordBatch]:
+    async def complete(self, prompt: str) -> Union[Record, RecordBatch]:
         request = {"model": self.model, "prompt": str, **self._get_params()}
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
