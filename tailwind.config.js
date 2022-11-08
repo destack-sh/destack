@@ -3,6 +3,10 @@ const colors = require("tailwindcss/colors");
 module.exports = {
   content: ["./frontend/index.html", "./frontend/src/**/*.{vue,js,ts,jsx,tsx}"],
   theme: {
+    fontFamily: {
+      sans: ["IBM Plex Sans", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+      mono: ["Druid Sans Mono", "monospace"],
+    },
     extend: {
       colors: {
         sky: colors.sky,

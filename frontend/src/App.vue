@@ -15,6 +15,7 @@ const appStore = useAppStore();
 
 <style>
 @import "@/assets/base.css";
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans&display=swap");
 @import "@braks/vue-flow/dist/style.css";
 @import "@braks/vue-flow/dist/theme-default.css";
 </style>

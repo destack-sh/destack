@@ -9,13 +9,7 @@ from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 from django.db.models import QuerySet
 
-from bench.models.utils import (
-    DATASET_TYPE,
-    MAX_DESCRIPTION_LENGTH,
-    MAX_NAME_LENGTH,
-    UUIDModel,
-    proxies,
-)
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel, proxies
 from bench.models.versioning import VersionedBlob, VersionedTree
 from bench.utils.spec import FieldValue
 
@@ -24,13 +18,6 @@ if TYPE_CHECKING:
 
 
 class DatasetManager(models.Manager):
-    def get_queryset(self) -> QuerySet[Dataset]:
-        return super().get_queryset().filter(type__exact=DATASET_TYPE)
-
-    def get_or_create(self, *args, **kwargs):
-        kwargs["type"] = DATASET_TYPE
-        return super().get_or_create(*args, **kwargs)
-
     def create_dataset_version(
         self,
         name: str,
