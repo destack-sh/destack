@@ -6,7 +6,7 @@ from django.db import models, transaction
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
-from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
+from bench.models.versioning import VersionedBlob, VersionedTree
 
 if TYPE_CHECKING:
     from bench.models import Organization
@@ -21,7 +21,7 @@ class FlowManager(models.Manager):
         return flow_version
 
 
-class Flow(VersionedRepository, TaggableMixin, UUIDModel):
+class Flow(TaggableMixin, UUIDModel):
     """
     A hierarchical graph of nested Functions represented as Instructions connected by Edges.
 
@@ -54,14 +54,15 @@ class Flow(VersionedRepository, TaggableMixin, UUIDModel):
         ]
 
 
-class FlowVersion(VersionedCommit, TaggableMixin, UUIDModel):
+class FlowVersion(VersionedTree, TaggableMixin, UUIDModel):
     """
     A flow version is a specific (generally) immutable specification of a flow.
     """
 
     flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
-    version = models.CharField(max_length=256, null=True)
-    parents = models.ManyToManyField("FlowVersion", symmetrical=False)
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="flow_versions"
+    )
     root_instruction = models.ForeignKey(
         "FlowInstruction", on_delete=models.CASCADE, related_name="flow+"
     )
@@ -165,7 +166,7 @@ class FlowInstructionParameter(UUIDModel):
         FlowInstruction, on_delete=models.CASCADE, related_name="parameters"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = models.CharField(max_length=64)
+    type = models.JSONField()
 
     class Meta:
         constraints = [

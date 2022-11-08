@@ -16,7 +16,7 @@ from bench.models.utils import (
     UUIDModel,
     proxies,
 )
-from bench.models.versioning import VersionedBlob, VersionedCommit, VersionedRepository
+from bench.models.versioning import VersionedBlob, VersionedTree
 from bench.utils.spec import FieldValue
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ class DatasetManager(models.Manager):
         return dataset_version
 
 
-class Dataset(VersionedRepository, TaggableMixin, UUIDModel):
+class Dataset(TaggableMixin, UUIDModel):
     """
     A dataset of JSON records.
 
@@ -103,16 +103,18 @@ class DatasetSearch:
     text_like: Optional[str] = None
 
 
-class DatasetVersion(VersionedCommit, TaggableMixin, UUIDModel):
+class DatasetVersion(VersionedTree, TaggableMixin, UUIDModel):
     """
     A version of a JSON dataset.
     """
 
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="versions")
-    version = models.CharField(max_length=256, null=True)
-    parents = models.ManyToManyField("DatasetVersion", symmetrical=False)
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="dataset_versions"
+    )
+    # records from DatasetRecord.dataset
+    record_schema = models.JSONField()
     length = models.IntegerField(default=0)
-    record_spec = models.JSONField()
 
     def __str__(self):
         return f"{self.organization.slug}/{self.name_version}"
