@@ -52,9 +52,10 @@ class Tag(UUIDModel):
 
 # Must keep in sync with the actual fields of TaggedItem.
 RELATED_FIELDS = (
-    "artifact",
-    "artifact_version",
-    "artifact_view",
+    "model",
+    "dataset",
+    "dataset_version",
+    "dataset_view",
     "flow",
     "flow_version",
     "project",
@@ -104,14 +105,17 @@ class TaggedItem(UUIDModel):
 
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="tagged_items")
 
-    artifact = models.ForeignKey(
-        "Artifact", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    model = models.ForeignKey(
+        "Model", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
-    artifact_version = models.ForeignKey(
-        "ArtifactVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
-    artifact_view = models.ForeignKey(
-        "ArtifactView", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    dataset_version = models.ForeignKey(
+        "DatasetVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    )
+    dataset_view = models.ForeignKey(
+        "DatasetView", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     flow = models.ForeignKey(
         "Flow", on_delete=models.CASCADE, related_name="tagged_items", null=True
@@ -121,9 +125,6 @@ class TaggedItem(UUIDModel):
     )
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
-    batch = models.ForeignKey(
-        "Batch", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     task = models.ForeignKey(
         "Task", on_delete=models.CASCADE, related_name="tagged_items", null=True

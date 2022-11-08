@@ -30,7 +30,7 @@ class ModelHandler(abc.ABC):
     # Config spec to configure this handler.
     config_spec: Mapping[str, FieldSpec]
 
-    async def generate(self, prompt: str) -> Record:
+    async def complete(self, prompt: str) -> Record:
         raise NotImplementedError
 
     async def classify(

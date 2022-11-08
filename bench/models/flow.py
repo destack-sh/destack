@@ -96,6 +96,7 @@ class FlowInstruction(UUIDModel, VersionedBlob):
     """
     An instruction is a curried Python function with high level arguments like datasets, models and flows.
 
+    Instructions implement tasks which define the interface and guide instruction compilation.
     As an (async) Python function, instructions are defined as code (either in-place or as a built-in).
     Instructions may contain and use other instructions, forming an instruction tree.
     """
@@ -103,11 +104,15 @@ class FlowInstruction(UUIDModel, VersionedBlob):
     flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="instructions")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey(
         "FlowInstruction", on_delete=models.CASCADE, null=True, related_name="children"
     )
+    task = models.ForeignKey(
+        "bench.Task", on_delete=models.CASCADE, null=True, related_name="implementations"
+    )
 
-    # either set code_id to in-built low level function or set code
+    # either set code_id to built-in function id or set code
     code_id = models.CharField(blank=True, null=True, max_length=256)
     code = models.CharField(blank=True, null=True)
 

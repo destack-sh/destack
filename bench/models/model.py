@@ -41,7 +41,6 @@ class Model(TaggableMixin, UUIDModel):
 
     Baseline models are typically provided externally and may then be fine-tuned within a project.
 
-
     TODO @Cleanup: null project_id + global_name to access models directly from orgs feels hacky
         But is required to have external models and custom models (fine-tuned in a project).
     """

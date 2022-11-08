@@ -15,8 +15,6 @@ FLOW_INSTRUCTION_EXECUTION_TYPE = "flow_instruction"
 MODEL_EXECUTION_TYPE = "model"
 JOB_EXECUTION_TYPE = "job"
 
-DEFAULT_CONNECTION_NAME = "*"
-
 ExecutionT = TypeVar("ExecutionT")
 
 
