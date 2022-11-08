@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Union
 
 import aiohttp
@@ -31,7 +32,8 @@ class OpenAIModel(ModelHandler):
     def headers(self):
         return {"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"}
 
-    def _get_params(self):
+    @cached_property
+    def _params(self):
         return dict(
             model=self.model,
             max_tokens=self.max_tokens,
@@ -41,8 +43,8 @@ class OpenAIModel(ModelHandler):
             stop=self.stop,
         )
 
-    async def complete(self, prompt: str) -> Union[Record, RecordBatch]:
-        request = {"model": self.model, "prompt": str, **self._get_params()}
+    async def complete(self, prompt: str) -> tuple[str, list[float]]:
+        request = {"model": self.model, "prompt": str, **self._params}
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.post(
@@ -64,7 +66,7 @@ class OpenAIModel(ModelHandler):
             "prompt": prompt,
             "labels": labels,
             "examples": examples,
-            **self._get_params(),
+            **self._params,
         }
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
