@@ -1,20 +1,21 @@
+from datetime import datetime
+
 from django.core.validators import validate_slug
 from django.db import models
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
-from bench.models.versioning import VersionedCommit, VersionedRepository
 
 
-class Project(VersionedRepository, TaggableMixin, UUIDModel):
+class Project(TaggableMixin, UUIDModel):
     """
     A project to instruct an AI to do something.
 
+    Projects are the root of versioning, similar to repositories in Git.
+    All versions are available in 'versions' and may not be linear (also like in Git).
+
     A project has a main program (the top-level task & flow implementations).
     Later, projects may also be "non-executable" libraries.
-
-    Projects are the highest-level unit of versioning, similar to repositories in Git.
-    All versions are available in 'versions'.
     """
 
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -25,47 +26,94 @@ class Project(VersionedRepository, TaggableMixin, UUIDModel):
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
+    head = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE, related_name="project+")
+
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
     )
-    # we'll likely have multiple programs per project at some point
-    program: models.ForeignKey = models.ForeignKey(
-        "Flow", on_delete=models.CASCADE, related_name="projects"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_project_organization_slug_ak",
+                fields=["organization", "slug"],
+            )
+        ]
+
+
+class ProjectFileType(models.TextChoices):
+    """
+    The type of "file" in a project, used to distinguish between tasks, flows, models, etc.
+    """
+
+    TASK = "task", "Task"
+    FLOW = "flow", "Flow"
+    MODEL = "model", "Model"
+    DATASET = "dataset", "Dataset"
+
+
+class ProjectFile(UUIDModel):
+    """
+    A "file" containing a single named object (task, flow, model, dataset) in a project.
+
+    Conceptually, each task type is its own directory.
+    """
+
+    project_version: models.ForeignKey = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE
     )
-    # flows via Flow.project
-    # models via Model.project
-    # datasets via Dataset.project
+    type: models.CharField = models.CharField(max_length=64, choices=ProjectFileType.choices)
+    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
+
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, null=True)
+    flow = models.ForeignKey("Flow", on_delete=models.CASCADE, null=True)
+    model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True)
+    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True)
+
+    class Meta:
+        # ensure that the name is unique per type within the project
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_project_file_project_type_name_ak",
+                fields=["project_version_id", "type", "name"],
+            ),
+        ]
 
 
-class ProjectVersion(VersionedCommit, TaggableMixin, UUIDModel):
+class ProjectVersion(TaggableMixin, UUIDModel):
     """
     A project version records the state of a project at a specific point in time.
     """
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="versions")
-    version = models.CharField(max_length=256, null=True)
+    name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     parents = models.ManyToManyField("ProjectVersion", symmetrical=False)
-    # dataset_versions via DatasetVersion.project_version
-    # don't have model_versions yet because currently provided models are not versioned
+    committed_at = models.DateTimeField(null=True)
+
+    tasks = models.ManyToManyField("Task", through=ProjectFile)
+    flows = models.ManyToManyField("Flow", through=ProjectFile)
+    datasets = models.ManyToManyField("Dataset", through=ProjectFile)
+    # we'll likely have multiple programs per project at some point
+    program: models.ForeignKey = models.ForeignKey(
+        "Flow", on_delete=models.CASCADE, related_name="projects"
+    )
+    # set this last as not to override 'models' imported from django.db
+    models = models.ManyToManyField("Model", through=ProjectFile)
 
     def __str__(self) -> str:
-        return f"{self.organization.slug}/{self.name_version}"
+        return f"{self.organization.slug}/{self.name}@{self.id}"
+
+    def commit(self):
+        self.committed_at = datetime.utcnow()
+        self.save()
 
     @property
     def organization(self):
         return self.project.organization
 
-    @property
-    def name_version(self) -> str:
-        return f"{self.project.name}@{self.version}"
-
     class Meta:
         indexes = [
             models.Index(name="bench_project_version_idx", fields=["version"]),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_project_version_project_version_ak",
-                fields=["project", "version"],
-            )
-        ]
+        constraints = []

@@ -2,36 +2,23 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional, Sequence
+from typing import Any, Iterable, Iterator, Optional, Sequence
 
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
-from django.db.models import QuerySet
-
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel, proxies
-from bench.models.versioning import VersionedBlob, VersionedTree
-
-if TYPE_CHECKING:
-    from bench.models import Organization, Project
 
 from bench.models.tag import TaggableMixin
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
 
 class DatasetManager(models.Manager):
-    def create_dataset_version(
-        self,
-        name: str,
-        organization: Organization,
-        project: Project,
-        **kwargs,
-    ) -> DatasetVersion:
-        """Creates dataset version and corresponding dataset if it doesn't exist"""
-        with transaction.atomic():
-            dataset, _ = Dataset.objects.get_or_create(
-                organization=organization, project=project, name=name
-            )
-            return DatasetVersion.objects.create(dataset=dataset, **kwargs)
+    pass
+
+
+@dataclasses.dataclass
+class DatasetSearch:
+    text_like: Optional[str] = None
 
 
 class Dataset(TaggableMixin, UUIDModel):
@@ -46,56 +33,19 @@ class Dataset(TaggableMixin, UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    organization: models.ForeignKey = models.ForeignKey(
-        "bench.Organization", on_delete=models.CASCADE, related_name="datasets"
-    )
-    project = models.ForeignKey("bench.Project", on_delete=models.CASCADE, related_name="datasets")
-    objects = DatasetManager()
-
-    def __str__(self):
-        return f"{self.organization.slug}/{self.name}"
-
-    class Meta:
-        indexes = [
-            models.Index(name="bench_dataset_type_idx", fields=["type"]),
-            models.Index(name="bench_dataset_name_idx", fields=["name"]),
-        ]
-        constraints = [
-            # check that the name is unique within the project
-            models.UniqueConstraint(
-                name="bench_dataset_project_name_ak", fields=["project_id", "name"]
-            ),
-        ]
-
-
-@dataclasses.dataclass
-class DatasetSearch:
-    text_like: Optional[str] = None
-
-
-class DatasetVersion(VersionedTree, TaggableMixin, UUIDModel):
-    """
-    A version of a JSON dataset.
-    """
-
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="versions")
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="dataset_versions"
-    )
     # records from DatasetRecord.dataset
     record_schema = models.JSONField()
     length = models.IntegerField(default=0)
 
+    organization = models.ForeignKey(
+        "Organization", on_delete=models.CASCADE, related_name="datasets"
+    )
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="datasets+")
+
+    objects = DatasetManager()
+
     def __str__(self):
-        return f"{self.organization.slug}/{self.name_version}"
-
-    @property
-    def organization(self):
-        return self.dataset.organization
-
-    @property
-    def name_version(self) -> str:
-        return f"{self.dataset.name}@{self.content_hash}"
+        return f"{self.organization.slug}/{self.project.slug}/datasets/{self.name}@{self.id}"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -180,39 +130,12 @@ class DatasetVersion(VersionedTree, TaggableMixin, UUIDModel):
     def __len__(self) -> int:
         return self.length
 
-    @staticmethod
-    def checkout_from_parents(dataset: DatasetVersion):
-        parents: QuerySet[DatasetVersion] = proxies(dataset.parents.all(), DatasetVersion)
-        if parents:
-            # this should be caught in DatasetVersionSerializer validation
-            if len(parents) != 1:
-                raise RuntimeError("creating versions with multiple parents is not supported yet")
-
-            # note: parent metadata is copied in ArtifactVersionViewSet.create prior to actual create
-            # create a new version of the dataset state based on the parent
-            # TODO @Architecture: creating new version logic should be elsewhere (DatasetAccessor?)
-            #  because it is a shared concern and needs to drill down into (partial) sub-datasets.
-            parent = parents[0]
-            parent.checkout(dataset.version)
-        return dataset
-
-    def commit(self):
-        if self.committed:
-            raise ValueError(f"cannot commit dataset, already committed: {self.dataset}")
-
-        self.committed = True
-        self.save()
-
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_dataset_version_dataset_content_hash_ak",
-                fields=["dataset", "content_hash"],
-            ),
-        ]
+        indexes = []
+        constraints = []
 
 
-class DatasetRecord(UUIDModel, VersionedBlob):
+class DatasetRecord(UUIDModel):
     """
     An individual immutable record of a dataset-like Artifact.
     """
@@ -242,14 +165,10 @@ class DatasetRecord(UUIDModel, VersionedBlob):
 class DatasetView(TaggableMixin, UUIDModel):
     """
     A view of a Dataset.
-
-    If this view works only with specific versions, then it must specify the compatible
-    versions in 'compatible_versions'. If empty, we assume it works with all versions.
     """
 
     type = models.CharField(max_length=64)
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="views")
-    compatible_versions = models.ManyToManyField(DatasetVersion, related_name="views")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
