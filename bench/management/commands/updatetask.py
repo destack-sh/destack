@@ -28,9 +28,11 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         organization = Organization.objects.get(slug=options["organization"])
-        project = Project.objects.get_or_create(
-            organization=organization, name=options["project"], slug=options["project"]
-        )
+        project = Project.objects.filter(slug=options["project"], organization=organization).first()
+        if project is None:
+            project = Project.objects.create(
+                organization=organization, name=options["project"], slug=options["project"]
+            )
 
         # read task file lines
         with open(options["task"], "r") as f:
@@ -47,8 +49,14 @@ class Command(BaseCommand):
                 segments.append(segment)
                 segment = None
             elif segment is not None:
-                segment.lines.append(line)
+                segment.lines.append(line.strip())
 
         print(segments)
 
         new_version = project.create_version()
+        new_version.reset()
+
+        # possible instructions (in header are):
+        # ignore: ignore this segment (used for imports)
+        # task: define a task
+        # flow: define a flow
