@@ -71,7 +71,7 @@ class Execution(UUIDModel):
     )
     # relation to executable units
     flow = models.ForeignKey(
-        "FlowVersion", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
+        "Flow", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
     )
     flow_instruction = models.ForeignKey(
         "FlowInstruction",
@@ -85,10 +85,10 @@ class Execution(UUIDModel):
     )
     # relation to organizational units
     organization: models.ForeignKey = models.ForeignKey(
-        "bench.Organization", on_delete=models.CASCADE, related_name="executions+"
+        "Organization", on_delete=models.CASCADE, related_name="executions+"
     )
     project: models.ForeignKey = models.ForeignKey(
-        "bench.Project", on_delete=models.CASCADE, null=True, related_name="executions+"
+        "Project", on_delete=models.CASCADE, null=True, related_name="executions+"
     )
 
     objects = ExecutionManager()

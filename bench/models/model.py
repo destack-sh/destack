@@ -1,33 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
-
 from django.db import models
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
-if TYPE_CHECKING:
-    from bench.models import Organization, Project
-else:
-    Organization = object
-    Project = object
-
 
 class ModelManager(models.Manager):
-    def create_model(
-        self,
-        name: str,
-        organization: Organization,
-        project: Project,
-        description: Optional[str],
-    ) -> Model:
-        """Creates the given model with an initial version"""
-        model = Model(
-            name=name, organization=organization, project=project, description=description
-        )
-        model.save()
-        return model
+    pass
 
 
 class Model(TaggableMixin, UUIDModel):
@@ -38,6 +18,7 @@ class Model(TaggableMixin, UUIDModel):
 
     TODO @Cleanup: null project_id + global_name to access models directly from orgs feels hacky
         But is required to have external models and custom models (fine-tuned in a project).
+        Later, can  move this concept to a separate table.
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -48,23 +29,19 @@ class Model(TaggableMixin, UUIDModel):
     handler_id = models.CharField(max_length=64)
 
     organization = models.ForeignKey(
-        "bench.Organization", on_delete=models.CASCADE, related_name="models"
+        "Organization", on_delete=models.CASCADE, related_name="models"
     )
     project = models.ForeignKey(
-        "bench.Project", on_delete=models.CASCADE, null=True, blank=True, related_name="models"
+        "Project", on_delete=models.CASCADE, null=True, blank=True, related_name="models"
     )
 
     objects = ModelManager()
 
     def __str__(self):
-        return f"{self.organization.slug}/{self.name}"
+        return f"{self.organization.slug}/{self.project.slug}/models/{self.name}@{self.id}"
 
     class Meta:
         constraints = [
-            # check that the name is unique within the project
-            models.UniqueConstraint(
-                fields=["project_id", "name"], name="bench_model_project_name_ak"
-            ),
             # check that the organization + global_name is unique
             models.UniqueConstraint(
                 fields=["organization_id", "global_name"],

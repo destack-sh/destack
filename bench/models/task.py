@@ -24,6 +24,10 @@ class Task(TaggableMixin, UUIDModel):
     expectations = models.ManyToManyField("Flow", related_name="tasks+")
     # implementations from/to FlowInstruction
 
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="tasks")
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="tasks")
 
     objects = TaskManager()
+
+    def __str__(self):
+        return f"{self.organization.slug}/{self.project.slug}/tasks/{self.name}@{self.id}"

@@ -4,19 +4,16 @@ import abc
 import dataclasses
 import enum
 import threading
-import time
-import traceback
 import uuid
-from queue import Empty, Queue
-from typing import Any, Dict, Mapping, Union
+from queue import Queue
+from typing import Any, Dict, Union
 
 import structlog
 
 from bench.model.base import ModelHandler
-from bench.models import DatasetVersion, FlowVersion, Model
+from bench.models import Flow
 from bench.models.execution import Execution
 from bench.models.utils import UUIDT
-from bench.utils.record import RecordBatch
 
 logger = structlog.stdlib.get_logger()
 Resource = str
@@ -65,9 +62,7 @@ class Executor(abc.ABC):
 
     async def run_flow(
         self,
-        flow: FlowVersion,
-        inputs: Mapping[str, Mapping[str, FlowRawArgument]],
-        arguments: Mapping[str, Mapping[str, FlowRawArgument]],
+        flow: Flow,
         options: FlowExecutionOptions,
     ) -> Any:
         raise NotImplementedError
@@ -87,23 +82,7 @@ class LocalExecutorThread(threading.Thread):
         self._should_stop = False
 
     def run(self):
-        while not self._should_stop:
-            try:
-                plan, manifest = self._executions_queue.get_nowait()
-            except Empty:
-                time.sleep(0.01)
-                continue
-
-            save_execution_manifest(manifest)
-            try:
-                with manifest.execution.capture():
-                    logger.info("execute_started", execution=manifest.execution)
-                    self._executor._do_execute(plan, manifest)
-                logger.info("execute_terminated", execution=manifest.execution)
-            except Exception as e:
-                # print stacktrace for e to terminal
-                traceback.print_exception(type(e), e, e.__traceback__)
-                logger.error("execute_failed", execution=manifest.execution, error=e)
+        raise NotImplementedError
 
     def stop(self):
         self._should_stop = True

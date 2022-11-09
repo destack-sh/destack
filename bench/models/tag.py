@@ -54,10 +54,8 @@ class Tag(UUIDModel):
 RELATED_FIELDS = (
     "model",
     "dataset",
-    "dataset_version",
     "dataset_view",
     "flow",
-    "flow_version",
     "project",
     "project_version",
     "task",
@@ -65,10 +63,8 @@ RELATED_FIELDS = (
 RELATED_MODELS = (
     "Model",
     "Dataset",
-    "DatasetVersion",
     "DatasetView",
     "Flow",
-    "FlowVersion",
     "Project",
     "ProjectVersion",
     "Task",
@@ -112,17 +108,11 @@ class TaggedItem(UUIDModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
-    dataset_version = models.ForeignKey(
-        "DatasetVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
     dataset_view = models.ForeignKey(
         "DatasetView", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     flow = models.ForeignKey(
         "Flow", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
-    flow_version = models.ForeignKey(
-        "FlowVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="tagged_items", null=True
@@ -176,15 +166,6 @@ class TaggableMixin:
             tag_instance = tag
         self.tagged_items.get_or_create(tag_id=tag_instance.id)
         return tag_instance
-
-
-TAG_TYPE_HEAD = "head"
-TAG_TYPE_BRANCH = "branch"
-TAG_TYPE_RELEASE = "release"
-TAG_TYPE_STAGE = "stage"
-TAG_TYPE_ALIAS = "alias"
-TAG_TYPE_CAPABILITY = "capability"
-TAG_TYPE_SOURCE = "source"
 
 
 def _make_tag(

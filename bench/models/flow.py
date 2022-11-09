@@ -1,24 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from django.db import models, transaction
+from django.db import models
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
-from bench.models.versioning import VersionedBlob, VersionedTree
-
-if TYPE_CHECKING:
-    from bench.models import Organization
 
 
 class FlowManager(models.Manager):
-    def create_flow_version_by_name(self, name: str, organization: Organization) -> FlowVersion:
-        """Creates dataset version and corresponding dataset if it doesn't exist"""
-        with transaction.atomic():
-            flow, _ = Flow.objects.get_or_create(name=name, organization=organization)
-            flow_version = FlowVersion.objects.create(flow=flow)
-        return flow_version
+    pass
 
 
 class Flow(TaggableMixin, UUIDModel):
@@ -33,64 +22,20 @@ class Flow(TaggableMixin, UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    organization: models.ForeignKey = models.ForeignKey(
-        "bench.Organization", on_delete=models.CASCADE, related_name="flows"
-    )
-
-    objects = FlowManager()
-
-    def __str__(self):
-        return f"{self.organization.slug}/{self.name}"
-
-    class Meta:
-        indexes = [
-            models.Index(name="bench_flow_name_idx", fields=["name"]),
-        ]
-        constraints = [
-            # check that the name is unique within the project
-            models.UniqueConstraint(
-                name="bench_flow_project_name_ak", fields=["project_id", "name"]
-            )
-        ]
-
-
-class FlowVersion(VersionedTree, TaggableMixin, UUIDModel):
-    """
-    A flow version is a specific (generally) immutable specification of a flow.
-    """
-
-    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="versions")
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="flow_versions"
-    )
     root_instruction = models.ForeignKey(
         "FlowInstruction", on_delete=models.CASCADE, related_name="flow+"
     )
 
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="flows")
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="flows+")
+
+    objects = FlowManager()
+
     def __str__(self) -> str:
-        return f"{self.organization.slug}/{self.name_version}"
-
-    @property
-    def organization(self):
-        return self.flow.organization
-
-    @property
-    def name_version(self) -> str:
-        return f"{self.flow.name}@{self.content_hash}"
-
-    def copy_from(self, parent: FlowVersion):
-        raise NotImplementedError
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_flow_version_flow_content_hash_ak",
-                fields=["flow", "content_hash"],
-            )
-        ]
+        return f"{self.organization.slug}/{self.project.slug}/datasets/{self.name}@{self.id}"
 
 
-class FlowInstruction(UUIDModel, VersionedBlob):
+class FlowInstruction(UUIDModel):
     """
     An instruction is a curried Python function with high level arguments like datasets, models and flows.
 
@@ -99,7 +44,7 @@ class FlowInstruction(UUIDModel, VersionedBlob):
     Instructions may contain and use other instructions, forming an instruction tree.
     """
 
-    flow = models.ForeignKey(FlowVersion, on_delete=models.CASCADE, related_name="instructions")
+    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="instructions")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -107,7 +52,7 @@ class FlowInstruction(UUIDModel, VersionedBlob):
         "FlowInstruction", on_delete=models.CASCADE, null=True, related_name="children"
     )
     task = models.ForeignKey(
-        "bench.Task", on_delete=models.CASCADE, null=True, related_name="implementations"
+        "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
     )
 
     # either set code_id to built-in function id or set code
