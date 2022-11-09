@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Iterator, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional, Sequence
 
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
@@ -11,10 +11,11 @@ from django.db.models import QuerySet
 
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel, proxies
 from bench.models.versioning import VersionedBlob, VersionedTree
-from bench.utils.spec import FieldValue
 
 if TYPE_CHECKING:
-    from bench.models import Organization, TaggableMixin
+    from bench.models import Organization, Project
+
+from bench.models.tag import TaggableMixin
 
 
 class DatasetManager(models.Manager):
@@ -22,33 +23,15 @@ class DatasetManager(models.Manager):
         self,
         name: str,
         organization: Organization,
+        project: Project,
         **kwargs,
     ) -> DatasetVersion:
         """Creates dataset version and corresponding dataset if it doesn't exist"""
         with transaction.atomic():
             dataset, _ = Dataset.objects.get_or_create(
-                type=DATASET_TYPE, organization=organization, name=name
+                organization=organization, project=project, name=name
             )
             return DatasetVersion.objects.create(dataset=dataset, **kwargs)
-
-    def get_or_create_dataset_version(
-        self,
-        name: str,
-        organization: Organization,
-        version: Optional[str] = None,
-        **kwargs,
-    ) -> DatasetVersion:
-        """Creates dataset version and corresponding dataset if it doesn't exist"""
-        dataset, _ = Dataset.objects.get_or_create(
-            type=DATASET_TYPE, organization=organization, name=name
-        )
-        dv = DatasetVersion.objects.select_related("record_list")
-        if version is not None:
-            dataset_version, _ = dv.get_or_create(dataset=dataset, version=version)
-        else:
-            dataset_version, _ = dv.get_or_create(dataset=dataset)
-
-        return dataset_version
 
 
 class Dataset(TaggableMixin, UUIDModel):
@@ -112,7 +95,7 @@ class DatasetVersion(VersionedTree, TaggableMixin, UUIDModel):
 
     @property
     def name_version(self) -> str:
-        return f"{self.dataset.name}@{self.version}"
+        return f"{self.dataset.name}@{self.content_hash}"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -133,7 +116,7 @@ class DatasetVersion(VersionedTree, TaggableMixin, UUIDModel):
         stop = stop if stop is not None else 0
         return DatasetRecord.objects.filter(dataset=self)[start:stop]
 
-    def get_records_data_field(self, key: str) -> list[FieldValue]:
+    def get_records_data_field(self, key: str) -> list[Any]:
         return DatasetRecord.objects.filter(dataset=self).values_list("data__" + key, flat=True)
 
     def __iter__(self) -> Iterator[DatasetRecord]:
@@ -221,13 +204,10 @@ class DatasetVersion(VersionedTree, TaggableMixin, UUIDModel):
         self.save()
 
     class Meta:
-        indexes = [
-            models.Index(name="bench_dataset_version_idx", fields=["version"]),
-        ]
         constraints = [
             models.UniqueConstraint(
-                name="bench_dataset_version_dataset_version_ak",
-                fields=["dataset", "version"],
+                name="bench_dataset_version_dataset_content_hash_ak",
+                fields=["dataset", "content_hash"],
             ),
         ]
 

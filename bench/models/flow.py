@@ -76,19 +76,16 @@ class FlowVersion(VersionedTree, TaggableMixin, UUIDModel):
 
     @property
     def name_version(self) -> str:
-        return f"{self.flow.name}@{self.version}"
+        return f"{self.flow.name}@{self.content_hash}"
 
     def copy_from(self, parent: FlowVersion):
         raise NotImplementedError
 
     class Meta:
-        indexes = [
-            models.Index(name="bench_flow_version_idx", fields=["version"]),
-        ]
         constraints = [
             models.UniqueConstraint(
-                name="bench_flow_version_flow_version_ak",
-                fields=["flow", "version"],
+                name="bench_flow_version_flow_content_hash_ak",
+                fields=["flow", "content_hash"],
             )
         ]
 
@@ -115,7 +112,7 @@ class FlowInstruction(UUIDModel, VersionedBlob):
 
     # either set code_id to built-in function id or set code
     code_id = models.CharField(blank=True, null=True, max_length=256)
-    code = models.CharField(blank=True, null=True)
+    code = models.TextField(blank=True, null=True)
 
     # parameters to/from FlowInstructionParameter
     # arguments to/from FlowInstructionArgument

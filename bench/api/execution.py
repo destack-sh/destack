@@ -3,54 +3,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
-from bench.api.artifact import ArtifactViewSerializer
-from bench.api.dataset import DatasetRecordSerializer
-from bench.api.utils import ArtifactVersionListingField, FlowVersionListingField
-from bench.dataset.accessor import DatasetHandler
-from bench.models import DatasetVersion, Execution, Organization, Project
-from bench.models.dataset import DatasetViewData
-from bench.models.execution import ExecutionArtifactConnection
-from bench.utils.func import terrible_cast
-
-
-class ExecutionArtifactConnectionSerializer(serializers.ModelSerializer):
-    artifact = ArtifactVersionListingField(read_only=True)
-    dataset_preview = serializers.SerializerMethodField(read_only=True)
-    view = ArtifactViewSerializer()
-
-    def get_dataset_preview(self, obj: ExecutionArtifactConnection):
-        if obj.artifact.artifact.type != "dataset":
-            return None
-
-        dataset = terrible_cast(DatasetVersion, obj.artifact)
-        view = DatasetViewData(**(obj.view_inline or {}))
-
-        # TODO @Performance: enable configuring execution connection records preview via api
-        offset = 0
-        limit = 3
-        accessor = DatasetHandler(dataset)
-        start = view.apply(offset)
-        end = view.apply(offset + limit)
-        records = list(accessor.get_records_slice(start, end))
-        count = view.apply(len(accessor)) - view.apply(0)
-        return {
-            "limit": limit,
-            "count": count,
-            "offset": offset,
-            "results": DatasetRecordSerializer(records, many=True).data,
-        }
-
-    class Meta:
-        model = ExecutionArtifactConnection
-        fields = [
-            "connection_type",
-            "connection_name",
-            "artifact",
-            "dataset_preview",
-            "view",
-            "view_inline",
-        ]
-        read_only_fields = fields
+from bench.api.utils import FlowVersionListingField, ModelVersionListingField
+from bench.models import Execution, Organization, Project
 
 
 class ExecutionSerializer(serializers.ModelSerializer):
@@ -58,9 +12,8 @@ class ExecutionSerializer(serializers.ModelSerializer):
     flow_instruction: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         read_only=True
     )
-    model = ArtifactVersionListingField(read_only=True)
+    model = ModelVersionListingField(read_only=True)
     children = serializers.SerializerMethodField(read_only=True)
-    connected_artifacts = ExecutionArtifactConnectionSerializer(many=True)
     organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
         slug_field="slug", queryset=Organization.objects.all()
     )

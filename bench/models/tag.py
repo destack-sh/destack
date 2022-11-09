@@ -59,17 +59,18 @@ RELATED_FIELDS = (
     "flow",
     "flow_version",
     "project",
-    "batch",
+    "project_version",
     "task",
 )
 RELATED_MODELS = (
-    "Artifact",
-    "ArtifactVersion",
-    "ArtifactView",
+    "Model",
+    "Dataset",
+    "DatasetVersion",
+    "DatasetView",
     "Flow",
     "FlowVersion",
     "Project",
-    "Batch",
+    "ProjectVersion",
     "Task",
 )
 
@@ -125,6 +126,9 @@ class TaggedItem(UUIDModel):
     )
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    )
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     task = models.ForeignKey(
         "Task", on_delete=models.CASCADE, related_name="tagged_items", null=True

@@ -13,7 +13,7 @@ from typing import Any, Dict, Mapping, Union
 import structlog
 
 from bench.model.base import ModelHandler
-from bench.models import ArtifactVersion, DatasetVersion, FlowVersion, Model
+from bench.models import DatasetVersion, FlowVersion, Model
 from bench.models.execution import Execution
 from bench.models.utils import UUIDT
 from bench.utils.record import RecordBatch
@@ -22,9 +22,6 @@ logger = structlog.stdlib.get_logger()
 Resource = str
 ResourceRequirements = Dict[Resource, Union[int, float]]
 PerNodeResourceRequirements = Dict[UUIDT, ResourceRequirements]
-
-FlowRawArgument = Union[RecordBatch, Model, DatasetVersion]
-FlowArgument = Union[ArtifactVersion]
 
 
 class FlowRuntimeValidation(enum.Enum):

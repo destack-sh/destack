@@ -4,17 +4,13 @@ from typing import Union, cast
 import requests
 import structlog.stdlib
 
-from bench.artifact.base import NO_STATIC_KEYS
 from bench.model.base import ModelHandler, ModelHandlerMetadata, models
 from bench.utils.record import Record, RecordBatch
-from bench.utils.spec import ModelType, convert_to_record_spec
 
 logger = structlog.stdlib.get_logger()
 
 
 class HuggingFaceHostedModel(ModelHandler):
-    config_static_keys = NO_STATIC_KEYS
-
     def __init__(self, model_name: str, bearer_token: str, **kwargs):
         self.model_name = model_name
         self.bearer_token = bearer_token
