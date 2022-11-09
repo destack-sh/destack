@@ -5,6 +5,8 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
+from bench.models import Organization, Project
+
 
 @dataclass
 class TaskFileSegment:
@@ -13,14 +15,23 @@ class TaskFileSegment:
 
 
 class Command(BaseCommand):
-    help = "Sets up dev environment with sample data"
+    help = "Loads a task from a file into a project"
 
     def add_arguments(self, parser: CommandParser):
         # task file path (must exist and end in .py)
         parser.add_argument("task", type=str)
+        # organization name
+        parser.add_argument("--organization", type=str, required=True)
+        # project name
+        parser.add_argument("--project", type=str, required=True)
 
     @transaction.atomic
     def handle(self, *args, **options):
+        organization = Organization.objects.get(slug=options["organization"])
+        project = Project.objects.get_or_create(
+            organization=organization, name=options["project"], slug=options["project"]
+        )
+
         # read task file lines
         with open(options["task"], "r") as f:
             lines = f.readlines()
@@ -39,3 +50,5 @@ class Command(BaseCommand):
                 segment.lines.append(line)
 
         print(segments)
+
+        new_version = project.create_version()

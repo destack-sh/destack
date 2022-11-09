@@ -3,16 +3,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
 from rest_framework.pagination import LimitOffsetPagination
 
-from bench.api.utils import FlowVersionListingField, ModelVersionListingField
 from bench.models import Execution, Organization, Project
 
 
 class ExecutionSerializer(serializers.ModelSerializer):
-    flow = FlowVersionListingField(read_only=True)
+    flow = serializers.PrimaryKeyRelatedField(read_only=True)
     flow_instruction: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         read_only=True
     )
-    model = ModelVersionListingField(read_only=True)
+    model = serializers.PrimaryKeyRelatedField(read_only=True)
     children = serializers.SerializerMethodField(read_only=True)
     organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
         slug_field="slug", queryset=Organization.objects.all()

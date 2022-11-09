@@ -5,21 +5,18 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, validators, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bench.api.execution import ExecutionSerializer
 from bench.api.tag import TaggedItemSerializerMixin
-from bench.api.utils import FlowVersionListingField
 from bench.models import Organization
-from bench.models.flow import Flow, FlowInstruction, FlowVersion
+from bench.models.flow import Flow, FlowInstruction
 from bench.models.utils import MAX_NAME_LENGTH
 
 # ========================
 # General Flow serializers
 # ========================
-from bench.models.versioning import get_head
 
 logger = structlog.stdlib.get_logger()
 
@@ -44,13 +41,8 @@ class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
         fields = ["id", "name", "description", "created_at", "organization", "head", "tags"]
         read_only_fields = ["id", "created_at", "head", "versions"]
 
-    def get_head(self, obj: Flow):
-        head = get_head(obj)
-        return FlowVersionSerializer(head).data if head is not None else None
-
 
 class FlowInstructionSerializer(serializers.ModelSerializer):
-    flow = FlowVersionListingField(queryset=FlowVersion.objects.all())
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
         validators=[
@@ -75,14 +67,10 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
     flow: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=Flow.objects.all(), slug_field="name"
     )
-    parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        queryset=FlowVersion.objects.all(), slug_field="version", many=True
-    )
     # nodes, node_edges and artifact_edges are read only duplicates of the respective nested viewsets
     root_instruction = FlowInstructionSerializer(many=False, read_only=True)
 
     class Meta:
-        model = FlowVersion
         fields = [
             "id",
             "created_at",
@@ -143,47 +131,6 @@ class FlowViewSet(viewsets.ModelViewSet):
     def execute(self, request: Request, organization: str, name: str) -> Response:
         flow: Flow = get_object_or_404(Flow, organization__slug=organization, name=name)
         return _execute_response(get_head(flow), request)
-
-
-class FlowVersionViewSet(viewsets.ModelViewSet):
-    queryset = FlowVersion.objects.all()
-    serializer_class = FlowVersionSerializer
-    lookup_field = "version"
-    lookup_value_regex = r"[\w.]+"
-    # TODO @Feature: paginate flow versions with branches correctly
-    pagination_class = LimitOffsetPagination
-
-    def get_queryset(self) -> models.QuerySet[FlowVersion]:
-        return self.queryset.filter(
-            flow__organization__slug=self.kwargs.get("organization"),
-            flow__name=self.kwargs.get("flow"),
-        )
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
-        # add flow from path arguments
-        request.data["flow"] = kwargs.pop("flow")
-        return super().create(request, *args, **kwargs)
-
-    def perform_create(self, serializer: serializers.BaseSerializer) -> None:
-        # TODO @Cleanup: why force committed=False in FlowVersion create? (also see DatasetVersion)
-        instance: FlowVersion = serializer.save(committed=False)
-        parents: models.QuerySet[FlowVersion] = instance.parents.all()
-
-        if parents:
-            # this should be caught in FlowVersionSerializer validation
-            if len(parents) != 1:
-                raise RuntimeError("creating versions with multiple parents is not supported yet")
-
-            # copy flow nodes and edges from parent
-            instance.copy_from(parents[0])
-
-    @action(methods=["POST"], detail=True)
-    @extend_schema(responses=ExecutionSerializer())
-    def execute(self, request: Request, organization: str, flow: str, version: str) -> Response:
-        flow_instance = get_object_or_404(
-            FlowVersion, flow__organization__slug=organization, flow__name=flow, version=version
-        )
-        return _execute_response(flow_instance, request)
 
 
 class FlowInstructionViewSet(viewsets.ModelViewSet):

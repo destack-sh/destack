@@ -4,9 +4,9 @@ from typing import List
 
 from rest_framework.routers import BaseRouter
 
-from bench.api.dataset import DatasetRecordViewSet, DatasetVersionViewSet, DatasetViewSet
+from bench.api.dataset import DatasetRecordViewSet, DatasetViewSet
 from bench.api.execution import ExecutionViewSet
-from bench.api.flow import FlowInstructionViewSet, FlowVersionViewSet, FlowViewSet
+from bench.api.flow import FlowInstructionViewSet, FlowViewSet
 from bench.api.model import ModelViewSet
 from bench.api.organization import OrganizationViewSet
 from bench.api.project import ProjectViewSet
@@ -37,21 +37,11 @@ datasets_router = router.register_nested(
 )
 # /datasets/<organization>/<dataset>/records
 datasets_router.register("records", DatasetRecordViewSet)
-# /datasets/<organization>/<dataset>/versions
-datasets_versions_router = datasets_router.register_nested(
-    "versions", DatasetVersionViewSet, lookup="version"
-)
-# /datasets/<organization>/<dataset>/versions/<version>/records
-datasets_versions_router.register("records", DatasetRecordViewSet)
 
 # /models/<organization> and /models/<organization>/<model>
 models_router = router.register_nested("models", ModelViewSet, lookup=("organization", "artifact"))
 
 # /flows/<organization>/<flow>
 flows_router = router.register_nested("flows", FlowViewSet, lookup=("organization", "flow"))
-# /flows/<organization>/<flow>/versions
-flows_versions_router = flows_router.register_nested(
-    "versions", FlowVersionViewSet, lookup="version"
-)
 
 routers: List[BaseRouter] = [router, *router.descendant_routers]

@@ -1,24 +1,19 @@
-from typing import Optional, cast
+from typing import cast
 
 import structlog
 from django.core.validators import RegexValidator
-from django.db import models
 from django.http import Http404
-from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, validators, viewsets
-from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import LimitOffsetPagination, _positive_int
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bench.api.tag import TaggedItemSerializerMixin
-from bench.models import Dataset, DatasetVersion, Organization
+from bench.models import Dataset, Organization
 from bench.models.dataset import DatasetRecord, DatasetSearch, DatasetViewData
 from bench.models.utils import MAX_NAME_LENGTH
-from bench.models.versioning import get_head
-from bench.utils.func import terrible_cast
 
 logger = structlog.stdlib.get_logger()
 
@@ -40,10 +35,6 @@ class DatasetSerializer(serializers.ModelSerializer):
     organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
         slug_field="slug", queryset=Organization.objects.all()
     )
-    versions: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        many=True, read_only=True, slug_field="version"
-    )
-    head = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Dataset
@@ -60,21 +51,13 @@ class DatasetSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "head", "versions"]
 
-    def get_head(self, obj: Dataset):
-        head = get_head(obj)
-        return DatasetVersionSerializer(head).data if head is not None else None
-
 
 class DatasetVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
     dataset: serializers.SlugRelatedField = serializers.SlugRelatedField(
         queryset=Dataset.objects.all(), slug_field="name"
     )
-    parents: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        queryset=DatasetVersion.objects.all(), slug_field="version", many=True
-    )
 
     class Meta:
-        model = DatasetVersion
         fields = [
             "id",
             "created_at",
@@ -134,43 +117,6 @@ class DatasetViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         queryset = queryset.filter(organization__slug=self.kwargs.get("organization"))
         return queryset
-
-
-class DatasetVersionViewSet(viewsets.ModelViewSet):
-    queryset = DatasetVersion.objects.all()
-    serializer_class = DatasetVersionSerializer
-
-    def get_queryset(self) -> models.QuerySet[DatasetVersion]:
-        return self.queryset.filter(
-            artifact__organization__slug=self.kwargs.get("organization"),
-            artifact__name=self.kwargs.get("artifact"),
-        )
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
-        request.data["artifact"] = kwargs.pop("artifact")
-        # auto-insert parent metadata if not explicitly given and there is only one parent
-        if request.data.get("parents"):
-            parents_field_serializer = self.get_serializer().fields["parents"]  # type: ignore
-            parents = parents_field_serializer.to_internal_value(request.data.get("parents"))
-            if len(parents) == 1 and "metadata" not in request.data:
-                request.data["metadata"] = parents[0].metadata.copy()
-
-        return super().create(request, *args, **kwargs)
-
-    def perform_create(self, serializer: serializers.BaseSerializer) -> None:
-        instance: DatasetVersion = serializer.save(committed=False)
-        instance.checkout_from_parents()
-
-    @action(methods=["POST"], detail=True)
-    def commit(self, request: Request, *args, **kwargs) -> Response:
-        instance: DatasetVersion = self.get_object()
-        instance.commit()
-        return Response(status=status.HTTP_200_OK)
-
-    def destroy(self, request: Request, *args, **kwargs) -> Response:
-        # instance: DatasetVersion = self.get_object()
-        # TODO @Feature: delete dataset versions
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 class DatasetRecordPagination(LimitOffsetPagination):
@@ -253,15 +199,3 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
         except LookupError:
             raise Http404("No record matches the given query.")
         return Response(DatasetRecordSerializer(ds_record).data)
-
-
-def get_dataset_version(organization: str, artifact: str, version: Optional[str]) -> DatasetVersion:
-    if version is not None:
-        return get_object_or_404(
-            DatasetVersion,
-            artifact__name=artifact,
-            organization__slug=organization,
-            version=version,
-        )
-    else:
-        return terrible_cast(DatasetVersion, get_head(get_object_or_404(Dataset, name=artifact)))

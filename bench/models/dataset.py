@@ -140,7 +140,7 @@ class DatasetRecord(UUIDModel):
     An individual immutable record of a dataset-like Artifact.
     """
 
-    dataset = models.ForeignKey("DatasetVersion", on_delete=models.CASCADE, related_name="records")
+    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="records")
     index = models.IntegerField()
     data = models.JSONField()
     metadata = models.JSONField(null=True, blank=True)

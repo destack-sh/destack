@@ -1,10 +1,36 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
 
 from django.core.validators import validate_slug
-from django.db import models
+from django.db import connection, models, transaction
+from social_core.utils import slugify
 
+from bench.models import Organization
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+
+
+class ProjectManager(models.Manager):
+    @transaction.atomic
+    def create(self, organization: Organization, name: str, slug: Optional[str]) -> "Project":
+        if not slug:
+            slug = slugify(name)
+        project = super().create(organization=organization, name=name, slug=slug)
+        project.head = ProjectVersion.objects.create(project=project)
+        project.save()
+        return project
+
+    def get_or_create(
+        self, organization: Organization, name: str, slug: Optional[str]
+    ) -> "Project":
+        if not slug:
+            slug = slugify(name)
+        project, _ = super().get_or_create(
+            organization=organization, slug=slug, defaults={"name": name}
+        )
+        return project
 
 
 class Project(TaggableMixin, UUIDModel):
@@ -13,6 +39,7 @@ class Project(TaggableMixin, UUIDModel):
 
     Projects are the root of versioning, similar to repositories in Git.
     All versions are available in 'versions' and may not be linear (also like in Git).
+    Project "files" (the contents of the project) are copy-on-write.
 
     A project has a main program (the top-level task & flow implementations).
     Later, projects may also be "non-executable" libraries.
@@ -31,6 +58,45 @@ class Project(TaggableMixin, UUIDModel):
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
     )
+
+    @transaction.atomic
+    def create_version(
+        self,
+        name: str,
+        description: str = None,
+        parent: ProjectVersion = None,
+        auto_commit: bool = True,
+    ) -> "ProjectVersion":
+        if parent is None:
+            parent = self.head
+        if not parent.is_committed:
+            if auto_commit:
+                parent.commit()
+            else:
+                raise ValueError(f"parent version must be committed: {parent}")
+
+        version = ProjectVersion.objects.create(
+            project=self, name=name, description=description, parents=[parent]
+        )
+        if parent:
+            # copy all project files from parent in SQL (see ProjectFile model below)
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+INSERT INTO bench_projectfile
+ (%s, type, name, task_id, flow_id, model_id, dataset_id)
+SELECT %s, type, name, task_id, flow_id, model_id, dataset_id
+ FROM bench_projectfile
+ WHERE project_version_id = %s
+""",
+                [version.id, parent.id],
+            )
+
+        # head has advanced to new version
+        if parent == self.head:
+            self.head = version
+
+        return version
 
     class Meta:
         constraints = [
@@ -60,7 +126,7 @@ class ProjectFile(UUIDModel):
     """
 
     project_version: models.ForeignKey = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE
+        "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
     type: models.CharField = models.CharField(max_length=64, choices=ProjectFileType.choices)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -91,6 +157,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     parents = models.ManyToManyField("ProjectVersion", symmetrical=False)
     committed_at = models.DateTimeField(null=True)
 
+    # files via ProjectFile
     tasks = models.ManyToManyField("Task", through=ProjectFile)
     flows = models.ManyToManyField("Flow", through=ProjectFile)
     datasets = models.ManyToManyField("Dataset", through=ProjectFile)
@@ -109,11 +176,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         self.save()
 
     @property
+    def is_committed(self):
+        return self.committed_at is not None
+
+    @property
     def organization(self):
         return self.project.organization
 
     class Meta:
-        indexes = [
-            models.Index(name="bench_project_version_idx", fields=["version"]),
-        ]
+        indexes = []
         constraints = []
