@@ -3,33 +3,28 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from django.db import models
-from django.db.models import QuerySet
 
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, MODEL_TYPE, UUIDModel
+from bench.models.tag import TaggableMixin
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import Organization, TaggableMixin
+    from bench.models import Organization, Project
 else:
     Organization = object
+    Project = object
 
 
 class ModelManager(models.Manager):
-    def get_queryset(self) -> QuerySet[Model]:
-        return super().get_queryset().filter(type__exact=MODEL_TYPE)
-
-    def get_or_create(self, *args, **kwargs):
-        kwargs["type"] = MODEL_TYPE
-        return super().get_or_create(*args, **kwargs)
-
     def create_model(
         self,
         name: str,
         organization: Organization,
+        project: Project,
         description: Optional[str],
     ) -> Model:
         """Creates the given model with an initial version"""
         model = Model(
-            type=MODEL_TYPE, name=name, organization=organization, description=description
+            name=name, organization=organization, project=project, description=description
         )
         model.save()
         return model
@@ -50,9 +45,9 @@ class Model(TaggableMixin, UUIDModel):
     global_name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    handler_id = models.CharField()
+    handler_id = models.CharField(max_length=64)
 
-    organization: models.ForeignKey = models.ForeignKey(
+    organization = models.ForeignKey(
         "bench.Organization", on_delete=models.CASCADE, related_name="models"
     )
     project = models.ForeignKey(

@@ -4,9 +4,7 @@ import abc
 import typing
 from typing import Iterator, List, Union
 
-from bench.utils.spec import FieldValue
-
-Record = Union[FieldValue, dict[str, FieldValue]]
+Record = Union[typing.Any, dict[str, typing.Any]]
 
 
 class RecordBatch(abc.ABC):
@@ -23,12 +21,10 @@ class RecordBatch(abc.ABC):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> list[FieldValue]:
+    def __getitem__(self, index: str) -> list:
         ...
 
-    def __getitem__(
-        self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, list[FieldValue]]:
+    def __getitem__(self, index: Union[int, slice, str]) -> Union[Record, RecordBatch, list]:
         raise NotImplementedError
 
     def __iter__(self) -> Iterator[Record]:
@@ -61,12 +57,10 @@ class RecordList(RecordBatch):
         ...
 
     @typing.overload
-    def __getitem__(self, index: str) -> list[FieldValue]:
+    def __getitem__(self, index: str) -> list:
         ...
 
-    def __getitem__(
-        self, index: Union[int, slice, str]
-    ) -> Union[Record, RecordBatch, list[FieldValue]]:
+    def __getitem__(self, index: Union[int, slice, str]) -> Union[Record, RecordBatch, list]:
         # TODO @Performance: improve RecordList __getitem__.
         #  There are probably a thousand better ways of doing this,
         #  see e.g. numpy views, Activeloop Datasets, HuggingFace Datasets, etc.

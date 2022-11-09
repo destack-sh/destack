@@ -19,9 +19,9 @@ class Task(TaggableMixin, UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     schema = models.JSONField()
-    definitions = models.ManyToManyField("Dataset", related_name="tasks")
-    examples = models.ManyToManyField("Dataset", related_name="tasks")
-    expectations = models.ManyToManyField("Flow", related_name="tasks")
+    definitions = models.ManyToManyField("Dataset", related_name="tasks+")
+    examples = models.ManyToManyField("Dataset", related_name="tasks+")
+    expectations = models.ManyToManyField("Flow", related_name="tasks+")
     # implementations from/to FlowInstruction
 
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="tasks")

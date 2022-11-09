@@ -3,7 +3,7 @@
 # Compiled with:
 #  bench compile bench/demo/hmm_simple.py
 #   --task generate_command
-#   --models openai/code-davinci-002
+#   --models openai/code-davinci-002,openai/code-cushman-002
 #   --optimize accuracy
 # --
 

@@ -1,5 +1,4 @@
-import json
-from typing import Optional, Union, cast
+from typing import Optional, cast
 
 import structlog
 from django.core.validators import RegexValidator
@@ -14,12 +13,6 @@ from rest_framework.pagination import LimitOffsetPagination, _positive_int
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.api.dataset import (
-    DatasetSerializer,
-    DatasetVersionSerializer,
-    DatasetVersionViewSet,
-    DatasetViewSet,
-)
 from bench.api.tag import TaggedItemSerializerMixin
 from bench.models import Dataset, DatasetVersion, Organization
 from bench.models.dataset import DatasetRecord, DatasetSearch, DatasetViewData
@@ -80,7 +73,7 @@ class DatasetVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSeria
         queryset=DatasetVersion.objects.all(), slug_field="version", many=True
     )
 
-    class Meta(DatasetVersionSerializer.Meta):
+    class Meta:
         model = DatasetVersion
         fields = [
             "id",
@@ -144,7 +137,7 @@ class DatasetViewSet(viewsets.ModelViewSet):
 
 
 class DatasetVersionViewSet(viewsets.ModelViewSet):
-    queryset = DatasetVersion.objects.filter(dataset__type=DATASET_TYPE).all()
+    queryset = DatasetVersion.objects.all()
     serializer_class = DatasetVersionSerializer
 
     def get_queryset(self) -> models.QuerySet[DatasetVersion]:

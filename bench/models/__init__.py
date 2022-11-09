@@ -9,17 +9,9 @@ from .flow import (
 )
 from .model import Model
 from .organization import Organization
-from .project import Project
-from .tag import (
-    TAG_TYPE_ALIAS,
-    TAG_TYPE_BRANCH,
-    TAG_TYPE_CAPABILITY,
-    TAG_TYPE_HEAD,
-    TAG_TYPE_STAGE,
-    Tag,
-    TaggableMixin,
-    TaggedItem,
-)
+from .project import Project, ProjectVersion
+from .tag import Tag, TaggableMixin, TaggedItem
+from .task import Task
 from .user import User
 
 __all__ = [
@@ -29,11 +21,7 @@ __all__ = [
     "Tag",
     "TaggedItem",
     "TaggableMixin",
-    "TAG_TYPE_ALIAS",
-    "TAG_TYPE_HEAD",
-    "TAG_TYPE_BRANCH",
-    "TAG_TYPE_STAGE",
-    "TAG_TYPE_CAPABILITY",
+    "Task",
     "Flow",
     "FlowVersion",
     "FlowInstruction",
@@ -45,5 +33,6 @@ __all__ = [
     "ModelExecution",
     "Organization",
     "Project",
+    "ProjectVersion",
     "User",
 ]

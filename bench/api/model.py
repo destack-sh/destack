@@ -1,15 +1,8 @@
 from django.core.validators import RegexValidator
 from rest_framework import serializers, validators, viewsets
-from rest_framework.decorators import action
-from rest_framework.request import Request
-from rest_framework.response import Response
 
-from bench.api.execution import ExecutionSerializer
-from bench.executor import executor
-from bench.models import Model, ModelVersion, Organization
+from bench.models import Model, Organization
 from bench.models.utils import MAX_NAME_LENGTH
-from bench.models.versioning import get_head
-from bench.utils.func import terrible_cast
 
 
 class ModelSerializer(serializers.ModelSerializer):
@@ -48,20 +41,3 @@ class ModelSerializer(serializers.ModelSerializer):
 class ModelViewSet(viewsets.ModelViewSet):
     queryset = Model.objects.all()
     serializer_class = ModelSerializer
-
-    @action(methods=["POST"], detail=True)
-    def predict(self, request: Request, *args, **kwargs):
-        model = terrible_cast(ModelVersion, get_head(self.get_object()))
-        return _predict_response(model, request)
-
-
-def _predict_response(model: ModelVersion, request: Request):
-    input_record = {"text": request.data.get("text")}
-    execution, prediction = executor.run_model(
-        model,
-        record=input_record,
-        blocking=True,
-        load_if_needed=True,
-    )
-    serialized_execution = ExecutionSerializer(execution).data
-    return Response(serialized_execution)
