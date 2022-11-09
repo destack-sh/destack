@@ -82,7 +82,7 @@ class LocalExecutorThread(threading.Thread):
         self._should_stop = False
 
     def run(self):
-        raise NotImplementedError
+        pass
 
     def stop(self):
         self._should_stop = True

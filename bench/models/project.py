@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+import pytz
 from django.core.validators import validate_slug
 from django.db import connection, models, transaction
 from social_core.utils import slugify
@@ -20,16 +21,6 @@ class ProjectManager(models.Manager):
         project = super().create(organization=organization, name=name, slug=slug)
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
-        return project
-
-    def get_or_create(
-        self, organization: Organization, name: str, slug: Optional[str]
-    ) -> "Project":
-        if not slug:
-            slug = slugify(name)
-        project, _ = super().get_or_create(
-            organization=organization, slug=slug, defaults={"name": name}
-        )
         return project
 
 
@@ -53,7 +44,10 @@ class Project(TaggableMixin, UUIDModel):
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
-    head = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE, related_name="project+")
+    # TODO @Cleanup: head and branch heads should probably move (to tags?)
+    head = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
+    )
 
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
@@ -62,7 +56,7 @@ class Project(TaggableMixin, UUIDModel):
     @transaction.atomic
     def create_version(
         self,
-        name: str,
+        name: str = None,
         description: str = None,
         parent: ProjectVersion = None,
         auto_commit: bool = True,
@@ -75,16 +69,16 @@ class Project(TaggableMixin, UUIDModel):
             else:
                 raise ValueError(f"parent version must be committed: {parent}")
 
-        version = ProjectVersion.objects.create(
-            project=self, name=name, description=description, parents=[parent]
-        )
+        version = ProjectVersion.objects.create(project=self, name=name, description=description)
+        version.parents.add(parent)
         if parent:
             # copy all project files from parent in SQL (see ProjectFile model below)
+            # the parent project is committed, so we can safely use file references
             cursor = connection.cursor()
             cursor.execute(
                 """
 INSERT INTO bench_projectfile
- (%s, type, name, task_id, flow_id, model_id, dataset_id)
+ (project_version_id, type, name, task_id, flow_id, model_id, dataset_id)
 SELECT %s, type, name, task_id, flow_id, model_id, dataset_id
  FROM bench_projectfile
  WHERE project_version_id = %s
@@ -97,6 +91,8 @@ SELECT %s, type, name, task_id, flow_id, model_id, dataset_id
             self.head = version
 
         return version
+
+    objects = ProjectManager()
 
     class Meta:
         constraints = [
@@ -137,11 +133,28 @@ class ProjectFile(UUIDModel):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True)
 
     class Meta:
-        # ensure that the name is unique per type within the project
         constraints = [
+            # ensure that the name is unique per type within the project version
             models.UniqueConstraint(
                 name="bench_project_file_project_type_name_ak",
                 fields=["project_version_id", "type", "name"],
+            ),
+            # ensure that the objects are unique per type within the project version
+            models.UniqueConstraint(
+                name="bench_project_file_task_id_ak",
+                fields=["project_version_id", "task_id"],
+            ),
+            models.UniqueConstraint(
+                name="bench_project_file_flow_id_ak",
+                fields=["project_version_id", "flow_id"],
+            ),
+            models.UniqueConstraint(
+                name="bench_project_file_model_id_ak",
+                fields=["project_version_id", "model_id"],
+            ),
+            models.UniqueConstraint(
+                name="bench_project_file_dataset_id_ak",
+                fields=["project_version_id", "dataset_id"],
             ),
         ]
 
@@ -163,7 +176,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     datasets = models.ManyToManyField("Dataset", through=ProjectFile)
     # we'll likely have multiple programs per project at some point
     program: models.ForeignKey = models.ForeignKey(
-        "Flow", on_delete=models.CASCADE, related_name="projects"
+        "Flow", on_delete=models.CASCADE, null=True, related_name="projects"
     )
     # set this last as not to override 'models' imported from django.db
     models = models.ManyToManyField("Model", through=ProjectFile)
@@ -171,8 +184,12 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.name}@{self.id}"
 
+    def reset(self):
+        # TODO @Robustness: reset will fail if other versions are referencing some of the same files
+        self.files.all().delete()
+
     def commit(self):
-        self.committed_at = datetime.utcnow()
+        self.committed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.save()
 
     @property
