@@ -2,10 +2,9 @@
 from typing import Any
 
 from bench.model.base import ModelHandler
-from bench.models import DatasetVersion
+from bench.models import Dataset
 
 Model = ModelHandler
-Dataset = DatasetVersion
 benv: Any = {}
 # @/bench
 
