@@ -6,7 +6,7 @@ from bench.dataset.accessor import read_dataset, write_dataset
 from bench.executor import LocalExecutor
 from bench.executor.base import FlowExecutionOptions, make_execution_plan
 from bench.model.base import UnbatchedModelHandler, models
-from bench.models import Dataset, Flow, FlowInstruction, FlowInstructionEdge, Model, Organization
+from bench.models import Dataset, Flow, Instruction, InstructionEdge, Model, Organization
 from bench.models.execution import DEFAULT_CONNECTION_NAME, Execution
 from bench.models.model import ModelMetadata
 from bench.utils.record import Record, RecordBatch, RecordList
@@ -39,7 +39,7 @@ def test_plan_empty_flow(test_organization: Organization):
 @pytest.mark.django_db
 def test_plan_identity_flow(test_organization: Organization):
     flow = Flow.objects.create_flow_version_by_name("identity", test_organization)
-    identity_node: FlowInstruction = flow.nodes.create(
+    identity_node: Instruction = flow.nodes.create(
         function_id="bench.identity", config_arguments={}
     )
 
@@ -70,7 +70,7 @@ def test_local_execute_one_node_identity_flow(
     local_executor: LocalExecutor, test_organization: Organization
 ):
     flow = Flow.objects.create_flow_version_by_name("identity", organization=test_organization)
-    identity_node: FlowInstruction = flow.nodes.create(
+    identity_node: Instruction = flow.nodes.create(
         function_id="bench.identity", name="identity_1", config_arguments={}
     )
 
@@ -92,17 +92,17 @@ def test_local_execute_two_node_identity_flow(
     local_executor: LocalExecutor, test_organization: Organization
 ):
     flow = Flow.objects.create_flow_version_by_name("identity", organization=test_organization)
-    identity_node_1: FlowInstruction = flow.nodes.create(
+    identity_node_1: Instruction = flow.nodes.create(
         function_id="bench.identity", name="identity_1", config_arguments={}
     )
-    identity_node_2: FlowInstruction = flow.nodes.create(
+    identity_node_2: Instruction = flow.nodes.create(
         function_id="bench.identity", name="identity_2", config_arguments={}
     )
     identity_node_2.depends_on_nodes.add(
         identity_node_1,
         through_defaults=dict(
             flow=flow,
-            connection_type=FlowInstructionEdge.ConnectionType.Input,
+            connection_type=InstructionEdge.ConnectionType.Input,
             connection_name_dependency="*",
             connection_name_dependent="*",
         ),
@@ -126,17 +126,17 @@ def test_local_execute_two_node_augmented_flow(
     local_executor: LocalExecutor, test_organization: Organization
 ):
     flow = Flow.objects.create_flow_version_by_name("augment", organization=test_organization)
-    identity_node_1: FlowInstruction = flow.nodes.create(
+    identity_node_1: Instruction = flow.nodes.create(
         function_id="bench.identity", name="identity_1", config_arguments={}
     )
-    augment_node_2: FlowInstruction = flow.nodes.create(
+    augment_node_2: Instruction = flow.nodes.create(
         function_id="bench.text.case.upper", name="upper_case_2", config_arguments={}
     )
     augment_node_2.depends_on_nodes.add(
         identity_node_1,
         through_defaults=dict(
             flow=flow,
-            connection_type=FlowInstructionEdge.ConnectionType.Input,
+            connection_type=InstructionEdge.ConnectionType.Input,
         ),
     )
 
@@ -156,7 +156,7 @@ def test_local_execute_two_node_augmented_flow(
 @pytest.mark.django_db
 def test_local_execute_model_flow(local_executor: LocalExecutor, test_organization: Organization):
     flow = Flow.objects.create_flow_version_by_name("model", organization=test_organization)
-    model_node_1: FlowInstruction = flow.nodes.create(
+    model_node_1: Instruction = flow.nodes.create(
         function_id="bench.model", name="model_1", config_arguments={}
     )
     model = Model.objects.create_model_version(
@@ -181,7 +181,7 @@ def test_local_execute_model_flow(local_executor: LocalExecutor, test_organizati
 @pytest.mark.django_db
 def test_local_execute_dataset_flow(local_executor: LocalExecutor, test_organization: Organization):
     flow = Flow.objects.create_flow_version_by_name("dataset", test_organization)
-    swap_node_1: FlowInstruction = flow.nodes.create(
+    swap_node_1: Instruction = flow.nodes.create(
         function_id="bench.text.substitute", name="swap_1", config_arguments={}
     )
     dataset = Dataset.objects.create_dataset_version("badword_replacements", test_organization)
@@ -209,15 +209,15 @@ def test_local_execute_dataset_flow(local_executor: LocalExecutor, test_organiza
 @pytest.mark.django_db
 def test_local_execute_test_flow(local_executor: LocalExecutor, test_organization: Organization):
     flow = Flow.objects.create_flow_version_by_name("test", test_organization)
-    model_node_1: FlowInstruction = flow.nodes.create(
+    model_node_1: Instruction = flow.nodes.create(
         function_id="bench.model", name="model_1", config_arguments={}
     )
-    metric_node_2: FlowInstruction = flow.nodes.create(
+    metric_node_2: Instruction = flow.nodes.create(
         function_id="bench.metric.accuracy",
         name="metric_accuracy_2",
         config_arguments={"prediction_key": "score", "reference_key": "score"},
     )
-    test_node_3: FlowInstruction = flow.nodes.create(
+    test_node_3: Instruction = flow.nodes.create(
         function_id="bench.test.compare_constant",
         name="test_3",
         config_arguments={"operator": "Gte", "value": 0.5, "key": "accuracy"},
@@ -226,7 +226,7 @@ def test_local_execute_test_flow(local_executor: LocalExecutor, test_organizatio
         model_node_1,
         through_defaults=dict(
             flow=flow,
-            connection_type=FlowInstructionEdge.ConnectionType.Input,
+            connection_type=InstructionEdge.ConnectionType.Input,
             connection_name_dependent="predictions",
             connection_name_dependency="*",
         ),
@@ -235,7 +235,7 @@ def test_local_execute_test_flow(local_executor: LocalExecutor, test_organizatio
         metric_node_2,
         through_defaults=dict(
             flow=flow,
-            connection_type=FlowInstructionEdge.ConnectionType.Input,
+            connection_type=InstructionEdge.ConnectionType.Input,
             connection_name_dependent="*",
             connection_name_dependency="*",
         ),
