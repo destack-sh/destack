@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from bench.api.execution import ExecutionSerializer
 from bench.api.tag import TaggedItemSerializerMixin
 from bench.models import Organization
-from bench.models.flow import Flow, FlowInstruction
+from bench.models.flow import Flow, Instruction
 from bench.models.utils import MAX_NAME_LENGTH
 
 # ========================
@@ -42,7 +42,7 @@ class FlowSerializer(TaggedItemSerializerMixin, serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "head", "versions"]
 
 
-class FlowInstructionSerializer(serializers.ModelSerializer):
+class InstructionSerializer(serializers.ModelSerializer):
     name = serializers.CharField(
         max_length=MAX_NAME_LENGTH,
         validators=[
@@ -53,12 +53,12 @@ class FlowInstructionSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = FlowInstruction
+        model = Instruction
         fields = ["id", "flow", "name", "created_at", "function_id", "config_arguments", "metadata"]
         read_only_fields = ["id", "created_at", "committed"]
         validators = [
             validators.UniqueTogetherValidator(
-                queryset=FlowInstruction.objects.all(), fields=["flow", "name"]
+                queryset=Instruction.objects.all(), fields=["flow", "name"]
             )
         ]
 
@@ -68,7 +68,7 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
         queryset=Flow.objects.all(), slug_field="name"
     )
     # nodes, node_edges and artifact_edges are read only duplicates of the respective nested viewsets
-    root_instruction = FlowInstructionSerializer(many=False, read_only=True)
+    root_instruction = InstructionSerializer(many=False, read_only=True)
 
     class Meta:
         fields = [
@@ -101,8 +101,8 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
 # Execution-specific Flow serializers
 # ===================================
 
-flow_instruction_ARGUMENT_KEYS: set[str] = {"other_node", "records", "artifact"}
-flow_instruction_INPUT_KEYS: set[str] = {"records", "artifacts"}
+instruction_ARGUMENT_KEYS: set[str] = {"other_node", "records", "artifact"}
+instruction_INPUT_KEYS: set[str] = {"records", "artifacts"}
 
 
 # ==========
@@ -133,19 +133,19 @@ class FlowViewSet(viewsets.ModelViewSet):
         return _execute_response(get_head(flow), request)
 
 
-class FlowInstructionViewSet(viewsets.ModelViewSet):
-    queryset = FlowInstruction.objects.all()
-    serializer_class = FlowInstructionSerializer
+class InstructionViewSet(viewsets.ModelViewSet):
+    queryset = Instruction.objects.all()
+    serializer_class = InstructionSerializer
 
-    # TODO @Cleanup: repetition of get_queryset/create mapping among FlowInstruction&Edges
-    def get_queryset(self) -> models.QuerySet[FlowInstruction]:
+    # TODO @Cleanup: repetition of get_queryset/create mapping among Instruction&Edges
+    def get_queryset(self) -> models.QuerySet[Instruction]:
         return self.queryset.filter(
             flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         # TODO @Cleanup: argument mapping could be in nested router?
-        # map nested arguments to FlowInstruction.flow representation
+        # map nested arguments to Instruction.flow representation
         if "flow" in kwargs and "version" in kwargs:
             request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
         return super().create(request, *args, **kwargs)

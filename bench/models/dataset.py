@@ -34,7 +34,7 @@ class Dataset(TaggableMixin, UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
 
     # records from DatasetRecord.dataset
-    record_schema = models.JSONField()
+    schema = models.JSONField()
     length = models.IntegerField(default=0)
 
     organization = models.ForeignKey(
@@ -75,9 +75,7 @@ class Dataset(TaggableMixin, UUIDModel):
 
     def append(self, record: DatasetRecord) -> int:
         with transaction.atomic():
-            DatasetRecord.objects.create(
-                dataset=self, index=self.length, data=record.data, metadata=record.metadata
-            )
+            DatasetRecord.objects.create(dataset=self, index=self.length, data=record.data)
             self.length += 1
             self.save()
         return self.length
@@ -88,11 +86,7 @@ class Dataset(TaggableMixin, UUIDModel):
         # create db_records with incrementing index
         with transaction.atomic():
             for record in records:
-                db_records.append(
-                    DatasetRecord(
-                        dataset=self, index=self.length, data=record.data, metadata=record.metadata
-                    )
-                )
+                db_records.append(DatasetRecord(dataset=self, index=self.length, data=record.data))
                 self.length += 1
             DatasetRecord.objects.bulk_create(db_records)
             self.save()
@@ -103,7 +97,6 @@ class Dataset(TaggableMixin, UUIDModel):
         with transaction.atomic():
             db_record = self.get_record(index)
             db_record.data = record.data
-            db_record.metadata = record.metadata
             db_record.save()
 
     def delete_(self, index: int):
@@ -143,7 +136,6 @@ class DatasetRecord(UUIDModel):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="records")
     index = models.IntegerField()
     data = models.JSONField()
-    metadata = models.JSONField(null=True, blank=True)
 
     def is_committed(self) -> bool:
         return True
@@ -158,7 +150,6 @@ class DatasetRecord(UUIDModel):
         ]
         indexes = [
             GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
-            GinIndex(SearchVector("metadata", config="simple"), name="bench_record_metadata"),
         ]
 
 

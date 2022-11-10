@@ -6,7 +6,7 @@ from rest_framework.routers import BaseRouter
 
 from bench.api.dataset import DatasetRecordViewSet, DatasetViewSet
 from bench.api.execution import ExecutionViewSet
-from bench.api.flow import FlowInstructionViewSet, FlowViewSet
+from bench.api.flow import FlowViewSet, InstructionViewSet
 from bench.api.model import ModelViewSet
 from bench.api.organization import OrganizationViewSet
 from bench.api.project import ProjectViewSet

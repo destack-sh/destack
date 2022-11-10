@@ -8,7 +8,7 @@ from bench.models import Execution, Organization, Project
 
 class ExecutionSerializer(serializers.ModelSerializer):
     flow = serializers.PrimaryKeyRelatedField(read_only=True)
-    flow_instruction: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
+    instruction: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(
         read_only=True
     )
     model = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -38,7 +38,7 @@ class ExecutionSerializer(serializers.ModelSerializer):
             "parent",
             "children",
             "flow",
-            "flow_instruction",
+            "instruction",
             "model",
             "connected_artifacts",
             "organization",
@@ -61,7 +61,7 @@ class ExecutionFilter(filters.FilterSet):
 
     class Meta:
         model = Execution
-        fields = ["id", "type", "flow", "flow_instruction", "model", "status", "parent"]
+        fields = ["id", "type", "flow", "instruction", "model", "status", "parent"]
 
 
 class ExecutionViewSet(viewsets.ReadOnlyModelViewSet):

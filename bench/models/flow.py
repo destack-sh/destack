@@ -12,7 +12,7 @@ class FlowManager(models.Manager):
 
 class Flow(TaggableMixin, UUIDModel):
     """
-    A hierarchical graph of nested Functions represented as Instructions connected by Edges.
+    A tree of nested Instructions specifying how to do something with code, data & models.
 
     Flows are versioned. All versions are available in 'versions'.
     """
@@ -23,7 +23,7 @@ class Flow(TaggableMixin, UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
 
     root_instruction = models.ForeignKey(
-        "FlowInstruction", on_delete=models.CASCADE, related_name="flow+"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="flow+"
     )
 
     organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="flows")
@@ -35,7 +35,7 @@ class Flow(TaggableMixin, UUIDModel):
         return f"{self.organization.slug}/{self.project.slug}/datasets/{self.name}@{self.id}"
 
 
-class FlowInstruction(UUIDModel):
+class Instruction(UUIDModel):
     """
     An instruction is a curried Python function with high level arguments like datasets, models and flows.
 
@@ -49,7 +49,7 @@ class FlowInstruction(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey(
-        "FlowInstruction", on_delete=models.CASCADE, null=True, related_name="children"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="children"
     )
     task = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
@@ -59,23 +59,23 @@ class FlowInstruction(UUIDModel):
     code_id = models.CharField(blank=True, null=True, max_length=256)
     code = models.TextField(blank=True, null=True)
 
-    # parameters to/from FlowInstructionParameter
-    # arguments to/from FlowInstructionArgument
+    # parameters to/from InstructionParameter
+    # arguments to/from InstructionArgument
 
     def __str__(self):
         return f"{self.flow.name_version}/{self.name or self.id}"
 
     @property
-    def first_instruction(self) -> FlowInstruction:
+    def first_instruction(self) -> Instruction:
         """Gets the first instruction in this flow, errors if there is none"""
         raise NotImplementedError
 
     @property
-    def last_instruction(self) -> FlowInstruction:
+    def last_instruction(self) -> Instruction:
         """Gets the last instruction in this flow, errors if there is none"""
         raise NotImplementedError()
 
-    def get_instruction_by_name(self, name: str) -> FlowInstruction:
+    def get_instruction_by_name(self, name: str) -> Instruction:
         """Gets an instruction by name"""
         return self.children.get(name=name)
 
@@ -83,12 +83,12 @@ class FlowInstruction(UUIDModel):
         constraints = [
             # ensure name is unique inside flow version
             models.UniqueConstraint(
-                name="bench_flow_instruction_flow_name_ak",
+                name="bench_instruction_flow_name_ak",
                 fields=["flow", "name"],
             ),
             # ensure either code_id or code is set
             models.CheckConstraint(
-                name="bench_flow_instruction_code_id_xor_code_ck",
+                name="bench_instruction_code_id_xor_code_ck",
                 check=(
                     models.Q(code_id__isnull=False, code__isnull=True)
                     | models.Q(code_id__isnull=True, code__isnull=False)
@@ -97,15 +97,15 @@ class FlowInstruction(UUIDModel):
         ]
 
 
-class FlowInstructionParameter(UUIDModel):
+class InstructionParameter(UUIDModel):
     """
-    A parameter is a named argument to a function which is bound by a FlowInstructionArgument.
+    A parameter is a named argument to a function which is bound by a InstructionArgument.
 
     Parameters are typed using ?
     """
 
     instruction = models.ForeignKey(
-        FlowInstruction, on_delete=models.CASCADE, related_name="parameters"
+        Instruction, on_delete=models.CASCADE, related_name="parameters"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = models.JSONField()
@@ -113,20 +113,20 @@ class FlowInstructionParameter(UUIDModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                name="bench_flow_instruction_parameter_ak",
+                name="bench_instruction_parameter_ak",
                 fields=["instruction", "name"],
             )
         ]
 
 
-class FlowInstructionArgument(UUIDModel):
+class InstructionArgument(UUIDModel):
     """
     An argument is value binding an instruction parameter.
     An argument can be one of a model, a dataset, a flow or a plain JSON value.
     """
 
     instruction = models.ForeignKey(
-        "FlowInstruction", on_delete=models.CASCADE, related_name="arguments"
+        "Instruction", on_delete=models.CASCADE, related_name="arguments"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)

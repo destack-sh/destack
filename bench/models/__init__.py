@@ -1,6 +1,6 @@
 from .dataset import Dataset
-from .execution import Execution, FlowExecution, FlowInstructionExecution, ModelExecution
-from .flow import Flow, FlowInstruction, FlowInstructionArgument, FlowInstructionParameter
+from .execution import Execution, FlowExecution, InstructionExecution, ModelExecution
+from .flow import Flow, Instruction, InstructionArgument, InstructionParameter
 from .model import Model
 from .organization import Organization
 from .project import Project, ProjectVersion
@@ -16,12 +16,12 @@ __all__ = [
     "TaggableMixin",
     "Task",
     "Flow",
-    "FlowInstruction",
-    "FlowInstructionArgument",
-    "FlowInstructionParameter",
+    "Instruction",
+    "InstructionArgument",
+    "InstructionParameter",
     "Execution",
     "FlowExecution",
-    "FlowInstructionExecution",
+    "InstructionExecution",
     "ModelExecution",
     "Organization",
     "Project",
