@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator, Optional, Sequence
+from typing import Any, Iterator, Optional, Sequence
 
+from asgiref.sync import sync_to_async
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
@@ -69,34 +70,40 @@ class Dataset(TaggableMixin, UUIDModel):
     def get_records_data_field(self, key: str) -> list[Any]:
         return DatasetRecord.objects.filter(dataset=self).values_list("data__" + key, flat=True)
 
-    def __iter__(self) -> Iterator[DatasetRecord]:
+    def __iter__(self) -> Iterator[dict]:
         for record in DatasetRecord.objects.filter(dataset=self):
-            yield record
+            yield record.data
 
-    def append(self, record: DatasetRecord) -> int:
+    def append(self, record: dict) -> int:
         with transaction.atomic():
-            DatasetRecord.objects.create(dataset=self, index=self.length, data=record.data)
+            DatasetRecord.objects.create(dataset=self, index=self.length, data=record)
             self.length += 1
             self.save()
         return self.length
 
-    def extend(self, records: Iterable[DatasetRecord]) -> tuple[int, int]:
+    async def aappend(self, record: dict) -> int:
+        return await sync_to_async(self.append)(record)
+
+    def extend(self, records: list[dict]) -> tuple[int, int]:
         start_length = self.length
         db_records = []
         # create db_records with incrementing index
         with transaction.atomic():
             for record in records:
-                db_records.append(DatasetRecord(dataset=self, index=self.length, data=record.data))
+                db_records.append(DatasetRecord(dataset=self, index=self.length, data=record))
                 self.length += 1
             DatasetRecord.objects.bulk_create(db_records)
             self.save()
 
         return start_length, self.length
 
-    def update(self, index: int, record: DatasetRecord):
+    async def aextend(self, records: list[dict]) -> tuple[int, int]:
+        return await sync_to_async(self.extend)(records)
+
+    def update(self, index: int, record: dict):
         with transaction.atomic():
             db_record = self.get_record(index)
-            db_record.data = record.data
+            db_record.data = record
             db_record.save()
 
     def delete_(self, index: int):

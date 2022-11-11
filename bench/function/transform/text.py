@@ -104,7 +104,6 @@ def render_template(template: str, parameters: dict[str, Any]) -> str:
                 )
             var_value = var_value[field_name]
 
-        # TODO @Broken: render all variable values in templatize, not just the first
         if isinstance(var_value, list):
             var_value = var_value[0]
 

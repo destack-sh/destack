@@ -77,7 +77,6 @@ AUTHENTICATION_BACKENDS: list[str] = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-# TODO @Feature: hook up social auth pipeline (and auth generally)
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
     "social_core.pipeline.social_auth.social_uid",

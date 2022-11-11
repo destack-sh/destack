@@ -69,17 +69,6 @@ class DatasetVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSeria
         ]
         read_only_fields = ["id", "created_at", "parents", "version", "content_hash", "committed"]
 
-    def validate(self, data):
-        if len(data["parents"]) > 1:
-            # TODO @Feature: merge dataset versions with multiple parents
-            raise serializers.ValidationError(
-                "creating versions with multiple parents is not supported yet"
-            )
-        if any(not parent.committed for parent in data["parents"]):
-            raise serializers.ValidationError("all parent versions must be committed")
-
-        return data
-
 
 class DatasetRecordSerializer(serializers.Serializer):
     index = serializers.IntegerField(required=False)

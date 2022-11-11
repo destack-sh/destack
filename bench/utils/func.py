@@ -21,7 +21,6 @@ def terrible_cast(cls: Type[T], obj) -> T:
     For obvious reasons, use this with great caution. This can lead to subtle and annoying bugs,
      but is also super convenient in rare circumstances.
     """
-    # TODO @Robustness: don't do terrible casts
     obj.__class__ = cls
     return cast(T, obj)
 
