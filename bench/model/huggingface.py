@@ -56,7 +56,6 @@ class HuggingFaceHostedGenerationModel(HuggingFaceHostedModel):
 
     def run(self, record: Record) -> Union[Record, RecordBatch]:
         record = cast(dict, record)
-        # TODO @Cleanup @Architecture: generalise model/flow node input/output remapping
         if "text" in record:
             record = {"inputs": record["text"]}
         output = super().run(record)

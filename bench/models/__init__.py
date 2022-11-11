@@ -1,3 +1,4 @@
+from .compilation import Compilation
 from .dataset import Dataset
 from .execution import Execution, FlowExecution, InstructionExecution, ModelExecution
 from .flow import Flow, Instruction, InstructionArgument, InstructionParameter
@@ -19,6 +20,7 @@ __all__ = [
     "Instruction",
     "InstructionArgument",
     "InstructionParameter",
+    "Compilation",
     "Execution",
     "FlowExecution",
     "InstructionExecution",

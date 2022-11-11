@@ -128,7 +128,6 @@ functions: Registry[Type[Function]] = Registry(("functions",), mapper=map_to_fun
 
 
 def _import_functions():
-    # TODO @Cleanup: figure out better registration mechanism for registered objects
     import bench.function.metrics  # noqa
     import bench.function.test  # noqa
     import bench.function.transform.text  # noqa

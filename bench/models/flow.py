@@ -63,7 +63,7 @@ class Instruction(UUIDModel):
     # arguments to/from InstructionArgument
 
     def __str__(self):
-        return f"{self.flow.name_version}/{self.name or self.id}"
+        return f"{self.flow}/{self.name or self.id}"
 
     @property
     def first_instruction(self) -> Instruction:
@@ -125,8 +125,11 @@ class InstructionArgument(UUIDModel):
     An argument can be one of a model, a dataset, a flow or a plain JSON value.
     """
 
-    instruction = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, related_name="arguments"
+    instruction_bound = models.ForeignKey(
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="arguments"
+    )
+    instruction_free = models.ForeignKey(
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="+"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
@@ -135,5 +138,24 @@ class InstructionArgument(UUIDModel):
     value = models.JSONField(null=True, blank=True)
 
     class Meta:
-        # TODO @Robustness: ensure that only one argument type is set
-        constraints = []
+        constraints = [
+            # TODO @Robustness: ensure that only one argument value type is set
+            # ensure that either instruction_bound or instruction_free is set
+            models.CheckConstraint(
+                name="bench_instruction_argument_bound_free_ck",
+                check=(
+                    models.Q(instruction_bound__isnull=False, instruction_free__isnull=True)
+                    | models.Q(instruction_bound__isnull=True, instruction_free__isnull=False)
+                ),
+            ),
+            # ensure that instruction bound/free can only be bound once per name
+            # (two separate constraints because of the OR on nullable instruction_bound/instruction_free)
+            models.UniqueConstraint(
+                name="bench_instruction_argument_bound_name_ak",
+                fields=["instruction_bound", "name"],
+            ),
+            models.UniqueConstraint(
+                name="bench_instruction_argument_free_name_ak",
+                fields=["instruction_free", "name"],
+            ),
+        ]

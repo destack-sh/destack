@@ -71,10 +71,11 @@ misspelling = [
 # @bench flow transform: transform_misspell
 fewshot_prompt = benv.get_argument("fewshot_prompt")
 model = benv.get_model("model")
+misspelling = benv.get_dataset("misspelling")
 
 
 async def transform_misspell(input: str):
-    prompt = fewshot_prompt.format(input=input, examples=misspelling_examples)
+    prompt = fewshot_prompt.format(input=input, examples=misspelling)
     completion, _ = await model.complete(prompt)
     return completion
     # @/bench
@@ -84,14 +85,12 @@ async def transform_misspell(input: str):
 generate_command = benv.get_flow("generate_command")
 
 
-async def expect_spelling_invariance(inputs):
-    for input in inputs:
-        alternative_input = transform_misspell(input)
-        output = await generate_command(input)
-        yield {
-            "input": alternative_input,
-            "output": output,
-        }
+async def expect_spelling_invariance(example):
+    alternative_input = await transform_misspell(example["input"])
+    return {
+        "input": alternative_input,
+        "output": example["output"],
+    }
     # @/bench
 
 

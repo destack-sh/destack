@@ -85,17 +85,6 @@ class FlowVersionSerializer(TaggedItemSerializerMixin, serializers.ModelSerializ
         ]
         read_only_fields = ["id", "created_at", "parents", "flow", "version", "committed"]
 
-    def validate(self, data):
-        if len(data["parents"]) > 1:
-            # TODO @Feature: merge flow versions with multiple parents
-            raise serializers.ValidationError(
-                "creating versions with multiple parents is not supported yet"
-            )
-        if any(not parent.committed for parent in data["parents"]):
-            raise serializers.ValidationError("all parent versions must be committed")
-
-        return data
-
 
 # ===================================
 # Execution-specific Flow serializers
@@ -136,16 +125,3 @@ class FlowViewSet(viewsets.ModelViewSet):
 class InstructionViewSet(viewsets.ModelViewSet):
     queryset = Instruction.objects.all()
     serializer_class = InstructionSerializer
-
-    # TODO @Cleanup: repetition of get_queryset/create mapping among Instruction&Edges
-    def get_queryset(self) -> models.QuerySet[Instruction]:
-        return self.queryset.filter(
-            flow__flow__name=self.kwargs.get("flow"), flow__version=self.kwargs.get("version")
-        )
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
-        # TODO @Cleanup: argument mapping could be in nested router?
-        # map nested arguments to Instruction.flow representation
-        if "flow" in kwargs and "version" in kwargs:
-            request.data["flow"] = f"{kwargs['flow']}@{kwargs['version']}"
-        return super().create(request, *args, **kwargs)
