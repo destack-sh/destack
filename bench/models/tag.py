@@ -55,7 +55,7 @@ RELATED_FIELDS = (
     "model",
     "dataset",
     "dataset_view",
-    "flow",
+    "instruction",
     "project",
     "project_version",
     "task",
@@ -64,7 +64,7 @@ RELATED_MODELS = (
     "Model",
     "Dataset",
     "DatasetView",
-    "Flow",
+    "Instruction",
     "Project",
     "ProjectVersion",
     "Task",
@@ -111,8 +111,8 @@ class TaggedItem(UUIDModel):
     dataset_view = models.ForeignKey(
         "DatasetView", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
-    flow = models.ForeignKey(
-        "Flow", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    instruction = models.ForeignKey(
+        "Instruction", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="tagged_items", null=True

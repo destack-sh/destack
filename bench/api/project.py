@@ -7,9 +7,6 @@ class ProjectSerializer(serializers.ModelSerializer):
     organization: serializers.SlugRelatedField = serializers.SlugRelatedField(
         slug_field="slug", queryset=Organization.objects.all()
     )
-    artifacts: serializers.SlugRelatedField = serializers.SlugRelatedField(
-        slug_field="name", read_only=True
-    )
 
     class Meta:
         fields = [
@@ -19,7 +16,6 @@ class ProjectSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "organization",
-            "artifacts",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
         model = Project

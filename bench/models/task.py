@@ -10,7 +10,7 @@ class TaskManager(models.Manager):
 
 class Task(TaggableMixin, UUIDModel):
     """
-    A task describes the interface and desired behaviour of an instruction flow.
+    A task describes the interface and desired behaviour of an instruction.
 
     A task may have sub-tasks, forming a task tree.
     Sub-tasks define smaller tasks which are composed or represented by the parent task.
@@ -24,7 +24,7 @@ class Task(TaggableMixin, UUIDModel):
 
     schema = models.JSONField()
     examples = models.ManyToManyField("Dataset", related_name="tasks+")
-    expectations = models.ManyToManyField("Flow", related_name="tasks+")
+    expectations = models.ManyToManyField("Instruction", related_name="tasks+")
     # implementations from/to Instruction
 
     organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="tasks")

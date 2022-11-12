@@ -6,7 +6,7 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.models import Dataset, Flow, Instruction, Organization, Project, Task
+from bench.models import Dataset, Instruction, Organization, Project, Task
 from bench.models.dataset import DatasetRecord
 
 
@@ -82,7 +82,7 @@ class Command(BaseCommand):
 
         # convert segments to a single task definition tree
         tasks = {}
-        flows = {}
+        instructions = {}
         datasets = {}
         for segment in segments:
             if segment.header.startswith("ignore"):
@@ -91,7 +91,7 @@ class Command(BaseCommand):
             # The possible definitions (in header) are:
             #  ignore: ignore this segment (used for imports)
             #  task [args]: <name> -> define a task
-            #  flow [args]: <name> -> define a flow
+            #  instruction [args]: <name> -> define a instruction
             #  dataset [args]: <name> -> define a dataset
             definitions = exec_get_definitions(segment.full_code)
             args, file_name = segment.header.split(":", 1)
@@ -106,26 +106,28 @@ class Command(BaseCommand):
                     organization=organization,
                     project=project,
                 )
-            elif args[0] == "flow":
-                # parse header "flow [args]: <name>"
-                flow_definition = definitions[file_name]
-                # flow definition must be a function
-                if not callable(flow_definition):
-                    raise ValueError(f"flow definition: {flow_definition} must be a function")
-                flow = Flow.objects.create(
+            elif args[0] == "instruction":
+                # parse header "instruction [args]: <name>"
+                instruction_definition = definitions[file_name]
+                # instruction definition must be a function
+                if not callable(instruction_definition):
+                    raise ValueError(
+                        f"instruction definition: {instruction_definition} must be a function"
+                    )
+                instruction = Instruction.objects.create(
                     name=file_name,
                     type=args[1],
                     organization=organization,
                     project=project,
                 )
-                flow.root_instruction = Instruction.objects.create(
-                    flow=flow, name=file_name, code=segment.full_code
+                instruction.root_instruction = Instruction.objects.create(
+                    instruction=instruction, name=file_name, code=segment.full_code
                 )
-                flow.save()
-                flows[file_name] = flow
+                instruction.save()
+                instructions[file_name] = instruction
 
-                if flow.type == "expectation":
-                    tasks[args[2]].expectations.add(flow)
+                if instruction.type == "expectation":
+                    tasks[args[2]].expectations.add(instruction)
             elif args[0] == "dataset":
                 dataset_records = definitions[file_name]
                 # schema is just keys and types of values of the first element

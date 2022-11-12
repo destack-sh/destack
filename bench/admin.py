@@ -3,7 +3,7 @@ from django.contrib import admin
 from bench.models import (
     Dataset,
     Execution,
-    Flow,
+    Instruction,
     Model,
     Organization,
     Project,
@@ -17,7 +17,7 @@ admin.site.register(User)
 admin.site.register(Project)
 admin.site.register(ProjectVersion)
 admin.site.register(Task)
-admin.site.register(Flow)
+admin.site.register(Instruction)
 admin.site.register(Model)
 admin.site.register(Dataset)
 admin.site.register(Execution)

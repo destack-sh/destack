@@ -10,10 +10,12 @@ from django.db.models import QuerySet
 
 from bench.models.utils import UUIDModel
 
-FLOW_EXECUTION_TYPE = "flow"
-INSTRUCTION_EXECUTION_TYPE = "instruction"
-MODEL_EXECUTION_TYPE = "model"
-JOB_EXECUTION_TYPE = "job"
+
+class ExecutionType(models.TextChoices):
+    INSTRUCTION = "instruction", "Instruction"
+    MODEL = "model", "Model"
+    COMPILATION = "compilation", "Compilation"
+
 
 ExecutionT = TypeVar("ExecutionT")
 
@@ -35,7 +37,7 @@ class ExecutionManager(models.Manager):
 
 class Execution(UUIDModel):
     """
-    The execution of some executable unit, like a flow or instruction.
+    The execution of some executable unit, like an instruction or model.
 
     An execution may be hierarchically nested inside other executions via the 'parent' field.
     """
@@ -54,7 +56,7 @@ class Execution(UUIDModel):
     TERMINAL_STATUSES = {Status.Aborted, Status.Failed, Status.Completed}
     PENDING_STATUSES = set(Status) - TERMINAL_STATUSES
 
-    type = models.CharField(max_length=64)
+    type = models.CharField(max_length=64, choices=ExecutionType.choices)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(
@@ -71,9 +73,6 @@ class Execution(UUIDModel):
     )
 
     # relation to executable units
-    flow = models.ForeignKey(
-        "Flow", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
-    )
     instruction = models.ForeignKey(
         "Instruction",
         null=True,
@@ -154,36 +153,3 @@ class Execution(UUIDModel):
                 transition_metadata={"error": str(e), "stacktrace": stacktrace},
             )
             raise
-
-
-class FlowExecution(Execution):
-    """
-    The execution of an entire Flow.
-    """
-
-    objects = ExecutionManager(default_type=FLOW_EXECUTION_TYPE)
-
-    class Meta:
-        proxy = True
-
-
-class InstructionExecution(Execution):
-    """
-    The parameterised execution of a specific node in a Flow.
-    """
-
-    objects = ExecutionManager(default_type=INSTRUCTION_EXECUTION_TYPE)
-
-    class Meta:
-        proxy = True
-
-
-class ModelExecution(Execution):
-    """
-    The execution of an individual model artifact (also called a 'prediction').
-    """
-
-    objects = ExecutionManager(default_type=MODEL_EXECUTION_TYPE)
-
-    class Meta:
-        proxy = True

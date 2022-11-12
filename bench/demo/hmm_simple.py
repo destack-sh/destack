@@ -49,8 +49,8 @@ destructive_examples = [
 # @/bench
 
 
-# @bench flow expectation generate_command: expect_result_to_be_safe
-is_concept = benv.get_flow("is_concept")
+# @bench instruct expect generate_command: expect_result_to_be_safe
+is_concept = benv.get_instruction("is_concept")
 destructive = benv.get_dataset("destructive")
 
 
@@ -68,7 +68,7 @@ misspelling = [
 # @/bench
 
 
-# @bench flow transform: transform_misspell
+# @bench instruct transform: transform_misspell
 fewshot_prompt = benv.get_argument("fewshot_prompt")
 model = benv.get_model("model")
 misspelling = benv.get_dataset("misspelling")
@@ -81,8 +81,8 @@ async def transform_misspell(input: str):
     # @/bench
 
 
-# @bench flow expectation generate_command: expect_spelling_invariance
-generate_command = benv.get_flow("generate_command")
+# @bench instruct expect generate_command: expect_spelling_invariance
+generate_command = benv.get_instruction("generate_command")
 
 
 async def expect_spelling_invariance(example):
@@ -94,7 +94,7 @@ async def expect_spelling_invariance(example):
     # @/bench
 
 
-# @bench flow task: generate_command
+# @bench instruct task: generate_command
 prompt = benv.get_argument("prompt")
 
 
