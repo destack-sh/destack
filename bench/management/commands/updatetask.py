@@ -51,12 +51,21 @@ class Command(BaseCommand):
 
         for i, line in enumerate(lines):
             if "@bench" in line:
+                if segment is not None:
+                    # close previous segment
+                    segments.append(segment)
+
                 segment = TaskFileSegment(header=line[8:].strip(), lines=[], source_index=i)
             elif "@/bench" in line:
                 segments.append(segment)
                 segment = None
             elif segment is not None:
                 segment.lines.append(line)
+        if segment is None:
+            raise ValueError("task file must contain at least one @bench segment")
+
+        # close last segment
+        segments.append(segment)
 
         new_version = project.create_version()
         new_version.reset()
@@ -115,9 +124,13 @@ class Command(BaseCommand):
                 instruction = Instruction.objects.create(
                     name=file_name, type=args[1], code=segment.full_code
                 )
+                # assign instruction as implementation to task
+                if instruction.name in tasks:
+                    instruction.task = tasks[instruction.name]
+                    instruction.save()
                 instructions[file_name] = instruction
 
-                if instruction.type == "expectation":
+                if instruction.type == "expect":
                     tasks[args[2]].expectations.add(instruction)
             elif args[0] == "dataset":
                 dataset_records = definitions[file_name]

@@ -78,12 +78,13 @@ class Project(TaggableMixin, UUIDModel):
         if parent:
             # copy all project files from parent in SQL (see ProjectFile model below)
             # the parent project is committed, so we can safely use file references
+
             cursor = connection.cursor()
             cursor.execute(
                 """
 INSERT INTO bench_projectfile
- (project_version_id, type, name, task_id, instruction_id, model_id, dataset_id)
-SELECT %s, type, name, task_id, instruction_id, model_id, dataset_id
+ (id, project_version_id, type, name, task_id, instruction_id, model_id, dataset_id)
+SELECT gen_random_uuid(), %s, type, name, task_id, instruction_id, model_id, dataset_id
  FROM bench_projectfile
  WHERE project_version_id = %s
 """,

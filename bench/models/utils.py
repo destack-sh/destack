@@ -73,6 +73,13 @@ class UUIDT(uuid.UUID):
 
 
 class UUIDModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    class Meta:
+        abstract = True
+
+
+class UUIDTModel(UUIDModel):
     id = models.UUIDField(primary_key=True, default=UUIDT, editable=False)
 
     class Meta:

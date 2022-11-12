@@ -15,5 +15,5 @@ class Compilation(UUIDModel):
         "Instruction", on_delete=models.CASCADE, related_name="compilations"
     )
     target_instruction = models.OneToOneField(
-        "Instruction", on_delete=models.CASCADE, related_name="source_compilation"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="source_compilation"
     )
