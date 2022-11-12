@@ -40,7 +40,7 @@ class Instruction(TaggableMixin, UUIDModel):
     # arguments to/from InstructionArgument
 
     def __str__(self):
-        return f"{self.name}.{self.type}@{self.id}"
+        return f"{self.name}.{self.type}@{self.id.hex}"
 
     @property
     def first_instruction(self) -> Instruction:

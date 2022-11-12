@@ -16,8 +16,8 @@ class Command(BaseCommand):
             email="test@symbolx.com",
             password="password",
             first_name="Yatima",
-            organization_name="Test Inc.",
-            organization_kwargs={"slug": "test"},
+            organization_name="SymbolX AG.",
+            organization_kwargs={"slug": "symbolx"},
             is_staff=True,
         )
         self.stdout.write(self.style.SUCCESS(f"Created bootstrap user: {user}"))

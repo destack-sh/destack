@@ -30,7 +30,7 @@ class Compiler:
         for expectation in expectations:
             for example in examples:
                 # This is a boring example and only works for the most basic example-based expectation.
-                rendered_example = await self.executor.run_instruction(
+                rendered_example = await self.executor.run(
                     expectation, arguments=dict(example=example)
                 )
                 rendered_examples.append(rendered_example)

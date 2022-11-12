@@ -47,7 +47,7 @@ class Dataset(TaggableMixin, UUIDModel):
     objects = DatasetManager()
 
     def __str__(self):
-        return f"{self.name}.{self.type}@{self.id}"
+        return f"{self.name}.{self.type}@{self.id.hex}"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
