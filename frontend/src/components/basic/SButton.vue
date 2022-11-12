@@ -29,7 +29,7 @@ const baseStyles: Record<string, string> = {
 const variantStyles: Record<string, Record<string, string>> = {
   solid: {
     white:
-      "bg-white text-white hover:bg-slate-700 hover:text-slate-100 active:bg-slate-800 active:text-slate-300 focus-visible:outline-slate-900",
+      "bg-white text-gray-700 hover:bg-slate-700 hover:text-slate-100 active:bg-slate-800 active:text-slate-300 focus-visible:outline-slate-900",
     orange:
       "bg-orange-600 text-white hover:text-slate-100 hover:bg-orange-700 active:bg-orange-800 active:text-orange-100 focus-visible:outline-orange-600",
   },
