@@ -1,16 +1,7 @@
-import DatasetDetail from "@/routes/DatasetDetail.vue";
-import DatasetNew from "@/routes/DatasetNew.vue";
-import Datasets from "@/routes/Datasets.vue";
-import FlowDetail from "@/routes/FlowDetail.vue";
-import FlowDetailEdit from "@/routes/FlowDetailEdit.vue";
-import Flows from "@/routes/Flows.vue";
-import Home from "@/routes/Home.vue";
-import ModelDetail from "@/routes/ModelDetail.vue";
-import ModelDetailEdit from "@/routes/ModelDetailEdit.vue";
-import ModelNew from "@/routes/ModelNew.vue";
-import Models from "@/routes/Models.vue";
 import NotFound from "@/routes/NotFound.vue";
-import { useFlowsStore } from "@/stores";
+import OrganizationHome from "@/routes/OrganizationHome.vue";
+import ProjectHome from "@/routes/ProjectHome.vue";
+
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 
@@ -21,40 +12,8 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 });
 
 const routes = [
-  { path: "/", component: Home },
-  { path: "/models", component: Models },
-  { path: "/models/new", component: ModelNew },
-  { path: "/models/:model", component: ModelDetail, props: forwardQueryAndParams },
-  { path: "/models/:model/edit", component: ModelDetailEdit, props: forwardQueryAndParams },
-  { path: "/datasets", component: Datasets, props: forwardQueryAndParams },
-  { path: "/datasets/new", component: DatasetNew, props: forwardQueryAndParams },
-  { path: "/datasets/:dataset", component: DatasetDetail, props: forwardQueryAndParams },
-  // { path: "/datasets/:dataset/edit", component: ModelEdit, props: forwardQueryAndParams },
-  {
-    path: "/playground",
-    name: "playground",
-    redirect: (route: RouteLocationNormalized) => {
-      // playground is just a flow editor view with automatic init/recovery to last playground
-      const flowsStore = useFlowsStore();
-      let flowName = flowsStore.lastOpenedFlow?.flow;
-      if (flowName == null || route.query.new) {
-        flowName = flowsStore.newName();
-      }
-
-      // unset query
-      const query = { ...route.query };
-      delete query.new;
-      delete query.models;
-
-      return {
-        path: `/flows/${flowName}/edit`,
-        query: { flow: flowName, playground: true, ...query },
-      };
-    },
-  },
-  { path: "/flows", component: Flows },
-  { path: "/flows/:flow", component: FlowDetail, props: forwardQueryAndParams },
-  { path: "/flows/:flow/edit", component: FlowDetailEdit, props: forwardQueryAndParams },
+  { path: "/:organization", component: OrganizationHome, props: forwardQueryAndParams },
+  { path: "/:organization/:project", component: ProjectHome, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];

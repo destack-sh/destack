@@ -1,5 +1,4 @@
-import { useAppStore, useFlowsStore, useMetaStore, useNotificationsStore } from "./stores";
-import { useArtifactsStore } from "./stores/artifacts";
+import { useAppStore } from "./stores";
 
 type BaseStore = {
   $id: string;
@@ -10,9 +9,7 @@ type BaseStore = {
   [key: string]: any;
 };
 
-export function useStores(
-  stores = [useAppStore, useArtifactsStore, useFlowsStore, useMetaStore, useNotificationsStore]
-): BaseStore[] {
+export function useStores(stores = [useAppStore]): BaseStore[] {
   return stores.map((useStore) => useStore()) as BaseStore[];
 }
 
