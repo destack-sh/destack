@@ -167,9 +167,10 @@ types-requests==2.27.16
     # via djangorestframework-stubs
 types-urllib3==1.26.11
     # via types-requests
-typing-extensions==4.1.1
+typing-extensions==4.4.0
     # via
     #   -c requirements.txt
+    #   -r requirements-dev.in
     #   black
     #   django-stubs
     #   django-stubs-ext
