@@ -3,48 +3,25 @@ from __future__ import annotations
 from django.db import models
 
 from bench.models.tag import TaggableMixin
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
-class FlowManager(models.Manager):
-    pass
+class InstructionType(models.TextChoices):
+    PROGRAM = "program"
+    FUNCTION = "function"
 
 
-class Flow(TaggableMixin, UUIDModel):
+class Instruction(TaggableMixin, UUIDModel):
     """
-    A tree of nested Instructions specifying how to do something with code, data & models.
+    Instructions specify how to do something using datasets, models and other instructions.
+    Like in software, Instructions form a tree and are implemented as code with some syntactic sugar.
 
-    Flows are versioned. All versions are available in 'versions'.
-    """
-
-    type = models.CharField(max_length=64)
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    root_instruction = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="flow+"
-    )
-
-    organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="flows")
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="flows+")
-
-    objects = FlowManager()
-
-    def __str__(self) -> str:
-        return f"{self.organization.slug}/{self.project.slug}/datasets/{self.name}@{self.id}"
-
-
-class Instruction(UUIDModel):
-    """
-    An instruction is a curried Python function with high level arguments like datasets, models and flows.
-
-    Instructions implement tasks which define the interface and guide instruction compilation.
+    Instructions define and implement tasks which define the interface and guide instruction compilation.
     As an (async) Python function, instructions are defined as code (either in-place or as a built-in).
     Instructions may contain and use other instructions, forming an instruction tree.
     """
 
-    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, related_name="instructions")
+    type: models.CharField = models.CharField(max_length=64, choices=InstructionType.choices)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -63,16 +40,16 @@ class Instruction(UUIDModel):
     # arguments to/from InstructionArgument
 
     def __str__(self):
-        return f"{self.flow}/{self.name or self.id}"
+        return f"{self.name}.{self.type}@{self.id}"
 
     @property
     def first_instruction(self) -> Instruction:
-        """Gets the first instruction in this flow, errors if there is none"""
+        """Gets the first instruction in this instruction, errors if there is none"""
         raise NotImplementedError
 
     @property
     def last_instruction(self) -> Instruction:
-        """Gets the last instruction in this flow, errors if there is none"""
+        """Gets the last instruction in this instruction, errors if there is none"""
         raise NotImplementedError()
 
     def get_instruction_by_name(self, name: str) -> Instruction:
@@ -81,11 +58,6 @@ class Instruction(UUIDModel):
 
     class Meta:
         constraints = [
-            # ensure name is unique inside flow version
-            models.UniqueConstraint(
-                name="bench_instruction_flow_name_ak",
-                fields=["flow", "name"],
-            ),
             # ensure either code_id or code is set
             models.CheckConstraint(
                 name="bench_instruction_code_id_xor_code_ck",
@@ -122,7 +94,7 @@ class InstructionParameter(UUIDModel):
 class InstructionArgument(UUIDModel):
     """
     An argument is value binding an instruction parameter.
-    An argument can be one of a model, a dataset, a flow or a plain JSON value.
+    An argument can be one of a model, a dataset, a instruction or a plain JSON value.
     """
 
     instruction_bound = models.ForeignKey(
@@ -134,7 +106,7 @@ class InstructionArgument(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True, blank=True)
-    flow = models.ForeignKey("Flow", on_delete=models.CASCADE, null=True, blank=True)
+    instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
 
     class Meta:

@@ -32,8 +32,8 @@ class Project(TaggableMixin, UUIDModel):
     All versions are available in 'versions' and may not be linear (also like in Git).
     Project "files" (the contents of the project) are copy-on-write.
 
-    A project has a main program (the top-level task & flow implementations).
-    Later, projects may also be "non-executable" libraries.
+    A project has a main program (the top-level task & instruction implementations).
+    Later, projects could also be "non-executable" libraries.
     """
 
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -63,6 +63,8 @@ class Project(TaggableMixin, UUIDModel):
     ) -> "ProjectVersion":
         if parent is None:
             parent = self.head
+            if self.head is None:
+                raise ValueError(f"project does not have a head version: {self}")
         if not parent.is_committed:
             if auto_commit:
                 parent.commit()
@@ -78,8 +80,8 @@ class Project(TaggableMixin, UUIDModel):
             cursor.execute(
                 """
 INSERT INTO bench_projectfile
- (project_version_id, type, name, task_id, flow_id, model_id, dataset_id)
-SELECT %s, type, name, task_id, flow_id, model_id, dataset_id
+ (project_version_id, type, name, task_id, instruction_id, model_id, dataset_id)
+SELECT %s, type, name, task_id, instruction_id, model_id, dataset_id
  FROM bench_projectfile
  WHERE project_version_id = %s
 """,
@@ -105,20 +107,20 @@ SELECT %s, type, name, task_id, flow_id, model_id, dataset_id
 
 class ProjectFileType(models.TextChoices):
     """
-    The type of "file" in a project, used to distinguish between tasks, flows, models, etc.
+    The type of "file" in a project, used to distinguish between tasks, instructions, models, etc.
     """
 
     TASK = "task", "Task"
-    FLOW = "flow", "Flow"
+    INSTRUCTION = "instruction", "Instruction"
     MODEL = "model", "Model"
     DATASET = "dataset", "Dataset"
 
 
 class ProjectFile(UUIDModel):
     """
-    A "file" containing a single named object (task, flow, model, dataset) in a project.
+    A "file" containing a single named object (task, instruction, model, dataset) in a project.
 
-    Conceptually, each task type is its own directory.
+    Conceptually, each task type has its own extension.
     """
 
     project_version: models.ForeignKey = models.ForeignKey(
@@ -128,7 +130,7 @@ class ProjectFile(UUIDModel):
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
 
     task = models.ForeignKey("Task", on_delete=models.CASCADE, null=True)
-    flow = models.ForeignKey("Flow", on_delete=models.CASCADE, null=True)
+    instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True)
 
@@ -145,8 +147,8 @@ class ProjectFile(UUIDModel):
                 fields=["project_version_id", "task_id"],
             ),
             models.UniqueConstraint(
-                name="bench_project_file_flow_id_ak",
-                fields=["project_version_id", "flow_id"],
+                name="bench_project_file_instruction_id_ak",
+                fields=["project_version_id", "instruction_id"],
             ),
             models.UniqueConstraint(
                 name="bench_project_file_model_id_ak",
@@ -172,11 +174,11 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
     # files via ProjectFile
     tasks = models.ManyToManyField("Task", through=ProjectFile)
-    flows = models.ManyToManyField("Flow", through=ProjectFile)
+    instructions = models.ManyToManyField("Instruction", through=ProjectFile)
     datasets = models.ManyToManyField("Dataset", through=ProjectFile)
     # we'll likely have multiple programs per project at some point
     program: models.ForeignKey = models.ForeignKey(
-        "Flow", on_delete=models.CASCADE, null=True, related_name="projects"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="projects"
     )
     # set this last as not to override 'models' imported from django.db
     models = models.ManyToManyField("Model", through=ProjectFile)
@@ -199,7 +201,3 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     @property
     def organization(self):
         return self.project.organization
-
-    class Meta:
-        indexes = []
-        constraints = []

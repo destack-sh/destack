@@ -22,6 +22,12 @@ class DatasetSearch:
     text_like: Optional[str] = None
 
 
+class DatasetType(models.TextChoices):
+    EXAMPLES = "examples", "Examples"
+    FACTS = "facts", "Facts"
+    CONCEPT = "concept", "Concept"
+
+
 class Dataset(TaggableMixin, UUIDModel):
     """
     A dataset of JSON records.
@@ -29,7 +35,7 @@ class Dataset(TaggableMixin, UUIDModel):
     Datasets include machine learning datasets, function inputs/outputs, lexicons.
     """
 
-    type = models.CharField(max_length=64)
+    type = models.CharField(max_length=64, choices=DatasetType.choices)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -38,15 +44,10 @@ class Dataset(TaggableMixin, UUIDModel):
     schema = models.JSONField()
     length = models.IntegerField(default=0)
 
-    organization = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="datasets"
-    )
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="datasets+")
-
     objects = DatasetManager()
 
     def __str__(self):
-        return f"{self.organization.slug}/{self.project.slug}/datasets/{self.name}@{self.id}"
+        return f"{self.name}.{self.type}@{self.id}"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -129,10 +130,6 @@ class Dataset(TaggableMixin, UUIDModel):
 
     def __len__(self) -> int:
         return self.length
-
-    class Meta:
-        indexes = []
-        constraints = []
 
 
 class DatasetRecord(UUIDModel):

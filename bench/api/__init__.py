@@ -5,8 +5,6 @@ from typing import List
 from rest_framework.routers import BaseRouter
 
 from bench.api.dataset import DatasetRecordViewSet, DatasetViewSet
-from bench.api.execution import ExecutionViewSet
-from bench.api.flow import FlowViewSet, InstructionViewSet
 from bench.api.model import ModelViewSet
 from bench.api.organization import OrganizationViewSet
 from bench.api.project import ProjectViewSet
@@ -22,8 +20,6 @@ organizations_router = router.register_nested(
 )
 # /organizations/<organization>/tags
 organizations_router.register("tags", TagViewSet)
-# /organizations/<organization>/executions
-organizations_router.register("executions", ExecutionViewSet)
 
 # /organizations/<organization>/projects
 projects_router = organizations_router.register_nested("projects", ProjectViewSet, lookup="project")
@@ -40,8 +36,5 @@ datasets_router.register("records", DatasetRecordViewSet)
 
 # /models/<organization> and /models/<organization>/<model>
 models_router = router.register_nested("models", ModelViewSet, lookup=("organization", "artifact"))
-
-# /flows/<organization>/<flow>
-flows_router = router.register_nested("flows", FlowViewSet, lookup=("organization", "flow"))
 
 routers: List[BaseRouter] = [router, *router.descendant_routers]
