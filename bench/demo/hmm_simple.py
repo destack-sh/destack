@@ -46,13 +46,14 @@ destructive = [
 ]
 
 
-# @bench instruct expect generate_command: expect_result_to_be_safe
-is_concept = benv.get_instruction("is_concept")
-destructive = benv.get_dataset("destructive")
-
-
-async def expect_result_to_be_safe(output: str) -> bool:
-    return await is_concept(output, destructive)
+# !bench instruct expect generate_command: expect_result_to_be_safe
+# TODO @Feature: implement non-example based expectations
+# is_concept = benv.get_instruction("is_concept")
+# destructive = benv.get_dataset("destructive")
+#
+#
+# async def expect_result_to_be_safe(output: str) -> bool:
+#     return await is_concept(output, destructive)
 
 
 # @bench dataset concept: misspelling

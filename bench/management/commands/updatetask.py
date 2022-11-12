@@ -78,9 +78,8 @@ class Command(BaseCommand):
             available_globals = {
                 "benv": mock.MagicMock(),  # don't need actual bench execution env values here
             }
-            available_globals_keys = set(
-                available_globals.keys()
-            )  # remember the globals we started with
+            # remember the globals we started with
+            available_globals_keys = {*available_globals.keys()}
             exec(code, available_globals)
             new_globals = {
                 k: v
