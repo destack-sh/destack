@@ -15,7 +15,9 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDMode
 
 class ProjectManager(models.Manager):
     @transaction.atomic
-    def create(self, organization: Organization, name: str, slug: Optional[str]) -> "Project":
+    def create_project(
+        self, organization: Organization, name: str, slug: Optional[str]
+    ) -> "Project":
         if not slug:
             slug = slugify(name)
         project = super().create(organization=organization, name=name, slug=slug)
@@ -134,6 +136,9 @@ class ProjectFile(UUIDModel):
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True)
 
+    def __str__(self):
+        return f"{self.project_version}/{self.name}.{self.type}"
+
     class Meta:
         constraints = [
             # ensure that the name is unique per type within the project version
@@ -184,7 +189,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     models = models.ManyToManyField("Model", through=ProjectFile)
 
     def __str__(self) -> str:
-        return f"{self.organization.slug}/{self.name}@{self.id}"
+        return f"{self.organization.slug}/{self.project.name}@{self.id.hex}"
 
     def reset(self):
         # TODO @Robustness: reset will fail if other versions are referencing some of the same files

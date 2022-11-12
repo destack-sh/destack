@@ -7,7 +7,7 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench.models import Dataset, Instruction, Organization, Project, Task
-from bench.models.dataset import DatasetRecord
+from bench.models.project import ProjectFileType
 
 
 @dataclass
@@ -37,7 +37,7 @@ class Command(BaseCommand):
         organization = Organization.objects.get(slug=options["organization"])
         project = Project.objects.filter(slug=options["project"], organization=organization).first()
         if project is None:
-            project = Project.objects.create(
+            project = Project.objects.create_project(
                 organization=organization, name=options["project"], slug=options["project"]
             )
 
@@ -103,10 +103,8 @@ class Command(BaseCommand):
                     name=file_name,
                     description=(task_definition["description"]),
                     schema=(task_definition["schema"]),
-                    organization=organization,
-                    project=project,
                 )
-            elif args[0] == "instruction":
+            elif args[0] == "instruct":
                 # parse header "instruction [args]: <name>"
                 instruction_definition = definitions[file_name]
                 # instruction definition must be a function
@@ -115,15 +113,8 @@ class Command(BaseCommand):
                         f"instruction definition: {instruction_definition} must be a function"
                     )
                 instruction = Instruction.objects.create(
-                    name=file_name,
-                    type=args[1],
-                    organization=organization,
-                    project=project,
+                    name=file_name, type=args[1], code=segment.full_code
                 )
-                instruction.root_instruction = Instruction.objects.create(
-                    instruction=instruction, name=file_name, code=segment.full_code
-                )
-                instruction.save()
                 instructions[file_name] = instruction
 
                 if instruction.type == "expectation":
@@ -132,17 +123,27 @@ class Command(BaseCommand):
                 dataset_records = definitions[file_name]
                 # schema is just keys and types of values of the first element
                 schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
-                dataset = Dataset.objects.create(
-                    name=file_name,
-                    schema=schema,
-                    type=args[1],
-                    organization=organization,
-                    project=project,
-                )
-                dataset.extend([DatasetRecord(data=data) for data in dataset_records])
+                dataset = Dataset.objects.create(name=file_name, schema=schema, type=args[1])
+                dataset.extend(dataset_records)
                 datasets[file_name] = dataset
 
                 if dataset.type == "examples":
                     tasks[args[2]].examples.add(dataset)
             else:
                 raise ValueError(f"Unknown segment header: {segment.header}")
+
+        # create files for tasks, instructions and datasets
+        for task in tasks.values():
+            new_version.files.create(name=task.name, type=ProjectFileType.TASK, task=task)
+        for instruction in instructions.values():
+            new_version.files.create(
+                name=instruction.name, type=ProjectFileType.INSTRUCTION, instruction=instruction
+            )
+        for dataset in datasets.values():
+            new_version.files.create(
+                name=dataset.name, type=ProjectFileType.DATASET, dataset=dataset
+            )
+
+        # advance head to new version
+        project.head = new_version
+        project.save()

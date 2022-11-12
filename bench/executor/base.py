@@ -10,5 +10,5 @@ class Executor:
     def __init__(self):
         self.executor_id = uuid.uuid4().hex
 
-    async def run_instruction(self, instruction: Instruction, arguments: dict[str, Any]):
+    async def run(self, instruction: Instruction, arguments: dict[str, Any]):
         raise NotImplementedError

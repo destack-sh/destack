@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import traceback
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from typing import Optional, TypeVar
 
+from asgiref.sync import sync_to_async
 from django.db import models
 from django.db.models import QuerySet
 
@@ -149,6 +150,21 @@ class Execution(UUIDModel):
         except Exception as e:
             stacktrace = traceback.format_stack()
             self.terminate(
+                status=Execution.Status.Failed,
+                transition_metadata={"error": str(e), "stacktrace": stacktrace},
+            )
+            raise
+
+    @asynccontextmanager
+    async def acapture(self, start: bool = True, start_metadata: Optional[dict] = None):
+        try:
+            if start:
+                sync_to_async(self.start)(transition_metadata=start_metadata)
+            yield
+            sync_to_async(self.terminate)()
+        except Exception as e:
+            stacktrace = traceback.format_stack()
+            sync_to_async(self.terminate)(
                 status=Execution.Status.Failed,
                 transition_metadata={"error": str(e), "stacktrace": stacktrace},
             )
