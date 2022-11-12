@@ -116,8 +116,8 @@ class InstructionArgument(UUIDModel):
             models.CheckConstraint(
                 name="bench_instruction_argument_bound_free_ck",
                 check=(
-                    models.Q(instruction_bound__isnull=False, instruction_free__isnull=True)
-                    | models.Q(instruction_bound__isnull=True, instruction_free__isnull=False)
+                    models.Q(instruction_bound__isnull=True)
+                    ^ models.Q(instruction_free__isnull=True)
                 ),
             ),
             # ensure that instruction bound/free can only be bound once per name
