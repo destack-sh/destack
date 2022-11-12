@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 from django.db import models
 from django.db.models import QuerySet
 
-from bench.models.utils import UUIDModel
+from bench.models.utils import UUIDTModel
 
 
 class ExecutionType(models.TextChoices):
@@ -36,7 +36,7 @@ class ExecutionManager(models.Manager):
         return super().create(type=self.default_type, **kwargs)
 
 
-class Execution(UUIDModel):
+class Execution(UUIDTModel):
     """
     The execution of some executable unit, like an instruction or model.
 

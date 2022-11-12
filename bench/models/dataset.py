@@ -41,7 +41,7 @@ class Dataset(TaggableMixin, UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
 
     # records from DatasetRecord.dataset
-    schema = models.JSONField()
+    schema = models.JSONField(null=True, blank=True)
     length = models.IntegerField(default=0)
 
     objects = DatasetManager()

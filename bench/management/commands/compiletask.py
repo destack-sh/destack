@@ -1,8 +1,11 @@
+from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.models import Organization, Project
+from bench.compiler import Compiler
+from bench.executor import Executor
+from bench.models import Compilation, Organization, Project
 
 
 class Command(BaseCommand):
@@ -22,4 +25,9 @@ class Command(BaseCommand):
         project = Project.objects.filter(slug=options["project"], organization=organization).first()
         project_version = project.head
         task = project_version.tasks.get(name=options["task"])
-        print(task)
+        source_instruction = task.implementations.get()
+
+        executor = Executor()
+        compiler = Compiler(executor)
+        compilation = Compilation.objects.create(task=task, source_instruction=source_instruction)
+        async_to_sync(compiler.compile)(compilation)
