@@ -7,8 +7,9 @@ from django.conf.urls import include
 from django.contrib import admin
 from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from strawberry.django.views import GraphQLView
 
-from bench.api import routers as api_routers
+from bench.api import schema
 from bench.settings import API_PREFIX
 
 urlpatterns = [
@@ -24,5 +25,5 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger",
     ),
-    *[path(API_PREFIX, include(r.urls)) for r in api_routers],
+    path("graphql", GraphQLView.as_view(schema=schema)),
 ]

@@ -1,16 +1,28 @@
 /* eslint-disable no-console */
 
 import { createPinia } from "pinia";
-import { createApp } from "vue";
+import { createApp, h, provide } from "vue";
 import { version } from "../../package.json";
 
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import { hydrate } from "./hydrate";
 import router from "./router";
+import { DefaultApolloClient } from "@vue/apollo-composable";
+import { ApolloClient, InMemoryCache } from "@apollo/client/core";
 
 async function init() {
-  const app = createApp(App);
+  const apolloClient = new ApolloClient({
+    uri: "http://localhost:8000/graphql",
+    cache: new InMemoryCache(),
+  });
+
+  const app = createApp({
+    setup() {
+      provide(DefaultApolloClient, apolloClient);
+    },
+    render: () => h(App),
+  });
 
   app.use(createPinia());
   app.use(router);
