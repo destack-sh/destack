@@ -13,7 +13,9 @@ anyio==3.6.2
 asgiref==3.5.2
     # via
     #   -r requirements.in
+    #   channels
     #   django
+    #   strawberry-graphql
 async-timeout==4.0.2
     # via aiohttp
 attrs==21.4.0
@@ -32,6 +34,10 @@ certifi==2021.10.8
     #   sentry-sdk
 cffi==1.15.1
     # via cryptography
+channels==4.0.0
+    # via
+    #   -r requirements.in
+    #   strawberry-graphql
 charset-normalizer==2.0.12
     # via
     #   aiohttp
@@ -48,11 +54,14 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   social-auth-core
+deprecated==1.2.13
+    # via opentelemetry-api
 dj-database-url==1.0.0
     # via -r requirements.in
 django==4.1.3
     # via
     #   -r requirements.in
+    #   channels
     #   dj-database-url
     #   django-axes
     #   django-cors-headers
@@ -139,6 +148,14 @@ oauthlib==3.2.1
     # via
     #   requests-oauthlib
     #   social-auth-core
+opentelemetry-api==1.14.0
+    # via
+    #   opentelemetry-sdk
+    #   strawberry-graphql
+opentelemetry-sdk==1.14.0
+    # via strawberry-graphql
+opentelemetry-semantic-conventions==0.35b0
+    # via opentelemetry-sdk
 packaging==21.3
     # via marshmallow
 posthoganalytics==2.1.2
@@ -197,7 +214,7 @@ starlette==0.21.0
     # via strawberry-graphql
 strawberry-django-plus==1.29
     # via -r requirements.in
-strawberry-graphql[debug-server]==0.142.1
+strawberry-graphql[channels,debug-server,opentelemetry]==0.142.1
     # via
     #   -r requirements.in
     #   strawberry-django-plus
@@ -208,6 +225,7 @@ structlog==21.5.0
     # via django-structlog
 typing-extensions==4.4.0
     # via
+    #   opentelemetry-sdk
     #   starlette
     #   strawberry-django-plus
     #   strawberry-graphql
@@ -225,6 +243,8 @@ uvicorn==0.19.0
     # via
     #   -r requirements.in
     #   strawberry-graphql
+wrapt==1.14.1
+    # via deprecated
 yarl==1.8.1
     # via aiohttp
 

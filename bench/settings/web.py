@@ -13,6 +13,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "strawberry.django",
     "rest_framework",
     "loginas",
     "corsheaders",

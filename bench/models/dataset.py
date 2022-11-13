@@ -24,7 +24,7 @@ class DatasetSearch:
 
 class DatasetType(models.TextChoices):
     EXAMPLES = "examples", "Examples"
-    FACTS = "facts", "Facts"
+    LEXICON = "lexicon", "Lexicon"
     CONCEPT = "concept", "Concept"
 
 
