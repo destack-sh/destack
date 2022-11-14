@@ -18,12 +18,122 @@ type Organization implements Node {
   slug: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  projects: [Project!]!
+  members: [User!]!
 }
 
+"""A connection to a list of items."""
+type OrganizationConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [OrganizationEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type OrganizationEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Organization!
+}
+
+"""Information to aid in pagination."""
+type PageInfo {
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
+  startCursor: String
+
+  """When paginating forwards, the cursor to continue."""
+  endCursor: String
+}
+
+type Project implements Node {
+  id: GlobalID!
+  name: String!
+  slug: String!
+  organization: Organization!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type ProjectConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type ProjectEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Project!
+}
 
 type Query {
+  project(
+    """The ID of the object."""
+    id: GlobalID!
+  ): Project
+  projectsConnection(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): ProjectConnection!
   organization(
     """The ID of the object."""
     id: GlobalID!
   ): Organization
+  organizationsConnection(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): OrganizationConnection!
+}
+
+type User implements Node {
+  id: GlobalID!
+
+  """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
+  username: String!
+  firstName: String!
+  lastName: String!
+  email: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  organizations: [Organization!]!
 }

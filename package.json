@@ -42,6 +42,7 @@
   "devDependencies": {
     "@graphql-codegen/cli": "^2.13.11",
     "@graphql-codegen/client-preset": "^1.1.3",
+    "@graphql-codegen/near-operation-file-preset": "^2.4.4",
     "@graphql-codegen/typed-document-node": "^2.3.6",
     "@graphql-codegen/typescript-vue-apollo": "^3.3.6",
     "@rushstack/eslint-patch": "^1.1.0",
