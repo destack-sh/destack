@@ -54,25 +54,29 @@ class Dataset(TaggableMixin, UUIDModel):
     ) -> Sequence[DatasetRecord]:
         raise NotImplementedError
 
-    def get_record(self, index: int) -> DatasetRecord:
+    def get(self, index: int) -> DatasetRecord:
         return DatasetRecord.objects.get(dataset=self, index=index)
 
-    def get_records_view(self, view_data: Optional[DatasetViewData]) -> list[DatasetRecord]:
+    def get_view(self, view_data: Optional[DatasetViewData]) -> list[DatasetRecord]:
         if view_data is None:
-            return self.get_records_slice(0, len(self))
+            return self.get_slice(0, len(self))
         else:
             # note that this only works with slice-based views
-            return self.get_records_slice(view_data.apply(0), view_data.apply(len(self)))
+            return self.get_slice(view_data.apply(0), view_data.apply(len(self)))
 
-    def get_records_slice(self, start: int, stop: Optional[int] = None) -> list[DatasetRecord]:
+    def get_slice(self, start: int, stop: Optional[int] = None) -> list[DatasetRecord]:
         stop = stop if stop is not None else 0
         return DatasetRecord.objects.filter(dataset=self)[start:stop]
 
-    def get_records_data_field(self, key: str) -> list[Any]:
+    def get_field(self, key: str) -> list[Any]:
         return DatasetRecord.objects.filter(dataset=self).values_list("data__" + key, flat=True)
 
     def __iter__(self) -> Iterator[dict]:
         for record in DatasetRecord.objects.filter(dataset=self):
+            yield record.data
+
+    async def __aiter__(self) -> Iterator[dict]:
+        async for record in DatasetRecord.objects.filter(dataset=self):
             yield record.data
 
     def append(self, record: dict) -> int:
@@ -103,13 +107,13 @@ class Dataset(TaggableMixin, UUIDModel):
 
     def update(self, index: int, record: dict):
         with transaction.atomic():
-            db_record = self.get_record(index)
+            db_record = self.get(index)
             db_record.data = record
             db_record.save()
 
     def delete_(self, index: int):
         with transaction.atomic():
-            db_record = self.get_record(index)
+            db_record = self.get(index)
             db_record.delete()
             # update the index of all records indices after the deleted one
             with connection.cursor() as cursor:

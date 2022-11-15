@@ -5,7 +5,7 @@ from django.db import transaction
 
 from bench.compiler import Compiler
 from bench.executor import Executor
-from bench.models import Compilation, Organization, Project
+from bench.models import Compilation, Organization, Project, ProjectFileType
 
 
 class Command(BaseCommand):
@@ -24,7 +24,7 @@ class Command(BaseCommand):
         organization = Organization.objects.get(slug=options["organization"])
         project = Project.objects.filter(slug=options["project"], organization=organization).first()
         project_version = project.head
-        task = project_version.tasks.get(name=options["task"])
+        task = project_version.files.get(type=ProjectFileType.TASK, name=options["task"]).task
         source_instruction = task.implementations.get()
 
         executor = Executor()

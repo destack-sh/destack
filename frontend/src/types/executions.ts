@@ -40,7 +40,7 @@ export type ExecutionArtifactConnection = {
   connection_type: ExecutionArtifactConnectionType;
   connection_name: string;
   dataset_preview?: LimitPaginatedResult<Record<string, any>>;
-  view?: ArtifactView;
+  get_view?: ArtifactView;
   view_inline?: ArtifactViewData;
 };
 

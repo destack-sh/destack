@@ -19,7 +19,7 @@ benv: Any = {}
 
 
 # @bench instruct: generate_command
-model: Model = benv.get_model("openai/code-davinci-002")
+model: Model  # = benv.get_model("openai/code-davinci-002")
 prompt = """
 # Translate the natural language comm and into a CLI command.
 

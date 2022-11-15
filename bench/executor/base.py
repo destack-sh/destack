@@ -1,11 +1,60 @@
 from __future__ import annotations
 
+import typing
 import uuid
-from typing import Any
+from typing import Any, Iterator, Union
 from unittest import mock
 
-from bench.models.instruction import Instruction
+from django.db.models import QuerySet
+
+from bench.model.base import ModelHandler
+from bench.models import Dataset, Model
+from bench.models.instruction import Instruction, InstructionArgument
 from bench.settings import DEBUG, TEST
+from bench.utils.record import Record, RecordBatch, RecordList
+
+
+class DatasetWrapper(RecordBatch):
+    """
+    Wraps a Dataset as a simple array-like record batch.
+    """
+
+    def __init__(self, dataset: Dataset):
+        self._dataset = dataset
+
+    @typing.overload
+    def __getitem__(self, index: int) -> Record:
+        ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> RecordBatch:
+        ...
+
+    @typing.overload
+    def __getitem__(self, index: str) -> list:
+        ...
+
+    def __getitem__(self, index: Union[int, slice, str]) -> Union[Record, RecordBatch, list]:
+        if isinstance(index, int):
+            return self._dataset.get(index).data
+        elif isinstance(index, slice):
+            return self._dataset.get_slice(index.start, index.stop)
+        elif isinstance(index, str):
+            return self._dataset.get_field(index)
+        else:
+            raise TypeError(f"Invalid index type: {type(index)}")
+
+    def __iter__(self) -> Iterator[Record]:
+        yield from self._dataset
+
+    def __len__(self) -> int:
+        return len(self._dataset)
+
+
+class SandboxError(Exception):
+    def __init__(self, message: str, exception: Exception):
+        super().__init__(message)
+        self.exception = exception
 
 
 class Executor:
@@ -30,20 +79,77 @@ class Executor:
 
     async def _do_exec(self, code: str, globals: dict):
         if not self.can_exec:
-            raise ValueError("exec outside sandbox is not allowed")
+            raise RuntimeError("exec outside sandbox is not allowed")
 
-        exec(code, globals)
+        try:
+            exec(code, globals)
+        except Exception as e:
+            raise SandboxError(f"error executing code: {e}", e) from e
 
-    async def run(self, instruction: Instruction, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def _resolve_model(self, model: Model) -> ModelHandler:
+        if model.handler_id == "openai":
+            from bench.model.openai import OpenAIHandler
+
+            return OpenAIHandler(**model.handler_arguments)
+        else:
+            raise ValueError(f"unknown model handler: {model.handler_id}")
+
+    async def _resolve_dataset(self, dataset: Dataset) -> RecordBatch:
+        # TODO @Performance: do not load all records when resolving dataset arguments
+        #  All functions are executed async, but dataset access is neater if it's synchronous.
+        #  So we pre-load everything and wrap it in a synchronous wrapper.
+        records = []
+        async for record in dataset:
+            records.append(record)
+        return RecordList(records)
+
+    async def _resolve_instruction(
+        self,
+        instruction: Instruction,
+    ) -> typing.Callable[..., typing.Coroutine]:
+        """
+        Resolves an instruction and all its arguments to an async callable.
+        """
+
+        arguments = await self._resolve_instruction_arguments(instruction)
+
         code = self._get_instruction_code(instruction)
-        # TODO @Feature: load and impute arguments from instruction arguments
-        # TODO @Feature: load nested instructions
+        # An instruction can be a linear piece of code to call every time or define a function to call.
+        # Note that we don't actually run the code here, we just resolve and initialise.
+        if not instruction.anonymous:
+            output = await self.run_get_definitions(code, arguments)
+            if instruction.name not in output:
+                raise ValueError(f"function {instruction.name} not defined in code")
+            return output[instruction.name]
+        else:
 
-        output = await self.run_get_definitions(code, arguments)
-        if instruction.name in output and callable(output[instruction.name]):
-            run_function = output[instruction.name]
-            output = await run_function(**arguments)
-        return output
+            async def _run_anonymous(**kwargs):
+                await self._do_exec(code, {**arguments, **kwargs})
+
+            return _run_anonymous
+
+    async def _resolve_instruction_arguments(self, instruction: Instruction) -> dict[str, Any]:
+        bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all()
+        bound_arguments_resolved = {}
+        async for argument in bound_arguments:
+            if argument.model:
+                bound_arguments_resolved[argument.name] = self._resolve_model(argument.model)
+            elif argument.dataset:
+                bound_arguments_resolved[argument.name] = self._resolve_dataset(argument.dataset)
+            elif argument.instruction:
+                bound_arguments_resolved[argument.name] = await self._resolve_instruction(
+                    argument.instruction
+                )
+            else:
+                bound_arguments_resolved[argument.name] = argument.value
+        return bound_arguments_resolved
+
+    async def run(
+        self, instruction: Instruction, arguments: dict[str, Any]
+    ) -> typing.Optional[dict[str, Any]]:
+        # TODO @Feature: trace model/instruction executions (with context, recursively)
+        callable = await self._resolve_instruction(instruction)
+        return await callable(**arguments)
 
     async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict[str, Any]:
         available_globals = {
