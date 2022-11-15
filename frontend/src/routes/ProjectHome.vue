@@ -98,19 +98,19 @@
     </header>
     <!-- Main content (sidebar + editor), spans vertically -->
     <div class="flex-1">
-      <!-- Sidebar of view buttons & views -->
+      <!-- Sidebar of get_view buttons & views -->
       <aside class="flex h-full w-72 resize-x border-r border-gray-200">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
             <button
               class="rounded-sm px-2 py-2 text-gray-600"
-              :class="view.selected ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
-              v-for="view in viewNavigation"
-              :key="view.name"
+              :class="get_view.selected ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
+              v-for="get_view in viewNavigation"
+              :key="get_view.name"
             >
-              <span class="sr-only">{{ view.name }}</span>
-              <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
+              <span class="sr-only">{{ get_view.name }}</span>
+              <component :is="get_view.icon" class="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
 
@@ -128,7 +128,7 @@
           <!-- View header -->
           <div class="flex flex-row justify-between border-b border-gray-200 px-2 py-4">
             <span class="text-xs font-bold uppercase">Explorer</span>
-            <!-- TODO @Feature: select explorer view (by type, by task tree) -->
+            <!-- TODO @Feature: select explorer get_view (by type, by task tree) -->
           </div>
           <!-- View contents -->
           <div class="flex flex-1 flex-col"></div>

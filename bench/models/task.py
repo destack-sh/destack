@@ -17,12 +17,12 @@ class Task(TaggableMixin, UUIDModel):
     """
 
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=512)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey("Task", on_delete=models.CASCADE, null=True, related_name="children")
 
     schema = models.JSONField()
+    explanations = models.ManyToManyField("Dataset", related_name="tasks+")
     examples = models.ManyToManyField("Dataset", related_name="tasks+")
     expectations = models.ManyToManyField("Instruction", related_name="tasks+")
     # implementations from/to Instruction

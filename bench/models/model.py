@@ -27,6 +27,7 @@ class Model(TaggableMixin, UUIDModel):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     handler_id = models.CharField(max_length=64)
+    handler_arguments = models.JSONField(null=True, blank=True)
 
     objects = ModelManager()
 

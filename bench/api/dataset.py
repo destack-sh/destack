@@ -119,11 +119,11 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
     pagination_class = DatasetRecordPagination
 
     @property
-    def view(self) -> DatasetViewData:
+    def get_view(self) -> DatasetViewData:
         try:
             return DatasetViewData(**self.request.data)
         except ValueError as e:
-            raise ValidationError(f"invalid view: {e}")
+            raise ValidationError(f"invalid get_view: {e}")
 
     def view_apply(self, index: int) -> int:
         index = self.view.apply(index)
@@ -148,7 +148,7 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
             records = dataset.search_records(limit=limit, offset=offset, search=search)
         else:
             records = list(
-                dataset.get_records_slice(self.view_apply(offset), self.view_apply(offset + limit))
+                dataset.get_slice(self.view_apply(offset), self.view_apply(offset + limit))
             )
         records_data = DatasetRecordSerializer(records, many=True).data
         return Response({"limit": limit, "offset": offset, "results": records_data})
@@ -176,7 +176,7 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
         dataset.update(index_int, ds_record)
 
         # get actually written record
-        return Response(DatasetRecordSerializer(dataset.get_record(index_int)).data)
+        return Response(DatasetRecordSerializer(dataset.get(index_int)).data)
 
     def retrieve(
         self, index: str, organization: str, dataset: str, version: str = None
@@ -184,7 +184,7 @@ class DatasetRecordViewSet(viewsets.GenericViewSet):
         dataset = get_dataset_version(organization, dataset, version)
         index_int: int = self.view_apply(_positive_int(index))
         try:
-            ds_record = dataset.get_record(index_int)
+            ds_record = dataset.get(index_int)
         except LookupError:
             raise Http404("No record matches the given query.")
         return Response(DatasetRecordSerializer(ds_record).data)

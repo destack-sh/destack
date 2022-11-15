@@ -43,18 +43,8 @@ class Instruction(TaggableMixin, UUIDModel):
         return f"{self.name}.{self.type}@{self.id.hex}"
 
     @property
-    def first_instruction(self) -> Instruction:
-        """Gets the first instruction in this instruction, errors if there is none"""
-        raise NotImplementedError
-
-    @property
-    def last_instruction(self) -> Instruction:
-        """Gets the last instruction in this instruction, errors if there is none"""
-        raise NotImplementedError()
-
-    def get_instruction_by_name(self, name: str) -> Instruction:
-        """Gets an instruction by name"""
-        return self.children.get(name=name)
+    def anonymous(self):
+        return f"def {self.name}(" not in self.code
 
     class Meta:
         constraints = [

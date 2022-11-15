@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, re
 from unittest import mock
 
 from django.core.management import BaseCommand
@@ -129,6 +129,14 @@ class Command(BaseCommand):
                     instruction.save()
                 instructions[file_name] = instruction
 
+                # parse instruction parameters from code
+                # they are defined as type only definitions like:
+                # name: Model
+                # name: Dataset
+                # name: Callable
+                # name: <type>
+                parameters = re.findall(r"^(\w+): (\w+)$", segment.full_code)
+
                 if instruction.type == "expect":
                     tasks[args[2]].expectations.add(instruction)
             elif args[0] == "dataset":
@@ -141,6 +149,8 @@ class Command(BaseCommand):
 
                 if dataset.type == "examples":
                     tasks[args[2]].examples.add(dataset)
+                elif dataset.type == "explanations":
+                    tasks[args[2]].explanations.add(dataset)
             else:
                 raise ValueError(f"Unknown segment header: {segment.header}")
 

@@ -2,8 +2,6 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Mapping, Type
 
-from bench.utils.record import Record
-
 
 @dataclass
 class ModelHandlerMetadata:
@@ -21,14 +19,26 @@ class ModelHandler(abc.ABC):
     config_schema: Mapping[str, Any]
 
     async def complete(self, prompt: str) -> tuple[str, list[float]]:
+        """
+        Generate a completion for the given prompt.
+        @return: (completion, logprobs)
+        """
         raise NotImplementedError
 
     async def classify(
         self, text: str, labels: list[str], examples: list[tuple[str, str]]
-    ) -> Record:
+    ) -> tuple[str, float]:
+        """
+        Classify the given text into one of the given labels.
+        @return: (label, score)
+        """
         raise NotImplementedError
 
     async def embed(self, text: str) -> bytes:
+        """
+        Embed the given text into a vector.
+        @return: vector
+        """
         raise NotImplementedError
 
 
