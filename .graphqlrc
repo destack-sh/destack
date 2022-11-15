@@ -1,0 +1,5 @@
+schema: schema.gen.graphql
+documents: 
+ - frontend/src/**/*.graphql
+ - frontend/src/**/*.ts
+ - frontend/src/**/*.vue

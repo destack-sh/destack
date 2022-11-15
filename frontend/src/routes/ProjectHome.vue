@@ -5,7 +5,7 @@
         <!-- Left side: organizational -->
         <div class="static flex items-center">
           <!-- Home -->
-          <div class="flex flex-shrink-0 items-center py-2 px-4 hover:bg-gray-50">
+          <div class="flex flex-shrink-0 items-center px-4 py-2 hover:bg-gray-50">
             <a href="#">
               <img
                 class="block h-8 w-auto"
@@ -18,7 +18,7 @@
           <Menu as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
             <div class="h-full">
               <MenuButton
-                class="flex h-full items-center justify-between bg-white py-2 px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+                class="flex h-full items-center justify-between bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
               >
                 <span class="sr-only">Open project menu</span>
                 <span class="text-sm">
@@ -67,7 +67,7 @@
           <Menu as="div" class="relative flex-shrink-0">
             <div>
               <MenuButton
-                class="flex flex-col bg-white py-2 px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+                class="flex flex-col bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
               >
                 <span class="sr-only">Open user menu</span>
                 <span class="text-xs font-bold">{{ user.name }}</span>
@@ -104,7 +104,7 @@
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
             <button
-              class="rounded-sm py-2 px-2 text-gray-600"
+              class="rounded-sm px-2 py-2 text-gray-600"
               :class="view.selected ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
               v-for="view in viewNavigation"
               :key="view.name"
@@ -115,11 +115,11 @@
           </div>
 
           <!-- Help & settings -->
-          <button class="rounded-sm py-2 px-2 text-gray-600 hover:bg-gray-100">
+          <button class="rounded-sm px-2 py-2 text-gray-600 hover:bg-gray-100">
             <span class="sr-only">Help</span>
             <QuestionMarkCircleIcon class="h-6 w-6" aria-hidden="true" />
           </button>
-          <button class="rounded-sm py-2 px-2 text-gray-600 hover:bg-gray-100">
+          <button class="rounded-sm px-2 py-2 text-gray-600 hover:bg-gray-100">
             <span class="sr-only">Settings</span>
             <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />
           </button>
@@ -152,6 +152,9 @@ import {
   QuestionMarkCircleIcon,
   Cog8ToothIcon,
 } from "@heroicons/vue/24/outline";
+import { graphql } from "@/gql";
+import { useQuery } from "@vue/apollo-composable";
+import { computed } from "vue";
 
 const props = defineProps<{
   organization: string;
@@ -174,4 +177,36 @@ const viewNavigation = [
 ];
 
 const explorerViewFiles = [{ name: "" }];
+
+const ProjectVersionFragment = graphql(/* GraphQL */ `
+  fragment ProjectVersionFragment on ProjectVersion {
+    name
+    description
+    createdAt
+    committedAt
+  }
+`);
+
+const { result: versionsQuery } = useQuery(
+  graphql(/* GraphQL */ `
+    query getProjectVersions($id: GlobalID!) {
+      project(id: $id) {
+        id
+        name
+        slug
+        head {
+          id
+          ...ProjectVersionFragment
+        }
+        versions {
+          id
+          ...ProjectVersionFragment
+        }
+      }
+    }
+  `),
+  {
+    id: "UHJvamVjdDo0MzJjZjA2Ny04YzRlLTQ5NzYtOWMwOS01YzRmMTNhMmJjZGU=",
+  }
+);
 </script>

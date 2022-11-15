@@ -1,18 +1,18 @@
 import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
-  schema: "./schema.gen.graphql",
-  documents: ["frontend/src/**/*.vue", "frontend/src/**/*.ts"],
+  schema: "schema.gen.graphql",
+  documents: ["frontend/src/**/*.vue", "frontend/src/**/*.ts", "!frontend/src/gql/**/*"],
   ignoreNoDocuments: true,
   hooks: { afterOneFileWrite: ["prettier --write"] },
   generates: {
-    "./frontend/src/gql/": {
+    "frontend/src/gql/": {
       preset: "client",
       config: {
         useTypeImports: true,
         withCompositionFunctions: true,
       },
-      plugins: ["typescript-vue-apollo"],
+      plugins: [],
     },
     // below: alternative config if we want to put operations near their definitions
     // "frontend/src/gql/types.ts": {

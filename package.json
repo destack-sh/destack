@@ -1,6 +1,7 @@
 {
   "name": "bench",
   "version": "0.0.1",
+  "license": "UNLICENSED",
   "engines": {
     "node": ">=16.x"
   },
@@ -29,7 +30,7 @@
     "axios": "^0.27.2",
     "elkjs": "^0.8.1",
     "graphql": "^16.6.0",
-    "graphql-tag": "^2.12.6",
+    "graphql-config": "^4.3.6",
     "luxon": "^3.0.1",
     "mande": "^2.0.2",
     "pinia": "^2.0.13",
@@ -45,6 +46,7 @@
     "@graphql-codegen/near-operation-file-preset": "^2.4.4",
     "@graphql-codegen/typed-document-node": "^2.3.6",
     "@graphql-codegen/typescript-vue-apollo": "^3.3.6",
+    "@graphql-eslint/eslint-plugin": "^3.13.1",
     "@rushstack/eslint-patch": "^1.1.0",
     "@types/jsdom": "^16.2.14",
     "@types/luxon": "^2.3.2",
