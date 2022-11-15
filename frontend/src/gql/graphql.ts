@@ -1,5 +1,5 @@
 /* eslint-disable */
-import gql from "graphql-tag";
+import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -71,11 +71,13 @@ export type PageInfo = {
 export type Project = Node & {
   __typename?: "Project";
   createdAt: Scalars["DateTime"];
+  head: ProjectVersion;
   id: Scalars["GlobalID"];
   name: Scalars["String"];
   organization: Organization;
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
+  versions: Array<ProjectVersion>;
 };
 
 /** A connection to a list of items. */
@@ -98,19 +100,41 @@ export type ProjectEdge = {
   node: Project;
 };
 
+export type ProjectFile = Node & {
+  __typename?: "ProjectFile";
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  projectVersion: ProjectVersion;
+  type: Scalars["String"];
+};
+
+export type ProjectVersion = Node & {
+  __typename?: "ProjectVersion";
+  committedAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"];
+  description?: Maybe<Scalars["String"]>;
+  files: Array<ProjectFile>;
+  id: Scalars["GlobalID"];
+  name?: Maybe<Scalars["String"]>;
+  parents: Array<ProjectVersion>;
+  project: Project;
+};
+
 export type Query = {
   __typename?: "Query";
   organization?: Maybe<Organization>;
-  organizationsConnection: OrganizationConnection;
+  organizations: OrganizationConnection;
   project?: Maybe<Project>;
-  projectsConnection: ProjectConnection;
+  projects: ProjectConnection;
+  user?: Maybe<User>;
+  users: UserConnection;
 };
 
 export type QueryOrganizationArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QueryOrganizationsConnectionArgs = {
+export type QueryOrganizationsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
@@ -121,7 +145,18 @@ export type QueryProjectArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QueryProjectsConnectionArgs = {
+export type QueryProjectsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type QueryUserArgs = {
+  id: Scalars["GlobalID"];
+};
+
+export type QueryUsersArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
@@ -140,3 +175,137 @@ export type User = Node & {
   /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
   username: Scalars["String"];
 };
+
+/** A connection to a list of items. */
+export type UserConnection = {
+  __typename?: "UserConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<UserEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type UserEdge = {
+  __typename?: "UserEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: User;
+};
+
+export type ProjectVersionFragmentFragment = {
+  __typename?: "ProjectVersion";
+  name?: string | null;
+  description?: string | null;
+  createdAt: any;
+  committedAt?: any | null;
+} & { " $fragmentName"?: "ProjectVersionFragmentFragment" };
+
+export type GetProjectVersionsQueryVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type GetProjectVersionsQuery = {
+  __typename?: "Query";
+  project?: {
+    __typename?: "Project";
+    id: any;
+    name: string;
+    slug: string;
+    head: { __typename?: "ProjectVersion"; id: any } & {
+      " $fragmentRefs"?: { ProjectVersionFragmentFragment: ProjectVersionFragmentFragment };
+    };
+    versions: Array<
+      { __typename?: "ProjectVersion"; id: any } & {
+        " $fragmentRefs"?: { ProjectVersionFragmentFragment: ProjectVersionFragmentFragment };
+      }
+    >;
+  } | null;
+};
+
+export const ProjectVersionFragmentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionFragment" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectVersionFragmentFragment, unknown>;
+export const GetProjectVersionsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "getProjectVersions" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "slug" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "head" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionFragment" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "versions" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionFragment" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectVersionFragmentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<GetProjectVersionsQuery, GetProjectVersionsQueryVariables>;
