@@ -1,13 +1,17 @@
+import re
 from dataclasses import dataclass
-from typing import Optional, re
-from unittest import mock
+from typing import Optional
 
+from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
+from bench.executor import Executor
 from bench.models import Dataset, Instruction, Organization, Project, Task
+from bench.models.instruction import InstructionParameterType
 from bench.models.project import ProjectFileType
+from bench.models.task import ExpectationType
 
 
 @dataclass
@@ -69,24 +73,7 @@ class Command(BaseCommand):
 
         new_version = project.create_version()
         new_version.reset()
-
-        def exec_get_definitions(code: str):
-            """
-            Execute the given code and return new definitions.
-            This is UNSAFE and should only be run on trusted code or in a sandboxed environment.
-            """
-            available_globals = {
-                "benv": mock.MagicMock(),  # don't need actual bench execution env values here
-            }
-            # remember the globals we started with
-            available_globals_keys = {*available_globals.keys()}
-            exec(code, available_globals)
-            new_globals = {
-                k: v
-                for k, v in available_globals.items()
-                if k not in available_globals_keys and k != "__builtins__"
-            }
-            return new_globals
+        executor = Executor()
 
         # convert segments to a single task definition tree
         tasks = {}
@@ -101,20 +88,27 @@ class Command(BaseCommand):
             #  task [args]: <name> -> define a task
             #  instruction [args]: <name> -> define a instruction
             #  dataset [args]: <name> -> define a dataset
-            definitions = exec_get_definitions(segment.full_code)
+            definitions = async_to_sync(executor.run_get_definitions)(segment.full_code, {})
+
+            def _get_definition(name: str):
+                if name not in definitions:
+                    raise ValueError(
+                        f"definition '{name}' not found in segment '{segment.header}':\n{segment.full_code}"
+                    )
+                return definitions[name]
+
             args, file_name = segment.header.split(":", 1)
             args = args.split(" ")
             file_name = file_name.strip()
             if args[0] == "task":
-                task_definition = definitions[file_name]
+                task_definition = _get_definition(file_name)
                 tasks[file_name] = Task.objects.create(
                     name=file_name,
-                    description=(task_definition["description"]),
                     schema=(task_definition["schema"]),
                 )
             elif args[0] == "instruct":
                 # parse header "instruction [args]: <name>"
-                instruction_definition = definitions[file_name]
+                instruction_definition = _get_definition(file_name)
                 # instruction definition must be a function
                 if not callable(instruction_definition):
                     raise ValueError(
@@ -135,22 +129,86 @@ class Command(BaseCommand):
                 # name: Dataset
                 # name: Callable
                 # name: <type>
-                parameters = re.findall(r"^(\w+): (\w+)$", segment.full_code)
+                # Parameters are automatically bound unless # @parameter is appended.
+                for line in segment.lines:
+                    # assume all parameters are declared up front
+                    if ":" not in line:
+                        break
+                    if "#" in line:
+                        comment = line[line.find("#") :]
+                        line = line[: line.find("#")]
+                    else:
+                        comment = ""
+                    param_name, param_type = line.split(":", 1)
+                    param_name = param_name.strip()
+                    param_type = param_type.strip()
+
+                    param_schema = None
+                    if param_type == "Dataset":
+                        param_type = InstructionParameterType.DATASET
+                    elif param_type == "Model":
+                        param_type = InstructionParameterType.MODEL
+                    elif "Callable" in param_type:
+                        param_type = InstructionParameterType.INSTRUCTION
+                    else:
+                        # just use python type as schema for now
+                        param_schema = param_type
+                        param_type = InstructionParameterType.JSON
+                    instruction.parameters.create(
+                        name=param_name,
+                        type=param_type,
+                        schema=param_schema,
+                    )
+
+                    if "@parameter" in comment:
+                        continue
+
+                    # otherwise resolve argument of same name
+                    if param_type == InstructionParameterType.DATASET:
+                        instruction.arguments.create(
+                            name=param_name,
+                            type=InstructionParameterType.DATASET,
+                            dataset=datasets[param_name],
+                        )
+                    elif param_type == InstructionParameterType.MODEL:
+                        raise NotImplementedError("model argument resolution not implemented yet")
+                    elif param_type == InstructionParameterType.INSTRUCTION:
+                        instruction.arguments.create(
+                            name=param_name,
+                            type=InstructionParameterType.INSTRUCTION,
+                            instruction=instructions[param_name],
+                        )
+                    elif param_type == InstructionParameterType.JSON:
+                        raise NotImplementedError("json argument resolution not implemented yet")
+                    else:
+                        raise ValueError(f"unknown parameter type: {param_type}")
 
                 if instruction.type == "expect":
-                    tasks[args[2]].expectations.add(instruction)
+                    # sloppily determine expectation type based on function name
+                    if "invar" in instruction.name:
+                        expect_type = ExpectationType.INVARIANCE
+                    elif "var" in instruction.name:
+                        expect_type = ExpectationType.VARIANCE
+                    elif "verif" in instruction.name:
+                        expect_type = ExpectationType.VERIFICATION
+                    else:
+                        raise ValueError(f"unable to guess expectation type: {instruction.name}")
+
+                    tasks[args[2]].expectations.create(type=expect_type, instruction=instruction)
             elif args[0] == "dataset":
-                dataset_records = definitions[file_name]
+                dataset_records = _get_definition(file_name)
                 # schema is just keys and types of values of the first element
                 schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
                 dataset = Dataset.objects.create(name=file_name, schema=schema, type=args[1])
                 dataset.extend(dataset_records)
                 datasets[file_name] = dataset
 
-                if dataset.type == "examples":
-                    tasks[args[2]].examples.add(dataset)
-                elif dataset.type == "explanations":
-                    tasks[args[2]].explanations.add(dataset)
+                if dataset.type == "example" and len(args) > 2:
+                    tasks[args[2]].examples.create(dataset=dataset)
+                elif dataset.type == "explain" and len(args) > 2:
+                    tasks[args[2]].explanations.create(dataset=dataset)
+                elif len(args) > 2:
+                    raise ValueError(f"unknown dataset type: {dataset.type}")
             else:
                 raise ValueError(f"Unknown segment header: {segment.header}")
 

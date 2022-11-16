@@ -42,10 +42,10 @@ class Project(TaggableMixin, UUIDModel):
     slug: models.SlugField = models.SlugField(
         max_length=128, unique=True, validators=[validate_slug]
     )
-    description: models.CharField = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
+    # TODO @Feature: use basic branching, move Project head into main_branch.head
     head = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
@@ -139,13 +139,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     committed_at = models.DateTimeField(null=True)
 
     parents = models.ManyToManyField("ProjectVersion", symmetrical=False)
     # files via ProjectFile
-    # we'll likely have multiple programs per project at some point
     program: models.ForeignKey = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="projects"
+        "Task", on_delete=models.CASCADE, null=True, related_name="projects"
     )
 
     def __str__(self) -> str:
@@ -170,7 +170,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
 class ProjectFileType(models.TextChoices):
     """
-    The type of "file" in a project, used to distinguish between tasks, instructions, models, etc.
+    The type of "file" in a project (tasks, instructions, models, datasets).
     """
 
     TASK = "task", "Task"
@@ -181,9 +181,7 @@ class ProjectFileType(models.TextChoices):
 
 class ProjectFile(UUIDModel):
     """
-    A "file" containing a single named object (task, instruction, model, dataset) in a project.
-
-    Conceptually, each task type has its own extension.
+    A "file" defining a single named object (task, instruction, model, dataset) in a project.
     """
 
     project_version: models.ForeignKey = models.ForeignKey(
@@ -192,10 +190,10 @@ class ProjectFile(UUIDModel):
     type: models.CharField = models.CharField(max_length=64, choices=ProjectFileType.choices)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
 
-    task = models.ForeignKey("Task", on_delete=models.PROTECT, null=True)
-    instruction = models.ForeignKey("Instruction", on_delete=models.PROTECT, null=True)
-    model = models.ForeignKey("Model", on_delete=models.PROTECT, null=True)
-    dataset = models.ForeignKey("Dataset", on_delete=models.PROTECT, null=True)
+    task = models.ForeignKey("Task", on_delete=models.RESTRICT, null=True)
+    instruction = models.ForeignKey("Instruction", on_delete=models.RESTRICT, null=True)
+    model = models.ForeignKey("Model", on_delete=models.RESTRICT, null=True)
+    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, null=True)
 
     def __str__(self):
         return f"{self.project_version}/{self.name}.{self.type}"

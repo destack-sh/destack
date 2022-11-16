@@ -3,7 +3,6 @@ from __future__ import annotations
 import typing
 import uuid
 from typing import Any, Iterator, Union
-from unittest import mock
 
 from django.db.models import QuerySet
 
@@ -57,11 +56,20 @@ class SandboxError(Exception):
         self.exception = exception
 
 
+class Debugger:
+    """
+    A basic debugger that can be attached to an executor.
+    """
+
+    pass
+
+
 class Executor:
     def __init__(self):
         self.executor_id = uuid.uuid4().hex
         self.builtin_instructions = {}
-        self.can_exec = DEBUG or TEST
+        self.can_exec = DEBUG or TEST  # or sandboxed
+        self.default_imports = {Model: ModelHandler, Dataset: RecordBatch}
 
     def _get_instruction_code(self, instruction: Instruction) -> str:
         """
@@ -84,7 +92,7 @@ class Executor:
         try:
             exec(code, globals)
         except Exception as e:
-            raise SandboxError(f"error executing code: {e}", e) from e
+            raise SandboxError(f"error running code with globals {globals}: {e}", e) from e
 
     async def _resolve_model(self, model: Model) -> ModelHandler:
         if model.handler_id == "openai":
@@ -117,7 +125,7 @@ class Executor:
         # An instruction can be a linear piece of code to call every time or define a function to call.
         # Note that we don't actually run the code here, we just resolve and initialise.
         if not instruction.anonymous:
-            output = await self.run_get_definitions(code, arguments)
+            output = await self.run_get_definitions(code, {**arguments})
             if instruction.name not in output:
                 raise ValueError(f"function {instruction.name} not defined in code")
             return output[instruction.name]
@@ -129,13 +137,17 @@ class Executor:
             return _run_anonymous
 
     async def _resolve_instruction_arguments(self, instruction: Instruction) -> dict[str, Any]:
-        bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all()
+        bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all().select_related(
+            "model", "dataset", "instruction"
+        )
         bound_arguments_resolved = {}
         async for argument in bound_arguments:
             if argument.model:
-                bound_arguments_resolved[argument.name] = self._resolve_model(argument.model)
+                bound_arguments_resolved[argument.name] = await self._resolve_model(argument.model)
             elif argument.dataset:
-                bound_arguments_resolved[argument.name] = self._resolve_dataset(argument.dataset)
+                bound_arguments_resolved[argument.name] = await self._resolve_dataset(
+                    argument.dataset
+                )
             elif argument.instruction:
                 bound_arguments_resolved[argument.name] = await self._resolve_instruction(
                     argument.instruction
@@ -148,20 +160,30 @@ class Executor:
         self, instruction: Instruction, arguments: dict[str, Any]
     ) -> typing.Optional[dict[str, Any]]:
         # TODO @Feature: trace model/instruction executions (with context, recursively)
-        callable = await self._resolve_instruction(instruction)
-        return await callable(**arguments)
+        try:
+            callable = await self._resolve_instruction(instruction)
+        except Exception as e:
+            raise ValueError(
+                f"error resolving instruction {instruction} with arguments {arguments}: {e}"
+            ) from e
+
+        try:
+            return await callable(**arguments)
+        except SandboxError as e:
+            raise
+        except Exception as e:
+            raise SandboxError(
+                f"error running {instruction} with arguments {arguments}: {e}", e
+            ) from e
 
     async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict[str, Any]:
-        available_globals = {
-            "benv": mock.MagicMock(),  # don't need actual bench execution env values here
-            **globals,
-        }
-        # remember the globals we started with
-        available_globals_keys = {*available_globals.keys()}
-        await self._do_exec(code, available_globals)
+        # remember the globals we started with, do not modify originals
+        globals_copy = {**self.default_imports, **globals}
+        globals_copy_keys = {*globals_copy.keys()}
+        await self._do_exec(code, globals_copy)
         new_globals = {
             k: v
-            for k, v in available_globals.items()
-            if k not in available_globals_keys and k != "__builtins__"
+            for k, v in globals_copy.items()
+            if k not in globals_copy_keys and k not in ("__builtins__", "__annotations__")
         }
         return new_globals

@@ -25,9 +25,10 @@ class Command(BaseCommand):
         project = Project.objects.filter(slug=options["project"], organization=organization).first()
         project_version = project.head
         task = project_version.files.get(type=ProjectFileType.TASK, name=options["task"]).task
-        source_instruction = task.implementations.get()
 
         executor = Executor()
         compiler = Compiler(executor)
-        compilation = Compilation.objects.create(task=task, source_instruction=source_instruction)
+        compilation = Compilation.objects.create(
+            task=task, source_instruction=task.template_implementation
+        )
         async_to_sync(compiler.compile)(compilation)

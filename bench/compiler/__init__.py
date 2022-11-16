@@ -1,6 +1,16 @@
+from django.db.models import QuerySet
+
 from bench.executor import Executor
 from bench.models import Dataset, Instruction
 from bench.models.compilation import Compilation
+from bench.models.task import Example, Expectation, Explanation
+
+
+async def _acollect(qs: QuerySet) -> list:
+    items = []
+    async for item in qs:
+        items.append(item)
+    return items
 
 
 class Compiler:
@@ -9,12 +19,26 @@ class Compiler:
 
     async def compile(self, compilation: Compilation) -> None:
         # TODO @Feature: implement proper compile
-        #  We assume single task with basic expectations, basic examples and no source instruction.
-
+        #  We assume a single task with basic explanations, expectations, basic examples and no source instruction.
         task = compilation.task
-        source_instruction = compilation.source_instruction
-        if source_instruction.task is not None and source_instruction.task != task:
-            raise ValueError("Source instruction implements another task")
+        explanations: list[Explanation] = await _acollect(
+            task.explanations.select_related("dataset")
+        )
+        expectations: list[Expectation] = await _acollect(
+            task.expectations.select_related("instruction")
+        )
+        examples: list[Example] = await _acollect(
+            task.examples.select_related("dataset").prefetch_related("dataset__records")
+        )
+
+        # render explanations into prompts
+        rendered_explanations = []
+        for explanation in explanations:
+            statements: list[dict] = await _acollect(explanation.dataset)
+            for statement in statements:
+                # TODO @Feature: render explanations, use dataset view to get fields
+                rendered_explanation = statement["text"]
+                rendered_explanations.append(rendered_explanation)
 
         # render expectations into examples
         compiled_examples: Dataset = await Dataset.objects.acreate(
@@ -24,18 +48,21 @@ class Compiler:
 
         # This is a boring example of the most basic example-based expectation renders.
         rendered_examples = []
-        async for expectation in task.expectations.all():
-            async for example in task.examples.all():
-                rendered_example = await self.executor.run(
-                    expectation, arguments=dict(example=example)
-                )
-                rendered_examples.append(rendered_example)
+        # naive many to many render of expectation x example
+        for expectation in expectations:
+            for example in examples:
+                example_records = await _acollect(example.dataset)
+                for example_record in example_records:
+                    rendered_example = await self.executor.run(
+                        expectation.instruction, arguments=dict(example=example_record)
+                    )
+                    rendered_examples.append(rendered_example)
         if not rendered_examples:
-            raise ValueError("No rendered examples available")
+            raise RuntimeError(f"no output generated for {compilation}")
         await compiled_examples.aextend(rendered_examples)
 
-        # render examples into prompt and apply (super basic)
-        prompt_prefix: str = f"{task.name}\n{task.description}\n"
+        # render explanations and examples into prompt and apply (super basic)
+        prompt_prefix: str = "\n".join(rendered_explanations)
         examples_keys = rendered_examples[0].keys()
         prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys)
 
