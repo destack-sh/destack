@@ -12,8 +12,11 @@ class Compilation(UUIDModel):
 
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
     source_instruction = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, related_name="compilations"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="compilations"
     )
     target_instruction = models.OneToOneField(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="source_compilation"
     )
+
+    def __str__(self):
+        return f"{self.task}.compilation@{self.id.hex}"

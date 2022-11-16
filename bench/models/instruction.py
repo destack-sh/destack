@@ -7,8 +7,17 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
 class InstructionType(models.TextChoices):
-    PROGRAM = "program"
-    FUNCTION = "function"
+    """
+    The type of instruction defines its semantics.
+
+    Programs are top-level deployable instructions with only values as free parameters.
+    Functions are reusable instructions for pure functions with any parameters & arguments.
+    Generators are reusable instructions for pure generators with any parameters & arguments.
+    """
+
+    PROGRAM = "program", "Program"
+    FUNCTION = "function", "Function"
+    GENERATOR = "generator", "Generator"
 
 
 class Instruction(TaggableMixin, UUIDModel):
@@ -59,6 +68,13 @@ class Instruction(TaggableMixin, UUIDModel):
         ]
 
 
+class InstructionParameterType(models.TextChoices):
+    DATASET = "dataset"
+    MODEL = "model"
+    INSTRUCTION = "instruction"
+    JSON = "json"
+
+
 class InstructionParameter(UUIDModel):
     """
     A parameter is a named argument to a function which is bound by a InstructionArgument.
@@ -70,7 +86,8 @@ class InstructionParameter(UUIDModel):
         Instruction, on_delete=models.CASCADE, related_name="parameters"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = models.JSONField()
+    type = models.TextField(choices=InstructionParameterType.choices)
+    schema = models.JSONField(null=True)
 
     class Meta:
         constraints = [
@@ -84,7 +101,7 @@ class InstructionParameter(UUIDModel):
 class InstructionArgument(UUIDModel):
     """
     An argument is value binding an instruction parameter.
-    An argument can be one of a model, a dataset, a instruction or a plain JSON value.
+    An argument can be a model, a dataset, an instruction or a plain JSON value.
     """
 
     instruction_bound = models.ForeignKey(
@@ -94,6 +111,7 @@ class InstructionArgument(UUIDModel):
         "Instruction", on_delete=models.CASCADE, null=True, related_name="+"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
+    type = models.TextField(choices=InstructionParameterType.choices)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True, blank=True)
     instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True, blank=True)

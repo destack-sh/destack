@@ -22,12 +22,65 @@ class Task(TaggableMixin, UUIDModel):
     parent = models.ForeignKey("Task", on_delete=models.CASCADE, null=True, related_name="children")
 
     schema = models.JSONField()
-    explanations = models.ManyToManyField("Dataset", related_name="tasks+")
-    examples = models.ManyToManyField("Dataset", related_name="tasks+")
-    expectations = models.ManyToManyField("Instruction", related_name="tasks+")
+    # explanations from/to Explanation
+    # examples from/to Example
+    # expectations from/to Expectation
+    template_implementation = models.ForeignKey(
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="templates"
+    )
     # implementations from/to Instruction
 
     objects = TaskManager()
 
     def __str__(self):
         return f"{self.name}.task@{self.id.hex}"
+
+
+class Explanation(UUIDModel):
+    """
+    A task explanation is a declarative (text-based) description of a task's expected behavior.
+    """
+
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="explanations")
+    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, related_name="explanations")
+    dataset_view = models.ForeignKey(
+        "DatasetView", on_delete=models.RESTRICT, null=True, related_name="explanations"
+    )
+
+
+class Example(UUIDModel):
+    """
+    A task example is an imperative (text-based) description of a task's expected behavior.
+    """
+
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="examples")
+    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, related_name="examples")
+    dataset_view = models.ForeignKey(
+        "DatasetView", on_delete=models.RESTRICT, null=True, related_name="examples"
+    )
+
+
+class ExpectationType(models.TextChoices):
+    """
+    The type of expectation defines its semantics.
+
+    Invariants express expected stability of behavior respective to a task's input.
+    Variants express expected variability of behavior respective to a task's input.
+    Verifications express expected correctness of behavior respective to a task's output.
+    """
+
+    INVARIANCE = "invariance"
+    VARIANCE = "variance"
+    VERIFICATION = "verification"
+
+
+class Expectation(UUIDModel):
+    """
+    A task expectation is an imperative (instruction-based) specification of a task's expected behavior.
+    """
+
+    type = models.CharField(max_length=64, choices=ExpectationType.choices)
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="expectations")
+    instruction = models.ForeignKey(
+        "Instruction", on_delete=models.RESTRICT, related_name="expectations"
+    )

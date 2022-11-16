@@ -23,9 +23,13 @@ class DatasetSearch:
 
 
 class DatasetType(models.TextChoices):
-    EXAMPLES = "examples", "Examples"
+    """
+    The type of dataset defines its semantics and how it is intended to be used.
+    """
+
+    EXAMPLES = "example", "Examples"
+    EXPLANATIONS = "explain", "Explanations"
     LEXICON = "lexicon", "Lexicon"
-    CONCEPT = "concept", "Concept"
 
 
 class Dataset(TaggableMixin, UUIDModel):
@@ -37,10 +41,10 @@ class Dataset(TaggableMixin, UUIDModel):
 
     type = models.CharField(max_length=64, choices=DatasetType.choices)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     # records from DatasetRecord.dataset
+    # annotations from DatasetAnnotation.dataset
     schema = models.JSONField(null=True, blank=True)
     length = models.IntegerField(default=0)
 
@@ -136,14 +140,40 @@ class Dataset(TaggableMixin, UUIDModel):
         return self.length
 
 
+class DatasetAnnotationType(models.TextChoices):
+    DATASET = "dataset", "Dataset"
+    INSTRUCTION = "instruction", "Instruction"
+    TASK = "task", "Task"
+
+
+class DatasetAnnotation(UUIDModel):
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="annotations")
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    type = models.CharField(max_length=64, choices=DatasetAnnotationType.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    other_dataset = models.ForeignKey(
+        Dataset, on_delete=models.CASCADE, related_name="other_annotations", null=True
+    )
+    instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True, blank=True)
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.dataset}/{self.name}@{self.id.hex}"
+
+
 class DatasetRecord(UUIDModel):
     """
-    An individual immutable record of a dataset-like Artifact.
+    An individual JSON record. The data may be annotated with high level references.
+    The references are resolved using dataset.annotations.
     """
 
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="records")
     index = models.IntegerField()
     data = models.JSONField()
+
+    def __str__(self):
+        return f"{self.dataset}/{self.index}@{self.id.hex}"
 
     def is_committed(self) -> bool:
         return True
