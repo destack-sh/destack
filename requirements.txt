@@ -166,6 +166,8 @@ psycopg2==2.9.5
     # via -r requirements.in
 pycparser==2.21
     # via cffi
+pydantic==1.10.2
+    # via -r requirements.in
 pygments==2.13.0
     # via strawberry-graphql
 pyjwt==2.4.0
@@ -178,6 +180,8 @@ python-dateutil==2.8.2
     # via
     #   posthoganalytics
     #   strawberry-graphql
+python-dotenv==0.21.0
+    # via -r requirements.in
 python-multipart==0.0.5
     # via strawberry-graphql
 python3-openid==3.2.0
@@ -226,6 +230,7 @@ structlog==21.5.0
 typing-extensions==4.4.0
     # via
     #   opentelemetry-sdk
+    #   pydantic
     #   starlette
     #   strawberry-django-plus
     #   strawberry-graphql

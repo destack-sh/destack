@@ -10,10 +10,10 @@
 # @bench ignore
 from typing import Any
 
-from bench.model.base import ModelHandler
+from bench.model.base import ModelProvider
 from bench.models import Dataset
 
-Model = ModelHandler
+Model = ModelProvider
 benv: Any = {}
 # @/bench
 

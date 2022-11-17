@@ -40,13 +40,13 @@ from bench.utils.registry import get_qualified_name
 def _impl_type_to_type(
     value: Type, optional: bool, default: Optional[Any], ignore_unknown: bool = False
 ) -> AnyType:
-    from bench.model.base import ModelHandler
+    from bench.model.base import ModelProvider
     from bench.utils.record import RecordBatch
 
     # default implementation types to their generic spec types
     impl_type_to_type: List[Tuple[Type, AnyType]] = [
         (RecordBatch, DatasetType(record_spec={}, optional=optional)),
-        (ModelHandler, ModelType(input_spec={}, output_spec={}, optional=optional)),
+        (ModelProvider, ModelType(input_spec={}, output_spec={}, optional=optional)),
         (RecordBatch, {}),
         *(
             (ptype, ValueType(dtype=dtype, optional=optional, default=default))

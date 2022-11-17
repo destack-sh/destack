@@ -1,58 +1,29 @@
 from __future__ import annotations
 
+import os
 import typing
 import uuid
-from typing import Any, Iterator, Union
+from typing import Any, Union
 
+import structlog
 from django.db.models import QuerySet
 
-from bench.model.base import ModelHandler
+from bench.backend.base import ModelHandle, ModelProvider
+from bench.backend.forefront import ForefrontProvider
+from bench.backend.openai import OpenAIProvider
 from bench.models import Dataset, Model
+from bench.models.dataset import DatasetView
 from bench.models.instruction import (
     Instruction,
     InstructionArgument,
     InstructionParameter,
     InstructionParameterType,
 )
+from bench.models.model import ModelInferenceSettings, ProviderKey
 from bench.settings import DEBUG, TEST
-from bench.utils.record import Record, RecordBatch, RecordList
+from bench.utils.record import RecordBatch, RecordList
 
-
-class DatasetWrapper(RecordBatch):
-    """
-    Wraps a Dataset as a simple array-like record batch.
-    """
-
-    def __init__(self, dataset: Dataset):
-        self._dataset = dataset
-
-    @typing.overload
-    def __getitem__(self, index: int) -> Record:
-        ...
-
-    @typing.overload
-    def __getitem__(self, index: slice) -> RecordBatch:
-        ...
-
-    @typing.overload
-    def __getitem__(self, index: str) -> list:
-        ...
-
-    def __getitem__(self, index: Union[int, slice, str]) -> Union[Record, RecordBatch, list]:
-        if isinstance(index, int):
-            return self._dataset.get(index).data
-        elif isinstance(index, slice):
-            return self._dataset.get_slice(index.start, index.stop)
-        elif isinstance(index, str):
-            return self._dataset.get_field(index)
-        else:
-            raise TypeError(f"Invalid index type: {type(index)}")
-
-    def __iter__(self) -> Iterator[Record]:
-        yield from self._dataset
-
-    def __len__(self) -> int:
-        return len(self._dataset)
+logger = structlog.stdlib.get_logger()
 
 
 class SandboxError(Exception):
@@ -84,12 +55,59 @@ def _arguments_summary(arguments: dict[str, Any]) -> str:
     return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
 
 
+InstructionCallable = typing.Callable[..., typing.Coroutine]
+
+
+class ModelProxy(ModelHandle):
+    def __init__(self, handle: ModelHandle, model: Model):
+        self.handle = handle
+        self.model = model
+
+    async def complete(
+        self, prompt: str
+    ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:
+        logger.info("model.complete", model=self.model, handle=self.handle, prompt=len(prompt))
+        result = await self.handle.complete(prompt)
+        logger.info("model.complete.exit", model=self.model, handle=self.handle, result=len(result))
+        return result
+
+    async def embed(self, text: str) -> bytes:
+        raise NotImplementedError
+
+
+class InstructionProxy:
+    def __init__(self, callable: InstructionCallable, instruction: Instruction):
+        self.callable = callable
+        self.instruction = instruction
+
+    async def __call__(self, *args, **kwargs):
+        logger.info(
+            "instruction.call",
+            instruction=self.instruction,
+            callable=self.callable,
+            args=len(args),
+            kwargs=_arguments_summary(kwargs),
+        )
+        result = await self.callable(*args, **kwargs)
+        logger.info(
+            "instruction.call.exit",
+            instruction=self.instruction,
+            callable=self.callable,
+            result=_arguments_summary(result),
+        )
+        return result
+
+
 class Executor:
     def __init__(self):
         self.executor_id = uuid.uuid4().hex
         self.builtin_instructions = {}
         self.can_exec = DEBUG or TEST  # or sandboxed
-        self.default_imports = {Model: ModelHandler, Dataset: RecordBatch}
+        self.providers: dict[ProviderKey, ModelProvider] = {
+            ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
+            ProviderKey.FOREFRONT: ForefrontProvider(api_key=os.environ["FOREFRONT_API_KEY"]),
+        }
+        self.default_imports = {Model: ModelHandle, Dataset: RecordBatch}
 
     def _get_instruction_code(self, instruction: Instruction) -> str:
         """
@@ -114,15 +132,19 @@ class Executor:
         except Exception as e:
             raise SandboxError(f"error running code with globals {globals}: {e}", e) from e
 
-    async def _resolve_model(self, model: Model) -> ModelHandler:
-        if model.handler_id == "openai":
-            from bench.model.openai import OpenAIHandler
+    async def _resolve_model(self, model: Model, settings: ModelInferenceSettings) -> ModelHandle:
+        provider = self.providers.get(model.provider)
+        if provider is None:
+            raise ValueError(f"unknown provider {model.provider}")
+        # TODO @Compliance: set actual user identifier for model access (e.g. for OpenAI)
+        user_identifier = model.id.hex
+        return await provider.access(model, settings, for_user=user_identifier)
 
-            return OpenAIHandler(**model.handler_arguments)
-        else:
-            raise ValueError(f"unknown model handler: {model.handler_id}")
-
-    async def _resolve_dataset(self, dataset: Dataset) -> RecordBatch:
+    async def _resolve_dataset(
+        self, dataset: Dataset, view: typing.Optional[DatasetView]
+    ) -> RecordBatch:
+        if view is not None:
+            raise NotImplementedError("dataset views are not implemented yet")
         # TODO @Performance: do not load all records when resolving dataset arguments
         #  All functions are executed async, but dataset access is neater if it's synchronous.
         #  So we pre-load everything and wrap it in a synchronous wrapper.
@@ -134,7 +156,7 @@ class Executor:
     async def _resolve_instruction(
         self,
         instruction: Instruction,
-    ) -> typing.Callable[..., typing.Coroutine]:
+    ) -> InstructionCallable:
         """
         Resolves an instruction and all its arguments to an async callable.
         """
@@ -158,6 +180,14 @@ class Executor:
 
             return _run_anonymous
 
+    async def _proxy_model(self, model_handle: ModelHandle, model: Model) -> ModelProxy:
+        return ModelProxy(handle=model_handle, model=model)
+
+    async def _proxy_instruction(
+        self, callable: InstructionCallable, instruction: Instruction
+    ) -> InstructionProxy:
+        return InstructionProxy(callable=callable, instruction=instruction)
+
     async def _get_instruction_parameters(
         self, instruction: Instruction
     ) -> dict[str, InstructionParameter]:
@@ -173,15 +203,17 @@ class Executor:
         bound_arguments_resolved = {}
         async for argument in bound_arguments:
             if argument.model:
-                bound_arguments_resolved[argument.name] = await self._resolve_model(argument.model)
+                model_handle = await self._resolve_model(argument.model, argument.model_settings)
+                model_proxy = await self._proxy_model(model_handle, argument.model)
+                bound_arguments_resolved[argument.name] = model_proxy
             elif argument.dataset:
                 bound_arguments_resolved[argument.name] = await self._resolve_dataset(
-                    argument.dataset
+                    argument.dataset, argument.dataset_view
                 )
             elif argument.instruction:
-                bound_arguments_resolved[argument.name] = await self._resolve_instruction(
-                    argument.instruction
-                )
+                callable = await self._resolve_instruction(argument.instruction)
+                callable_proxy = await self._proxy_instruction(callable, argument.instruction)
+                bound_arguments_resolved[argument.name] = callable_proxy
             else:
                 bound_arguments_resolved[argument.name] = argument.value
         return bound_arguments_resolved
@@ -208,7 +240,7 @@ class Executor:
                         f"argument {parameter.name} for {instruction} is not a callable"
                     )
             elif parameter.type == InstructionParameterType.MODEL:
-                if not isinstance(arguments[parameter.name], ModelHandler):
+                if not isinstance(arguments[parameter.name], ModelHandle):
                     raise ValueError(
                         f"argument {parameter.name} for {instruction} is not a model handler"
                     )

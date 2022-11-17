@@ -13,14 +13,23 @@ from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
 
+class ProjectType(models.TextChoices):
+    EXECUTABLE = "executable", "Executable"
+    LIBRARY = "library", "Library"
+
+
 class ProjectManager(models.Manager):
     @transaction.atomic
     def create_project(
-        self, organization: Organization, name: str, slug: Optional[str]
+        self,
+        organization: Organization,
+        name: str,
+        slug: Optional[str],
+        type: ProjectType = ProjectType.EXECUTABLE,
     ) -> "Project":
         if not slug:
             slug = slugify(name)
-        project = super().create(organization=organization, name=name, slug=slug)
+        project = super().create(organization=organization, name=name, slug=slug, type=type)
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
         return project
@@ -34,14 +43,15 @@ class Project(TaggableMixin, UUIDModel):
     All versions are available in 'versions' and may not be linear (also like in Git).
     Project "files" (the contents of the project) are copy-on-write.
 
-    A project has a main program (the top-level task & instruction implementations).
-    Later, projects could also be "non-executable" libraries.
+    Executable projects have a main program (the top-level task & instruction implementations).
+    Library projects define reusable objects (like in software).
     """
 
-    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
-    slug: models.SlugField = models.SlugField(
-        max_length=128, unique=True, validators=[validate_slug]
+    type = models.CharField(
+        max_length=64, choices=ProjectType.choices, default=ProjectType.EXECUTABLE
     )
+    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
+    slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
@@ -142,21 +152,24 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     committed_at = models.DateTimeField(null=True)
 
-    parents = models.ManyToManyField("ProjectVersion", symmetrical=False)
+    parents = models.ManyToManyField(
+        "ProjectVersion", related_name="children", symmetrical=False, blank=True
+    )
     # files via ProjectFile
     program: models.ForeignKey = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="projects"
     )
 
     def __str__(self) -> str:
-        return f"{self.organization.slug}/{self.project.name}@{self.id.hex}"
+        return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
 
     def reset(self):
         # TODO @Robustness: reset will fail if other versions are referencing some of the same files
         self.files.all().delete()
 
-    def commit(self):
+    def commit(self, name: Optional[str] = None):
         self.committed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.name = name
         self.save()
 
     @property
@@ -192,6 +205,7 @@ class ProjectFile(UUIDModel):
 
     task = models.ForeignKey("Task", on_delete=models.RESTRICT, null=True)
     instruction = models.ForeignKey("Instruction", on_delete=models.RESTRICT, null=True)
+    # TODO @Architecture: having models as part of projects doesn't seem quite right
     model = models.ForeignKey("Model", on_delete=models.RESTRICT, null=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, null=True)
 

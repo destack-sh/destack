@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
 from typing import Any, Iterator, Optional, Sequence
 
 from asgiref.sync import sync_to_async
@@ -60,13 +59,6 @@ class Dataset(TaggableMixin, UUIDModel):
 
     def get(self, index: int) -> DatasetRecord:
         return DatasetRecord.objects.get(dataset=self, index=index)
-
-    def get_view(self, view_data: Optional[DatasetViewData]) -> list[DatasetRecord]:
-        if view_data is None:
-            return self.get_slice(0, len(self))
-        else:
-            # note that this only works with slice-based views
-            return self.get_slice(view_data.apply(0), view_data.apply(len(self)))
 
     def get_slice(self, start: int, stop: Optional[int] = None) -> list[DatasetRecord]:
         stop = stop if stop is not None else 0
@@ -201,33 +193,6 @@ class DatasetView(TaggableMixin, UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    data = models.JSONField()
 
     def __str__(self):
-        return f"{self.name}[{self.name}]"
-
-
-# TODO @Feature: support more complex dataset views (e.g. filters)
-@dataclass
-class DatasetViewData:
-    start: Optional[int] = None
-    end: Optional[int] = None
-
-    @property
-    def asdict(self) -> dict:
-        return dataclasses.asdict(self)
-
-    @staticmethod
-    def empty() -> DatasetViewData:
-        return DatasetViewData.from_slice((0, 0))
-
-    @staticmethod
-    def from_slice(slice: tuple[int, int]) -> DatasetViewData:
-        return DatasetViewData(start=slice[0], end=slice[1])
-
-    def apply(self, index: int) -> int:
-        if self.start is not None:
-            index += self.start
-        if self.end is not None and index >= self.end:
-            return self.end
-        return index
+        return f"{self.dataset.name}@{self.dataset.id.hex}/{self.name}"
