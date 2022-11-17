@@ -1,7 +1,7 @@
 from django.db.models import QuerySet
 
 from bench.executor import Executor
-from bench.models import Dataset, Instruction
+from bench.models import Dataset, Instruction, Model, Organization, ProjectFileType
 from bench.models.compilation import Compilation
 from bench.models.task import Example, Expectation, Explanation
 
@@ -13,9 +13,21 @@ async def _acollect(qs: QuerySet) -> list:
     return items
 
 
+def get_backend_model(backend: str) -> Model:
+    """
+    Gets the backend model from a backends library where backend=owner/model
+    """
+    owner, model = backend.split("/")
+    organization = Organization.objects.get(slug=owner)
+    backends_library = organization.projects.get(slug="backends")
+    model = backends_library.head.files.get(type=ProjectFileType.MODEL, name=model).model
+    return model
+
+
 class Compiler:
     def __init__(self, executor: Executor):
         self.executor = executor
+        self.compiler_model = get_backend_model("openai/text-davinci-002")
 
     async def compile(self, compilation: Compilation) -> None:
         # TODO @Feature: implement proper compile

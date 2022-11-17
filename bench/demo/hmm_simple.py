@@ -1,10 +1,10 @@
 # @bench ignore
 from typing import Callable
 
-from bench.model.base import ModelHandler
+from bench.backend.base import ModelHandle
 from bench.utils.record import RecordBatch
 
-Model = ModelHandler
+Model = ModelHandle
 Dataset = RecordBatch
 
 # @bench task: generate_command
@@ -72,13 +72,13 @@ misspelling = [
 ]
 
 
-# @bench instruct transform: transform_misspell
-model: Model  # @parameter
+# @bench instruct transform: misspell
+model: Model  # @backend openai/text-davinci-002
 misspelling: Dataset
 
 
-async def transform_misspell(input: str):
-    prompt_prefix = "Translate the following strings into an incorrect spelling:\n\n"
+async def misspell(input: str):
+    prompt_prefix = "Translate the following strings int o an incorrect spelling:\n\n"
     prompt_fewshot = "Input: {input}\nOutput: {output}\n\n"
     prompt_input = "Input: {input}\nOutput:"
     prompt = (
@@ -91,11 +91,11 @@ async def transform_misspell(input: str):
 
 
 # @bench instruct expect generate_command: spelling_invariance
-transform_misspell: Callable[[str], str]
+misspell: Callable[[str], str]
 
 
 async def spelling_invariance(example: dict) -> dict:
-    alternative_input = await transform_misspell(example["input"])
+    alternative_input = await misspell(example["input"])
     return {
         "input": alternative_input,
         "output": example["output"],

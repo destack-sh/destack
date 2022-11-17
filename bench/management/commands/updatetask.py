@@ -7,6 +7,7 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
+from bench.compiler import get_backend_model
 from bench.executor import Executor
 from bench.models import Dataset, Instruction, Organization, Project, Task
 from bench.models.instruction import InstructionParameterType
@@ -171,7 +172,19 @@ class Command(BaseCommand):
                             dataset=datasets[param_name],
                         )
                     elif param_type == InstructionParameterType.MODEL:
-                        raise NotImplementedError("model argument resolution not implemented yet")
+                        if "@backend" in comment:
+                            # parse model backend from # @backend <backend>
+                            backend = comment[comment.find("@backend") + 9 :].strip()
+                            model = get_backend_model(backend)
+                        else:
+                            raise NotImplementedError(
+                                "generic model argument resolution not implemented yet"
+                            )
+                        instruction.arguments.create(
+                            name=param_name,
+                            type=InstructionParameterType.MODEL,
+                            model=model,
+                        )
                     elif param_type == InstructionParameterType.INSTRUCTION:
                         instruction.arguments.create(
                             name=param_name,

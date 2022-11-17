@@ -1,8 +1,8 @@
 from .compilation import Compilation
-from .dataset import Dataset, DatasetType
+from .dataset import Dataset, DatasetType, DatasetView
 from .execution import Execution, ExecutionType
 from .instruction import Instruction, InstructionArgument, InstructionParameter, InstructionType
-from .model import Model, ModelType
+from .model import Model, ModelInferenceSettings, ModelType
 from .organization import Organization
 from .project import Project, ProjectFile, ProjectFileType, ProjectVersion
 from .tag import Tag, TaggableMixin, TaggedItem
@@ -30,5 +30,6 @@ __all__ = [
     "Dataset",
     "DatasetType",
     "Model",
+    "ModelInferenceSettings",
     "ModelType",
 ]

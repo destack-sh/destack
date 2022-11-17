@@ -113,7 +113,11 @@ class InstructionArgument(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = models.TextField(choices=InstructionParameterType.choices)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
+    model_settings = models.ForeignKey(
+        "ModelInferenceSettings", on_delete=models.CASCADE, null=True, blank=True
+    )
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True, blank=True)
+    dataset_view = models.ForeignKey("DatasetView", on_delete=models.CASCADE, null=True, blank=True)
     instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
 
