@@ -8,7 +8,12 @@ from django.db.models import QuerySet
 
 from bench.model.base import ModelHandler
 from bench.models import Dataset, Model
-from bench.models.instruction import Instruction, InstructionArgument
+from bench.models.instruction import (
+    Instruction,
+    InstructionArgument,
+    InstructionParameter,
+    InstructionParameterType,
+)
 from bench.settings import DEBUG, TEST
 from bench.utils.record import Record, RecordBatch, RecordList
 
@@ -62,6 +67,21 @@ class Debugger:
     """
 
     pass
+
+
+class Frame:
+    """
+    A single frame in the execution stack.
+    """
+
+    pass
+
+
+def _arguments_summary(arguments: dict[str, Any]) -> str:
+    """
+    Summarize the names and types of arguments.
+    """
+    return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
 
 
 class Executor:
@@ -119,7 +139,9 @@ class Executor:
         Resolves an instruction and all its arguments to an async callable.
         """
 
+        parameters = await self._get_instruction_parameters(instruction)
         arguments = await self._resolve_instruction_arguments(instruction)
+        self._check_arguments(instruction, parameters, arguments)
 
         code = self._get_instruction_code(instruction)
         # An instruction can be a linear piece of code to call every time or define a function to call.
@@ -135,6 +157,14 @@ class Executor:
                 await self._do_exec(code, {**arguments, **kwargs})
 
             return _run_anonymous
+
+    async def _get_instruction_parameters(
+        self, instruction: Instruction
+    ) -> dict[str, InstructionParameter]:
+        parameters = {}
+        async for parameter in instruction.parameters.all():
+            parameters[parameter.name] = parameter
+        return parameters
 
     async def _resolve_instruction_arguments(self, instruction: Instruction) -> dict[str, Any]:
         bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all().select_related(
@@ -156,6 +186,50 @@ class Executor:
                 bound_arguments_resolved[argument.name] = argument.value
         return bound_arguments_resolved
 
+    def _check_arguments(
+        self,
+        instruction: Instruction,
+        parameters: dict[str, InstructionParameter],
+        arguments: dict[str, Any],
+    ) -> None:
+        """
+        Checks that all required arguments are present and valid for the instruction, raising an error if not.
+        """
+
+        for parameter in parameters.values():
+            # check that all required arguments are present
+            if parameter.name not in arguments:
+                raise ValueError(f"required parameter {parameter.name} not bound for {instruction}")
+            # check that all arguments are of the correct type
+            # TODO @Robustness: check that the argument has the correct schema
+            if parameter.type == InstructionParameterType.INSTRUCTION:
+                if not callable(arguments[parameter.name]):
+                    raise ValueError(
+                        f"argument {parameter.name} for {instruction} is not a callable"
+                    )
+            elif parameter.type == InstructionParameterType.MODEL:
+                if not isinstance(arguments[parameter.name], ModelHandler):
+                    raise ValueError(
+                        f"argument {parameter.name} for {instruction} is not a model handler"
+                    )
+            elif parameter.type == InstructionParameterType.DATASET:
+                if not isinstance(arguments[parameter.name], RecordBatch):
+                    raise ValueError(
+                        f"argument {parameter.name} for {instruction} is not a dataset"
+                    )
+            elif parameter.type == InstructionParameterType.JSON:
+                # check that the argument is a JSON object or primitive
+                if not isinstance(
+                    arguments[parameter.name], (dict, list, str, int, float, bool, type(None))
+                ):
+                    raise ValueError(
+                        f"argument {parameter.name} for {instruction} is not a JSON object or primitive"
+                    )
+            else:
+                raise RuntimeError(f"unknown parameter type: {parameter.type}")
+
+        # ignore extraneous arguments
+
     async def run(
         self, instruction: Instruction, arguments: dict[str, Any]
     ) -> typing.Optional[dict[str, Any]]:
@@ -164,16 +238,18 @@ class Executor:
             callable = await self._resolve_instruction(instruction)
         except Exception as e:
             raise ValueError(
-                f"error resolving instruction {instruction} with arguments {arguments}: {e}"
+                f"error resolving instruction {instruction} with arguments {_arguments_summary(arguments)}: {e}"
             ) from e
 
         try:
             return await callable(**arguments)
-        except SandboxError as e:
+        except SandboxError:
+            # re-raise sandbox errors
             raise
         except Exception as e:
             raise SandboxError(
-                f"error running {instruction} with arguments {arguments}: {e}", e
+                f"error running {instruction} with arguments {_arguments_summary(arguments)}: {e}",
+                e,
             ) from e
 
     async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict[str, Any]:
