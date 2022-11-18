@@ -39,4 +39,5 @@ class Command(BaseCommand):
         compilation = Compilation.objects.create(
             task=task, source_instruction=task.template_implementation
         )
+        compilation.backends.set(backends)
         async_to_sync(compiler.compile)(compilation)

@@ -112,7 +112,7 @@ class InstructionParameter(UUIDModel):
     schema = models.JSONField(null=True)
 
     def __str__(self):
-        return f"{self.name}.param@{self.id.hex}"
+        return f"{self.name}:{self.type}.param@{self.id.hex}"
 
     class Meta:
         constraints = [
@@ -147,7 +147,7 @@ class InstructionArgument(UUIDModel):
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.name}.arg@{self.id.hex}"
+        return f"{self.name}:{self.type}.arg@{self.id.hex}"
 
     class Meta:
         constraints = [

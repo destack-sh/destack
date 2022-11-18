@@ -46,7 +46,13 @@ class Compiler:
         logger.info("compile.start", compilation=compilation)
         # TODO @Feature: implement proper compile
         #  We assume a single task with basic explanations, expectations, basic examples and no source instruction.
+
+        # just use first without any conversion for now (also super basic)
+        backend_model = await compilation.backends.afirst()
+        if backend_model is None:
+            raise ValueError(f"no backends provided in compilation {compilation}")
         task = compilation.task
+
         explanations: list[Explanation] = await _acollect(
             task.explanations.select_related("dataset")
         )
@@ -91,8 +97,6 @@ class Compiler:
         examples_keys = rendered_examples[0].keys()
         prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys) + "\n"
 
-        # just use first without any conversion for now (also super basic)
-        backend_model = await compilation.backends.afirst()
         main_instruction = await Instruction.objects.acreate(
             name=task.name, task=task, scope=InstructionScope.PROGRAM, builtin_id="llm_fewshot"
         )
@@ -112,6 +116,8 @@ class Compiler:
             argument_type = InstructionParameterType.from_obj(argument_value)
             if argument_type == InstructionParameterType.DATASET:
                 argument_kwargs = {"dataset": argument_value}
+            elif argument_type == InstructionParameterType.MODEL:
+                argument_kwargs = {"model": argument_value}
             elif argument_type == InstructionParameterType.JSON:
                 argument_kwargs = {"value": argument_value}
             else:
