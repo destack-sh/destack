@@ -32,4 +32,5 @@ class Command(BaseCommand):
         compiled_program = program.implementations.order_by("-created_at").first()
 
         executor = Executor()
-        async_to_sync(executor.run)(compiled_program, {"input": input})
+        output = async_to_sync(executor.run)(compiled_program, {"input": input})
+        print(output)

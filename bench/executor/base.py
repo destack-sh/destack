@@ -358,6 +358,7 @@ class Executor:
 
         try:
             parameters, bound_arguments, callable = await self._resolve_instruction(instruction)
+            callable = await self._proxy_instruction(callable, instruction)
         except Exception as e:
             raise ValueError(
                 f"error resolving instruction {instruction} with arguments {_arguments_summary(arguments)}: {e}"
