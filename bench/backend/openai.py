@@ -6,7 +6,6 @@ import aiohttp
 
 from bench.backend.base import ModelHandle, ModelProvider
 from bench.models import Model, ModelInferenceSettings
-from bench.models.model import ModelInferenceSettingsSerializer
 
 
 class OpenAIProvider(ModelProvider):
@@ -45,7 +44,7 @@ class OpenAIModel(ModelHandle):
 
     @cached_property
     def settings_json(self):
-        return ModelInferenceSettingsSerializer(self.settings).data
+        return self.settings.as_dict()
 
     async def complete(
         self, prompt: str

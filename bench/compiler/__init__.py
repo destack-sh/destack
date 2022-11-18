@@ -1,9 +1,20 @@
+import structlog
+from asgiref.sync import sync_to_async
 from django.db.models import QuerySet
 
 from bench.executor import Executor
-from bench.models import Dataset, Instruction, Model, Organization, ProjectFileType
+from bench.models import (
+    Dataset,
+    Instruction,
+    InstructionArgument,
+    Model,
+    Organization,
+    ProjectFileType,
+)
 from bench.models.compilation import Compilation
 from bench.models.task import Example, Expectation, Explanation
+
+logger = structlog.get_logger(__name__)
 
 
 async def _acollect(qs: QuerySet) -> list:
@@ -30,6 +41,7 @@ class Compiler:
         self.compiler_model = get_backend_model("openai/text-davinci-002")
 
     async def compile(self, compilation: Compilation) -> None:
+        logger.info("compile.start", compilation=compilation)
         # TODO @Feature: implement proper compile
         #  We assume a single task with basic explanations, expectations, basic examples and no source instruction.
         task = compilation.task
@@ -81,12 +93,16 @@ class Compiler:
         model_instruction = await Instruction.objects.acreate(
             name="llm_fewshot", task=task, code_id="llm_fewshot"
         )
-        await model_instruction.arguments.acreate(name="prompt_prefix", value=prompt_prefix)
-        await model_instruction.arguments.acreate(name="prompt_example", value=prompt_example)
-        await model_instruction.arguments.acreate(
-            name="examples",
-            dataset=compiled_examples,
-        )
+        arguments = {
+            "prompt_prefix": {"value": prompt_prefix},
+            "prompt_example": {"value": prompt_example},
+            "examples": {"dataset": compiled_examples},
+        }
+        for argument_name, argument_value in arguments.items():
+            await InstructionArgument.objects.acreate(
+                instruction_bound=model_instruction, name=argument_name, **argument_value
+            )
 
         compilation.target_instruction = model_instruction
-        compilation.save()
+        await sync_to_async(compilation.save)()
+        logger.info("compile.done", compilation=compilation)

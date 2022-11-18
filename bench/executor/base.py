@@ -52,11 +52,16 @@ class Frame:
         self.parent = parent
 
 
-def _arguments_summary(arguments: dict[str, Any]) -> str:
+def _arguments_summary(arguments: Any) -> str:
     """
-    Summarize the names and types of arguments.
+    Summarize the names (if available) and types of arguments.
     """
-    return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
+    if isinstance(arguments, dict):
+        return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
+    elif isinstance(arguments, (list, tuple, set)):
+        return ", ".join(type(value).__name__ for value in arguments)
+    else:
+        return type(arguments).__name__
 
 
 InstructionCallable = typing.Callable[..., typing.Coroutine]
@@ -70,7 +75,9 @@ class ModelProxy(ModelHandle):
     async def complete(
         self, prompt: str
     ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:
-        logger.info("model.complete", model=self.model, handle=self.handle, prompt=len(prompt))
+        logger.info(
+            "model.complete.enter", model=self.model, handle=self.handle, prompt=len(prompt)
+        )
         result = await self.handle.complete(prompt)
         logger.info("model.complete.exit", model=self.model, handle=self.handle, result=len(result))
         return result
@@ -86,7 +93,7 @@ class InstructionProxy:
 
     async def __call__(self, *args, **kwargs):
         logger.info(
-            "instruction.call",
+            "instruction.call.enter",
             instruction=self.instruction,
             callable=self.callable,
             args=len(args),
@@ -135,13 +142,17 @@ class Executor:
         except Exception as e:
             raise SandboxError(f"error running code with globals {globals}: {e}", e) from e
 
-    async def _resolve_model(self, model: Model, settings: ModelInferenceSettings) -> ModelHandle:
+    async def _resolve_model(
+        self, model: Model, settings: typing.Optional[ModelInferenceSettings]
+    ) -> ModelHandle:
         provider = self.providers.get(model.provider)
         if provider is None:
             raise ValueError(f"unknown provider {model.provider}")
         # TODO @Compliance: set actual user identifier for model access (e.g. for OpenAI)
         user_identifier = model.id.hex
-        return await provider.access(model, settings, for_user=user_identifier)
+        return await provider.access(
+            model, settings or model.default_settings, for_user=user_identifier
+        )
 
     async def _resolve_dataset(
         self, dataset: Dataset, view: typing.Optional[DatasetView]
@@ -201,7 +212,7 @@ class Executor:
 
     async def _resolve_instruction_arguments(self, instruction: Instruction) -> dict[str, Any]:
         bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all().select_related(
-            "model", "dataset", "instruction"
+            "model", "model__default_settings", "dataset", "instruction"
         )
         bound_arguments_resolved = {}
         async for argument in bound_arguments:
