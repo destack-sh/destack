@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import OrderedDict
+
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from rest_framework import serializers
@@ -19,8 +21,6 @@ class ModelType(models.TextChoices):
 
 class ProviderKey(models.TextChoices):
     OPENAI = "openai"
-    FOREFRONT = "forefront"
-    COHERE = "cohere"
 
 
 class Model(TaggableMixin, UUIDModel):
@@ -68,6 +68,12 @@ class ModelInferenceSettings(UUIDModel):
 
 
 class ModelInferenceSettingsSerializer(serializers.ModelSerializer):
+    # exclude empty values from output
+    def to_representation(self, value: ModelInferenceSettings) -> OrderedDict:
+        repr_dict = super(serializers.ModelSerializer, self).to_representation(value)
+        excluded_values = [None, [], "", {}]
+        return OrderedDict((k, v) for k, v in repr_dict.items() if v not in excluded_values)
+
     class Meta:
         model = ModelInferenceSettings
         fields = "__all__"
