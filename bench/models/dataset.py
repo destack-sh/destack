@@ -21,16 +21,6 @@ class DatasetSearch:
     text_like: Optional[str] = None
 
 
-class DatasetType(models.TextChoices):
-    """
-    The type of dataset defines its semantics and how it is intended to be used.
-    """
-
-    EXAMPLES = "example", "Examples"
-    EXPLANATIONS = "explain", "Explanations"
-    LEXICON = "lexicon", "Lexicon"
-
-
 class Dataset(TaggableMixin, UUIDModel):
     """
     A dataset of JSON records.
@@ -38,7 +28,6 @@ class Dataset(TaggableMixin, UUIDModel):
     Datasets include machine learning datasets, function inputs/outputs, lexicons.
     """
 
-    type = models.CharField(max_length=64, choices=DatasetType.choices)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -50,7 +39,7 @@ class Dataset(TaggableMixin, UUIDModel):
     objects = DatasetManager()
 
     def __str__(self):
-        return f"{self.name}.{self.type}@{self.id.hex}"
+        return f"{self.name}.data@{self.id.hex}"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int

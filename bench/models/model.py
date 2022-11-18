@@ -47,7 +47,7 @@ class Model(TaggableMixin, UUIDModel):
     objects = ModelManager()
 
     def __str__(self):
-        return f"{self.name}.{self.type}@{self.id.hex}"
+        return f"{self.name}.model@{self.id.hex}"
 
 
 class ModelInferenceSettings(UUIDModel):

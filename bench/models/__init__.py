@@ -1,8 +1,8 @@
 from .compilation import Compilation
-from .dataset import Dataset, DatasetType, DatasetView
+from .dataset import Dataset, DatasetView
 from .execution import Execution, ExecutionType
-from .instruction import Instruction, InstructionArgument, InstructionParameter, InstructionType
-from .model import Model, ModelInferenceSettings, ModelType
+from .instruction import Instruction, InstructionArgument, InstructionParameter, InstructionScope
+from .model import Model, ModelInference, ModelInferenceSettings, ModelType
 from .organization import Organization
 from .project import Project, ProjectFile, ProjectFileType, ProjectVersion
 from .tag import Tag, TaggableMixin, TaggedItem
@@ -15,7 +15,7 @@ __all__ = [
     "TaggableMixin",
     "Task",
     "Instruction",
-    "InstructionType",
+    "InstructionScope",
     "InstructionArgument",
     "InstructionParameter",
     "Compilation",
@@ -28,8 +28,9 @@ __all__ = [
     "ProjectFileType",
     "User",
     "Dataset",
-    "DatasetType",
+    "DatasetView",
     "Model",
     "ModelInferenceSettings",
+    "ModelInference",
     "ModelType",
 ]

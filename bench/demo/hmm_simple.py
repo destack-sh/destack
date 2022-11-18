@@ -72,22 +72,20 @@ misspelling = [
 ]
 
 
-# @bench instruct transform: misspell
+# @bench instruct function: misspell
 model: Model  # @backend openai/text-davinci-002
 misspelling: Dataset
+llm_fewshot: Callable
 
 
-async def misspell(input: str):
-    prompt_prefix = "Translate the following strings int o an incorrect spelling:\n\n"
-    prompt_fewshot = "Input: {input}\nOutput: {output}\n\n"
-    prompt_input = "Input: {input}\nOutput:"
-    prompt = (
-        prompt_prefix
-        + "\n".join(prompt_fewshot.format(**row) for row in misspelling)
-        + prompt_input.format(input=input)
+async def misspell(input: str) -> str:
+    return await llm_fewshot(
+        model,
+        "Misspell the following strings like this:\n\n",
+        "Input: {input}\nOutput: {output}\n\n",
+        f"Input: {input}\nOutput:",
+        misspelling,
     )
-    completion, _ = await model.complete(prompt)
-    return completion.strip()
 
 
 # @bench instruct expect generate_command: spelling_invariance

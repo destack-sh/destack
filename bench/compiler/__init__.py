@@ -7,11 +7,13 @@ from bench.models import (
     Dataset,
     Instruction,
     InstructionArgument,
+    InstructionParameter,
     Model,
     Organization,
     ProjectFileType,
 )
 from bench.models.compilation import Compilation
+from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.task import Example, Expectation, Explanation
 
 logger = structlog.get_logger(__name__)
@@ -66,7 +68,6 @@ class Compiler:
 
         # render expectations into examples
         compiled_examples: Dataset = await Dataset.objects.acreate(
-            type="examples",
             name=f"{task.name}_compiled_examples-{compilation.id.hex}",
         )
 
@@ -86,23 +87,49 @@ class Compiler:
         await compiled_examples.aextend(rendered_examples)
 
         # render explanations and examples into prompt and apply (super basic)
-        prompt_prefix: str = "\n".join(rendered_explanations)
+        prompt_prefix: str = "\n".join(rendered_explanations) + "\n"
         examples_keys = rendered_examples[0].keys()
-        prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys)
+        prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys) + "\n"
 
-        model_instruction = await Instruction.objects.acreate(
-            name="llm_fewshot", task=task, code_id="llm_fewshot"
+        # just use first without any conversion for now (also super basic)
+        backend_model = await compilation.backends.afirst()
+        main_instruction = await Instruction.objects.acreate(
+            name=task.name, task=task, scope=InstructionScope.PROGRAM, builtin_id="llm_fewshot"
         )
         arguments = {
-            "prompt_prefix": {"value": prompt_prefix},
-            "prompt_example": {"value": prompt_example},
-            "examples": {"dataset": compiled_examples},
+            "model": backend_model,
+            "prompt_prefix": prompt_prefix,
+            "prompt_example": prompt_example,
+            "prompt_input": "Input: {input}",
+            "examples": compiled_examples,
         }
+        # add parameter for {input} string
+        await InstructionParameter.objects.acreate(
+            instruction=main_instruction, name="input", type=InstructionParameterType.JSON
+        )
+        # add bound arguments
         for argument_name, argument_value in arguments.items():
+            argument_type = InstructionParameterType.from_obj(argument_value)
+            if argument_type == InstructionParameterType.DATASET:
+                argument_kwargs = {"dataset": argument_value}
+            elif argument_type == InstructionParameterType.JSON:
+                argument_kwargs = {"value": argument_value}
+            else:
+                raise RuntimeError(f"unsupported argument type {argument_type}")
+
+            # create parameter and corresponding argument
+            await InstructionParameter.objects.acreate(
+                instruction=main_instruction,
+                name=argument_name,
+                type=argument_type,
+            )
             await InstructionArgument.objects.acreate(
-                instruction_bound=model_instruction, name=argument_name, **argument_value
+                instruction_bound=main_instruction,
+                name=argument_name,
+                type=argument_type,
+                **argument_kwargs,
             )
 
-        compilation.target_instruction = model_instruction
+        compilation.target_instruction = main_instruction
         await sync_to_async(compilation.save)()
         logger.info("compile.done", compilation=compilation)

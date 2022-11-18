@@ -12,10 +12,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
         # project as organization/project
         parser.add_argument("project", type=str)
-        # arbitrary kwargs
-        parser.add_argument("kwargs", type=str, nargs="*")
+        # add input string as only variable
+        parser.add_argument("input", type=str)
 
-    def handle(self, project: str, *args, **options):
+    def handle(self, project: str, input: str, *args, **kwargs):
         organization, project = project.split("/")
         organization = Organization.objects.get(slug=organization)
         project = Project.objects.get(slug=project, organization=organization)
@@ -32,4 +32,4 @@ class Command(BaseCommand):
         compiled_program = program.implementations.order_by("-created_at").first()
 
         executor = Executor()
-        async_to_sync(executor.run)(compiled_program, options["kwargs"])
+        async_to_sync(executor.run)(compiled_program, {"input": input})
