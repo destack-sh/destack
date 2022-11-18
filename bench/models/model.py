@@ -4,7 +4,6 @@ from collections import OrderedDict
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from rest_framework import serializers
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
@@ -21,6 +20,8 @@ class ModelType(models.TextChoices):
 
 class ProviderKey(models.TextChoices):
     OPENAI = "openai"
+    GOOSEAI = "gooseai"
+    AI21 = "ai21"
 
 
 class Model(TaggableMixin, UUIDModel):
@@ -59,21 +60,29 @@ class ModelInferenceSettings(UUIDModel):
     top_p = models.FloatField(default=1.0)
     logprobs = models.IntegerField(default=2)
     n = models.IntegerField(default=1)
-    stop = ArrayField(models.CharField(max_length=128), default=list)
+    stop = ArrayField(models.CharField(max_length=128), null=True, default=list)
     echo = models.BooleanField(default=False)
     tfs = models.FloatField(null=True, blank=True)
     presence_penalty = models.FloatField(default=0.0)
     frequency_penalty = models.FloatField(default=0.0)
     logit_bias = models.JSONField(null=True, blank=True)
 
-
-class ModelInferenceSettingsSerializer(serializers.ModelSerializer):
-    # exclude empty values from output
-    def to_representation(self, value: ModelInferenceSettings) -> OrderedDict:
-        repr_dict = super(serializers.ModelSerializer, self).to_representation(value)
-        excluded_values = [None, [], "", {}]
-        return OrderedDict((k, v) for k, v in repr_dict.items() if v not in excluded_values)
-
-    class Meta:
-        model = ModelInferenceSettings
-        fields = "__all__"
+    def as_dict(self, omit_empty: bool = True):
+        fields = OrderedDict(
+            [
+                ("max_tokens", self.max_tokens),
+                ("temperature", self.temperature),
+                ("top_p", self.top_p),
+                ("logprobs", self.logprobs),
+                ("n", self.n),
+                ("stop", self.stop),
+                ("echo", self.echo),
+                ("tfs", self.tfs),
+                ("presence_penalty", self.presence_penalty),
+                ("frequency_penalty", self.frequency_penalty),
+                ("logit_bias", self.logit_bias),
+            ]
+        )
+        if omit_empty:
+            return {k: v for k, v in fields.items() if v is not None and v != []}
+        return fields

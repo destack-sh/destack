@@ -25,13 +25,13 @@ providers = [
         ],
     },
     {
-        "name": "Forefront",
-        "slug": "forefront",
+        "name": "Goose AI",
+        "slug": "gooseai",
         "models": [
-            "gpt-j",
-            "codegen",
-            "gpt-neox",
-            "opt-30b",
+            "fairseq-13b",
+            "fairseq-6b-7b",
+            "gpt-j-20b",
+            "gpt-j-6b",
         ],
     },
 ]
