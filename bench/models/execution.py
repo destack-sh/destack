@@ -36,26 +36,28 @@ class ExecutionManager(models.Manager):
         return super().create(type=self.default_type, **kwargs)
 
 
+class ExecutionStatus(models.TextChoices):
+    Created = "created"
+    Scheduled = "scheduled"
+    Queued = "queued"
+    Running = "running"
+    Aborting = "aborting"
+    # terminal statuses
+    Aborted = "aborted"
+    Failed = "failed"
+    Completed = "completed"
+
+
+TERMINAL_STATUSES = {ExecutionStatus.Aborted, ExecutionStatus.Failed, ExecutionStatus.Completed}
+PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
+
+
 class Execution(UUIDTModel):
     """
     The execution of some executable unit, like an instruction or model.
 
     An execution may be hierarchically nested inside other executions via the 'parent' field.
     """
-
-    class Status(models.TextChoices):
-        Created = "created"
-        Scheduled = "scheduled"
-        Queued = "queued"
-        Running = "running"
-        Aborting = "aborting"
-        # terminal statuses
-        Aborted = "aborted"
-        Failed = "failed"
-        Completed = "completed"
-
-    TERMINAL_STATUSES = {Status.Aborted, Status.Failed, Status.Completed}
-    PENDING_STATUSES = set(Status) - TERMINAL_STATUSES
 
     type = models.CharField(max_length=64, choices=ExecutionType.choices)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,7 +68,9 @@ class Execution(UUIDTModel):
     terminated_at = models.DateTimeField(
         blank=True, null=True, help_text="Time of transition to a terminal status."
     )
-    status = models.CharField(max_length=32, choices=Status.choices, default=Status.Created)
+    status = models.CharField(
+        max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
+    )
     metadata = models.JSONField(null=True, blank=True)
 
     parent = models.ForeignKey(
@@ -83,6 +87,13 @@ class Execution(UUIDTModel):
     )
     model = models.ForeignKey(
         "Model", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
+    )
+    model_inference = models.ForeignKey(
+        "ModelInference",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions",
     )
     compilation = models.ForeignKey(
         "Compilation",
@@ -103,7 +114,7 @@ class Execution(UUIDTModel):
     objects = ExecutionManager()
 
     def _set_transition_metadata(
-        self, status: Execution.Status, transition_metadata: Optional[dict]
+        self, status: ExecutionStatus, transition_metadata: Optional[dict]
     ):
         if transition_metadata is None:
             return
@@ -111,13 +122,15 @@ class Execution(UUIDTModel):
             self.metadata = {}
         self.metadata[status.value] = transition_metadata
 
-    def update_status(self, status: Execution.Status, transition_metadata: Optional[dict] = None):
+    def update_status(self, status: ExecutionStatus, transition_metadata: Optional[dict] = None):
         self.status = status
         self._set_transition_metadata(status, transition_metadata)
         self.save()
 
     def start(
-        self, status: Execution.Status = Status.Running, transition_metadata: Optional[dict] = None
+        self,
+        status: ExecutionStatus = ExecutionStatus.Running,
+        transition_metadata: Optional[dict] = None,
     ):
         """
         Marks this execution as started in the given status
@@ -129,7 +142,7 @@ class Execution(UUIDTModel):
 
     def terminate(
         self,
-        status: Execution.Status = Status.Completed,
+        status: ExecutionStatus = ExecutionStatus.Completed,
         transition_metadata: Optional[dict] = None,
     ):
         """
@@ -150,7 +163,7 @@ class Execution(UUIDTModel):
         except Exception as e:
             stacktrace = traceback.format_stack()
             self.terminate(
-                status=Execution.Status.Failed,
+                status=ExecutionStatus.Failed,
                 transition_metadata={"error": str(e), "stacktrace": stacktrace},
             )
             raise
@@ -165,7 +178,7 @@ class Execution(UUIDTModel):
         except Exception as e:
             stacktrace = traceback.format_stack()
             sync_to_async(self.terminate)(
-                status=Execution.Status.Failed,
+                status=ExecutionStatus.Failed,
                 transition_metadata={"error": str(e), "stacktrace": stacktrace},
             )
             raise

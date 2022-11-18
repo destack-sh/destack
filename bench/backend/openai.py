@@ -36,11 +36,15 @@ class OpenAIModel(ModelHandle):
         self.headers = headers
         self.model = model
         self.user_hashed = user_hashed
-        self.settings = settings
+        self._settings = settings
         self._aiohttp_session = None
 
     def __str__(self):
         return f"openai/{self.model}"
+
+    @property
+    def settings(self):
+        return self._settings
 
     @cached_property
     def settings_json(self):

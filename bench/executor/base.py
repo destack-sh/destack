@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import typing
 import uuid
@@ -18,7 +20,7 @@ from bench.models.instruction import (
     InstructionParameter,
     InstructionParameterType,
 )
-from bench.models.model import ModelInferenceSettings, ProviderKey
+from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch, RecordList
 
@@ -68,17 +70,51 @@ InstructionCallable = typing.Callable[..., typing.Coroutine]
 
 
 class ModelProxy(ModelHandle):
-    def __init__(self, handle: ModelHandle, model: Model):
+    def __init__(self, handle: ModelHandle, model: Model, use_cache: bool):
         self.handle = handle
         self.model = model
+        self.use_cache = use_cache
 
+    # insecure hashing is fine here since it's just for caching
+    # noinspection InsecureHash
     async def complete(
         self, prompt: str
     ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:
         logger.info(
             "model.complete.enter", model=self.model, handle=self.handle, prompt=len(prompt)
         )
-        result = await self.handle.complete(prompt)
+        settings_as_str = json.dumps(self.handle.settings.as_dict())
+        settings_hash = hashlib.md5(settings_as_str.encode()).hexdigest()
+        input_hash = hashlib.md5(prompt.encode()).hexdigest()
+
+        # try to get from cache if enabled
+        cached_result = None
+        if self.use_cache:
+            cached_inference = await ModelInference.objects.filter(
+                model=self.model,
+                operation=ModelOperation.COMPLETE,
+                settings_hash=settings_hash,
+                input_hash=input_hash,
+            ).afirst()
+            if cached_inference is not None:
+                cached_result = cached_inference.output
+
+        # cache miss or cache disabled
+        if cached_result is None:
+            result = await self.handle.complete(prompt)
+
+            # write to cache
+            await ModelInference.objects.acreate(
+                model=self.model,
+                operation=ModelOperation.COMPLETE,
+                settings_hash=settings_hash,
+                input=prompt,
+                input_hash=input_hash,
+                output=result,
+            )
+        else:
+            result = cached_result
+
         logger.info("model.complete.exit", model=self.model, handle=self.handle, result=len(result))
         return result
 
@@ -118,6 +154,7 @@ class Executor:
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
         }
         self.default_imports = {Model: ModelHandle, Dataset: RecordBatch}
+        self.use_model_cache = True
 
     def _get_instruction_code(self, instruction: Instruction) -> str:
         """
@@ -195,7 +232,7 @@ class Executor:
             return _run_anonymous
 
     async def _proxy_model(self, model_handle: ModelHandle, model: Model) -> ModelProxy:
-        return ModelProxy(handle=model_handle, model=model)
+        return ModelProxy(handle=model_handle, model=model, use_cache=self.use_model_cache)
 
     async def _proxy_instruction(
         self, callable: InstructionCallable, instruction: Instruction
