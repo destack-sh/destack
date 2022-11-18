@@ -46,12 +46,30 @@ class Frame:
     A single frame in the execution stack.
     """
 
-    def __init__(
-        self, instruction: Instruction, arguments: dict[str, Any], parent: typing.Optional[Frame]
-    ):
+    def __init__(self, instruction: Instruction, arguments: dict[str, Any]):
         self.instruction = instruction
         self.arguments = arguments
-        self.parent = parent
+
+
+class Trace:
+    """
+    A trace of the execution stack of frames.
+    """
+
+    def __init__(self, frame: Frame):
+        self.frames = []
+        self._frame = frame
+
+    def push(self, frame: Frame):
+        self.frames.append(self._frame)
+        self._frame = frame
+
+    def pop(self):
+        self._frame = self.frames.pop()
+
+    @property
+    def current(self):
+        return self._frame
 
 
 def _arguments_summary(arguments: Any) -> str:

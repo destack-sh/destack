@@ -1,4 +1,3 @@
-import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -30,17 +29,18 @@ class Command(BaseCommand):
     help = "Loads a task from a file into a project"
 
     def add_arguments(self, parser: CommandParser):
+        # project as organization/project
+        parser.add_argument("project", type=str)
         # task file path (must exist and end in .py)
         parser.add_argument("task", type=str)
-        # organization name
-        parser.add_argument("--organization", type=str, required=True)
-        # project name
-        parser.add_argument("--project", type=str, required=True)
+        # the task to make the new main program
+        parser.add_argument("--main", type=str, required=False)
 
     @transaction.atomic
-    def handle(self, *args, **options):
-        organization = Organization.objects.get(slug=options["organization"])
-        project = Project.objects.filter(slug=options["project"], organization=organization).first()
+    def handle(self, project: str, main: str = None, *args, **options):
+        organization, project = project.split("/")
+        organization = Organization.objects.get(slug=organization)
+        project = Project.objects.filter(slug=project, organization=organization).first()
         if project is None:
             project = Project.objects.create_project(
                 organization=organization, name=options["project"], slug=options["project"]
@@ -236,6 +236,11 @@ class Command(BaseCommand):
             new_version.files.create(
                 name=dataset.name, type=ProjectFileType.DATASET, dataset=dataset
             )
+
+        # set task as new main program
+        if main:
+            new_version.program = tasks[main]
+            new_version.save()
 
         # advance head to new version
         project.head = new_version

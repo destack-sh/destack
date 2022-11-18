@@ -9,24 +9,23 @@ from bench.models import Compilation, Organization, Project, ProjectFileType
 
 
 class Command(BaseCommand):
-    help = "Sets up dev environment with sample data"
+    help = "Compiles a task into optimized instructions"
 
     def add_arguments(self, parser: CommandParser):
+        # project name as organization/project
+        parser.add_argument("project", type=str)
         # task file path (must exist and end in .py)
         parser.add_argument("task", type=str)
-        # organization name
-        parser.add_argument("--organization", type=str, required=True)
-        # project name
-        parser.add_argument("--project", type=str, required=True)
         # backend names
         parser.add_argument("--backends", type=str, nargs="+", required=True)
 
     @transaction.atomic
-    def handle(self, *args, **options):
-        organization = Organization.objects.get(slug=options["organization"])
-        project = Project.objects.filter(slug=options["project"], organization=organization).first()
+    def handle(self, project: str, task: str, *args, **options):
+        organization, project = project.split("/")
+        organization = Organization.objects.get(slug=organization)
+        project = Project.objects.filter(slug=project, organization=organization).first()
         project_version = project.head
-        task = project_version.files.get(type=ProjectFileType.TASK, name=options["task"]).task
+        task = project_version.files.get(type=ProjectFileType.TASK, name=task).task
 
         # get backend models as owner/model from its backends library
         backends = []
