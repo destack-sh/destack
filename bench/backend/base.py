@@ -28,6 +28,10 @@ class ModelHandle(abc.ABC):
     Base for model implementations that can run a specific model.
     """
 
+    @property
+    def settings(self) -> ModelInferenceSettings:
+        raise NotImplementedError
+
     async def complete(
         self, prompt: str
     ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:

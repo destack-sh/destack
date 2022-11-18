@@ -6,7 +6,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from bench.models.tag import TaggableMixin
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel, UUIDTModel
 
 
 class ModelManager(models.Manager):
@@ -86,3 +86,25 @@ class ModelInferenceSettings(UUIDModel):
         if omit_empty:
             return {k: v for k, v in fields.items() if v is not None and v != []}
         return fields
+
+
+class ModelOperation(models.TextChoices):
+    COMPLETE = "complete"
+
+
+class ModelInference(UUIDTModel):
+    """
+    A single output from a model inference for debugging and caching.
+    """
+
+    model = models.ForeignKey("Model", on_delete=models.CASCADE, related_name="outputs+")
+    operation = models.CharField(max_length=64, choices=ModelOperation.choices)
+    settings_hash = models.CharField(max_length=64)
+    input_hash = models.CharField(max_length=64)
+    input = models.JSONField(null=True)
+    output = models.JSONField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["model", "operation", "settings_hash", "input_hash"]),
+        ]
