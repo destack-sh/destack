@@ -8,8 +8,9 @@ from django.db import transaction
 
 from bench.compiler import get_backend_model
 from bench.executor import Executor
+from bench.executor.builtins import default_builtins
 from bench.models import Dataset, Instruction, Organization, Project, Task
-from bench.models.instruction import InstructionParameterType
+from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.project import ProjectFileType
 from bench.models.task import ExpectationType
 
@@ -38,39 +39,19 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, project: str, main: str = None, *args, **options):
-        organization, project = project.split("/")
-        organization = Organization.objects.get(slug=organization)
-        project = Project.objects.filter(slug=project, organization=organization).first()
+        organization_slug, project_slug = project.split("/")
+        organization = Organization.objects.get(slug=organization_slug)
+        project = Project.objects.filter(slug=project_slug, organization=organization).first()
         if project is None:
             project = Project.objects.create_project(
-                organization=organization, name=options["project"], slug=options["project"]
+                organization=organization, name=project_slug, slug=project_slug
             )
 
         # read task file lines
         with open(options["task"], "r") as f:
             lines = f.readlines()
 
-        # parse all bench segments from lines (look like this # @bench ... # @/bench)
-        segments: list[TaskFileSegment] = []
-        segment: Optional[TaskFileSegment] = None
-
-        for i, line in enumerate(lines):
-            if "@bench" in line:
-                if segment is not None:
-                    # close previous segment
-                    segments.append(segment)
-
-                segment = TaskFileSegment(header=line[8:].strip(), lines=[], source_index=i)
-            elif "@/bench" in line:
-                segments.append(segment)
-                segment = None
-            elif segment is not None:
-                segment.lines.append(line)
-        if segment is None:
-            raise ValueError("task file must contain at least one @bench segment")
-
-        # close last segment
-        segments.append(segment)
+        segments = self.parse_task_file_segments(lines)
 
         new_version = project.create_version()
         new_version.reset()
@@ -84,11 +65,6 @@ class Command(BaseCommand):
             if segment.header.startswith("ignore"):
                 continue
 
-            # The possible definitions (in header) are:
-            #  ignore: ignore this segment (used for imports)
-            #  task [args]: <name> -> define a task
-            #  instruction [args]: <name> -> define a instruction
-            #  dataset [args]: <name> -> define a dataset
             definitions = async_to_sync(executor.run_get_definitions)(segment.full_code, {})
 
             def _get_definition(name: str):
@@ -98,6 +74,11 @@ class Command(BaseCommand):
                     )
                 return definitions[name]
 
+            # The possible definitions (in header) are:
+            #  ignore: ignore this segment (used for imports)
+            #  task [args]: <name> -> define a task
+            #  instruction [args]: <name> -> define a instruction
+            #  dataset [args]: <name> -> define a dataset
             args, file_name = segment.header.split(":", 1)
             args = args.split(" ")
             file_name = file_name.strip()
@@ -116,7 +97,7 @@ class Command(BaseCommand):
                         f"instruction definition: {instruction_definition} must be a function"
                     )
                 instruction = Instruction.objects.create(
-                    name=file_name, type=args[1], code=segment.full_code
+                    name=file_name, scope=InstructionScope.FUNCTION, code=segment.full_code
                 )
                 # assign instruction as implementation to task
                 if instruction.name in tasks:
@@ -143,6 +124,10 @@ class Command(BaseCommand):
                     param_name, param_type = line.split(":", 1)
                     param_name = param_name.strip()
                     param_type = param_type.strip()
+
+                    if param_name in default_builtins:
+                        # ignore builtin instructions
+                        continue
 
                     param_schema = None
                     if param_type == "Dataset":
@@ -196,7 +181,7 @@ class Command(BaseCommand):
                     else:
                         raise ValueError(f"unknown parameter type: {param_type}")
 
-                if instruction.type == "expect":
+                if args[1] == "expect":
                     # sloppily determine expectation type based on function name
                     if "invar" in instruction.name:
                         expect_type = ExpectationType.INVARIANCE
@@ -212,13 +197,13 @@ class Command(BaseCommand):
                 dataset_records = _get_definition(file_name)
                 # schema is just keys and types of values of the first element
                 schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
-                dataset = Dataset.objects.create(name=file_name, schema=schema, type=args[1])
+                dataset = Dataset.objects.create(name=file_name, schema=schema)
                 dataset.extend(dataset_records)
                 datasets[file_name] = dataset
 
-                if dataset.type == "example" and len(args) > 2:
+                if args[1] == "example" and len(args) > 2:
                     tasks[args[2]].examples.create(dataset=dataset)
-                elif dataset.type == "explain" and len(args) > 2:
+                elif args[1] == "explain" and len(args) > 2:
                     tasks[args[2]].explanations.create(dataset=dataset)
                 elif len(args) > 2:
                     raise ValueError(f"unknown dataset type: {dataset.type}")
@@ -245,3 +230,25 @@ class Command(BaseCommand):
         # advance head to new version
         project.head = new_version
         project.save()
+
+    def parse_task_file_segments(self, lines):
+        # parse all bench segments from lines (look like this # @bench ... # @/bench)
+        segments: list[TaskFileSegment] = []
+        segment: Optional[TaskFileSegment] = None
+        for i, line in enumerate(lines):
+            if "@bench" in line:
+                if segment is not None:
+                    # close previous segment
+                    segments.append(segment)
+
+                segment = TaskFileSegment(header=line[8:].strip(), lines=[], source_index=i)
+            elif "@/bench" in line:
+                segments.append(segment)
+                segment = None
+            elif segment is not None:
+                segment.lines.append(line)
+        if segment is None:
+            raise ValueError("task file must contain at least one @bench segment")
+        # close last segment
+        segments.append(segment)
+        return segments

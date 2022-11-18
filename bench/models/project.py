@@ -187,9 +187,9 @@ class ProjectFileType(models.TextChoices):
     """
 
     TASK = "task", "Task"
-    INSTRUCTION = "instruction", "Instruction"
+    INSTRUCTION = "instruct", "Instruction"
     MODEL = "model", "Model"
-    DATASET = "dataset", "Dataset"
+    DATASET = "data", "Dataset"
 
 
 class ProjectFile(UUIDModel):

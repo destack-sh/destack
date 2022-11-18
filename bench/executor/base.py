@@ -5,6 +5,7 @@ import json
 import os
 import typing
 import uuid
+from functools import partial
 from typing import Any, Union
 
 import structlog
@@ -12,6 +13,7 @@ from django.db.models import QuerySet
 
 from bench.backend.base import ModelHandle, ModelProvider
 from bench.backend.openai import OpenAIProvider
+from bench.executor.builtins import default_builtins
 from bench.models import Dataset, Model
 from bench.models.dataset import DatasetView
 from bench.models.instruction import (
@@ -166,7 +168,7 @@ class InstructionProxy:
 class Executor:
     def __init__(self):
         self.executor_id = uuid.uuid4().hex
-        self.builtin_instructions = {}
+        self.builtins = default_builtins
         self.can_exec = DEBUG or TEST  # or sandboxed
         self.providers: dict[ProviderKey, ModelProvider] = {
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
@@ -179,11 +181,8 @@ class Executor:
         Gets the literal code defining this instruction.
         """
 
-        if instruction.code_id is not None:
-            if instruction.code_id not in self.builtin_instructions:
-                raise ValueError(f"unknown builtin instruction code id: {instruction}")
-
-            instruction_code = self.builtin_instructions[instruction.code_id]
+        if instruction.builtin_id is not None:
+            raise ValueError("cannot get code for builtin instruction")
         else:
             instruction_code = instruction.code
         return instruction_code
@@ -225,29 +224,42 @@ class Executor:
     async def _resolve_instruction(
         self,
         instruction: Instruction,
-    ) -> InstructionCallable:
+    ) -> tuple[dict[str, Any], dict[str, Any], InstructionCallable]:
         """
         Resolves an instruction and all its arguments to an async callable.
         """
 
         parameters = await self._get_instruction_parameters(instruction)
         arguments = await self._resolve_instruction_arguments(instruction)
-        self._check_arguments(instruction, parameters, arguments)
+        # check arguments types (ignoring missing parameters for now since they could be bound later)
+        # TODO @Cleanup: not sure if it's okay to be lenient on missing parameters during instruction resolution
+        #  Doesn't this also depend on whether the instruction is anonymous, named or builtin?
+        self._check_arguments(instruction, parameters, arguments, check_required=False)
 
-        code = self._get_instruction_code(instruction)
-        # An instruction can be a linear piece of code to call every time or define a function to call.
-        # Note that we don't actually run the code here, we just resolve and initialise.
-        if not instruction.anonymous:
-            output = await self.run_get_definitions(code, {**arguments})
-            if instruction.name not in output:
-                raise ValueError(f"function {instruction.name} not defined in code")
-            return output[instruction.name]
+        if instruction.builtin_id:
+            # builtins are already defined and are just curried using the arguments
+            builtin = self.builtins.get(instruction.builtin_id)
+            if builtin is None:
+                raise ValueError(f"unknown builtin in {instruction}: {instruction.builtin_id}")
+            return parameters, arguments, partial(builtin, **arguments)
         else:
+            code = self._get_instruction_code(instruction)
+            # A code instruction can be a linear piece of code to call every time or define a function to call.
+            # Note that we don't actually run the code here, we just resolve and initialise.
+            if not instruction.anonymous:
+                output = await self.run_get_definitions(code, {**arguments})
+                if instruction.name not in output:
+                    raise ValueError(f"function {instruction.name} not defined in code")
+                return parameters, arguments, output[instruction.name]
+            else:
+                # TODO @Performance @Cleanup: should we just compile anonymous functions into named functions?
+                #  Otherwise, we-exec the code every time it's called.
+                async def _run_anonymous(**kwargs):
+                    await self._do_exec(code, {**arguments, **kwargs})
 
-            async def _run_anonymous(**kwargs):
-                await self._do_exec(code, {**arguments, **kwargs})
+                _run_anonymous.__name__ = f"_anon_{instruction}"
 
-            return _run_anonymous
+                return parameters, arguments, _run_anonymous
 
     async def _proxy_model(self, model_handle: ModelHandle, model: Model) -> ModelProxy:
         return ModelProxy(handle=model_handle, model=model, use_cache=self.use_model_cache)
@@ -271,20 +283,24 @@ class Executor:
         )
         bound_arguments_resolved = {}
         async for argument in bound_arguments:
-            if argument.model:
+            if argument.type == InstructionParameterType.MODEL:
                 model_handle = await self._resolve_model(argument.model, argument.model_settings)
                 model_proxy = await self._proxy_model(model_handle, argument.model)
                 bound_arguments_resolved[argument.name] = model_proxy
-            elif argument.dataset:
+            elif argument.type == InstructionParameterType.DATASET:
                 bound_arguments_resolved[argument.name] = await self._resolve_dataset(
                     argument.dataset, argument.dataset_view
                 )
-            elif argument.instruction:
-                callable = await self._resolve_instruction(argument.instruction)
+            elif argument.type == InstructionParameterType.INSTRUCTION:
+                _, _, callable = await self._resolve_instruction(argument.instruction)
                 callable_proxy = await self._proxy_instruction(callable, argument.instruction)
                 bound_arguments_resolved[argument.name] = callable_proxy
-            else:
+            elif argument.type == InstructionParameterType.JSON:
                 bound_arguments_resolved[argument.name] = argument.value
+            else:
+                raise ValueError(
+                    f"{instruction} argument {argument} unknown argument type: {argument.type}"
+                )
         return bound_arguments_resolved
 
     def _check_arguments(
@@ -292,6 +308,7 @@ class Executor:
         instruction: Instruction,
         parameters: dict[str, InstructionParameter],
         arguments: dict[str, Any],
+        check_required: bool,
     ) -> None:
         """
         Checks that all required arguments are present and valid for the instruction, raising an error if not.
@@ -299,8 +316,10 @@ class Executor:
 
         for parameter in parameters.values():
             # check that all required arguments are present
-            if parameter.name not in arguments:
+            if check_required and parameter.name not in arguments:
                 raise ValueError(f"required parameter {parameter.name} not bound for {instruction}")
+            if not check_required and parameter.name not in arguments:
+                continue
             # check that all arguments are of the correct type
             # TODO @Robustness: check that the argument has the correct schema
             if parameter.type == InstructionParameterType.INSTRUCTION:
@@ -334,13 +353,20 @@ class Executor:
     async def run(
         self, instruction: Instruction, arguments: dict[str, Any]
     ) -> typing.Optional[dict[str, Any]]:
-        # TODO @Feature: trace model/instruction executions (with context, recursively)
+        if not isinstance(arguments, dict):
+            raise ValueError(f"{instruction} arguments must be a dict: {arguments}")
+
         try:
-            callable = await self._resolve_instruction(instruction)
+            parameters, bound_arguments, callable = await self._resolve_instruction(instruction)
         except Exception as e:
             raise ValueError(
                 f"error resolving instruction {instruction} with arguments {_arguments_summary(arguments)}: {e}"
             ) from e
+
+        # check free arguments are bound as they should
+        # it feels a bit hacky to check the free arguments like this, but whatever for now.
+        missing_parameters = {k: v for k, v in parameters.items() if k not in bound_arguments}
+        self._check_arguments(instruction, missing_parameters, arguments, check_required=True)
 
         try:
             return await callable(**arguments)
@@ -355,7 +381,7 @@ class Executor:
 
     async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict[str, Any]:
         # remember the globals we started with, do not modify originals
-        globals_copy = {**self.default_imports, **globals}
+        globals_copy = {**self.default_imports, **self.builtins, **globals}
         globals_copy_keys = {*globals_copy.keys()}
         await self._do_exec(code, globals_copy)
         new_globals = {
