@@ -9,7 +9,6 @@ import structlog
 from django.db.models import QuerySet
 
 from bench.backend.base import ModelHandle, ModelProvider
-from bench.backend.forefront import ForefrontProvider
 from bench.backend.openai import OpenAIProvider
 from bench.models import Dataset, Model
 from bench.models.dataset import DatasetView
@@ -45,7 +44,12 @@ class Frame:
     A single frame in the execution stack.
     """
 
-    pass
+    def __init__(
+        self, instruction: Instruction, arguments: dict[str, Any], parent: typing.Optional[Frame]
+    ):
+        self.instruction = instruction
+        self.arguments = arguments
+        self.parent = parent
 
 
 def _arguments_summary(arguments: dict[str, Any]) -> str:
@@ -105,7 +109,6 @@ class Executor:
         self.can_exec = DEBUG or TEST  # or sandboxed
         self.providers: dict[ProviderKey, ModelProvider] = {
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
-            ProviderKey.FOREFRONT: ForefrontProvider(api_key=os.environ["FOREFRONT_API_KEY"]),
         }
         self.default_imports = {Model: ModelHandle, Dataset: RecordBatch}
 
