@@ -6,24 +6,17 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf.urls import include
 from django.contrib import admin
 from django.urls import path
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView
 from strawberry.django.views import GraphQLView
 
 from bench.api import schema
-from bench.settings import API_PREFIX
+from bench.api.rest import run_program
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("django_prometheus.urls")),
     path("", include("social_django.urls", namespace="social")),
-    path(API_PREFIX + "schema", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        API_PREFIX + "schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"
-    ),
-    path(
-        API_PREFIX + "schema/swagger/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="swagger",
-    ),
+    path("schema", SpectacularAPIView.as_view(), name="schema"),
+    path("<organization>/<project>/run", run_program, name="run"),
     path("graphql", GraphQLView.as_view(schema=schema)),
 ]
