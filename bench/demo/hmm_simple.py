@@ -33,16 +33,20 @@ generate_command = [
         "output": "ls -l",
     },
     {
-        "input": "commit",
-        "output": "git commit",
-    },
-    {
         "input": "revert commit",
         "output": "git revert",
     },
     {
         "input": "find listening to port 5432",
-        "output": "netstat -tulpen | rg 5432",
+        "output": "netstat -tulpen | grep 5432",
+    },
+    {
+        "input": "build docker image",
+        "output": "docker build",
+    },
+    {
+        "input": "new python env",
+        "output": "python -m venv venv",
     },
 ]
 
@@ -63,6 +67,18 @@ destructive = [
 # async def expect_result_to_be_safe(output: str) -> bool:
 #     return await is_concept(output, destructive)
 
+
+# !bench instruct expect generate_command: verify_just_the_command
+# TODO @Feature: implement non-example based expectations
+#
+#
+# async def verify_single_command(example: dict) -> bool:
+#     # command is single line and is not text
+#     return "\n" not in example["output"]
+#
+# # !bench instruct expect generate_command: verify_bash_command
+# async def verify_bash_command(example: dict) -> bool:
+#     return llm_classify()
 
 # @bench dataset example: misspelling
 misspelling = [

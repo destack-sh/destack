@@ -125,6 +125,7 @@ export type Query = {
   organization?: Maybe<Organization>;
   organizations: OrganizationConnection;
   project?: Maybe<Project>;
+  projectBySlug?: Maybe<Project>;
   projects: ProjectConnection;
   user?: Maybe<User>;
   users: UserConnection;
@@ -143,6 +144,11 @@ export type QueryOrganizationsArgs = {
 
 export type QueryProjectArgs = {
   id: Scalars["GlobalID"];
+};
+
+export type QueryProjectBySlugArgs = {
+  organization: Scalars["String"];
+  project: Scalars["String"];
 };
 
 export type QueryProjectsArgs = {
@@ -204,6 +210,16 @@ export type ProjectVersionFragmentFragment = {
   committedAt?: any | null;
 } & { " $fragmentName"?: "ProjectVersionFragmentFragment" };
 
+export type GetProjectBySlugQueryVariables = Exact<{
+  organization: Scalars["String"];
+  project: Scalars["String"];
+}>;
+
+export type GetProjectBySlugQuery = {
+  __typename?: "Query";
+  projectBySlug?: { __typename?: "Project"; id: any } | null;
+};
+
 export type GetProjectVersionsQueryVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
@@ -245,6 +261,53 @@ export const ProjectVersionFragmentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectVersionFragmentFragment, unknown>;
+export const GetProjectBySlugDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "getProjectBySlug" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "organization" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "project" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectBySlug" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "organization" },
+                value: { kind: "Variable", name: { kind: "Name", value: "organization" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "project" },
+                value: { kind: "Variable", name: { kind: "Name", value: "project" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>;
 export const GetProjectVersionsDocument = {
   kind: "Document",
   definitions: [

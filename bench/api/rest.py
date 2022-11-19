@@ -12,7 +12,7 @@ executor = Executor()
 # TODO @Performance: execute run program endpoint non-blocking (async)
 @api_view(["POST"])
 def run_program(request: Request, organization: str, project: str) -> Response:
-    project: Project = Project.objects.get(organization__slug=organization, slug=project)
+    project = Project.objects.get(organization__slug=organization, slug=project)
     variables = request.GET
 
     # as in runprogram, just use the latest implementation of main head's program

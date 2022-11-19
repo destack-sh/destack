@@ -104,7 +104,7 @@ class Compiler:
             "model": backend_model,
             "prompt_prefix": prompt_prefix,
             "prompt_example": prompt_example,
-            "prompt_input": "Input: {input}",
+            "prompt_input": "Input: {input}\nOutput: ",
             "examples": compiled_examples,
         }
         # add parameter for {input} string

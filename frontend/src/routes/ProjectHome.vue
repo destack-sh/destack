@@ -187,6 +187,20 @@ const ProjectVersionFragment = graphql(/* GraphQL */ `
   }
 `);
 
+const { result: projectId } = useQuery(
+  graphql(/* GraphQL */ `
+    query getProjectBySlug($organization: String!, $project: String!) {
+      projectBySlug(organization: $organization, project: $project) {
+        id
+      }
+    }
+  `),
+  () => ({
+    organization: props.organization,
+    project: props.project,
+  })
+);
+
 const { result: versionsQuery } = useQuery(
   graphql(/* GraphQL */ `
     query getProjectVersions($id: GlobalID!) {
@@ -205,8 +219,6 @@ const { result: versionsQuery } = useQuery(
       }
     }
   `),
-  {
-    id: "UHJvamVjdDo0MzJjZjA2Ny04YzRlLTQ5NzYtOWMwOS01YzRmMTNhMmJjZGU=",
-  }
+  () => ({ id: projectId.value?.projectBySlug?.id })
 );
 </script>

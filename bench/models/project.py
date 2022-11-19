@@ -34,6 +34,9 @@ class ProjectManager(models.Manager):
         project.save()
         return project
 
+    def get_by_slug(self, organization: str, project: str) -> "Project":
+        return self.get(organization__slug=organization, slug=project)
+
 
 class Project(TaggableMixin, UUIDModel):
     """

@@ -130,6 +130,7 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): Project
+  projectBySlug(organization: String!, project: String!): Project
   projects(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
