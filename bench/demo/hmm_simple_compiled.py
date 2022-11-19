@@ -11,7 +11,6 @@
 from typing import Any
 
 from bench.model.base import ModelProvider
-from bench.models import Dataset
 
 Model = ModelProvider
 benv: Any = {}
@@ -21,7 +20,7 @@ benv: Any = {}
 # @bench instruct: generate_command
 model: Model  # = benv.get_model("openai/code-davinci-002")
 prompt = """
-# Translate the natural language comm and into a CLI command.
+# Translate the natural language command and into a single-line bash command.
 
 # do commit
 git commit

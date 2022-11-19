@@ -20,4 +20,3 @@ class BenchConfig(AppConfig):
             from bench.management.commands.exportschema import write_schema
 
             write_schema("schema.gen.graphql", schema)
-            print("Updated schema.gen.graphql")
