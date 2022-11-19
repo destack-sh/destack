@@ -5,6 +5,11 @@ from django.db import transaction
 from bench.api import schema
 
 
+def write_schema(path: str, schema):
+    with open(path, "w") as f:
+        f.write(str(schema))
+
+
 class Command(BaseCommand):
     help = "Exports GraphQL schema (which requires Django to be loaded)"
 
@@ -17,7 +22,6 @@ class Command(BaseCommand):
         schema_str = str(schema)
 
         if options["file"]:
-            with open(options["file"], "w") as f:
-                f.write(schema_str)
+            write_schema(options["file"], schema_str)
         else:
             print(schema_str)
