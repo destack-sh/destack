@@ -2,8 +2,6 @@ from typing import List
 
 from bench.settings import get_from_env
 
-API_PREFIX = "api/"
-
 ALLOWED_HOSTS: List[str] = []
 
 # SECURITY WARNING: keep the secret key used in production secret!
