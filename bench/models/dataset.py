@@ -156,9 +156,6 @@ class DatasetRecord(UUIDModel):
     def __str__(self):
         return f"{self.dataset}/{self.index}@{self.id.hex}"
 
-    def is_committed(self) -> bool:
-        return True
-
     class Meta:
         # order by index ascending by default
         ordering = ["index"]
