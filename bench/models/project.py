@@ -197,7 +197,7 @@ class ProjectFileType(models.TextChoices):
 
 class ProjectFile(UUIDModel):
     """
-    A "file" defining a single named object (task, instruction, model, dataset) in a project.
+    A "file" edge defining a single named object (task, instruction, model, dataset) in a project.
     """
 
     project_version: models.ForeignKey = models.ForeignKey(
@@ -214,6 +214,10 @@ class ProjectFile(UUIDModel):
 
     def __str__(self):
         return f"{self.project_version}/{self.name}.{self.type}"
+
+    @property
+    def name_dot_type(self):
+        return f"{self.name}.{self.type}"
 
     class Meta:
         constraints = [

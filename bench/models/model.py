@@ -38,8 +38,8 @@ class Model(TaggableMixin, UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    parent = models.ForeignKey(
-        "Model", on_delete=models.CASCADE, null=True, related_name="children"
+    baseline = models.ForeignKey(
+        "Model", on_delete=models.CASCADE, null=True, related_name="derivatives"
     )
     provider = models.CharField(max_length=64, choices=ProviderKey.choices)
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)

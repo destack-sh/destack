@@ -99,7 +99,7 @@
     <!-- Main content (sidebar + editor), spans vertically -->
     <div class="flex-1">
       <!-- Sidebar of get_view buttons & views -->
-      <aside class="flex h-full w-72 resize-x border-r border-gray-200">
+      <aside class="flex h-full w-80 resize-x border-r border-gray-200">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
@@ -131,7 +131,23 @@
             <!-- TODO @Feature: select explorer get_view (by type, by task tree) -->
           </div>
           <!-- View contents -->
-          <div class="flex flex-1 flex-col"></div>
+          <div class="flex flex-1 flex-col">
+            <!-- View: explorer -->
+            <ul role="list" class="flex flex-col gap-1 text-sm">
+              <li
+                v-for="file in files"
+                :key="file.id"
+                class="py-1 pl-6 pr-2"
+                :class="
+                  file.id == focusedFile?.id
+                    ? 'bg-gray-200 font-bold text-orange-700'
+                    : 'text-gray-700 hover:text-white'
+                "
+              >
+                {{ file.nameDotType }}
+              </li>
+            </ul>
+          </div>
         </div>
       </aside>
       <!-- Main editor -->
@@ -142,17 +158,17 @@
 
 <script setup lang="ts">
 import SButton from "@/components/basic/SButton.vue";
+import { graphql } from "@/gql";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
-  PlayIcon,
-  WrenchIcon,
   ClipboardDocumentIcon,
   ClockIcon,
-  QuestionMarkCircleIcon,
   Cog8ToothIcon,
+  PlayIcon,
+  QuestionMarkCircleIcon,
+  WrenchIcon,
 } from "@heroicons/vue/24/outline";
-import { graphql } from "@/gql";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
@@ -176,14 +192,31 @@ const viewNavigation = [
   { name: "Versions", icon: ClockIcon },
 ];
 
-const explorerViewFiles = [{ name: "" }];
-
 const ProjectVersionFragment = graphql(/* GraphQL */ `
   fragment ProjectVersionFragment on ProjectVersion {
     name
     description
     createdAt
     committedAt
+  }
+`);
+
+const TaskFragment = graphql(/* GraphQL */ `
+  fragment TaskFragment on Task {
+    name
+    createdAt
+    updatedAt
+  }
+`);
+
+const InstructionFragment = graphql(/* GraphQL */ `
+  fragment InstructionFragment on Instruction {
+    name
+    createdAt
+    updatedAt
+    builtinId
+    code
+    scope
   }
 `);
 
@@ -219,6 +252,45 @@ const { result: versionsQuery } = useQuery(
       }
     }
   `),
-  () => ({ id: projectId.value?.projectBySlug?.id })
+  () => ({ id: projectId.value?.projectBySlug?.id }),
+  () => ({ enabled: !!projectId.value?.projectBySlug?.id })
 );
+
+const currentVersion = computed(() => versionsQuery.value?.project?.head);
+const { result: filesResult } = useQuery(
+  graphql(/* GraphQL */ `
+    query getProjectVersionFiles($id: GlobalID!) {
+      projectVersion(id: $id) {
+        id
+        files {
+          id
+          name
+          type
+          nameDotType
+        }
+        program {
+          id
+          name
+          schema
+          children {
+            id
+            ...TaskFragment
+            templateImplementation {
+              id
+              ...InstructionFragment
+            }
+            children {
+              id
+              ...TaskFragment
+            }
+          }
+        }
+      }
+    }
+  `),
+  () => ({ id: currentVersion.value?.id }),
+  () => ({ enabled: !!currentVersion.value?.id })
+);
+const files = computed(() => filesResult.value?.projectVersion?.files);
+const focusedFile = computed(() => files.value?.[0]);
 </script>

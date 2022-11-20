@@ -1,16 +1,12 @@
 from django.core.validators import validate_slug
 from django.db import models
-from social_core.utils import slugify
 
 from bench.models.utils import UUIDModel
 
 
 class OrganizationManager(models.Manager):
-    def create(self, **kwargs) -> "Organization":
-        if "slug" not in kwargs:
-            slug = slugify(kwargs["name"])
-            kwargs["slug"] = slug
-        return super().create(**kwargs)
+    def get_by_slug(self, organization: str) -> "Organization":
+        return self.get(slug=organization)
 
 
 class Organization(UUIDModel):
