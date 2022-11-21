@@ -4,12 +4,11 @@ import { createPinia } from "pinia";
 import { createApp, h, provide } from "vue";
 import { version } from "../../package.json";
 
+import { ApolloClient, InMemoryCache } from "@apollo/client/core";
+import { DefaultApolloClient } from "@vue/apollo-composable";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
-import { hydrate } from "./hydrate";
 import router from "./router";
-import { DefaultApolloClient } from "@vue/apollo-composable";
-import { ApolloClient, InMemoryCache } from "@apollo/client/core";
 
 async function init() {
   const apolloClient = new ApolloClient({
@@ -38,9 +37,6 @@ async function init() {
 
   console.info(`%cEnvironment: ${import.meta.env.MODE}`, "color:orangered");
   console.groupEnd();
-
-  // start loading
-  await hydrate();
 
   // prevent opening files that are dragged over the window
   window.addEventListener("dragover", (e) => e.preventDefault(), false);

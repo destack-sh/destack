@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from "url";
 
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, loadEnv } from "vite";
+import monacoEditorPlugin from "vite-plugin-monaco-editor";
 
 // see https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -11,7 +12,7 @@ export default defineConfig(({ command, mode }) => {
       __APP_ENV__: env.APP_ENV,
       __APP_VERSION__: env.APP_VERSION,
     },
-    plugins: [vue()],
+    plugins: [vue(), monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] })],
     root: "./frontend",
     resolve: {
       alias: {
