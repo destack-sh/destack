@@ -42,10 +42,22 @@ class Explanation(UUIDModel):
     """
 
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="explanations")
-    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, related_name="explanations")
+    text = models.TextField(null=True)
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.RESTRICT, null=True, related_name="explanations"
+    )
     dataset_view = models.ForeignKey(
         "DatasetView", on_delete=models.RESTRICT, null=True, related_name="explanations"
     )
+
+    class Meta:
+        # check that either text or dataset is set
+        constraints = [
+            models.CheckConstraint(
+                name="bench_explanation_text_xor_dataset_ck",
+                check=models.Q(text__isnull=False) ^ models.Q(dataset__isnull=False),
+            )
+        ]
 
 
 class Example(UUIDModel):
@@ -54,10 +66,22 @@ class Example(UUIDModel):
     """
 
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="examples")
-    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, related_name="examples")
+    text = models.TextField(null=True)
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.RESTRICT, null=True, related_name="examples"
+    )
     dataset_view = models.ForeignKey(
         "DatasetView", on_delete=models.RESTRICT, null=True, related_name="examples"
     )
+
+    class Meta:
+        # check that either text or dataset is set
+        constraints = [
+            models.CheckConstraint(
+                name="bench_example_text_xor_dataset_ck",
+                check=models.Q(text__isnull=False) ^ models.Q(dataset__isnull=False),
+            )
+        ]
 
 
 class ExpectationType(models.TextChoices):
@@ -80,6 +104,7 @@ class Expectation(UUIDModel):
     """
 
     type = models.CharField(max_length=64, choices=ExpectationType.choices)
+    text = models.TextField(null=True)
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="expectations")
     instruction = models.ForeignKey(
         "Instruction", on_delete=models.RESTRICT, related_name="expectations"

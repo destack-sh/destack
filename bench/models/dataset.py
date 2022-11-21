@@ -121,28 +121,6 @@ class Dataset(TaggableMixin, UUIDModel):
         return self.length
 
 
-class DatasetAnnotationType(models.TextChoices):
-    DATASET = "dataset", "Dataset"
-    INSTRUCTION = "instruction", "Instruction"
-    TASK = "task", "Task"
-
-
-class DatasetAnnotation(UUIDModel):
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="annotations")
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = models.CharField(max_length=64, choices=DatasetAnnotationType.choices)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    other_dataset = models.ForeignKey(
-        Dataset, on_delete=models.CASCADE, related_name="other_annotations", null=True
-    )
-    instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True, blank=True)
-    task = models.ForeignKey("Task", on_delete=models.CASCADE, null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.dataset}/{self.name}@{self.id.hex}"
-
-
 class DatasetRecord(UUIDModel):
     """
     An individual JSON record. The data may be annotated with high level references.
