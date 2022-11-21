@@ -11,6 +11,7 @@ from strawberry.django.views import GraphQLView
 
 from bench.api import schema
 from bench.api.rest import run_program
+from bench.settings import DEBUG
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -18,5 +19,9 @@ urlpatterns = [
     path("", include("social_django.urls", namespace="social")),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
     path("<organization>/<project>/run", run_program, name="run"),
-    path("graphql", GraphQLView.as_view(schema=schema)),
+    path(
+        "graphql",
+        GraphQLView.as_view(schema=schema, graphiql=DEBUG, allow_queries_via_get=False),
+        name="graphql",
+    ),
 ]

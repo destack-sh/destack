@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from typing import Optional, Type, Union
 
 import strawberry
-from strawberry.extensions import QueryDepthLimiter
+from graphql import NoSchemaIntrospectionCustomRule
+from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
 from strawberry_django_plus import gql
 from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.types import Organization, Project, ProjectVersion, User
+from bench.settings import DEBUG, TEST
 
 
 @strawberry.type
@@ -39,12 +41,22 @@ class Mutation:
         pass
 
 
+default_extensions: list[Union[Type[Extension], Extension]] = [
+    DjangoOptimizerExtension,
+    QueryDepthLimiter(max_depth=10),
+    SchemaDirectiveExtension,
+]
+prod_extensions: list[Union[Type[Extension], Extension]] = [
+    ParserCache(),
+    AddValidationRules([NoSchemaIntrospectionCustomRule]),
+]
+if DEBUG or TEST:
+    extensions = default_extensions
+else:
+    extensions = default_extensions + prod_extensions
+
 schema = strawberry.Schema(
     Query,
     Mutation,
-    extensions=[
-        DjangoOptimizerExtension,
-        QueryDepthLimiter(max_depth=10),
-        SchemaDirectiveExtension,
-    ],
+    extensions=extensions,
 )
