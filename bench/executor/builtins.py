@@ -68,6 +68,7 @@ async def llm_classify(
     prompt_prefix: str = "",
     text_key: str = "text",
     label_key: str = "label",
+    label: str = None,
     return_logprobs: bool = False,
     **variables: dict[str, Any],
 ):
@@ -79,7 +80,7 @@ async def llm_classify(
 
     prompt = (
         prompt_prefix
-        + "\n".join(f"{row[label_key]}: {row[text_key]}" for row in examples)
+        + "\n".join(f"{row[text_key]}: {label or row[label_key]}" for row in examples)
         + f"{text_key}: {text}"
     )
     label, logprobs = await model.complete(prompt)
