@@ -1,5 +1,6 @@
 <template>
   <div class="flex h-full flex-col">
+    <!-- Header with controls and auth -->
     <header class="static mx-auto w-full flex-shrink-0 overflow-y-visible border-b border-gray-200 bg-white shadow-sm">
       <div class="relative flex justify-between gap-8">
         <!-- Left side: organizational -->
@@ -96,8 +97,8 @@
         </div>
       </div>
     </header>
-    <!-- Main content (sidebar + editor), spans vertically -->
-    <div class="flex-1">
+    <!-- Main content (sidebar + editor), spans horizontally -->
+    <div class="flex flex-1 flex-row">
       <!-- Sidebar of get_view buttons & views -->
       <aside class="flex h-full w-80 resize-x border-r border-gray-200">
         <!-- View selection -->
@@ -137,11 +138,11 @@
               <li
                 v-for="file in files"
                 :key="file.id"
-                class="py-1 pl-6 pr-2"
+                class="py-1 pl-6 pr-2 hover:cursor-pointer"
                 :class="
                   file.id == focusedFile?.id
-                    ? 'bg-gray-200 font-bold text-orange-700'
-                    : 'text-gray-700 hover:text-white'
+                    ? 'bg-orange-100 font-bold text-orange-700'
+                    : 'text-gray-700 hover:text-orange-700'
                 "
               >
                 {{ file.nameDotType }}
@@ -151,13 +152,18 @@
         </div>
       </aside>
       <!-- Main editor -->
-      <main></main>
+      <main class="relative flex-1 flex-shrink-0 bg-gray-100">
+        <div class="my-4 mx-auto w-2/5 rounded-sm border border-orange-600 shadow-md shadow-orange-200">
+          <MonacoEditor v-model="focusedInstructionCode" />
+        </div>
+      </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import SButton from "@/components/basic/SButton.vue";
+import MonacoEditor from "@/components/MonacoEditor.vue";
 import { graphql } from "@/gql";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -293,4 +299,11 @@ const { result: filesResult } = useQuery(
 );
 const files = computed(() => filesResult.value?.projectVersion?.files);
 const focusedFile = computed(() => files.value?.[0]);
+
+const focusedInstructionCode = "\
+def x(): \n\
+  print('Hello world!');\n\
+  let y = 1;\n\
+  return y;\n\
+";
 </script>
