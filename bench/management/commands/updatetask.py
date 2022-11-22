@@ -8,7 +8,7 @@ from django.db import transaction
 
 from bench.compiler import get_backend_model
 from bench.executor import Executor
-from bench.executor.builtins import default_builtins
+from bench.executor.builtins import instruction_builtins
 from bench.models import Dataset, Instruction, Organization, Project, Task
 from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.project import ProjectFileType
@@ -67,11 +67,14 @@ class Command(BaseCommand):
 
             definitions = async_to_sync(executor.run_get_definitions)(segment.full_code, {})
 
-            def _get_definition(name: str):
+            def _get_definition(name: str, required: bool = True):
                 if name not in definitions:
-                    raise ValueError(
-                        f"definition '{name}' not found in segment '{segment.header}':\n{segment.full_code}"
-                    )
+                    if not required:
+                        return None
+                    else:
+                        raise ValueError(
+                            f"definition '{name}' not found in segment '{segment.header}':\n{segment.full_code}"
+                        )
                 return definitions[name]
 
             # The possible definitions (in header) are:
@@ -105,85 +108,13 @@ class Command(BaseCommand):
                     instruction.save()
                 instructions[file_name] = instruction
 
-                # parse instruction parameters from code
-                # they are defined as type only definitions like:
-                # name: Model
-                # name: Dataset
-                # name: Callable
-                # name: <type>
-                # Parameters are automatically bound unless # @parameter is appended.
-                for line in segment.lines:
-                    # assume all parameters are declared up front
-                    if ":" not in line:
-                        break
-                    if "#" in line:
-                        comment = line[line.find("#") :]
-                        line = line[: line.find("#")]
-                    else:
-                        comment = ""
-                    param_name, param_type = line.split(":", 1)
-                    param_name = param_name.strip()
-                    param_type = param_type.strip()
-
-                    if param_name in default_builtins:
-                        # ignore builtin instructions
-                        continue
-
-                    param_schema = None
-                    if param_type == "Dataset":
-                        param_type = InstructionParameterType.DATASET
-                    elif param_type == "Model":
-                        param_type = InstructionParameterType.MODEL
-                    elif "Callable" in param_type:
-                        param_type = InstructionParameterType.INSTRUCTION
-                    else:
-                        # just use python type as schema for now
-                        param_schema = param_type
-                        param_type = InstructionParameterType.JSON
-                    instruction.parameters.create(
-                        name=param_name,
-                        type=param_type,
-                        schema=param_schema,
-                    )
-
-                    if "@parameter" in comment:
-                        continue
-
-                    # otherwise resolve argument of same name
-                    if param_type == InstructionParameterType.DATASET:
-                        instruction.arguments.create(
-                            name=param_name,
-                            type=InstructionParameterType.DATASET,
-                            dataset=datasets[param_name],
-                        )
-                    elif param_type == InstructionParameterType.MODEL:
-                        if "@backend" in comment:
-                            # parse model backend from # @backend <backend>
-                            backend = comment[comment.find("@backend") + 9 :].strip()
-                            model = get_backend_model(backend)
-                        else:
-                            raise NotImplementedError(
-                                "generic model argument resolution not implemented yet"
-                            )
-                        instruction.arguments.create(
-                            name=param_name,
-                            type=InstructionParameterType.MODEL,
-                            model=model,
-                        )
-                    elif param_type == InstructionParameterType.INSTRUCTION:
-                        instruction.arguments.create(
-                            name=param_name,
-                            type=InstructionParameterType.INSTRUCTION,
-                            instruction=instructions[param_name],
-                        )
-                    elif param_type == InstructionParameterType.JSON:
-                        raise NotImplementedError("json argument resolution not implemented yet")
-                    else:
-                        raise ValueError(f"unknown parameter type: {param_type}")
-
                 if args[1] == "expect":
+                    expectation_text = _get_definition("expectation")
+                    expectation_type = _get_definition("expectation_type", required=False)
+                    if expectation_type is not None:
+                        expect_type = ExpectationType(expectation_type)
                     # sloppily determine expectation type based on function name
-                    if "invar" in instruction.name:
+                    elif "invar" in instruction.name:
                         expect_type = ExpectationType.INVARIANCE
                     elif "var" in instruction.name:
                         expect_type = ExpectationType.VARIANCE
@@ -192,7 +123,13 @@ class Command(BaseCommand):
                     else:
                         raise ValueError(f"unable to guess expectation type: {instruction.name}")
 
-                    tasks[args[2]].expectations.create(type=expect_type, instruction=instruction)
+                    tasks[args[2]].expectations.create(
+                        type=expect_type, text=expectation_text, instruction=instruction
+                    )
+
+                # parse instruction parameters from code
+                # parse parameters last, so we can eat the rest of the header first
+                self._parse_instruction_parameters(segment, instruction, datasets, instructions)
             elif args[0] == "dataset":
                 dataset_records = _get_definition(file_name)
                 # schema is just keys and types of values of the first element
@@ -230,6 +167,88 @@ class Command(BaseCommand):
         # advance head to new version
         project.head = new_version
         project.save()
+
+    def _parse_instruction_parameters(
+        self,
+        segment: TaskFileSegment,
+        instruction: Instruction,
+        datasets: dict[str, Dataset],
+        instructions: dict[str, Instruction],
+    ):
+        # parameters are defined as type only definition lines like:
+        # name: Model
+        # name: Dataset
+        # name: Callable
+        # name: <type>
+        # Parameters are automatically bound unless # @parameter is appended.
+        for line in segment.lines:
+            # assume all parameters are declared up front
+            if ":" not in line or "=" in line or "(" in line:
+                break
+            if "#" in line:
+                comment = line[line.find("#") :]
+                line = line[: line.find("#")]
+            else:
+                comment = ""
+            param_name, param_type = line.split(":", 1)
+            param_name = param_name.strip()
+            param_type = param_type.strip()
+
+            if param_name in instruction_builtins:
+                # ignore builtin instructions
+                continue
+
+            param_schema = None
+            if param_type == "Dataset":
+                param_type = InstructionParameterType.DATASET
+            elif param_type == "Model":
+                param_type = InstructionParameterType.MODEL
+            elif "Callable" in param_type:
+                param_type = InstructionParameterType.INSTRUCTION
+            else:
+                # just use python type as schema for now
+                param_schema = param_type
+                param_type = InstructionParameterType.JSON
+            instruction.parameters.create(
+                name=param_name,
+                type=param_type,
+                schema=param_schema,
+            )
+
+            if "@parameter" in comment:
+                continue
+
+            # otherwise resolve argument of same name
+            if param_type == InstructionParameterType.DATASET:
+                instruction.arguments.create(
+                    name=param_name,
+                    type=InstructionParameterType.DATASET,
+                    dataset=datasets[param_name],
+                )
+            elif param_type == InstructionParameterType.MODEL:
+                if "@backend" in comment:
+                    # parse model backend from # @backend <backend>
+                    backend = comment[comment.find("@backend") + 9 :].strip()
+                    model = get_backend_model(backend)
+                else:
+                    raise NotImplementedError(
+                        f"generic model argument resolution not implemented yet: {line}"
+                    )
+                instruction.arguments.create(
+                    name=param_name,
+                    type=InstructionParameterType.MODEL,
+                    model=model,
+                )
+            elif param_type == InstructionParameterType.INSTRUCTION:
+                instruction.arguments.create(
+                    name=param_name,
+                    type=InstructionParameterType.INSTRUCTION,
+                    instruction=instructions[param_name],
+                )
+            elif param_type == InstructionParameterType.JSON:
+                raise NotImplementedError(f"json argument resolution not implemented yet: {line}")
+            else:
+                raise ValueError(f"unknown parameter type: {param_type}")
 
     def parse_task_file_segments(self, lines):
         # parse all bench segments from lines (look like this # @bench ... # @/bench)

@@ -90,7 +90,7 @@ async def llm_classify(
         return label
 
 
-default_builtins = {
+instruction_builtins = {
     "llm": llm,
     "llm_fewshot": llm_fewshot,
     "llm_classify": llm_classify,

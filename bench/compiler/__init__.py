@@ -14,7 +14,7 @@ from bench.models import (
 )
 from bench.models.compilation import Compilation
 from bench.models.instruction import InstructionParameterType, InstructionScope
-from bench.models.task import Example, Expectation, Explanation
+from bench.models.task import Example, Expectation, ExpectationType, Explanation, Task
 
 logger = structlog.get_logger(__name__)
 
@@ -42,17 +42,11 @@ class Compiler:
         self.executor = executor
         self.compiler_model = get_backend_model("openai/text-davinci-002")
 
-    async def compile(self, compilation: Compilation) -> None:
-        logger.info("compile.start", compilation=compilation)
-        # TODO @Feature: implement proper compile
-        #  We assume a single task with basic explanations, expectations, basic examples and no source instruction.
-
-        # just use first without any conversion for now (also super basic)
-        backend_model = await compilation.backends.afirst()
-        if backend_model is None:
-            raise ValueError(f"no backends provided in compilation {compilation}")
-        task = compilation.task
-
+    async def compile_task(self, task: Task, backend_model: Model) -> Instruction:
+        """
+        Compiles a task into an executable instruction.
+        """
+        logger.info("compiling task", task=task)
         explanations: list[Explanation] = await _acollect(
             task.explanations.select_related("dataset")
         )
@@ -63,37 +57,44 @@ class Compiler:
             task.examples.select_related("dataset").prefetch_related("dataset__records")
         )
 
-        # render explanations into prompts
-        rendered_explanations = []
+        # render explanations and expectations into prompts
+        explanation_texts = []
         for explanation in explanations:
             statements: list[dict] = await _acollect(explanation.dataset)
             for statement in statements:
                 # TODO @Feature: render explanations, use dataset view to get fields
                 rendered_explanation = statement["text"]
-                rendered_explanations.append(rendered_explanation)
+                explanation_texts.append(rendered_explanation)
+        expectation_texts = []
+        for expectation in expectations:
+            if expectation.text is not None:
+                expectation_texts.append(expectation.text)
 
         # render expectations into examples
         compiled_examples: Dataset = await Dataset.objects.acreate(
-            name=f"{task.name}_compiled_examples-{compilation.id.hex}",
+            name=f"{task.name}_compiled_examples",
         )
 
         # This is a boring example of the most basic example-based expectation renders.
         rendered_examples = []
-        # naive many to many render of expectation x example
+        # TODO @Broken: remove naive many to many render of expectation x example
         for expectation in expectations:
-            for example in examples:
-                example_records = await _acollect(example.dataset)
-                for example_record in example_records:
-                    rendered_example = await self.executor.run(
-                        expectation.instruction, arguments=dict(example=example_record)
-                    )
-                    rendered_examples.append(rendered_example)
-        if not rendered_examples:
-            raise RuntimeError(f"no output generated for {compilation}")
+            if expectation.type in (ExpectationType.INVARIANCE, ExpectationType.VARIANCE):
+                for example in examples:
+                    example_records = await _acollect(example.dataset)
+                    for example_record in example_records:
+                        rendered_example = await self.executor.run(
+                            expectation.instruction, arguments=dict(example=example_record)
+                        )
+                        rendered_examples.append(rendered_example)
+            elif expectation.type == ExpectationType.VERIFICATION:
+                raise NotImplementedError(f"verification expectation {expectation} not supported")
+        if len(rendered_examples) < 3:
+            raise RuntimeError(f"not enough examples for {task}")
         await compiled_examples.aextend(rendered_examples)
 
         # render explanations and examples into prompt and apply (super basic)
-        prompt_prefix: str = "\n".join(rendered_explanations) + "\n"
+        prompt_prefix: str = "\n".join(explanation_texts) + "\n"
         examples_keys = rendered_examples[0].keys()
         prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys) + "\n"
 
@@ -136,6 +137,24 @@ class Compiler:
                 **argument_kwargs,
             )
 
+    async def compile(self, compilation: Compilation) -> None:
+        """
+        Compile a task into an executable instruction.
+
+        A task has explanations describing the task, expectations defining what should happen and examples showing that.
+        A task may define a template instruction which is used to guide the compilation.
+        A task may define subtasks, which are compiled recursively and may be folded into the main task.
+        """
+
+        logger.info("compile.start", compilation=compilation)
+        # TODO @Feature: implement proper compile
+        #  We assume a single task with basic explanations, expectations, basic examples and no source instruction.
+
+        # just use first without any conversion for now (also super basic)
+        backend_model = await compilation.backends.afirst()
+        if backend_model is None:
+            raise ValueError(f"no backends provided in compilation {compilation}")
+        main_instruction = await self.compile_task(compilation.task, backend_model)
         compilation.target_instruction = main_instruction
         await sync_to_async(compilation.save)()
         logger.info("compile.done", compilation=compilation)
