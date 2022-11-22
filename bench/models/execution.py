@@ -7,7 +7,6 @@ from typing import Optional, TypeVar
 
 from asgiref.sync import sync_to_async
 from django.db import models
-from django.db.models import QuerySet
 
 from bench.models.utils import UUIDTModel
 
@@ -26,7 +25,7 @@ class ExecutionManager(models.Manager):
         super().__init__()
         self.default_type = default_type
 
-    def get_queryset(self) -> QuerySet[Execution]:
+    def get_queryset(self):
         if self.default_type is not None:
             return super().get_queryset().filter(type=self.default_type)
         else:

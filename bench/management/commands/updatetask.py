@@ -31,15 +31,15 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser):
         # project as organization/project
-        parser.add_argument("project", type=str)
+        parser.add_argument("organization_project", type=str)
         # task file path (must exist and end in .py)
         parser.add_argument("task", type=str)
         # the task to make the new main program
         parser.add_argument("--main", type=str, required=False)
 
     @transaction.atomic
-    def handle(self, project: str, main: str = None, *args, **options):
-        organization_slug, project_slug = project.split("/")
+    def handle(self, organization_project: str, main: Optional[str] = None, *args, **options):
+        organization_slug, project_slug = organization_project.split("/")
         organization = Organization.objects.get(slug=organization_slug)
         project = Project.objects.filter(slug=project_slug, organization=organization).first()
         if project is None:
@@ -58,9 +58,9 @@ class Command(BaseCommand):
         executor = Executor()
 
         # convert segments to a single task definition tree
-        tasks = {}
-        instructions = {}
-        datasets = {}
+        tasks: dict[str, Task] = {}
+        instructions: dict[str, Instruction] = {}
+        datasets: dict[str, Dataset] = {}
         for segment in segments:
             if segment.header.startswith("ignore"):
                 continue
@@ -82,16 +82,16 @@ class Command(BaseCommand):
             #  task [args]: <name> -> define a task
             #  instruction [args]: <name> -> define a instruction
             #  dataset [args]: <name> -> define a dataset
-            args, file_name = segment.header.split(":", 1)
-            args = args.split(" ")
+            file_args_str, file_name = segment.header.split(":", 1)
+            file_args = file_args_str.split(" ")
             file_name = file_name.strip()
-            if args[0] == "task":
+            if file_args[0] == "task":
                 task_definition = _get_definition(file_name)
                 tasks[file_name] = Task.objects.create(
                     name=file_name,
                     schema=(task_definition["schema"]),
                 )
-            elif args[0] == "instruct":
+            elif file_args[0] == "instruct":
                 # parse header "instruction [args]: <name>"
                 instruction_definition = _get_definition(file_name)
                 # instruction definition must be a function
@@ -108,7 +108,7 @@ class Command(BaseCommand):
                     instruction.save()
                 instructions[file_name] = instruction
 
-                if args[1] == "expect":
+                if file_args[1] == "expect":
                     expectation_text = _get_definition("expectation")
                     expectation_type = _get_definition("expectation_type", required=False)
                     if expectation_type is not None:
@@ -123,14 +123,14 @@ class Command(BaseCommand):
                     else:
                         raise ValueError(f"unable to guess expectation type: {instruction.name}")
 
-                    tasks[args[2]].expectations.create(
+                    tasks[file_args[2]].expectations.create(
                         type=expect_type, text=expectation_text, instruction=instruction
                     )
 
                 # parse instruction parameters from code
                 # parse parameters last, so we can eat the rest of the header first
                 self._parse_instruction_parameters(segment, instruction, datasets, instructions)
-            elif args[0] == "dataset":
+            elif file_args[0] == "dataset":
                 dataset_records = _get_definition(file_name)
                 # schema is just keys and types of values of the first element
                 schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
@@ -138,12 +138,12 @@ class Command(BaseCommand):
                 dataset.extend(dataset_records)
                 datasets[file_name] = dataset
 
-                if args[1] == "example" and len(args) > 2:
-                    tasks[args[2]].examples.create(dataset=dataset)
-                elif args[1] == "explain" and len(args) > 2:
-                    tasks[args[2]].explanations.create(dataset=dataset)
-                elif len(args) > 2:
-                    raise ValueError(f"unknown dataset type: {dataset.type}")
+                if file_args[1] == "example" and len(file_args) > 2:
+                    tasks[file_args[2]].examples.create(dataset=dataset)
+                elif file_args[1] == "explain" and len(file_args) > 2:
+                    tasks[file_args[2]].explanations.create(dataset=dataset)
+                elif len(file_args) > 2:
+                    raise ValueError(f"unknown dataset/task relation: {file_args[1]}")
             else:
                 raise ValueError(f"Unknown segment header: {segment.header}")
 
@@ -250,7 +250,7 @@ class Command(BaseCommand):
             else:
                 raise ValueError(f"unknown parameter type: {param_type}")
 
-    def parse_task_file_segments(self, lines):
+    def parse_task_file_segments(self, lines: list[str]) -> list[TaskFileSegment]:
         # parse all bench segments from lines (look like this # @bench ... # @/bench)
         segments: list[TaskFileSegment] = []
         segment: Optional[TaskFileSegment] = None
@@ -259,11 +259,8 @@ class Command(BaseCommand):
                 if segment is not None:
                     # close previous segment
                     segments.append(segment)
-
+                # start new segment
                 segment = TaskFileSegment(header=line[8:].strip(), lines=[], source_index=i)
-            elif "@/bench" in line:
-                segments.append(segment)
-                segment = None
             elif segment is not None:
                 segment.lines.append(line)
         if segment is None:

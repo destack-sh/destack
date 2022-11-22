@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Iterator, Optional, Sequence
+from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence
 
 from asgiref.sync import sync_to_async
 from django.contrib.postgres.indexes import GinIndex
@@ -49,18 +49,18 @@ class Dataset(TaggableMixin, UUIDModel):
     def get(self, index: int) -> DatasetRecord:
         return DatasetRecord.objects.get(dataset=self, index=index)
 
-    def get_slice(self, start: int, stop: Optional[int] = None) -> list[DatasetRecord]:
+    def get_slice(self, start: int, stop: Optional[int] = None) -> Iterable[DatasetRecord]:
         stop = stop if stop is not None else 0
         return DatasetRecord.objects.filter(dataset=self)[start:stop]
 
-    def get_field(self, key: str) -> list[Any]:
+    def get_field(self, key: str) -> Iterable[Any]:
         return DatasetRecord.objects.filter(dataset=self).values_list("data__" + key, flat=True)
 
     def __iter__(self) -> Iterator[dict]:
         for record in DatasetRecord.objects.filter(dataset=self):
             yield record.data
 
-    async def __aiter__(self) -> Iterator[dict]:
+    async def __aiter__(self) -> AsyncIterator[dict]:
         async for record in DatasetRecord.objects.filter(dataset=self):
             yield record.data
 
@@ -106,7 +106,7 @@ class Dataset(TaggableMixin, UUIDModel):
                     "update bench_datasetrecord"
                     " set index = index - 1"
                     " where dataset_id = %s and index > %s",
-                    [self.dataset.id, index],
+                    [self.id, index],
                 )
             self.length -= 1
             self.save()

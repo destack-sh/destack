@@ -13,19 +13,27 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser):
         # project name as organization/project
-        parser.add_argument("project", type=str)
+        parser.add_argument("organization_project", type=str)
         # task file path (must exist and end in .py)
-        parser.add_argument("task", type=str)
+        parser.add_argument("task_name", type=str)
         # backend names
         parser.add_argument("--backends", type=str, nargs="+", required=True)
 
     @transaction.atomic
-    def handle(self, project: str, task: str, *args, **options):
-        organization, project = project.split("/")
-        organization = Organization.objects.get(slug=organization)
-        project = Project.objects.filter(slug=project, organization=organization).first()
+    def handle(self, organization_project: str, task_name: str, *args, **options):
+        organization = Organization.objects.get(slug=organization_project.split("/")[0])
+        project = Project.objects.filter(
+            slug=organization_project.split("/")[1], organization=organization
+        ).first()
+        if project is None:
+            raise ValueError(f"project not found: {organization_project}")
+
         project_version = project.head
-        task = project_version.files.get(type=ProjectFileType.TASK, name=task).task
+        if project_version is None:
+            raise ValueError(f"project has no head: {project}")
+        task = project_version.files.get(type=ProjectFileType.TASK, name=task_name).task
+        if task is None:
+            raise ValueError(f"project version has no task {task_name}: {project_version}")
 
         # get backend models as owner/model from its backends library
         backends = []

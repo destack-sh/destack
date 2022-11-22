@@ -9,8 +9,9 @@ plugins = "mypy_django_plugin.main,mypy_drf_plugin.main,strawberry.ext.mypy_plug
 follow_imports = "normal"
 warn_redundant_casts = true
 warn_unused_ignores = true
+check_untyped_defs = true
 files = ["bench"]
-exclude = ["^bench/migrations", "test_[a-z_]*\\.py"]
+exclude = ["^bench/migrations", "^bench/demo", "test_[a-z_]*\\.py"]
 
 [[tool.mypy.overrides]]
 module = "uvicorn"
@@ -50,6 +51,14 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "django_filters.rest_framework"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "social_django"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "social_django.models"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Callable
-
 from django.db import models
 
 from bench.models.tag import TaggableMixin
@@ -61,9 +59,11 @@ class Instruction(TaggableMixin, UUIDModel):
         if self.builtin_id is not None:
             # builtins are always directly callable
             return False
-        else:
+        elif self.code is not None:
             # TODO @Robustness: check anonymous vs defined functions in a more general way
             return f"def {self.name}(" not in self.code
+        else:
+            raise ValueError(f"instruction {self} must have either builtin_id or code")
 
     class Meta:
         constraints = [
@@ -91,7 +91,7 @@ class InstructionParameterType(models.TextChoices):
             return InstructionParameterType.DATASET
         elif isinstance(obj, (Model, ModelHandle)):
             return InstructionParameterType.MODEL
-        elif isinstance(obj, (Instruction, Callable)):
+        elif isinstance(obj, Instruction) or callable(obj):
             return InstructionParameterType.INSTRUCTION
         else:
             return InstructionParameterType.JSON
