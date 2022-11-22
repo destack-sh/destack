@@ -13,7 +13,7 @@ from django.db.models import QuerySet
 
 from bench.backend.base import ModelHandle, ModelProvider
 from bench.backend.openai import OpenAIProvider
-from bench.executor.builtins import default_builtins
+from bench.executor.builtins import instruction_builtins
 from bench.models import Dataset, Model
 from bench.models.dataset import DatasetView
 from bench.models.instruction import (
@@ -168,7 +168,7 @@ class InstructionProxy:
 class Executor:
     def __init__(self):
         self.executor_id = uuid.uuid4().hex
-        self.builtins = default_builtins
+        self.static_builtins = instruction_builtins
         self.can_exec = DEBUG or TEST  # or sandboxed
         self.providers: dict[ProviderKey, ModelProvider] = {
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
@@ -238,7 +238,7 @@ class Executor:
 
         if instruction.builtin_id:
             # builtins are already defined and are just curried using the arguments
-            builtin = self.builtins.get(instruction.builtin_id)
+            builtin = self.static_builtins.get(instruction.builtin_id)
             if builtin is None:
                 raise ValueError(f"unknown builtin in {instruction}: {instruction.builtin_id}")
             return parameters, arguments, partial(builtin, **arguments)
@@ -382,7 +382,7 @@ class Executor:
 
     async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict[str, Any]:
         # remember the globals we started with, do not modify originals
-        globals_copy = {**self.default_imports, **self.builtins, **globals}
+        globals_copy = {**self.default_imports, **self.static_builtins, **globals}
         globals_copy_keys = {*globals_copy.keys()}
         await self._do_exec(code, globals_copy)
         new_globals = {
