@@ -36,34 +36,16 @@ elif os.getenv("BENCH_DB_NAME"):
             "HOST": os.getenv("BENCH_POSTGRES_HOST", "localhost"),
             "PORT": os.getenv("BENCH_POSTGRES_PORT", "5432"),
             "CONN_MAX_AGE": 0,
-            "SSL_OPTIONS": {
-                "sslmode": os.getenv("BENCH_POSTGRES_SSL_MODE", None),
-                "sslrootcert": os.getenv("BENCH_POSTGRES_CLI_SSL_CA", None),
-                "sslcert": os.getenv("BENCH_POSTGRES_CLI_SSL_CRT", None),
-                "sslkey": os.getenv("BENCH_POSTGRES_CLI_SSL_KEY", None),
-            },
         }
     }
 
-    # borrowed from posthog/posthog/posthog/settings/data_stores.py
-    ssl_configurations = []
-    for ssl_option, value in DATABASES["default"]["SSL_OPTIONS"].items():
-        if value:
-            ssl_configurations.append("{}={}".format(ssl_option, value))
-
-    if ssl_configurations:
-        ssl_configuration = "?{}".format("&".join(ssl_configurations))
-    else:
-        ssl_configuration = ""
-
-    DATABASE_URL = "postgres://{}{}{}{}:{}/{}{}".format(
+    DATABASE_URL = "postgres://{}{}{}{}:{}/{}".format(
         DATABASES["default"]["USER"],
         ":" + DATABASES["default"]["PASSWORD"] if DATABASES["default"]["PASSWORD"] else "",
         "@" if DATABASES["default"]["USER"] or DATABASES["default"]["PASSWORD"] else "",
         DATABASES["default"]["HOST"],
         DATABASES["default"]["PORT"],
         DATABASES["default"]["NAME"],
-        ssl_configuration,
     )
 elif TEST:
     DATABASES = {

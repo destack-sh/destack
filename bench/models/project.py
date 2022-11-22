@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
 
 import pytz
 from django.core.validators import validate_slug
 from django.db import connection, models, transaction
-from social_core.utils import slugify
 
 from bench.models import Organization
 from bench.models.tag import TaggableMixin
@@ -24,17 +23,17 @@ class ProjectManager(models.Manager):
         self,
         organization: Organization,
         name: str,
-        slug: Optional[str],
+        slug: str,
         type: ProjectType = ProjectType.EXECUTABLE,
-    ) -> "Project":
-        if not slug:
-            slug = slugify(name)
-        project = super().create(organization=organization, name=name, slug=slug, type=type)
+    ):
+        project: Project = cast(
+            Project, super().create(organization=organization, name=name, slug=slug, type=type)
+        )
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
         return project
 
-    def get_by_slug(self, organization: str, project: str) -> "Project":
+    def get_by_slug(self, organization: str, project: str):
         return self.get(organization__slug=organization, slug=project)
 
 
@@ -71,41 +70,44 @@ class Project(TaggableMixin, UUIDModel):
     @transaction.atomic
     def create_version(
         self,
-        name: str = None,
-        description: str = None,
-        parent: ProjectVersion = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        parent: Optional[ProjectVersion] = None,
         auto_commit: bool = True,
     ) -> "ProjectVersion":
         if parent is None:
-            parent = self.head
             if self.head is None:
                 raise ValueError(f"project does not have a head version: {self}")
-        if not parent.is_committed:
+            assigned_parent = self.head
+        else:
+            assigned_parent = parent
+        del parent  # avoid accidental use
+
+        if not assigned_parent.is_committed:
             if auto_commit:
-                parent.commit()
+                assigned_parent.commit()
             else:
-                raise ValueError(f"parent version must be committed: {parent}")
+                raise ValueError(f"parent version must be committed: {assigned_parent}")
 
         version = ProjectVersion.objects.create(project=self, name=name, description=description)
-        version.parents.add(parent)
-        if parent:
-            # copy all project files from parent in SQL (see ProjectFile model below)
-            # the parent project is committed, so we can safely use file references
+        version.parents.add(assigned_parent)
 
-            cursor = connection.cursor()
-            cursor.execute(
-                """
+        # copy all project files from parent in SQL (see ProjectFile model below)
+        # the parent project is committed, so we can safely use file references
+        cursor = connection.cursor()
+        cursor.execute(
+            """
 INSERT INTO bench_projectfile
- (id, project_version_id, type, name, task_id, instruction_id, model_id, dataset_id)
+(id, project_version_id, type, name, task_id, instruction_id, model_id, dataset_id)
 SELECT gen_random_uuid(), %s, type, name, task_id, instruction_id, model_id, dataset_id
- FROM bench_projectfile
- WHERE project_version_id = %s
+FROM bench_projectfile
+WHERE project_version_id = %s
 """,
-                [version.id, parent.id],
-            )
+            [version.id, assigned_parent.id],
+        )
 
         # head has advanced to new version
-        if parent == self.head:
+        if assigned_parent == self.head:
             self.head = version
 
         return version

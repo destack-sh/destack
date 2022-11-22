@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import AsyncIterable
+
 import structlog
 from asgiref.sync import sync_to_async
 from django.db.models import QuerySet
@@ -19,9 +23,9 @@ from bench.models.task import Example, Expectation, ExpectationType, Explanation
 logger = structlog.get_logger(__name__)
 
 
-async def _acollect(qs: QuerySet) -> list:
+async def _acollect(collectable: QuerySet | AsyncIterable | Dataset) -> list:
     items = []
-    async for item in qs:
+    async for item in collectable:
         items.append(item)
     return items
 
@@ -30,10 +34,15 @@ def get_backend_model(backend: str) -> Model:
     """
     Gets the backend model from a backends library where backend=owner/model
     """
-    owner, model = backend.split("/")
-    organization = Organization.objects.get(slug=owner)
+    owner_slug, model_name = backend.split("/")
+    organization = Organization.objects.get(slug=owner_slug)
     backends_library = organization.projects.get(slug="backends")
-    model = backends_library.head.files.get(type=ProjectFileType.MODEL, name=model).model
+    backends_version = backends_library.head
+    if backends_version is None:
+        raise ValueError(f"backends library has no head: {backends_library}")
+    model = backends_version.files.get(type=ProjectFileType.MODEL, name=model_name).model
+    if model is None:
+        raise ValueError(f"backends library {backends_version} has no model {model_name}")
     return model
 
 
@@ -60,11 +69,16 @@ class Compiler:
         # render explanations and expectations into prompts
         explanation_texts = []
         for explanation in explanations:
-            statements: list[dict] = await _acollect(explanation.dataset)
-            for statement in statements:
-                # TODO @Feature: render explanations, use dataset view to get fields
-                rendered_explanation = statement["text"]
-                explanation_texts.append(rendered_explanation)
+            if explanation.text is not None:
+                explanation_texts.append(explanation.text)
+            elif explanation.dataset is not None:
+                statements: list[dict] = await _acollect(explanation.dataset)
+                for statement in statements:
+                    # TODO @Feature: render explanations, use dataset view to get fields
+                    rendered_explanation = statement["text"]
+                    explanation_texts.append(rendered_explanation)
+            else:
+                raise ValueError(f"explanation has no text or dataset: {explanation}")
         expectation_texts = []
         for expectation in expectations:
             if expectation.text is not None:
@@ -81,11 +95,18 @@ class Compiler:
         for expectation in expectations:
             if expectation.type in (ExpectationType.INVARIANCE, ExpectationType.VARIANCE):
                 for example in examples:
-                    example_records = await _acollect(example.dataset)
+                    if example.text is not None:
+                        example_records = [{"text": example.text}]
+                    elif example.dataset is not None:
+                        example_records = await _acollect(example.dataset)
+                    else:
+                        raise ValueError(f"example has no text or dataset: {example}")
                     for example_record in example_records:
                         rendered_example = await self.executor.run(
                             expectation.instruction, arguments=dict(example=example_record)
                         )
+                        if not rendered_example:
+                            continue
                         rendered_examples.append(rendered_example)
             elif expectation.type == ExpectationType.VERIFICATION:
                 raise NotImplementedError(f"verification expectation {expectation} not supported")
@@ -136,6 +157,8 @@ class Compiler:
                 type=argument_type,
                 **argument_kwargs,
             )
+
+        return main_instruction
 
     async def compile(self, compilation: Compilation) -> None:
         """

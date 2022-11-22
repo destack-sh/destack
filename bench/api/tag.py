@@ -72,7 +72,7 @@ class TagViewSet(viewsets.ModelViewSet):
 class TaggedItemViewSetMixin(viewsets.GenericViewSet):
     def get_queryset(self):
         queryset = super(TaggedItemViewSetMixin, self).get_queryset()
-        return queryset.prefetch_related(
+        return queryset.prefetch_related(  # type: ignore
             "tagged_items",
             queryset=TaggedItem.objects.select_related("tag"),
             to_attr="prefetched_tags",

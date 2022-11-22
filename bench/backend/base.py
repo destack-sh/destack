@@ -12,8 +12,6 @@ class ModelProvider(abc.ABC):
     A model provider which hosts model compute.
     """
 
-    supported_settings: list[str] = None
-
     async def access(
         self, model: Model, settings: ModelInferenceSettings, for_user: str
     ) -> ModelHandle:

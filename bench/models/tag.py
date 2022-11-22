@@ -71,7 +71,7 @@ RELATED_MODELS = (
 )
 
 
-def make_single_field_populated_check():
+def make_single_field_populated_check() -> models.CheckConstraint:
     any_single_populated_qs: list[Q] = []
     for field in RELATED_FIELDS:
         single_populated_qs = [
@@ -83,7 +83,7 @@ def make_single_field_populated_check():
     )
 
 
-def make_uniqueness_checks():
+def make_uniqueness_checks() -> tuple:
     # Postgres requires partial uniqueness checks for each non-null subset of fields
     def make_partial_uniqueness_check(field: str):
         return models.UniqueConstraint(
@@ -92,7 +92,7 @@ def make_uniqueness_checks():
             condition=Q((f"{field}__isnull", False)),
         )
 
-    return (make_partial_uniqueness_check(field) for field in RELATED_FIELDS)
+    return tuple(make_partial_uniqueness_check(field) for field in RELATED_FIELDS)
 
 
 class TaggedItem(UUIDModel):

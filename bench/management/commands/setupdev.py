@@ -56,9 +56,9 @@ class Command(BaseCommand):
                 is_staff=True,
             )
             self.stdout.write(self.style.SUCCESS(f"Created bootstrap user: {user}"))
-        else:
-            organization = Organization.objects.get(slug=TEST_ORGANIZATION_SLUG)
-            user = User.objects.get(email=TEST_USER_EMAIL)
+        # else:
+        #     organization = Organization.objects.get(slug=TEST_ORGANIZATION_SLUG)
+        #     user = User.objects.get(email=TEST_USER_EMAIL)
 
         # create provider models
         self.create_default_providers()
@@ -89,7 +89,7 @@ class Command(BaseCommand):
 
             # add models to library
             for model_id in provider["models"]:
-                provider_key = ProviderKey[provider["slug"].upper()]
+                provider_key = ProviderKey[provider["slug"].upper()]  # type: ignore
                 model = Model.objects.create(
                     type=ModelType.LLM,
                     name=model_id,

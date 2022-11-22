@@ -11,7 +11,7 @@ def str_to_bool(value: str) -> bool:
 
 def get_from_env(
     key: str,
-    default: Any = None,
+    default: Optional[Any] = None,
     *,
     optional: bool = False,
     type_cast: Optional[Callable] = None,

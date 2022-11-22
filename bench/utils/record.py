@@ -70,7 +70,7 @@ class RecordList(RecordBatch):
             return RecordList(self._records[index])
         elif isinstance(index, str):
             # str index access assumes record is a dict
-            return [record[index] for record in self._records]  # type: ignore
+            return [record[index] for record in self._records]
         else:
             raise TypeError(index)
 

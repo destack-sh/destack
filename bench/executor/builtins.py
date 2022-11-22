@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from bench.backend.base import ModelHandle
 from bench.utils.record import RecordBatch
@@ -20,7 +20,11 @@ async def llm(
     if variables:
         prompt = prompt.format(**variables)
 
-    completion, logprobs = await model.complete(prompt)
+    result = await model.complete(prompt)
+    if not isinstance(result, tuple):
+        raise NotImplementedError(f"list result not supported yet: {model}")
+    completion, logprobs = result
+
     if strip:
         completion = completion.strip()
     if return_logprobs:
@@ -51,7 +55,12 @@ async def llm_fewshot(
     prompt = (
         prompt_prefix + "".join(prompt_example.format(**row) for row in examples) + prompt_suffix
     )
-    completion, logprobs = await model.complete(prompt)
+
+    result = await model.complete(prompt)
+    if not isinstance(result, tuple):
+        raise NotImplementedError(f"list result not supported yet: {model}")
+    completion, logprobs = result
+
     if strip:
         completion = completion.strip()
     if return_logprobs:
@@ -68,7 +77,7 @@ async def llm_classify(
     prompt_prefix: str = "",
     text_key: str = "text",
     label_key: str = "label",
-    label: str = None,
+    label: Optional[str] = None,
     return_logprobs: bool = False,
     **variables: dict[str, Any],
 ):
@@ -83,14 +92,19 @@ async def llm_classify(
         + "\n".join(f"{row[text_key]}: {label or row[label_key]}" for row in examples)
         + f"{text_key}: {text}"
     )
-    label, logprobs = await model.complete(prompt)
+
+    result = await model.complete(prompt)
+    if not isinstance(result, tuple):
+        raise NotImplementedError(f"list result not supported yet: {model}")
+    label, logprobs = result
+
     if return_logprobs:
         return label, logprobs
     else:
         return label
 
 
-instruction_builtins = {
+instruction_builtins: dict = {
     "llm": llm,
     "llm_fewshot": llm_fewshot,
     "llm_classify": llm_classify,

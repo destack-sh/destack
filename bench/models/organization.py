@@ -5,7 +5,7 @@ from bench.models.utils import UUIDModel
 
 
 class OrganizationManager(models.Manager):
-    def get_by_slug(self, organization: str) -> "Organization":
+    def get_by_slug(self, organization: str):
         return self.get(slug=organization)
 
 

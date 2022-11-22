@@ -59,7 +59,7 @@ class Trace:
     """
 
     def __init__(self, frame: Frame):
-        self.frames = []
+        self.frames: list[Frame] = []
         self._frame = frame
 
     def push(self, frame: Frame):
@@ -168,12 +168,12 @@ class InstructionProxy:
 class Executor:
     def __init__(self):
         self.executor_id = uuid.uuid4().hex
-        self.static_builtins = instruction_builtins
         self.can_exec = DEBUG or TEST  # or sandboxed
         self.providers: dict[ProviderKey, ModelProvider] = {
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
         }
-        self.default_imports = {Model: ModelHandle, Dataset: RecordBatch}
+        self.static_builtins = instruction_builtins
+        self.default_imports: dict = {Model: ModelHandle, Dataset: RecordBatch}
         self.use_model_cache = True
 
     def _get_instruction_code(self, instruction: Instruction) -> str:
@@ -183,8 +183,10 @@ class Executor:
 
         if instruction.builtin_id is not None:
             raise ValueError("cannot get code for builtin instruction")
-        else:
+        elif instruction.code is not None:
             instruction_code = instruction.code
+        else:
+            raise ValueError(f"instruction {instruction} has no code or builtin id")
         return instruction_code
 
     async def _do_exec(self, code: str, globals: dict):
@@ -199,7 +201,7 @@ class Executor:
     async def _resolve_model(
         self, model: Model, settings: typing.Optional[ModelInferenceSettings]
     ) -> ModelHandle:
-        provider = self.providers.get(model.provider)
+        provider = self.providers.get(ProviderKey(model.provider))
         if provider is None:
             raise ValueError(f"unknown provider {model.provider}")
         # TODO @Compliance: set actual user identifier for model access (e.g. for OpenAI)
@@ -281,17 +283,23 @@ class Executor:
         bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all().select_related(
             "model", "model__default_settings", "dataset", "instruction"
         )
-        bound_arguments_resolved = {}
+        bound_arguments_resolved: dict[str, Any] = {}
         async for argument in bound_arguments:
             if argument.type == InstructionParameterType.MODEL:
+                if argument.model is None:
+                    raise ValueError(f"model argument {argument} has no model")
                 model_handle = await self._resolve_model(argument.model, argument.model_settings)
                 model_proxy = await self._proxy_model(model_handle, argument.model)
                 bound_arguments_resolved[argument.name] = model_proxy
             elif argument.type == InstructionParameterType.DATASET:
+                if argument.dataset is None:
+                    raise ValueError(f"dataset argument {argument} has no dataset")
                 bound_arguments_resolved[argument.name] = await self._resolve_dataset(
                     argument.dataset, argument.dataset_view
                 )
             elif argument.type == InstructionParameterType.INSTRUCTION:
+                if argument.instruction is None:
+                    raise ValueError(f"instruction argument {argument} has no instruction")
                 _, _, callable = await self._resolve_instruction(argument.instruction)
                 callable_proxy = await self._proxy_instruction(callable, argument.instruction)
                 bound_arguments_resolved[argument.name] = callable_proxy
@@ -357,8 +365,8 @@ class Executor:
             raise ValueError(f"{instruction} arguments must be a dict: {arguments}")
 
         try:
-            parameters, bound_arguments, callable = await self._resolve_instruction(instruction)
-            callable = await self._proxy_instruction(callable, instruction)
+            parameters, bound_arguments, inner_func = await self._resolve_instruction(instruction)
+            func_proxy: InstructionProxy = await self._proxy_instruction(inner_func, instruction)
         except Exception as e:
             raise ValueError(
                 f"error resolving instruction {instruction} with arguments {_arguments_summary(arguments)}: {e}"
@@ -370,7 +378,7 @@ class Executor:
         self._check_arguments(instruction, missing_parameters, arguments, check_required=True)
 
         try:
-            return await callable(**arguments)
+            return await func_proxy(**arguments)
         except SandboxError:
             # re-raise sandbox errors
             raise
@@ -380,14 +388,14 @@ class Executor:
                 e,
             ) from e
 
-    async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict[str, Any]:
+    async def run_get_definitions(self, code: str, globals: dict[str, Any]) -> dict:
         # remember the globals we started with, do not modify originals
-        globals_copy = {**self.default_imports, **self.static_builtins, **globals}
-        globals_copy_keys = {*globals_copy.keys()}
-        await self._do_exec(code, globals_copy)
+        globals_local = {**self.default_imports, **self.static_builtins, **globals}
+        globals_local_keys_initial = {*globals_local.keys()}
+        await self._do_exec(code, globals_local)
         new_globals = {
             k: v
-            for k, v in globals_copy.items()
-            if k not in globals_copy_keys and k not in ("__builtins__", "__annotations__")
+            for k, v in globals_local.items()
+            if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
         }
         return new_globals
