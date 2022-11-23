@@ -10,14 +10,14 @@ class InstructionScope(models.TextChoices):
     """
     The scope of instruction defines its semantics.
 
+    Modules are container for programs and functions.
     Programs are top-level deployable instructions with only values as free parameters.
     Functions are reusable instructions for pure functions with any parameters & arguments.
-    Generators are reusable instructions for pure generators with any parameters & arguments.
     """
 
+    MODULE = "module", "Module"
     PROGRAM = "program", "Program"
     FUNCTION = "function", "Function"
-    GENERATOR = "generator", "Generator"
 
 
 class Instruction(TaggableMixin, UUIDModel):
@@ -36,6 +36,7 @@ class Instruction(TaggableMixin, UUIDModel):
     parent = models.ForeignKey(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="children"
     )
+    index = models.IntegerField(default=0)
     task = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
     )
@@ -71,6 +72,11 @@ class Instruction(TaggableMixin, UUIDModel):
             models.CheckConstraint(
                 name="bench_instruction_code_id_xor_code_ck",
                 check=(models.Q(builtin_id__isnull=False) ^ models.Q(code__isnull=False)),
+            ),
+            # ensure index into parent is unique
+            models.UniqueConstraint(
+                name="bench_instruction_parent_index_uk",
+                fields=["parent", "index"],
             ),
         ]
 

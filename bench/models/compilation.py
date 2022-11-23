@@ -12,10 +12,10 @@ class Compilation(UUIDModel):
 
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
     backends = models.ManyToManyField("Model", related_name="compilations")
-    source_instruction = models.ForeignKey(
+    source = models.ForeignKey(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="compilations"
     )
-    target_instruction = models.OneToOneField(
+    target = models.OneToOneField(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="source_compilation"
     )
 
