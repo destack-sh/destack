@@ -15,7 +15,10 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDMode
 class DatasetManager(models.Manager):
     @transaction.atomic
     def from_list(self, name: str, records: list[dict]) -> Dataset:
-        schema = {k: type(v).__name__ for k, v in records[0].items()}
+        if not records:
+            schema = {}
+        else:
+            schema = {k: type(v).__name__ for k, v in records[0].items()}
         dataset: Dataset = cast(Dataset, self.create(name=name, schema=schema))
         dataset.extend(records)
         return dataset
@@ -44,7 +47,7 @@ class Dataset(TaggableMixin, UUIDModel):
     schema = models.JSONField(null=True, blank=True)
     length = models.IntegerField(default=0)
 
-    objects = DatasetManager()
+    objects: DatasetManager = DatasetManager()
 
     def __str__(self):
         return f"{self.name}.data@{self.id.hex}"
