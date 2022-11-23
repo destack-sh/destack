@@ -46,7 +46,7 @@ class Expectation(UUIDModel):
     index = models.IntegerField()
     description = models.TextField()
     instructions = models.ManyToManyField("Instruction", related_name="expectations")
-    example_datasets = models.ManyToManyField("Dataset", related_name="expectations")
+    examples_datasets = models.ManyToManyField("Dataset", related_name="expectations")
 
     def __str__(self):
         return (
