@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from django.db import models
+from typing import Any
+
+from asgiref.sync import sync_to_async
+from django.db import models, transaction
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
@@ -53,6 +56,59 @@ class Instruction(TaggableMixin, UUIDModel):
 
     def __str__(self):
         return f"{self.name}.instruct@{self.id.hex}"
+
+    def add_parameter(
+        self, name: str, type: InstructionParameterType, exists_ok: bool = False
+    ) -> InstructionParameter:
+        if exists_ok:
+            _, parameter = InstructionParameter.objects.get_or_create(
+                instruction_bound=self, name=name, defaults={"type": type}
+            )
+            return parameter
+        else:
+            return InstructionParameter.objects.create(instruction_bound=self, name=name, type=type)
+
+    async def aadd_parameter(
+        self, name: str, type: InstructionParameterType, exists_ok: bool = False
+    ) -> InstructionParameter:
+        return await InstructionParameter.objects.acreate(
+            instruction_bound=self, name=name, type=type, exists_ok=exists_ok
+        )
+
+    @transaction.atomic
+    def bind_argument(
+        self, name: str, value: Any, exists_ok: bool = False
+    ) -> tuple[InstructionParameter, InstructionArgument]:
+        if value is None:
+            raise ValueError(f"cannot bind {self} argument {name} to None")
+        argument_type = InstructionParameterType.from_obj(value)
+        if argument_type == InstructionParameterType.DATASET:
+            argument_kwargs = {"dataset": value}
+        elif argument_type == InstructionParameterType.MODEL:
+            argument_kwargs = {"model": value}
+        elif argument_type == InstructionParameterType.JSON:
+            argument_kwargs = {"value": value}
+        else:
+            raise RuntimeError(f"unsupported argument type {argument_type}")
+
+        # get/create parameter and corresponding argument
+        parameter = self.add_parameter(name, argument_type, exists_ok=True)
+        exists, argument = InstructionArgument.objects.get_or_create(
+            instruction_bound=self, name=name, defaults=dict(type=argument_type, **argument_kwargs)
+        )
+        if exists and not exists_ok:
+            raise RuntimeError(f"{self} argument {argument} already exists")
+        elif exists:
+            # update parameter type and kwargs
+            argument.type = argument_type
+            for key, value in argument_kwargs.items():
+                setattr(argument, key, value)
+            argument.save()
+
+        return parameter, argument
+
+    async def abind_argument(self, name: str, value: Any, exists_ok: bool):
+        return await sync_to_async(self.bind_argument)(name=name, value=value, exists_ok=exists_ok)
 
     @property
     def anonymous(self) -> bool:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from collections import defaultdict
+from functools import cached_property
 from itertools import chain
 from typing import AsyncIterable, Iterable, Optional, Union
 from uuid import UUID
@@ -17,8 +18,6 @@ from bench.models import (
     Execution,
     ExecutionType,
     Instruction,
-    InstructionArgument,
-    InstructionParameter,
     Model,
     Organization,
     ProjectFileType,
@@ -67,7 +66,7 @@ class StatementType(enum.Enum):
 @dataclass
 class ExamplesStatement:
     expectation: Expectation
-    examples: Dataset
+    examples_dataset: Dataset
     type: StatementType = StatementType.GENERATE
 
 
@@ -89,6 +88,7 @@ class TaskDefinition:
     parent: Optional[TaskDefinition]
     children: dict[UUID, TaskDefinition]  # by task id
     template_implementation: Optional[Instruction]
+    optimal_backend: Optional[Model]
     task: Task
 
     @property
@@ -99,13 +99,38 @@ class TaskDefinition:
     def name(self):
         return self.task.name
 
+    def walk_tree_dfs(self) -> Iterable[TaskDefinition]:
+        yield self
+        for child in self.children.values():
+            yield from child.walk_tree_dfs()
+
+    def walk_tree_bfs(self) -> Iterable[TaskDefinition]:
+        queue = [self]
+        while queue:
+            task = queue.pop(0)
+            yield task
+            queue.extend(task.children.values())
+
+    @cached_property
+    def expectations_by_id(self) -> dict[UUID, Expectation]:
+        return {e.id: e for e in self.expectations}
+
+    @cached_property
+    def instruction_statements(self) -> list[tuple[UUID, InstructionStatement]]:
+        return [
+            (expectation_id, statement)
+            for expectation_id, statements in self.statements.items()
+            for statement in statements
+            if isinstance(statement, InstructionStatement)
+        ]
+
     @staticmethod
     async def _collect_examples(statements: Iterable[Statement]) -> dict[UUID, RecordBatch]:
         examples = {}
         for statement in statements:
             if not isinstance(statement, ExamplesStatement):
                 continue
-            examples_records = await _acollect(statement.examples)
+            examples_records = await _acollect(statement.examples_dataset)
             examples[statement.expectation.id] = RecordList(examples_records)
         return examples
 
@@ -124,9 +149,9 @@ class TaskDefinition:
                     expectation=expectation, instruction=instruction, type=None
                 )
                 statements[expectation.id].append(statement)
-            async for examples in expectation.example_datasets.all():
+            async for examples in expectation.examples_datasets.all():
                 statement = ExamplesStatement(
-                    expectation=expectation, examples=examples, type=StatementType.GENERATE
+                    expectation=expectation, examples_dataset=examples, type=StatementType.GENERATE
                 )
                 statements[expectation.id].append(statement)
         examples = await cls._collect_examples(chain(*statements.values()))
@@ -179,7 +204,7 @@ class Compiler:
         1. Lay out task tree (tasks may have recursive subtasks)
         2. Optimize task tree for backends and options
            - Expand, refactor and merge subtasks for backend
-           - Use backend statistics for task heuristics
+           - Use backend statistics for task heuristics, choosing optimal backends
            - May build (partial) instructions to update/gather statistics
         3. Build parallel instruction tree (map tasks to instructions)
            Respect instruction templates where defined.
@@ -201,6 +226,13 @@ class Compiler:
             logger.info("compile.task.optimize.start", task=task)
             task_def = await self._optimize_task(task_def, backends)
             logger.info("compile.task.optimize.done", task=task, optimized=task_def.task)
+        else:
+            # naively set optimal backend for all tasks
+            # TODO @Performance: use proper heuristics to decide optimal backend
+            if len(backends) > 1:
+                raise NotImplementedError("cannot choose backends yet")
+            for task_def in task_def.walk_tree_dfs():
+                task_def.task.optimal_backend = backends[0]
 
         # build the instruction tree
         logger.info("compile.instruct.build.start", task=task_def.task, original=task)
@@ -247,22 +279,60 @@ class Compiler:
 
         Basic model instruction compilation:
         (ignoring subtasks and source instruction)
-        0. Collect all expectations, their statements and their recursive dependencies.
         1. Render explanation descriptions into basic task description.
-        2. Render more examples from expectations and examples.
+        2. Collect and render examples from expectations and examples.
         3. Convert task descriptions and examples to backend model format.
         4. Build prompt and bake into model instruction.
         """
 
-        # render expectations into examples
-        compiled_examples: Dataset = await Dataset.objects.acreate(
-            name=f"{task_def.name}_compiled_examples",
-        )
+        # 1. render expectation statements
+        expect_descriptions = [expect.description for expect in task_def.expectations]
+        # (naive render: join all into one string)
+        task_description = "\n".join(expect_descriptions)
 
-        # render explanations and examples into prompt and apply (super basic)
-        prompt_prefix: str = "\n".join(explanation_texts) + "\n"
-        examples_keys = rendered_examples[0].keys()
+        # 2. render expectations into examples
+        # 2.1 collect static examples
+        static_examples: list[dict] = list(chain(*task_def.examples.values()))
+
+        # 2.2 determine expectation type for instruction
+        for expect_id, instruction_statement in task_def.instruction_statements:
+            # TODO @Feature: determine expectation type properly (resolve instruction def)
+            if "verif" in instruction_statement.instruction.name:
+                instruction_statement.type = StatementType.VERIFY
+            else:
+                instruction_statement.type = StatementType.TRANSFORM
+
+        # 2.3 collect dynamic examples from expectations
+        dynamic_examples: list[dict] = []
+        for expect_id, instruction_statement in task_def.instruction_statements:
+            expectation = task_def.expectations_by_id[expect_id]
+            if instruction_statement.type == StatementType.TRANSFORM:
+                # TODO @Feature: transform examples
+                pass
+            elif instruction_statement.type == StatementType.VERIFY:
+                # TODO @Feature: verify expectations
+                pass
+            else:
+                raise NotImplementedError(
+                    f"{expectation} statement {instruction_statement} not supported"
+                )
+
+        compiled_examples = [*static_examples, *dynamic_examples]
+        compiled_examples_dataset = await Dataset.objects.afrom_list(compiled_examples)
+
+        # 3. convert task descriptions and examples to backend model format
+        pass  # naive implementation: noop (no conversion)
+
+        # 4. build prompt and bake into model instruction
+        # (naive implementation)
+        prompt_prefix: str = task_description + "\n"
+        examples_keys = compiled_examples.schema.keys()
         prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys) + "\n"
+
+        if not task_def.optimal_backend:
+            raise ValueError(
+                f"cannot build instruction for {task_def.task}: no optimal backend set"
+            )
 
         llm_instruction = await Instruction.objects.acreate(
             name=task_def.name,
@@ -270,41 +340,17 @@ class Compiler:
             scope=InstructionScope.PROGRAM,
             builtin_id="llm_fewshot",
         )
-        arguments = {
-            "model": backend_model,
+        # add bound arguments
+        for argument_name, argument_value in {
+            "model": task_def.optimal_backend,
             "prompt_prefix": prompt_prefix,
             "prompt_example": prompt_example,
             "prompt_input": "Input: {input}\nOutput: ",
-            "examples": compiled_examples,
-        }
+            "examples": compiled_examples_dataset,
+        }.items():
+            await llm_instruction.abind_argument(argument_name, argument_value)
         # add parameter for {input} string
-        await InstructionParameter.objects.acreate(
-            instruction=llm_instruction, name="input", type=InstructionParameterType.JSON
-        )
-        # add bound arguments
-        for argument_name, argument_value in arguments.items():
-            argument_type = InstructionParameterType.from_obj(argument_value)
-            if argument_type == InstructionParameterType.DATASET:
-                argument_kwargs = {"dataset": argument_value}
-            elif argument_type == InstructionParameterType.MODEL:
-                argument_kwargs = {"model": argument_value}
-            elif argument_type == InstructionParameterType.JSON:
-                argument_kwargs = {"value": argument_value}
-            else:
-                raise RuntimeError(f"unsupported argument type {argument_type}")
-
-            # create parameter and corresponding argument
-            await InstructionParameter.objects.acreate(
-                instruction=llm_instruction,
-                name=argument_name,
-                type=argument_type,
-            )
-            await InstructionArgument.objects.acreate(
-                instruction_bound=llm_instruction,
-                name=argument_name,
-                type=argument_type,
-                **argument_kwargs,
-            )
+        await llm_instruction.aadd_parameter("input", type=InstructionParameterType.JSON)
         return llm_instruction
 
     async def compile(self, compilation: Compilation) -> None:
@@ -322,7 +368,8 @@ class Compiler:
         )
         async with compilation_execution.capture():
             backends = await _acollect(compilation.backends.all())
-            _, main_instruction = await self.compile_task(compilation.task, backends)
+            options = CompilerOptions(optimize_task=False, optimize_instruction=False)
+            _, main_instruction = await self.compile_task(compilation.task, backends, options)
             compilation.target = main_instruction
             await sync_to_async(compilation.save)()
         logger.info("compile.done", compilation=compilation)

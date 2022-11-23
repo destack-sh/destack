@@ -138,7 +138,7 @@ class Command(BaseCommand):
                     elif isinstance(definition, list):
                         # create dataset
                         dataset_records = _get_definition(name)
-                        dataset = self._get_dataset(dataset_records, name)
+                        dataset = Dataset.objects.from_list(name, dataset_records)
                         datasets[names_str] = dataset
                         self.stdout.write(f"Created dataset {dataset}")
 
@@ -149,7 +149,7 @@ class Command(BaseCommand):
                         index=tasks[args[2]].expectations.count(), description=description
                     )
                     example_datasets = [datasets[n] for n in names if n in datasets]
-                    expectation.example_datasets.set(example_datasets)
+                    expectation.examples_datasets.set(example_datasets)
                     expect_instructions = [instructions[n] for n in names if n in instructions]
                     expectation.instructions.set(expect_instructions)
                     self.stdout.write(f"Created expectation {expectation}")
@@ -171,7 +171,7 @@ class Command(BaseCommand):
                 del names  # prevent accidental re-use
 
                 dataset_records = _get_definition(name)
-                dataset = self._get_dataset(dataset_records, name)
+                dataset = Dataset.objects.from_list(name, dataset_records)
                 datasets[name] = dataset
                 self.stdout.write(f"Created dataset {dataset}")
             else:
@@ -197,13 +197,6 @@ class Command(BaseCommand):
         # advance head to new version
         project.head = new_version
         project.save()
-
-    def _get_dataset(self, dataset_records, name):
-        # schema is just keys and types of values of the first element
-        schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
-        dataset = Dataset.objects.create(name=name, schema=schema)
-        dataset.extend(dataset_records)
-        return dataset
 
     def _attach_instruction_parameters(
         self,

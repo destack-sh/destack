@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence
+from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence, cast
 
 from asgiref.sync import sync_to_async
 from django.contrib.postgres.indexes import GinIndex
@@ -13,7 +13,15 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDMode
 
 
 class DatasetManager(models.Manager):
-    pass
+    @transaction.atomic
+    def from_list(self, name: str, records: list[dict]) -> Dataset:
+        schema = {k: type(v).__name__ for k, v in records[0].items()}
+        dataset: Dataset = cast(Dataset, self.create(name=name, schema=schema))
+        dataset.extend(records)
+        return dataset
+
+    async def afrom_list(self, name: str, records: list[dict]) -> Dataset:
+        return await sync_to_async(self.from_list)(name, records)
 
 
 @dataclasses.dataclass
