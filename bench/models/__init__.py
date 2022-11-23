@@ -1,7 +1,13 @@
 from .compilation import Compilation
 from .dataset import Dataset, DatasetView
-from .execution import Execution, ExecutionType
-from .instruction import Instruction, InstructionArgument, InstructionParameter, InstructionScope
+from .instruction import (
+    Execution,
+    ExecutionStatus,
+    Instruction,
+    InstructionArgument,
+    InstructionParameter,
+    InstructionScope,
+)
 from .model import Model, ModelInference, ModelInferenceSettings, ModelType
 from .organization import Organization
 from .project import Project, ProjectFile, ProjectFileType, ProjectVersion
@@ -20,7 +26,7 @@ __all__ = [
     "InstructionParameter",
     "Compilation",
     "Execution",
-    "ExecutionType",
+    "ExecutionStatus",
     "Organization",
     "Project",
     "ProjectVersion",

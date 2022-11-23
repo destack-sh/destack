@@ -13,15 +13,7 @@ from attr import dataclass
 from django.db.models import QuerySet
 
 from bench.executor import Executor
-from bench.models import (
-    Dataset,
-    Execution,
-    ExecutionType,
-    Instruction,
-    Model,
-    Organization,
-    ProjectFileType,
-)
+from bench.models import Dataset, Instruction, Model, Organization, ProjectFileType
 from bench.models.compilation import Compilation
 from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.task import Expectation, Task
@@ -137,7 +129,7 @@ class TaskDefinition:
     @classmethod
     async def _from_task_rec(cls, task: Task, parent: Optional[TaskDefinition]) -> TaskDefinition:
         expectations = await _acollect(
-            task.expectations.all().select_related("example_datasets", "instructions")
+            task.expectations.all().prefetch_related("examples_datasets", "instructions")
         )
 
         # collect and cache statements (examples/instructions)
@@ -145,15 +137,15 @@ class TaskDefinition:
         for expectation in expectations:
             async for instruction in expectation.instructions.all():
                 # type isn't known yet?
-                statement = InstructionStatement(
+                instruction_statement = InstructionStatement(
                     expectation=expectation, instruction=instruction, type=None
                 )
-                statements[expectation.id].append(statement)
+                statements[expectation.id].append(instruction_statement)
             async for examples in expectation.examples_datasets.all():
-                statement = ExamplesStatement(
+                examples_statement = ExamplesStatement(
                     expectation=expectation, examples_dataset=examples, type=StatementType.GENERATE
                 )
-                statements[expectation.id].append(statement)
+                statements[expectation.id].append(examples_statement)
         examples = await cls._collect_examples(chain(*statements.values()))
 
         # build task definition and recurse
@@ -162,6 +154,7 @@ class TaskDefinition:
             statements=statements,
             examples=examples,
             template_implementation=task.template_implementation,
+            optimal_backend=None,
             parent=parent,
             children={},
             task=task,
@@ -318,7 +311,11 @@ class Compiler:
                 )
 
         compiled_examples = [*static_examples, *dynamic_examples]
-        compiled_examples_dataset = await Dataset.objects.afrom_list(compiled_examples)
+        if not compiled_examples:
+            raise ValueError(f"no examples for {task_def.task}")
+        compiled_examples_dataset = await Dataset.objects.afrom_list(
+            f"compiled_examples_{task_def.id}", compiled_examples
+        )
 
         # 3. convert task descriptions and examples to backend model format
         pass  # naive implementation: noop (no conversion)
@@ -326,7 +323,7 @@ class Compiler:
         # 4. build prompt and bake into model instruction
         # (naive implementation)
         prompt_prefix: str = task_description + "\n"
-        examples_keys = compiled_examples.schema.keys()
+        examples_keys = compiled_examples_dataset.schema.keys()
         prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys) + "\n"
 
         if not task_def.optimal_backend:
@@ -363,13 +360,9 @@ class Compiler:
         """
 
         logger.info("compile.start", compilation=compilation)
-        compilation_execution: Execution = await Execution.objects.acreate(
-            type=ExecutionType.COMPILATION, compilation=compilation
-        )
-        async with compilation_execution.capture():
-            backends = await _acollect(compilation.backends.all())
-            options = CompilerOptions(optimize_task=False, optimize_instruction=False)
-            _, main_instruction = await self.compile_task(compilation.task, backends, options)
-            compilation.target = main_instruction
-            await sync_to_async(compilation.save)()
+        backends = await _acollect(compilation.backends.all())
+        options = CompilerOptions(optimize_task=False, optimize_instruction=False)
+        _, main_instruction = await self.compile_task(compilation.task, backends, options)
+        compilation.target = main_instruction
+        await sync_to_async(compilation.save)()
         logger.info("compile.done", compilation=compilation)
