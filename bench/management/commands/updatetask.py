@@ -1,3 +1,4 @@
+import typing
 from dataclasses import dataclass
 from typing import Optional
 
@@ -12,7 +13,6 @@ from bench.executor.builtins import instruction_builtins
 from bench.models import Dataset, Instruction, Organization, Project, Task
 from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.project import ProjectFileType
-from bench.models.task import ExpectationType
 
 
 @dataclass
@@ -23,7 +23,8 @@ class TaskFileSegment:
 
     @property
     def full_code(self):
-        return "\n".join(self.lines)
+        # code already contains newlines
+        return "".join(self.lines)
 
 
 class Command(BaseCommand):
@@ -77,73 +78,102 @@ class Command(BaseCommand):
                         )
                 return definitions[name]
 
-            # The possible definitions (in header) are:
-            #  ignore: ignore this segment (used for imports)
-            #  task [args]: <name> -> define a task
-            #  instruction [args]: <name> -> define a instruction
-            #  dataset [args]: <name> -> define a dataset
-            file_args_str, file_name = segment.header.split(":", 1)
-            file_args = file_args_str.split(" ")
-            file_name = file_name.strip()
-            if file_args[0] == "task":
-                task_definition = _get_definition(file_name)
-                tasks[file_name] = Task.objects.create(
-                    name=file_name,
-                    schema=(task_definition["schema"]),
+            def _get_relevant_code(definition: typing.Callable):
+                # this only works for functions
+                relevant_lines = []
+
+                in_def = False
+                # find first line index where def definition.__name__ is
+                # then get all lines following definition until indent is gone
+                for line in segment.lines:
+                    if "def " + definition.__name__ in line:
+                        in_def = True
+                    if not in_def:
+                        continue
+                    # exit when we're out
+                    if "def " not in line and not line.startswith("   ") and not line.strip() == "":
+                        break
+                    relevant_lines.append(line)
+
+                # code already contains newlines
+                return "".join(relevant_lines)
+
+            # The current headers are task, instruct, dataset
+            # in the form <header> *args: <name>,[<name>,...]
+            args_str, names_str = segment.header.split(":", 1)
+            args = args_str.split(" ")
+            names = names_str.strip().split(",")
+            if args[0] == "task":
+                name = names[0].strip()
+                schema = _get_definition("schema")
+                task = Task.objects.create(
+                    name=name,
+                    schema=schema,
                 )
-            elif file_args[0] == "instruct":
-                # parse header "instruction [args]: <name>"
-                instruction_definition = _get_definition(file_name)
-                # instruction definition must be a function
-                if not callable(instruction_definition):
-                    raise ValueError(
-                        f"instruction definition: {instruction_definition} must be a function"
+                tasks[name] = task
+                self.stdout.write(f"Created task {task}")
+            elif args[0] == "instruct":
+                # parse header "instruction [args]: <name>[,<name>...]"
+                for name in names:
+                    definition = _get_definition(name)
+                    # create instructions/datasets for instruct
+                    if callable(definition):
+                        # get only relevant code since multiple names may be defined
+                        relevant_code = _get_relevant_code(definition)
+                        # create instruction
+                        instruction = Instruction.objects.create(
+                            name=name,
+                            scope=InstructionScope.FUNCTION,
+                            code=relevant_code,
+                        )
+                        instructions[name] = instruction
+
+                        # parse instruction parameters from code
+                        # if multiple instructions are defined in this instruct just re-use all parameters
+                        # (this isn't great, but we'll have modules soon)
+                        self._attach_instruction_parameters(
+                            segment, instruction, datasets, instructions
+                        )
+                        self.stdout.write(f"Created instruction {instruction}")
+                    elif isinstance(definition, list):
+                        # create dataset
+                        dataset_records = _get_definition(name)
+                        dataset = self._get_dataset(dataset_records, name)
+                        datasets[names_str] = dataset
+                        self.stdout.write(f"Created dataset {dataset}")
+
+                if args[1] == "expect":
+                    # attach to args[2] task as expectations
+                    description = _get_definition("expectation")
+                    expectation = tasks[args[2]].expectations.create(
+                        index=tasks[args[2]].expectations.count(), description=description
                     )
-                instruction = Instruction.objects.create(
-                    name=file_name, scope=InstructionScope.FUNCTION, code=segment.full_code
-                )
-                # assign instruction as implementation to task
-                if instruction.name in tasks:
-                    instruction.task = tasks[instruction.name]
-                    instruction.save()
-                instructions[file_name] = instruction
+                    example_datasets = [datasets[n] for n in names if n in datasets]
+                    expectation.example_datasets.set(example_datasets)
+                    expect_instructions = [instructions[n] for n in names if n in instructions]
+                    expectation.instructions.set(expect_instructions)
+                    self.stdout.write(f"Created expectation {expectation}")
+                elif args[1] == "task":
+                    if len(names) > 1:
+                        raise ValueError(
+                            f"only one task implementation can be provided: {names_str}"
+                        )
+                    # add as task implementation
+                    task = tasks[args[2]]
+                    implementation = instructions[names[0]]
+                    task.template_implementation = implementation
+                    self.stdout.write(f"Set implementation for {task} to {implementation}")
 
-                if file_args[1] == "expect":
-                    expectation_text = _get_definition("expectation")
-                    expectation_type = _get_definition("expectation_type", required=False)
-                    if expectation_type is not None:
-                        expect_type = ExpectationType(expectation_type)
-                    # sloppily determine expectation type based on function name
-                    elif "invar" in instruction.name:
-                        expect_type = ExpectationType.INVARIANCE
-                    elif "var" in instruction.name:
-                        expect_type = ExpectationType.VARIANCE
-                    elif "verif" in instruction.name:
-                        expect_type = ExpectationType.VERIFICATION
-                    else:
-                        raise ValueError(f"unable to guess expectation type: {instruction.name}")
+            elif args[0] == "dataset":
+                if len(names) > 1:
+                    raise ValueError("only one dataset name allowed per segment")
+                name = names[0]
+                del names  # prevent accidental re-use
 
-                    tasks[file_args[2]].expectations.create(
-                        type=expect_type, text=expectation_text, instruction=instruction
-                    )
-
-                # parse instruction parameters from code
-                # parse parameters last, so we can eat the rest of the header first
-                self._parse_instruction_parameters(segment, instruction, datasets, instructions)
-            elif file_args[0] == "dataset":
-                dataset_records = _get_definition(file_name)
-                # schema is just keys and types of values of the first element
-                schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
-                dataset = Dataset.objects.create(name=file_name, schema=schema)
-                dataset.extend(dataset_records)
-                datasets[file_name] = dataset
-
-                if file_args[1] == "example" and len(file_args) > 2:
-                    tasks[file_args[2]].examples.create(dataset=dataset)
-                elif file_args[1] == "explain" and len(file_args) > 2:
-                    tasks[file_args[2]].explanations.create(dataset=dataset)
-                elif len(file_args) > 2:
-                    raise ValueError(f"unknown dataset/task relation: {file_args[1]}")
+                dataset_records = _get_definition(name)
+                dataset = self._get_dataset(dataset_records, name)
+                datasets[name] = dataset
+                self.stdout.write(f"Created dataset {dataset}")
             else:
                 raise ValueError(f"Unknown segment header: {segment.header}")
 
@@ -168,7 +198,14 @@ class Command(BaseCommand):
         project.head = new_version
         project.save()
 
-    def _parse_instruction_parameters(
+    def _get_dataset(self, dataset_records, name):
+        # schema is just keys and types of values of the first element
+        schema = {k: type(v).__name__ for k, v in dataset_records[0].items()}
+        dataset = Dataset.objects.create(name=name, schema=schema)
+        dataset.extend(dataset_records)
+        return dataset
+
+    def _attach_instruction_parameters(
         self,
         segment: TaskFileSegment,
         instruction: Instruction,
