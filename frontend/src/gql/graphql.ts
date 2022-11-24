@@ -29,13 +29,25 @@ export type Dataset = Node & {
   id: Scalars["GlobalID"];
   length: Scalars["Int"];
   name: Scalars["String"];
-  records?: Maybe<Array<DjangoModelType>>;
+  records: Array<DatasetRecord>;
   schema?: Maybe<Scalars["JSON"]>;
 };
 
-export type DjangoModelType = {
-  __typename?: "DjangoModelType";
-  pk: Scalars["ID"];
+export type DatasetRecord = Node & {
+  __typename?: "DatasetRecord";
+  data: Scalars["JSON"];
+  id: Scalars["GlobalID"];
+  index: Scalars["Int"];
+};
+
+export type Expectation = Node & {
+  __typename?: "Expectation";
+  description: Scalars["String"];
+  examplesDatasets: Array<Dataset>;
+  id: Scalars["GlobalID"];
+  index: Scalars["Int"];
+  instructions: Array<Instruction>;
+  task: Task;
 };
 
 export type Instruction = Node & {
@@ -45,6 +57,7 @@ export type Instruction = Node & {
   code?: Maybe<Scalars["String"]>;
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
+  index: Scalars["Int"];
   name: Scalars["String"];
   parent?: Maybe<Instruction>;
   scope: Scalars["String"];
@@ -68,6 +81,7 @@ export type Mutation = {
 };
 
 export type MutationCompileTaskArgs = {
+  projectVersionId: Scalars["UUID"];
   taskId: Scalars["UUID"];
 };
 
@@ -159,14 +173,11 @@ export type ProjectEdge = {
 
 export type ProjectFile = Node & {
   __typename?: "ProjectFile";
-  dataset: Dataset;
+  content: TaskInstructionDatasetModel;
   id: Scalars["GlobalID"];
-  instruction: Instruction;
-  model: Model;
   name: Scalars["String"];
   nameDotType: Scalars["String"];
   projectVersion: ProjectVersion;
-  task: Task;
   type: Scalars["String"];
 };
 
@@ -190,6 +201,7 @@ export type Query = {
   organizations: OrganizationConnection;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
+  projectFile?: Maybe<ProjectFile>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
   user?: Maybe<User>;
@@ -220,6 +232,10 @@ export type QueryProjectBySlugArgs = {
   project: Scalars["String"];
 };
 
+export type QueryProjectFileArgs = {
+  id: Scalars["GlobalID"];
+};
+
 export type QueryProjectVersionArgs = {
   id: Scalars["GlobalID"];
 };
@@ -246,13 +262,18 @@ export type Task = Node & {
   __typename?: "Task";
   children: Array<Task>;
   createdAt: Scalars["DateTime"];
+  expectations: Array<Expectation>;
   id: Scalars["GlobalID"];
+  implementations: Array<Instruction>;
+  index: Scalars["Int"];
   name: Scalars["String"];
   parent?: Maybe<Task>;
   schema: Scalars["JSON"];
   templateImplementation?: Maybe<Instruction>;
   updatedAt: Scalars["DateTime"];
 };
+
+export type TaskInstructionDatasetModel = Dataset | Instruction | Model | Task;
 
 export type User = Node & {
   __typename?: "User";

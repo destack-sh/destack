@@ -21,6 +21,7 @@ class InstructionScope(models.TextChoices):
     Functions are reusable instructions for pure functions with any parameters & arguments.
     """
 
+    # TODO @Architecture: maybe Instruction modules should be a ProjectFile-level concept?
     MODULE = "module", "Module"
     PROGRAM = "program", "Program"
     FUNCTION = "function", "Function"

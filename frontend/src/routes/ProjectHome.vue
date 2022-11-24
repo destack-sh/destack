@@ -56,7 +56,7 @@
           <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
             <SButton text="Build">
               <WrenchIcon class="h-5 w-5" aria-hidden="true" />
-              <span class="ml-1">Compile</span>
+              <span class="ml-1" @click="compileProgram">Compile</span>
             </SButton>
             <SButton text="Run">
               <PlayIcon class="h-5 w-5" aria-hidden="true" />
@@ -197,6 +197,10 @@ const viewNavigation = [
   { name: "Explorer", icon: ClipboardDocumentIcon, selected: true },
   { name: "Versions", icon: ClockIcon },
 ];
+
+function compileProgram() {
+  console.log("compileProgram");
+}
 
 const ProjectVersionFragment = graphql(/* GraphQL */ `
   fragment ProjectVersionFragment on ProjectVersion {

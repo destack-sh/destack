@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 import pytz
 from django.core.validators import validate_slug
@@ -10,6 +10,12 @@ from django.db import connection, models, transaction
 from bench.models import Organization
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+
+if TYPE_CHECKING:
+    from bench.models.dataset import Dataset
+    from bench.models.instruction import Instruction
+    from bench.models.model import Model
+    from bench.models.task import Task
 
 
 class ProjectType(models.TextChoices):
@@ -115,7 +121,7 @@ WHERE project_version_id = %s
 
         return version
 
-    objects = ProjectManager()
+    objects: ProjectManager = ProjectManager()
 
     class Meta:
         constraints = [
@@ -166,6 +172,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     # files via ProjectFile
     program: models.ForeignKey = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="projects"
+    )
+    backends: models.ManyToManyField = models.ManyToManyField(
+        "Model", related_name="referenced_in_projects+", blank=True
     )
 
     def __str__(self) -> str:
@@ -223,6 +232,19 @@ class ProjectFile(UUIDModel):
     @property
     def name_dot_type(self):
         return f"{self.name}.{self.type}"
+
+    @property
+    def content(self) -> Union[Task, Instruction, Model, Dataset]:
+        if self.type == ProjectFileType.TASK:
+            return self.task
+        elif self.type == ProjectFileType.INSTRUCTION:
+            return self.instruction
+        elif self.type == ProjectFileType.MODEL:
+            return self.model
+        elif self.type == ProjectFileType.DATASET:
+            return self.dataset
+        else:
+            raise ValueError(f"{self} has unknown type: {self.type}")
 
     class Meta:
         constraints = [
