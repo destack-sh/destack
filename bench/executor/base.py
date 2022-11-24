@@ -6,12 +6,13 @@ import os
 import typing
 import uuid
 from functools import partial
+from random import Random
 from typing import Any, Union
 
 import structlog
 from django.db.models import QuerySet
 
-from bench.backend.base import ModelHandle, ModelProvider
+from bench.backend.base import Completion, ModelHandle, ModelProvider
 from bench.backend.openai import OpenAIProvider
 from bench.executor.builtins import instruction_builtins
 from bench.models import Dataset, Model
@@ -97,9 +98,7 @@ class ModelProxy(ModelHandle):
 
     # insecure hashing is fine here since it's just for caching
     # noinspection InsecureHash
-    async def complete(
-        self, prompt: str
-    ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:
+    async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
         logger.info(
             "model.complete.enter", model=self.model, handle=self.handle, prompt=len(prompt)
         )
@@ -121,7 +120,7 @@ class ModelProxy(ModelHandle):
 
         # cache miss or cache disabled
         if cached_result is None:
-            result = await self.handle.complete(prompt)
+            completion = await self.handle.complete(prompt)
 
             # write to cache
             await ModelInference.objects.acreate(
@@ -130,13 +129,23 @@ class ModelProxy(ModelHandle):
                 settings_hash=settings_hash,
                 input=prompt,
                 input_hash=input_hash,
-                output=result,
+                output=completion,
             )
         else:
-            result = cached_result
+            completion = cached_result
 
-        logger.info("model.complete.exit", model=self.model, handle=self.handle, result=len(result))
-        return result
+        completion_length = (
+            len(completion["text"])
+            if isinstance(completion, dict)
+            else (len(c["text"]) for c in completion)
+        )
+        logger.info(
+            "model.complete.exit",
+            model=self.model,
+            handle=self.handle,
+            completion=completion_length,
+        )
+        return completion
 
     async def embed(self, text: str) -> bytes:
         raise NotImplementedError
@@ -172,7 +181,7 @@ class Executor:
         self.providers: dict[ProviderKey, ModelProvider] = {
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
         }
-        self.static_builtins = instruction_builtins
+        self.static_builtins = {**instruction_builtins}
         self.default_imports: dict = {Model: ModelHandle, Dataset: RecordBatch}
         self.use_model_cache = True
 
@@ -188,6 +197,11 @@ class Executor:
         else:
             raise ValueError(f"instruction {instruction} has no code or builtin id")
         return instruction_code
+
+    def _get_dynamic_builtins(self, instruction) -> dict:
+        return {
+            "random": Random(instruction.name.encode()),
+        }
 
     async def _do_exec(self, code: str, globals: dict):
         if not self.can_exec:
@@ -246,10 +260,13 @@ class Executor:
             return parameters, arguments, partial(builtin, **arguments)
         else:
             code = self._get_instruction_code(instruction)
+            dynamic_builtins = self._get_dynamic_builtins(instruction)
+
             # A code instruction can be a linear piece of code to call every time or define a function to call.
-            # Note that we don't actually run the code here, we just resolve and initialise.
+            # Note that we don't actually run the function code here, we just resolve and initialise.
             if not instruction.anonymous:
-                output = await self.run_get_definitions(code, {**arguments})
+                # Run code to get function definition.
+                output = await self.run_get_definitions(code, {**dynamic_builtins, **arguments})
                 if instruction.name not in output:
                     raise ValueError(f"function {instruction.name} not defined in code")
                 return parameters, arguments, output[instruction.name]
@@ -257,10 +274,9 @@ class Executor:
                 # TODO @Performance @Cleanup: should we just compile anonymous functions into named functions?
                 #  Otherwise, we-exec the code every time it's called.
                 async def _run_anonymous(**kwargs):
-                    await self._do_exec(code, {**arguments, **kwargs})
+                    await self._do_exec(code, {**dynamic_builtins, **arguments, **kwargs})
 
-                _run_anonymous.__name__ = f"_anon_{instruction}"
-
+                _run_anonymous.__name__ = f"_anon_{instruction.name}_{instruction.id.hex}"
                 return parameters, arguments, _run_anonymous
 
     async def _proxy_model(self, model_handle: ModelHandle, model: Model) -> ModelProxy:
@@ -360,7 +376,7 @@ class Executor:
 
     async def run(
         self, instruction: Instruction, arguments: dict[str, Any]
-    ) -> typing.Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         if not isinstance(arguments, dict):
             raise ValueError(f"{instruction} arguments must be a dict: {arguments}")
 

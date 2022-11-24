@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Union
+from typing import TypedDict, Union
 
 from bench.models import Model
 from bench.models.model import ModelInferenceSettings
@@ -21,6 +21,12 @@ class ModelProvider(abc.ABC):
         raise NotImplementedError
 
 
+Completion = TypedDict(
+    "Completion",
+    {"text": str, "logits": Union[None, list[float]], "tokens": Union[None, list[str]]},
+)
+
+
 class ModelHandle(abc.ABC):
     """
     Base for model implementations that can run a specific model.
@@ -30,12 +36,10 @@ class ModelHandle(abc.ABC):
     def settings(self) -> ModelInferenceSettings:
         raise NotImplementedError
 
-    async def complete(
-        self, prompt: str
-    ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:
+    async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
         """
         Generate a completion for the given prompt.
-        @return: (completion, logprobs) or [(completion, logprops)] if n > 1
+        @return: Completion or list[Completion] if n > 1
         """
         raise NotImplementedError
 

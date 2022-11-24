@@ -67,6 +67,9 @@ class Project(TaggableMixin, UUIDModel):
         "Organization", on_delete=models.CASCADE, related_name="projects"
     )
 
+    def __str__(self):
+        return f"{self.organization.slug}/{self.slug}"
+
     @transaction.atomic
     def create_version(
         self,

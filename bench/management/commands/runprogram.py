@@ -19,7 +19,7 @@ class Command(BaseCommand):
     def handle(self, organization_project: str, input: str, *args, **kwargs):
         organization = Organization.objects.get(slug=organization_project.split("/")[0])
         project: Project = Project.objects.get(
-            slug=organization_project.split("/"[1]), organization=organization
+            slug=organization_project.split("/")[1], organization=organization
         )
         if project.type != ProjectType.EXECUTABLE:
             raise ValueError(f"project must be executable: {project}")

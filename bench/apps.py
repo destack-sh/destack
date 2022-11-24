@@ -14,8 +14,9 @@ class BenchConfig(AppConfig):
     verbose_name = "The Bench"
 
     def ready(self) -> None:
-        if DEBUG:
-            # auto-update schema on startup during development
+        # auto-update schema on startup during development
+        # (and if we're not running a command that doesn't run the server)
+        if DEBUG and "runserver" in sys.argv:
             from bench.api import schema
             from bench.management.commands.exportschema import write_schema
 

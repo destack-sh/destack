@@ -39,7 +39,7 @@ class Command(BaseCommand):
         parser.add_argument("--main", type=str, required=False)
 
     @transaction.atomic
-    def handle(self, organization_project: str, main: Optional[str] = None, *args, **options):
+    def handle(self, organization_project: str, main: Optional[str] = None, **options):
         organization_slug, project_slug = organization_project.split("/")
         organization = Organization.objects.get(slug=organization_slug)
         project = Project.objects.filter(slug=project_slug, organization=organization).first()
@@ -103,6 +103,7 @@ class Command(BaseCommand):
             args_str, names_str = segment.header.split(":", 1)
             args = args_str.split(" ")
             names = names_str.strip().split(",")
+            del names_str  # prevent accidental use
             if args[0] == "task":
                 name = names[0].strip()
                 schema = _get_definition("schema")
@@ -139,7 +140,7 @@ class Command(BaseCommand):
                         # create dataset
                         dataset_records = _get_definition(name)
                         dataset = Dataset.objects.from_list(name, dataset_records)
-                        datasets[names_str] = dataset
+                        datasets[name] = dataset
                         self.stdout.write(f"Created dataset {dataset}")
 
                 if args[1] == "expect":
@@ -155,11 +156,11 @@ class Command(BaseCommand):
                     self.stdout.write(f"Created expectation {expectation}")
                 elif args[1] == "task":
                     if len(names) > 1:
-                        raise ValueError(
-                            f"only one task implementation can be provided: {names_str}"
-                        )
+                        raise ValueError(f"only one task implementation can be provided: {names}")
                     # add as task implementation
                     task = tasks[args[2]]
+                    if task.template_implementation is not None:
+                        raise ValueError(f"task {task} already has a template implementation")
                     implementation = instructions[names[0]]
                     task.template_implementation = implementation
                     self.stdout.write(f"Set implementation for {task} to {implementation}")
@@ -193,10 +194,12 @@ class Command(BaseCommand):
         if main:
             new_version.program = tasks[main]
             new_version.save()
+            self.stdout.write(f"Set {new_version.program} as main program in {new_version}")
 
         # advance head to new version
         project.head = new_version
         project.save()
+        self.stdout.write(f"Updated head in {project}")
 
     def _attach_instruction_parameters(
         self,
