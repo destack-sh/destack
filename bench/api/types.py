@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 import strawberry
 from strawberry import auto
@@ -47,10 +47,7 @@ class ProjectFile(gql.Node):
     project_version: ProjectVersion = gql.django.field()
     type: auto
     name: auto
-    task: Task
-    instruction: Instruction
-    model: Model
-    dataset: Dataset
+    content: Union[Task, Instruction, Dataset, Model]
 
     @strawberry.field
     def name_dot_type(self) -> str:
@@ -74,9 +71,21 @@ class Task(gql.Node):
     created_at: auto
     updated_at: auto
     parent: Optional[Task]
+    index: auto
     children: list[Task]
     schema: auto
+    expectations: list[Expectation]
     template_implementation: Optional[Instruction]
+    implementations: list[Instruction]
+
+
+@gql.django.type(models.Expectation)
+class Expectation(gql.Node):
+    task: Task
+    index: auto
+    description: auto
+    instructions: list[Instruction]
+    examples_datasets: list[Dataset]
 
 
 @gql.django.type(models.Instruction)
@@ -85,6 +94,7 @@ class Instruction(gql.Node):
     created_at: auto
     updated_at: auto
     parent: Optional[Instruction]
+    index: auto
     children: list[Instruction]
     builtin_id: auto
     code: auto
@@ -106,4 +116,10 @@ class Dataset(gql.Node):
     created_at: auto
     schema: auto
     length: auto
-    records: auto
+    records: list[DatasetRecord]
+
+
+@gql.django.type(models.DatasetRecord)
+class DatasetRecord(gql.Node):
+    index: auto
+    data: auto

@@ -20,6 +20,7 @@ class Task(TaggableMixin, UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey("Task", on_delete=models.CASCADE, null=True, related_name="children")
+    index = models.IntegerField(default=0)
 
     schema = models.JSONField()
     # expectations from/to Expectation
@@ -28,7 +29,7 @@ class Task(TaggableMixin, UUIDModel):
     )
     # implementations from/to Instruction
 
-    objects = TaskManager()
+    objects: TaskManager = TaskManager()
 
     def __str__(self):
         return f"{self.name}.task@{self.id.hex}"

@@ -1,5 +1,5 @@
 from .compilation import Compilation
-from .dataset import Dataset, DatasetView
+from .dataset import Dataset, DatasetRecord, DatasetView
 from .instruction import (
     Execution,
     ExecutionStatus,
@@ -12,7 +12,7 @@ from .model import Model, ModelInference, ModelInferenceSettings, ModelType
 from .organization import Organization
 from .project import Project, ProjectFile, ProjectFileType, ProjectVersion
 from .tag import Tag, TaggableMixin, TaggedItem
-from .task import Task
+from .task import Expectation, Task
 from .user import User
 
 __all__ = [
@@ -20,6 +20,7 @@ __all__ = [
     "TaggedItem",
     "TaggableMixin",
     "Task",
+    "Expectation",
     "Instruction",
     "InstructionScope",
     "InstructionArgument",
@@ -34,6 +35,7 @@ __all__ = [
     "ProjectFileType",
     "User",
     "Dataset",
+    "DatasetRecord",
     "DatasetView",
     "Model",
     "ModelInferenceSettings",

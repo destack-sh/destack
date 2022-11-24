@@ -4,14 +4,25 @@ type Dataset implements Node {
   createdAt: DateTime!
   schema: JSON
   length: Int!
-  records: [DjangoModelType!]
+  records: [DatasetRecord!]!
+}
+
+type DatasetRecord implements Node {
+  id: GlobalID!
+  index: Int!
+  data: JSON!
 }
 
 """Date with time (isoformat)"""
 scalar DateTime
 
-type DjangoModelType {
-  pk: ID!
+type Expectation implements Node {
+  id: GlobalID!
+  task: Task!
+  index: Int!
+  description: String!
+  instructions: [Instruction!]!
+  examplesDatasets: [Dataset!]!
 }
 
 """
@@ -25,6 +36,7 @@ type Instruction implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   parent: Instruction
+  index: Int!
   children: [Instruction!]!
   builtinId: String
   code: String
@@ -46,7 +58,7 @@ type Model implements Node {
 }
 
 type Mutation {
-  compileTask(taskId: UUID!): Void
+  compileTask(projectVersionId: UUID!, taskId: UUID!): Void
   runProgram(projectId: UUID!): Void
 }
 
@@ -139,10 +151,7 @@ type ProjectFile implements Node {
   projectVersion: ProjectVersion!
   type: String!
   name: String!
-  task: Task!
-  instruction: Instruction!
-  model: Model!
-  dataset: Dataset!
+  content: TaskInstructionDatasetModel!
   nameDotType: String!
 }
 
@@ -198,6 +207,10 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): ProjectVersion
+  projectFile(
+    """The ID of the object."""
+    id: GlobalID!
+  ): ProjectFile
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -224,10 +237,15 @@ type Task implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   parent: Task
+  index: Int!
   children: [Task!]!
   schema: JSON!
+  expectations: [Expectation!]!
   templateImplementation: Instruction
+  implementations: [Instruction!]!
 }
+
+union TaskInstructionDatasetModel = Task | Instruction | Dataset | Model
 
 scalar UUID
 
