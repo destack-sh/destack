@@ -5,7 +5,7 @@ import random
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
-from typing import AsyncIterable, Iterable, Optional, Union
+from typing import AsyncIterable, Iterable, Mapping, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -132,8 +132,8 @@ class TaskDefinition:
         ]
 
     @staticmethod
-    async def _collect_examples(statements: Iterable[Statement]) -> dict[UUID, RecordBatch]:
-        examples = {}
+    async def _collect_examples(statements: Iterable[Statement]) -> Mapping[UUID, RecordBatch]:
+        examples: dict[UUID, RecordBatch] = {}
         for statement in statements:
             if not isinstance(statement, ExamplesStatement):
                 continue
