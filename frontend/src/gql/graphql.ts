@@ -50,6 +50,16 @@ export type Expectation = Node & {
   task: Task;
 };
 
+export type File = Node & {
+  __typename?: "File";
+  content: Array<Node>;
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  nameDotType: Scalars["String"];
+  projectVersion: ProjectVersion;
+  type: Scalars["String"];
+};
+
 export type Instruction = Node & {
   __typename?: "Instruction";
   builtinId?: Maybe<Scalars["String"]>;
@@ -61,16 +71,6 @@ export type Instruction = Node & {
   name: Scalars["String"];
   parent?: Maybe<Instruction>;
   scope: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
-};
-
-export type Model = Node & {
-  __typename?: "Model";
-  baseline?: Maybe<Model>;
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  provider: Scalars["String"];
   updatedAt: Scalars["DateTime"];
 };
 
@@ -171,22 +171,12 @@ export type ProjectEdge = {
   node: Project;
 };
 
-export type ProjectFile = Node & {
-  __typename?: "ProjectFile";
-  content: TaskInstructionDatasetModel;
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  nameDotType: Scalars["String"];
-  projectVersion: ProjectVersion;
-  type: Scalars["String"];
-};
-
 export type ProjectVersion = Node & {
   __typename?: "ProjectVersion";
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   description?: Maybe<Scalars["String"]>;
-  files: Array<ProjectFile>;
+  files: Array<File>;
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   parents: Array<ProjectVersion>;
@@ -201,7 +191,7 @@ export type Query = {
   organizations: OrganizationConnection;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
-  projectFile?: Maybe<ProjectFile>;
+  projectFile?: Maybe<File>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
   user?: Maybe<User>;
@@ -272,8 +262,6 @@ export type Task = Node & {
   templateImplementation?: Maybe<Instruction>;
   updatedAt: Scalars["DateTime"];
 };
-
-export type TaskInstructionDatasetModel = Dataset | Instruction | Model | Task;
 
 export type User = Node & {
   __typename?: "User";
@@ -371,7 +359,7 @@ export type GetProjectVersionFilesQuery = {
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
-    files: Array<{ __typename?: "ProjectFile"; id: any; name: string; type: string; nameDotType: string }>;
+    files: Array<{ __typename?: "File"; id: any; name: string; type: string; nameDotType: string }>;
     program?: {
       __typename?: "Task";
       id: any;

@@ -14,7 +14,7 @@ from attr import dataclass
 from django.db.models import QuerySet
 
 from bench.executor import Executor
-from bench.models import Dataset, Instruction, Model, Organization, ProjectFileType
+from bench.models import Dataset, Instruction, Model, Organization, SymbolType
 from bench.models.compilation import Compilation
 from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.task import Expectation, Task
@@ -40,7 +40,7 @@ def get_backend_model(backend: str) -> Model:
     backends_version = backends_library.head
     if backends_version is None:
         raise ValueError(f"backends library {backends_library} has no head")
-    model = backends_version.files.get(type=ProjectFileType.MODEL, name=model_name).model
+    model = backends_version.files.get(type=SymbolType.MODEL, name=model_name).model
     if model is None:
         raise ValueError(f"backends library {backends_version} has no model {model_name}")
     return model

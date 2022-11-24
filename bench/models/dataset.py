@@ -9,7 +9,7 @@ from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
 from bench.models.tag import TaggableMixin
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
 class DatasetManager(models.Manager):
@@ -163,11 +163,9 @@ class DatasetView(TaggableMixin, UUIDModel):
     A view of a Dataset.
     """
 
-    type = models.CharField(max_length=64)
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="views")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.dataset.name}@{self.dataset.id.hex}/{self.name}"
+        return f"{self.dataset}[{self.name}]"

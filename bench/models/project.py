@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union, cast
 import pytz
 from django.core.validators import validate_slug
 from django.db import connection, models, transaction
+from django_choices_field import TextChoicesField
 
 from bench.models import Organization
 from bench.models.tag import TaggableMixin
@@ -55,9 +56,7 @@ class Project(TaggableMixin, UUIDModel):
     Library projects define reusable objects (like in software).
     """
 
-    type = models.CharField(
-        max_length=64, choices=ProjectType.choices, default=ProjectType.EXECUTABLE
-    )
+    type = TextChoicesField(choices_enum=ProjectType, default=ProjectType.EXECUTABLE)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
@@ -198,76 +197,149 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return self.project.organization
 
 
-class ProjectFileType(models.TextChoices):
+class File(UUIDModel):
     """
-    The type of "file" in a project (tasks, instructions, models, datasets).
+    A file defining symbols for a project version, potentially containing other files if it's a folder.
+    """
+
+    project_version: models.ForeignKey = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="files"
+    )
+    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
+
+    is_folder = models.BooleanField(default=False)
+    parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
+    # definitions via SymbolDefinition
+    # files via File (if in a folder)
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent}/{self.name}"
+        else:
+            return f"{self.project_version}/{self.name}"
+
+    @property
+    def root(self) -> bool:
+        return self.parent is None
+
+    @property
+    def path(self) -> str:
+        return f"{self.parent.path}/{self.name}" if self.parent else self.name
+
+    class Meta:
+        constraints = [
+            # ensure that the path is unique per project version (includes parent folder)
+            models.UniqueConstraint(
+                name="bench_project_file_project_name_ak",
+                fields=["project_version_id", "name"],
+                condition=models.Q(parent_id__isnull=True),
+            ),
+            models.UniqueConstraint(
+                name="bench_project_file_project_parent_name_ak",
+                fields=["project_version_id", "parent_id", "name"],
+                condition=models.Q(parent_id__isnull=False),
+            ),
+        ]
+
+
+class SymbolType(models.TextChoices):
+    """
+    The type of symbol to define in a project.
     """
 
     TASK = "task", "Task"
     INSTRUCTION = "instruct", "Instruction"
     MODEL = "model", "Model"
     DATASET = "data", "Dataset"
+    DATASET_VIEW = "view", "DatasetView"
 
 
-class ProjectFile(UUIDModel):
+class Symbol(UUIDModel):
     """
-    A "file" edge defining a single named object (task, instruction, model, dataset) in a project.
+    A generic symbol of a specific immutable type.
+    Symbols are used to reference tasks, instructions, models, and datasets.
+    References are resolved to definitions within a project version.
     """
 
-    project_version: models.ForeignKey = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="files"
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="symbols")
+    type = TextChoicesField(choices_enum=SymbolType)
+
+
+class SymbolDefinition(UUIDModel):
+    """
+    A definition of a symbol for a specific project version, living in a specific file.
+
+    In this implementation symbols can only be top-level definitions, not nested, which seems fine.
+    """
+
+    symbol = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="definitions")
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="definitions"
     )
-    type: models.CharField = models.CharField(max_length=64, choices=ProjectFileType.choices)
-    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    type = TextChoicesField(choices_enum=SymbolType)
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="symbols")
+    index = models.IntegerField(null=True)  # index into file
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    task = models.ForeignKey("Task", on_delete=models.RESTRICT, null=True)
-    instruction = models.ForeignKey("Instruction", on_delete=models.RESTRICT, null=True)
-    # TODO @Architecture: having models as part of projects doesn't seem quite right
-    model = models.ForeignKey("Model", on_delete=models.RESTRICT, null=True)
-    dataset = models.ForeignKey("Dataset", on_delete=models.RESTRICT, null=True)
-
-    def __str__(self):
-        return f"{self.project_version}/{self.name}.{self.type}"
-
-    @property
-    def name_dot_type(self):
-        return f"{self.name}.{self.type}"
+    task = models.ForeignKey("Task", on_delete=models.RESTRICT, null=True, related_name="symbol")
+    instruction = models.ForeignKey(
+        "Instruction", on_delete=models.RESTRICT, null=True, related_name="symbol"
+    )
+    model = models.ForeignKey("Model", on_delete=models.RESTRICT, null=True, related_name="symbol")
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.RESTRICT, null=True, related_name="symbol"
+    )
+    dataset_view = models.ForeignKey(
+        "DatasetView", on_delete=models.RESTRICT, null=True, related_name="symbol"
+    )
 
     @property
     def content(self) -> Union[Task, Instruction, Model, Dataset]:
-        if self.type == ProjectFileType.TASK:
-            return self.task
-        elif self.type == ProjectFileType.INSTRUCTION:
-            return self.instruction
-        elif self.type == ProjectFileType.MODEL:
-            return self.model
-        elif self.type == ProjectFileType.DATASET:
-            return self.dataset
+        if self.type == SymbolType.TASK:
+            content = self.task
+        elif self.type == SymbolType.INSTRUCTION:
+            content = self.instruction
+        elif self.type == SymbolType.MODEL:
+            content = self.model
+        elif self.type == SymbolType.DATASET:
+            content = self.dataset
+        elif self.type == SymbolType.DATASET_VIEW:
+            content = self.dataset_view
         else:
             raise ValueError(f"{self} has unknown type: {self.type}")
+        if content is None:
+            raise ValueError(f"{self} has no content for {self.type}")
+        else:
+            return content
 
     class Meta:
         constraints = [
-            # ensure that the name is unique per type within the project version
+            # symbol can only be defined once per project version
             models.UniqueConstraint(
-                name="bench_project_file_project_type_name_ak",
-                fields=["project_version_id", "type", "name"],
+                name="bench_symbol_definition_symbol_project_version_ak",
+                fields=["symbol", "project_version"],
             ),
-            # ensure that the objects are unique per type within the project version
+            # each content object can only be defined once per project version
             models.UniqueConstraint(
-                name="bench_project_file_task_id_ak",
-                fields=["project_version_id", "task_id"],
-            ),
-            models.UniqueConstraint(
-                name="bench_project_file_instruction_id_ak",
-                fields=["project_version_id", "instruction_id"],
+                name="bench_symbol_definition_task_project_version_ak",
+                fields=["task", "project_version"],
             ),
             models.UniqueConstraint(
-                name="bench_project_file_model_id_ak",
-                fields=["project_version_id", "model_id"],
+                name="bench_symbol_definition_instruction_project_version_ak",
+                fields=["instruction", "project_version"],
             ),
             models.UniqueConstraint(
-                name="bench_project_file_dataset_id_ak",
-                fields=["project_version_id", "dataset_id"],
+                name="bench_symbol_definition_model_project_version_ak",
+                fields=["model", "project_version"],
+            ),
+            models.UniqueConstraint(
+                name="bench_symbol_definition_dataset_project_version_ak",
+                fields=["dataset", "project_version"],
+            ),
+            models.UniqueConstraint(
+                name="bench_symbol_definition_dataset_view_project_version_ak",
+                fields=["dataset_view", "project_version"],
             ),
         ]

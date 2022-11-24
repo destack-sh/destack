@@ -13,6 +13,13 @@ type DatasetRecord implements Node {
   data: JSON!
 }
 
+type DatasetView implements Node {
+  id: GlobalID!
+  name: String!
+  createdAt: DateTime!
+  dataset: Dataset!
+}
+
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -20,9 +27,21 @@ type Expectation implements Node {
   id: GlobalID!
   task: Task!
   index: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
   description: String!
-  instructions: [Instruction!]!
-  examplesDatasets: [Dataset!]!
+  instructions: [Symbol!]!
+  examplesDatasets: [Symbol!]!
+}
+
+type File implements Node {
+  id: GlobalID!
+  projectVersion: ProjectVersion!
+  name: String!
+  isFolder: Boolean!
+  parent: File
+  files: [File!]!
+  definitions: [SymbolDefinition!]!
 }
 
 """
@@ -36,11 +55,12 @@ type Instruction implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   parent: Instruction
-  index: Int!
   children: [Instruction!]!
+  index: Int!
+  task: Symbol
+  scope: String!
   builtinId: String
   code: String
-  scope: String!
 }
 
 """
@@ -146,15 +166,6 @@ type ProjectEdge {
   node: Project!
 }
 
-type ProjectFile implements Node {
-  id: GlobalID!
-  projectVersion: ProjectVersion!
-  type: String!
-  name: String!
-  content: TaskInstructionDatasetModel!
-  nameDotType: String!
-}
-
 type ProjectVersion implements Node {
   id: GlobalID!
   project: Project!
@@ -164,7 +175,8 @@ type ProjectVersion implements Node {
   createdAt: DateTime!
   committedAt: DateTime
   program: Task
-  files: [ProjectFile!]!
+  files: [File!]!
+  references: [ProjectVersion!]!
 }
 
 type Query {
@@ -207,10 +219,18 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): ProjectVersion
-  projectFile(
+  file(
     """The ID of the object."""
     id: GlobalID!
-  ): ProjectFile
+  ): File
+  symbol(
+    """The ID of the object."""
+    id: GlobalID!
+  ): Symbol
+  symbolDefinition(
+    """The ID of the object."""
+    id: GlobalID!
+  ): SymbolDefinition
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -231,6 +251,35 @@ type Query {
   ): OrganizationConnection!
 }
 
+type Symbol implements Node {
+  id: GlobalID!
+  project: Project!
+  type: SymbolType!
+}
+
+type SymbolDefinition implements Node {
+  id: GlobalID!
+  symbol: Symbol!
+  projectVersion: ProjectVersion!
+  name: String!
+  type: SymbolType!
+  file: File!
+  index: Int
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  content: TaskInstructionModelDatasetDatasetView!
+  nameDotType: String!
+}
+
+"""The type of symbol to define in a project."""
+enum SymbolType {
+  TASK
+  INSTRUCTION
+  MODEL
+  DATASET
+  DATASET_VIEW
+}
+
 type Task implements Node {
   id: GlobalID!
   name: String!
@@ -242,10 +291,10 @@ type Task implements Node {
   schema: JSON!
   expectations: [Expectation!]!
   templateImplementation: Instruction
-  implementations: [Instruction!]!
+  implementations: [Symbol!]!
 }
 
-union TaskInstructionDatasetModel = Task | Instruction | Dataset | Model
+union TaskInstructionModelDatasetDatasetView = Task | Instruction | Model | Dataset | DatasetView
 
 scalar UUID
 

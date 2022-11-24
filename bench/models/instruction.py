@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from asgiref.sync import sync_to_async
 from django.db import models, transaction
+from django_choices_field import TextChoicesField
 
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel
@@ -45,7 +46,7 @@ class Instruction(TaggableMixin, UUIDModel):
     )
     index = models.IntegerField(default=0)
     task = models.ForeignKey(
-        "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
+        "Symbol", on_delete=models.CASCADE, null=True, related_name="implementations"
     )
 
     scope: models.CharField = models.CharField(
@@ -177,7 +178,7 @@ class InstructionParameter(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
+    type = TextChoicesField(choices_enum=InstructionParameterType)
     schema = models.JSONField(null=True)
 
     def __str__(self):
@@ -209,13 +210,7 @@ class InstructionArgument(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
-    model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
-    model_settings = models.ForeignKey(
-        "ModelInferenceSettings", on_delete=models.CASCADE, null=True, blank=True
-    )
-    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, null=True, blank=True)
-    dataset_view = models.ForeignKey("DatasetView", on_delete=models.CASCADE, null=True, blank=True)
-    instruction = models.ForeignKey("Instruction", on_delete=models.CASCADE, null=True, blank=True)
+    value_reference = models.ForeignKey("Symbol", on_delete=models.CASCADE, null=True)
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):
