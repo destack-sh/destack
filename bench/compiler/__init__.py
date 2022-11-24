@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import random
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
@@ -72,7 +73,7 @@ class InstructionStatement:
 Statement = Union[ExamplesStatement, InstructionStatement]
 
 
-@dataclass
+@dataclass(repr=False)
 class TaskDefinition:
     expectations: list[Expectation]
     statements: dict[UUID, list[Statement]]  # by expectation id
@@ -83,6 +84,12 @@ class TaskDefinition:
     optimal_backend: Optional[Model]
     task: Task
 
+    def __str__(self):
+        return f"TaskDefinition({self.task})"
+
+    def __repr__(self):
+        return f"TaskDefinition({self.task})"
+
     @property
     def id(self):
         return self.task.id
@@ -90,6 +97,14 @@ class TaskDefinition:
     @property
     def name(self):
         return self.task.name
+
+    @property
+    def input_keys(self) -> set[str]:
+        return self.task.schema["input"].keys()
+
+    @property
+    def output_keys(self) -> set[str]:
+        return self.task.schema["output"].keys()
 
     def walk_tree_dfs(self) -> Iterable[TaskDefinition]:
         yield self
@@ -212,7 +227,7 @@ class Compiler:
         # lay out the task tree
         logger.info("compile.task.layout.start", task=task)
         task_def = await TaskDefinition.from_task(task)
-        logger.info("compile.task.layout.done", task=task)
+        logger.info("compile.task.layout.done", task=task, task_def=task_def)
 
         if options.optimize_task:
             # optimize the task tree
@@ -225,11 +240,11 @@ class Compiler:
             if len(backends) > 1:
                 raise NotImplementedError("cannot choose backends yet")
             for task_def in task_def.walk_tree_dfs():
-                task_def.task.optimal_backend = backends[0]
+                task_def.optimal_backend = backends[0]
 
         # build the instruction tree
         logger.info("compile.instruct.build.start", task=task_def.task, original=task)
-        main_instruction = await self._build_instruction(task_def, backends)
+        main_instruction = await self._build_instruction(task_def)
         logger.info("compile.instruct.build.done", task=task_def.task, original=task)
 
         if options.optimize_instruction:
@@ -264,9 +279,7 @@ class Compiler:
         # TODO @Feature @Performance: optimize instruction tree
         return instruction
 
-    async def _build_instruction(
-        self, task_def: TaskDefinition, backends: list[Model]
-    ) -> Instruction:
+    async def _build_instruction(self, task_def: TaskDefinition) -> Instruction:
         """
         Builds an instruction from a task definition.
 
@@ -296,26 +309,58 @@ class Compiler:
                 instruction_statement.type = StatementType.TRANSFORM
 
         # 2.3 collect dynamic examples from expectations
+        # (naive implementation: should be done in parallel and pick optimal examples)
         dynamic_examples: list[dict] = []
         for expect_id, instruction_statement in task_def.instruction_statements:
             expectation = task_def.expectations_by_id[expect_id]
+            # select relevant examples for statement
+            # (naive implementation: random sample)
+            local_random = random.Random(expectation.description.encode())
+            relevant_examples = local_random.sample(static_examples, 3)
+
             if instruction_statement.type == StatementType.TRANSFORM:
-                # TODO @Feature: transform examples
-                pass
+                for example in relevant_examples:
+                    transformed = await self.executor.run(
+                        instruction_statement.instruction, arguments={"example": example}
+                    )
+                    if isinstance(transformed, dict):
+                        dynamic_examples.append(transformed)
+                    elif isinstance(transformed, list):
+                        # (naive implementation: use all transformed examples)
+                        for transformed_example in transformed:
+                            dynamic_examples.append(transformed_example)
+                    else:
+                        raise ValueError(
+                            f"unexpected transform statement {instruction_statement.instruction} output: {transformed}"
+                        )
             elif instruction_statement.type == StatementType.VERIFY:
-                # TODO @Feature: verify expectations
+                # TODO @Feature: render verify expectations into example instructions
                 pass
+                # for example in relevant_examples:
+                #     good = await self.executor.run(
+                #         instruction_statement.instruction,
+                #         arguments={"example": example, "expectation": expectation},
+                #     )
             else:
                 raise NotImplementedError(
                     f"{expectation} statement {instruction_statement} not supported"
                 )
 
         compiled_examples = [*static_examples, *dynamic_examples]
-        if not compiled_examples:
-            raise ValueError(f"no examples for {task_def.task}")
+        # order compiled examples optimally
+        # (naive implementation: random order)
+        random.shuffle(compiled_examples)
         compiled_examples_dataset = await Dataset.objects.afrom_list(
             f"compiled_examples_{task_def.id}", compiled_examples
         )
+        if compiled_examples_dataset.length == 0:
+            raise ValueError(f"no examples for {task_def.task}")
+        compiled_examples_keys = compiled_examples_dataset.schema.keys()
+        if compiled_examples_keys != {*task_def.input_keys, *task_def.output_keys}:
+            raise ValueError(
+                f"{task_def.task} compiled examples {compiled_examples_keys} do not match task "
+                f"input/output keys {task_def.input_keys, task_def.output_keys}"
+            )
 
         # 3. convert task descriptions and examples to backend model format
         pass  # naive implementation: noop (no conversion)
@@ -323,17 +368,22 @@ class Compiler:
         # 4. build prompt and bake into model instruction
         # (naive implementation)
         prompt_prefix: str = task_description + "\n"
-        examples_keys = compiled_examples_dataset.schema.keys()
-        prompt_example = "\n".join(f"{key}: {{{key}}}" for key in examples_keys) + "\n"
+        prompt_example = "".join(
+            f"{key}: {{{key}}}\n" for key in chain(task_def.input_keys, task_def.output_keys)
+        )
+        prompt_input = "".join(f"{key}: {{{key}}}\n" for key in task_def.input_keys)
+        if len(task_def.output_keys) == 1:
+            # also add output key prefix if there is only one
+            main_output_key = tuple(task_def.output_keys)[0]
+            prompt_input = prompt_input + f"{main_output_key}: "
 
         if not task_def.optimal_backend:
             raise ValueError(
-                f"cannot build instruction for {task_def.task}: no optimal backend set"
+                f"cannot build instruction for {task_def.task}: optimal backend not set"
             )
-
         llm_instruction = await Instruction.objects.acreate(
             name=task_def.name,
-            task=task_def,
+            task=task_def.task,
             scope=InstructionScope.PROGRAM,
             builtin_id="llm_fewshot",
         )
@@ -342,7 +392,7 @@ class Compiler:
             "model": task_def.optimal_backend,
             "prompt_prefix": prompt_prefix,
             "prompt_example": prompt_example,
-            "prompt_input": "Input: {input}\nOutput: ",
+            "prompt_input": prompt_input,
             "examples": compiled_examples_dataset,
         }.items():
             await llm_instruction.abind_argument(argument_name, argument_value)

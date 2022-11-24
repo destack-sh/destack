@@ -64,19 +64,20 @@ class Instruction(TaggableMixin, UUIDModel):
         self, name: str, type: InstructionParameterType, exists_ok: bool = False
     ) -> InstructionParameter:
         if exists_ok:
-            _, parameter = InstructionParameter.objects.get_or_create(
-                instruction_bound=self, name=name, defaults={"type": type}
+            parameter, created = InstructionParameter.objects.get_or_create(
+                instruction=self, name=name, defaults={"type": type}
             )
+            if not created:
+                parameter.type = type
+                parameter.save()
             return parameter
         else:
-            return InstructionParameter.objects.create(instruction_bound=self, name=name, type=type)
+            return InstructionParameter.objects.create(instruction=self, name=name, type=type)
 
     async def aadd_parameter(
         self, name: str, type: InstructionParameterType, exists_ok: bool = False
     ) -> InstructionParameter:
-        return await InstructionParameter.objects.acreate(
-            instruction_bound=self, name=name, type=type, exists_ok=exists_ok
-        )
+        return await sync_to_async(self.add_parameter)(name, type, exists_ok)
 
     @transaction.atomic
     def bind_argument(
@@ -96,12 +97,12 @@ class Instruction(TaggableMixin, UUIDModel):
 
         # get/create parameter and corresponding argument
         parameter = self.add_parameter(name, argument_type, exists_ok=True)
-        exists, argument = InstructionArgument.objects.get_or_create(
+        argument, created = InstructionArgument.objects.get_or_create(
             instruction_bound=self, name=name, defaults=dict(type=argument_type, **argument_kwargs)
         )
-        if exists and not exists_ok:
+        if not created and not exists_ok:
             raise RuntimeError(f"{self} argument {argument} already exists")
-        elif exists:
+        elif not created:
             # update parameter type and kwargs
             argument.type = argument_type
             for key, value in argument_kwargs.items():
@@ -110,7 +111,7 @@ class Instruction(TaggableMixin, UUIDModel):
 
         return parameter, argument
 
-    async def abind_argument(self, name: str, value: Any, exists_ok: bool):
+    async def abind_argument(self, name: str, value: Any, exists_ok: bool = False):
         return await sync_to_async(self.bind_argument)(name=name, value=value, exists_ok=exists_ok)
 
     @property
@@ -172,6 +173,8 @@ class InstructionParameter(UUIDModel):
     instruction = models.ForeignKey(
         Instruction, on_delete=models.CASCADE, related_name="parameters"
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
     schema = models.JSONField(null=True)
@@ -202,6 +205,8 @@ class InstructionArgument(UUIDModel):
         "Instruction", on_delete=models.CASCADE, null=True, related_name="+"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
     model = models.ForeignKey("Model", on_delete=models.CASCADE, null=True, blank=True)
     model_settings = models.ForeignKey(

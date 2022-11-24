@@ -5,7 +5,7 @@ repos:
       - id: flake8
         name: flake8 (py)
         args: ["--max-line-length=100", "--select=C,E,F,W,B,B950", "--extend-ignore=E203,E501,W503"]
-        exclude: ^backend/notebooks/|^backend/alembic
+        exclude: ^bench/migrations|^bench/demo
   - repo: https://github.com/psf/black
     rev: 20.8b1
     hooks:
@@ -22,6 +22,7 @@ repos:
       - id: mypy
         name: mypy (py)
         args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip, --config-file=pyproject.toml]
+        exclude: ^bench/migrations|^bench/demo
         # TODO @Cleanup: specify additional_dependencies rather than using language: system
         #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
         #  so for now just run it in the system environment. This will probably fail in CI.

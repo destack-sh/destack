@@ -1,6 +1,6 @@
 from typing import Any, Optional
 
-from bench.backend.base import ModelHandle
+from bench.backend.base import Completion, ModelHandle
 from bench.utils.record import RecordBatch
 
 # Builtins are only called with trusted strings or in a sandbox.
@@ -10,7 +10,7 @@ from bench.utils.record import RecordBatch
 async def llm(
     model: ModelHandle,
     prompt: str,
-    return_logprobs: bool = False,
+    return_full: bool = False,
     strip: bool = True,
     **variables: dict[str, Any],
 ):
@@ -20,17 +20,21 @@ async def llm(
     if variables:
         prompt = prompt.format(**variables)
 
-    result = await model.complete(prompt)
-    if not isinstance(result, tuple):
+    # TODO @Cleanup: reduce duplication across llm builtins
+    completion = await model.complete(prompt)
+    if not isinstance(completion, dict):
         raise NotImplementedError(f"list result not supported yet: {model}")
-    completion, logprobs = result
 
     if strip:
-        completion = completion.strip()
-    if return_logprobs:
-        return completion, logprobs
-    else:
+        completion = Completion(
+            text=completion["text"].strip(),
+            logits=completion.get("logits"),
+            tokens=completion.get("tokens"),
+        )
+    if return_full:
         return completion
+    else:
+        return completion["text"]
 
 
 # noinspection StrFormat
@@ -40,7 +44,7 @@ async def llm_fewshot(
     prompt_example: str,
     prompt_input: str,
     examples: RecordBatch,
-    return_logprobs: bool = False,
+    return_full: bool = False,
     strip: bool = True,
     **variables: dict[str, Any],
 ):
@@ -56,17 +60,20 @@ async def llm_fewshot(
         prompt_prefix + "".join(prompt_example.format(**row) for row in examples) + prompt_suffix
     )
 
-    result = await model.complete(prompt)
-    if not isinstance(result, tuple):
+    completion = await model.complete(prompt)
+    if not isinstance(completion, dict):
         raise NotImplementedError(f"list result not supported yet: {model}")
-    completion, logprobs = result
 
     if strip:
-        completion = completion.strip()
-    if return_logprobs:
-        return completion, logprobs
-    else:
+        completion = Completion(
+            text=completion["text"].strip(),
+            logits=completion.get("logits"),
+            tokens=completion.get("tokens"),
+        )
+    if return_full:
         return completion
+    else:
+        return completion["text"]
 
 
 # noinspection StrFormat
@@ -78,7 +85,7 @@ async def llm_classify(
     text_key: str = "text",
     label_key: str = "label",
     label: Optional[str] = None,
-    return_logprobs: bool = False,
+    return_full: bool = False,
     **variables: dict[str, Any],
 ):
     """
@@ -93,15 +100,14 @@ async def llm_classify(
         + f"{text_key}: {text}"
     )
 
-    result = await model.complete(prompt)
-    if not isinstance(result, tuple):
+    completion = await model.complete(prompt)
+    if not isinstance(completion, dict):
         raise NotImplementedError(f"list result not supported yet: {model}")
-    label, logprobs = result
 
-    if return_logprobs:
-        return label, logprobs
+    if return_full:
+        return completion
     else:
-        return label
+        return completion["text"]
 
 
 instruction_builtins: dict = {

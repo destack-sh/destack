@@ -4,7 +4,7 @@ from typing import Union
 
 import aiohttp
 
-from bench.backend.base import ModelHandle, ModelProvider
+from bench.backend.base import Completion, ModelHandle, ModelProvider
 from bench.models import Model, ModelInferenceSettings
 
 
@@ -50,9 +50,7 @@ class OpenAIModel(ModelHandle):
     def settings_json(self):
         return self.settings.as_dict()
 
-    async def complete(
-        self, prompt: str
-    ) -> Union[tuple[str, list[float]], list[tuple[str, list[float]]]]:
+    async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
         request = {
             "model": self.model,
             "prompt": prompt,
@@ -69,8 +67,15 @@ class OpenAIModel(ModelHandle):
                 output = await response.json()
 
         outputs = [choice for choice in output["choices"]]
-        outputs = [(o["text"], o["logprobs"]) for o in outputs]
-        if len(outputs) == 1:
-            return outputs[0]
+        completions = []
+        for output in outputs:
+            completion = Completion(
+                text=output["text"],
+                logits=output.get("logprobs", {}).get("logits", None),
+                tokens=output.get("logprobs", {}).get("tokens", None),
+            )
+            completions.append(completion)
+        if len(completions) == 1:
+            return completions[0]
         else:
-            return outputs
+            return completions
