@@ -13,11 +13,6 @@ class ModelManager(models.Manager):
     pass
 
 
-class ModelType(models.TextChoices):
-    LLM = "llm"
-    LLM_TUNED = "llm_tuned"
-
-
 class ProviderKey(models.TextChoices):
     OPENAI = "openai"
     GOOSEAI = "gooseai"
@@ -32,7 +27,6 @@ class Model(TaggableMixin, UUIDModel):
     We will likely later provide our own compute for model tuning and inference.
     """
 
-    type = models.CharField(max_length=64, choices=ModelType.choices)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -44,7 +38,7 @@ class Model(TaggableMixin, UUIDModel):
     provider = models.CharField(max_length=64, choices=ProviderKey.choices)
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
-    objects = ModelManager()
+    objects: ModelManager = ModelManager()
 
     def __str__(self):
         return f"{self.name}.model@{self.id.hex}"

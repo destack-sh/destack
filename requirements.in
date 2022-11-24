@@ -13,6 +13,7 @@ channels==4.0.0
 dataclasses_json==0.5.7
 dj-database-url==1.0.0
 django-axes==5.39.0
+django_choices_field==2.1
 django-cors-headers==3.13.0
 django-filter==22.1
 django-loginas==0.3.11

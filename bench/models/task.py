@@ -27,7 +27,7 @@ class Task(TaggableMixin, UUIDModel):
     template_implementation = models.ForeignKey(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="templates"
     )
-    # implementations from/to Instruction
+    # implementations from/to Instruction (via Symbol)
 
     objects: TaskManager = TaskManager()
 
@@ -45,9 +45,10 @@ class Expectation(UUIDModel):
 
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="expectations")
     index = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     description = models.TextField()
-    instructions = models.ManyToManyField("Instruction", related_name="expectations")
-    examples_datasets = models.ManyToManyField("Dataset", related_name="expectations")
+    statements = models.ManyToManyField("Symbol", related_name="references_in_expectations+")
 
     def __str__(self):
         return (
