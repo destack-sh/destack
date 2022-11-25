@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence, cast
+from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence
 
 from asgiref.sync import sync_to_async
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
-from bench.models.tag import TaggableMixin
+from bench.models.symbol import SymbolContent
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
-class DatasetManager(models.Manager):
+class DatasetManager(models.Manager["Dataset"]):
     @transaction.atomic
     def from_list(self, name: str, records: list[dict]) -> Dataset:
         if not records:
             schema = {}
         else:
             schema = {k: type(v).__name__ for k, v in records[0].items()}
-        dataset: Dataset = cast(Dataset, self.create(name=name, schema=schema))
+        dataset = self.create(name=name, schema=schema)
         dataset.extend(records)
         return dataset
 
@@ -32,7 +32,7 @@ class DatasetSearch:
     text_like: Optional[str] = None
 
 
-class Dataset(TaggableMixin, UUIDModel):
+class Dataset(SymbolContent):
     """
     A dataset of JSON records.
 
@@ -131,6 +131,9 @@ class Dataset(TaggableMixin, UUIDModel):
     def __len__(self) -> int:
         return self.length
 
+    class Meta:
+        default_manager_name = "objects"
+
 
 class DatasetRecord(UUIDModel):
     """
@@ -143,7 +146,7 @@ class DatasetRecord(UUIDModel):
     data = models.JSONField()
 
     def __str__(self):
-        return f"{self.dataset}/{self.index}@{self.id.hex}"
+        return f"{self.dataset}@{self.id.hex}[{self.index}]"
 
     class Meta:
         # order by index ascending by default
@@ -158,14 +161,15 @@ class DatasetRecord(UUIDModel):
         ]
 
 
-class DatasetView(TaggableMixin, UUIDModel):
+class DatasetView(SymbolContent):
     """
     A view of a Dataset.
+    For re-usability, the view does not belong to the dataset but is tied to a dataset symbol.
     """
 
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="views")
+    dataset = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="views")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.dataset}[{self.name}]"
+        return f"{self.name}.view@{self.id.hex}"

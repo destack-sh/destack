@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-import cachetools
 from django.db import models
 from django.db.models import Q
 
@@ -12,7 +11,7 @@ else:
     Organization = object
 
 
-class TagManager(models.Manager):
+class TagManager(models.Manager["Tag"]):
     def of_type(self, typ: str) -> models.QuerySet:
         return Tag.objects.filter(name__startswith=typ + ":")
 
@@ -36,7 +35,7 @@ class Tag(UUIDModel):
         "bench.Organization", on_delete=models.CASCADE, related_name="tags"
     )
 
-    objects = TagManager()
+    objects: TagManager = TagManager()
 
     @property
     def type(self) -> Optional[str]:
@@ -47,27 +46,22 @@ class Tag(UUIDModel):
             return None
 
     class Meta:
+        default_manager_name = "objects"
         constraints = [models.UniqueConstraint(name="bench_tag_name", fields=["name"])]
 
 
 # Must keep in sync with the actual fields of TaggedItem.
 RELATED_FIELDS = (
-    "model",
-    "dataset",
-    "dataset_view",
-    "instruction",
     "project",
     "project_version",
-    "task",
+    "symbol",
+    "symbol_definition",
 )
 RELATED_MODELS = (
-    "Model",
-    "Dataset",
-    "DatasetView",
-    "Instruction",
+    "Symbol",
+    "SymbolDefinition",
     "Project",
     "ProjectVersion",
-    "Task",
 )
 
 
@@ -102,26 +96,17 @@ class TaggedItem(UUIDModel):
 
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="tagged_items")
 
-    model = models.ForeignKey(
-        "Model", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
-    dataset = models.ForeignKey(
-        "Dataset", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
-    dataset_view = models.ForeignKey(
-        "DatasetView", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
-    instruction = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
-    task = models.ForeignKey(
-        "Task", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    symbol = models.ForeignKey(
+        "Symbol", on_delete=models.CASCADE, related_name="tagged_items", null=True
+    )
+    symbol_definition = models.ForeignKey(
+        "SymbolDefinition", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
 
     class Meta:
@@ -135,7 +120,7 @@ class TaggableMixin:
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        # Help anyone thinking that adding 'TaggableMixin' is enough to make a model taggable.
+        # Help anyone who thinks that adding 'TaggableMixin' is enough to make a model taggable.
         if (
             hasattr(cls, "_meta")
             and cls._meta.concrete_model.__name__ not in RELATED_MODELS
@@ -177,18 +162,3 @@ def _make_tag(
         defaults=dict(description=description, metadata=metadata),
     )
     return tag
-
-
-_DEFAULT_TAG_PROPERTIES = {
-    "source:inputs": ("Artifacts representing inputs", None),
-    "source:outputs": ("Artifacts representing inputs", None),
-}
-
-
-@cachetools.cached(cache={})
-def default_tag(name: str, organization: Organization) -> Tag:
-    if name not in _DEFAULT_TAG_PROPERTIES:
-        raise ValueError(f"unknown default tag: {name}")
-
-    description, metadata = _DEFAULT_TAG_PROPERTIES[name]
-    return _make_tag(name, organization, description, metadata)

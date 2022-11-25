@@ -12,15 +12,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.types import (
-    File,
-    Organization,
-    Project,
-    ProjectVersion,
-    Symbol,
-    SymbolDefinition,
-    User,
-)
+from bench.api.types import File, Organization, Project, ProjectVersion, Symbol, User
 from bench.compiler import Compiler, CompilerOptions
 from bench.executor import Executor
 from bench.settings import DEBUG, TEST
@@ -36,7 +28,6 @@ class Query:
     projectVersion: Optional[ProjectVersion] = gql.relay.node()
     file: Optional[File] = gql.relay.node()
     symbol: Optional[Symbol] = gql.relay.node()
-    symbol_definition: Optional[SymbolDefinition] = gql.relay.node()
     organization: Optional[Organization] = gql.relay.node()
     organizationBySlug: Optional[Organization] = gql.django.field(
         resolver=models.Organization.objects.get_by_slug

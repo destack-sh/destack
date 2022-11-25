@@ -10,7 +10,8 @@ from .instruction import (
 )
 from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
-from .project import File, Project, ProjectVersion, Symbol, SymbolDefinition, SymbolType
+from .project import File, Project, ProjectVersion
+from .symbol import Symbol, SymbolContent, SymbolDefinition, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
 from .task import Expectation, Task
 from .user import User
@@ -32,8 +33,9 @@ __all__ = [
     "Project",
     "ProjectVersion",
     "File",
-    "Symbol",
     "SymbolType",
+    "SymbolContent",
+    "Symbol",
     "SymbolDefinition",
     "User",
     "Dataset",

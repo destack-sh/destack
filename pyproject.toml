@@ -22,6 +22,10 @@ module = "gunicorn"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "django_choices_field"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "fsspec"
 ignore_missing_imports = true
 

@@ -4,7 +4,7 @@ from django.db import models
 from bench.models.utils import UUIDModel
 
 
-class OrganizationManager(models.Manager):
+class OrganizationManager(models.Manager["Organization"]):
     def get_by_slug(self, organization: str):
         return self.get(slug=organization)
 
@@ -32,6 +32,9 @@ class Organization(UUIDModel):
 
     def __str__(self):
         return self.slug
+
+    class Meta:
+        default_manager_name = "objects"
 
 
 class OrganizationMembership(UUIDModel):

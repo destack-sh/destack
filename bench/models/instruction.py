@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
 
-from bench.models.tag import TaggableMixin
+from bench.models.symbol import SymbolContent
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel
 
 
@@ -28,7 +28,7 @@ class InstructionScope(models.TextChoices):
     FUNCTION = "function", "Function"
 
 
-class Instruction(TaggableMixin, UUIDModel):
+class Instruction(SymbolContent):
     """
     Instructions specify how to do something using datasets, models and other instructions.
     Like in software, Instructions form a tree and are implemented as code with some syntactic sugar.
@@ -38,9 +38,9 @@ class Instruction(TaggableMixin, UUIDModel):
     Instructions may contain and use other instructions, forming an instruction tree.
     """
 
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    root = models.ForeignKey(
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="descendants"
+    )
     parent = models.ForeignKey(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="children"
     )
@@ -129,10 +129,11 @@ class Instruction(TaggableMixin, UUIDModel):
             raise ValueError(f"instruction {self} must have either builtin_id or code")
 
     class Meta:
+        ordering = ["index"]
         constraints = [
             # ensure either builtin_id or code is set
             models.CheckConstraint(
-                name="bench_instruction_code_id_xor_code_ck",
+                name="bench_instruction_builtin_id_xor_code_ck",
                 check=(models.Q(builtin_id__isnull=False) ^ models.Q(code__isnull=False)),
             ),
             # ensure index into parent is unique
@@ -196,8 +197,10 @@ class InstructionParameter(UUIDModel):
 class InstructionArgument(UUIDModel):
     """
     An argument is value bound to an instruction, usually to an instruction parameter.
-    If there is no corresponding parameter the argument is an anonymous import.
-    An argument can be a model, a dataset, an instruction or a plain JSON value.
+    An argument can be a reference to a symbol or a specific value.
+
+    Note: if there is no corresponding parameter the argument is an anonymous import. This
+     doesn't seem perfect, but works for now.
     """
 
     instruction_bound = models.ForeignKey(
@@ -210,7 +213,7 @@ class InstructionArgument(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
-    value_reference = models.ForeignKey("Symbol", on_delete=models.CASCADE, null=True)
+    reference = models.ForeignKey("Symbol", on_delete=models.CASCADE, null=True)
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):
