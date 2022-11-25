@@ -185,6 +185,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     )
     # files via ProjectFile
     # definitions via SymbolDefinition
+    libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
     program: models.ForeignKey = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="projects"
     )
@@ -206,6 +207,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         if definitions:
             file.definitions.set(definitions)
         return file
+
+    def resolve(self, symbol: Symbol) -> Optional[SymbolDefinition]:
+        """
+        Resolve a symbol to a definition in this project version.
+        If the symbol isn't defined here, we check the imported libraries.
+        """
+        return symbol.resolve(self)
 
     def reset(self):
         # deletes all our references and definitions but not their contents
@@ -241,14 +249,13 @@ class File(UUIDModel):
     A file defining symbols for a project version, potentially containing other files if it's a folder.
     """
 
-    project_version: models.ForeignKey = models.ForeignKey(
+    project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
 
     is_folder = models.BooleanField(default=False)
     parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
-
     # definitions via SymbolDefinition
     # files via File (if in a folder)
 
@@ -264,12 +271,16 @@ class File(UUIDModel):
         definition.save()
 
     def create_definition(
-        self, content: SymbolContent, symbol: Optional[Symbol] = None
+        self,
+        content: SymbolContent,
+        symbol: Optional[Symbol] = None,
+        parent: Optional[SymbolDefinition] = None,
     ) -> SymbolDefinition:
         definition = SymbolDefinition.objects.create_definition(
-            project_version=self.project_version,
             content=content,
+            project_version=self.project_version,
             symbol=symbol,
+            parent=parent,
             file=self,
             index=self.definitions.count(),
         )

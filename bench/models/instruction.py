@@ -38,17 +38,9 @@ class Instruction(SymbolContent):
     Instructions may contain and use other instructions, forming an instruction tree.
     """
 
-    root = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="descendants"
-    )
-    parent = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="children"
-    )
-    index = models.IntegerField(default=0)
     task = models.ForeignKey(
         "Symbol", on_delete=models.CASCADE, null=True, related_name="implementations"
     )
-
     scope: models.CharField = models.CharField(
         max_length=64, choices=InstructionScope.choices, default=InstructionScope.FUNCTION
     )
@@ -63,23 +55,34 @@ class Instruction(SymbolContent):
         return f"{self.name}.instruct@{self.id.hex}"
 
     def add_parameter(
-        self, name: str, type: InstructionParameterType, exists_ok: bool = False
+        self,
+        name: str,
+        type: InstructionParameterType,
+        exists_ok: bool = False,
+        schema: Optional[dict] = None,
     ) -> InstructionParameter:
         if exists_ok:
             parameter, created = InstructionParameter.objects.get_or_create(
-                instruction=self, name=name, defaults={"type": type}
+                instruction=self, name=name, defaults={"type": type, "schema": schema}
             )
             if not created:
                 parameter.type = type
+                parameter.schema = schema
                 parameter.save()
             return parameter
         else:
-            return InstructionParameter.objects.create(instruction=self, name=name, type=type)
+            return InstructionParameter.objects.create(
+                instruction=self, name=name, type=type, schema=schema
+            )
 
     async def aadd_parameter(
-        self, name: str, type: InstructionParameterType, exists_ok: bool = False
+        self,
+        name: str,
+        type: InstructionParameterType,
+        exists_ok: bool = False,
+        schema: Optional[dict] = None,
     ) -> InstructionParameter:
-        return await sync_to_async(self.add_parameter)(name, type, exists_ok)
+        return await sync_to_async(self.add_parameter)(name, type, exists_ok, schema)
 
     @transaction.atomic
     def bind_argument(
@@ -129,17 +132,11 @@ class Instruction(SymbolContent):
             raise ValueError(f"instruction {self} must have either builtin_id or code")
 
     class Meta:
-        ordering = ["index"]
         constraints = [
             # ensure either builtin_id or code is set
             models.CheckConstraint(
                 name="bench_instruction_builtin_id_xor_code_ck",
                 check=(models.Q(builtin_id__isnull=False) ^ models.Q(code__isnull=False)),
-            ),
-            # ensure index into parent is unique
-            models.UniqueConstraint(
-                name="bench_instruction_parent_index_uk",
-                fields=["parent", "index"],
             ),
         ]
 
