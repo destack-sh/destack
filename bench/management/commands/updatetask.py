@@ -16,6 +16,7 @@ from bench.models.instruction import InstructionParameterType, InstructionScope
 
 @dataclass
 class TaskFileSegment:
+    virtual_path: str
     header: str
     lines: list[str]
     source_index: int
@@ -279,13 +280,19 @@ class Command(BaseCommand):
         # parse all bench segments from lines (look like this # @bench ... # @/bench)
         segments: list[TaskFileSegment] = []
         segment: Optional[TaskFileSegment] = None
+        virtual_path = "main"  # default to main
         for i, line in enumerate(lines):
-            if "@bench" in line:
+            if "@path" in line:
+                # parse path like # @path <path>
+                virtual_path = line[line.find("@path") + 5 :].strip()
+            if "@symbol" in line:
                 if segment is not None:
                     # close previous segment
                     segments.append(segment)
                 # start new segment
-                segment = TaskFileSegment(header=line[8:].strip(), lines=[], source_index=i)
+                segment = TaskFileSegment(
+                    virtual_path=virtual_path, header=line[8:].strip(), lines=[], source_index=i
+                )
             elif segment is not None:
                 segment.lines.append(line)
         if segment is None:
