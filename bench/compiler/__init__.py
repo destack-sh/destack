@@ -36,13 +36,13 @@ def get_backend_model(backend: str) -> Model:
     """
     owner_slug, model_name = backend.split("/")
     organization = Organization.objects.get(slug=owner_slug)
-    backends_library = organization.projects.get(slug="backends")
-    backends_version = backends_library.head
-    if backends_version is None:
-        raise ValueError(f"backends library {backends_library} has no head")
-    model = backends_version.files.get(type=SymbolType.MODEL, name=model_name).model
+    stdlib = organization.projects.get(slug="stdlib")
+    stdlib_v = stdlib.head
+    if stdlib_v is None:
+        raise ValueError(f"backends library {stdlib} has no head")
+    model = stdlib_v.files.get(type=SymbolType.MODEL, name=model_name).model
     if model is None:
-        raise ValueError(f"backends library {backends_version} has no model {model_name}")
+        raise ValueError(f"backends library {stdlib_v} has no model {model_name}")
     return model
 
 

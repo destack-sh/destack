@@ -5,12 +5,8 @@ from collections import OrderedDict
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from bench.models.tag import TaggableMixin
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel, UUIDTModel
-
-
-class ModelManager(models.Manager):
-    pass
+from bench.models.symbol import SymbolContent
+from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDModel, UUIDTModel
 
 
 class ProviderKey(models.TextChoices):
@@ -19,7 +15,7 @@ class ProviderKey(models.TextChoices):
     AI21 = "ai21"
 
 
-class Model(TaggableMixin, UUIDModel):
+class Model(SymbolContent):
     """
     A model is a language model provided and stored elsewhere.
 
@@ -27,21 +23,18 @@ class Model(TaggableMixin, UUIDModel):
     We will likely later provide our own compute for model tuning and inference.
     """
 
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
     baseline = models.ForeignKey(
         "Model", on_delete=models.CASCADE, null=True, related_name="derivatives"
     )
     provider = models.CharField(max_length=64, choices=ProviderKey.choices)
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
-    objects: ModelManager = ModelManager()
-
     def __str__(self):
         return f"{self.name}.model@{self.id.hex}"
+
+    class Meta:
+        default_manager_name = "objects"
 
 
 class ModelInferenceSettings(UUIDModel):

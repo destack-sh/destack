@@ -1,7 +1,10 @@
-type Dataset implements Node {
+type Dataset implements SymbolContent & Node {
   id: GlobalID!
   name: String!
   createdAt: DateTime!
+  updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
   schema: JSON
   length: Int!
   records: [DatasetRecord!]!
@@ -13,11 +16,14 @@ type DatasetRecord implements Node {
   data: JSON!
 }
 
-type DatasetView implements Node {
+type DatasetView implements SymbolContent & Node {
   id: GlobalID!
   name: String!
   createdAt: DateTime!
-  dataset: Dataset!
+  updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
+  dataset: Symbol!
 }
 
 """Date with time (isoformat)"""
@@ -30,8 +36,7 @@ type Expectation implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   description: String!
-  instructions: [Symbol!]!
-  examplesDatasets: [Symbol!]!
+  statements: [Symbol!]!
 }
 
 type File implements Node {
@@ -49,11 +54,13 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
-type Instruction implements Node {
+type Instruction implements SymbolContent & Node {
   id: GlobalID!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
   parent: Instruction
   children: [Instruction!]!
   index: Int!
@@ -61,6 +68,38 @@ type Instruction implements Node {
   scope: String!
   builtinId: String
   code: String
+  parameters: [InstructionParameter!]!
+  arguments: [InstructionArgument!]!
+}
+
+type InstructionArgument implements Node {
+  id: GlobalID!
+  instructionBound: Instruction!
+  instructionFree: Instruction!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  type: String!
+  reference: Symbol!
+  value: JSON
+}
+
+type InstructionParameter implements Node {
+  id: GlobalID!
+  instruction: Instruction!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  type: InstructionParameterType!
+  schema: JSON
+}
+
+"""An enumeration."""
+enum InstructionParameterType {
+  DATASET
+  MODEL
+  INSTRUCTION
+  JSON
 }
 
 """
@@ -68,11 +107,13 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
-type Model implements Node {
+type Model implements SymbolContent & Node {
   id: GlobalID!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
   baseline: Model
   provider: String!
 }
@@ -143,6 +184,7 @@ type Project implements Node {
   updatedAt: DateTime!
   head: ProjectVersion!
   versions: [ProjectVersion!]!
+  version(versionId: UUID!): ProjectVersion
 }
 
 """A connection to a list of items."""
@@ -172,11 +214,12 @@ type ProjectVersion implements Node {
   name: String
   description: String
   parents: [ProjectVersion!]!
+  children: [ProjectVersion!]!
   createdAt: DateTime!
   committedAt: DateTime
   program: Task
   files: [File!]!
-  references: [ProjectVersion!]!
+  definitions: [SymbolDefinition!]!
 }
 
 type Query {
@@ -227,10 +270,6 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): Symbol
-  symbolDefinition(
-    """The ID of the object."""
-    id: GlobalID!
-  ): SymbolDefinition
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -255,6 +294,16 @@ type Symbol implements Node {
   id: GlobalID!
   project: Project!
   type: SymbolType!
+  definition(projectVersionId: UUID!): SymbolDefinition
+}
+
+interface SymbolContent implements Node {
+  id: GlobalID!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
 }
 
 type SymbolDefinition implements Node {
@@ -263,12 +312,12 @@ type SymbolDefinition implements Node {
   projectVersion: ProjectVersion!
   name: String!
   type: SymbolType!
+  nameDotType: String!
   file: File!
   index: Int
   createdAt: DateTime!
   updatedAt: DateTime!
   content: TaskInstructionModelDatasetDatasetView!
-  nameDotType: String!
 }
 
 """The type of symbol to define in a project."""
@@ -280,11 +329,13 @@ enum SymbolType {
   DATASET_VIEW
 }
 
-type Task implements Node {
+type Task implements SymbolContent & Node {
   id: GlobalID!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
   parent: Task
   index: Int!
   children: [Task!]!

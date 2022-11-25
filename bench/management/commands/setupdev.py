@@ -3,9 +3,9 @@ import datetime
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
-from bench.models import Model, ModelType, Organization, Project, ProjectFileType
+from bench.models import Model, Organization, Project
 from bench.models.model import ModelInferenceSettings, ProviderKey
-from bench.models.project import ProjectType
+from bench.models.project import ProjectType, ProjectVersion
 from bench.models.user import User
 
 TEST_USER_EMAIL = "test@symbolx.com"
@@ -72,8 +72,8 @@ class Command(BaseCommand):
                 )
                 library = Project.objects.create_project(
                     organization,
-                    f"{provider['name']} backends",
-                    "backends",
+                    f"{provider['name']} standard library",
+                    "stdlib",
                     type=ProjectType.LIBRARY,
                 )
                 self.stdout.write(self.style.SUCCESS(f"Created provider: {organization}"))
@@ -82,8 +82,8 @@ class Command(BaseCommand):
 
             # version with current month format like 2022.11
             version_id = datetime.datetime.now().strftime("%Y.%m")
-            library_version = library.head  # just advance head
-            if library_version.name == version_id:
+            library_v: ProjectVersion = library.head  # just advance head
+            if library_v.name == version_id:
                 # skip if version already exists
                 continue
 
@@ -91,16 +91,15 @@ class Command(BaseCommand):
             for model_id in provider["models"]:
                 provider_key = ProviderKey[provider["slug"].upper()]  # type: ignore
                 model = Model.objects.create(
-                    type=ModelType.LLM,
                     name=model_id,
                     provider=provider_key,
                     default_settings=ModelInferenceSettings.objects.create(),
                 )
-                library_version.files.create(type=ProjectFileType.MODEL, name=model_id, model=model)
-            library_version.commit(version_id)
+                library_v.create_file(name=model_id).create_definition(model)
+            library_v.commit(version_id)
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Created provider library {library_version} with models: {provider['models']}"
+                    f"Created provider library {library_v} with models: {provider['models']}"
                 )
             )

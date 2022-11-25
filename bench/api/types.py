@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Optional, Union
+from uuid import UUID
 
 import strawberry
 from strawberry import auto
-from strawberry_django_plus import gql
+from strawberry_django_plus import gql, relay
 
+import bench.models.symbol
 from bench import models
 
 
@@ -38,7 +40,11 @@ class Project(gql.Node):
     created_at: auto
     updated_at: auto
     head: ProjectVersion
-    versions: list[ProjectVersion]
+    versions_connection: relay.Connection[ProjectVersion] = relay.connection()
+
+    @strawberry.field()
+    def version(self, version_id: UUID) -> Optional[ProjectVersion]:
+        return self.versions.all().filter(id=version_id).first()
 
 
 @gql.django.type(models.ProjectVersion)
@@ -47,16 +53,17 @@ class ProjectVersion(gql.Node):
     name: auto
     description: auto
     parents: list[ProjectVersion]
+    children: list[ProjectVersion]
     created_at: auto
     committed_at: auto
     program: Optional[Task]
     files: list[File]
-    references: list[ProjectVersion]
+    definitions: list[SymbolDefinition]
 
 
 @gql.django.type(models.File)
 class File(gql.Node):
-    project_version: ProjectVersion = gql.django.field()
+    project_version: ProjectVersion
     name: auto
     is_folder: auto
     parent: Optional[File]  # containing folder
@@ -64,34 +71,43 @@ class File(gql.Node):
     definitions: list[SymbolDefinition]  # if file
 
 
-@gql.django.type(models.Symbol)
+@gql.django.type(bench.models.symbol.Symbol)
 class Symbol(gql.Node):
     project: Project
     type: auto
 
+    @strawberry.field()
+    def definition(self, project_version_id: UUID) -> Optional[SymbolDefinition]:
+        return bench.models.symbol.SymbolDefinition.objects.get(
+            symbol_id=self.id, project_version_id=project_version_id
+        )
 
-@gql.django.type(models.SymbolDefinition)
+
+@gql.django.type(bench.models.symbol.SymbolDefinition)
 class SymbolDefinition(gql.Node):
     symbol: Symbol
     project_version: ProjectVersion
     name: auto
     type: auto
+    name_dot_type: auto
     file: File
     index: auto
     created_at: auto
     updated_at: auto
     content: Union[Task, Instruction, Model, Dataset, DatasetView]
 
-    @strawberry.field
-    def name_dot_type(self) -> str:
-        return f"{self.name}.{self.type}"
 
-
-@gql.django.type(models.Task)
-class Task(gql.Node):
+@gql.django.interface(models.SymbolContent)
+class SymbolContent(gql.Node):
     name: auto
     created_at: auto
     updated_at: auto
+    committed_in: Optional[ProjectVersion]
+    committed: auto
+
+
+@gql.django.type(models.Task)
+class Task(SymbolContent):
     parent: Optional[Task]
     index: auto
     children: list[Task]
@@ -108,15 +124,11 @@ class Expectation(gql.Node):
     created_at: auto
     updated_at: auto
     description: auto
-    instructions: list[Symbol]
-    examples_datasets: list[Symbol]
+    statements: list[Symbol]
 
 
 @gql.django.type(models.Instruction)
-class Instruction(gql.Node):
-    name: auto
-    created_at: auto
-    updated_at: auto
+class Instruction(SymbolContent):
     parent: Optional[Instruction]
     children: list[Instruction]
     index: auto
@@ -124,6 +136,8 @@ class Instruction(gql.Node):
     scope: auto
     builtin_id: auto
     code: auto
+    parameters: list[InstructionParameter]
+    arguments: list[InstructionArgument]
 
 
 @gql.django.type(models.InstructionParameter)
@@ -144,23 +158,18 @@ class InstructionArgument(gql.Node):
     created_at: auto
     updated_at: auto
     type: auto
-    value_reference: auto
+    reference: Symbol
     value: auto
 
 
 @gql.django.type(models.Model)
-class Model(gql.Node):
-    name: auto
-    created_at: auto
-    updated_at: auto
+class Model(SymbolContent):
     baseline: Optional[Model]
     provider: auto
 
 
 @gql.django.type(models.Dataset)
-class Dataset(gql.Node):
-    name: auto
-    created_at: auto
+class Dataset(SymbolContent):
     schema: auto
     length: auto
     records: list[DatasetRecord]
@@ -173,7 +182,5 @@ class DatasetRecord(gql.Node):
 
 
 @gql.django.type(models.DatasetView)
-class DatasetView(gql.Node):
-    name: auto
-    created_at: auto
-    dataset: Dataset
+class DatasetView(SymbolContent):
+    dataset: Symbol

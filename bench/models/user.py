@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -10,7 +10,7 @@ from bench.models.organization import OrganizationMembership
 from bench.models.utils import UUIDModel
 
 
-class UserManager(BaseUserManager[AbstractUser]):
+class UserManager(BaseUserManager["User"]):
     use_in_migrations = True
 
     def bootstrap(
@@ -49,7 +49,7 @@ class UserManager(BaseUserManager[AbstractUser]):
         if password is not None:
             user.set_password(password)
         user.save()
-        return cast(User, user)
+        return user
 
 
 class User(AbstractUser, UUIDModel):
@@ -73,3 +73,6 @@ class User(AbstractUser, UUIDModel):
             user=self, organization=organization, level=level
         )
         return membership
+
+    class Meta:
+        default_manager_name = "objects"

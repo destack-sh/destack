@@ -1,14 +1,14 @@
 from django.db import models
 
-from bench.models import TaggableMixin
-from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
+from bench.models.symbol import SymbolContent
+from bench.models.utils import UUIDModel
 
 
-class TaskManager(models.Manager):
+class TaskManager(models.Manager["Task"]):
     pass
 
 
-class Task(TaggableMixin, UUIDModel):
+class Task(SymbolContent):
     """
     A task describes the interface and desired behaviour of an instruction.
 
@@ -16,9 +16,9 @@ class Task(TaggableMixin, UUIDModel):
     Sub-tasks define smaller tasks which are composed or represented by the parent task.
     """
 
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    root = models.ForeignKey(
+        "Task", on_delete=models.CASCADE, null=True, related_name="descendants"
+    )
     parent = models.ForeignKey("Task", on_delete=models.CASCADE, null=True, related_name="children")
     index = models.IntegerField(default=0)
 
@@ -33,6 +33,10 @@ class Task(TaggableMixin, UUIDModel):
 
     def __str__(self):
         return f"{self.name}.task@{self.id.hex}"
+
+    class Meta:
+        default_manager_name = "objects"
+        ordering = ["index"]
 
 
 class Expectation(UUIDModel):
