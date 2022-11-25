@@ -12,7 +12,6 @@ from bench.executor import Executor
 from bench.executor.builtins import instruction_builtins
 from bench.models import Dataset, Instruction, Organization, Project, Task
 from bench.models.instruction import InstructionParameterType, InstructionScope
-from bench.models.project import ProjectFileType
 
 
 @dataclass
@@ -28,7 +27,7 @@ class TaskFileSegment:
 
 
 class Command(BaseCommand):
-    help = "Loads a task from a file into a project"
+    help = "Loads a task definition from a file into a project"
 
     def add_arguments(self, parser: CommandParser):
         # project as organization/project
@@ -242,7 +241,7 @@ class Command(BaseCommand):
                 # just use python type as schema for now
                 param_schema = param_type
                 param_type = InstructionParameterType.JSON
-            instruction.parameters.create(
+            instruction.add_parameter(
                 name=param_name,
                 type=param_type,
                 schema=param_schema,
@@ -267,17 +266,10 @@ class Command(BaseCommand):
                     raise NotImplementedError(
                         f"generic model argument resolution not implemented yet: {line}"
                     )
-                instruction.arguments.create(
-                    name=param_name,
-                    type=InstructionParameterType.MODEL,
-                    model=model,
-                )
+                instruction.bind_argument(param_name, model)
             elif param_type == InstructionParameterType.INSTRUCTION:
-                instruction.arguments.create(
-                    name=param_name,
-                    type=InstructionParameterType.INSTRUCTION,
-                    instruction=instructions[param_name],
-                )
+                instruction = instructions[param_name]
+                instruction.bind_argument(param_name, instruction)
             elif param_type == InstructionParameterType.JSON:
                 raise NotImplementedError(f"json argument resolution not implemented yet: {line}")
             else:

@@ -5,7 +5,7 @@ from uuid import UUID
 
 import strawberry
 from strawberry import auto
-from strawberry_django_plus import gql, relay
+from strawberry_django_plus import gql
 
 import bench.models.symbol
 from bench import models
@@ -40,7 +40,7 @@ class Project(gql.Node):
     created_at: auto
     updated_at: auto
     head: ProjectVersion
-    versions_connection: relay.Connection[ProjectVersion] = relay.connection()
+    versions: list[ProjectVersion]  # TODO @Cleanup: use relay connections
 
     @strawberry.field()
     def version(self, version_id: UUID) -> Optional[ProjectVersion]:
@@ -78,9 +78,7 @@ class Symbol(gql.Node):
 
     @strawberry.field()
     def definition(self, project_version_id: UUID) -> Optional[SymbolDefinition]:
-        return bench.models.symbol.SymbolDefinition.objects.get(
-            symbol_id=self.id, project_version_id=project_version_id
-        )
+        return self.resolve(project_version_id)
 
 
 @gql.django.type(bench.models.symbol.SymbolDefinition)
@@ -91,10 +89,12 @@ class SymbolDefinition(gql.Node):
     type: auto
     name_dot_type: auto
     file: File
+    parent: Optional[Symbol]
+    children: list[Symbol]
     index: auto
     created_at: auto
     updated_at: auto
-    content: Union[Task, Instruction, Model, Dataset, DatasetView]
+    content: Union[Task, Expectation, Instruction, Model, Dataset, DatasetView]
 
 
 @gql.django.interface(models.SymbolContent)
@@ -108,30 +108,29 @@ class SymbolContent(gql.Node):
 
 @gql.django.type(models.Task)
 class Task(SymbolContent):
-    parent: Optional[Task]
-    index: auto
-    children: list[Task]
     schema: auto
-    expectations: list[Expectation]
-    template_implementation: Optional[Instruction]
+    expectations: list[Symbol]
+    template_implementation: Optional[Symbol]
     implementations: list[Symbol]
 
 
 @gql.django.type(models.Expectation)
-class Expectation(gql.Node):
+class Expectation(SymbolContent):
     task: Task
-    index: auto
     created_at: auto
     updated_at: auto
     description: auto
-    statements: list[Symbol]
+    statements: list[ExpectationStatement]
+
+
+@gql.django.type(models.ExpectationStatement)
+class ExpectationStatement(gql.Node):
+    expectation: Expectation
+    statement: Symbol
 
 
 @gql.django.type(models.Instruction)
 class Instruction(SymbolContent):
-    parent: Optional[Instruction]
-    children: list[Instruction]
-    index: auto
     task: Optional[Symbol]
     scope: auto
     builtin_id: auto

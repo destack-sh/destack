@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from typing import TYPE_CHECKING, Optional, Union
+from uuid import UUID
 
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
@@ -11,7 +12,7 @@ from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import Dataset, DatasetView, Instruction, Model, Task
+    from bench.models import Dataset, DatasetView, Expectation, Instruction, Model, Task
     from bench.models.project import ProjectVersion
 
 
@@ -21,6 +22,7 @@ class SymbolType(models.TextChoices):
     """
 
     TASK = "task", "Task"
+    EXPECTATION = "expect", "Expectation"
     INSTRUCTION = "instruct", "Instruction"
     MODEL = "model", "Model"
     DATASET = "data", "Dataset"
@@ -41,11 +43,28 @@ class Symbol(TaggableMixin, UUIDModel):
     def __str__(self):
         return f"{self.project}/{self.id.hex}.{self.type}"
 
-    def resolve(self, project_version: ProjectVersion) -> Optional[SymbolDefinition]:
+    def resolve(self, project_version: ProjectVersion | UUID) -> Optional[SymbolDefinition]:
         """
         Resolve the symbol to a definition in the given project version.
         """
-        return self.definitions.filter(project_version=project_version).first()
+        if isinstance(project_version, ProjectVersion):
+            project_version = project_version.id
+
+        # TODO @Architecture @Performance: revisit symbol resolution logic
+        #  Symbol resolution should likely be baked into our GraphQL API for optimal performance.
+        #  (hook into strawberry_django_plus query optimizer).
+        #  Right now this resolution is N+1. Not enough info to implement this better yet.
+        definition = SymbolDefinition.objects.filter(
+            project_version_id=project_version, symbol=self
+        ).first()
+        if not definition:
+            libraries = ProjectVersion.objects.filter(id=project_version).values_list(
+                "libraries__id", flat=True
+            )
+            definition = SymbolDefinition.objects.filter(
+                project_version__in=libraries, symbol=self
+            ).first()
+        return definition
 
 
 class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
@@ -75,9 +94,7 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
             raise ValueError(f"unexpected symbol content: {content}")
         if symbol is None:
             symbol = Symbol.objects.create(project=project_version.project, type=kwargs["type"])
-        return self.create(
-            name=content.name, symbol=symbol, project_version=project_version, **kwargs
-        )
+        return self.create(symbol=symbol, project_version=project_version, **kwargs)
 
     def resolve(
         self, project_version: ProjectVersion, symbol: Symbol
@@ -99,15 +116,20 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="definitions"
     )
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=SymbolType)
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="definitions")
-    index = models.IntegerField(null=True)  # index into file
+    parent = models.ForeignKey(
+        "SymbolDefinition", on_delete=models.CASCADE, null=True, related_name="children"
+    )
+    index = models.IntegerField(null=True)  # index into file or parent if nested
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     task = models.ForeignKey(
         "Task", on_delete=models.RESTRICT, null=True, related_name="definitions"
+    )
+    expectation = models.ForeignKey(
+        "Expectation", on_delete=models.RESTRICT, null=True, related_name="definitions"
     )
     instruction = models.ForeignKey(
         "Instruction", on_delete=models.RESTRICT, null=True, related_name="definitions"
@@ -125,17 +147,23 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     def __str__(self):
         return f"{self.symbol}={self.name_dot_type}@{self.id.hex}"
 
-    @gql.model_property(only=["name", "type"])
+    @gql.model_property(only=["content"], select_related=["content"])
+    def name(self) -> str:
+        return self.content.name
+
+    @gql.model_property(only=["content", "type"], select_related=["content"])
     def name_dot_type(self) -> str:
-        return f"{self.name}.{self.type}"
+        return f"{self.content.name}.{self.type}"
 
     @gql.model_cached_property(
-        only=["type", "task", "instruction", "model", "dataset", "dataset_view"],
-        select_related=["task", "instruction", "model", "dataset", "dataset_view"],
+        only=["type"],
+        select_related=["task", "expectation", "instruction", "model", "dataset", "dataset_view"],
     )
-    def content(self) -> Union[Task, Instruction, Model, Dataset, DatasetView]:
+    def content(self) -> Union[Task, Expectation, Instruction, Model, Dataset, DatasetView]:
         if self.type == SymbolType.TASK:
             content = self.task
+        elif self.type == SymbolType.EXPECTATION:
+            content = self.expectation
         elif self.type == SymbolType.INSTRUCTION:
             content = self.instruction
         elif self.type == SymbolType.MODEL:
@@ -155,6 +183,7 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
 
     class Meta:
         default_manager_name = "objects"
+        ordering = ["index", "created_at"]
         constraints = [
             # symbol can only be defined once per project version
             models.UniqueConstraint(
@@ -165,6 +194,10 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
             models.UniqueConstraint(
                 name="bench_symbol_definition_task_project_version_ak",
                 fields=["task", "project_version"],
+            ),
+            models.UniqueConstraint(
+                name="bench_symbol_definition_expectation_project_version_ak",
+                fields=["expectation", "project_version"],
             ),
             models.UniqueConstraint(
                 name="bench_symbol_definition_instruction_project_version_ak",
@@ -182,12 +215,23 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
                 name="bench_symbol_definition_dataset_view_project_version_ak",
                 fields=["dataset_view", "project_version"],
             ),
+            # ensure unique index within file or parent
+            models.UniqueConstraint(
+                name="bench_symbol_definition_file_index_ak",
+                fields=["file", "index"],
+                condition=models.Q(parent__isnull=True),
+            ),
+            models.UniqueConstraint(
+                name="bench_symbol_definition_parent_index_ak",
+                fields=["parent", "index"],
+                condition=models.Q(parent__isnull=False),
+            ),
         ]
 
 
 class SymbolContent(UUIDModel):
     """
-    The content of a symbol definition. This is what SymbolDefinition.content points to.
+    The content of a symbol definition. This is the interface that SymbolDefinition.content points to.
     Symbol definitions are mutable until committed.
     """
 
