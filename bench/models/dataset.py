@@ -14,17 +14,17 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 class DatasetManager(models.Manager["Dataset"]):
     @transaction.atomic
-    def from_list(self, name: str, records: list[dict]) -> Dataset:
+    def from_list(self, records: list[dict]) -> Dataset:
         if not records:
             schema = {}
         else:
             schema = {k: type(v).__name__ for k, v in records[0].items()}
-        dataset = self.create(name=name, schema=schema)
+        dataset = self.create(schema=schema)
         dataset.extend(records)
         return dataset
 
-    async def afrom_list(self, name: str, records: list[dict]) -> Dataset:
-        return await sync_to_async(self.from_list)(name, records)
+    async def afrom_list(self, records: list[dict]) -> Dataset:
+        return await sync_to_async(self.from_list)(records)
 
 
 @dataclasses.dataclass
@@ -39,9 +39,6 @@ class Dataset(SymbolContent):
     Datasets include machine learning datasets, function inputs/outputs, lexicons.
     """
 
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
-
     # records from DatasetRecord.dataset
     # annotations from DatasetAnnotation.dataset
     schema = models.JSONField(null=True, blank=True)
@@ -50,7 +47,7 @@ class Dataset(SymbolContent):
     objects: DatasetManager = DatasetManager()
 
     def __str__(self):
-        return f"{self.name}.data@{self.id.hex}"
+        return f"data@{self.id.hex}"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -168,8 +165,6 @@ class DatasetView(SymbolContent):
     """
 
     dataset = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="views")
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name}.view@{self.id.hex}"
+        return f"view@{self.id.hex}"

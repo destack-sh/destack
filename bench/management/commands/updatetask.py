@@ -1,5 +1,5 @@
-import typing
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Optional
 
 from asgiref.sync import async_to_sync
@@ -10,16 +10,43 @@ from django.db import transaction
 from bench.compiler import get_backend_model
 from bench.executor import Executor
 from bench.executor.builtins import instruction_builtins
-from bench.models import Dataset, Instruction, Organization, Project, Task
-from bench.models.instruction import InstructionParameterType, InstructionScope
+from bench.models import (
+    Dataset,
+    Expectation,
+    Instruction,
+    Organization,
+    Project,
+    ProjectVersion,
+    SymbolContent,
+    SymbolType,
+    Task,
+)
+from bench.models.instruction import InstructionParameterType
 
 
 @dataclass
-class TaskFileSegment:
+class FileSegment:
     virtual_path: str
-    header: str
+    header: str  # in the format <symbol_type> [key=value]*: <name>
     lines: list[str]
     source_index: int
+
+    @cached_property
+    def symbol_name(self) -> str:
+        return self.header.split(":")[1].strip()
+
+    @cached_property
+    def symbol_type(self) -> SymbolType:
+        symbol_type = self.header.split(":")[0].split(" ")[0]
+        try:
+            return SymbolType(symbol_type)
+        except ValueError:
+            raise ValueError(f"unknown symbol type {symbol_type}")
+
+    @cached_property
+    def symbol_args(self) -> dict[str, str]:
+        args = self.header.split(":")[0].split(" ")[1:]
+        return {arg.split("=")[0]: arg.split("=")[1] for arg in args}
 
     @property
     def full_code(self):
@@ -54,14 +81,11 @@ class Command(BaseCommand):
 
         segments = self.parse_task_file_segments(lines)
 
-        new_version = project.create_version()
-        new_version.reset()
+        project_v = project.create_version()
+        project_v.reset()
         executor = Executor()
 
         # convert segments to a single task definition tree
-        tasks: dict[str, Task] = {}
-        instructions: dict[str, Instruction] = {}
-        datasets: dict[str, Dataset] = {}
         for segment in segments:
             if segment.header.startswith("ignore"):
                 continue
@@ -78,132 +102,136 @@ class Command(BaseCommand):
                         )
                 return definitions[name]
 
-            def _get_relevant_code(definition: typing.Callable):
-                # this only works for functions
-                relevant_lines = []
-
-                in_def = False
-                # find first line index where def definition.__name__ is
-                # then get all lines following definition until indent is gone
-                for line in segment.lines:
-                    if "def " + definition.__name__ in line:
-                        in_def = True
-                    if not in_def:
-                        continue
-                    # exit when we're out
-                    if "def " not in line and not line.startswith("   ") and not line.strip() == "":
-                        break
-                    relevant_lines.append(line)
-
-                # code already contains newlines
-                return "".join(relevant_lines)
-
-            # The current headers are task, instruct, dataset
-            # in the form <header> *args: <name>,[<name>,...]
-            args_str, names_str = segment.header.split(":", 1)
-            args = args_str.split(" ")
-            names = names_str.strip().split(",")
-            del names_str  # prevent accidental use
-            if args[0] == "task":
-                name = names[0].strip()
-                schema = _get_definition("schema")
-                task = Task.objects.create(
-                    name=name,
-                    schema=schema,
-                )
-                tasks[name] = task
-                self.stdout.write(f"Created task {task}")
-            elif args[0] == "instruct":
-                # parse header "instruction [args]: <name>[,<name>...]"
-                for name in names:
-                    definition = _get_definition(name)
-                    # create instructions/datasets for instruct
-                    if callable(definition):
-                        # get only relevant code since multiple names may be defined
-                        relevant_code = _get_relevant_code(definition)
-                        # create instruction
-                        instruction = Instruction.objects.create(
-                            name=name,
-                            scope=InstructionScope.FUNCTION,
-                            code=relevant_code,
-                        )
-                        instructions[name] = instruction
-
-                        # parse instruction parameters from code
-                        # if multiple instructions are defined in this instruct just re-use all parameters
-                        # (this isn't great, but we'll have modules soon)
-                        self._attach_instruction_parameters(
-                            segment, instruction, datasets, instructions
-                        )
-                        self.stdout.write(f"Created instruction {instruction}")
-                    elif isinstance(definition, list):
-                        # create dataset
-                        dataset_records = _get_definition(name)
-                        dataset = Dataset.objects.from_list(name, dataset_records)
-                        datasets[name] = dataset
-                        self.stdout.write(f"Created dataset {dataset}")
-
-                if args[1] == "expect":
-                    # attach to args[2] task as expectations
-                    description = _get_definition("expectation")
-                    expectation = tasks[args[2]].expectations.create(
-                        index=tasks[args[2]].expectations.count(), description=description
-                    )
-                    example_datasets = [datasets[n] for n in names if n in datasets]
-                    expectation.examples_datasets.set(example_datasets)
-                    expect_instructions = [instructions[n] for n in names if n in instructions]
-                    expectation.instructions.set(expect_instructions)
-                    self.stdout.write(f"Created expectation {expectation}")
-                elif args[1] == "task":
-                    if len(names) > 1:
-                        raise ValueError(f"only one task implementation can be provided: {names}")
-                    # add as task implementation
-                    task = tasks[args[2]]
-                    if task.template_implementation is not None:
-                        raise ValueError(f"task {task} already has a template implementation")
-                    implementation = instructions[names[0]]
-                    task.template_implementation = implementation
-                    self.stdout.write(f"Set implementation for {task} to {implementation}")
-
-            elif args[0] == "dataset":
-                if len(names) > 1:
-                    raise ValueError("only one dataset name allowed per segment")
-                name = names[0]
-                del names  # prevent accidental re-use
-
-                dataset_records = _get_definition(name)
-                dataset = Dataset.objects.from_list(name, dataset_records)
-                datasets[name] = dataset
-                self.stdout.write(f"Created dataset {dataset}")
-            else:
-                raise ValueError(f"Unknown segment header: {segment.header}")
-
-        # create files for tasks, instructions and datasets
-        for task in tasks.values():
-            new_version.files.create(name=task.name, type=ProjectFileType.TASK, task=task)
-        for instruction in instructions.values():
-            new_version.files.create(
-                name=instruction.name, type=ProjectFileType.INSTRUCTION, instruction=instruction
-            )
-        for dataset in datasets.values():
-            new_version.files.create(
-                name=dataset.name, type=ProjectFileType.DATASET, dataset=dataset
-            )
+            segment_parsers: dict[str, callable] = {
+                SymbolType.TASK: self.parse_task,
+                SymbolType.EXPECTATION: self.parse_expect,
+                SymbolType.INSTRUCTION: self.parse_instruct,
+                SymbolType.DATASET: self.parse_data,
+            }
+            segment_parser = segment_parsers.get(segment.symbol_type)
+            if segment_parser is None:
+                raise ValueError(f"unexpected segment type: {segment.symbol_type}")
+            symbol_content: SymbolContent = segment_parser(project_v, segment, _get_definition)
+            file = project_v.create_file_from_path(segment.virtual_path, exists_ok=True)
+            symbol_def = project_v.define_symbol(segment.symbol_name, symbol_content, file)
+            self.stdout.write(f"Define {symbol_def} in {symbol_def.file}")
 
         # set task as new main program
         if main:
-            new_version.program = tasks[main]
-            new_version.save()
-            self.stdout.write(f"Set {new_version.program} as main program in {new_version}")
+            project_v.program = tasks[main]
+            project_v.save()
+            self.stdout.write(f"Set {project_v.program} as main program in {project_v}")
 
         # advance head to new version
-        project.head = new_version
+        project.head = project_v
         project.save()
         self.stdout.write(f"Updated head in {project}")
 
-    def _attach_instruction_parameters(
+    def parse_task_file_segments(self, lines: list[str]) -> list[FileSegment]:
+        # parse all bench segments from lines (look like this # @bench ... # @/bench)
+        segments: list[FileSegment] = []
+        segment: Optional[FileSegment] = None
+        virtual_path = "main"  # default to main
+        for i, line in enumerate(lines):
+            if "@path" in line or "@symbol" in line:
+                if segment is not None:
+                    # close previous segment
+                    segments.append(segment)
+                    print(f"segment {segment.header} with {len(segment.lines)} lines")
+                    segment = None
+            if "@path" in line:
+                # parse path like # @path <path>
+                virtual_path = line[line.find("@path") + 5 :].strip()
+                print(f"path = {virtual_path}")
+            if "@symbol" in line:
+                # start new segment
+                segment = FileSegment(
+                    virtual_path=virtual_path, header=line[10:].strip(), lines=[], source_index=i
+                )
+            elif segment is not None:
+                segment.lines.append(line)
+        if segment is None:
+            raise ValueError("task file must contain at least one @bench segment")
+        # close last segment
+        segments.append(segment)
+        print(f"segment {segment.header} with {len(segment.lines)} lines")
+        return segments
+
+    def parse_task(
+        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable
+    ) -> SymbolContent:
+        schema = lookup_def("schema")
+        task = Task(schema=schema)
+
+        if "parent" in segment.symbol_args:
+            parent_name = segment.symbol_args["parent"]
+            parent = project_v.get_symbol(parent_name, SymbolType.TASK)
+            if parent is None:
+                raise ValueError(f"parent task '{parent_name}' not found in {project_v}")
+            task.parent = parent
+
+        return task
+
+    def parse_instruct(
+        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable
+    ) -> SymbolContent:
+        function = lookup_def(segment.symbol_name)
+        if not callable(function):
+            raise ValueError(f"instruct symbol '{segment.symbol_name}' is not callable")
+        instruction = Instruction(code=segment.full_code)
+
+        if "task" in segment.symbol_args:
+            task_name = segment.symbol_args["task"]
+            task_symbol = project_v.get_symbol(task_name, SymbolType.TASK)
+            if task_symbol is None:
+                raise ValueError(f"task '{task_name}' not found in {project_v}")
+            instruction.task = task_symbol
+            task: Task = project_v.resolve(task_symbol)
+            task.template_implementation = instruction
+
+        return instruction
+
+    def parse_data(self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable):
+        dataset_records = lookup_def(segment.symbol_name)
+        if not isinstance(dataset_records, list):
+            raise ValueError(f"data symbol '{segment.symbol_name}' is not a list")
+        dataset = Dataset.objects.from_list(dataset_records)
+        return dataset
+
+    def parse_expect(self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable):
+        description = lookup_def("expectation")
+        if not isinstance(description, str):
+            raise ValueError(f"expectation description '{segment.symbol_name}' is not a str")
+        statements_names = lookup_def("statements")
+        if not isinstance(statements_names, list):
+            raise ValueError(f"expectation statements '{segment.symbol_name}' is not a list")
+
+        expectation = Expectation(description=description)
+        for statement_path in statements_names:
+            # statement path is <name>.<type>
+            statement_name, statement_type_name = statement_path.split(".")
+            statement_type = SymbolType(statement_type_name)
+
+            statement_def = project_v.get_symbol_definition(statement_name, statement_type)
+            if statement_def is None:
+                raise ValueError(
+                    f"expectation statement symbol '{statement_path}' not found in {project_v}"
+                )
+            if statement_def.type in (
+                SymbolType.INSTRUCTION,
+                SymbolType.DATASET,
+                SymbolType.DATASET_VIEW,
+            ):
+                expectation.statements.add(statement_def.symbol)
+            else:
+                raise ValueError(
+                    f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
+                )
+        return expectation
+
+    def bind_instruction_parameters(
         self,
-        segment: TaskFileSegment,
+        segment: FileSegment,
         instruction: Instruction,
         datasets: dict[str, Dataset],
         instructions: dict[str, Instruction],
@@ -275,28 +303,3 @@ class Command(BaseCommand):
                 raise NotImplementedError(f"json argument resolution not implemented yet: {line}")
             else:
                 raise ValueError(f"unknown parameter type: {param_type}")
-
-    def parse_task_file_segments(self, lines: list[str]) -> list[TaskFileSegment]:
-        # parse all bench segments from lines (look like this # @bench ... # @/bench)
-        segments: list[TaskFileSegment] = []
-        segment: Optional[TaskFileSegment] = None
-        virtual_path = "main"  # default to main
-        for i, line in enumerate(lines):
-            if "@path" in line:
-                # parse path like # @path <path>
-                virtual_path = line[line.find("@path") + 5 :].strip()
-            if "@symbol" in line:
-                if segment is not None:
-                    # close previous segment
-                    segments.append(segment)
-                # start new segment
-                segment = TaskFileSegment(
-                    virtual_path=virtual_path, header=line[8:].strip(), lines=[], source_index=i
-                )
-            elif segment is not None:
-                segment.lines.append(line)
-        if segment is None:
-            raise ValueError("task file must contain at least one @bench segment")
-        # close last segment
-        segments.append(segment)
-        return segments

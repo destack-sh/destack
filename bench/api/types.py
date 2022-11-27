@@ -99,7 +99,6 @@ class SymbolDefinition(gql.Node):
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    name: auto
     created_at: auto
     updated_at: auto
     committed_in: Optional[ProjectVersion]

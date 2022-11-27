@@ -26,7 +26,7 @@ class Task(SymbolContent):
     objects: TaskManager = TaskManager()
 
     def __str__(self):
-        return f"{self.name}.task@{self.id.hex}"
+        return f"task@{self.id.hex}"
 
     class Meta:
         default_manager_name = "objects"
@@ -46,7 +46,7 @@ class Expectation(SymbolContent):
     )
 
     def __str__(self):
-        return f"{self.name}.expect(description={self.description})@{self.id.hex}"
+        return f"expect(description={self.description})@{self.id.hex}"
 
 
 class ExpectationStatement(UUIDModel):

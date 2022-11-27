@@ -28,11 +28,30 @@ class SymbolType(models.TextChoices):
     DATASET = "data", "Dataset"
     DATASET_VIEW = "view", "DatasetView"
 
+    @staticmethod
+    def from_content(content: SymbolContent) -> SymbolType:
+        # re-import for real to avoid circular import (above is only for type checking)
+        from bench.models import Dataset, DatasetView, Expectation, Instruction, Model, Task  # noqa
+
+        if isinstance(content, Task):
+            return SymbolType.TASK
+        elif isinstance(content, Expectation):
+            return SymbolType.EXPECTATION
+        elif isinstance(content, Instruction):
+            return SymbolType.INSTRUCTION
+        elif isinstance(content, Model):
+            return SymbolType.MODEL
+        elif isinstance(content, Dataset):
+            return SymbolType.DATASET
+        elif isinstance(content, DatasetView):
+            return SymbolType.DATASET_VIEW
+        else:
+            raise ValueError(f"invalid symbol content type {type(content)}")
+
 
 class Symbol(TaggableMixin, UUIDModel):
     """
-    A generic symbol of a specific immutable type.
-    Symbols are used to reference tasks, instructions, models, and datasets.
+    A declared symbol for referencing tasks, instructions, models, datasets, etc. within and across projects.
     References are resolved to definitions within a project version.
     """
 
@@ -43,22 +62,23 @@ class Symbol(TaggableMixin, UUIDModel):
     def __str__(self):
         return f"{self.project}/{self.id.hex}.{self.type}"
 
-    def resolve(self, project_version: ProjectVersion | UUID) -> Optional[SymbolDefinition]:
+    def resolve(self, project_v: ProjectVersion | UUID) -> Optional[SymbolDefinition]:
         """
         Resolve the symbol to a definition in the given project version.
         """
-        if isinstance(project_version, ProjectVersion):
-            project_version = project_version.id
+        if not isinstance(project_v, UUID):
+            project_v = project_v.id
 
         # TODO @Architecture @Performance: revisit symbol resolution logic
         #  Symbol resolution should likely be baked into our GraphQL API for optimal performance.
         #  (hook into strawberry_django_plus query optimizer).
         #  Right now this resolution is N+1. Not enough info to implement this better yet.
         definition = SymbolDefinition.objects.filter(
-            project_version_id=project_version, symbol=self
+            project_version_id=project_v, symbol=self
         ).first()
         if not definition:
-            libraries = ProjectVersion.objects.filter(id=project_version).values_list(
+            # fall back to lookup in libraries if not found in this project
+            libraries = ProjectVersion.objects.filter(id=project_v).values_list(
                 "libraries__id", flat=True
             )
             definition = SymbolDefinition.objects.filter(
@@ -77,23 +97,25 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
         **kwargs,
     ):
         # re-import for real (not just for type checking) to avoid circular import
-        from bench.models import Dataset, DatasetView, Instruction, Model, Task  # noqa: F401
+        from bench.models import (  # noqa: F401
+            Dataset,
+            DatasetView,
+            Expectation,
+            Instruction,
+            Model,
+            Task,
+        )
 
-        # map content to kwargs depending on type
-        if isinstance(content, Task):
-            kwargs = {**kwargs, "task": content, "type": SymbolType.TASK}
-        elif isinstance(content, Instruction):
-            kwargs = {**kwargs, "instruction": content, "type": SymbolType.INSTRUCTION}
-        elif isinstance(content, Model):
-            kwargs = {**kwargs, "model": content, "type": SymbolType.MODEL}
-        elif isinstance(content, Dataset):
-            kwargs = {**kwargs, "dataset": content, "type": SymbolType.DATASET}
-        elif isinstance(content, DatasetView):
-            kwargs = {**kwargs, "dataset_view": content, "type": SymbolType.DATASET_VIEW}
-        else:
-            raise ValueError(f"unexpected symbol content: {content}")
+        content_type = SymbolType.from_content(content)
         if symbol is None:
-            symbol = Symbol.objects.create(project=project_version.project, type=kwargs["type"])
+            # create new symbol if needed
+            symbol = Symbol.objects.create(project=project_version.project, type=content_type)
+        elif content_type != symbol.type:
+            # check that the symbol declaration has the same type as the content
+            raise ValueError(f"content type {content_type} does not match symbol type {symbol}")
+
+        # content field name is just the type name lower-cased (see SymbolContent)
+        kwargs = {**kwargs, "type": content_type, **kwargs, content_type.name.lower(): content}
         return self.create(symbol=symbol, project_version=project_version, **kwargs)
 
     def resolve(
@@ -116,6 +138,7 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="definitions"
     )
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=SymbolType)
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="definitions")
     parent = models.ForeignKey(
@@ -147,13 +170,9 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     def __str__(self):
         return f"{self.symbol}={self.name_dot_type}@{self.id.hex}"
 
-    @gql.model_property(only=["content"], select_related=["content"])
-    def name(self) -> str:
-        return self.content.name
-
-    @gql.model_property(only=["content", "type"], select_related=["content"])
+    @gql.model_property(only=["name", "type"])
     def name_dot_type(self) -> str:
-        return f"{self.content.name}.{self.type}"
+        return f"{self.name}.{self.type}"
 
     @gql.model_cached_property(
         only=["type"],
@@ -235,7 +254,6 @@ class SymbolContent(UUIDModel):
     Symbol definitions are mutable until committed.
     """
 
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     committed_in = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)

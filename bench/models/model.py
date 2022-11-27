@@ -23,6 +23,7 @@ class Model(SymbolContent):
     We will likely later provide our own compute for model tuning and inference.
     """
 
+    external_name = models.CharField(max_length=128, null=True, blank=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     baseline = models.ForeignKey(
         "Model", on_delete=models.CASCADE, null=True, related_name="derivatives"
@@ -31,7 +32,7 @@ class Model(SymbolContent):
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.name}.model@{self.id.hex}"
+        return f"model@{self.id.hex}({self.provider}/{self.external_name})"
 
     class Meta:
         default_manager_name = "objects"
