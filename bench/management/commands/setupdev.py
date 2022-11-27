@@ -91,7 +91,7 @@ class Command(BaseCommand):
             for model_id in provider["models"]:
                 provider_key = ProviderKey[provider["slug"].upper()]  # type: ignore
                 model = Model.objects.create(
-                    name=model_id,
+                    external_name=model_id,
                     provider=provider_key,
                     default_settings=ModelInferenceSettings.objects.create(),
                 )

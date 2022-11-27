@@ -52,7 +52,7 @@ class Instruction(SymbolContent):
     # arguments to/from InstructionArgument
 
     def __str__(self):
-        return f"{self.name}.instruct@{self.id.hex}"
+        return f"instruct@{self.id.hex}"
 
     def add_parameter(
         self,

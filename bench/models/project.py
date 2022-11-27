@@ -7,9 +7,10 @@ from uuid import UUID
 import pytz
 from django.core.validators import validate_slug
 from django.db import models, transaction
+from django.db.models import QuerySet
 from django_choices_field import TextChoicesField
 
-from bench.models.symbol import Symbol, SymbolContent, SymbolDefinition
+from bench.models.symbol import Symbol, SymbolContent, SymbolDefinition, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -208,12 +209,98 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             file.definitions.set(definitions)
         return file
 
+    @transaction.atomic
+    def create_path(self, path: str, is_folder: bool, exists_ok: bool = False) -> "File":
+        """
+        Create a file or folder at the given path, automatically creating parent folders.
+        """
+        file_parts = path.split("/")
+        # create parent folders
+        parent = None
+        for folder in file_parts[:-1]:
+            parent, _ = File.objects.get_or_create(
+                project_version=self, parent=parent, name=folder, is_folder=True
+            )
+        # create file
+        file, created = File.objects.get_or_create(
+            project_version=self, parent=parent, name=file_parts[-1], is_folder=is_folder
+        )
+        if not created and not exists_ok:
+            raise ValueError(f"file already exists: {file}")
+        return file
+
+    def create_file_from_path(self, path: str, exists_ok: bool = False) -> "File":
+        return self.create_path(path, is_folder=False, exists_ok=exists_ok)
+
+    def create_folder_from_path(self, path: str, exists_ok: bool = False) -> "File":
+        return self.create_path(path, is_folder=True, exists_ok=exists_ok)
+
     def resolve(self, symbol: Symbol) -> Optional[SymbolDefinition]:
         """
         Resolve a symbol to a definition in this project version.
         If the symbol isn't defined here, we check the imported libraries.
         """
         return symbol.resolve(self)
+
+    @transaction.atomic
+    def define_symbol(
+        self,
+        name: str,
+        content: SymbolContent,
+        file: File,
+        parent: Optional[SymbolDefinition] = None,
+        index: Optional[int] = None,
+        symbol: Optional[Symbol] = None,
+    ) -> SymbolDefinition:
+        """
+        Define a symbol in this project version.
+        A corresponding symbol is declared if it's not passed.
+        """
+        # auto set index if not passed
+        if index is None:
+            if parent:
+                index = parent.children.count()
+            else:
+                index = file.definitions.count()
+
+        return SymbolDefinition.objects.create_definition(
+            content=content,
+            project_version=self,
+            symbol=symbol,
+            name=name,
+            file=file,
+            parent=parent,
+            index=index,
+        )
+
+    def get_symbol_definitions(
+        self, name: str, type: Optional[SymbolType] = None
+    ) -> QuerySet[SymbolDefinition]:
+        """
+        Gets the definitions of a symbol in this project version.
+        """
+        if type is not None:
+            return SymbolDefinition.objects.filter(project_version=self, name=name, type=type)
+        else:
+            return SymbolDefinition.objects.filter(project_version=self, name=name)
+
+    def get_symbol_definition(
+        self, name: str, type: Optional[SymbolType] = None
+    ) -> Optional[SymbolDefinition]:
+        """
+        Gets the definition of a symbol in this project version.
+        """
+        return self.get_symbol_definitions(name, type).first()
+
+    def get_symbol(self, name: str, type: Optional[SymbolType] = None) -> Optional[Symbol]:
+        """
+        Gets the symbol corresponding to the given definition in this project version.
+        """
+        symbol_def = self.get_symbol_definition(name, type)
+        if symbol_def is None:
+            return None
+        else:
+            return symbol_def.symbol
 
     def reset(self):
         # deletes all our references and definitions but not their contents
