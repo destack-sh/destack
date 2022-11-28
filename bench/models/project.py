@@ -469,8 +469,17 @@ class File(UUIDModel):
         )
         return definition
 
+    async def acreate_definition(
+        self,
+        name: str,
+        content: SymbolContent,
+        symbol: Optional[Symbol] = None,
+        parent: Optional[SymbolDefinition] = None,
+    ) -> SymbolDefinition:
+        return await sync_to_async(self.create_definition)(name, content, symbol, parent)
+
     @property
-    def root(self) -> bool:
+    def is_root(self) -> bool:
         return self.parent is None
 
     @property

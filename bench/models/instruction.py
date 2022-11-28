@@ -115,6 +115,10 @@ class Instruction(SymbolContent):
 
         return parameter, argument
 
+    def bind_arguments(self, exists_ok: bool = False, **arguments: Any | Symbol):
+        for name, value in arguments.items():
+            self.bind_argument(name, value, exists_ok)
+
     async def abind_argument(self, name: str, value: Any, exists_ok: bool = False):
         return await sync_to_async(self.bind_argument)(name=name, value=value, exists_ok=exists_ok)
 
@@ -159,7 +163,7 @@ class InstructionParameterType(models.TextChoices):
         elif is_jsonable(obj):
             return InstructionParameterType.JSON
         else:
-            raise ValueError(f"unknown {obj} to instruction parameter")
+            raise ValueError(f"unknown object {obj} to instruction parameter")
 
 
 class InstructionParameter(UUIDModel):

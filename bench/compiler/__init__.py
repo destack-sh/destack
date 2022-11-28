@@ -16,8 +16,8 @@ from django.db.models import QuerySet
 from bench.executor import Executor
 from bench.models import (
     Dataset,
+    File,
     Instruction,
-    Model,
     Organization,
     ProjectVersion,
     Symbol,
@@ -100,12 +100,16 @@ class TaskData:
     parent: Optional[TaskData]
     children: dict[UUID, TaskData]  # by task id
     template_implementation: Optional[Instruction]
-    optimal_backend: Optional[Symbol]
+    optimal_backend_ref: Optional[Symbol]
     definition: SymbolDefinition
 
     @property
     def task(self) -> Task:
         return self.definition.task
+
+    @property
+    def symbol(self) -> Symbol:
+        return self.definition.symbol
 
     def __str__(self):
         return f"TaskData({self.task})"
@@ -196,7 +200,7 @@ class TaskData:
             statements=statements,
             examples=examples,
             template_implementation=template_implementation,
-            optimal_backend=None,
+            optimal_backend_ref=None,
             parent=parent,
             children={},
             definition=task_def,
@@ -244,10 +248,8 @@ class Compiler:
         logger.info("compile.start", compilation=compilation)
         options = CompilerOptions(optimize_task=False, optimize_instruction=False)
         backends: list[Symbol] = await _acollect(compilation.backends.all())
-        _, main_instruction = await self.compile_task(
-            project_v, compilation.task, backends, options
-        )
-        compilation.target = main_instruction
+        task_def, main_def = await self.compile_task(project_v, compilation.task, backends, options)
+        compilation.target = main_def.symbol
         await sync_to_async(compilation.save)()
         logger.info("compile.done", compilation=compilation)
 
@@ -257,7 +259,7 @@ class Compiler:
         task_ref: Symbol,
         backends_refs: list[Symbol],
         options: CompilerOptions,
-    ) -> tuple[Task, Instruction]:
+    ) -> tuple[SymbolDefinition, SymbolDefinition]:
         """
         Compiles a task into an executable instruction (may contain other instructions).
 
@@ -294,30 +296,34 @@ class Compiler:
             if len(backends_refs) > 1:
                 raise NotImplementedError("cannot choose backends yet")
             for task_def in task_data.walk_tree_dfs():
-                task_data.optimal_backend = backends_refs[0]
+                task_data.optimal_backend_ref = backends_refs[0]
 
         # build the instruction tree
         logger.info("compile.instruct.build.start", task=task_data.task, original=task_def)
-        main_instruction = await self._build_instruction(project_v, task_data)
+        main_instruction_def = await self._build_instruction(project_v, task_data)
         logger.info("compile.instruct.build.done", task=task_data.task, original=task_def)
 
         if options.optimize_instruction:
             # optimize the instruction tree
             logger.info("compile.instruct.optimize.start", task=task_data, original=task_def)
-            main_instruction = await self._optimize_instruction(main_instruction, backends_refs)
+            main_instruction_def = await self._optimize_instruction(
+                project_v, main_instruction_def, backends_refs
+            )
             logger.info(
                 "compile.instruct.optimize.done",
                 task_data,
                 original=task_def,
-                main=main_instruction,
+                main=main_instruction_def,
             )
 
         logger.info(
-            "compile.task.done", task=task_data, optimized=task_def.task, main=main_instruction
+            "compile.task.done", task=task_data, optimized=task_def.task, main=main_instruction_def
         )
-        return task_data.task, main_instruction
+        return task_data.definition, main_instruction_def
 
-    async def _optimize_task(self, task_def: TaskData, backends: list[Symbol]) -> TaskData:
+    async def _optimize_task(
+        self, project_v: ProjectVersion, task_def: TaskData, backends: list[Symbol]
+    ) -> TaskData:
         """
         Optimizes the task tree for backends and options.
         """
@@ -325,17 +331,17 @@ class Compiler:
         return task_def
 
     async def _optimize_instruction(
-        self, instruction: Instruction, backends: list[Symbol]
-    ) -> Instruction:
+        self, project_v: ProjectVersion, instruction_def: SymbolDefinition, backends: list[Symbol]
+    ) -> SymbolDefinition:
         """
         Optimizes the instruction tree for backends and options.
         """
         # TODO @Feature @Performance: optimize instruction tree
-        return instruction
+        return instruction_def
 
     async def _build_instruction(
         self, project_v: ProjectVersion, task_data: TaskData
-    ) -> Instruction:
+    ) -> SymbolDefinition:
         """
         Builds an instruction from a task definition.
 
@@ -353,10 +359,90 @@ class Compiler:
         task_description = "\n".join(expect_descriptions)
 
         # 2. render expectations into examples
+        compiled_examples = await self._compile_examples(project_v, task_data)
+        # order compiled examples optimally
+        # (naive implementation: random order)
+        random.shuffle(compiled_examples)
+
+        genfile = await sync_to_async(self._get_genfile)(project_v, task_data)
+        # write examples to file
+        compiled_examples_dataset_def = await sync_to_async(self._write_llm_examples)(
+            genfile, compiled_examples, task_data
+        )
+
+        # 3. convert task descriptions and examples to backend model format
+        pass  # (naive implementation: noop i.e. no adaptation)
+
+        # 4. build prompt and bake into model instruction
+        # (naive implementation)
+        llm_instruction = await sync_to_async(self._build_llm_instruction)(
+            task_data, task_description, compiled_examples_dataset_def
+        )
+        llm_instruction_def = await sync_to_async(genfile.create_definition)(
+            task_data.definition.name, llm_instruction
+        )
+
+        return llm_instruction_def
+
+    def _get_genfile(self, project_v: ProjectVersion, task_data: TaskData) -> File:
+        return project_v.create_file_from_path(
+            task_data.definition.file.path + ".gen", exists_ok=True
+        )
+
+    def _write_llm_examples(
+        self, compilation_file: File, compiled_examples: list[dict], task_data: TaskData
+    ):
+        compiled_examples_dataset = Dataset.objects.from_list(compiled_examples)
+        compiled_examples_keys = compiled_examples_dataset.schema.keys()
+        if compiled_examples_keys != {*task_data.input_keys, *task_data.output_keys}:
+            raise ValueError(
+                f"{task_data.definition} compiled examples {compiled_examples_keys} do not match "
+                f"input/output keys {task_data.input_keys, task_data.output_keys}"
+            )
+        compiled_examples_dataset_def = compilation_file.create_definition(
+            "examples", compiled_examples_dataset
+        )
+        return compiled_examples_dataset_def
+
+    def _build_llm_instruction(
+        self,
+        task_data: TaskData,
+        task_description: str,
+        task_examples_def: SymbolDefinition,
+    ) -> Instruction:
+        if not task_data.optimal_backend_ref:
+            raise ValueError(
+                f"cannot build instruction for {task_data.task}: optimal backend not set"
+            )
+        prompt_prefix: str = task_description + "\n"
+        prompt_example = "".join(
+            f"{key}: {{{key}}}\n" for key in chain(task_data.input_keys, task_data.output_keys)
+        )
+        prompt_input = "".join(f"{key}: {{{key}}}\n" for key in task_data.input_keys)
+        if len(task_data.output_keys) == 1:
+            # also add output key prefix if there is only one
+            main_output_key = tuple(task_data.output_keys)[0]
+            prompt_input = prompt_input + f"{main_output_key}: "
+
+        scope = InstructionScope.PROGRAM if task_data.parent is None else InstructionScope.FUNCTION
+        llm_instruction = Instruction.objects.create(
+            task=task_data.symbol, scope=scope, builtin_id="llm_fewshot"
+        )
+        llm_instruction.bind_arguments(
+            model=task_data.optimal_backend_ref,
+            prompt_prefix=prompt_prefix,
+            prompt_example=prompt_example,
+            prompt_input=prompt_input,
+            examples=task_examples_def.symbol,
+        )
+        # add parameter for {input} string
+        llm_instruction.add_parameter("input", type=InstructionParameterType.JSON)
+        return llm_instruction
+
+    async def _compile_examples(self, project_v: ProjectVersion, task_data: TaskData) -> list[dict]:
         # 2.1 collect static examples
         # (naive implementation collect all static examples indiscriminately)
         static_examples: list[dict] = list(chain(*task_data.examples.values()))
-
         # 2.2 determine expectation type for instruction
         # (naive implementation: guess statement type from first expectation)
         # TODO @Feature: define expectation statement type in statement
@@ -370,7 +456,6 @@ class Compiler:
                 statement.type = ExpectationStatementType.GENERATE
             else:
                 raise NotImplementedError(f"unknown statement type: {statement}")
-
         # 2.3 collect dynamic examples from expectations
         # (naive implementation: should be done iteratively & in parallel, picking optimal examples)
         dynamic_examples: list[dict] = []
@@ -402,54 +487,5 @@ class Compiler:
                 pass
             else:
                 raise NotImplementedError(f"{expectation} statement {statement} not supported")
-
         compiled_examples = [*static_examples, *dynamic_examples]
-        # order compiled examples optimally
-        # (naive implementation: random order)
-        random.shuffle(compiled_examples)
-        compiled_examples_dataset = await Dataset.objects.afrom_list(compiled_examples)
-        if compiled_examples_dataset.length == 0:
-            raise ValueError(f"no examples for {task_data.task}")
-        compiled_examples_keys = compiled_examples_dataset.schema.keys()
-        if compiled_examples_keys != {*task_data.input_keys, *task_data.output_keys}:
-            raise ValueError(
-                f"{task_data.task} compiled examples {compiled_examples_keys} do not match task "
-                f"input/output keys {task_data.input_keys, task_data.output_keys}"
-            )
-
-        # 3. convert task descriptions and examples to backend model format
-        pass  # (naive implementation: noop i.e. no adaptation)
-
-        # 4. build prompt and bake into model instruction
-        # (naive implementation)
-        prompt_prefix: str = task_description + "\n"
-        prompt_example = "".join(
-            f"{key}: {{{key}}}\n" for key in chain(task_data.input_keys, task_data.output_keys)
-        )
-        prompt_input = "".join(f"{key}: {{{key}}}\n" for key in task_data.input_keys)
-        if len(task_data.output_keys) == 1:
-            # also add output key prefix if there is only one
-            main_output_key = tuple(task_data.output_keys)[0]
-            prompt_input = prompt_input + f"{main_output_key}: "
-
-        if not task_data.optimal_backend:
-            raise ValueError(
-                f"cannot build instruction for {task_data.task}: optimal backend not set"
-            )
-        llm_instruction = await Instruction.objects.acreate(
-            task=task_data.definition.symbol,
-            scope=InstructionScope.PROGRAM,
-            builtin_id="llm_fewshot",
-        )
-        # add bound arguments
-        for argument_name, argument_value in {
-            "model": task_data.optimal_backend,
-            "prompt_prefix": prompt_prefix,
-            "prompt_example": prompt_example,
-            "prompt_input": prompt_input,
-            "examples": compiled_examples_dataset,
-        }.items():
-            await llm_instruction.abind_argument(argument_name, argument_value)
-        # add parameter for {input} string
-        await llm_instruction.aadd_parameter("input", type=InstructionParameterType.JSON)
-        return llm_instruction
+        return compiled_examples
