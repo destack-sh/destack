@@ -7,7 +7,7 @@ from uuid import UUID
 import pytz
 from django.core.validators import validate_slug
 from django.db import models, transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 
 from bench.models.symbol import Symbol, SymbolContent, SymbolDefinition, SymbolType
@@ -49,8 +49,8 @@ class Project(TaggableMixin, UUIDModel):
     All versions are available in 'versions' and may not be linear (also like in Git).
     Projects define symbols organized into files.
 
-    Executable projects have a main program (the top-level task & instruction implementations).
-    Library projects define reusable objects (like in software).
+    Executable projects have main programs (top-level program instructions).
+    Library projects define reusable symbols (like in software).
     """
 
     type = TextChoicesField(choices_enum=ProjectType, default=ProjectType.EXECUTABLE)
@@ -102,15 +102,7 @@ class Project(TaggableMixin, UUIDModel):
         # copy all project files and their symbol definitions from parent
         # TODO @Performance: copy project version on commit server-side in SQL
         #  This is awfully sequential and slow.
-        # 1. copy symbol definitions
-        new_definitions: dict[UUID, SymbolDefinition] = {}
-        for definition in assigned_parent.definitions.all():
-            old_id = definition.id
-            definition.pk = None
-            definition.project_version = new_version
-            definition.save()
-            new_definitions[old_id] = definition
-        # 2. copy project files
+        # 1. copy project files
         new_files: dict[UUID, File] = {}
         for file in assigned_parent.files.all():
             old_id = file.id
@@ -118,16 +110,21 @@ class Project(TaggableMixin, UUIDModel):
             file.project_version = new_version
             file.save()
             new_files[old_id] = file
-        # 3. replace references to files and definitions
-        for old_definition in assigned_parent.definitions.all():
-            new_definition = new_definitions[old_definition.id]
-            new_definition.file = new_files[old_definition.file_id]
-            new_definition.save()
+        # 1.1 re-assign project file parents
         for file in assigned_parent.files.all():
             new_file = new_files[file.id]
             if file.parent_id is not None:
                 new_file.parent = new_files.get(file.parent_id)
                 new_file.save()
+        # 2. copy symbol definitions
+        new_definitions: dict[UUID, SymbolDefinition] = {}
+        for definition in assigned_parent.definitions.all():
+            old_id = definition.id
+            definition.pk = None
+            definition.file = new_files[definition.file_id]
+            definition.project_version = new_version
+            definition.save()
+            new_definitions[old_id] = definition
 
         # head has advanced to new version
         if assigned_parent == self.head:
@@ -188,14 +185,23 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     # definitions via SymbolDefinition
     libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
     program: models.ForeignKey = models.ForeignKey(
-        "Task", on_delete=models.CASCADE, null=True, related_name="projects"
+        "Symbol", on_delete=models.CASCADE, null=True, related_name="projects"
     )
     backends: models.ManyToManyField = models.ManyToManyField(
-        "Model", related_name="referenced_in_projects+", blank=True
+        "Symbol", related_name="referenced_in_projects+", blank=True
     )
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
+
+    def available_definitions(self, include_libraries: bool = True) -> QuerySet[SymbolDefinition]:
+        # get own and libraries definitions (non-recursive for now)
+        if include_libraries:
+            return SymbolDefinition.objects.filter(
+                Q(project_version_id__in=(self.id, *self.libraries.values_list("id", flat=True)))
+            )
+        else:
+            return self.definitions.all()
 
     @transaction.atomic
     def create_file(
@@ -280,9 +286,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         Gets the definitions of a symbol in this project version.
         """
         if type is not None:
-            return SymbolDefinition.objects.filter(project_version=self, name=name, type=type)
+            return self.available_definitions().filter(name=name, type=type)
         else:
-            return SymbolDefinition.objects.filter(project_version=self, name=name)
+            return self.available_definitions().filter(name=name)
 
     def get_symbol_definition(
         self, name: str, type: Optional[SymbolType] = None
@@ -301,6 +307,31 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             return None
         else:
             return symbol_def.symbol
+
+    def symbol(self, name: str, type: Optional[SymbolType] = None) -> Symbol:
+        """
+        Gets the symbol corresponding to the given definition in this project version.
+        If the symbol doesn't exist, we error.
+        """
+        return self.symbol_definition(name, type).symbol
+
+    def symbol_definition(self, name: str, type: Optional[SymbolType] = None) -> SymbolDefinition:
+        """
+        Gets the definition of a symbol in this project version.
+        If the definition doesn't exist, we error.
+        """
+        definition = self.get_symbol_definition(name, type)
+        if definition is None:
+            limit = 50
+            available_symbols_count = self.available_definitions().count()
+            available_symbols_strs = (str(d) for d in self.available_definitions()[:limit])
+            raise ValueError(
+                f"symbol definition not found in {self}: {name}"
+                f"\n(showing {min(limit, available_symbols_count)} of {available_symbols_count} available symbols:"
+                f" {', '.join(available_symbols_strs)})"
+            )
+        else:
+            return definition
 
     def reset(self):
         # deletes all our references and definitions but not their contents
@@ -343,6 +374,7 @@ class File(UUIDModel):
 
     is_folder = models.BooleanField(default=False)
     parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
+
     # definitions via SymbolDefinition
     # files via File (if in a folder)
 
@@ -359,11 +391,13 @@ class File(UUIDModel):
 
     def create_definition(
         self,
+        name: str,
         content: SymbolContent,
         symbol: Optional[Symbol] = None,
         parent: Optional[SymbolDefinition] = None,
     ) -> SymbolDefinition:
         definition = SymbolDefinition.objects.create_definition(
+            name=name,
             content=content,
             project_version=self.project_version,
             symbol=symbol,

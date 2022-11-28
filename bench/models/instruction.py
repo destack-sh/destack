@@ -9,8 +9,8 @@ from asgiref.sync import sync_to_async
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
 
-from bench.models.symbol import SymbolContent
-from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel
+from bench.models.symbol import Symbol, SymbolContent, SymbolType
+from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel, is_jsonable
 
 
 class InstructionScope(models.TextChoices):
@@ -86,32 +86,30 @@ class Instruction(SymbolContent):
 
     @transaction.atomic
     def bind_argument(
-        self, name: str, value: Any, exists_ok: bool = False
+        self, name: str, value: Any | Symbol, exists_ok: bool = False
     ) -> tuple[InstructionParameter, InstructionArgument]:
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
-        argument_type = InstructionParameterType.from_obj(value)
-        if argument_type == InstructionParameterType.DATASET:
-            argument_kwargs = {"dataset": value}
-        elif argument_type == InstructionParameterType.MODEL:
-            argument_kwargs = {"model": value}
-        elif argument_type == InstructionParameterType.JSON:
-            argument_kwargs = {"value": value}
-        else:
-            raise RuntimeError(f"unsupported argument type {argument_type}")
-
         # get/create parameter and corresponding argument
+        argument_type = InstructionParameterType.from_value(value)
+        if argument_type == InstructionParameterType.JSON:
+            value, reference = value, None
+        else:
+            value, reference = None, value
+
         parameter = self.add_parameter(name, argument_type, exists_ok=True)
         argument, created = InstructionArgument.objects.get_or_create(
-            instruction_bound=self, name=name, defaults=dict(type=argument_type, **argument_kwargs)
+            instruction=self,
+            name=name,
+            defaults=dict(type=argument_type, value=value, reference=reference),
         )
         if not created and not exists_ok:
             raise RuntimeError(f"{self} argument {argument} already exists")
         elif not created:
             # update parameter type and kwargs
             argument.type = argument_type
-            for key, value in argument_kwargs.items():
-                setattr(argument, key, value)
+            argument.value = value
+            argument.reference = reference
             argument.save()
 
         return parameter, argument
@@ -148,19 +146,20 @@ class InstructionParameterType(models.TextChoices):
     JSON = "json"
 
     @staticmethod
-    def from_obj(obj) -> InstructionParameterType:
-        from bench.backend.base import ModelHandle
-        from bench.models import Dataset, Model
-        from bench.utils.record import RecordBatch
-
-        if isinstance(obj, (Dataset, RecordBatch)):
-            return InstructionParameterType.DATASET
-        elif isinstance(obj, (Model, ModelHandle)):
-            return InstructionParameterType.MODEL
-        elif isinstance(obj, Instruction) or callable(obj):
-            return InstructionParameterType.INSTRUCTION
-        else:
+    def from_value(obj: Any | Symbol) -> InstructionParameterType:
+        if isinstance(obj, Symbol):
+            if obj.type == SymbolType.DATASET or obj.type == SymbolType.DATASET_VIEW:
+                return InstructionParameterType.DATASET
+            elif obj.type == SymbolType.MODEL:
+                return InstructionParameterType.MODEL
+            elif obj.type == SymbolType.INSTRUCTION:
+                return InstructionParameterType.INSTRUCTION
+            else:
+                raise ValueError(f"unexpected symbol type for instruction parameter: {obj}")
+        elif is_jsonable(obj):
             return InstructionParameterType.JSON
+        else:
+            raise ValueError(f"unknown {obj} to instruction parameter")
 
 
 class InstructionParameter(UUIDModel):
@@ -168,6 +167,7 @@ class InstructionParameter(UUIDModel):
     A parameter is a named argument to a function which is bound by a InstructionArgument.
 
     Parameters are typed using ?
+    # TODO @Feature: type parameters and schemas
     """
 
     instruction = models.ForeignKey(
@@ -200,7 +200,7 @@ class InstructionArgument(UUIDModel):
      doesn't seem perfect, but works for now.
     """
 
-    instruction_bound = models.ForeignKey(
+    instruction = models.ForeignKey(
         "Instruction", on_delete=models.CASCADE, null=True, related_name="arguments"
     )
     instruction_free = models.ForeignKey(
@@ -219,19 +219,18 @@ class InstructionArgument(UUIDModel):
     class Meta:
         constraints = [
             # TODO @Robustness: ensure that only one argument value type is set
-            # ensure that either instruction_bound or instruction_free is set
+            # ensure that either instruction or instruction_free is set
             models.CheckConstraint(
                 name="bench_instruction_argument_bound_free_ck",
                 check=(
-                    models.Q(instruction_bound__isnull=True)
-                    ^ models.Q(instruction_free__isnull=True)
+                    models.Q(instruction__isnull=True) ^ models.Q(instruction_free__isnull=True)
                 ),
             ),
             # ensure that instruction bound/free can only be bound once per name
-            # (two separate constraints because of the OR on nullable instruction_bound/instruction_free)
+            # (two separate constraints because of the OR on nullable instruction/instruction_free)
             models.UniqueConstraint(
                 name="bench_instruction_argument_bound_name_ak",
-                fields=["instruction_bound", "name"],
+                fields=["instruction", "name"],
             ),
             models.UniqueConstraint(
                 name="bench_instruction_argument_free_name_ak",

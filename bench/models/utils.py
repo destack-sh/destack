@@ -1,3 +1,4 @@
+import json
 import secrets
 import uuid
 from collections import defaultdict
@@ -100,3 +101,12 @@ def proxies(query: QuerySet, proxy_type: Type[ModelT]) -> QuerySet[ModelT]:
     #  May also want to monkey-patch (and type) .proxies on standard QuerySet.
     query.model = proxy_type
     return query
+
+
+def is_jsonable(value: Any) -> bool:
+    """Check if value is JSON-serializable."""
+    try:
+        json.dumps(value)
+        return True
+    except TypeError:
+        return False
