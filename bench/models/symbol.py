@@ -179,6 +179,7 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
         select_related=["task", "expectation", "instruction", "model", "dataset", "dataset_view"],
     )
     def content(self) -> Union[Task, Expectation, Instruction, Model, Dataset, DatasetView]:
+        content: Union[Task, Expectation, Instruction, Model, Dataset, DatasetView, None]
         if self.type == SymbolType.TASK:
             content = self.task
         elif self.type == SymbolType.EXPECTATION:

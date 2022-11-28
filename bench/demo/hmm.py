@@ -1,3 +1,4 @@
+# @import openai/stdlib
 # @symbol ignore
 import random
 import subprocess
@@ -94,7 +95,7 @@ destructive = [
 ]
 
 # @symbol instruct: verify_result_is_safe
-model: Model  # @backend openai/text-davinci-002
+model: Model  # @alias text-davinci-002
 destructive: Dataset
 
 
@@ -133,7 +134,7 @@ misspelling = [
 ]
 
 # @symbol instruct: misspell
-model: Model  # @backend openai/text-davinci-002
+model: Model  # @alias text-davinci-002
 misspelling: Dataset
 
 
@@ -148,7 +149,7 @@ async def misspell(input: str) -> str:
 
 
 # @symbol instruct: paraphrase
-model: Model  # @backend openai/text-davinci-002
+model: Model  # @alias text-davinci-002
 
 
 async def paraphrase(input: str) -> str:
@@ -224,7 +225,7 @@ common_utilities = [
 ]
 
 # @symbol instruct: verify_respect_command_hints
-model: Model  # @backend openai/text-davinci-002
+model: Model  # @alias text-davinci-002
 common_utilities: Dataset
 
 
@@ -248,7 +249,7 @@ async def verify_respect_command_hints(example: dict) -> bool:
 
 
 # @symbol instruct: expect_respect_command_hints
-model: Model  # @backend openai/text-davinci-002
+model: Model  # @alias text-davinci-002
 
 
 async def expect_respect_command_hints(example: dict) -> Optional[dict]:

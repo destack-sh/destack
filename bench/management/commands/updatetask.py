@@ -1,3 +1,4 @@
+import typing
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Optional
@@ -7,7 +8,6 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.compiler import get_backend_model
 from bench.executor import Executor
 from bench.executor.builtins import instruction_builtins
 from bench.models import (
@@ -22,6 +22,11 @@ from bench.models import (
     Task,
 )
 from bench.models.instruction import InstructionParameterType
+
+
+@dataclass
+class LibraryImport:
+    library: str
 
 
 @dataclass
@@ -79,12 +84,20 @@ class Command(BaseCommand):
         with open(options["task"], "r") as f:
             lines = f.readlines()
 
-        segments = self.parse_task_file_segments(lines)
+        imports, segments = self.parse_task_file_segments(lines)
 
         project_v = project.create_version()
         project_v.reset()
-        executor = Executor()
+        for library_import in imports:
+            library_org, library_slug = library_import.library.split("/")
+            library = Project.objects.get_by_slug(library_org, library_slug)
+            if library is None:
+                raise ValueError(f"library {library_import.library} not found")
+            library_v = library.head  # just use head
+            project_v.libraries.add(library_v)
+            self.stdout.write(f"Import library {library_v}")
 
+        executor = Executor()
         # convert segments to a single task definition tree
         for segment in segments:
             if segment.header.startswith("ignore"):
@@ -102,7 +115,7 @@ class Command(BaseCommand):
                         )
                 return definitions[name]
 
-            segment_parsers: dict[str, callable] = {
+            segment_parsers: dict[str, typing.Callable] = {
                 SymbolType.TASK: self.parse_task,
                 SymbolType.EXPECTATION: self.parse_expect,
                 SymbolType.INSTRUCTION: self.parse_instruct,
@@ -117,8 +130,9 @@ class Command(BaseCommand):
             self.stdout.write(f"Define {symbol_def} in {symbol_def.file}")
 
         # set task as new main program
+        # (not sure if we'll have a single "main" going forward)
         if main:
-            project_v.program = tasks[main]
+            project_v.program = project_v.get_symbol(main, SymbolType.TASK)
             project_v.save()
             self.stdout.write(f"Set {project_v.program} as main program in {project_v}")
 
@@ -127,23 +141,34 @@ class Command(BaseCommand):
         project.save()
         self.stdout.write(f"Updated head in {project}")
 
-    def parse_task_file_segments(self, lines: list[str]) -> list[FileSegment]:
-        # parse all bench segments from lines (look like this # @bench ... # @/bench)
+    def parse_task_file_segments(
+        self, lines: list[str]
+    ) -> tuple[list[LibraryImport], list[FileSegment]]:
         segments: list[FileSegment] = []
+        imports: list[LibraryImport] = []
+
+        # segments are controlled via @ switches in comments
+        switches = {"@path", "@symbol", "@ignore", "@import"}
+
         segment: Optional[FileSegment] = None
         virtual_path = "main"  # default to main
         for i, line in enumerate(lines):
-            if "@path" in line or "@symbol" in line:
-                if segment is not None:
-                    # close previous segment
-                    segments.append(segment)
-                    print(f"segment {segment.header} with {len(segment.lines)} lines")
-                    segment = None
-            if "@path" in line:
+            # close previous segment if we're starting a new one
+            if segment is not None and any(switch in line for switch in switches):
+                segments.append(segment)
+                print(f"segment {segment.header} with {len(segment.lines)} lines")
+                segment = None
+            if "@import" in line:
+                # library import
+                library = line.split("@import")[1].strip()
+                imports.append(LibraryImport(library=library))
+                print(f"import {library}")
+            elif "@path" in line:
+                # change path
                 # parse path like # @path <path>
                 virtual_path = line[line.find("@path") + 5 :].strip()
                 print(f"path = {virtual_path}")
-            if "@symbol" in line:
+            elif "@symbol" in line:
                 # start new segment
                 segment = FileSegment(
                     virtual_path=virtual_path, header=line[10:].strip(), lines=[], source_index=i
@@ -155,30 +180,29 @@ class Command(BaseCommand):
         # close last segment
         segments.append(segment)
         print(f"segment {segment.header} with {len(segment.lines)} lines")
-        return segments
+
+        return imports, segments
 
     def parse_task(
-        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable
+        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
     ) -> SymbolContent:
         schema = lookup_def("schema")
-        task = Task(schema=schema)
+        task = Task.objects.create(schema=schema)
 
         if "parent" in segment.symbol_args:
             parent_name = segment.symbol_args["parent"]
             parent = project_v.get_symbol(parent_name, SymbolType.TASK)
-            if parent is None:
-                raise ValueError(f"parent task '{parent_name}' not found in {project_v}")
             task.parent = parent
 
         return task
 
     def parse_instruct(
-        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable
+        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
     ) -> SymbolContent:
         function = lookup_def(segment.symbol_name)
         if not callable(function):
-            raise ValueError(f"instruct symbol '{segment.symbol_name}' is not callable")
-        instruction = Instruction(code=segment.full_code)
+            raise ValueError(f"instruct symbol '{segment.symbol_name}' is not typing.Callable")
+        instruction = Instruction.objects.create(code=segment.full_code)
 
         if "task" in segment.symbol_args:
             task_name = segment.symbol_args["task"]
@@ -189,16 +213,22 @@ class Command(BaseCommand):
             task: Task = project_v.resolve(task_symbol)
             task.template_implementation = instruction
 
+        self.bind_instruction_parameters(segment, project_v, instruction)
+
         return instruction
 
-    def parse_data(self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable):
+    def parse_data(
+        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
+    ):
         dataset_records = lookup_def(segment.symbol_name)
         if not isinstance(dataset_records, list):
             raise ValueError(f"data symbol '{segment.symbol_name}' is not a list")
         dataset = Dataset.objects.from_list(dataset_records)
         return dataset
 
-    def parse_expect(self, project_v: ProjectVersion, segment: FileSegment, lookup_def: callable):
+    def parse_expect(
+        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
+    ):
         description = lookup_def("expectation")
         if not isinstance(description, str):
             raise ValueError(f"expectation description '{segment.symbol_name}' is not a str")
@@ -206,7 +236,7 @@ class Command(BaseCommand):
         if not isinstance(statements_names, list):
             raise ValueError(f"expectation statements '{segment.symbol_name}' is not a list")
 
-        expectation = Expectation(description=description)
+        expectation = Expectation.objects.create(description=description)
         for statement_path in statements_names:
             # statement path is <name>.<type>
             statement_name, statement_type_name = statement_path.split(".")
@@ -232,16 +262,15 @@ class Command(BaseCommand):
     def bind_instruction_parameters(
         self,
         segment: FileSegment,
+        project_v: ProjectVersion,
         instruction: Instruction,
-        datasets: dict[str, Dataset],
-        instructions: dict[str, Instruction],
     ):
         # parameters are defined as type only definition lines like:
         # name: Model
         # name: Dataset
         # name: Callable
         # name: <type>
-        # Parameters are automatically bound unless # @parameter is appended.
+        # Parameters are bound to their name or an @alias unless @param is appended (in comment).
         for line in segment.lines:
             # assume all parameters are declared up front
             if ":" not in line or "=" in line or "(" in line:
@@ -254,10 +283,8 @@ class Command(BaseCommand):
             param_name, param_type = line.split(":", 1)
             param_name = param_name.strip()
             param_type = param_type.strip()
-
             if param_name in instruction_builtins:
-                # ignore builtin instructions
-                continue
+                continue  # ignore builtins
 
             param_schema = None
             if param_type == "Dataset":
@@ -270,36 +297,19 @@ class Command(BaseCommand):
                 # just use python type as schema for now
                 param_schema = param_type
                 param_type = InstructionParameterType.JSON
-            instruction.add_parameter(
-                name=param_name,
-                type=param_type,
-                schema=param_schema,
-            )
+            instruction.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
-            if "@parameter" in comment:
+            if "@param" in comment:
+                # free parameter, don't try to bind argument value
                 continue
 
-            # otherwise resolve argument of same name
-            if param_type == InstructionParameterType.DATASET:
-                instruction.arguments.create(
-                    name=param_name,
-                    type=InstructionParameterType.DATASET,
-                    dataset=datasets[param_name],
-                )
-            elif param_type == InstructionParameterType.MODEL:
-                if "@backend" in comment:
-                    # parse model backend from # @backend <backend>
-                    backend = comment[comment.find("@backend") + 9 :].strip()
-                    model = get_backend_model(backend)
-                else:
-                    raise NotImplementedError(
-                        f"generic model argument resolution not implemented yet: {line}"
-                    )
-                instruction.bind_argument(param_name, model)
-            elif param_type == InstructionParameterType.INSTRUCTION:
-                instruction = instructions[param_name]
-                instruction.bind_argument(param_name, instruction)
-            elif param_type == InstructionParameterType.JSON:
-                raise NotImplementedError(f"json argument resolution not implemented yet: {line}")
+            # use alias if set
+            if "@alias" in comment:
+                symbol_ref_name = comment[comment.find("@alias") + 6 :].strip()
             else:
-                raise ValueError(f"unknown parameter type: {param_type}")
+                symbol_ref_name = param_name
+
+            if param_type == InstructionParameterType.JSON:
+                raise NotImplementedError(f"json argument resolution not supported: {line}")
+            symbol = project_v.symbol(symbol_ref_name)
+            instruction.bind_argument(param_name, symbol)

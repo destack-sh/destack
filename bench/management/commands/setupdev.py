@@ -78,13 +78,16 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(self.style.SUCCESS(f"Created provider: {organization}"))
             else:
-                library = Project.objects.filter(organization=organization, slug="backends").first()
+                library = Project.objects.filter(organization=organization, slug="stdlib").first()
 
             # version with current month format like 2022.11
             version_id = datetime.datetime.now().strftime("%Y.%m")
             library_v: ProjectVersion = library.head  # just advance head
             if library_v.name == version_id:
                 # skip if version already exists
+                self.stdout.write(
+                    f"Skip updating library {library_v} to {version_id} (already exists)"
+                )
                 continue
 
             # add models to library
@@ -95,7 +98,8 @@ class Command(BaseCommand):
                     provider=provider_key,
                     default_settings=ModelInferenceSettings.objects.create(),
                 )
-                library_v.create_file(name=model_id).create_definition(model)
+                model_file = library_v.create_file(name=model_id)
+                model_file.create_definition(model_id, model)
             library_v.commit(version_id)
 
             self.stdout.write(

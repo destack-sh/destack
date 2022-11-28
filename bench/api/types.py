@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional, Union, cast
 from uuid import UUID
 
 import strawberry
@@ -44,7 +44,7 @@ class Project(gql.Node):
 
     @strawberry.field()
     def version(self, version_id: UUID) -> Optional[ProjectVersion]:
-        return self.versions.all().filter(id=version_id).first()
+        return cast(models.Project, self).versions.all().filter(id=version_id).first()
 
 
 @gql.django.type(models.ProjectVersion)
@@ -78,7 +78,7 @@ class Symbol(gql.Node):
 
     @strawberry.field()
     def definition(self, project_version_id: UUID) -> Optional[SymbolDefinition]:
-        return self.resolve(project_version_id)
+        return cast(models.Symbol, self).resolve(project_version_id)
 
 
 @gql.django.type(bench.models.symbol.SymbolDefinition)
@@ -150,7 +150,7 @@ class InstructionParameter(gql.Node):
 
 @gql.django.type(models.InstructionArgument)
 class InstructionArgument(gql.Node):
-    instruction_bound: Instruction
+    instruction: Instruction
     instruction_free: Instruction
     name: auto
     created_at: auto
