@@ -17,7 +17,9 @@ from bench.models import (
     Organization,
     Project,
     ProjectVersion,
+    Symbol,
     SymbolContent,
+    SymbolDefinition,
     SymbolType,
     Task,
 )
@@ -124,9 +126,27 @@ class Command(BaseCommand):
             segment_parser = segment_parsers.get(segment.symbol_type)
             if segment_parser is None:
                 raise ValueError(f"unexpected segment type: {segment.symbol_type}")
-            symbol_content: SymbolContent = segment_parser(project_v, segment, _get_definition)
+
+            # create symbol, content and corresponding definition
+            # create symbol first so segment parser can use 'self' during definition
+            symbol = Symbol.objects.create(project=project, type=segment.symbol_type)
+            result = segment_parser(
+                project_v=project_v, segment=segment, lookup_def=_get_definition, symbol=symbol
+            )
+            if isinstance(result, tuple):
+                symbol_content, on_defined = result
+            else:
+                symbol_content = result
+                on_defined = None
+
             file = project_v.create_file_from_path(segment.virtual_path, exists_ok=True)
-            symbol_def = project_v.define_symbol(segment.symbol_name, symbol_content, file)
+            symbol_def = project_v.define_symbol(
+                segment.symbol_name, content=symbol_content, file=file, symbol=symbol
+            )
+
+            if on_defined:
+                on_defined(symbol_def)
+
             self.stdout.write(f"Define {symbol_def} in {symbol_def.file}")
 
         # set task as new main program
@@ -184,41 +204,53 @@ class Command(BaseCommand):
         return imports, segments
 
     def parse_task(
-        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
-    ) -> SymbolContent:
+        self,
+        project_v: ProjectVersion,
+        segment: FileSegment,
+        lookup_def: typing.Callable,
+        symbol: Symbol,
+    ) -> tuple[SymbolContent, typing.Callable[[SymbolDefinition], None]]:
         schema = lookup_def("schema")
         task = Task.objects.create(schema=schema)
 
-        if "parent" in segment.symbol_args:
-            parent_name = segment.symbol_args["parent"]
-            parent = project_v.get_symbol(parent_name, SymbolType.TASK)
-            task.parent = parent
+        def on_defined(symbol_def: SymbolDefinition):
+            if "parent" in segment.symbol_args:
+                parent_name = segment.symbol_args["parent"]
+                parent = project_v.symbol_definition(parent_name, SymbolType.TASK)
+                parent.children.add(symbol_def)
 
-        return task
+        return task, on_defined
 
     def parse_instruct(
-        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
+        self,
+        project_v: ProjectVersion,
+        segment: FileSegment,
+        lookup_def: typing.Callable,
+        symbol: Symbol,
     ) -> SymbolContent:
         function = lookup_def(segment.symbol_name)
         if not callable(function):
             raise ValueError(f"instruct symbol '{segment.symbol_name}' is not typing.Callable")
-        instruction = Instruction.objects.create(code=segment.full_code)
+        instruction = Instruction.objects.create(
+            code=segment.full_code, code_function_name=function.__name__
+        )
 
         if "task" in segment.symbol_args:
             task_name = segment.symbol_args["task"]
-            task_symbol = project_v.get_symbol(task_name, SymbolType.TASK)
-            if task_symbol is None:
-                raise ValueError(f"task '{task_name}' not found in {project_v}")
-            instruction.task = task_symbol
-            task: Task = project_v.resolve(task_symbol)
-            task.template_implementation = instruction
+            task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
+            instruction.task = task_def.symbol
+            task_def.task.template_implementation = symbol
 
         self.bind_instruction_parameters(segment, project_v, instruction)
 
         return instruction
 
     def parse_data(
-        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
+        self,
+        project_v: ProjectVersion,
+        segment: FileSegment,
+        lookup_def: typing.Callable,
+        symbol: Symbol,
     ):
         dataset_records = lookup_def(segment.symbol_name)
         if not isinstance(dataset_records, list):
@@ -227,7 +259,11 @@ class Command(BaseCommand):
         return dataset
 
     def parse_expect(
-        self, project_v: ProjectVersion, segment: FileSegment, lookup_def: typing.Callable
+        self,
+        project_v: ProjectVersion,
+        segment: FileSegment,
+        lookup_def: typing.Callable,
+        symbol: Symbol,
     ):
         description = lookup_def("expectation")
         if not isinstance(description, str):
@@ -242,11 +278,7 @@ class Command(BaseCommand):
             statement_name, statement_type_name = statement_path.split(".")
             statement_type = SymbolType(statement_type_name)
 
-            statement_def = project_v.get_symbol_definition(statement_name, statement_type)
-            if statement_def is None:
-                raise ValueError(
-                    f"expectation statement symbol '{statement_path}' not found in {project_v}"
-                )
+            statement_def = project_v.symbol_definition(statement_name, statement_type)
             if statement_def.type in (
                 SymbolType.INSTRUCTION,
                 SymbolType.DATASET,
@@ -257,6 +289,12 @@ class Command(BaseCommand):
                 raise ValueError(
                     f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
                 )
+
+        if "task" in segment.symbol_args:
+            task_name = segment.symbol_args["task"]
+            task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
+            task_def.task.expectations.add(symbol)
+
         return expectation
 
     def bind_instruction_parameters(

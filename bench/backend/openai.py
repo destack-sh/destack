@@ -21,7 +21,10 @@ class OpenAIProvider(ModelProvider):
     ) -> ModelHandle:
         user_hashed = hashlib.shake_256(for_user.encode()).hexdigest(len(for_user) * 2)
         return OpenAIModel(
-            headers=self.headers, model=model.name, user_hashed=user_hashed, settings=settings
+            headers=self.headers,
+            model=model.external_name,
+            user_hashed=user_hashed,
+            settings=settings,
         )
 
 

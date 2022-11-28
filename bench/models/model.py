@@ -32,7 +32,7 @@ class Model(SymbolContent):
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"model@{self.id.hex}({self.provider}/{self.external_name})"
+        return f"{self.id.hex}.model({self.provider}/{self.external_name})"
 
     class Meta:
         default_manager_name = "objects"
@@ -91,6 +91,10 @@ class ModelInference(UUIDTModel):
     input_hash = models.CharField(max_length=64)
     input = models.JSONField(null=True)
     output = models.JSONField()
+    duration_ms = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.id.hex}.inference({self.model}/{self.operation})"
 
     class Meta:
         indexes = [

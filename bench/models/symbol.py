@@ -60,31 +60,20 @@ class Symbol(TaggableMixin, UUIDModel):
     # definitions via SymbolDefinition
 
     def __str__(self):
-        return f"{self.project}/{self.id.hex}.{self.type}"
+        # if project is loaded in django model
+        if "project" in self._state.fields_cache:
+            return f"{self.project}/{self.id.hex}.{self.type}"
+        else:
+            return f"{self.project_id}/{self.id.hex}.{self.type}"
 
     def resolve(self, project_v: ProjectVersion | UUID) -> Optional[SymbolDefinition]:
         """
         Resolve the symbol to a definition in the given project version.
         """
-        if not isinstance(project_v, UUID):
-            project_v = project_v.id
+        # re-import for real to avoid circular import (above is only for type checking)
+        from bench.models.project import ProjectVersion  # noqa
 
-        # TODO @Architecture @Performance: revisit symbol resolution logic
-        #  Symbol resolution should likely be baked into our GraphQL API for optimal performance.
-        #  (hook into strawberry_django_plus query optimizer).
-        #  Right now this resolution is N+1. Not enough info to implement this better yet.
-        definition = SymbolDefinition.objects.filter(
-            project_version_id=project_v, symbol=self
-        ).first()
-        if not definition:
-            # fall back to lookup in libraries if not found in this project
-            libraries = ProjectVersion.objects.filter(id=project_v).values_list(
-                "libraries__id", flat=True
-            )
-            definition = SymbolDefinition.objects.filter(
-                project_version__in=libraries, symbol=self
-            ).first()
-        return definition
+        return ProjectVersion.resolve_id(project_v, self)
 
 
 class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
@@ -114,8 +103,11 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
             # check that the symbol declaration has the same type as the content
             raise ValueError(f"content type {content_type} does not match symbol type {symbol}")
 
-        # content field name is just the type name lower-cased (see SymbolContent)
-        kwargs = {**kwargs, "type": content_type, **kwargs, content_type.name.lower(): content}
+        kwargs = {
+            **kwargs,
+            "type": content_type,
+            SymbolDefinition.type_to_field(content_type): content,
+        }
         return self.create(symbol=symbol, project_version=project_version, **kwargs)
 
     def resolve(
@@ -141,9 +133,12 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=SymbolType)
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="definitions")
+    # TODO @Architecture: should symbol definition parent/children relation be on symbol definition or symbol?
+    #  Currently, it's on symbol definition, which we copy for every project version.
     parent = models.ForeignKey(
         "SymbolDefinition", on_delete=models.CASCADE, null=True, related_name="children"
     )
+    # children via SymbolDefinition
     index = models.IntegerField(null=True)  # index into file or parent if nested
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -168,7 +163,19 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     )
 
     def __str__(self):
-        return f"{self.symbol}={self.name_dot_type}@{self.id.hex}"
+        return f"{self.name_dot_type}@{self.id.hex}"
+
+    @staticmethod
+    def type_to_field(type: SymbolType) -> str:
+        type_to_field_map = {
+            SymbolType.TASK: "task",
+            SymbolType.EXPECTATION: "expectation",
+            SymbolType.INSTRUCTION: "instruction",
+            SymbolType.MODEL: "model",
+            SymbolType.DATASET: "dataset",
+            SymbolType.DATASET_VIEW: "dataset_view",
+        }
+        return type_to_field_map[type]
 
     @gql.model_property(only=["name", "type"])
     def name_dot_type(self) -> str:
@@ -179,25 +186,12 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
         select_related=["task", "expectation", "instruction", "model", "dataset", "dataset_view"],
     )
     def content(self) -> Union[Task, Expectation, Instruction, Model, Dataset, DatasetView]:
-        content: Union[Task, Expectation, Instruction, Model, Dataset, DatasetView, None]
-        if self.type == SymbolType.TASK:
-            content = self.task
-        elif self.type == SymbolType.EXPECTATION:
-            content = self.expectation
-        elif self.type == SymbolType.INSTRUCTION:
-            content = self.instruction
-        elif self.type == SymbolType.MODEL:
-            content = self.model
-        elif self.type == SymbolType.DATASET:
-            content = self.dataset
-        elif self.type == SymbolType.DATASET_VIEW:
-            content = self.dataset_view
-        else:
-            raise ValueError(f"{self} has unknown type: {self.type}")
+        content: Union[Task, Expectation, Instruction, Model, Dataset, DatasetView, None] = getattr(
+            self, self.type_to_field(self.type)
+        )
         if content is None:
             raise ValueError(f"{self} has no content for {self.type}")
-        else:
-            return content
+        return content
 
     objects: SymbolDefinitionManager = SymbolDefinitionManager()
 
