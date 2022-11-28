@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import pytz
+from asgiref.sync import sync_to_async
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q, QuerySet
@@ -112,19 +113,26 @@ class Project(TaggableMixin, UUIDModel):
             new_files[old_id] = file
         # 1.1 re-assign project file parents
         for file in assigned_parent.files.all():
-            new_file = new_files[file.id]
             if file.parent_id is not None:
-                new_file.parent = new_files.get(file.parent_id)
+                new_file = new_files[file.id]
+                new_file.parent = new_files[(file)]
                 new_file.save()
         # 2. copy symbol definitions
         new_definitions: dict[UUID, SymbolDefinition] = {}
         for definition in assigned_parent.definitions.all():
             old_id = definition.id
             definition.pk = None
+            definition.parent = None
             definition.file = new_files[definition.file_id]
             definition.project_version = new_version
             definition.save()
             new_definitions[old_id] = definition
+        # 2.1 re-assign symbol definition parents
+        for definition in assigned_parent.definitions.all():
+            if definition.parent_id is not None:
+                new_definition = new_definitions[definition.id]
+                new_definition.parent = new_definitions[definition.parent_id]
+                new_definition.save()
 
         # head has advanced to new version
         if assigned_parent == self.head:
@@ -241,12 +249,61 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def create_folder_from_path(self, path: str, exists_ok: bool = False) -> "File":
         return self.create_path(path, is_folder=True, exists_ok=exists_ok)
 
-    def resolve(self, symbol: Symbol) -> Optional[SymbolDefinition]:
+    def resolve(
+        self, symbol: Symbol, prefetch: list[str] | None = None
+    ) -> Optional[SymbolDefinition]:
         """
         Resolve a symbol to a definition in this project version.
         If the symbol isn't defined here, we check the imported libraries.
         """
-        return symbol.resolve(self)
+        return ProjectVersion.resolve_id(self, symbol, prefetch)
+
+    def resolve_sure(self, symbol: Symbol, prefetch: list[str] | None = None) -> SymbolDefinition:
+        """
+        Resolve a symbol to a definition in this project version.
+        If the symbol isn't defined here, we check the imported libraries.
+        Raises an exception if the symbol is not defined.
+        """
+        definition = self.resolve(symbol, prefetch)
+        if definition is None:
+            available_symbols_str = self._get_available_symbols_debug_str()
+            raise ValueError(f"symbol {symbol} is not defined in {self}:\n{available_symbols_str}")
+        return definition
+
+    async def aresolve(
+        self, symbol: Symbol, prefetch: list[str] | None = None
+    ) -> Optional[SymbolDefinition]:
+        return await sync_to_async(self.resolve)(symbol, prefetch)
+
+    async def aresolve_sure(
+        self, symbol: Symbol, prefetch: list[str] | None = None
+    ) -> SymbolDefinition:
+        return await sync_to_async(self.resolve_sure)(symbol, prefetch)
+
+    @staticmethod
+    def resolve_id(
+        project_v: ProjectVersion | UUID, symbol: Symbol | UUID, prefetch: list[str] | None = None
+    ) -> Optional[SymbolDefinition]:
+        if not isinstance(project_v, UUID):
+            project_v = project_v.id
+        if not isinstance(symbol, UUID):
+            symbol = symbol.id
+
+        # TODO @Architecture @Performance: revisit symbol resolution logic
+        #  Symbol resolution should be baked into all queries (not done in Python).
+        #  This should also include our GraphQL API for optimal performance.
+        #   (hook into strawberry_django_plus query optimizer).
+        #  (also see ProjectVersion.available_definitions)
+        libraries = ProjectVersion.objects.filter(id=project_v).values_list(
+            "libraries__id", flat=True
+        )
+        available_defs = SymbolDefinition.objects.filter(
+            Q(project_version_id__in=libraries) | Q(project_version_id=project_v)
+        )
+        if prefetch:
+            available_defs = available_defs.prefetch_related(*prefetch)
+        definition = available_defs.filter(symbol=symbol).select_related("symbol").first()
+        return definition
 
     @transaction.atomic
     def define_symbol(
@@ -322,16 +379,21 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         """
         definition = self.get_symbol_definition(name, type)
         if definition is None:
-            limit = 50
-            available_symbols_count = self.available_definitions().count()
-            available_symbols_strs = (str(d) for d in self.available_definitions()[:limit])
+            available_symbols_str = self._get_available_symbols_debug_str()
             raise ValueError(
-                f"symbol definition not found in {self}: {name}"
-                f"\n(showing {min(limit, available_symbols_count)} of {available_symbols_count} available symbols:"
-                f" {', '.join(available_symbols_strs)})"
+                f"symbol {name}{'.' + type if type else ''} is not defined in {self}:\n{available_symbols_str}"
             )
         else:
             return definition
+
+    def _get_available_symbols_debug_str(self, limit: int = 50) -> str:
+        available_symbols_count = self.available_definitions().count()
+        available_symbols_strs = (str(d) for d in self.available_definitions()[:limit])
+        available_symbols_str = (
+            f"({min(limit, available_symbols_count)} of {available_symbols_count}"
+            f" available symbols: {', '.join(available_symbols_strs)})"
+        )
+        return available_symbols_str
 
     def reset(self):
         # deletes all our references and definitions but not their contents

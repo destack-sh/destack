@@ -78,7 +78,7 @@ class Symbol(gql.Node):
 
     @strawberry.field()
     def definition(self, project_version_id: UUID) -> Optional[SymbolDefinition]:
-        return cast(models.Symbol, self).resolve(project_version_id)
+        return models.ProjectVersion.resolve_id(project_version_id, self)
 
 
 @gql.django.type(bench.models.symbol.SymbolDefinition)

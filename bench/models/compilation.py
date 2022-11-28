@@ -10,14 +10,30 @@ class Compilation(UUIDModel):
     Depending on the compilation target and options, various optimizations may be applied.
     """
 
-    task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
-    backends = models.ManyToManyField("Model", related_name="compilations")
+    task = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="compilations+")
+    backends = models.ManyToManyField("Symbol", related_name="compilations+")
     source = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="compilations"
+        "Symbol", on_delete=models.CASCADE, null=True, related_name="compilations+"
     )
-    target = models.OneToOneField(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="source_compilation"
+    target = models.ForeignKey(
+        "Symbol", on_delete=models.CASCADE, null=True, related_name="source_compilation"
     )
 
     def __str__(self):
-        return f"{self.task}.compilation@{self.id.hex}"
+        return f"{self.id.hex}.compilation"
+
+
+class SourceMapping(UUIDModel):
+    """
+    A source mapping records how the source tree was compiled into the target tree.
+    """
+
+    source = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="mappings+")
+    source_path = models.JSONField(null=True)
+    target = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="source_mappings")
+    target_path = models.JSONField(null=True)
+
+    def __str__(self):
+        source_str = f"{self.source}[{self.source_path}]" if self.source_path else str(self.source)
+        target_str = f"{self.target}[{self.target_path}]" if self.target_path else str(self.target)
+        return f"{self.id.hex}.map({source_str} -> {target_str})"

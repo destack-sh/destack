@@ -47,12 +47,13 @@ class Instruction(SymbolContent):
     # either set builtin id or set custom code
     builtin_id = models.CharField(blank=True, null=True, max_length=256)
     code = models.TextField(blank=True, null=True)
+    code_function_name = models.CharField(blank=True, null=True, max_length=256)
 
     # parameters to/from InstructionParameter
     # arguments to/from InstructionArgument
 
     def __str__(self):
-        return f"instruct@{self.id.hex}"
+        return f"{self.id.hex}.instruct"
 
     def add_parameter(
         self,
@@ -124,8 +125,7 @@ class Instruction(SymbolContent):
             # builtins are always directly callable
             return False
         elif self.code is not None:
-            # TODO @Robustness: check anonymous vs defined functions in a more general way
-            return f"def {self.name}(" not in self.code
+            return self.code_function_name is None
         else:
             raise ValueError(f"instruction {self} must have either builtin_id or code")
 

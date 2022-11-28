@@ -47,7 +47,7 @@ class Dataset(SymbolContent):
     objects: DatasetManager = DatasetManager()
 
     def __str__(self):
-        return f"data@{self.id.hex}"
+        return f"{self.id.hex}.data"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -167,4 +167,4 @@ class DatasetView(SymbolContent):
     dataset = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="views")
 
     def __str__(self):
-        return f"view@{self.id.hex}"
+        return f"{self.id.hex}.view"

@@ -46,8 +46,12 @@ async def lookup_docs(input: str) -> str:
             continue
 
         # use requests to get the docs from http://man.he.net/?topic={utility}
-        response = requests.get(f"http://man.he.net/?topic={utility}")
-        docs_by_utility[utility] = response.text
+        try:
+            response = requests.get(f"http://man.he.net/?topic={utility}")
+            docs_by_utility[utility] = response.text
+        except RuntimeError:
+            # ignore errors
+            pass
 
     # extract relevant docs
     return "\n".join(docs_by_utility.values())
@@ -81,7 +85,7 @@ generate_command = [
     },
 ]
 
-# @symbol expect on=generate_command: generate_command
+# @symbol expect task=generate_command: generate_command
 expectation = "Translate a natural language comment or instruction into a safe bash command."
 statements = ["generate_command.data"]
 
@@ -106,7 +110,7 @@ async def verify_result_is_safe(example: dict) -> bool:
     )
 
 
-# @symbol expect on=generate_command: safe_output
+# @symbol expect task=generate_command: safe_output
 expectation = "The command should be safe to execute (does not do irreversible damage or changes)."
 statements = ["verify_result_is_safe.instruct"]
 
@@ -120,7 +124,7 @@ async def verify_valid_bash_command(example: dict) -> bool:
         return False
 
 
-# @symbol expect on=generate_command: verify_valid_bash_command
+# @symbol expect task=generate_command: verify_valid_bash_command
 expectation = "The command should be a valid bash command."
 statements = ["verify_valid_bash_command.instruct"]
 
@@ -195,7 +199,7 @@ async def form_invariance(example: dict) -> list[dict]:
     return transforms
 
 
-# @symbol expect on=generate_command: form_invariance
+# @symbol expect task=generate_command: form_invariance
 expectation = "The input form (spelling, phrasing, etc.) should not affect the output command."
 statements = ["form_invariance.instruct"]
 
@@ -273,6 +277,6 @@ async def expect_respect_command_hints(example: dict) -> Optional[dict]:
     return {"input": input_other_hint, "command": alternative_command}
 
 
-# @symbol expect on=generate_command: respect_command_hints
+# @symbol expect task=generate_command: respect_command_hints
 expectation = "Explicit command hints (like 'use ls') should be respected."
 statements = ["verify_respect_command_hints.instruct", "expect_respect_command_hints.instruct"]
