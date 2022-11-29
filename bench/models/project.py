@@ -87,6 +87,7 @@ class Project(TaggableMixin, UUIDModel):
         description: Optional[str] = None,
         parent: Optional[ProjectVersion] = None,
         auto_commit: bool = True,
+        commit_name: Optional[str] = None,
     ) -> "ProjectVersion":
         if parent is None:
             if self.head is None:
@@ -98,7 +99,7 @@ class Project(TaggableMixin, UUIDModel):
 
         if not assigned_parent.committed:
             if auto_commit:
-                assigned_parent.commit()
+                assigned_parent.commit(commit_name)
             else:
                 raise ValueError(f"parent version must be committed: {assigned_parent}")
 
@@ -109,7 +110,7 @@ class Project(TaggableMixin, UUIDModel):
 
         # copy all project files and their symbol definitions from parent
         # TODO @Performance: copy project version on commit server-side in SQL
-        #  This is awfully sequential and slow.
+        #  This is awfully sequential and slow, particularly deepcopy of symbol definitions.
         # 1. copy project files
         new_files: dict[UUID, File] = {}
         for file in assigned_parent.files.all():
@@ -119,10 +120,10 @@ class Project(TaggableMixin, UUIDModel):
             file.save()
             new_files[old_id] = file
         # 1.1 re-assign project file parents
-        for file in assigned_parent.files.all():
-            if file.parent_id is not None:
-                new_file = new_files[file.id]
-                new_file.parent = new_files[(file)]
+        for old_file in assigned_parent.files.all():
+            if old_file.parent_id is not None:
+                new_file = new_files[old_file.id]
+                new_file.parent = new_files[old_file.parent_id]
                 new_file.save()
         # 2. copy symbol definitions and symbol contents
         new_definitions: dict[UUID, SymbolDefinition] = {}
@@ -130,6 +131,7 @@ class Project(TaggableMixin, UUIDModel):
         for definition in assigned_parent.definitions.all():
             # copy definition
             old_id = definition.id
+            old_content = definition.content
             definition.pk = None
             definition.parent = None
             definition.set_content(None)
@@ -138,23 +140,28 @@ class Project(TaggableMixin, UUIDModel):
             definition.save()
             new_definitions[old_id] = definition
             # copy content
-            # old_id = definition.content_id
-            # content = definition.content
-            # content.pk = None
-            # content.definition = new_definitions[content.definition_id]
-            # content.save()
-            # new_contents[old_id] = content
-        # 2.1 re-assign symbol definition and content references
-        for definition in assigned_parent.definitions.all():
-            # re-assign content references (from model fields)
-            for field in definition.content._meta.get_fields():
-                pass  # TODO @Feature: copy project versions
+            old_id = old_content.id
+            content = old_content
+            content.pk = None
+            content.definition = new_definitions[content.definition_id]
+            content.save()
+            new_contents[old_id] = content
+        refs: dict[UUID, SymbolContent | SymbolDefinition] = {**new_definitions, **new_contents}
+        # 2.1 re-assign references and deep copy symbols
+        for old_definition in assigned_parent.definitions.all():
+            new_definition = new_definitions[old_definition.id]
+            new_content = new_contents[old_definition.content_id]
+            new_definition.set_content(new_content)
 
-            if definition.parent_id is not None:
-                new_definition = new_definitions[definition.id]
-                new_definition.parent = new_definitions[definition.parent_id]
-                # new_definition.set_content(new_contents[definition.content_id])
-                new_definition.save()
+            # copy content
+            old_content: SymbolContent = old_definition.content
+            old_content.deepcopy(to=new_content, refs=refs)
+
+            # re-assign definition parent and content
+            if old_definition.parent_id is not None:
+                new_definition.parent = new_definitions[old_definition.parent_id]
+
+            new_definition.save()
 
         # head has advanced to new version
         if assigned_parent == self.head:

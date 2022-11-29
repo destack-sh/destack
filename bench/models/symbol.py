@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import abc
 from typing import TYPE_CHECKING, Union
 from uuid import UUID
 
@@ -185,17 +184,6 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
                 fields=["parent", "index"],
                 condition=models.Q(parent__isnull=False),
             ),
-            # ensure unique name within file or parent
-            models.UniqueConstraint(
-                name="bench_symbol_definition_file_name_ak",
-                fields=["file", "name"],
-                condition=models.Q(parent__isnull=True),
-            ),
-            models.UniqueConstraint(
-                name="bench_symbol_definition_parent_name_ak",
-                fields=["parent", "name"],
-                condition=models.Q(parent__isnull=False),
-            ),
         ]
 
 
@@ -209,9 +197,45 @@ class SymbolContent(UUIDModel):
         "SymbolDefinition", on_delete=models.CASCADE, related_name="content+"
     )
 
-    @abc.abstractmethod
-    def copy(self) -> SymbolContent:
-        raise NotImplementedError
+    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        """
+        Deep copy this symbol to another symbol, replacing all references.
+        The other symbol must be of the same type and is assumed to be created using:
+
+        ```example
+        to = from
+        to.pk = None
+        to.save()
+        ```
+
+        With the above, all value fields are automatically copied. Here we copy all relations and
+        nested tables that are not symbols. Subclasses should override and extend this method.
+        """
+        if type(self) != type(to):
+            raise ValueError(f"cannot copy {self} to {to}")
+
+        # replace all relations referencing symbol definitions or contents with copies
+        replace_refs(self, to, refs)
 
     class Meta:
         abstract = True
+
+
+def replace_refs(
+    obj: models.Model, to: models.Model, refs: dict[UUID, SymbolDefinition | SymbolContent]
+):
+    """Replaces all references to symbols with the given refs (refs need not be complete)."""
+    for field in obj._meta.get_fields():
+        if not field.is_relation:
+            continue
+        if not issubclass(field.related_model, (SymbolDefinition, SymbolContent)):
+            continue
+        # if many to one
+        if field.many_to_one:
+            value = getattr(obj, field.name)
+            if value is not None and value.pk in refs:
+                setattr(to, field.name, refs[value.id])
+        # if many to many
+        elif field.many_to_many:
+            values = getattr(obj, field.name).all().values_list("id", flat=True)
+            getattr(to, field.name).set(refs.get(id, id) for id in values)

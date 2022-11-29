@@ -116,13 +116,7 @@ class Compilation(gql.Node):
 class Expectation(SymbolContent):
     task: Task
     description: auto
-    statements: list[ExpectationStatement]
-
-
-@gql.django.type(models.ExpectationStatement)
-class ExpectationStatement(gql.Node):
-    expectation: Expectation
-    statement: SymbolDefinition
+    statements: list[SymbolDefinition]
 
 
 @gql.django.type(models.Instruction)

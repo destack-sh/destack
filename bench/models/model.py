@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from uuid import UUID
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from bench.models.symbol import SymbolContent
+from bench.models.symbol import SymbolContent, SymbolDefinition
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDModel, UUIDTModel
 
 
@@ -33,6 +34,13 @@ class Model(SymbolContent):
 
     def __str__(self):
         return f"{self.id.hex}.model({self.provider}/{self.external_name})"
+
+    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        super().deepcopy(to, refs)
+        # copy default settings
+        to.default_settings = self.default_settings
+        to.default_settings.pk = None
+        to.default_settings.save()
 
     class Meta:
         default_manager_name = "objects"

@@ -12,7 +12,7 @@ from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .symbol import SymbolContent, SymbolDefinition, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
-from .task import Compilation, Expectation, ExpectationStatement, Task
+from .task import Compilation, Expectation, Task
 from .user import User
 
 __all__ = [
@@ -22,7 +22,6 @@ __all__ = [
     "Task",
     "Compilation",
     "Expectation",
-    "ExpectationStatement",
     "Instruction",
     "InstructionScope",
     "InstructionArgument",
