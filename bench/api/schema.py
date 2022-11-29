@@ -12,6 +12,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
+from bench.api import types
 from bench.api.types import File, Organization, Project, ProjectVersion, Symbol, User
 from bench.compiler import Compiler, CompilerOptions
 from bench.executor import Executor
@@ -68,4 +69,13 @@ schema = strawberry.Schema(
     Query,
     Mutation,
     extensions=extensions,
+    # add interface implementation types explicitly
+    types=[
+        types.Task,
+        types.Expectation,
+        types.Instruction,
+        types.Model,
+        types.Dataset,
+        types.DatasetView,
+    ],
 )

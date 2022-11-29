@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, cast
+from typing import Optional, cast
 from uuid import UUID
 
 import strawberry
@@ -94,7 +94,7 @@ class SymbolDefinition(gql.Node):
     index: auto
     created_at: auto
     updated_at: auto
-    content: Union[Task, Expectation, Instruction, Model, Dataset, DatasetView]
+    content: SymbolContent
 
 
 @gql.django.interface(models.SymbolContent)
