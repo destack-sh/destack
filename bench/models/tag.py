@@ -54,11 +54,9 @@ class Tag(UUIDModel):
 RELATED_FIELDS = (
     "project",
     "project_version",
-    "symbol",
     "symbol_definition",
 )
 RELATED_MODELS = (
-    "Symbol",
     "SymbolDefinition",
     "Project",
     "ProjectVersion",
@@ -101,9 +99,6 @@ class TaggedItem(UUIDModel):
     )
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="tagged_items", null=True
-    )
-    symbol = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, related_name="tagged_items", null=True
     )
     symbol_definition = models.ForeignKey(
         "SymbolDefinition", on_delete=models.CASCADE, related_name="tagged_items", null=True

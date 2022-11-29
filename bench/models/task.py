@@ -17,9 +17,9 @@ class Task(SymbolContent):
     """
 
     schema = models.JSONField()
-    expectations = models.ManyToManyField("Symbol", related_name="tasks")
+    expectations = models.ManyToManyField("Expectation", related_name="tasks")
     template_implementation = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, null=True, related_name="templates"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="templates"
     )
     # compilations via Compilation
 
@@ -43,12 +43,12 @@ class Compilation(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    backends = models.ManyToManyField("Symbol", related_name="compilations+")
+    backends = models.ManyToManyField("Model", related_name="compilations+")
     output_task = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, null=True, related_name="compilations+"
+        "Task", on_delete=models.CASCADE, null=True, related_name="compilations+"
     )
     output_instruction = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, null=True, related_name="source_compilation"
+        "Instruction", on_delete=models.CASCADE, null=True, related_name="source_compilation"
     )
 
     def __str__(self):
@@ -71,7 +71,9 @@ class Expectation(SymbolContent):
 
     description = models.TextField()
     statements = models.ManyToManyField(
-        "Symbol", through="ExpectationStatement", related_name="references_in_expectations+"
+        "SymbolDefinition",
+        through="ExpectationStatement",
+        related_name="references_in_expectations+",
     )
 
     def __str__(self):
@@ -87,4 +89,6 @@ class ExpectationStatement(UUIDModel):
     expectation = models.ForeignKey(
         "Expectation", on_delete=models.CASCADE, related_name="statements+"
     )
-    statement = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="expectations")
+    statement = models.ForeignKey(
+        "SymbolDefinition", on_delete=models.CASCADE, related_name="expectations"
+    )

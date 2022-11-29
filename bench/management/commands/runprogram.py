@@ -28,7 +28,7 @@ class Command(BaseCommand):
         if project.type != ProjectType.EXECUTABLE:
             raise ValueError(f"project must be executable: {project}")
         project_v = project.head_sure
-        main_program = project_v.resolve_sure(project_v.main_program)
+        main_program = project_v.main_program
         if main_program.type != SymbolType.TASK:
             raise ValueError(f"main program must be a task: {main_program}")
         if main_program.task.compilations.count() == 0:
@@ -42,8 +42,8 @@ class Command(BaseCommand):
             compilation: Compilation = main_program.task.compilations.get()
         else:
             compilation = main_program.task.compilations.get(name=compilation_name)
-        main_instruction = project_v.resolve_sure(compilation.output_instruction)
+        main_instruction = compilation.output_instruction
 
         executor = Executor()
-        output = async_to_sync(executor.run)(project_v, main_instruction, {"input": input})
+        output = async_to_sync(executor.run)(main_instruction, {"input": input})
         print(output)
