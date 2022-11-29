@@ -91,6 +91,20 @@ class StatementData:
             raise ValueError(f"expectation statement is not an instruction: {self}")
         return self.definition.instruction
 
+    @cached_property
+    def type(self) -> ExpectationStatementType:
+        # (naive implementation: guess statement type)
+        # TODO @Feature: define expectation statement type in statement
+        if self.symbol_type == SymbolType.INSTRUCTION:
+            if "verif" in self.instruction.code_function_name:
+                return ExpectationStatementType.VERIFY
+            else:
+                return ExpectationStatementType.TRANSFORM
+        elif self.symbol_type == SymbolType.DATASET:
+            return ExpectationStatementType.GENERATE
+        else:
+            raise NotImplementedError(f"unknown statement type: {self}")
+
 
 @dataclass(repr=False)
 class TaskData:
@@ -245,13 +259,13 @@ class Compiler:
         A task may define subtasks, which are compiled recursively and may be folded into the main task.
         """
 
-        logger.info("compile.start", compilation=compilation)
+        logger.info("compile.started", compilation=compilation)
         options = CompilerOptions(optimize_task=False, optimize_instruction=False)
         backends: list[Symbol] = await _acollect(compilation.backends.all())
         task_def, main_def = await self.compile_task(project_v, compilation.task, backends, options)
         compilation.target = main_def.symbol
         await sync_to_async(compilation.save)()
-        logger.info("compile.done", compilation=compilation)
+        logger.info("compile.finished", compilation=compilation)
 
     async def compile_task(
         self,
@@ -278,18 +292,18 @@ class Compiler:
         4. Optimize instruction tree for backends and options
         """
         task_def = await project_v.aresolve(task_ref)
-        logger.info("compile.task.start", task=task_def)
+        logger.info("compile.task.started", task=task_def)
 
         # lay out the task tree
-        logger.info("compile.task.layout.start", task=task_def)
+        logger.info("compile.task.layout.started", task=task_def)
         task_data = await sync_to_async(TaskData.from_task)(project_v, task_def)
-        logger.info("compile.task.layout.done", task=task_def, task_def=task_def)
+        logger.info("compile.task.layout.finished", task=task_def, task_def=task_def)
 
         if options.optimize_task:
             # optimize the task tree
-            logger.info("compile.task.optimize.start", task=task_data)
-            task_data = await self._optimize_task(task_data, backends_refs)
-            logger.info("compile.task.optimize.done", task=task_data, optimized=task_data)
+            logger.info("compile.task.optimize.started", task=task_data)
+            task_data = await self._optimize_task(project_v, task_data, backends_refs)
+            logger.info("compile.task.optimize.finished", task=task_data, optimized=task_data)
         else:
             # naively set optimal backend for all tasks
             # TODO @Performance: use proper heuristics to decide optimal backend
@@ -299,25 +313,28 @@ class Compiler:
                 task_data.optimal_backend_ref = backends_refs[0]
 
         # build the instruction tree
-        logger.info("compile.instruct.build.start", task=task_data.task, original=task_def)
+        logger.info("compile.instruct.build.started", task=task_data.task, original=task_def)
         main_instruction_def = await self._build_instruction(project_v, task_data)
-        logger.info("compile.instruct.build.done", task=task_data.task, original=task_def)
+        logger.info("compile.instruct.build.finished", task=task_data.task, original=task_def)
 
         if options.optimize_instruction:
             # optimize the instruction tree
-            logger.info("compile.instruct.optimize.start", task=task_data, original=task_def)
+            logger.info("compile.instruct.optimize.started", task=task_data, original=task_def)
             main_instruction_def = await self._optimize_instruction(
                 project_v, main_instruction_def, backends_refs
             )
             logger.info(
-                "compile.instruct.optimize.done",
+                "compile.instruct.optimize.finished",
                 task_data,
                 original=task_def,
                 main=main_instruction_def,
             )
 
         logger.info(
-            "compile.task.done", task=task_data, optimized=task_def.task, main=main_instruction_def
+            "compile.task.finished",
+            task=task_data,
+            optimized=task_def.task,
+            main=main_instruction_def,
         )
         return task_data.definition, main_instruction_def
 
@@ -443,20 +460,8 @@ class Compiler:
         # 2.1 collect static examples
         # (naive implementation collect all static examples indiscriminately)
         static_examples: list[dict] = list(chain(*task_data.examples.values()))
-        # 2.2 determine expectation type for instruction
-        # (naive implementation: guess statement type from first expectation)
-        # TODO @Feature: define expectation statement type in statement
-        for expect_id, statement in task_data.instruction_statements:
-            if statement.symbol_type == SymbolType.INSTRUCTION:
-                if "verif" in statement.instruction.code_function_name:
-                    statement.type = ExpectationStatementType.VERIFY
-                else:
-                    statement.type = ExpectationStatementType.TRANSFORM
-            elif statement.symbol_type == SymbolType.DATASET:
-                statement.type = ExpectationStatementType.GENERATE
-            else:
-                raise NotImplementedError(f"unknown statement type: {statement}")
-        # 2.3 collect dynamic examples from expectations
+
+        # 2.2 collect dynamic examples from expectations
         # (naive implementation: should be done iteratively & in parallel, picking optimal examples)
         dynamic_examples: list[dict] = []
         for expect_id, statement in task_data.instruction_statements:

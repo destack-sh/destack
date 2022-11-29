@@ -26,6 +26,7 @@ class Compilation(UUIDModel):
 class SourceMapping(UUIDModel):
     """
     A source mapping records how the source tree was compiled into the target tree.
+    TODO @Feature: implement compiler source maps
     """
 
     source = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="mappings+")

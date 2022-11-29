@@ -1,6 +1,5 @@
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
-  name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   committedIn: ProjectVersion
@@ -18,7 +17,6 @@ type DatasetRecord implements Node {
 
 type DatasetView implements SymbolContent & Node {
   id: GlobalID!
-  name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   committedIn: ProjectVersion
@@ -29,14 +27,21 @@ type DatasetView implements SymbolContent & Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
-type Expectation implements Node {
+type Expectation implements SymbolContent & Node {
   id: GlobalID!
-  task: Task!
-  index: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
+  task(pk: ID): Task!
   description: String!
-  statements: [Symbol!]!
+  statements: [ExpectationStatement!]!
+}
+
+type ExpectationStatement implements Node {
+  id: GlobalID!
+  expectation: Expectation!
+  statement: Symbol!
 }
 
 type File implements Node {
@@ -56,14 +61,10 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 type Instruction implements SymbolContent & Node {
   id: GlobalID!
-  name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   committedIn: ProjectVersion
   committed: Boolean!
-  parent: Instruction
-  children: [Instruction!]!
-  index: Int!
   task: Symbol
   scope: String!
   builtinId: String
@@ -74,7 +75,7 @@ type Instruction implements SymbolContent & Node {
 
 type InstructionArgument implements Node {
   id: GlobalID!
-  instructionBound: Instruction!
+  instruction: Instruction!
   instructionFree: Instruction!
   name: String!
   createdAt: DateTime!
@@ -109,7 +110,6 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type Model implements SymbolContent & Node {
   id: GlobalID!
-  name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   committedIn: ProjectVersion
@@ -299,7 +299,6 @@ type Symbol implements Node {
 
 interface SymbolContent implements Node {
   id: GlobalID!
-  name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   committedIn: ProjectVersion
@@ -314,15 +313,18 @@ type SymbolDefinition implements Node {
   type: SymbolType!
   nameDotType: String!
   file: File!
+  parent: Symbol
+  children: [Symbol!]!
   index: Int
   createdAt: DateTime!
   updatedAt: DateTime!
-  content: TaskInstructionModelDatasetDatasetView!
+  content(pk: ID): SymbolContent!
 }
 
 """The type of symbol to define in a project."""
 enum SymbolType {
   TASK
+  EXPECTATION
   INSTRUCTION
   MODEL
   DATASET
@@ -331,21 +333,15 @@ enum SymbolType {
 
 type Task implements SymbolContent & Node {
   id: GlobalID!
-  name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   committedIn: ProjectVersion
   committed: Boolean!
-  parent: Task
-  index: Int!
-  children: [Task!]!
   schema: JSON!
-  expectations: [Expectation!]!
-  templateImplementation: Instruction
+  expectations: [Symbol!]!
+  templateImplementation: Symbol
   implementations: [Symbol!]!
 }
-
-union TaskInstructionModelDatasetDatasetView = Task | Instruction | Model | Dataset | DatasetView
 
 scalar UUID
 
