@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
 
-from bench.models.symbol import Symbol, SymbolContent, SymbolType
+from bench.models.symbol import SymbolContent, SymbolDefinition, SymbolType
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel, is_jsonable
 
 
@@ -39,7 +39,7 @@ class Instruction(SymbolContent):
     """
 
     task = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, null=True, related_name="implementations"
+        "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
     )
     scope: models.CharField = models.CharField(
         max_length=64, choices=InstructionScope.choices, default=InstructionScope.FUNCTION
@@ -87,7 +87,7 @@ class Instruction(SymbolContent):
 
     @transaction.atomic
     def bind_argument(
-        self, name: str, value: Any | Symbol, exists_ok: bool = False
+        self, name: str, value: Any | SymbolDefinition, exists_ok: bool = False
     ) -> tuple[InstructionParameter, InstructionArgument]:
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
@@ -115,11 +115,13 @@ class Instruction(SymbolContent):
 
         return parameter, argument
 
-    def bind_arguments(self, exists_ok: bool = False, **arguments: Any | Symbol):
+    def bind_arguments(self, exists_ok: bool = False, **arguments: Any | SymbolDefinition):
         for name, value in arguments.items():
             self.bind_argument(name, value, exists_ok)
 
-    async def abind_argument(self, name: str, value: Any, exists_ok: bool = False):
+    async def abind_argument(
+        self, name: str, value: Any | SymbolDefinition, exists_ok: bool = False
+    ):
         return await sync_to_async(self.bind_argument)(name=name, value=value, exists_ok=exists_ok)
 
     @property
@@ -150,8 +152,8 @@ class InstructionParameterType(models.TextChoices):
     JSON = "json"
 
     @staticmethod
-    def from_value(obj: Any | Symbol) -> InstructionParameterType:
-        if isinstance(obj, Symbol):
+    def from_value(obj: Any | SymbolDefinition) -> InstructionParameterType:
+        if isinstance(obj, SymbolDefinition):
             if obj.type == SymbolType.DATASET or obj.type == SymbolType.DATASET_VIEW:
                 return InstructionParameterType.DATASET
             elif obj.type == SymbolType.MODEL:
@@ -214,7 +216,7 @@ class InstructionArgument(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
-    reference = models.ForeignKey("Symbol", on_delete=models.CASCADE, null=True)
+    reference = models.ForeignKey("SymbolDefinition", on_delete=models.CASCADE, null=True)
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):

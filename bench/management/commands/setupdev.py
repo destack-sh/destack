@@ -94,7 +94,7 @@ class Command(BaseCommand):
             # add models to library
             for model_id in provider["models"]:
                 provider_key = ProviderKey[provider["slug"].upper()]  # type: ignore
-                model = Model.objects.create(
+                model = Model(
                     external_name=model_id,
                     provider=provider_key,
                     default_settings=ModelInferenceSettings.objects.create(),

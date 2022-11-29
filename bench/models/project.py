@@ -11,7 +11,7 @@ from django.db import models, transaction
 from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 
-from bench.models.symbol import Symbol, SymbolContent, SymbolDefinition, SymbolType
+from bench.models.symbol import SymbolContent, SymbolDefinition, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -124,21 +124,36 @@ class Project(TaggableMixin, UUIDModel):
                 new_file = new_files[file.id]
                 new_file.parent = new_files[(file)]
                 new_file.save()
-        # 2. copy symbol definitions
+        # 2. copy symbol definitions and symbol contents
         new_definitions: dict[UUID, SymbolDefinition] = {}
+        new_contents: dict[UUID, SymbolContent] = {}
         for definition in assigned_parent.definitions.all():
+            # copy definition
             old_id = definition.id
             definition.pk = None
             definition.parent = None
+            definition.set_content(None)
             definition.file = new_files[definition.file_id]
             definition.project_version = new_version
             definition.save()
             new_definitions[old_id] = definition
-        # 2.1 re-assign symbol definition parents
+            # copy content
+            # old_id = definition.content_id
+            # content = definition.content
+            # content.pk = None
+            # content.definition = new_definitions[content.definition_id]
+            # content.save()
+            # new_contents[old_id] = content
+        # 2.1 re-assign symbol definition and content references
         for definition in assigned_parent.definitions.all():
+            # re-assign content references (from model fields)
+            for field in definition.content._meta.get_fields():
+                pass  # TODO @Feature: copy project versions
+
             if definition.parent_id is not None:
                 new_definition = new_definitions[definition.id]
                 new_definition.parent = new_definitions[definition.parent_id]
+                # new_definition.set_content(new_contents[definition.content_id])
                 new_definition.save()
 
         # head has advanced to new version
@@ -198,12 +213,12 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     )
     libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
     main_program = models.ForeignKey(
-        "Symbol", related_name="+", null=True, on_delete=models.SET_NULL
+        "SymbolDefinition", related_name="+", null=True, on_delete=models.SET_NULL
     )
     # files via ProjectFile
     # definitions via SymbolDefinition
     backends: models.ManyToManyField = models.ManyToManyField(
-        "Symbol", related_name="referenced_in_projects+", blank=True
+        "SymbolDefinition", related_name="referenced_in_projects+", blank=True
     )
 
     def __str__(self) -> str:
@@ -256,62 +271,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def create_folder_from_path(self, path: str, exists_ok: bool = False) -> "File":
         return self.create_path(path, is_folder=True, exists_ok=exists_ok)
 
-    def resolve(
-        self, symbol: Symbol, prefetch: list[str] | None = None
-    ) -> Optional[SymbolDefinition]:
-        """
-        Resolve a symbol to a definition in this project version.
-        If the symbol isn't defined here, we check the imported libraries.
-        """
-        return ProjectVersion.resolve_id(self, symbol, prefetch)
-
-    def resolve_sure(self, symbol: Symbol, prefetch: list[str] | None = None) -> SymbolDefinition:
-        """
-        Resolve a symbol to a definition in this project version.
-        If the symbol isn't defined here, we check the imported libraries.
-        Raises an exception if the symbol is not defined.
-        """
-        definition = self.resolve(symbol, prefetch)
-        if definition is None:
-            available_symbols_str = self._get_available_symbols_debug_str()
-            raise ValueError(f"symbol {symbol} is not defined in {self}:\n{available_symbols_str}")
-        return definition
-
-    async def aresolve(
-        self, symbol: Symbol, prefetch: list[str] | None = None
-    ) -> Optional[SymbolDefinition]:
-        return await sync_to_async(self.resolve)(symbol, prefetch)
-
-    async def aresolve_sure(
-        self, symbol: Symbol, prefetch: list[str] | None = None
-    ) -> SymbolDefinition:
-        return await sync_to_async(self.resolve_sure)(symbol, prefetch)
-
-    @staticmethod
-    def resolve_id(
-        project_v: ProjectVersion | UUID, symbol: Symbol | UUID, prefetch: list[str] | None = None
-    ) -> Optional[SymbolDefinition]:
-        if not isinstance(project_v, UUID):
-            project_v = project_v.id
-        if not isinstance(symbol, UUID):
-            symbol = symbol.id
-
-        # TODO @Architecture @Performance: revisit symbol resolution logic
-        #  Symbol resolution should be baked into all queries (not done in Python).
-        #  This should also include our GraphQL API for optimal performance.
-        #   (hook into strawberry_django_plus query optimizer).
-        #  (also see ProjectVersion.available_definitions)
-        libraries = ProjectVersion.objects.filter(id=project_v).values_list(
-            "libraries__id", flat=True
-        )
-        available_defs = SymbolDefinition.objects.filter(
-            Q(project_version_id__in=libraries) | Q(project_version_id=project_v)
-        )
-        if prefetch:
-            available_defs = available_defs.prefetch_related(*prefetch)
-        definition = available_defs.filter(symbol=symbol).select_related("symbol").first()
-        return definition
-
     @transaction.atomic
     def define_symbol(
         self,
@@ -320,7 +279,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         file: File,
         parent: Optional[SymbolDefinition] = None,
         index: Optional[int] = None,
-        symbol: Optional[Symbol] = None,
     ) -> SymbolDefinition:
         """
         Define a symbol in this project version.
@@ -336,7 +294,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return SymbolDefinition.objects.create_definition(
             content=content,
             project_version=self,
-            symbol=symbol,
             name=name,
             file=file,
             parent=parent,
@@ -361,23 +318,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         Gets the definition of a symbol in this project version.
         """
         return self.get_symbol_definitions(name, type).first()
-
-    def get_symbol(self, name: str, type: Optional[SymbolType] = None) -> Optional[Symbol]:
-        """
-        Gets the symbol corresponding to the given definition in this project version.
-        """
-        symbol_def = self.get_symbol_definition(name, type)
-        if symbol_def is None:
-            return None
-        else:
-            return symbol_def.symbol
-
-    def symbol(self, name: str, type: Optional[SymbolType] = None) -> Symbol:
-        """
-        Gets the symbol corresponding to the given definition in this project version.
-        If the symbol doesn't exist, we error.
-        """
-        return self.symbol_definition(name, type).symbol
 
     def symbol_definition(self, name: str, type: Optional[SymbolType] = None) -> SymbolDefinition:
         """
@@ -406,7 +346,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         # deletes all our references and definitions but not their contents
         self.files.all().delete()
         self.definitions.all().delete()
-        # TODO @Cleanup: gc unreferenced symbol contents
 
     @transaction.atomic
     def commit(self, name: Optional[str] = None):
@@ -415,11 +354,11 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         # mark all symbol definitions as committed if they aren't already
         # TODO @Performance: commit symbol content server-side in SQL
         for symbol_def in self.definitions.all().prefetch_related(
-            "task", "instruction", "model", "dataset", "dataset_view"
+            "task", "expectation", "instruction", "model", "dataset", "dataset_view"
         ):
-            if not symbol_def.content.committed:
-                symbol_def.content.committed_in = self
-                symbol_def.content.save()
+            if not symbol_def.committed:
+                symbol_def.committed_in = self
+                symbol_def.save()
         self.save()
 
     @property
@@ -463,7 +402,6 @@ class File(UUIDModel):
         self,
         name: str,
         content: SymbolContent,
-        symbol: Optional[Symbol] = None,
         parent: Optional[SymbolDefinition] = None,
     ) -> SymbolDefinition:
         index = self.definitions.count() if parent is None else parent.children.count()
@@ -471,7 +409,6 @@ class File(UUIDModel):
             name=name,
             content=content,
             project_version=self.project_version,
-            symbol=symbol,
             parent=parent,
             file=self,
             index=index,
@@ -482,10 +419,9 @@ class File(UUIDModel):
         self,
         name: str,
         content: SymbolContent,
-        symbol: Optional[Symbol] = None,
         parent: Optional[SymbolDefinition] = None,
     ) -> SymbolDefinition:
-        return await sync_to_async(self.create_definition)(name, content, symbol, parent)
+        return await sync_to_async(self.create_definition)(name, content, parent)
 
     @property
     def is_root(self) -> bool:

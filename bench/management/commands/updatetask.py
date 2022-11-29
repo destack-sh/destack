@@ -17,7 +17,6 @@ from bench.models import (
     Organization,
     Project,
     ProjectVersion,
-    Symbol,
     SymbolContent,
     SymbolDefinition,
     SymbolType,
@@ -129,9 +128,8 @@ class Command(BaseCommand):
 
             # create symbol, content and corresponding definition
             # create symbol first so segment parser can use 'self' during definition
-            symbol = Symbol.objects.create(project=project, type=segment.symbol_type)
             result = segment_parser(
-                project_v=project_v, segment=segment, lookup_def=_get_definition, symbol=symbol
+                project_v=project_v, segment=segment, lookup_def=_get_definition
             )
             if isinstance(result, tuple):
                 symbol_content, on_defined = result
@@ -141,7 +139,7 @@ class Command(BaseCommand):
 
             file = project_v.create_file_from_path(segment.virtual_path, exists_ok=True)
             symbol_def = project_v.define_symbol(
-                segment.symbol_name, content=symbol_content, file=file, symbol=symbol
+                segment.symbol_name, content=symbol_content, file=file
             )
 
             if on_defined:
@@ -152,7 +150,7 @@ class Command(BaseCommand):
         # set task as new main program
         # (not sure if we'll have a single "main" going forward)
         if main:
-            project_v.main_program = project_v.get_symbol(main, SymbolType.TASK)
+            project_v.main_program = project_v.symbol_definition(main, SymbolType.TASK)
             project_v.save()
             self.stdout.write(f"Set {project_v.main_program} as main program in {project_v}")
 
@@ -208,10 +206,9 @@ class Command(BaseCommand):
         project_v: ProjectVersion,
         segment: FileSegment,
         lookup_def: typing.Callable,
-        symbol: Symbol,
     ) -> tuple[SymbolContent, typing.Callable[[SymbolDefinition], None]]:
         schema = lookup_def("schema")
-        task = Task.objects.create(schema=schema)
+        task = Task(schema=schema)
 
         def on_defined(symbol_def: SymbolDefinition):
             if "parent" in segment.symbol_args:
@@ -226,20 +223,18 @@ class Command(BaseCommand):
         project_v: ProjectVersion,
         segment: FileSegment,
         lookup_def: typing.Callable,
-        symbol: Symbol,
     ) -> SymbolContent:
         function = lookup_def(segment.symbol_name)
         if not callable(function):
             raise ValueError(f"instruct symbol '{segment.symbol_name}' is not typing.Callable")
-        instruction = Instruction.objects.create(
-            code=segment.full_code, code_function_name=function.__name__
-        )
+        instruction = Instruction(code=segment.full_code, code_function_name=function.__name__)
 
-        if "task" in segment.symbol_args:
-            task_name = segment.symbol_args["task"]
-            task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
-            instruction.task = task_def.symbol
-            task_def.task.template_implementation = symbol
+        def post_define(symbol_def: SymbolDefinition):
+            if "task" in segment.symbol_args:
+                task_name = segment.symbol_args["task"]
+                task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
+                instruction.task = task_def.task
+                task_def.task.template_implementation = symbol_def.instruction
 
         self.bind_instruction_parameters(segment, project_v, instruction)
 
@@ -250,20 +245,22 @@ class Command(BaseCommand):
         project_v: ProjectVersion,
         segment: FileSegment,
         lookup_def: typing.Callable,
-        symbol: Symbol,
     ):
         dataset_records = lookup_def(segment.symbol_name)
         if not isinstance(dataset_records, list):
             raise ValueError(f"data symbol '{segment.symbol_name}' is not a list")
-        dataset = Dataset.objects.from_list(dataset_records)
-        return dataset
+        dataset = Dataset()
+
+        def post_define(symbol_def: SymbolDefinition):
+            dataset.set(dataset_records)
+
+        return dataset, post_define
 
     def parse_expect(
         self,
         project_v: ProjectVersion,
         segment: FileSegment,
         lookup_def: typing.Callable,
-        symbol: Symbol,
     ):
         description = lookup_def("expectation")
         if not isinstance(description, str):
@@ -272,30 +269,31 @@ class Command(BaseCommand):
         if not isinstance(statements_names, list):
             raise ValueError(f"expectation statements '{segment.symbol_name}' is not a list")
 
-        expectation = Expectation.objects.create(description=description)
-        for statement_path in statements_names:
-            # statement path is <name>.<type>
-            statement_name, statement_type_name = statement_path.split(".")
-            statement_type = SymbolType(statement_type_name)
+        expectation = Expectation(description=description)
 
-            statement_def = project_v.symbol_definition(statement_name, statement_type)
-            if statement_def.type in (
-                SymbolType.INSTRUCTION,
-                SymbolType.DATASET,
-                SymbolType.DATASET_VIEW,
-            ):
-                expectation.statements.add(statement_def.symbol)
-            else:
-                raise ValueError(
-                    f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
-                )
+        def post_define(symbol_def: SymbolDefinition):
+            for statement_path in statements_names:
+                # statement path is <name>.<type>
+                statement_name, statement_type_name = statement_path.split(".")
+                statement_type = SymbolType(statement_type_name)
 
-        if "task" in segment.symbol_args:
-            task_name = segment.symbol_args["task"]
-            task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
-            task_def.task.expectations.add(symbol)
+                statement_def = project_v.symbol_definition(statement_name, statement_type)
+                if statement_def.type in (
+                    SymbolType.INSTRUCTION,
+                    SymbolType.DATASET,
+                    SymbolType.DATASET_VIEW,
+                ):
+                    expectation.statements.add(statement_def)
+                else:
+                    raise ValueError(
+                        f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
+                    )
+            if "task" in segment.symbol_args:
+                task_name = segment.symbol_args["task"]
+                task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
+                task_def.task.expectations.add(symbol_def.expectation)
 
-        return expectation
+        return expectation, post_define
 
     def bind_instruction_parameters(
         self,
@@ -349,5 +347,5 @@ class Command(BaseCommand):
 
             if param_type == InstructionParameterType.JSON:
                 raise NotImplementedError(f"json argument resolution not supported: {line}")
-            symbol = project_v.symbol(symbol_ref_name)
-            instruction.bind_argument(param_name, symbol)
+            symbol_def = project_v.symbol_definition(symbol_ref_name)
+            instruction.bind_argument(param_name, symbol_def)

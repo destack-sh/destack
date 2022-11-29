@@ -4,17 +4,14 @@ type Compilation implements Node {
   updatedAt: DateTime!
   task: Task!
   name: String!
-  backends: [Symbol!]!
-  outputTask: Symbol
-  outputInstruction: Symbol
+  backends: [SymbolDefinition!]!
+  outputTask: SymbolDefinition
+  outputInstruction: SymbolDefinition
 }
 
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
+  definition: SymbolDefinition!
   schema: JSON
   length: Int!
   records: [DatasetRecord!]!
@@ -28,11 +25,8 @@ type DatasetRecord implements Node {
 
 type DatasetView implements SymbolContent & Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
-  dataset: Symbol!
+  definition: SymbolDefinition!
+  dataset: Dataset!
 }
 
 """Date with time (isoformat)"""
@@ -40,10 +34,7 @@ scalar DateTime
 
 type Expectation implements SymbolContent & Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
+  definition: SymbolDefinition!
   task(pk: ID): Task!
   description: String!
   statements: [ExpectationStatement!]!
@@ -52,7 +43,7 @@ type Expectation implements SymbolContent & Node {
 type ExpectationStatement implements Node {
   id: GlobalID!
   expectation: Expectation!
-  statement: Symbol!
+  statement: SymbolDefinition!
 }
 
 type File implements Node {
@@ -72,11 +63,8 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 type Instruction implements SymbolContent & Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
-  task: Symbol
+  definition: SymbolDefinition!
+  task: Task
   scope: String!
   builtinId: String
   code: String
@@ -92,7 +80,7 @@ type InstructionArgument implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   type: String!
-  reference: Symbol!
+  reference: SymbolDefinition!
   value: JSON
 }
 
@@ -121,10 +109,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type Model implements SymbolContent & Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
+  definition: SymbolDefinition!
   baseline: Model
   provider: String!
 }
@@ -277,10 +262,6 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
-  symbol(
-    """The ID of the object."""
-    id: GlobalID!
-  ): Symbol
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -301,34 +282,25 @@ type Query {
   ): OrganizationConnection!
 }
 
-type Symbol implements Node {
-  id: GlobalID!
-  project: Project!
-  type: SymbolType!
-  definition(projectVersionId: UUID!): SymbolDefinition
-}
-
 interface SymbolContent implements Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
+  definition: SymbolDefinition!
 }
 
 type SymbolDefinition implements Node {
   id: GlobalID!
-  symbol: Symbol!
   projectVersion: ProjectVersion!
   name: String!
   type: SymbolType!
   nameDotType: String!
   file: File!
-  parent: Symbol
-  children: [Symbol!]!
+  parent: SymbolDefinition
+  children: [SymbolDefinition!]!
   index: Int
   createdAt: DateTime!
   updatedAt: DateTime!
+  committedIn: ProjectVersion
+  committed: Boolean!
   content(pk: ID): SymbolContent!
 }
 
@@ -344,13 +316,10 @@ enum SymbolType {
 
 type Task implements SymbolContent & Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  committedIn: ProjectVersion
-  committed: Boolean!
+  definition: SymbolDefinition!
   schema: JSON!
-  expectations: [Symbol!]!
-  templateImplementation: Symbol
+  expectations: [SymbolDefinition!]!
+  templateImplementation: SymbolDefinition
   compilations: [Compilation!]!
 }
 

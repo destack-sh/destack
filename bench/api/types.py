@@ -71,45 +71,33 @@ class File(gql.Node):
     definitions: list[SymbolDefinition]  # if file
 
 
-@gql.django.type(bench.models.symbol.Symbol)
-class Symbol(gql.Node):
-    project: Project
-    type: auto
-
-    @strawberry.field()
-    def definition(self, project_version_id: UUID) -> Optional[SymbolDefinition]:
-        return models.ProjectVersion.resolve_id(project_version_id, self)
-
-
 @gql.django.type(bench.models.symbol.SymbolDefinition)
 class SymbolDefinition(gql.Node):
-    symbol: Symbol
     project_version: ProjectVersion
     name: auto
     type: auto
     name_dot_type: auto
     file: File
-    parent: Optional[Symbol]
-    children: list[Symbol]
+    parent: Optional[SymbolDefinition]
+    children: list[SymbolDefinition]
     index: auto
     created_at: auto
     updated_at: auto
+    committed_in: Optional[ProjectVersion]
+    committed: auto
     content: SymbolContent
 
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    created_at: auto
-    updated_at: auto
-    committed_in: Optional[ProjectVersion]
-    committed: auto
+    definition: SymbolDefinition
 
 
 @gql.django.type(models.Task)
 class Task(SymbolContent):
     schema: auto
-    expectations: list[Symbol]
-    template_implementation: Optional[Symbol]
+    expectations: list[SymbolDefinition]
+    template_implementation: Optional[SymbolDefinition]
     compilations: list[Compilation]
 
 
@@ -119,16 +107,14 @@ class Compilation(gql.Node):
     updated_at: auto
     task: Task
     name: auto
-    backends: list[Symbol]
-    output_task: Optional[Symbol]
-    output_instruction: Optional[Symbol]
+    backends: list[SymbolDefinition]
+    output_task: Optional[SymbolDefinition]
+    output_instruction: Optional[SymbolDefinition]
 
 
 @gql.django.type(models.Expectation)
 class Expectation(SymbolContent):
     task: Task
-    created_at: auto
-    updated_at: auto
     description: auto
     statements: list[ExpectationStatement]
 
@@ -136,12 +122,12 @@ class Expectation(SymbolContent):
 @gql.django.type(models.ExpectationStatement)
 class ExpectationStatement(gql.Node):
     expectation: Expectation
-    statement: Symbol
+    statement: SymbolDefinition
 
 
 @gql.django.type(models.Instruction)
 class Instruction(SymbolContent):
-    task: Optional[Symbol]
+    task: Optional[Task]
     scope: auto
     builtin_id: auto
     code: auto
@@ -167,7 +153,7 @@ class InstructionArgument(gql.Node):
     created_at: auto
     updated_at: auto
     type: auto
-    reference: Symbol
+    reference: SymbolDefinition
     value: auto
 
 
@@ -192,4 +178,4 @@ class DatasetRecord(gql.Node):
 
 @gql.django.type(models.DatasetView)
 class DatasetView(SymbolContent):
-    dataset: Symbol
+    dataset: Dataset

@@ -16,7 +16,7 @@ from django.db.models import QuerySet
 from bench.backend.base import Completion, ModelHandle, ModelProvider
 from bench.backend.openai import OpenAIProvider
 from bench.executor.builtins import instruction_builtins
-from bench.models import Dataset, Model, ProjectVersion, Symbol, SymbolDefinition
+from bench.models import Dataset, Model
 from bench.models.dataset import DatasetView
 from bench.models.instruction import (
     Instruction,
@@ -92,23 +92,23 @@ InstructionCallable = typing.Callable[..., typing.Coroutine]
 
 
 class ModelProxy(ModelHandle):
-    def __init__(self, handle: ModelHandle, model_def: SymbolDefinition, use_cache: bool):
+    def __init__(self, handle: ModelHandle, model: Model, use_cache: bool):
         self.handle = handle
-        self.model_def = model_def
+        self.model = model
         self.use_cache = use_cache
 
     # insecure hashing is fine here since it's just for caching
     # noinspection InsecureHash
     async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
         logger.info(
-            "model.complete.enter", model=self.model_def, handle=self.handle, prompt=len(prompt)
+            "model.complete.enter", model=self.model, handle=self.handle, prompt=len(prompt)
         )
         settings_as_str = json.dumps(self.handle.settings.as_dict())
         settings_hash = hashlib.md5(settings_as_str.encode()).hexdigest()
         input_hash = hashlib.md5(prompt.encode()).hexdigest()
 
         log = logger.bind(
-            model=self.model_def.model,
+            model=self.model,
             operation=ModelOperation.COMPLETE,
             settings_hash=settings_hash,
             input_hash=input_hash,
@@ -118,7 +118,7 @@ class ModelProxy(ModelHandle):
         cached_result = None
         if self.use_cache:
             cached_inference = await ModelInference.objects.filter(
-                model=self.model_def.model,
+                model=self.model,
                 operation=ModelOperation.COMPLETE,
                 settings_hash=settings_hash,
                 input_hash=input_hash,
@@ -135,7 +135,7 @@ class ModelProxy(ModelHandle):
 
             # write to cache
             inference = await ModelInference.objects.acreate(
-                model=self.model_def.model,
+                model=self.model,
                 operation=ModelOperation.COMPLETE,
                 settings_hash=settings_hash,
                 input_hash=input_hash,
@@ -161,14 +161,14 @@ class ModelProxy(ModelHandle):
 
 
 class InstructionProxy:
-    def __init__(self, callable: InstructionCallable, instruction_def: SymbolDefinition):
+    def __init__(self, callable: InstructionCallable, instruction: Instruction):
         self.callable = callable
-        self.instruction_def = instruction_def
+        self.instruction = instruction
 
     async def __call__(self, *args, **kwargs):
         logger.info(
             "instruction.call.enter",
-            instruction_def=self.instruction_def,
+            instruction=self.instruction,
             callable=self.callable,
             args=len(args),
             kwargs=_arguments_summary(kwargs),
@@ -176,7 +176,7 @@ class InstructionProxy:
         result = await self.callable(*args, **kwargs)
         logger.info(
             "instruction.call.exit",
-            instruction_def=self.instruction_def,
+            instruction=self.instruction,
             callable=self.callable,
             result=_arguments_summary(result),
         )
@@ -222,9 +222,8 @@ class Executor:
             raise SandboxError(f"error running code with globals {globals}: {e}", e) from e
 
     async def _resolve_model(
-        self, model_def: SymbolDefinition, settings: typing.Optional[ModelInferenceSettings]
+        self, model: Model, settings: typing.Optional[ModelInferenceSettings]
     ) -> ModelHandle:
-        model = model_def.model
         provider = self.providers.get(ProviderKey(model.provider))
         if provider is None:
             raise ValueError(f"unknown provider {model.provider}")
@@ -235,7 +234,7 @@ class Executor:
         )
 
     async def _resolve_dataset(
-        self, dataset_def: SymbolDefinition, view: typing.Optional[DatasetView]
+        self, dataset: Dataset, view: typing.Optional[DatasetView]
     ) -> RecordBatch:
         if view is not None:
             raise NotImplementedError("dataset views are not implemented yet")
@@ -243,22 +242,19 @@ class Executor:
         #  All functions are executed async, but dataset access is neater if it's synchronous.
         #  So we pre-load everything and wrap it in a synchronous wrapper.
         records = []
-        async for record in dataset_def.dataset:
+        async for record in dataset:
             records.append(record)
         return RecordList(records)
 
     async def _resolve_instruction(
-        self,
-        project_v: ProjectVersion,
-        instruction_def: SymbolDefinition,
+        self, instruction: Instruction
     ) -> tuple[dict[str, Any], dict[str, Any], InstructionCallable]:
         """
         Resolves an instruction definition and all its arguments to an async callable.
         """
 
-        instruction = instruction_def.instruction
         parameters = await self._get_instruction_parameters(instruction)
-        arguments = await self._resolve_instruction_arguments(project_v, instruction_def)
+        arguments = await self._resolve_instruction_arguments(instruction)
         # check arguments types (ignoring missing parameters for now since they could be bound later)
         # TODO @Cleanup: not sure if it's okay to be lenient on missing parameters during instruction resolution
         #  Doesn't this also depend on whether the instruction is anonymous, named or builtin?
@@ -268,7 +264,7 @@ class Executor:
             # builtins are already defined and are just curried using the arguments
             builtin = self.static_builtins.get(instruction.builtin_id)
             if builtin is None:
-                raise ValueError(f"unknown builtin in {instruction_def}: {instruction.builtin_id}")
+                raise ValueError(f"unknown builtin in {instruction}: {instruction.builtin_id}")
             return parameters, arguments, partial(builtin, **arguments)
         else:
             code = self._get_instruction_code(instruction)
@@ -281,7 +277,7 @@ class Executor:
                 output = await self.run_get_definitions(code, {**dynamic_builtins, **arguments})
                 if instruction.code_function_name not in output:
                     raise ValueError(
-                        f"{instruction_def} function {instruction.code_function_name} not defined in code"
+                        f"{instruction} function {instruction.code_function_name} not defined in code"
                     )
                 return parameters, arguments, output[instruction.code_function_name]
             else:
@@ -293,15 +289,13 @@ class Executor:
                 _run_anonymous.__name__ = f"_anon_{instruction.id.hex}"
                 return parameters, arguments, _run_anonymous
 
-    async def _proxy_model(
-        self, model_handle: ModelHandle, model_def: SymbolDefinition
-    ) -> ModelProxy:
-        return ModelProxy(handle=model_handle, model_def=model_def, use_cache=self.use_model_cache)
+    async def _proxy_model(self, model_handle: ModelHandle, model: Model) -> ModelProxy:
+        return ModelProxy(handle=model_handle, model=model, use_cache=self.use_model_cache)
 
     async def _proxy_instruction(
-        self, callable: InstructionCallable, instruction_def: SymbolDefinition
+        self, callable: InstructionCallable, instruction: Instruction
     ) -> InstructionProxy:
-        return InstructionProxy(callable=callable, instruction_def=instruction_def)
+        return InstructionProxy(callable=callable, instruction=instruction)
 
     async def _get_instruction_parameters(
         self, instruction: Instruction
@@ -311,12 +305,13 @@ class Executor:
             parameters[parameter.name] = parameter
         return parameters
 
-    async def _resolve_instruction_arguments(
-        self, project_v: ProjectVersion, instruction_def: SymbolDefinition
-    ) -> dict[str, Any]:
-        instruction = instruction_def.instruction
+    async def _resolve_instruction_arguments(self, instruction: Instruction) -> dict[str, Any]:
         bound_arguments: QuerySet[InstructionArgument] = instruction.arguments.all().select_related(
-            "reference"
+            "reference",
+            "reference__model",
+            "reference__model__default_settings",
+            "reference__dataset",
+            "reference__instruction",
         )
         bound_arguments_resolved: dict[str, Any] = {}
         async for argument in bound_arguments:
@@ -325,30 +320,29 @@ class Executor:
                 continue
 
             # resolve symbol reference
-            symbol_def = await project_v.aresolve_sure(
-                argument.reference,
-                prefetch=["model", "model__default_settings", "dataset", "instruction"],
-            )
             if argument.type == InstructionParameterType.MODEL:
-                model_handle = await self._resolve_model(symbol_def, settings=None)
-                model_proxy = await self._proxy_model(model_handle, symbol_def)
+                model = argument.reference.model
+                model_handle = await self._resolve_model(model, settings=None)
+                model_proxy = await self._proxy_model(model_handle, model)
                 bound_arguments_resolved[argument.name] = model_proxy
             elif argument.type == InstructionParameterType.DATASET:
-                dataset_handle = await self._resolve_dataset(symbol_def, view=None)
+                dataset = argument.reference.dataset
+                dataset_handle = await self._resolve_dataset(dataset, view=None)
                 bound_arguments_resolved[argument.name] = dataset_handle
             elif argument.type == InstructionParameterType.INSTRUCTION:
-                _, _, callable = await self._resolve_instruction(project_v, symbol_def)
-                callable_proxy = await self._proxy_instruction(callable, symbol_def)
+                instruction = argument.reference.instruction
+                _, _, callable = await self._resolve_instruction(instruction)
+                callable_proxy = await self._proxy_instruction(callable, instruction)
                 bound_arguments_resolved[argument.name] = callable_proxy
             else:
                 raise ValueError(
-                    f"{instruction_def} argument {argument} unknown argument type: {argument.type}"
+                    f"{instruction} argument {argument} unknown argument type: {argument.type}"
                 )
         return bound_arguments_resolved
 
     def _check_arguments(
         self,
-        instruction_def: SymbolDefinition,
+        instruction: Instruction,
         parameters: dict[str, InstructionParameter],
         arguments: dict[str, Any],
         check_required: bool,
@@ -359,9 +353,7 @@ class Executor:
         for parameter in parameters.values():
             # check that all required arguments are present
             if check_required and parameter.name not in arguments:
-                raise ValueError(
-                    f"required parameter {parameter.name} not bound for {instruction_def}"
-                )
+                raise ValueError(f"required parameter {parameter.name} not bound for {instruction}")
             if not check_required and parameter.name not in arguments:
                 continue
             # check that all arguments are of the correct type
@@ -369,17 +361,17 @@ class Executor:
             if parameter.type == InstructionParameterType.INSTRUCTION:
                 if not callable(arguments[parameter.name]):
                     raise ValueError(
-                        f"argument {parameter.name} for {instruction_def} is not a callable"
+                        f"argument {parameter.name} for {instruction} is not a callable"
                     )
             elif parameter.type == InstructionParameterType.MODEL:
                 if not isinstance(arguments[parameter.name], ModelHandle):
                     raise ValueError(
-                        f"argument {parameter.name} for {instruction_def} is not a model handler"
+                        f"argument {parameter.name} for {instruction} is not a model handler"
                     )
             elif parameter.type == InstructionParameterType.DATASET:
                 if not isinstance(arguments[parameter.name], RecordBatch):
                     raise ValueError(
-                        f"argument {parameter.name} for {instruction_def} is not a dataset"
+                        f"argument {parameter.name} for {instruction} is not a dataset"
                     )
             elif parameter.type == InstructionParameterType.JSON:
                 # check that the argument is a JSON object or primitive
@@ -387,32 +379,24 @@ class Executor:
                     arguments[parameter.name], (dict, list, str, int, float, bool, type(None))
                 ):
                     raise ValueError(
-                        f"argument {parameter.name} for {instruction_def} is not a JSON object or primitive"
+                        f"argument {parameter.name} for {instruction} is not a JSON object or primitive"
                     )
             else:
-                raise RuntimeError(
-                    f"unknown parameter type for {instruction_def}: {parameter.type}"
-                )
+                raise RuntimeError(f"unknown parameter type for {instruction}: {parameter.type}")
 
         # ignore extraneous arguments
 
     async def run(
-        self, project_v: ProjectVersion, instruction_ref: Symbol, arguments: dict[str, Any]
+        self, instruction: Instruction, arguments: dict[str, Any]
     ) -> dict[str, Any] | None:
         if not isinstance(arguments, dict):
             raise ValueError(f"instruction arguments must be a dict: {arguments}")
-        instruction_def = await project_v.aresolve_sure(instruction_ref, prefetch=["instruction"])
-        instruction = instruction_def.instruction
         try:
-            parameters, bound_arguments, inner_func = await self._resolve_instruction(
-                project_v, instruction_def
-            )
-            func_proxy: InstructionProxy = await self._proxy_instruction(
-                inner_func, instruction_def
-            )
+            parameters, bound_arguments, inner_func = await self._resolve_instruction(instruction)
+            func_proxy: InstructionProxy = await self._proxy_instruction(inner_func, instruction)
         except Exception as e:
             raise ValueError(
-                f"error resolving instruction {instruction_def} with arguments {_arguments_summary(arguments)}: {e}"
+                f"error resolving instruction {instruction} with arguments {_arguments_summary(arguments)}: {e}"
             ) from e
 
         # check free arguments are bound as they should

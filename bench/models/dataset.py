@@ -9,22 +9,11 @@ from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
 from bench.models.symbol import SymbolContent
-from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import UUIDModel
 
 
 class DatasetManager(models.Manager["Dataset"]):
-    @transaction.atomic
-    def from_list(self, records: list[dict]) -> Dataset:
-        if not records:
-            schema = {}
-        else:
-            schema = {k: type(v).__name__ for k, v in records[0].items()}
-        dataset = self.create(schema=schema)
-        dataset.extend(records)
-        return dataset
-
-    async def afrom_list(self, records: list[dict]) -> Dataset:
-        return await sync_to_async(self.from_list)(records)
+    pass
 
 
 @dataclasses.dataclass
@@ -98,6 +87,13 @@ class Dataset(SymbolContent):
     async def aextend(self, records: list[dict]) -> tuple[int, int]:
         return await sync_to_async(self.extend)(records)
 
+    @transaction.atomic
+    def set(self, records: list[dict], derive_schema: bool = True):
+        self.clear()
+        if derive_schema:
+            self.schema = {k: type(v).__name__ for k, v in records[0].items()}
+        self.extend(records)
+
     def update(self, index: int, record: dict):
         with transaction.atomic():
             db_record = self.get(index)
@@ -164,7 +160,7 @@ class DatasetView(SymbolContent):
     For re-usability, the view does not belong to the dataset but is tied to a dataset symbol.
     """
 
-    dataset = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="views")
+    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
 
     def __str__(self):
         return f"{self.id.hex}.view"
