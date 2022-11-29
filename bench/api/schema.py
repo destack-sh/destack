@@ -4,7 +4,6 @@ import uuid
 from typing import Optional, Type, Union
 
 import strawberry
-from asgiref.sync import async_to_sync
 from graphql import NoSchemaIntrospectionCustomRule
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
 from strawberry_django_plus import gql
@@ -14,8 +13,6 @@ from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 from bench import models
 from bench.api import types
 from bench.api.types import File, Organization, Project, ProjectVersion, Symbol, User
-from bench.compiler import Compiler, CompilerOptions
-from bench.executor import Executor
 from bench.settings import DEBUG, TEST
 
 
@@ -39,12 +36,8 @@ class Query:
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    def compile_task(self, project_version_id: uuid.UUID, task_id: uuid.UUID) -> None:
-        compiler = Compiler(Executor())
-        project_version = models.ProjectVersion.objects.get(id=project_version_id)
-        task = models.Task.objects.get(id=task_id)
-        options = CompilerOptions(optimize_task=False, optimize_instruction=False)
-        async_to_sync(compiler.compile_task)(task, project_version.backends, options)
+    def compile(self, project_version_id: uuid.UUID, task_id: uuid.UUID) -> None:
+        pass
 
     @strawberry.mutation
     def run_program(self, project_id: uuid.UUID) -> None:

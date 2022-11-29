@@ -1,11 +1,10 @@
 from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
-from django.db import transaction
 
 from bench.compiler import Compiler, get_stdlib_model_def
 from bench.executor import Executor
-from bench.models import Compilation, Organization, Project, SymbolType
+from bench.models import Organization, Project, SymbolType
 
 
 class Command(BaseCommand):
@@ -27,9 +26,7 @@ class Command(BaseCommand):
         if project is None:
             raise ValueError(f"project not found: {organization_project}")
 
-        project_v = project.head
-        if project_v is None:
-            raise ValueError(f"project has no head: {project}")
+        project_v = project.head_sure
         task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
         # get backend models as owner/model from its backends library
         backends = []
@@ -40,8 +37,7 @@ class Command(BaseCommand):
 
         executor = Executor()
         compiler = Compiler(executor)
-        compilation = Compilation.objects.create(
-            task=task_def.symbol, source=task_def.task.template_implementation
-        )
+        compilation, _ = task_def.task.compilations.get_or_create(name="default")
         compilation.backends.set(backends)
-        async_to_sync(compiler.compile)(project_v, compilation)
+        task_def.task.compilations.set([compilation])
+        async_to_sync(compiler.compile)(project_v, task_def.symbol, "default")

@@ -24,7 +24,6 @@ from bench.models import (
     SymbolDefinition,
     SymbolType,
 )
-from bench.models.compilation import Compilation
 from bench.models.instruction import InstructionParameterType, InstructionScope
 from bench.models.task import Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
@@ -234,12 +233,6 @@ class TaskData:
         return cls._from_task_rec(project_v, task_def, parent=None)
 
 
-@dataclass
-class CompilerOptions:
-    optimize_task: bool
-    optimize_instruction: bool
-
-
 class Compiler:
     """
     Transforms and optimizes a task definition into a set of executable instructions (incl. arguments).
@@ -248,34 +241,38 @@ class Compiler:
     def __init__(self, executor: Executor):
         self.executor = executor
         # TODO @Cleanup: make compiler backend model configurable?
-        self.compiler_model = get_stdlib_model_def("openai/text-davinci-002").model
+        self.compiler_model = get_stdlib_model_def("openai/text-davinci-003").model
 
-    async def compile(self, project_v: ProjectVersion, compilation: Compilation) -> None:
+    async def compile(
+        self, project_v: ProjectVersion, task_ref: Symbol, compilation_name: str
+    ) -> None:
         """
-        Compile a task into an executable instruction.
-
-        A task has explanations describing the task, expectations defining what should happen and examples showing that.
-        A task may define a template instruction which is used to guide the compilation.
-        A task may define subtasks, which are compiled recursively and may be folded into the main task.
+        Compiles a task into an executable instruction.
         """
 
-        logger.info("compile.started", compilation=compilation)
-        options = CompilerOptions(optimize_task=False, optimize_instruction=False)
+        # get data
+        task_def = await project_v.aresolve(task_ref, prefetch=["task", "task__compilations"])
+        compilation = await task_def.task.compilations.aget(name=compilation_name)
         backends: list[Symbol] = await _acollect(compilation.backends.all())
-        task_def, main_def = await self.compile_task(project_v, compilation.task, backends, options)
-        compilation.target = main_def.symbol
+
+        # run compile
+        main_task_def, main_instruct_def = await self.compile_task(project_v, task_def, backends)
+
+        # save result
+        compilation.output_task = main_task_def.symbol
+        compilation.output_instruction = main_instruct_def.symbol
         await sync_to_async(compilation.save)()
-        logger.info("compile.finished", compilation=compilation)
+        task_def.task.implementation = main_instruct_def.symbol
+        await sync_to_async(task_def.task.save)()
 
     async def compile_task(
         self,
         project_v: ProjectVersion,
-        task_ref: Symbol,
+        task_def: SymbolDefinition,
         backends_refs: list[Symbol],
-        options: CompilerOptions,
     ) -> tuple[SymbolDefinition, SymbolDefinition]:
         """
-        Compiles a task into an executable instruction (may contain other instructions).
+        Compiles a task into an executable instruction.
 
         General compile:
         1. Lay out task tree (tasks may have recursive subtasks)
@@ -291,52 +288,31 @@ class Compiler:
            - Copy instructions if explicitly defined (and requested)
         4. Optimize instruction tree for backends and options
         """
-        task_def = await project_v.aresolve(task_ref)
-        logger.info("compile.task.started", task=task_def)
+        logger.info("compile.started", task=task_def)
 
-        # lay out the task tree
-        logger.info("compile.task.layout.started", task=task_def)
+        # 1. lay out the task tree
+        logger.info("compile.layout.started", task=task_def)
         task_data = await sync_to_async(TaskData.from_task)(project_v, task_def)
-        logger.info("compile.task.layout.finished", task=task_def, task_def=task_def)
+        logger.info("compile.layout.finished", task=task_def, task_def=task_def)
 
-        if options.optimize_task:
-            # optimize the task tree
-            logger.info("compile.task.optimize.started", task=task_data)
-            task_data = await self._optimize_task(project_v, task_data, backends_refs)
-            logger.info("compile.task.optimize.finished", task=task_data, optimized=task_data)
-        else:
-            # naively set optimal backend for all tasks
-            # TODO @Performance: use proper heuristics to decide optimal backend
-            if len(backends_refs) > 1:
-                raise NotImplementedError("cannot choose backends yet")
-            for task_def in task_data.walk_tree_dfs():
-                task_data.optimal_backend_ref = backends_refs[0]
+        # 2. naively set optimal backend for all tasks
+        # TODO @Performance: use proper heuristics to decide optimal backend
+        if len(backends_refs) > 1:
+            raise NotImplementedError("cannot choose backends yet")
+        for task_def in task_data.walk_tree_dfs():
+            task_data.optimal_backend_ref = backends_refs[0]
 
-        # build the instruction tree
-        logger.info("compile.instruct.build.started", task=task_data.task, original=task_def)
-        main_instruction_def = await self._build_instruction(project_v, task_data)
-        logger.info("compile.instruct.build.finished", task=task_data.task, original=task_def)
+        # 3. build the instruction tree
+        logger.info("compile.build.started", task=task_data.task, original=task_def)
+        main_instruct_def = await self._build_instruction(project_v, task_data)
+        logger.info("compile.build.finished", task=task_data.task, original=task_def)
 
-        if options.optimize_instruction:
-            # optimize the instruction tree
-            logger.info("compile.instruct.optimize.started", task=task_data, original=task_def)
-            main_instruction_def = await self._optimize_instruction(
-                project_v, main_instruction_def, backends_refs
-            )
-            logger.info(
-                "compile.instruct.optimize.finished",
-                task_data,
-                original=task_def,
-                main=main_instruction_def,
-            )
+        # 4. no further optimization yet
 
         logger.info(
-            "compile.task.finished",
-            task=task_data,
-            optimized=task_def.task,
-            main=main_instruction_def,
+            "compile.finished", task=task_data, optimized=task_def.task, main=main_instruct_def
         )
-        return task_data.definition, main_instruction_def
+        return task_data.definition, main_instruct_def
 
     async def _optimize_task(
         self, project_v: ProjectVersion, task_def: TaskData, backends: list[Symbol]
@@ -381,7 +357,7 @@ class Compiler:
         # (naive implementation: random order)
         random.shuffle(compiled_examples)
 
-        genfile = await sync_to_async(self._get_genfile)(project_v, task_data)
+        genfile = await sync_to_async(self._get_clean_genfile)(project_v, task_data)
         # write examples to file
         compiled_examples_dataset_def = await sync_to_async(self._write_llm_examples)(
             genfile, compiled_examples, task_data
@@ -401,10 +377,51 @@ class Compiler:
 
         return llm_instruction_def
 
-    def _get_genfile(self, project_v: ProjectVersion, task_data: TaskData) -> File:
-        return project_v.create_file_from_path(
+    async def _compile_examples(self, project_v: ProjectVersion, task_data: TaskData) -> list[dict]:
+        # 2.1 collect static examples
+        # (naive implementation collect all static examples indiscriminately)
+        static_examples: list[dict] = list(chain(*task_data.examples.values()))
+
+        # 2.2 collect dynamic examples from expectations
+        # (naive implementation: should be done iteratively & in parallel, picking optimal examples)
+        dynamic_examples: list[dict] = []
+        for expect_id, statement in task_data.instruction_statements:
+            expectation = task_data.expectations_by_id[expect_id]
+            # select relevant examples for statement
+            # (naive implementation: random sample)
+            local_random = random.Random(expectation.description.encode())
+
+            if statement.type == ExpectationStatementType.TRANSFORM:
+                relevant_examples = local_random.sample(static_examples, 3)
+                for example in relevant_examples:
+                    transformed = await self.executor.run(
+                        project_v, statement.symbol, arguments={"example": example}
+                    )
+                    if isinstance(transformed, dict):
+                        dynamic_examples.append(transformed)
+                    elif isinstance(transformed, list):
+                        # (naive implementation: use all transformed examples)
+                        for transformed_example in transformed:
+                            dynamic_examples.append(transformed_example)
+                    else:
+                        raise ValueError(
+                            f"unexpected transform statement {statement.definition}"
+                            f" instruction {statement.instruction} output: {transformed}"
+                        )
+            elif statement.type == ExpectationStatementType.VERIFY:
+                # TODO @Feature: render verify expectations into example instructions
+                pass
+            else:
+                raise NotImplementedError(f"{expectation} statement {statement} not supported")
+        compiled_examples = [*static_examples, *dynamic_examples]
+        return compiled_examples
+
+    def _get_clean_genfile(self, project_v: ProjectVersion, task_data: TaskData) -> File:
+        file = project_v.create_file_from_path(
             task_data.definition.file.path + ".gen", exists_ok=True
         )
+        file.definitions.set([])
+        return file
 
     def _write_llm_examples(
         self, compilation_file: File, compiled_examples: list[dict], task_data: TaskData
@@ -455,42 +472,3 @@ class Compiler:
         # add parameter for {input} string
         llm_instruction.add_parameter("input", type=InstructionParameterType.JSON)
         return llm_instruction
-
-    async def _compile_examples(self, project_v: ProjectVersion, task_data: TaskData) -> list[dict]:
-        # 2.1 collect static examples
-        # (naive implementation collect all static examples indiscriminately)
-        static_examples: list[dict] = list(chain(*task_data.examples.values()))
-
-        # 2.2 collect dynamic examples from expectations
-        # (naive implementation: should be done iteratively & in parallel, picking optimal examples)
-        dynamic_examples: list[dict] = []
-        for expect_id, statement in task_data.instruction_statements:
-            expectation = task_data.expectations_by_id[expect_id]
-            # select relevant examples for statement
-            # (naive implementation: random sample)
-            local_random = random.Random(expectation.description.encode())
-
-            if statement.type == ExpectationStatementType.TRANSFORM:
-                relevant_examples = local_random.sample(static_examples, 3)
-                for example in relevant_examples:
-                    transformed = await self.executor.run(
-                        project_v, statement.symbol, arguments={"example": example}
-                    )
-                    if isinstance(transformed, dict):
-                        dynamic_examples.append(transformed)
-                    elif isinstance(transformed, list):
-                        # (naive implementation: use all transformed examples)
-                        for transformed_example in transformed:
-                            dynamic_examples.append(transformed_example)
-                    else:
-                        raise ValueError(
-                            f"unexpected transform statement {statement.definition}"
-                            f" instruction {statement.instruction} output: {transformed}"
-                        )
-            elif statement.type == ExpectationStatementType.VERIFY:
-                # TODO @Feature: render verify expectations into example instructions
-                pass
-            else:
-                raise NotImplementedError(f"{expectation} statement {statement} not supported")
-        compiled_examples = [*static_examples, *dynamic_examples]
-        return compiled_examples

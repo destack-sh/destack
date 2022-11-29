@@ -16,6 +16,7 @@ providers = [
         "name": "OpenAI",
         "slug": "openai",
         "models": [
+            "text-davinci-003",
             "text-davinci-002",
             "text-curie-001",
             "text-babbage-001",
@@ -80,8 +81,8 @@ class Command(BaseCommand):
             else:
                 library = Project.objects.filter(organization=organization, slug="stdlib").first()
 
-            # version with current month format like 2022.11
-            version_id = datetime.datetime.now().strftime("%Y.%m")
+            # version with date format like 2022.11.29
+            version_id = datetime.datetime.now().strftime("%Y.%m.%d")
             library_v: ProjectVersion = library.head  # just advance head
             if library_v.name == version_id:
                 # skip if version already exists

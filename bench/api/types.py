@@ -110,7 +110,18 @@ class Task(SymbolContent):
     schema: auto
     expectations: list[Symbol]
     template_implementation: Optional[Symbol]
-    implementations: list[Symbol]
+    compilations: list[Compilation]
+
+
+@gql.django.type(models.Compilation)
+class Compilation(gql.Node):
+    created_at: auto
+    updated_at: auto
+    task: Task
+    name: auto
+    backends: list[Symbol]
+    output_task: Optional[Symbol]
+    output_instruction: Optional[Symbol]
 
 
 @gql.django.type(models.Expectation)

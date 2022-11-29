@@ -65,6 +65,7 @@ class Project(TaggableMixin, UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
     # branches via ProjectBranch
+    # programs via Program
 
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
@@ -72,6 +73,12 @@ class Project(TaggableMixin, UUIDModel):
 
     def __str__(self):
         return f"{self.organization.slug}/{self.slug}"
+
+    @property
+    def head_sure(self) -> ProjectVersion:
+        if self.head is None:
+            raise ValueError(f"project {self} has no head")
+        return self.head
 
     @transaction.atomic
     def create_version(
@@ -157,10 +164,10 @@ class ProjectBranch(UUIDModel):
     A branch of a project, like in Git. A branch is a pointer to a project version.
     """
 
-    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     project: models.ForeignKey = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="branches"
     )
+    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     head: models.ForeignKey = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="branches+"
     )
@@ -189,12 +196,12 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     parents = models.ManyToManyField(
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
+    libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
+    main_program = models.ForeignKey(
+        "Symbol", related_name="+", null=True, on_delete=models.SET_NULL
+    )
     # files via ProjectFile
     # definitions via SymbolDefinition
-    libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
-    program: models.ForeignKey = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, null=True, related_name="projects"
-    )
     backends: models.ManyToManyField = models.ManyToManyField(
         "Symbol", related_name="referenced_in_projects+", blank=True
     )
@@ -448,7 +455,8 @@ class File(UUIDModel):
 
     def add_definition(self, definition: SymbolDefinition):
         definition.file = self
-        definition.index = self.definitions.count()
+        if definition.parent is None:
+            definition.index = self.definitions.count()
         definition.save()
 
     def create_definition(
@@ -458,6 +466,7 @@ class File(UUIDModel):
         symbol: Optional[Symbol] = None,
         parent: Optional[SymbolDefinition] = None,
     ) -> SymbolDefinition:
+        index = self.definitions.count() if parent is None else parent.children.count()
         definition = SymbolDefinition.objects.create_definition(
             name=name,
             content=content,
@@ -465,7 +474,7 @@ class File(UUIDModel):
             symbol=symbol,
             parent=parent,
             file=self,
-            index=self.definitions.count(),
+            index=index,
         )
         return definition
 

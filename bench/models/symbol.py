@@ -64,7 +64,7 @@ class Symbol(TaggableMixin, UUIDModel):
         if "project" in self._state.fields_cache:
             return f"{self.project}/{self.id.hex}.{self.type}"
         else:
-            return f"{self.project_id}/{self.id.hex}.{self.type}"
+            return f"{self.project_id.hex}/{self.id.hex}.{self.type}"
 
     def resolve(self, project_v: ProjectVersion | UUID) -> Optional[SymbolDefinition]:
         """
