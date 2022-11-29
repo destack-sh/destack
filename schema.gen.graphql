@@ -1,3 +1,14 @@
+type Compilation implements Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  task: Task!
+  name: String!
+  backends: [Symbol!]!
+  outputTask: Symbol
+  outputInstruction: Symbol
+}
+
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -119,7 +130,7 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
-  compileTask(projectVersionId: UUID!, taskId: UUID!): Void
+  compile(projectVersionId: UUID!, taskId: UUID!): Void
   runProgram(projectId: UUID!): Void
 }
 
@@ -217,7 +228,7 @@ type ProjectVersion implements Node {
   children: [ProjectVersion!]!
   createdAt: DateTime!
   committedAt: DateTime
-  program: Task
+  program(pk: ID): Task
   files: [File!]!
   definitions: [SymbolDefinition!]!
 }
@@ -340,7 +351,7 @@ type Task implements SymbolContent & Node {
   schema: JSON!
   expectations: [Symbol!]!
   templateImplementation: Symbol
-  implementations: [Symbol!]!
+  compilations: [Compilation!]!
 }
 
 scalar UUID

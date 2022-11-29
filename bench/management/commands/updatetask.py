@@ -152,9 +152,9 @@ class Command(BaseCommand):
         # set task as new main program
         # (not sure if we'll have a single "main" going forward)
         if main:
-            project_v.program = project_v.get_symbol(main, SymbolType.TASK)
+            project_v.main_program = project_v.get_symbol(main, SymbolType.TASK)
             project_v.save()
-            self.stdout.write(f"Set {project_v.program} as main program in {project_v}")
+            self.stdout.write(f"Set {project_v.main_program} as main program in {project_v}")
 
         # advance head to new version
         project.head = project_v

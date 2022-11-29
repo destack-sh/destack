@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
 from bench.executor import Executor
-from bench.models import Organization, Project
+from bench.models import Compilation, Project, SymbolType
 from bench.models.project import ProjectType
 
 
@@ -11,30 +13,37 @@ class Command(BaseCommand):
     help = "Runs a project's program with the given arguments"
 
     def add_arguments(self, parser: CommandParser) -> None:
-        # project as organization/project
+        # project as organization/project[:compilation]
         parser.add_argument("organization_project", type=str)
         # add input string as only variable
         parser.add_argument("input", type=str)
 
-    def handle(self, organization_project: str, input: str, *args, **kwargs):
-        organization = Organization.objects.get(slug=organization_project.split("/")[0])
-        project: Project = Project.objects.get(
-            slug=organization_project.split("/")[1], organization=organization
-        )
+    def handle(self, organization_project: str, input: str, **kwargs):
+        if ":" in organization_project:
+            organization_project, compilation_name = organization_project.split(":")
+        else:
+            compilation_name = None
+
+        project = Project.objects.get_by_slug(*organization_project.split("/"))
         if project.type != ProjectType.EXECUTABLE:
             raise ValueError(f"project must be executable: {project}")
-        project_version = project.head
-        if project_version is None:
-            raise ValueError(f"project has no head: {project}")
-        program = project_version.program
-        if program is None:
-            raise ValueError(f"project version has no program: {project_version}")
+        project_v = project.head_sure
+        main_program = project_v.resolve_sure(project_v.main_program)
+        if main_program.type != SymbolType.TASK:
+            raise ValueError(f"main program must be a task: {main_program}")
+        if main_program.task.compilations.count() == 0:
+            raise ValueError(f"main program must be compiled: {main_program}")
+        if main_program.task.compilations.count() > 1 and not compilation_name:
+            raise ValueError(
+                f"only tasks with exactly one compilation are supported: {main_program}"
+            )
 
-        # TODO @Feature: set current compiled project builds automatically
-        #  (and allow for multiple builds?, ask if there is more than one)
-        # just use the latest version of the program for now
-        compiled_program = program.implementations.order_by("-created_at").first()
+        if not compilation_name:
+            compilation: Compilation = main_program.task.compilations.get()
+        else:
+            compilation = main_program.task.compilations.get(name=compilation_name)
+        main_instruction = project_v.resolve_sure(compilation.output_instruction)
 
         executor = Executor()
-        output = async_to_sync(executor.run)(compiled_program, {"input": input})
+        output = async_to_sync(executor.run)(project_v, main_instruction, {"input": input})
         print(output)

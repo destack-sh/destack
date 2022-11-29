@@ -1,7 +1,7 @@
 from django.db import models
 
 from bench.models.symbol import SymbolContent
-from bench.models.utils import UUIDModel
+from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
 class TaskManager(models.Manager["Task"]):
@@ -21,7 +21,7 @@ class Task(SymbolContent):
     template_implementation = models.ForeignKey(
         "Symbol", on_delete=models.CASCADE, null=True, related_name="templates"
     )
-    # implementations from/to Instruction (via Symbol)
+    # compilations via Compilation
 
     objects: TaskManager = TaskManager()
 
@@ -30,6 +30,35 @@ class Task(SymbolContent):
 
     class Meta:
         default_manager_name = "objects"
+
+
+class Compilation(UUIDModel):
+    """
+    A compilation translates a task with a template instruction tree (instruction) into a runnable instruction.
+
+    Depending on the compilation target and options, various optimizations may be applied.
+    """
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    backends = models.ManyToManyField("Symbol", related_name="compilations+")
+    output_task = models.ForeignKey(
+        "Symbol", on_delete=models.CASCADE, null=True, related_name="compilations+"
+    )
+    output_instruction = models.ForeignKey(
+        "Symbol", on_delete=models.CASCADE, null=True, related_name="source_compilation"
+    )
+
+    def __str__(self):
+        return f"{self.id.hex}.compilation"
+
+    class Meta:
+        constraints = [
+            # ensure only one compilation per task+name
+            models.UniqueConstraint(fields=["task", "name"], name="bench_compilation_task_name_ak"),
+        ]
 
 
 class Expectation(SymbolContent):

@@ -1,4 +1,3 @@
-from .compilation import Compilation
 from .dataset import Dataset, DatasetRecord, DatasetView
 from .instruction import (
     Execution,
@@ -13,7 +12,7 @@ from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .symbol import Symbol, SymbolContent, SymbolDefinition, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
-from .task import Expectation, ExpectationStatement, Task
+from .task import Compilation, Expectation, ExpectationStatement, Task
 from .user import User
 
 __all__ = [
@@ -21,13 +20,13 @@ __all__ = [
     "TaggedItem",
     "TaggableMixin",
     "Task",
+    "Compilation",
     "Expectation",
     "ExpectationStatement",
     "Instruction",
     "InstructionScope",
     "InstructionArgument",
     "InstructionParameter",
-    "Compilation",
     "Execution",
     "ExecutionStatus",
     "Organization",

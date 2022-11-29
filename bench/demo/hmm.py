@@ -99,7 +99,7 @@ destructive = [
 ]
 
 # @symbol instruct: verify_result_is_safe
-model: Model  # @alias text-davinci-002
+model: Model  # @alias text-davinci-003
 destructive: Dataset
 
 
@@ -138,7 +138,7 @@ misspelling = [
 ]
 
 # @symbol instruct: misspell
-model: Model  # @alias text-davinci-002
+model: Model  # @alias text-davinci-003
 misspelling: Dataset
 
 
@@ -153,7 +153,7 @@ async def misspell(input: str) -> str:
 
 
 # @symbol instruct: paraphrase
-model: Model  # @alias text-davinci-002
+model: Model  # @alias text-davinci-003
 
 
 async def paraphrase(input: str) -> str:
@@ -229,7 +229,7 @@ common_utilities = [
 ]
 
 # @symbol instruct: verify_respect_command_hints
-model: Model  # @alias text-davinci-002
+model: Model  # @alias text-davinci-003
 common_utilities: Dataset
 
 
@@ -253,7 +253,7 @@ async def verify_respect_command_hints(example: dict) -> bool:
 
 
 # @symbol instruct: expect_respect_command_hints
-model: Model  # @alias text-davinci-002
+model: Model  # @alias text-davinci-003
 
 
 async def expect_respect_command_hints(example: dict) -> Optional[dict]:
