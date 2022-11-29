@@ -4,6 +4,7 @@ import traceback
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from typing import Any, Optional
+from uuid import UUID
 
 from asgiref.sync import sync_to_async
 from django.db import models, transaction
@@ -51,6 +52,22 @@ class Instruction(SymbolContent):
 
     # parameters to/from InstructionParameter
     # arguments to/from InstructionArgument
+
+    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        super().deepcopy(to, refs)
+        # copy parameters
+        for parameter in self.parameters.all():
+            parameter.id = None
+            parameter.instruction = to
+            parameter.save()
+        # copy arguments
+        for argument in self.arguments.all():
+            if argument.reference_id not in refs:
+                continue
+            argument.id = None
+            argument.instruction = to
+            argument.reference = refs[argument.reference_id]
+            argument.save()
 
     def __str__(self):
         return f"{self.id.hex}.instruct"

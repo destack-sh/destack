@@ -37,13 +37,7 @@ type Expectation implements SymbolContent & Node {
   definition: SymbolDefinition!
   task(pk: ID): Task!
   description: String!
-  statements: [ExpectationStatement!]!
-}
-
-type ExpectationStatement implements Node {
-  id: GlobalID!
-  expectation: Expectation!
-  statement: SymbolDefinition!
+  statements: [SymbolDefinition!]!
 }
 
 type File implements Node {

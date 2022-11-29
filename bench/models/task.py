@@ -1,6 +1,10 @@
+from __future__ import annotations
+
+from uuid import UUID
+
 from django.db import models
 
-from bench.models.symbol import SymbolContent
+from bench.models.symbol import SymbolContent, SymbolDefinition, replace_refs
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
@@ -24,6 +28,14 @@ class Task(SymbolContent):
     # compilations via Compilation
 
     objects: TaskManager = TaskManager()
+
+    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        super().deepcopy(to, refs)
+        # deep copy compilations
+        for compilation in self.compilations.all():
+            compilation.pk = None
+            replace_refs(compilation, compilation, refs)
+            compilation.save()
 
     def __str__(self):
         return f"{self.id.hex}.task"
@@ -71,24 +83,8 @@ class Expectation(SymbolContent):
 
     description = models.TextField()
     statements = models.ManyToManyField(
-        "SymbolDefinition",
-        through="ExpectationStatement",
-        related_name="references_in_expectations+",
+        "SymbolDefinition", related_name="references_in_expectations+"
     )
 
     def __str__(self):
         return f"{self.id.hex}.expect(description={self.description})"
-
-
-class ExpectationStatement(UUIDModel):
-    """
-    The statement specifies how an expectation should be interpreted.
-    Currently, statements can be examples or instructions to generate, transform or verify data.
-    """
-
-    expectation = models.ForeignKey(
-        "Expectation", on_delete=models.CASCADE, related_name="statements+"
-    )
-    statement = models.ForeignKey(
-        "SymbolDefinition", on_delete=models.CASCADE, related_name="expectations"
-    )

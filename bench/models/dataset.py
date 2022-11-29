@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import dataclasses
 from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence
+from uuid import UUID
 
 from asgiref.sync import sync_to_async
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
-from bench.models.symbol import SymbolContent
+from bench.models.symbol import SymbolContent, SymbolDefinition
 from bench.models.utils import UUIDModel
 
 
@@ -24,8 +25,6 @@ class DatasetSearch:
 class Dataset(SymbolContent):
     """
     A dataset of JSON records.
-
-    Datasets include machine learning datasets, function inputs/outputs, lexicons.
     """
 
     # records from DatasetRecord.dataset
@@ -34,6 +33,11 @@ class Dataset(SymbolContent):
     length = models.IntegerField(default=0)
 
     objects: DatasetManager = DatasetManager()
+
+    def deepcopy(self, to: Dataset, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        super().deepcopy(to, refs)
+        # copy non-symbol relations
+        to.set(list(self))
 
     def __str__(self):
         return f"{self.id.hex}.data"
