@@ -161,27 +161,45 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
 
     @property
     def task_(self) -> Task:
-        return cast(Task, self.content)
+        if TYPE_CHECKING:
+            return cast(Task, self.content)
+        else:
+            return self.content  # noqa
 
     @property
     def expectation_(self) -> Expectation:
-        return cast(Expectation, self.content)
+        if TYPE_CHECKING:
+            return cast(Expectation, self.content)
+        else:
+            return self.content  # noqa
 
     @property
     def instruction_(self) -> Instruction:
-        return cast(Instruction, self.content)
+        if TYPE_CHECKING:
+            return cast(Instruction, self.content)
+        else:
+            return self.content  # noqa
 
     @property
     def model_(self) -> Model:
-        return cast(Model, self.content)
+        if TYPE_CHECKING:
+            return cast(Model, self.content)
+        else:
+            return self.content  # noqa
 
     @property
     def dataset_(self) -> Dataset:
-        return cast(Dataset, self.content)
+        if TYPE_CHECKING:
+            return cast(Dataset, self.content)
+        else:
+            return self.content  # noqa
 
     @property
     def dataset_view_(self) -> DatasetView:
-        return cast(DatasetView, self.content)
+        if TYPE_CHECKING:
+            return cast(DatasetView, self.content)
+        else:
+            return self.content  # noqa
 
     @property
     def content_id(self) -> UUID:

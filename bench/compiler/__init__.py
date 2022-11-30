@@ -94,7 +94,9 @@ class StatementData:
         if self.symbol_type == SymbolType.INSTRUCTION:
             if self.instruction.code_function_name is None:
                 raise ValueError(f"expectation statement has no code function: {self}")
-            if "verif" in self.instruction.code_function_name:
+            if "gen" in self.instruction.code_function_name:
+                return ExpectationStatementType.GENERATE
+            elif "verif" in self.instruction.code_function_name:
                 return ExpectationStatementType.VERIFY
             else:
                 return ExpectationStatementType.TRANSFORM
@@ -336,8 +338,14 @@ class Compiler:
         return llm_instruction
 
     async def _compile_examples(self, task_data: TaskData) -> list[dict]:
+        """
+        Compiles examples for the given task.
+
+        Examples are generated using instructions and examples from expectation statements.
+        """
+
         # 2.1 collect static examples
-        # (naive implementation collect all static examples indiscriminately)
+        # (naive implementation: collect all static examples indiscriminately)
         static_examples: list[dict] = list(chain(*task_data.examples.values()))
 
         # 2.2 collect dynamic examples from expectations
@@ -348,9 +356,10 @@ class Compiler:
             # select relevant examples for statement
             # (naive implementation: random sample)
             local_random = random.Random(expectation.description.encode())
+            n_samples = 3
 
             if statement.type == ExpectationStatementType.TRANSFORM:
-                relevant_examples = local_random.sample(static_examples, 3)
+                relevant_examples = local_random.sample(static_examples, n_samples)
                 for example in relevant_examples:
                     transformed = await self.executor.run(
                         statement.instruction, arguments={"example": example}
@@ -361,11 +370,15 @@ class Compiler:
                         # (naive implementation: use all transformed examples)
                         for transformed_example in transformed:
                             dynamic_examples.append(transformed_example)
-                    else:
-                        raise ValueError(
-                            f"unexpected transform statement {statement.definition}"
-                            f" instruction {statement.instruction} output: {transformed}"
-                        )
+                    # ignore other types of results
+            elif statement.type == ExpectationStatementType.GENERATE:
+                examples = await self.executor.run(
+                    statement.instruction, arguments={"n_samples": n_samples}
+                )
+                if isinstance(examples, list):
+                    # (naive implementation: use all generated examples)
+                    dynamic_examples.extend(examples)
+                # ignore other types of results
             elif statement.type == ExpectationStatementType.VERIFY:
                 # TODO @Feature: render verify expectations into example instructions
                 pass
@@ -378,7 +391,7 @@ class Compiler:
         file = project_v.create_file_from_path(
             task_data.definition.file.path + ".gen", exists_ok=True
         )
-        file.definitions.set([])
+        file.definitions.all().delete()
         return file
 
     def _write_llm_examples(

@@ -97,6 +97,9 @@ class ModelProxy(ModelHandle):
         self.model = model
         self.use_cache = use_cache
 
+    def configure(self, **settings: dict[str, Any]) -> ModelHandle:
+        return ModelProxy(self.handle.configure(**settings), self.model, self.use_cache)
+
     # insecure hashing is fine here since it's just for caching
     # noinspection InsecureHash
     async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
@@ -166,20 +169,20 @@ class InstructionProxy:
         self.instruction = instruction
 
     async def __call__(self, *args, **kwargs):
-        logger.info(
-            "instruction.call.enter",
+        # get callable name (if partial get underlying func name)
+        if isinstance(self.callable, partial):
+            callable_name = self.callable.func.__name__
+        else:
+            callable_name = self.callable.__name__
+        log = logger.bind(
             instruction=self.instruction,
-            callable=self.callable,
+            callable=callable_name,
             args=len(args),
             kwargs=_arguments_summary(kwargs),
         )
+        log.info("instruction.call.enter")
         result = await self.callable(*args, **kwargs)
-        logger.info(
-            "instruction.call.exit",
-            instruction=self.instruction,
-            callable=self.callable,
-            result=_arguments_summary(result),
-        )
+        logger.info("instruction.call.exit", result=_arguments_summary(result))
         return result
 
 
@@ -390,7 +393,7 @@ class Executor:
 
     async def run(
         self, instruction: Instruction, arguments: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any] | list[dict[str, Any]] | None:
         if not isinstance(arguments, dict):
             raise ValueError(f"instruction arguments must be a dict: {arguments}")
         try:

@@ -1,6 +1,6 @@
 import hashlib
 from functools import cached_property
-from typing import Union
+from typing import Any, Union
 
 import aiohttp
 
@@ -55,6 +55,15 @@ class OpenAIModel(ModelHandle):
     @cached_property
     def settings_json(self):
         return self.settings.as_dict()
+
+    def configure(self, **settings: dict[str, Any]) -> ModelHandle:
+        merged_settings = {**self.settings.as_dict(omit_empty=True), **settings}
+        return OpenAIModel(
+            headers=self.headers,
+            model=self.model,
+            user_hashed=self.user_hashed,
+            settings=ModelInferenceSettings(**merged_settings),
+        )
 
     async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
         request = {

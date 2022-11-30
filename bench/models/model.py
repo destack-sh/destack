@@ -55,6 +55,7 @@ class Model(SymbolContent):
 class ModelInferenceSettings(UUIDModel):
     """
     The settings to use when running inference with a language model.
+    TODO @Cleanup: move inference settings elsewhere (out of table into dataclass?)
     """
 
     max_tokens = models.IntegerField(default=512)

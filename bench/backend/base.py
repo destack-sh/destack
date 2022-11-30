@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import TypedDict, Union
+from typing import Any, TypedDict, Union
 
 from bench.models import Model
 from bench.models.model import ModelInferenceSettings
@@ -15,9 +15,6 @@ class ModelProvider(abc.ABC):
     async def access(
         self, model: Model, settings: ModelInferenceSettings, for_user: str
     ) -> ModelHandle:
-        raise NotImplementedError
-
-    async def finetune(self, model: Model) -> Model:
         raise NotImplementedError
 
 
@@ -34,6 +31,12 @@ class ModelHandle(abc.ABC):
 
     @property
     def settings(self) -> ModelInferenceSettings:
+        raise NotImplementedError
+
+    def configure(self, **settings: dict[str, Any]) -> ModelHandle:
+        """
+        Configure the model.
+        """
         raise NotImplementedError
 
     async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
