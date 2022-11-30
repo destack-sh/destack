@@ -20,6 +20,9 @@ class OpenAIProvider(ModelProvider):
         self, model: Model, settings: ModelInferenceSettings, for_user: str
     ) -> ModelHandle:
         user_hashed = hashlib.shake_256(for_user.encode()).hexdigest(len(for_user) * 2)
+        if model.external_name is None:
+            raise ValueError(f"model has no external name {model}")
+
         return OpenAIModel(
             headers=self.headers,
             model=model.external_name,

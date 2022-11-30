@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional, cast
-from uuid import UUID
+from typing import Optional
 
-import strawberry
 from strawberry import auto
 from strawberry_django_plus import gql
 
@@ -41,10 +39,6 @@ class Project(gql.Node):
     updated_at: auto
     head: ProjectVersion
     versions: list[ProjectVersion]  # TODO @Cleanup: use relay connections
-
-    @strawberry.field()
-    def version(self, version_id: UUID) -> Optional[ProjectVersion]:
-        return cast(models.Project, self).versions.all().filter(id=version_id).first()
 
 
 @gql.django.type(models.ProjectVersion)
@@ -90,7 +84,10 @@ class SymbolDefinition(gql.Node):
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    definition: SymbolDefinition
+    pass
+    # TODO @Cleanup: fix definition in SymbolContent interface
+    #  (should work since it's a 1:1 but doesn't)
+    # definition: SymbolDefinition
 
 
 @gql.django.type(models.Task)

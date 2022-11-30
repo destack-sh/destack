@@ -27,16 +27,14 @@ class Command(BaseCommand):
         project = Project.objects.get_by_slug(*organization_project.split("/"))
         if project.type != ProjectType.EXECUTABLE:
             raise ValueError(f"project must be executable: {project}")
-        project_v = project.head_sure
+        project_v = project.head_
         main_program = project_v.main_program
         if main_program.type != SymbolType.TASK:
             raise ValueError(f"main program must be a task: {main_program}")
         if main_program.task.compilations.count() == 0:
             raise ValueError(f"main program must be compiled: {main_program}")
         if main_program.task.compilations.count() > 1 and not compilation_name:
-            raise ValueError(
-                f"only tasks with exactly one compilation are supported: {main_program}"
-            )
+            raise ValueError(f"no compilation name given and there are multiple: {main_program}")
 
         if not compilation_name:
             compilation: Compilation = main_program.task.compilations.get()

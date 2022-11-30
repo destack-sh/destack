@@ -3,14 +3,14 @@ from __future__ import annotations
 import traceback
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
 
-from bench.models.symbol import SymbolContent, SymbolDefinition, SymbolType
+from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, SymbolType
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel, is_jsonable
 
 
@@ -27,6 +27,10 @@ class InstructionScope(models.TextChoices):
     MODULE = "module", "Module"
     PROGRAM = "program", "Program"
     FUNCTION = "function", "Function"
+
+
+class InstructionManager(SymbolContentManager, models.Manager["Instruction"]):
+    pass
 
 
 class Instruction(SymbolContent):
@@ -53,7 +57,7 @@ class Instruction(SymbolContent):
     # parameters to/from InstructionParameter
     # arguments to/from InstructionArgument
 
-    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Instruction, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         super().deepcopy(to, refs)
         # copy parameters
         for parameter in self.parameters.all():
@@ -66,18 +70,18 @@ class Instruction(SymbolContent):
                 continue
             argument.id = None
             argument.instruction = to
-            argument.reference = refs[argument.reference_id]
+            argument.reference = cast(SymbolDefinition, refs[argument.reference_id])
             argument.save()
 
     def __str__(self):
-        return f"{self.id.hex}.instruct"
+        return f"{self.definition}(builtin={self.builtin_id},code={len(self.code) if self.code else None})"
 
     def add_parameter(
         self,
         name: str,
         type: InstructionParameterType,
         exists_ok: bool = False,
-        schema: Optional[dict] = None,
+        schema: Optional[Any] = None,
     ) -> InstructionParameter:
         if exists_ok:
             parameter, created = InstructionParameter.objects.get_or_create(
@@ -152,7 +156,9 @@ class Instruction(SymbolContent):
         else:
             raise ValueError(f"instruction {self} must have either builtin_id or code")
 
-    class Meta:
+    objects = InstructionManager()
+
+    class Meta(SymbolContent.Meta):
         constraints = [
             # ensure either builtin_id or code is set
             models.CheckConstraint(
@@ -203,7 +209,7 @@ class InstructionParameter(UUIDModel):
     schema = models.JSONField(null=True)
 
     def __str__(self):
-        return f"{self.name}:{self.type}.param@{self.id.hex}"
+        return f"{self.instruction}/parameters/{self.name}(type={self.type})"
 
     class Meta:
         constraints = [
@@ -237,7 +243,7 @@ class InstructionArgument(UUIDModel):
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.name}:{self.type}.arg@{self.id.hex}"
+        return f"{self.instruction}/arguments/{self.name}(type={self.type})"
 
     class Meta:
         constraints = [

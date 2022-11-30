@@ -208,7 +208,7 @@ class Command(BaseCommand):
         lookup_def: typing.Callable,
     ) -> tuple[SymbolContent, typing.Callable[[SymbolDefinition], None]]:
         schema = lookup_def("schema")
-        task = Task(schema=schema)
+        task = Task.objects.create(schema=schema)
 
         def on_defined(symbol_def: SymbolDefinition):
             if "parent" in segment.symbol_args:
@@ -223,18 +223,19 @@ class Command(BaseCommand):
         project_v: ProjectVersion,
         segment: FileSegment,
         lookup_def: typing.Callable,
-    ) -> SymbolContent:
+    ):
         function = lookup_def(segment.symbol_name)
         if not callable(function):
             raise ValueError(f"instruct symbol '{segment.symbol_name}' is not typing.Callable")
-        instruction = Instruction(code=segment.full_code, code_function_name=function.__name__)
+        instruction = Instruction.objects.create(
+            code=segment.full_code, code_function_name=function.__name__
+        )
 
-        def post_define(symbol_def: SymbolDefinition):
-            if "task" in segment.symbol_args:
-                task_name = segment.symbol_args["task"]
-                task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
-                instruction.task = task_def.task
-                task_def.task.template_implementation = symbol_def.instruction
+        if "task" in segment.symbol_args:
+            task_name = segment.symbol_args["task"]
+            task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
+            instruction.task = task
+            task.template_implementation = instruction
 
         self.bind_instruction_parameters(segment, project_v, instruction)
 
@@ -249,12 +250,8 @@ class Command(BaseCommand):
         dataset_records = lookup_def(segment.symbol_name)
         if not isinstance(dataset_records, list):
             raise ValueError(f"data symbol '{segment.symbol_name}' is not a list")
-        dataset = Dataset()
-
-        def post_define(symbol_def: SymbolDefinition):
-            dataset.set(dataset_records)
-
-        return dataset, post_define
+        dataset = Dataset.objects.from_list(dataset_records)
+        return dataset
 
     def parse_expect(
         self,
@@ -269,31 +266,30 @@ class Command(BaseCommand):
         if not isinstance(statements_names, list):
             raise ValueError(f"expectation statements '{segment.symbol_name}' is not a list")
 
-        expectation = Expectation(description=description)
+        expectation = Expectation.objects.create(description=description)
 
-        def post_define(symbol_def: SymbolDefinition):
-            for statement_path in statements_names:
-                # statement path is <name>.<type>
-                statement_name, statement_type_name = statement_path.split(".")
-                statement_type = SymbolType(statement_type_name)
+        for statement_path in statements_names:
+            # statement path is <name>.<type>
+            statement_name, statement_type_name = statement_path.split(".")
+            statement_type = SymbolType(statement_type_name)
 
-                statement_def = project_v.symbol_definition(statement_name, statement_type)
-                if statement_def.type in (
-                    SymbolType.INSTRUCTION,
-                    SymbolType.DATASET,
-                    SymbolType.DATASET_VIEW,
-                ):
-                    expectation.statements.add(statement_def)
-                else:
-                    raise ValueError(
-                        f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
-                    )
-            if "task" in segment.symbol_args:
-                task_name = segment.symbol_args["task"]
-                task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
-                task_def.task.expectations.add(symbol_def.expectation)
+            statement_def = project_v.symbol_definition(statement_name, statement_type)
+            if statement_def.type in (
+                SymbolType.INSTRUCTION,
+                SymbolType.DATASET,
+                SymbolType.DATASET_VIEW,
+            ):
+                expectation.statements.add(statement_def)
+            else:
+                raise ValueError(
+                    f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
+                )
+        if "task" in segment.symbol_args:
+            task_name = segment.symbol_args["task"]
+            task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
+            task.expectations.add(expectation)
 
-        return expectation, post_define
+        return expectation
 
     def bind_instruction_parameters(
         self,
