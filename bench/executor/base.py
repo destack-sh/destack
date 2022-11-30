@@ -318,19 +318,21 @@ class Executor:
             if argument.type == InstructionParameterType.JSON:
                 bound_arguments_resolved[argument.name] = argument.value
                 continue
+            if argument.reference is None:
+                raise ValueError(f"argument {argument} has no reference definition")
 
             # resolve symbol reference
             if argument.type == InstructionParameterType.MODEL:
-                model = argument.reference.model
+                model = argument.reference.model_
                 model_handle = await self._resolve_model(model, settings=None)
                 model_proxy = await self._proxy_model(model_handle, model)
                 bound_arguments_resolved[argument.name] = model_proxy
             elif argument.type == InstructionParameterType.DATASET:
-                dataset = argument.reference.dataset
+                dataset = argument.reference.dataset_
                 dataset_handle = await self._resolve_dataset(dataset, view=None)
                 bound_arguments_resolved[argument.name] = dataset_handle
             elif argument.type == InstructionParameterType.INSTRUCTION:
-                instruction = argument.reference.instruction
+                instruction = argument.reference.instruction_
                 _, _, callable = await self._resolve_instruction(instruction)
                 callable_proxy = await self._proxy_instruction(callable, instruction)
                 bound_arguments_resolved[argument.name] = callable_proxy

@@ -5,7 +5,7 @@ import random
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
-from typing import AsyncIterable, Iterable, Optional
+from typing import AsyncIterable, Iterable, Optional, cast
 from uuid import UUID
 
 import structlog
@@ -49,7 +49,7 @@ def get_stdlib_model(backend: str) -> Model:
     stdlib_v: Optional[ProjectVersion] = stdlib.head
     if stdlib_v is None:
         raise ValueError(f"library {stdlib} has no head")
-    return stdlib_v.symbol_definition(model_name, SymbolType.MODEL).model
+    return stdlib_v.symbol_definition(model_name, SymbolType.MODEL).model_
 
 
 class ExpectationStatementType(enum.Enum):
@@ -79,19 +79,21 @@ class StatementData:
     def dataset(self) -> Dataset:
         if self.symbol_type != SymbolType.DATASET:
             raise ValueError(f"expectation statement is not a dataset: {self}")
-        return self.definition.dataset
+        return cast(Dataset, self.definition.content)
 
     @property
     def instruction(self) -> Instruction:
         if self.symbol_type != SymbolType.INSTRUCTION:
             raise ValueError(f"expectation statement is not an instruction: {self}")
-        return self.definition.instruction
+        return cast(Instruction, self.definition.instruction)
 
     @cached_property
     def type(self) -> ExpectationStatementType:
         # (naive implementation: guess statement type)
         # TODO @Feature: define expectation statement type in statement
         if self.symbol_type == SymbolType.INSTRUCTION:
+            if self.instruction.code_function_name is None:
+                raise ValueError(f"expectation statement has no code function: {self}")
             if "verif" in self.instruction.code_function_name:
                 return ExpectationStatementType.VERIFY
             else:
@@ -200,6 +202,8 @@ class TaskData:
             task=task,
         )
         for child in task.definition.children.all().select_related("task"):
+            if child.task is None:
+                continue
             self.children[child.id] = cls._from_task_rec(child.task, parent=self)
 
         return self
@@ -242,8 +246,6 @@ class Compiler:
         compilation.output_task = main_task
         compilation.output_instruction = main_instruct
         await sync_to_async(compilation.save)()
-        task.implementation = main_instruct
-        await sync_to_async(task.save)()
 
     async def compile_task(
         self,
@@ -382,9 +384,8 @@ class Compiler:
     def _write_llm_examples(
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
-        dataset_def = genfile.create_definition("examples", Dataset())
-        dataset = dataset_def.dataset
-        dataset.set(compiled_examples)
+        dataset = Dataset.objects.from_list(compiled_examples)
+        genfile.create_definition("examples", dataset)
         compiled_examples_keys = dataset.schema.keys()
         if compiled_examples_keys != {*task_data.input_keys, *task_data.output_keys}:
             raise ValueError(

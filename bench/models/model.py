@@ -6,7 +6,7 @@ from uuid import UUID
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from bench.models.symbol import SymbolContent, SymbolDefinition
+from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDModel, UUIDTModel
 
 
@@ -14,6 +14,10 @@ class ProviderKey(models.TextChoices):
     OPENAI = "openai"
     GOOSEAI = "gooseai"
     AI21 = "ai21"
+
+
+class ModelManager(SymbolContentManager, models.Manager["Model"]):
+    pass
 
 
 class Model(SymbolContent):
@@ -33,14 +37,16 @@ class Model(SymbolContent):
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.id.hex}.model({self.provider}/{self.external_name})"
+        return f"{self.definition}(provider={self.provider}/{self.external_name})"
 
-    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Model, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         super().deepcopy(to, refs)
         # copy default settings
         to.default_settings = self.default_settings
         to.default_settings.pk = None
         to.default_settings.save()
+
+    objects = ModelManager()
 
     class Meta:
         default_manager_name = "objects"
@@ -102,7 +108,7 @@ class ModelInference(UUIDTModel):
     duration_ms = models.IntegerField()
 
     def __str__(self):
-        return f"{self.id.hex}.inference({self.model}/{self.operation})"
+        return f"{self.model}/{self.id.hex}.inference(operation={self.operation})"
 
     class Meta:
         indexes = [

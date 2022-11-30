@@ -4,11 +4,11 @@ from uuid import UUID
 
 from django.db import models
 
-from bench.models.symbol import SymbolContent, SymbolDefinition, replace_refs
+from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, replace_refs
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 
-class TaskManager(models.Manager["Task"]):
+class TaskManager(SymbolContentManager, models.Manager["Task"]):
     pass
 
 
@@ -27,21 +27,20 @@ class Task(SymbolContent):
     )
     # compilations via Compilation
 
-    objects: TaskManager = TaskManager()
-
     def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         super().deepcopy(to, refs)
         # deep copy compilations
         for compilation in self.compilations.all():
             compilation.pk = None
-            replace_refs(compilation, compilation, refs)
+            replace_refs(compilation, compilation, refs, include_many_to_many=False)
+            compilation.save()
+            replace_refs(compilation, compilation, refs, include_one_to_many=False)
             compilation.save()
 
     def __str__(self):
-        return f"{self.id.hex}.task"
+        return f"{self.definition}(schema={self.schema})"
 
-    class Meta:
-        default_manager_name = "objects"
+    objects = TaskManager()
 
 
 class Compilation(UUIDModel):
@@ -73,6 +72,10 @@ class Compilation(UUIDModel):
         ]
 
 
+class ExpectationManager(SymbolContentManager, models.Manager["Expectation"]):
+    pass
+
+
 class Expectation(SymbolContent):
     """
     An expectation specifies a task's expected behavior.
@@ -87,4 +90,6 @@ class Expectation(SymbolContent):
     )
 
     def __str__(self):
-        return f"{self.id.hex}.expect(description={self.description})"
+        return f"{self.definition}(description={self.description})"
+
+    objects = ExpectationManager()

@@ -22,6 +22,6 @@ class Command(BaseCommand):
         if project is None:
             raise ValueError(f"project not found: {organization_project}")
         start_time = time.time()
-        parent = project.head_sure
+        parent = project.head_
         project.create_version(parent=parent, commit_name=name)
         self.stdout.write(f"committed {parent} (took {time.time() - start_time:.2f}s)")

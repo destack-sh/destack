@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence
+from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence, cast
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
@@ -9,12 +9,15 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
-from bench.models.symbol import SymbolContent, SymbolDefinition
+from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition
 from bench.models.utils import UUIDModel
 
 
-class DatasetManager(models.Manager["Dataset"]):
-    pass
+class DatasetManager(SymbolContentManager, models.Manager["Dataset"]):
+    def from_list(self, records: list[dict]) -> Dataset:
+        dataset = cast(Dataset, self.create())
+        dataset.set(records)
+        return dataset
 
 
 @dataclasses.dataclass
@@ -40,7 +43,7 @@ class Dataset(SymbolContent):
         to.set(list(self))
 
     def __str__(self):
-        return f"{self.id.hex}.data"
+        return f"{self.definition}(schema={self.schema}, length={self.length})"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -128,9 +131,6 @@ class Dataset(SymbolContent):
     def __len__(self) -> int:
         return self.length
 
-    class Meta:
-        default_manager_name = "objects"
-
 
 class DatasetRecord(UUIDModel):
     """
@@ -167,4 +167,4 @@ class DatasetView(SymbolContent):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
 
     def __str__(self):
-        return f"{self.id.hex}.view"
+        return f"{self.definition}()"

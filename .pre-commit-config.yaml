@@ -16,22 +16,19 @@ repos:
     hooks:
       - id: isort
         name: isort (py)
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.990
-    hooks:
-      - id: mypy
-        name: mypy (py)
-        args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip, --config-file=pyproject.toml]
-        exclude: ^bench/migrations|^bench/demo
-        # TODO @Cleanup: specify additional_dependencies rather than using language: system
-        #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
-        #  so for now just run it in the system environment. This will probably fail in CI.
-        language: system
-  #        additional_dependencies:
-  #          - "mypy==0.942"
-  #           should match relevant stubs in requirements-dev.in
-  #          - "djangorestframework-stubs==1.5.0"
-  #          - "django-stubs==1.10.1"
+#  TODO @Cleanup: fix mypy in pre-commit
+#  - repo: https://github.com/pre-commit/mirrors-mypy
+#    rev: v0.990
+#    hooks:
+#      - id: mypy
+#        name: mypy (py)
+#        args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip, --config-file=pyproject.toml, --show-traceback]
+#        exclude: ^bench/migrations|^bench/demo
+#        # TODO @Cleanup: specify additional_dependencies rather than using language: system
+#        #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
+#        #  so for now just run it in the system environment. This will probably fail in CI.
+#        language: system
+#        entry: mypy
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.13.0
     hooks:

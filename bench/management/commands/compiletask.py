@@ -23,7 +23,7 @@ class Command(BaseCommand):
         if project is None:
             raise ValueError(f"project not found: {organization_project}")
 
-        project_v = project.head_sure
+        project_v = project.head_
         task_def = project_v.symbol_definition(task_name, SymbolType.TASK)
         # get backend models as owner/model from its backends library
         backends = []

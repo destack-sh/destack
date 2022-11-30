@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union, cast
 from uuid import UUID
 
-from django.db import models, transaction
+from django.db import models
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
@@ -49,7 +49,6 @@ class SymbolType(models.TextChoices):
 
 
 class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
-    @transaction.atomic
     def create_definition(
         self,
         content: SymbolContent,
@@ -66,14 +65,14 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
             Task,
         )
 
-        # charade to avoid nullable definition in SymbolContent
+        # save content if it's not loaded from the db
+        # (don't test via pk since we set that automatically)
+        if content._state.adding:
+            content.save()
+
         content_type = SymbolType.from_content(content)
         kwargs = {**kwargs, SymbolDefinition.type_to_field(content_type): content}
-        definition = self.create(project_version=project_version, type=content_type, **kwargs)
-        content.definition = definition
-        content.save()
-        definition.save()
-        return definition
+        return self.create(project_version=project_version, type=content_type, **kwargs)
 
 
 SYMBOL_TYPE_TO_FIELD = {
@@ -111,23 +110,23 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     committed_in = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)
 
-    task = models.ForeignKey(
-        "Task", on_delete=models.RESTRICT, null=True, related_name="definition+"
+    task = models.OneToOneField(
+        "Task", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-    expectation = models.ForeignKey(
-        "Expectation", on_delete=models.RESTRICT, null=True, related_name="definition+"
+    expectation = models.OneToOneField(
+        "Expectation", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-    instruction = models.ForeignKey(
-        "Instruction", on_delete=models.RESTRICT, null=True, related_name="definition+"
+    instruction = models.OneToOneField(
+        "Instruction", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-    model = models.ForeignKey(
-        "Model", on_delete=models.RESTRICT, null=True, related_name="definition+"
+    model = models.OneToOneField(
+        "Model", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-    dataset = models.ForeignKey(
-        "Dataset", on_delete=models.RESTRICT, null=True, related_name="definition+"
+    dataset = models.OneToOneField(
+        "Dataset", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-    dataset_view = models.ForeignKey(
-        "DatasetView", on_delete=models.RESTRICT, null=True, related_name="definition+"
+    dataset_view = models.OneToOneField(
+        "DatasetView", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
 
     @gql.model_property(only=["committed_in"])
@@ -159,9 +158,30 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
 
     def set_content(self, content: SymbolContent | None):
         setattr(self, self.type_to_field(self.type), content)
-        if content is not None:
-            content.definition = self
-            content.save()
+
+    @property
+    def task_(self) -> Task:
+        return cast(Task, self.content)
+
+    @property
+    def expectation_(self) -> Expectation:
+        return cast(Expectation, self.content)
+
+    @property
+    def instruction_(self) -> Instruction:
+        return cast(Instruction, self.content)
+
+    @property
+    def model_(self) -> Model:
+        return cast(Model, self.content)
+
+    @property
+    def dataset_(self) -> Dataset:
+        return cast(Dataset, self.content)
+
+    @property
+    def dataset_view_(self) -> DatasetView:
+        return cast(DatasetView, self.content)
 
     @property
     def content_id(self) -> UUID:
@@ -187,17 +207,26 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
         ]
 
 
+class SymbolContentManager(models.Manager):
+    # Note that this manager is applied to _every_ SymbolContent query (related or not)!
+
+    def get_queryset(self):
+        # always select related definition
+        return super().get_queryset().select_related("definition")
+
+
 class SymbolContent(UUIDModel):
     """
     The content of a symbol definition. This is the interface that SymbolDefinition.content points to.
     Symbol definitions are mutable until committed.
     """
 
-    definition = models.OneToOneField(
-        "SymbolDefinition", on_delete=models.CASCADE, related_name="content+"
-    )
+    # definition is a one to one field via SymbolDefinition
+    @property
+    def definition(self) -> SymbolDefinition:
+        raise NotImplementedError
 
-    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Any, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         """
         Deep copy this symbol to another symbol, replacing all references.
         The other symbol must be of the same type and is assumed to be created using:
@@ -217,25 +246,35 @@ class SymbolContent(UUIDModel):
         # replace all relations referencing symbol definitions or contents with copies
         replace_refs(self, to, refs)
 
+    objects: SymbolContentManager = SymbolContentManager()
+
     class Meta:
+        default_manager_name = "objects"
+        # set base manager so that _every_ query to SymbolContent goes through SymbolContentManager
+        # which ensures that we always select related definition
+        base_manager_name = "objects"
         abstract = True
 
 
 def replace_refs(
-    obj: models.Model, to: models.Model, refs: dict[UUID, SymbolDefinition | SymbolContent]
+    obj: models.Model,
+    to: models.Model,
+    refs: dict[UUID, SymbolDefinition | SymbolContent],
+    include_one_to_many: bool = True,
+    include_many_to_many: bool = True,
 ):
     """Replaces all references to symbols with the given refs (refs need not be complete)."""
     for field in obj._meta.get_fields():
-        if not field.is_relation:
+        if field.related_model is None:
             continue
         if not issubclass(field.related_model, (SymbolDefinition, SymbolContent)):
             continue
         # if many to one
-        if field.many_to_one:
+        if include_one_to_many and field.many_to_one:
             value = getattr(obj, field.name)
             if value is not None and value.pk in refs:
                 setattr(to, field.name, refs[value.id])
         # if many to many
-        elif field.many_to_many:
+        if include_many_to_many and field.many_to_many:
             values = getattr(obj, field.name).all().values_list("id", flat=True)
             getattr(to, field.name).set(refs.get(id, id) for id in values)
