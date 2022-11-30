@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, TypedDict, Union
+from typing import Any, Optional, TypedDict, Union
 
 from bench.models import Model
 from bench.models.model import ModelInferenceSettings
@@ -39,14 +39,16 @@ class ModelHandle(abc.ABC):
         """
         raise NotImplementedError
 
-    async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
+    async def complete(
+        self, prompt: str, settings: Optional[dict[str, Any]] = None
+    ) -> Union[Completion, list[Completion]]:
         """
         Generate a completion for the given prompt.
         @return: Completion or list[Completion] if n > 1
         """
         raise NotImplementedError
 
-    async def embed(self, text: str) -> bytes:
+    async def embed(self, text: str, settings: Optional[dict[str, Any]] = None) -> bytes:
         """
         Embed the given text into a vector.
         @return: vector

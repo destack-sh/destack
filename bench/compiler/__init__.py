@@ -19,7 +19,9 @@ from bench.models import (
     File,
     Instruction,
     Model,
+    ModelInferenceSettings,
     Organization,
+    Project,
     ProjectVersion,
     SymbolDefinition,
     SymbolType,
@@ -39,17 +41,24 @@ async def _acollect(collectable: QuerySet | AsyncIterable | Dataset) -> list:
     return items
 
 
-def get_stdlib_model(backend: str) -> Model:
+def get_stdlib_model(path: str) -> Model:
     """
-    Gets the backend model from a backends library where backend=owner/model
+    Gets the backend model from a stdlib library where backend=owner/model
     """
-    owner_slug, model_name = backend.split("/")
+    owner_slug, model_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
-    stdlib = organization.projects.get(slug="stdlib")
-    stdlib_v: Optional[ProjectVersion] = stdlib.head
-    if stdlib_v is None:
-        raise ValueError(f"library {stdlib} has no head")
-    return stdlib_v.symbol_definition(model_name, SymbolType.MODEL).model_
+    stdlib: Project = organization.projects.get(slug="stdlib")
+    return stdlib.head_.symbol_definition(model_name, SymbolType.MODEL).model_
+
+
+def get_stdlib_instruction(path: str) -> Instruction:
+    """
+    Gets the instruction from a stdlib where path=owner/instruction
+    """
+    owner_slug, instruction_name = path.split("/")
+    organization = Organization.objects.get(slug=owner_slug)
+    stdlib: Project = organization.projects.get(slug="stdlib")
+    return stdlib.head_.symbol_definition(instruction_name, SymbolType.INSTRUCTION).instruction_
 
 
 class ExpectationStatementType(enum.Enum):
@@ -229,6 +238,7 @@ class Compiler:
         self.executor = executor
         # TODO @Cleanup: make compiler backend model configurable?
         self.compiler_model = get_stdlib_model("openai/text-davinci-003")
+        self.get_temperature = get_stdlib_instruction("symbolx/get_temperature")
 
     async def compile(self, project_v: ProjectVersion, task: Task, compilation_name: str) -> None:
         """
@@ -307,7 +317,8 @@ class Compiler:
         1. Render explanation descriptions into basic task description.
         2. Collect and render examples from expectations and examples.
         3. Convert task descriptions and examples to backend model format.
-        4. Build prompt and bake into model instruction.
+        4. Determine optimal settings for backend model.
+        5. Build prompt and bake into model instruction.
         """
 
         # 1. render expectation statements
@@ -330,7 +341,13 @@ class Compiler:
         # 3. convert task descriptions and examples to backend model format
         pass  # (naive implementation: noop i.e. no adaptation)
 
-        # 4. build prompt and bake into model instruction
+        # 4. determine optimal settings for backend model
+        # (naive implementation: guess settings without optimization)
+        settings = await self._guess_settings(  # nocheckin use model settings
+            task_data, task_description, compiled_examples_dataset
+        )
+
+        # 5. build prompt and bake into model instruction
         # (naive implementation)
         llm_instruction = await sync_to_async(self._build_llm_instruction)(
             genfile, task_data, task_description, compiled_examples_dataset
@@ -407,6 +424,31 @@ class Compiler:
             )
         return dataset
 
+    async def _guess_settings(
+        self, task_data: TaskData, task_description: str, compiled_examples: Dataset
+    ) -> ModelInferenceSettings:
+        # (naive implementation: set only temperature and max_tokens)
+        temperature = await self.executor.run(
+            self.get_temperature,
+            arguments={
+                "model": self.compiler_model,
+                "description": task_description,
+                "examples": compiled_examples,
+            },
+        )
+        # set max tokens to sum of max length of output keys across examples plus 20%
+        max_tokens = int(
+            sum(
+                max(len(example[key]) for example in compiled_examples)
+                for key in task_data.output_keys
+            )
+        )
+        settings = task_data.optimal_backend.default_settings
+        settings.pk = None
+        settings.temperature = temperature
+        settings.max_tokens = max_tokens
+        return settings
+
     def _build_llm_instruction(
         self,
         genfile: File,
@@ -418,6 +460,7 @@ class Compiler:
             raise ValueError(
                 f"cannot build instruction for {task_data.task}: optimal backend not set"
             )
+        # build prompt template
         prompt_prefix: str = task_description + "\n"
         prompt_example = "".join(
             f"{key}: {{{key}}}\n" for key in chain(task_data.input_keys, task_data.output_keys)
@@ -438,6 +481,7 @@ class Compiler:
             prompt_input=prompt_input,
             examples=task_examples.definition,
         )
-        # add parameter for {input} string
-        llm_instruction.add_parameter("input", type=InstructionParameterType.JSON)
+        # add parameter for input keys
+        for key in task_data.input_keys:
+            llm_instruction.bind_argument(key, InstructionParameterType.JSON)
         return llm_instruction

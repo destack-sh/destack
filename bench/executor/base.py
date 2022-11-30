@@ -102,11 +102,17 @@ class ModelProxy(ModelHandle):
 
     # insecure hashing is fine here since it's just for caching
     # noinspection InsecureHash
-    async def complete(self, prompt: str) -> Union[Completion, list[Completion]]:
+    async def complete(
+        self, prompt: str, settings: typing.Optional[dict[str, Any]] = None
+    ) -> Union[Completion, list[Completion]]:
         logger.info(
             "model.complete.enter", model=self.model, handle=self.handle, prompt=len(prompt)
         )
-        settings_as_str = json.dumps(self.handle.settings.as_dict())
+        if settings is not None:
+            settings_merged = {**self.settings.as_dict(omit_empty=True), **settings}
+        else:
+            settings_merged = self.settings.as_dict(omit_empty=True)
+        settings_as_str = json.dumps(settings_merged, sort_keys=True)
         settings_hash = hashlib.md5(settings_as_str.encode()).hexdigest()
         input_hash = hashlib.md5(prompt.encode()).hexdigest()
 
@@ -159,7 +165,7 @@ class ModelProxy(ModelHandle):
         logger.info("model.complete.exit", completion=completion_length)
         return completion
 
-    async def embed(self, text: str) -> bytes:
+    async def embed(self, text: str, settings: typing.Optional[dict[str, Any]] = None) -> bytes:
         raise NotImplementedError
 
 

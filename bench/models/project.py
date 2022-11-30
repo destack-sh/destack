@@ -319,8 +319,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     ) -> Optional[SymbolDefinition]:
         """
         Gets the definition of a symbol in this project version.
+
+        Raises SymbolDefinition.MultipleObjectsReturned if there are multiple definitions.
         """
-        return self.get_symbol_definitions(name, type).first()
+        try:
+            return self.get_symbol_definitions(name, type).get()
+        except SymbolDefinition.DoesNotExist:
+            return None
 
     def symbol_definition(self, name: str, type: Optional[SymbolType] = None) -> SymbolDefinition:
         """
@@ -395,6 +400,14 @@ class File(UUIDModel):
         else:
             return f"{self.project_version}/{self.name}"
 
+    @property
+    def path(self) -> str:
+        return f"{self.parent.path}/{self.name}" if self.parent else self.name
+
+    @property
+    def is_root(self) -> bool:
+        return self.parent is None
+
     def add_definition(self, definition: SymbolDefinition):
         definition.file = self
         if definition.parent is None:
@@ -425,14 +438,6 @@ class File(UUIDModel):
         parent: Optional[SymbolDefinition] = None,
     ) -> SymbolDefinition:
         return await sync_to_async(self.create_definition)(name, content, parent)
-
-    @property
-    def is_root(self) -> bool:
-        return self.parent is None
-
-    @property
-    def path(self) -> str:
-        return f"{self.parent.path}/{self.name}" if self.parent else self.name
 
     class Meta:
         constraints = [

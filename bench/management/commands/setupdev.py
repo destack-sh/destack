@@ -1,110 +1,26 @@
-import datetime
-
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench.models import Model, Organization, Project
-from bench.models.model import ModelInferenceSettings, ProviderKey
-from bench.models.project import ProjectType, ProjectVersion
+from bench.models import Organization
+from bench.models.organization import OrganizationMembership
 from bench.models.user import User
 
-TEST_USER_EMAIL = "test@symbolx.com"
-TEST_ORGANIZATION_SLUG = "symbolx"
-
-providers = [
-    {
-        "name": "OpenAI",
-        "slug": "openai",
-        "models": [
-            "text-davinci-003",
-            "text-davinci-002",
-            "text-curie-001",
-            "text-babbage-001",
-            "text-ada-001",
-            "code-davinci-002",
-            "code-cushman-001",
-        ],
-    },
-    {
-        "name": "Goose AI",
-        "slug": "gooseai",
-        "models": [
-            "fairseq-13b",
-            "fairseq-6b-7b",
-            "gpt-j-20b",
-            "gpt-j-6b",
-        ],
-    },
-]
+TEST_USER_EMAIL = "yatima@symbolx.com"
 
 
 class Command(BaseCommand):
     help = "Sets up dev environment with sample data"
 
-    def add_arguments(self, parser: CommandParser):
-        pass
-
     @transaction.atomic
     def handle(self, *args, **options):
+        organization = Organization.objects.get_by_slug("symbolx")
         # create test organization and user if they don't exist
         if not User.objects.filter(email=TEST_USER_EMAIL).exists():
-            organization, user = User.objects.bootstrap(
+            user = User.objects.create(
                 email=TEST_USER_EMAIL,
                 password="password",
                 first_name="Yatima",
-                organization_name="SymbolX AG.",
-                organization_kwargs={"slug": TEST_ORGANIZATION_SLUG},
                 is_staff=True,
             )
+            user.join_organization(organization, OrganizationMembership.Level.Owner)
             self.stdout.write(self.style.SUCCESS(f"Created bootstrap user: {user}"))
-        # else:
-        #     organization = Organization.objects.get(slug=TEST_ORGANIZATION_SLUG)
-        #     user = User.objects.get(email=TEST_USER_EMAIL)
-
-        # create provider models
-        self.create_default_providers()
-
-    def create_default_providers(self):
-        for provider in providers:
-            organization = Organization.objects.filter(slug=provider["slug"]).first()
-            if organization is None:
-                organization = Organization.objects.create(
-                    name=provider["name"], slug=provider["slug"]
-                )
-                library = Project.objects.create_project(
-                    organization,
-                    f"{provider['name']} standard library",
-                    "stdlib",
-                    type=ProjectType.LIBRARY,
-                )
-                self.stdout.write(self.style.SUCCESS(f"Created provider: {organization}"))
-            else:
-                library = Project.objects.filter(organization=organization, slug="stdlib").first()
-
-            # version with date format like 2022.11.29
-            version_id = datetime.datetime.now().strftime("%Y.%m.%d")
-            library_v: ProjectVersion = library.head  # just advance head
-            if library_v.name == version_id:
-                # skip if version already exists
-                self.stdout.write(
-                    f"Skip updating library {library_v} to {version_id} (already exists)"
-                )
-                continue
-
-            # add models to library
-            for model_id in provider["models"]:
-                provider_key = ProviderKey[provider["slug"].upper()]  # type: ignore
-                model = Model.objects.create(
-                    external_name=model_id,
-                    provider=provider_key,
-                    default_settings=ModelInferenceSettings.objects.create(),
-                )
-                model_file = library_v.create_file(name=model_id)
-                model_file.create_definition(model_id, model)
-            library_v.commit(version_id)
-
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Created provider library {library_v} with models: {provider['models']}"
-                )
-            )
