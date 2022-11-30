@@ -2,7 +2,7 @@ from typing import Optional
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
-from django.db import models, transaction
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from bench.models import Organization
@@ -12,36 +12,6 @@ from bench.models.utils import UUIDModel
 
 class UserManager(BaseUserManager["User"]):
     use_in_migrations = True
-
-    def bootstrap(
-        self,
-        email: str,
-        password: Optional[str],
-        first_name: str,
-        organization_name: str,
-        organization_kwargs: Optional[dict] = None,
-        team_kwargs: Optional[dict] = None,
-        user_kwargs: Optional[dict] = None,
-        is_staff: bool = False,
-    ) -> tuple[Organization, "User"]:
-        organization_kwargs = organization_kwargs or {}
-        team_kwargs = team_kwargs or {}
-        user_kwargs = user_kwargs or {}
-
-        with transaction.atomic():
-            organization = Organization.objects.create(
-                name=organization_name, **organization_kwargs
-            )
-            user = self.create_user(
-                email=email,
-                password=password,
-                first_name=first_name,
-                is_staff=is_staff,
-                **user_kwargs
-            )
-            user.join_organization(organization, level=OrganizationMembership.Level.Owner)
-
-        return organization, user
 
     def create_user(self, email: str, password: Optional[str], first_name: str, **kwargs) -> "User":
         email = self.normalize_email(email)

@@ -61,14 +61,13 @@ class ModelInferenceSettings(UUIDModel):
     max_tokens = models.IntegerField(default=512)
     temperature = models.FloatField(default=0.7)
     top_p = models.FloatField(default=1.0)
-    logprobs = models.IntegerField(default=2)
     n = models.IntegerField(default=1)
     stop = ArrayField(models.CharField(max_length=128), null=True, default=list)
     echo = models.BooleanField(default=False)
-    tfs = models.FloatField(null=True, blank=True)
     presence_penalty = models.FloatField(default=0.0)
     frequency_penalty = models.FloatField(default=0.0)
     logit_bias = models.JSONField(null=True, blank=True)
+    logprobs = models.IntegerField(default=2)
 
     def as_dict(self, omit_empty: bool = True):
         fields = OrderedDict(
@@ -80,7 +79,6 @@ class ModelInferenceSettings(UUIDModel):
                 ("n", self.n),
                 ("stop", self.stop),
                 ("echo", self.echo),
-                ("tfs", self.tfs),
                 ("presence_penalty", self.presence_penalty),
                 ("frequency_penalty", self.frequency_penalty),
                 ("logit_bias", self.logit_bias),

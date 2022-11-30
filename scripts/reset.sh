@@ -19,7 +19,7 @@ if [ "$1" != "--force" ]; then
     fi
 fi
 
-# reset hard if --hard is passed
+# reset hard if --hard is passed (recreate migrations)
 if [ "$1" == "--hard" ]; then
     # shut down docker and wipe volumes
     docker compose -f docker-compose.dev.yml down --volumes
@@ -35,10 +35,14 @@ if [ "$1" == "--hard" ]; then
 
     # create new migrations
     python manage.py makemigrations bench
+# else reset soft (just the db content)
+else
+    # reset the db content
+    python manage.py flush --no-input
 fi
 
 # run migrations
 python manage.py migrate
 
 # set up dev environment
-python manage.py setupdev
+python manage.py bootstrap && python manage.py setupdev

@@ -99,8 +99,6 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=SymbolType)
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="definitions")
-    # TODO @Architecture: should symbol definition parent/children relation be on symbol definition or symbol?
-    #  Currently, it's on symbol definition, which we copy for every project version.
     parent = models.ForeignKey(
         "SymbolDefinition", on_delete=models.CASCADE, null=True, related_name="children"
     )
@@ -135,6 +133,20 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
 
     def __str__(self):
         return f"{self.name_dot_type}@{self.id.hex}"
+
+    @property
+    def path(self) -> str:
+        return f"{self.file.path}/{self.local_path}"
+
+    @property
+    def local_path(self):
+        """
+        Path relative to the current file
+        """
+        if self.parent is not None:
+            return f"{self.parent.local_path}.{self.name}"
+        else:
+            return self.name
 
     @staticmethod
     def type_to_field(type: SymbolType) -> str:
@@ -240,6 +252,7 @@ class SymbolContent(UUIDModel):
     """
 
     # definition is a one to one field via SymbolDefinition
+    # (and set automatically when creating a SymbolDefinition)
     @property
     def definition(self) -> SymbolDefinition:
         raise NotImplementedError
