@@ -298,9 +298,7 @@ class Command(BaseCommand):
         instruction: Instruction,
     ):
         # parameters are defined as type only definition lines like:
-        # name: Model
-        # name: Dataset
-        # name: Callable
+        # name: Task|Instruction|Model|Dataset|DatasetView
         # name: <type>
         # Parameters are bound to their name or an @alias unless @param is appended (in comment).
         for line in segment.lines:
@@ -323,7 +321,7 @@ class Command(BaseCommand):
                 param_type = InstructionParameterType.DATASET
             elif param_type == "Model":
                 param_type = InstructionParameterType.MODEL
-            elif "Callable" in param_type:
+            elif param_type == "Instruction":
                 param_type = InstructionParameterType.INSTRUCTION
             else:
                 # just use python type as schema for now

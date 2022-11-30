@@ -11,7 +11,6 @@ type Compilation implements Node {
 
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
   schema: JSON
   length: Int!
   records: [DatasetRecord!]!
@@ -25,7 +24,6 @@ type DatasetRecord implements Node {
 
 type DatasetView implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
   dataset: Dataset!
 }
 
@@ -34,7 +32,6 @@ scalar DateTime
 
 type Expectation implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
   task(pk: ID): Task!
   description: String!
   statements: [SymbolDefinition!]!
@@ -57,7 +54,6 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 type Instruction implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
   task: Task
   scope: String!
   builtinId: String
@@ -103,7 +99,6 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type Model implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
   baseline: Model
   provider: String!
 }
@@ -174,7 +169,6 @@ type Project implements Node {
   updatedAt: DateTime!
   head: ProjectVersion!
   versions: [ProjectVersion!]!
-  version(versionId: UUID!): ProjectVersion
 }
 
 """A connection to a list of items."""
@@ -278,7 +272,6 @@ type Query {
 
 interface SymbolContent implements Node {
   id: GlobalID!
-  definition: SymbolDefinition!
 }
 
 type SymbolDefinition implements Node {
@@ -310,7 +303,6 @@ enum SymbolType {
 
 type Task implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
   schema: JSON!
   expectations: [SymbolDefinition!]!
   templateImplementation: SymbolDefinition

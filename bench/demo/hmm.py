@@ -2,7 +2,7 @@
 # @symbol ignore
 import random
 import subprocess
-from typing import Callable, Optional
+from typing import Callable, Generator, Iterator, Optional
 
 import requests
 
@@ -11,11 +11,11 @@ from bench.utils.record import RecordBatch
 
 Model = ModelHandle
 Dataset = RecordBatch
+Instruction: Callable
 llm: Callable
 llm_fewshot: Callable
 llm_classify: Callable
 random: random.Random
-self: Callable
 
 # @path main
 
@@ -47,7 +47,7 @@ async def lookup_docs(input: str) -> str:
 
         # use requests to get the docs from http://man.he.net/?topic={utility}
         try:
-            response = requests.get(f"http://man.he.net/?topic={utility}")
+            response = requests.get(f"http://man.he.net/?topic={utility}&")
             docs_by_utility[utility] = response.text
         except RuntimeError:
             # ignore errors
@@ -84,6 +84,7 @@ generate_command = [
         "command": "pip install bs4",
     },
 ]
+
 
 # @symbol expect task=generate_command: generate_command
 expectation = "Translate a natural language comment or instruction into a safe bash command."
@@ -128,7 +129,7 @@ async def verify_valid_bash_command(example: dict) -> bool:
 expectation = "The command should be a valid bash command."
 statements = ["verify_valid_bash_command.instruct"]
 
-# @path syntax
+# @path form
 
 # @symbol data: misspelling
 misspelling = [
@@ -167,27 +168,42 @@ async def paraphrase(input: str) -> str:
 # @symbol instruct: perturb_spacing
 async def perturb_spacing(input: str) -> dict:
     # insert/remove/replace random spaces, tabs, commas, etc.
-    chars = " \t\n\r,;"
-    # pick 3 random characters to add/remove/replace
-    for _ in range(3):
+    chars = "   ,;-"
+    # pick 2 random characters to add/remove
+    for _ in range(1):
         # pick a random character
         char = random.choice(chars)
         # pick a random position
         pos = random.randint(0, len(input))
-        # add/remove/replace
+        # add/remove
         if random.random() < 0.5:  # add
             input = input[:pos] + char + input[pos:]
         elif random.random() < 0.5:  # remove
             input = input[:pos] + input[pos + 1 :]
-        else:  # replace
-            input = input[:pos] + char + input[pos + 1 :]
+    # replace 2 chars in input with adjacent keyboard chars
+    for _ in range(1):
+        # pick position
+        pos = random.randint(0, len(input) - 1)
+        char = input[pos]
+        # pick adjacent char
+        if char in "qwertyuiopasdfghjklzxcvbnm":
+            adjacent = "qwertyuiopasdfghjklzxcvbnm"
+        elif char in "QWERTYUIOPASDFGHJKLZXCVBNM":
+            adjacent = "QWERTYUIOPASDFGHJKLZXCVBNM"
+        else:
+            continue
+        if char not in adjacent:
+            continue
+        char = adjacent[adjacent.index(char) + random.choice([-1, 1])]
+        # replace
+        input = input[:pos] + char + input[pos + 1 :]
     return input
 
 
 # @symbol instruct: form_invariance
-misspell: Callable[[str], str]
-paraphrase: Callable[[str], str]
-perturb_spacing: Callable[[dict], dict]
+misspell: Instruction
+paraphrase: Instruction
+perturb_spacing: Instruction
 
 
 async def form_invariance(example: dict) -> list[dict]:
@@ -259,6 +275,9 @@ model: Model  # @alias text-davinci-003
 async def expect_respect_command_hints(example: dict) -> Optional[dict]:
     # get another way of running the same command
     utility = example["command"].split()[0]
+    # if the utility contains non-alpha characters, skip
+    if not utility.isalpha():
+        return None
     # alternative utilities
     alternative_command = await llm(
         model,
@@ -270,7 +289,11 @@ async def expect_respect_command_hints(example: dict) -> Optional[dict]:
     if not alternative_command:
         return None
     alternative_utility = alternative_command.split()[0]
-    if alternative_utility == utility or alternative_utility in example["input"]:
+    if (
+        not alternative_utility.isalpha()
+        or alternative_utility == utility
+        or alternative_utility in example["input"]
+    ):
         # if the utility used didn't change or is explicitly mentioned it's not a good example
         return None
     input_other_hint = f"{example['input']} (use {alternative_utility})"
@@ -280,3 +303,68 @@ async def expect_respect_command_hints(example: dict) -> Optional[dict]:
 # @symbol expect task=generate_command: respect_command_hints
 expectation = "Explicit command hints (like 'use ls') should be respected."
 statements = ["verify_respect_command_hints.instruct", "expect_respect_command_hints.instruct"]
+
+# @path composition
+
+# @symbol task parent=generate_command: break_down_task
+schema = {"input": "str", "steps": "list[str]"}
+
+# @symbol data: pipeable_commands
+pipeable_commands = [
+    {"text": "ls"},
+    {"text": "grep"},
+    {"text": "find"},
+    {"text": "cat"},
+    {"text": "sort"},
+    {"text": "uniq"},
+]
+
+# @symbol data: multistep_examples
+multistep_examples = [
+    {"input": "count .mov files", "steps": ["find files", "count matching files"]},
+    {
+        "input": "remove containers that don't match ux*",
+        "steps": ["list containers", "remove matching containers"],
+    },
+    {
+        "input": "open pr on new branch feat/llms with last 2 commits",
+        "steps": ["create branch", "push branch", "open pr"],
+    },
+]
+
+# @symbol instruct: generate_chain_examples
+model: Model  # @alias text-davinci-003
+pipeable_commands: Dataset
+multistep_examples: Dataset
+
+
+async def generate_chain_examples(n_samples: int) -> list[dict]:
+    # generate instructive examples where we chain commands (end to end)
+    examples = []
+    for example in multistep_examples:
+        subcommands = []
+        for i, step in enumerate(example["steps"]):
+            command = await llm(
+                model.configure(stop=["\n"], temperature=0.0),
+                "# {input} \n# {i}. {step}\n",
+                input=example["input"],
+                i=i,
+                step=step,
+            )
+            subcommands.append(command)
+        # chain subcommands as appropriate
+        chained_command = await llm(
+            model.configure(stop=["\n"], temperature=0.0),
+            "# chain these subcommands to '{input}': {subcommands}\n # chained in one line:\n",
+            input=example["input"],
+            subcommands="\n".join(subcommands),
+        )
+        examples.append({"input": example["input"], "command": chained_command})
+        if len(examples) >= n_samples:
+            break
+    return examples
+
+
+# @symbol expect task=generate_command: chain_commands
+expectation = "Break the input down into a sequence of steps."
+statements = ["generate_chain_examples.instruct"]
