@@ -356,7 +356,7 @@ export type Task = Node &
   SymbolContent & {
     __typename?: "Task";
     compilations: Array<Compilation>;
-    expectations: Array<SymbolDefinition>;
+    expectations: Array<Expectation>;
     id: Scalars["GlobalID"];
     schema: Scalars["JSON"];
     templateImplementation?: Maybe<SymbolDefinition>;
@@ -395,6 +395,12 @@ export type UserEdge = {
   node: User;
 };
 
+export type DatasetContentFragment = {
+  __typename?: "Dataset";
+  id: any;
+  records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }>;
+} & { " $fragmentName"?: "DatasetContentFragment" };
+
 export type FileHeaderFragment = { __typename?: "File"; id: any; name: string; createdAt: any; updatedAt: any } & {
   " $fragmentName"?: "FileHeaderFragment";
 };
@@ -418,21 +424,37 @@ export type GetFileByIdQuery = {
       createdAt: any;
       updatedAt: any;
       content:
-        | { __typename?: "Dataset"; records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }> }
+        | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
         | { __typename?: "DatasetView" }
         | { __typename?: "Expectation" }
-        | { __typename?: "Instruction" }
+        | ({ __typename?: "Instruction" } & {
+            " $fragmentRefs"?: { InstructionContentFragment: InstructionContentFragment };
+          })
         | { __typename?: "Model" }
-        | {
-            __typename?: "Task";
-            schema: any;
-            expectations: Array<{ __typename?: "SymbolDefinition"; nameDotType: string }>;
-            templateImplementation?: { __typename?: "SymbolDefinition"; nameDotType: string } | null;
-            compilations: Array<{ __typename?: "Compilation"; name: string }>;
-          };
+        | { __typename?: "Task" };
     }>;
   } | null;
 };
+
+export type InstructionContentFragment = {
+  __typename?: "Instruction";
+  id: any;
+  builtinId?: string | null;
+  code?: string | null;
+  parameters: Array<{
+    __typename?: "InstructionParameter";
+    name: string;
+    type: InstructionParameterType;
+    schema?: any | null;
+  }>;
+  arguments: Array<{
+    __typename?: "InstructionArgument";
+    name: string;
+    type: string;
+    value?: any | null;
+    reference?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
+  }>;
+} & { " $fragmentName"?: "InstructionContentFragment" };
 
 export type ProjectVersionFragmentFragment = {
   __typename?: "ProjectVersion";
@@ -487,6 +509,33 @@ export type GetProjectVersionFilesQuery = {
   } | null;
 };
 
+export const DatasetContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "DatasetContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Dataset" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "records" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "data" } },
+                { kind: "Field", name: { kind: "Name", value: "index" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<DatasetContentFragment, unknown>;
 export const FileHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -506,6 +555,59 @@ export const FileHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<FileHeaderFragment, unknown>;
+export const InstructionContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InstructionContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Instruction" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "builtinId" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parameters" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "schema" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "arguments" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "value" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InstructionContentFragment, unknown>;
 export const ProjectVersionFragmentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -575,60 +677,8 @@ export const GetFileByIdDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            {
-                              kind: "InlineFragment",
-                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "schema" } },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "expectations" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [{ kind: "Field", name: { kind: "Name", value: "nameDotType" } }],
-                                    },
-                                  },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "templateImplementation" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [{ kind: "Field", name: { kind: "Name", value: "nameDotType" } }],
-                                    },
-                                  },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "compilations" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [{ kind: "Field", name: { kind: "Name", value: "name" } }],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                            {
-                              kind: "InlineFragment",
-                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Dataset" } },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "records" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "data" } },
-                                        { kind: "Field", name: { kind: "Name", value: "index" } },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "InstructionContent" } },
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "DatasetContent" } },
                           ],
                         },
                       },
@@ -641,6 +691,8 @@ export const GetFileByIdDocument = {
         ],
       },
     },
+    ...InstructionContentFragmentDoc.definitions,
+    ...DatasetContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<GetFileByIdQuery, GetFileByIdQueryVariables>;
 export const GetProjectBySlugDocument = {

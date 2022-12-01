@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import loader from "@monaco-editor/loader";
+import loader, { type Monaco } from "@monaco-editor/loader";
 import type * as monaco from "monaco-editor";
-import { onMounted, ref, watch, type Ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
+  language: "json" | "python";
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -26,49 +27,82 @@ function getEditorHeight(code: string) {
   return lines * 19;
 }
 
+const editorContainer: Ref<HTMLElement | null> = ref(null);
 onMounted(() => {
-  loader.init().then((monaco) => {
-    const editorContainer = document.getElementById("editor-container");
-    if (!editorContainer) {
-      throw new Error("div with id 'editor-container' not found");
-    }
-    editorContainer.style.height = getEditorHeight(props.modelValue) + "px";
+  loader.init().then(initMonaco);
+});
 
-    const editorDiv = document.getElementById("editor");
-    if (!editorDiv) {
-      throw new Error("div with id 'editor' not found");
-    }
-    editor.value = monaco.editor.create(editorDiv, {
-      value: props.modelValue,
-      language: "python",
-      minimap: {
-        enabled: false,
-      },
-      scrollBeyondLastLine: false,
-      readOnly: true,
-      lineDecorationsWidth: 0,
-      hideCursorInOverviewRuler: true,
-      overviewRulerBorder: false,
-      overviewRulerLanes: 0,
-      lineNumbersMinChars: 2,
-      scrollbar: {
-        vertical: "hidden",
-        horizontal: "hidden",
-        handleMouseWheel: false,
-      },
-    });
-    editor.value.onDidChangeModelContent((event) => {
-      console.log("update model value from editor");
-      // TODO @Feature: update model value
-      //  (for some reason monaco crashes when calling editor.getValue() here)
-      emit("update:modelValue", props.modelValue);
-    });
+function initMonaco(monaco: Monaco) {
+  if (!editorContainer.value) {
+    throw new Error("editor container not found");
+  }
+
+  // define custom theme
+  monaco.editor.defineTheme("bench", {
+    base: "vs",
+    inherit: true,
+    rules: [],
+    colors: {
+      // set line numbers color
+      "editorLineNumber.foreground": "#fdba74",
+      "editorLineNumber.activeForeground": "#f97316",
+      // set selection color
+      "editor.selectionBackground": "#fdba74",
+      // set cursor color
+      "editorCursor.foreground": "#f97316",
+      // hide line
+      "editor.lineHighlightBackground": "#ffffff",
+    },
   });
+
+  // set height based on line count
+  editorContainer.value.style.height = getEditorHeight(props.modelValue) + "px";
+
+  // create editor
+  editor.value = monaco.editor.create(editorContainer.value, {
+    value: props.modelValue,
+    language: props.language,
+    minimap: {
+      enabled: false,
+    },
+    scrollBeyondLastLine: false,
+    readOnly: true,
+    lineDecorationsWidth: 10,
+    hideCursorInOverviewRuler: true,
+    overviewRulerBorder: false,
+    overviewRulerLanes: 0,
+    lineNumbersMinChars: 3,
+    renderLineHighlight: "none",
+    // disable folding
+    folding: false,
+    scrollbar: {
+      vertical: "hidden",
+      horizontal: "hidden",
+      handleMouseWheel: false,
+    },
+    theme: "bench",
+  });
+
+  editor.value.onDidChangeModelContent((event) => {
+    console.log("update model value from editor");
+    // TODO @Feature: update model value
+    //  (for some reason monaco crashes when calling editor.getValue() here)
+    emit("update:modelValue", props.modelValue);
+  });
+}
+
+// close monaco editor on unmount
+// TODO @Cleanup: properly dispose monaco editor on unmount
+//  (just calling .dispose like below hangs the app)
+onBeforeUnmount(() => {
+  if (editor.value) {
+    // editor.value.dispose();
+  }
 });
 </script>
 
 <template>
   <div class="w-full" id="editor-container">
-    <div id="editor" class="h-full w-full"></div>
+    <div ref="editorContainer" class="editor-root h-full w-full"></div>
   </div>
 </template>
