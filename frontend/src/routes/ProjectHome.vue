@@ -2,6 +2,7 @@
 import SButton from "@/components/basic/SButton.vue";
 import FileInterface from "@/components/FileInterface.vue";
 import { graphql } from "@/gql";
+import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -13,13 +14,14 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, watchEffect, type Ref } from "vue";
+import { computed, provide, ref, watchEffect } from "vue";
 
 const props = defineProps<{
   organization: string;
   project: string;
 }>();
 
+// fake data
 const user = {
   name: "Florian Cäsar",
   email: "yatima@symbolx.com",
@@ -39,8 +41,9 @@ function compileProgram() {
   console.log("compileProgram");
 }
 
-const ProjectVersionFragment = graphql(/* GraphQL */ `
-  fragment ProjectVersionFragment on ProjectVersion {
+// real data
+const ProjectVersionHeaderFragment = graphql(/* GraphQL */ `
+  fragment ProjectVersionHeader on ProjectVersion {
     name
     description
     createdAt
@@ -71,11 +74,11 @@ const { result: versionsQuery } = useQuery(
         slug
         head {
           id
-          ...ProjectVersionFragment
+          ...ProjectVersionHeader
         }
         versions {
           id
-          ...ProjectVersionFragment
+          ...ProjectVersionHeader
         }
       }
     }
@@ -93,6 +96,8 @@ const { result: filesResult } = useQuery(
         files {
           id
           name
+          createdAt
+          updatedAt
         }
       }
     }
@@ -101,12 +106,20 @@ const { result: filesResult } = useQuery(
   () => ({ enabled: !!currentVersion.value?.id })
 );
 const files = computed(() => filesResult.value?.projectVersion?.files);
-const openFile: Ref = ref(null);
+
+// set up editor state
+
+const state: EditorState = {
+  focusedFile: ref(null),
+  focusedDefinition: ref(null),
+};
+
+provide(EDITOR_STATE_KEY, state);
 
 // open first file if none is open
 watchEffect(() => {
-  if (files.value && !openFile.value) {
-    openFile.value = files.value[0];
+  if (files.value && !state.focusedFile.value) {
+    state.focusedFile.value = files.value[0];
   }
 });
 </script>
@@ -252,11 +265,11 @@ watchEffect(() => {
                 :key="file.id"
                 class="py-0.5 pl-6 pr-2 hover:cursor-pointer"
                 :class="
-                  file.id == openFile?.id
+                  file.id == state.focusedFile.value?.id
                     ? 'bg-orange-100 font-bold text-orange-700'
                     : 'text-gray-700 hover:text-orange-700'
                 "
-                @click="openFile = file"
+                @click="state.focusedFile.value = file"
               >
                 {{ file.name }}
               </li>
@@ -267,7 +280,11 @@ watchEffect(() => {
       <!-- Main editor area -->
       <main class="relative flex-1 flex-shrink-0 resize-x bg-gray-100">
         <!-- Editors for each open file -->
-        <FileInterface v-if="openFile" :file="openFile" :key="openFile.id" />
+        <FileInterface
+          v-if="state.focusedFile.value"
+          :file="state.focusedFile.value"
+          :key="state.focusedFile.value.id"
+        />
       </main>
     </div>
   </div>

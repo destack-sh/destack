@@ -411,29 +411,30 @@ export type GetFileByIdQueryVariables = Exact<{
 
 export type GetFileByIdQuery = {
   __typename?: "Query";
-  file?: {
-    __typename?: "File";
-    id: any;
-    name: string;
-    definitions: Array<{
-      __typename?: "SymbolDefinition";
-      id: any;
-      name: string;
-      type: SymbolType;
-      nameDotType: string;
-      createdAt: any;
-      updatedAt: any;
-      content:
-        | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
-        | { __typename?: "DatasetView" }
-        | { __typename?: "Expectation" }
-        | ({ __typename?: "Instruction" } & {
-            " $fragmentRefs"?: { InstructionContentFragment: InstructionContentFragment };
-          })
-        | { __typename?: "Model" }
-        | { __typename?: "Task" };
-    }>;
-  } | null;
+  file?:
+    | ({
+        __typename?: "File";
+        id: any;
+        definitions: Array<{
+          __typename?: "SymbolDefinition";
+          id: any;
+          name: string;
+          type: SymbolType;
+          nameDotType: string;
+          createdAt: any;
+          updatedAt: any;
+          content:
+            | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
+            | { __typename?: "DatasetView" }
+            | { __typename?: "Expectation" }
+            | ({ __typename?: "Instruction" } & {
+                " $fragmentRefs"?: { InstructionContentFragment: InstructionContentFragment };
+              })
+            | { __typename?: "Model" }
+            | { __typename?: "Task" };
+        }>;
+      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
+    | null;
 };
 
 export type InstructionContentFragment = {
@@ -456,13 +457,13 @@ export type InstructionContentFragment = {
   }>;
 } & { " $fragmentName"?: "InstructionContentFragment" };
 
-export type ProjectVersionFragmentFragment = {
+export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
   name?: string | null;
   description?: string | null;
   createdAt: any;
   committedAt?: any | null;
-} & { " $fragmentName"?: "ProjectVersionFragmentFragment" };
+} & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
 
 export type GetProjectBySlugQueryVariables = Exact<{
   organization: Scalars["String"];
@@ -486,11 +487,11 @@ export type GetProjectVersionsQuery = {
     name: string;
     slug: string;
     head: { __typename?: "ProjectVersion"; id: any } & {
-      " $fragmentRefs"?: { ProjectVersionFragmentFragment: ProjectVersionFragmentFragment };
+      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
     };
     versions: Array<
       { __typename?: "ProjectVersion"; id: any } & {
-        " $fragmentRefs"?: { ProjectVersionFragmentFragment: ProjectVersionFragmentFragment };
+        " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
       }
     >;
   } | null;
@@ -505,7 +506,7 @@ export type GetProjectVersionFilesQuery = {
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
-    files: Array<{ __typename?: "File"; id: any; name: string }>;
+    files: Array<{ __typename?: "File"; id: any; name: string; createdAt: any; updatedAt: any }>;
   } | null;
 };
 
@@ -608,12 +609,12 @@ export const InstructionContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InstructionContentFragment, unknown>;
-export const ProjectVersionFragmentFragmentDoc = {
+export const ProjectVersionHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ProjectVersionFragment" },
+      name: { kind: "Name", value: "ProjectVersionHeader" },
       typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
       selectionSet: {
         kind: "SelectionSet",
@@ -626,7 +627,7 @@ export const ProjectVersionFragmentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<ProjectVersionFragmentFragment, unknown>;
+} as unknown as DocumentNode<ProjectVersionHeaderFragment, unknown>;
 export const GetFileByIdDocument = {
   kind: "Document",
   definitions: [
@@ -658,7 +659,7 @@ export const GetFileByIdDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "definitions" },
@@ -691,6 +692,7 @@ export const GetFileByIdDocument = {
         ],
       },
     },
+    ...FileHeaderFragmentDoc.definitions,
     ...InstructionContentFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
   ],
@@ -782,7 +784,7 @@ export const GetProjectVersionsDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionFragment" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
                     ],
                   },
                 },
@@ -793,7 +795,7 @@ export const GetProjectVersionsDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionFragment" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
                     ],
                   },
                 },
@@ -803,7 +805,7 @@ export const GetProjectVersionsDocument = {
         ],
       },
     },
-    ...ProjectVersionFragmentFragmentDoc.definitions,
+    ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<GetProjectVersionsQuery, GetProjectVersionsQueryVariables>;
 export const GetProjectVersionFilesDocument = {
@@ -845,6 +847,8 @@ export const GetProjectVersionFilesDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                     ],
                   },
                 },

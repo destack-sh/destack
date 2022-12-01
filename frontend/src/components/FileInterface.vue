@@ -2,11 +2,12 @@
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import InstructionInterface from "@/components/InstructionInterface.vue";
 import { graphql, type FragmentType } from "@/gql";
-import { SymbolType } from "@/gql/graphql";
+import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
+import { EditorState, EDITOR_STATE_KEY, type SymbolDefinitionHeader } from "@/utils/editor";
 import { useQuery } from "@vue/apollo-composable";
-import { computed } from "vue";
+import { computed, inject } from "vue";
 
-const FileHeader = graphql(/* GraphQL */ `
+const FileHeaderFragment = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
     name
@@ -14,15 +15,16 @@ const FileHeader = graphql(/* GraphQL */ `
     updatedAt
   }
 `);
+type FileHeader = FragmentType<typeof FileHeaderFragment>;
 
-const props = defineProps<{ file: FragmentType<typeof FileHeader> }>();
+const props = defineProps<{ file: FileHeader }>();
 
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
     query getFileById($fileId: GlobalID!) {
       file(id: $fileId) {
         id
-        name
+        ...FileHeader
         definitions {
           id
           name
@@ -59,6 +61,20 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
     component: InstructionInterface,
   },
 };
+
+const editorState = inject<EditorState>(EDITOR_STATE_KEY);
+const isFocused = computed(() => editorState?.focusedFile.value?.id == props.file.id);
+
+function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
+  return editorState?.focusedDefinition.value?.id == definition.id;
+}
+
+function focusDefinition(definition: SymbolDefinitionHeader) {
+  // TODO @Cleanup: avoid direct editor state mutation
+  if (editorState) {
+    editorState.focusedDefinition.value = definition;
+  }
+}
 </script>
 
 <template>
@@ -66,7 +82,9 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
     <div
       v-for="definition in definitions"
       :key="definition.id"
-      class="mx-auto w-full rounded-sm border border-orange-600 bg-white shadow-md shadow-orange-200"
+      class="mx-auto w-full max-w-[1000px] rounded-sm border bg-white"
+      :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
+      @click="focusDefinition(definition)"
     >
       <span class="m-1 text-sm text-gray-900">
         {{ definition.nameDotType }}
