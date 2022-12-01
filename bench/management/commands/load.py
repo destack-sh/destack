@@ -60,7 +60,7 @@ class FileSegment:
     @property
     def full_code(self):
         # code already contains newlines
-        return "".join(self.lines)
+        return "".join(self.lines).strip()
 
 
 class Command(BaseCommand):
