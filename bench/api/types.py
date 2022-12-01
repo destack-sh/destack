@@ -144,7 +144,7 @@ class InstructionArgument(gql.Node):
     created_at: auto
     updated_at: auto
     type: auto
-    reference: SymbolDefinition
+    reference: Optional[SymbolDefinition]
     value: auto
 
 

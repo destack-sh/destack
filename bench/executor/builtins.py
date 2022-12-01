@@ -12,6 +12,7 @@ async def llm(
     prompt: str,
     return_full: bool = False,
     strip: bool = True,
+    settings: dict[str, Any] = None,
     **variables: dict[str, Any],
 ):
     """
@@ -21,7 +22,7 @@ async def llm(
         prompt = prompt.format(**variables)
 
     # TODO @Cleanup: reduce duplication across llm builtins
-    completion = await model.complete(prompt)
+    completion = await model.complete(prompt, settings=settings)
     if not isinstance(completion, dict):
         raise NotImplementedError(f"list result not supported yet: {model}")
 
@@ -46,6 +47,7 @@ async def llm_fewshot(
     examples: RecordBatch,
     return_full: bool = False,
     strip: bool = True,
+    settings: dict[str, Any] = None,
     **variables: dict[str, Any],
 ):
     """
@@ -60,7 +62,7 @@ async def llm_fewshot(
         prompt_prefix + "".join(prompt_example.format(**row) for row in examples) + prompt_suffix
     )
 
-    completion = await model.complete(prompt)
+    completion = await model.complete(prompt, settings=settings)
     if not isinstance(completion, dict):
         raise NotImplementedError(f"list result not supported yet: {model}")
 
@@ -96,18 +98,24 @@ async def llm_classify(
 
     prompt = (
         prompt_prefix
-        + "\n".join(f"{row[text_key]}: {label or row[label_key]}" for row in examples)
-        + f"{text_key}: {text}"
+        + "\n"
+        + "\n".join(
+            f"{text_key}: {row[text_key]}\n{label_key}: {label or row[label_key]}\n"
+            for row in examples
+        )
+        + f"{text_key}: {text} + \n{label_key}:"
     )
 
-    completion = await model.complete(prompt)
+    # set max tokens to max length of labels
+    max_tokens = max(len(row[label_key]) for row in examples)
+    completion = await model.complete(prompt, settings={"max_tokens": max_tokens, "stop": "\n"})
     if not isinstance(completion, dict):
         raise NotImplementedError(f"list result not supported yet: {model}")
 
     if return_full:
         return completion
     else:
-        return completion["text"]
+        return completion["text"].strip()
 
 
 instruction_builtins: dict = {

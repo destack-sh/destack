@@ -192,7 +192,8 @@ async def perturb_spacing(input: str) -> dict:
             adjacent = "QWERTYUIOPASDFGHJKLZXCVBNM"
         else:
             continue
-        if char not in adjacent:
+        if char not in adjacent[1:-1]:
+            # limit to 1 char away for swaps
             continue
         char = adjacent[adjacent.index(char) + random.choice([-1, 1])]
         # replace
