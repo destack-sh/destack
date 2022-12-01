@@ -1,3 +1,22 @@
+<script lang="ts" setup>
+import { computed } from "vue";
+
+const props = defineProps<{
+  modelValue: string;
+  placeholder?: string;
+  label?: string;
+  labelHidden?: boolean;
+  id?: string;
+  optional?: boolean;
+  rows?: number;
+  minlength?: number;
+  maxlength?: number;
+}>();
+
+defineEmits<{ e: "update:modelValue"; value: string }>();
+
+const inputId = computed(() => props.id || props.label?.toLocaleLowerCase().replace(" ", "-"));
+</script>
 <template>
   <div>
     <label
@@ -23,22 +42,3 @@
     </div>
   </div>
 </template>
-<script lang="ts" setup>
-import { computed } from "vue";
-
-const props = defineProps<{
-  modelValue: string;
-  placeholder?: string;
-  label?: string;
-  labelHidden?: boolean;
-  id?: string;
-  optional?: boolean;
-  rows?: number;
-  minlength?: number;
-  maxlength?: number;
-}>();
-
-defineEmits<{ e: "update:modelValue"; value: string }>();
-
-const inputId = computed(() => props.id || props.label?.toLocaleLowerCase().replace(" ", "-"));
-</script>

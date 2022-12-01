@@ -111,6 +111,7 @@ class Project(TaggableMixin, UUIDModel):
         # copy all project files and their symbol definitions from parent
         # TODO @Performance: copy project version on commit server-side in SQL
         #  This is awfully sequential and slow, particularly deepcopy of symbol definitions.
+        # Also TODO @Cleanup: created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
         for file in assigned_parent.files.all():
@@ -392,12 +393,12 @@ class File(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
-
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     is_folder = models.BooleanField(default=False)
     parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
-
-    # definitions via SymbolDefinition
     # files via File (if in a folder)
+    # definitions via SymbolDefinition
 
     def __str__(self):
         if self.parent:
@@ -445,6 +446,7 @@ class File(UUIDModel):
         return await sync_to_async(self.create_definition)(name, content, parent)
 
     class Meta:
+        ordering = ["name"]
         constraints = [
             # ensure that the path is unique per project version (includes parent folder)
             models.UniqueConstraint(

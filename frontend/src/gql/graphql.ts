@@ -23,15 +23,26 @@ export type Scalars = {
   Void: any;
 };
 
-export type Dataset = Node & {
-  __typename?: "Dataset";
+export type Compilation = Node & {
+  __typename?: "Compilation";
+  backends: Array<SymbolDefinition>;
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
-  length: Scalars["Int"];
   name: Scalars["String"];
-  records: Array<DatasetRecord>;
-  schema?: Maybe<Scalars["JSON"]>;
+  outputInstruction?: Maybe<SymbolDefinition>;
+  outputTask?: Maybe<SymbolDefinition>;
+  task: Task;
+  updatedAt: Scalars["DateTime"];
 };
+
+export type Dataset = Node &
+  SymbolContent & {
+    __typename?: "Dataset";
+    id: Scalars["GlobalID"];
+    length: Scalars["Int"];
+    records: Array<DatasetRecord>;
+    schema?: Maybe<Scalars["JSON"]>;
+  };
 
 export type DatasetRecord = Node & {
   __typename?: "DatasetRecord";
@@ -40,47 +51,98 @@ export type DatasetRecord = Node & {
   index: Scalars["Int"];
 };
 
-export type Expectation = Node & {
-  __typename?: "Expectation";
-  description: Scalars["String"];
-  examplesDatasets: Array<Dataset>;
-  id: Scalars["GlobalID"];
-  index: Scalars["Int"];
-  instructions: Array<Instruction>;
-  task: Task;
+export type DatasetView = Node &
+  SymbolContent & {
+    __typename?: "DatasetView";
+    dataset: Dataset;
+    id: Scalars["GlobalID"];
+  };
+
+export type Expectation = Node &
+  SymbolContent & {
+    __typename?: "Expectation";
+    description: Scalars["String"];
+    id: Scalars["GlobalID"];
+    statements: Array<SymbolDefinition>;
+    task: Task;
+  };
+
+export type ExpectationTaskArgs = {
+  pk?: InputMaybe<Scalars["ID"]>;
 };
 
 export type File = Node & {
   __typename?: "File";
-  content: Array<Node>;
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  nameDotType: Scalars["String"];
-  projectVersion: ProjectVersion;
-  type: Scalars["String"];
-};
-
-export type Instruction = Node & {
-  __typename?: "Instruction";
-  builtinId?: Maybe<Scalars["String"]>;
-  children: Array<Instruction>;
-  code?: Maybe<Scalars["String"]>;
   createdAt: Scalars["DateTime"];
+  definitions: Array<SymbolDefinition>;
+  files: Array<File>;
   id: Scalars["GlobalID"];
-  index: Scalars["Int"];
+  isFolder: Scalars["Boolean"];
   name: Scalars["String"];
-  parent?: Maybe<Instruction>;
-  scope: Scalars["String"];
+  parent?: Maybe<File>;
+  projectVersion: ProjectVersion;
   updatedAt: Scalars["DateTime"];
 };
 
+export type Instruction = Node &
+  SymbolContent & {
+    __typename?: "Instruction";
+    arguments: Array<InstructionArgument>;
+    builtinId?: Maybe<Scalars["String"]>;
+    code?: Maybe<Scalars["String"]>;
+    id: Scalars["GlobalID"];
+    parameters: Array<InstructionParameter>;
+    scope: Scalars["String"];
+    task?: Maybe<Task>;
+  };
+
+export type InstructionArgument = Node & {
+  __typename?: "InstructionArgument";
+  createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
+  instruction: Instruction;
+  instructionFree: Instruction;
+  name: Scalars["String"];
+  reference?: Maybe<SymbolDefinition>;
+  type: Scalars["String"];
+  updatedAt: Scalars["DateTime"];
+  value?: Maybe<Scalars["JSON"]>;
+};
+
+export type InstructionParameter = Node & {
+  __typename?: "InstructionParameter";
+  createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
+  instruction: Instruction;
+  name: Scalars["String"];
+  schema?: Maybe<Scalars["JSON"]>;
+  type: InstructionParameterType;
+  updatedAt: Scalars["DateTime"];
+};
+
+/** An enumeration. */
+export enum InstructionParameterType {
+  Dataset = "DATASET",
+  Instruction = "INSTRUCTION",
+  Json = "JSON",
+  Model = "MODEL",
+}
+
+export type Model = Node &
+  SymbolContent & {
+    __typename?: "Model";
+    baseline?: Maybe<Model>;
+    id: Scalars["GlobalID"];
+    provider: Scalars["String"];
+  };
+
 export type Mutation = {
   __typename?: "Mutation";
-  compileTask?: Maybe<Scalars["Void"]>;
+  compile?: Maybe<Scalars["Void"]>;
   runProgram?: Maybe<Scalars["Void"]>;
 };
 
-export type MutationCompileTaskArgs = {
+export type MutationCompileArgs = {
   projectVersionId: Scalars["UUID"];
   taskId: Scalars["UUID"];
 };
@@ -173,8 +235,10 @@ export type ProjectEdge = {
 
 export type ProjectVersion = Node & {
   __typename?: "ProjectVersion";
+  children: Array<ProjectVersion>;
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
+  definitions: Array<SymbolDefinition>;
   description?: Maybe<Scalars["String"]>;
   files: Array<File>;
   id: Scalars["GlobalID"];
@@ -184,18 +248,26 @@ export type ProjectVersion = Node & {
   project: Project;
 };
 
+export type ProjectVersionProgramArgs = {
+  pk?: InputMaybe<Scalars["ID"]>;
+};
+
 export type Query = {
   __typename?: "Query";
+  file?: Maybe<File>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
   organizations: OrganizationConnection;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
-  projectFile?: Maybe<File>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
   user?: Maybe<User>;
   users: UserConnection;
+};
+
+export type QueryFileArgs = {
+  id: Scalars["GlobalID"];
 };
 
 export type QueryOrganizationArgs = {
@@ -222,10 +294,6 @@ export type QueryProjectBySlugArgs = {
   project: Scalars["String"];
 };
 
-export type QueryProjectFileArgs = {
-  id: Scalars["GlobalID"];
-};
-
 export type QueryProjectVersionArgs = {
   id: Scalars["GlobalID"];
 };
@@ -248,20 +316,51 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
-export type Task = Node & {
-  __typename?: "Task";
-  children: Array<Task>;
-  createdAt: Scalars["DateTime"];
-  expectations: Array<Expectation>;
+export type SymbolContent = {
   id: Scalars["GlobalID"];
-  implementations: Array<Instruction>;
-  index: Scalars["Int"];
+};
+
+export type SymbolDefinition = Node & {
+  __typename?: "SymbolDefinition";
+  children: Array<SymbolDefinition>;
+  committed: Scalars["Boolean"];
+  committedIn?: Maybe<ProjectVersion>;
+  content: SymbolContent;
+  createdAt: Scalars["DateTime"];
+  file: File;
+  id: Scalars["GlobalID"];
+  index?: Maybe<Scalars["Int"]>;
   name: Scalars["String"];
-  parent?: Maybe<Task>;
-  schema: Scalars["JSON"];
-  templateImplementation?: Maybe<Instruction>;
+  nameDotType: Scalars["String"];
+  parent?: Maybe<SymbolDefinition>;
+  projectVersion: ProjectVersion;
+  type: SymbolType;
   updatedAt: Scalars["DateTime"];
 };
+
+export type SymbolDefinitionContentArgs = {
+  pk?: InputMaybe<Scalars["ID"]>;
+};
+
+/** The type of symbol to define in a project. */
+export enum SymbolType {
+  Dataset = "DATASET",
+  DatasetView = "DATASET_VIEW",
+  Expectation = "EXPECTATION",
+  Instruction = "INSTRUCTION",
+  Model = "MODEL",
+  Task = "TASK",
+}
+
+export type Task = Node &
+  SymbolContent & {
+    __typename?: "Task";
+    compilations: Array<Compilation>;
+    expectations: Array<SymbolDefinition>;
+    id: Scalars["GlobalID"];
+    schema: Scalars["JSON"];
+    templateImplementation?: Maybe<SymbolDefinition>;
+  };
 
 export type User = Node & {
   __typename?: "User";
@@ -296,6 +395,45 @@ export type UserEdge = {
   node: User;
 };
 
+export type FileHeaderFragment = { __typename?: "File"; id: any; name: string; createdAt: any; updatedAt: any } & {
+  " $fragmentName"?: "FileHeaderFragment";
+};
+
+export type GetFileByIdQueryVariables = Exact<{
+  fileId: Scalars["GlobalID"];
+}>;
+
+export type GetFileByIdQuery = {
+  __typename?: "Query";
+  file?: {
+    __typename?: "File";
+    id: any;
+    name: string;
+    definitions: Array<{
+      __typename?: "SymbolDefinition";
+      id: any;
+      name: string;
+      type: SymbolType;
+      nameDotType: string;
+      createdAt: any;
+      updatedAt: any;
+      content:
+        | { __typename?: "Dataset"; records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }> }
+        | { __typename?: "DatasetView" }
+        | { __typename?: "Expectation" }
+        | { __typename?: "Instruction" }
+        | { __typename?: "Model" }
+        | {
+            __typename?: "Task";
+            schema: any;
+            expectations: Array<{ __typename?: "SymbolDefinition"; nameDotType: string }>;
+            templateImplementation?: { __typename?: "SymbolDefinition"; nameDotType: string } | null;
+            compilations: Array<{ __typename?: "Compilation"; name: string }>;
+          };
+    }>;
+  } | null;
+};
+
 export type ProjectVersionFragmentFragment = {
   __typename?: "ProjectVersion";
   name?: string | null;
@@ -303,20 +441,6 @@ export type ProjectVersionFragmentFragment = {
   createdAt: any;
   committedAt?: any | null;
 } & { " $fragmentName"?: "ProjectVersionFragmentFragment" };
-
-export type TaskFragmentFragment = { __typename?: "Task"; name: string; createdAt: any; updatedAt: any } & {
-  " $fragmentName"?: "TaskFragmentFragment";
-};
-
-export type InstructionFragmentFragment = {
-  __typename?: "Instruction";
-  name: string;
-  createdAt: any;
-  updatedAt: any;
-  builtinId?: string | null;
-  code?: string | null;
-  scope: string;
-} & { " $fragmentName"?: "InstructionFragmentFragment" };
 
 export type GetProjectBySlugQueryVariables = Exact<{
   organization: Scalars["String"];
@@ -359,30 +483,29 @@ export type GetProjectVersionFilesQuery = {
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
-    files: Array<{ __typename?: "File"; id: any; name: string; type: string; nameDotType: string }>;
-    program?: {
-      __typename?: "Task";
-      id: any;
-      name: string;
-      schema: any;
-      children: Array<
-        {
-          __typename?: "Task";
-          id: any;
-          templateImplementation?:
-            | ({ __typename?: "Instruction"; id: any } & {
-                " $fragmentRefs"?: { InstructionFragmentFragment: InstructionFragmentFragment };
-              })
-            | null;
-          children: Array<
-            { __typename?: "Task"; id: any } & { " $fragmentRefs"?: { TaskFragmentFragment: TaskFragmentFragment } }
-          >;
-        } & { " $fragmentRefs"?: { TaskFragmentFragment: TaskFragmentFragment } }
-      >;
-    } | null;
+    files: Array<{ __typename?: "File"; id: any; name: string }>;
   } | null;
 };
 
+export const FileHeaderFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FileHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<FileHeaderFragment, unknown>;
 export const ProjectVersionFragmentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -402,45 +525,124 @@ export const ProjectVersionFragmentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectVersionFragmentFragment, unknown>;
-export const TaskFragmentFragmentDoc = {
+export const GetFileByIdDocument = {
   kind: "Document",
   definitions: [
     {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "TaskFragment" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "getFileById" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
       selectionSet: {
         kind: "SelectionSet",
         selections: [
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "definitions" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "content" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "schema" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "expectations" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "nameDotType" } }],
+                                    },
+                                  },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "templateImplementation" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "nameDotType" } }],
+                                    },
+                                  },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "compilations" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "name" } }],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Dataset" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "records" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "data" } },
+                                        { kind: "Field", name: { kind: "Name", value: "index" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
         ],
       },
     },
   ],
-} as unknown as DocumentNode<TaskFragmentFragment, unknown>;
-export const InstructionFragmentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "InstructionFragment" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Instruction" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "builtinId" } },
-          { kind: "Field", name: { kind: "Name", value: "code" } },
-          { kind: "Field", name: { kind: "Name", value: "scope" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<InstructionFragmentFragment, unknown>;
+} as unknown as DocumentNode<GetFileByIdQuery, GetFileByIdQueryVariables>;
 export const GetProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -591,53 +793,6 @@ export const GetProjectVersionFilesDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
-                    ],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "program" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "schema" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "children" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "TaskFragment" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "templateImplementation" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "InstructionFragment" } },
-                                ],
-                              },
-                            },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "children" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "TaskFragment" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
                     ],
                   },
                 },
@@ -647,7 +802,5 @@ export const GetProjectVersionFilesDocument = {
         ],
       },
     },
-    ...TaskFragmentFragmentDoc.definitions,
-    ...InstructionFragmentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<GetProjectVersionFilesQuery, GetProjectVersionFilesQueryVariables>;

@@ -1,3 +1,10 @@
+<script lang="ts">
+import { defineComponent } from "vue";
+
+export default defineComponent({
+  name: "NotFound",
+});
+</script>
 <template>
   <div class="flex min-h-full flex-col bg-white pt-16 pb-12">
     <main class="mx-auto flex w-full max-w-7xl flex-grow flex-col justify-center px-4 sm:px-6 lg:px-8">
@@ -31,10 +38,3 @@
     </footer>
   </div>
 </template>
-<script lang="ts">
-import { defineComponent } from "vue";
-
-export default defineComponent({
-  name: "NotFound",
-});
-</script>
