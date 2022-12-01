@@ -343,14 +343,14 @@ class Compiler:
 
         # 4. determine optimal settings for backend model
         # (naive implementation: guess settings without optimization)
-        settings = await self._guess_settings(  # nocheckin use model settings
+        settings = await self._guess_settings(
             task_data, task_description, compiled_examples_dataset
         )
 
         # 5. build prompt and bake into model instruction
         # (naive implementation)
         llm_instruction = await sync_to_async(self._build_llm_instruction)(
-            genfile, task_data, task_description, compiled_examples_dataset
+            genfile, task_data, task_description, compiled_examples_dataset, settings
         )
         return llm_instruction
 
@@ -453,6 +453,7 @@ class Compiler:
         task_data: TaskData,
         task_description: str,
         task_examples: Dataset,
+        settings: ModelInferenceSettings,
     ) -> Instruction:
         if not task_data.optimal_backend:
             raise ValueError(
@@ -478,6 +479,7 @@ class Compiler:
             prompt_example=prompt_example,
             prompt_input=prompt_input,
             examples=task_examples.definition,
+            settings=settings.as_dict(omit_empty=True),
         )
         # add parameter for input keys
         for key in task_data.input_keys:
