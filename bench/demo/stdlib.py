@@ -22,6 +22,6 @@ description: str  # @param
 examples: Dataset  # @param
 
 
-async def get_temperature(description: str, examples: Dataset) -> float:
+async def get_temperature(model: Model, description: str, examples: Dataset) -> float:
     # TODO @Feature: implement this nocheckin
     return 0.5

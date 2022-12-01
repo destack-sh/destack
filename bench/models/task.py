@@ -38,7 +38,7 @@ class Task(SymbolContent):
             compilation.save()
 
     def __str__(self):
-        return f"{self.definition}(schema={self.schema})"
+        return f"{self.definition_str}(schema={self.schema})"
 
     objects = TaskManager()
 
@@ -90,6 +90,6 @@ class Expectation(SymbolContent):
     )
 
     def __str__(self):
-        return f"{self.definition}(description={self.description})"
+        return f"{self.definition_str}(description={self.description})"
 
     objects = ExpectationManager()

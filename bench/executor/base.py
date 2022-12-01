@@ -16,7 +16,7 @@ from django.db.models import QuerySet
 from bench.backend.base import Completion, ModelHandle, ModelProvider
 from bench.backend.openai import OpenAIProvider
 from bench.executor.builtins import instruction_builtins
-from bench.models import Dataset, Model
+from bench.models import Dataset, Model, SymbolContent, SymbolDefinition, SymbolType
 from bench.models.dataset import DatasetView
 from bench.models.instruction import (
     Instruction,
@@ -96,6 +96,10 @@ class ModelProxy(ModelHandle):
         self.handle = handle
         self.model = model
         self.use_cache = use_cache
+
+    @property
+    def settings(self) -> ModelInferenceSettings:
+        return self.handle.settings
 
     def configure(self, **settings: dict[str, Any]) -> ModelHandle:
         return ModelProxy(self.handle.configure(**settings), self.model, self.use_cache)
@@ -329,27 +333,34 @@ class Executor:
                 continue
             if argument.reference is None:
                 raise ValueError(f"argument {argument} has no reference definition")
-
             # resolve symbol reference
-            if argument.type == InstructionParameterType.MODEL:
-                model = argument.reference.model_
+            bound_arguments_resolved[argument.name] = await self._resolve_instruction_argument(
+                argument.reference
+            )
+        return bound_arguments_resolved
+
+    async def _resolve_instruction_argument(self, value: Any | SymbolDefinition | SymbolContent):
+        if isinstance(value, SymbolContent):
+            value = value.definition
+        if isinstance(value, SymbolDefinition):
+            if value.type == SymbolType.MODEL:
+                model = value.model_
                 model_handle = await self._resolve_model(model, settings=None)
                 model_proxy = await self._proxy_model(model_handle, model)
-                bound_arguments_resolved[argument.name] = model_proxy
-            elif argument.type == InstructionParameterType.DATASET:
-                dataset = argument.reference.dataset_
+                return model_proxy
+            elif value.type == SymbolType.DATASET:
+                dataset = value.dataset_
                 dataset_handle = await self._resolve_dataset(dataset, view=None)
-                bound_arguments_resolved[argument.name] = dataset_handle
-            elif argument.type == InstructionParameterType.INSTRUCTION:
-                instruction = argument.reference.instruction_
+                return dataset_handle
+            elif value.type == SymbolType.INSTRUCTION:
+                instruction = value.instruction_
                 _, _, callable = await self._resolve_instruction(instruction)
                 callable_proxy = await self._proxy_instruction(callable, instruction)
-                bound_arguments_resolved[argument.name] = callable_proxy
+                return callable_proxy
             else:
-                raise ValueError(
-                    f"{instruction} argument {argument} unknown argument type: {argument.type}"
-                )
-        return bound_arguments_resolved
+                raise ValueError(f"unexpected argument type: {value}")
+        else:
+            return value
 
     def _check_arguments(
         self,
@@ -398,10 +409,14 @@ class Executor:
         # ignore extraneous arguments
 
     async def run(
-        self, instruction: Instruction, arguments: dict[str, Any]
+        self, instruction: Instruction, arguments: dict[str, Any | SymbolDefinition | SymbolContent]
     ) -> dict[str, Any] | list[dict[str, Any]] | None:
         if not isinstance(arguments, dict):
             raise ValueError(f"instruction arguments must be a dict: {arguments}")
+
+        # resolve arguments
+        arguments = {k: await self._resolve_instruction_argument(v) for k, v in arguments.items()}
+
         try:
             parameters, bound_arguments, inner_func = await self._resolve_instruction(instruction)
             func_proxy: InstructionProxy = await self._proxy_instruction(inner_func, instruction)

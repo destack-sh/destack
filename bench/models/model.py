@@ -17,7 +17,9 @@ class ProviderKey(models.TextChoices):
 
 
 class ModelManager(SymbolContentManager, models.Manager["Model"]):
-    pass
+    def get_queryset(self):
+        # always select default settings
+        return super().get_queryset().select_related("default_settings")
 
 
 class Model(SymbolContent):
@@ -37,7 +39,7 @@ class Model(SymbolContent):
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.definition}(provider={self.provider}/{self.external_name})"
+        return f"{self.definition_str}(provider={self.provider}/{self.external_name})"
 
     def deepcopy(self, to: Model, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         super().deepcopy(to, refs)
@@ -50,6 +52,7 @@ class Model(SymbolContent):
 
     class Meta:
         default_manager_name = "objects"
+        base_manager_name = "objects"
 
 
 class ModelInferenceSettings(UUIDModel):

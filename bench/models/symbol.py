@@ -257,6 +257,19 @@ class SymbolContent(UUIDModel):
     def definition(self) -> SymbolDefinition:
         raise NotImplementedError
 
+    @property
+    def definition_str(self) -> str:
+        """Gets a definition str for logging that handles not yet defined symbol contents"""
+        # check if definition is in model cache
+        if "definition" in self._state.fields_cache:
+            return str(self.definition)
+        else:
+            return "<undefined>"
+
+    @property
+    def type(self) -> SymbolType:
+        return self.definition.type
+
     def deepcopy(self, to: Any, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         """
         Deep copy this symbol to another symbol, replacing all references.
