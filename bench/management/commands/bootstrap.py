@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 
 import structlog
 from django.core.management import BaseCommand
@@ -41,24 +42,46 @@ providers = [
 class Command(BaseCommand):
     help = "Initializes the database"
 
+    def add_arguments(self, parser):
+        # overwrite flag
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="overwrite existing data",
+        )
+
     @transaction.atomic
-    def handle(self, *args, **options):
+    def handle(self, force: bool, *args, **options):
         create_model_providers()
-        create_symbolx_stdlib("bench/demo/stdlib.py")
+        create_symbolx_stdlib("bench/demo/stdlib.py", overwrite=force)
 
 
 @transaction.atomic
-def create_symbolx_stdlib(path: str) -> None:
+def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     stdlib = get_or_create_stdlib("SymbolX", "symbolx")
-    version_id = datetime.datetime.now().strftime("%Y.%m.%d")
+
+    # get last modified date from file at path
+    last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
+    # format version name as YYYY.MM.DD-ts
+    version_id = last_modified.strftime("%Y.%m.%d") + "-" + str(int(last_modified.timestamp()))
     stdlib_v: ProjectVersion = stdlib.head_
-    if stdlib_v.name == version_id:
+    exists = stdlib_v.name == version_id
+    if exists and not overwrite:
         # skip if version already exists
         logger.info(f"Skip updating library {stdlib_v} to {version_id} (already exists)")
         return
+    if exists:
+        logger.warn(f"Overwriting library {stdlib_v} at {version_id}")
+    else:
+        stdlib_v = stdlib.create_version(version_id, parent=stdlib_v)
 
-    stdlib_v = stdlib.create_version(version_id, parent=stdlib_v)
+    stdlib_v.reset()
     load_symbols(stdlib_v, path)
+
+    # advance head
+    stdlib_v.commit()
+    stdlib.head = stdlib_v
+    stdlib.save()
 
     logger.info(f"Created library {stdlib_v} from {path}")
 
@@ -74,6 +97,8 @@ def create_model_providers():
             # skip if version already exists
             logger.info(f"Skip updating library {stdlib_v} to {version_id} (already exists)")
             continue
+        stdlib_v = stdlib.create_version(version_id, parent=stdlib_v)
+        stdlib_v.reset()
 
         # add models to library
         for model_id in provider["models"]:
@@ -85,7 +110,11 @@ def create_model_providers():
             )
             model_file = stdlib_v.create_file(name=model_id)
             model_file.create_definition(model_id, model)
-        stdlib_v.commit(version_id)
+
+        # advance head
+        stdlib_v.commit()
+        stdlib.head = stdlib_v
+        stdlib.save()
 
         logger.info(f"Created provider library {stdlib_v} with models: {provider['models']}")
 

@@ -425,7 +425,7 @@ class Compiler:
         return dataset
 
     async def _guess_settings(
-        self, task_data: TaskData, task_description: str, compiled_examples: Dataset
+        self, task_data: TaskData, task_description: str, examples_dataset: Dataset
     ) -> ModelInferenceSettings:
         # (naive implementation: set only temperature and max_tokens)
         temperature = await self.executor.run(
@@ -433,15 +433,13 @@ class Compiler:
             arguments={
                 "model": self.compiler_model,
                 "description": task_description,
-                "examples": compiled_examples,
+                "examples": examples_dataset,
             },
         )
+        examples = await _acollect(examples_dataset)
         # set max tokens to sum of max length of output keys across examples plus 20%
         max_tokens = int(
-            sum(
-                max(len(example[key]) for example in compiled_examples)
-                for key in task_data.output_keys
-            )
+            sum(max(len(example[key]) for example in examples) for key in task_data.output_keys)
         )
         settings = task_data.optimal_backend.default_settings
         settings.pk = None

@@ -324,6 +324,11 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         """
         try:
             return self.get_symbol_definitions(name, type).get()
+        except SymbolDefinition.MultipleObjectsReturned as e:
+            name_dot_type = f"{name} ({type})" if type else name
+            raise SymbolDefinition.MultipleObjectsReturned(
+                f"multiple definitions for symbol {name_dot_type} in {self}"
+            ) from e
         except SymbolDefinition.DoesNotExist:
             return None
 
@@ -352,8 +357,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
     def reset(self):
         # deletes all our references and definitions but not their contents
-        self.files.all().delete()
         self.definitions.all().delete()
+        self.files.all().delete()
 
     @transaction.atomic
     def commit(self, name: Optional[str] = None):

@@ -234,14 +234,18 @@ def parse_instruct(
     instruction = Instruction.objects.create(
         code=segment.full_code, code_function_name=function.__name__
     )
+    consumed_lines = bind_instruction_parameters(segment, project_v, instruction)
+    if consumed_lines:
+        # remove consumed lines from segment
+        segment.lines = segment.lines[consumed_lines:]
+        instruction.code = segment.full_code
+        instruction.save()
 
     if "task" in segment.symbol_args:
         task_name = segment.symbol_args["task"]
         task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
         instruction.task = task
         task.template_implementation = instruction
-
-    bind_instruction_parameters(segment, project_v, instruction)
 
     return instruction
 
@@ -300,15 +304,17 @@ def bind_instruction_parameters(
     segment: FileSegment,
     project_v: ProjectVersion,
     instruction: Instruction,
-):
+) -> int:
     # parameters are defined as type only definition lines like:
     # name: Task|Instruction|Model|Dataset|DatasetView
     # name: <type>
     # Parameters are bound to their name or an @alias unless @param is appended (in comment).
+    consumed_lines: int = 0
     for line in segment.lines:
         # assume all parameters are declared up front
         if ":" not in line or "=" in line or "(" in line:
             break
+        consumed_lines += 1
         if "#" in line:
             comment = line[line.find("#") :]
             line = line[: line.find("#")]
@@ -347,3 +353,4 @@ def bind_instruction_parameters(
             raise NotImplementedError(f"json argument resolution not supported: {line}")
         symbol_def = project_v.symbol_definition(symbol_ref_name)
         instruction.bind_argument(param_name, symbol_def)
+    return consumed_lines

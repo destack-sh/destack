@@ -74,7 +74,13 @@ class Instruction(SymbolContent):
             argument.save()
 
     def __str__(self):
-        return f"{self.definition}(builtin={self.builtin_id},code={len(self.code) if self.code else None})"
+        if self.builtin_id:
+            content = f"builtin={self.builtin_id}"
+        elif self.code_function_name:
+            content = f"function={self.code_function_name},length={len(self.code)}"
+        else:
+            content = f"length={len(self.code)}"
+        return f"{self.definition_str}({content})"
 
     def add_parameter(
         self,

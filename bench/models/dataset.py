@@ -39,11 +39,11 @@ class Dataset(SymbolContent):
 
     def deepcopy(self, to: Dataset, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         super().deepcopy(to, refs)
-        # copy non-symbol relations
+        # copy nested non-symbol relations
         to.set(list(self))
 
     def __str__(self):
-        return f"{self.definition}(schema={self.schema}, length={self.length})"
+        return f"{self.definition_str}(schema={self.schema}, length={self.length})"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -61,16 +61,16 @@ class Dataset(SymbolContent):
         return DatasetRecord.objects.filter(dataset=self).values_list("data__" + key, flat=True)
 
     def __iter__(self) -> Iterator[dict]:
-        for record in DatasetRecord.objects.filter(dataset=self):
+        for record in self.records.all():
             yield record.data
 
     async def __aiter__(self) -> AsyncIterator[dict]:
-        async for record in DatasetRecord.objects.filter(dataset=self):
+        async for record in self.records.all():
             yield record.data
 
     def append(self, record: dict) -> int:
         with transaction.atomic():
-            DatasetRecord.objects.create(dataset=self, index=self.length, data=record)
+            self.records.create(index=self.length, data=record)
             self.length += 1
             self.save()
         return self.length
@@ -167,4 +167,4 @@ class DatasetView(SymbolContent):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
 
     def __str__(self):
-        return f"{self.definition}()"
+        return f"{self.definition_str}()"
