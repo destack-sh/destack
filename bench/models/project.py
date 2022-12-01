@@ -383,6 +383,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def organization(self):
         return self.project.organization
 
+    class Meta:
+        ordering = ["-created_at"]
+
 
 class File(UUIDModel):
     """
@@ -397,6 +400,7 @@ class File(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     is_folder = models.BooleanField(default=False)
     parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
+
     # files via File (if in a folder)
     # definitions via SymbolDefinition
 

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import SButton from "@/components/basic/SButton.vue";
 import FileInterface from "@/components/FileInterface.vue";
+import ViewExplorer from "@/components/ViewExplorer.vue";
+import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql } from "@/gql";
 import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
@@ -14,7 +16,7 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, provide, ref, watchEffect } from "vue";
+import { computed, provide, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{
   organization: string;
@@ -32,10 +34,16 @@ const userNavigation = [
   { name: "Sign out", href: "#" },
 ];
 
-const viewNavigation = [
-  { name: "Explorer", icon: ClipboardDocumentIcon, selected: true },
-  { name: "Versions", icon: ClockIcon },
+type View = {
+  id: "explorer" | "version-history";
+  name: string;
+  icon: any;
+};
+const views: View[] = [
+  { id: "explorer", name: "Explorer", icon: ClipboardDocumentIcon },
+  { id: "version-history", name: "Versions", icon: ClockIcon },
 ];
+const activeView: Ref<View> = ref(views[0]);
 
 function compileProgram() {
   console.log("compileProgram");
@@ -87,6 +95,7 @@ const { result: versionsQuery } = useQuery(
   () => ({ enabled: !!projectId.value?.projectBySlug?.id })
 );
 
+const projectWithVersions = computed(() => versionsQuery.value?.project);
 const currentVersion = computed(() => versionsQuery.value?.project?.head);
 const { result: filesResult } = useQuery(
   graphql(/* GraphQL */ `
@@ -105,7 +114,7 @@ const { result: filesResult } = useQuery(
   () => ({ id: currentVersion.value?.id }),
   () => ({ enabled: !!currentVersion.value?.id })
 );
-const files = computed(() => filesResult.value?.projectVersion?.files);
+const files = computed(() => filesResult.value?.projectVersion?.files || []);
 
 // set up editor state
 
@@ -225,19 +234,20 @@ watchEffect(() => {
     </header>
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="flex flex-1 flex-row">
-      <!-- Sidebar of get_view buttons & views -->
+      <!-- Sidebar of view buttons & views -->
       <aside class="flex h-full w-80 flex-shrink-0 resize-x border-r border-gray-200">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
             <button
               class="rounded-sm px-2 py-2 text-gray-600"
-              :class="get_view.selected ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
-              v-for="get_view in viewNavigation"
-              :key="get_view.name"
+              :class="view.name == activeView.name ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
+              v-for="view in views"
+              :key="view.name"
+              @click="activeView = view"
             >
-              <span class="sr-only">{{ get_view.name }}</span>
-              <component :is="get_view.icon" class="h-6 w-6" aria-hidden="true" />
+              <span class="sr-only">{{ view.name }}</span>
+              <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
           <!-- Help & settings -->
@@ -251,34 +261,12 @@ watchEffect(() => {
           </button>
         </div>
         <div class="flex flex-1 flex-col">
-          <!-- View header -->
-          <div class="flex flex-row justify-between border-b border-gray-200 px-2 py-4">
-            <span class="text-xs font-bold uppercase">Explorer</span>
-            <!-- TODO @Feature: select explorer get_view (by type, by task tree) -->
-          </div>
-          <!-- View contents -->
-          <div class="flex flex-1 flex-col">
-            <!-- View: explorer -->
-            <ul role="list" class="flex flex-col gap-1 text-sm">
-              <li
-                v-for="file in files"
-                :key="file.id"
-                class="py-0.5 pl-6 pr-2 hover:cursor-pointer"
-                :class="
-                  file.id == state.focusedFile.value?.id
-                    ? 'bg-orange-100 font-bold text-orange-700'
-                    : 'text-gray-700 hover:text-orange-700'
-                "
-                @click="state.focusedFile.value = file"
-              >
-                {{ file.name }}
-              </li>
-            </ul>
-          </div>
+          <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
+          <ViewVersionHistory v-else-if="activeView.id == 'version-history'" :project="projectWithVersions" />
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex-1 flex-shrink-0 resize-x bg-gray-100">
+      <main class="relative flex-1 flex-shrink-0 resize-x overflow-y-auto bg-gray-100">
         <!-- Editors for each open file -->
         <FileInterface
           v-if="state.focusedFile.value"
