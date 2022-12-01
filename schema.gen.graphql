@@ -306,7 +306,7 @@ enum SymbolType {
 type Task implements SymbolContent & Node {
   id: GlobalID!
   schema: JSON!
-  expectations: [SymbolDefinition!]!
+  expectations: [Expectation!]!
   templateImplementation: SymbolDefinition
   compilations: [Compilation!]!
 }

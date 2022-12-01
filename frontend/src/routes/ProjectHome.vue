@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SButton from "@/components/basic/SButton.vue";
-import FileView from "@/components/FileView.vue";
+import FileInterface from "@/components/FileInterface.vue";
 import { graphql } from "@/gql";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -213,7 +213,7 @@ watchEffect(() => {
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="flex flex-1 flex-row">
       <!-- Sidebar of get_view buttons & views -->
-      <aside class="flex h-full w-80 resize-x border-r border-gray-200">
+      <aside class="flex h-full w-80 flex-shrink-0 resize-x border-r border-gray-200">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
@@ -265,9 +265,9 @@ watchEffect(() => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex-1 flex-shrink-0 bg-gray-100">
+      <main class="relative flex-1 flex-shrink-0 resize-x bg-gray-100">
         <!-- Editors for each open file -->
-        <FileView v-if="openFile" :file="openFile" :key="openFile.id" />
+        <FileInterface v-if="openFile" :file="openFile" :key="openFile.id" />
       </main>
     </div>
   </div>

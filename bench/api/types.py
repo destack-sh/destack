@@ -95,7 +95,7 @@ class SymbolContent(gql.Node):
 @gql.django.type(models.Task)
 class Task(SymbolContent):
     schema: auto
-    expectations: list[SymbolDefinition]
+    expectations: list[Expectation]
     template_implementation: Optional[SymbolDefinition]
     compilations: list[Compilation]
 
