@@ -7,17 +7,17 @@ const documents = {
     types.DatasetContentFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n":
     types.FileHeaderFragmentDoc,
-  "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        name\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n          }\n        }\n      }\n    }\n  ":
+  "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n          }\n        }\n      }\n    }\n  ":
     types.GetFileByIdDocument,
   "\n  fragment InstructionContent on Instruction {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n":
     types.InstructionContentFragmentDoc,
-  "\n  fragment ProjectVersionFragment on ProjectVersion {\n    name\n    description\n    createdAt\n    committedAt\n  }\n":
-    types.ProjectVersionFragmentFragmentDoc,
+  "\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committedAt\n  }\n":
+    types.ProjectVersionHeaderFragmentDoc,
   "\n    query getProjectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        id\n      }\n    }\n  ":
     types.GetProjectBySlugDocument,
-  "\n    query getProjectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionFragment\n        }\n        versions {\n          id\n          ...ProjectVersionFragment\n        }\n      }\n    }\n  ":
+  "\n    query getProjectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionHeader\n        }\n        versions {\n          id\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.GetProjectVersionsDocument,
-  "\n    query getProjectVersionFiles($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        files {\n          id\n          name\n        }\n      }\n    }\n  ":
+  "\n    query getProjectVersionFiles($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        files {\n          id\n          name\n          createdAt\n          updatedAt\n        }\n      }\n    }\n  ":
     types.GetProjectVersionFilesDocument,
 };
 
@@ -28,23 +28,23 @@ export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n"];
 export function graphql(
-  source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        name\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        name\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment InstructionContent on Instruction {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment InstructionContent on Instruction {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment ProjectVersionFragment on ProjectVersion {\n    name\n    description\n    createdAt\n    committedAt\n  }\n"
-): typeof documents["\n  fragment ProjectVersionFragment on ProjectVersion {\n    name\n    description\n    createdAt\n    committedAt\n  }\n"];
+  source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committedAt\n  }\n"
+): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committedAt\n  }\n"];
 export function graphql(
   source: "\n    query getProjectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        id\n      }\n    }\n  "
 ): typeof documents["\n    query getProjectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        id\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    query getProjectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionFragment\n        }\n        versions {\n          id\n          ...ProjectVersionFragment\n        }\n      }\n    }\n  "
-): typeof documents["\n    query getProjectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionFragment\n        }\n        versions {\n          id\n          ...ProjectVersionFragment\n        }\n      }\n    }\n  "];
+  source: "\n    query getProjectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionHeader\n        }\n        versions {\n          id\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
+): typeof documents["\n    query getProjectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionHeader\n        }\n        versions {\n          id\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    query getProjectVersionFiles($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        files {\n          id\n          name\n        }\n      }\n    }\n  "
-): typeof documents["\n    query getProjectVersionFiles($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        files {\n          id\n          name\n        }\n      }\n    }\n  "];
+  source: "\n    query getProjectVersionFiles($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        files {\n          id\n          name\n          createdAt\n          updatedAt\n        }\n      }\n    }\n  "
+): typeof documents["\n    query getProjectVersionFiles($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        files {\n          id\n          name\n          createdAt\n          updatedAt\n        }\n      }\n    }\n  "];
 
 export function graphql(source: string): unknown;
 export function graphql(source: string) {
