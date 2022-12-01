@@ -41,6 +41,8 @@ type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
   name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
   isFolder: Boolean!
   parent: File
   files: [File!]!

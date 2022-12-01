@@ -2,7 +2,7 @@ import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
   schema: "schema.gen.graphql",
-  documents: ["frontend/src/**/*.vue", "frontend/src/**/*.ts", "!frontend/src/gql/**/*"],
+  documents: ["frontend/src/**/*.vue", "frontend/src/**/*.ts"],
   ignoreNoDocuments: true,
   hooks: { afterOneFileWrite: ["prettier --write"] },
   generates: {

@@ -1,3 +1,20 @@
+<script lang="ts" setup>
+import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
+import { ref } from "vue";
+
+const open = ref(false);
+defineProps<{ title: string }>();
+
+function show() {
+  open.value = true;
+}
+
+function hide() {
+  open.value = false;
+}
+
+defineExpose({ show, hide });
+</script>
 <template>
   <TransitionRoot :show="open" as="template" appear>
     <Dialog as="div" class="relative z-10" @close="open = false">
@@ -43,20 +60,3 @@
     </Dialog>
   </TransitionRoot>
 </template>
-<script lang="ts" setup>
-import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from "@headlessui/vue";
-import { ref } from "vue";
-
-const open = ref(false);
-defineProps<{ title: string }>();
-
-function show() {
-  open.value = true;
-}
-
-function hide() {
-  open.value = false;
-}
-
-defineExpose({ show, hide });
-</script>

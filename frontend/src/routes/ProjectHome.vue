@@ -1,3 +1,116 @@
+<script setup lang="ts">
+import SButton from "@/components/basic/SButton.vue";
+import FileView from "@/components/FileView.vue";
+import { graphql } from "@/gql";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
+import { ChevronDownIcon } from "@heroicons/vue/20/solid";
+import {
+  ClipboardDocumentIcon,
+  ClockIcon,
+  Cog8ToothIcon,
+  PlayIcon,
+  QuestionMarkCircleIcon,
+  WrenchIcon,
+} from "@heroicons/vue/24/outline";
+import { useQuery } from "@vue/apollo-composable";
+import { computed, ref, watchEffect, type Ref } from "vue";
+
+const props = defineProps<{
+  organization: string;
+  project: string;
+}>();
+
+const user = {
+  name: "Florian Cäsar",
+  email: "yatima@symbolx.com",
+};
+const projectNavigation = [{ name: "Rename", href: "#" }];
+const userNavigation = [
+  { name: "Settings", href: "#" },
+  { name: "Sign out", href: "#" },
+];
+
+const viewNavigation = [
+  { name: "Explorer", icon: ClipboardDocumentIcon, selected: true },
+  { name: "Versions", icon: ClockIcon },
+];
+
+function compileProgram() {
+  console.log("compileProgram");
+}
+
+const ProjectVersionFragment = graphql(/* GraphQL */ `
+  fragment ProjectVersionFragment on ProjectVersion {
+    name
+    description
+    createdAt
+    committedAt
+  }
+`);
+
+const { result: projectId } = useQuery(
+  graphql(/* GraphQL */ `
+    query getProjectBySlug($organization: String!, $project: String!) {
+      projectBySlug(organization: $organization, project: $project) {
+        id
+      }
+    }
+  `),
+  () => ({
+    organization: props.organization,
+    project: props.project,
+  })
+);
+
+const { result: versionsQuery } = useQuery(
+  graphql(/* GraphQL */ `
+    query getProjectVersions($id: GlobalID!) {
+      project(id: $id) {
+        id
+        name
+        slug
+        head {
+          id
+          ...ProjectVersionFragment
+        }
+        versions {
+          id
+          ...ProjectVersionFragment
+        }
+      }
+    }
+  `),
+  () => ({ id: projectId.value?.projectBySlug?.id }),
+  () => ({ enabled: !!projectId.value?.projectBySlug?.id })
+);
+
+const currentVersion = computed(() => versionsQuery.value?.project?.head);
+const { result: filesResult } = useQuery(
+  graphql(/* GraphQL */ `
+    query getProjectVersionFiles($id: GlobalID!) {
+      projectVersion(id: $id) {
+        id
+        files {
+          id
+          name
+        }
+      }
+    }
+  `),
+  () => ({ id: currentVersion.value?.id }),
+  () => ({ enabled: !!currentVersion.value?.id })
+);
+const files = computed(() => filesResult.value?.projectVersion?.files);
+const openFile: Ref = ref(null);
+
+// open first file if none is open
+watchEffect(() => {
+  if (files.value && !openFile.value) {
+    openFile.value = files.value[0];
+  }
+});
+</script>
+
 <template>
   <div class="flex h-full flex-col">
     <!-- Header with controls and auth -->
@@ -114,7 +227,6 @@
               <component :is="get_view.icon" class="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
-
           <!-- Help & settings -->
           <button class="rounded-sm px-2 py-2 text-gray-600 hover:bg-gray-100">
             <span class="sr-only">Help</span>
@@ -138,176 +250,25 @@
               <li
                 v-for="file in files"
                 :key="file.id"
-                class="py-1 pl-6 pr-2 hover:cursor-pointer"
+                class="py-0.5 pl-6 pr-2 hover:cursor-pointer"
                 :class="
-                  file.id == focusedFile?.id
+                  file.id == openFile?.id
                     ? 'bg-orange-100 font-bold text-orange-700'
                     : 'text-gray-700 hover:text-orange-700'
                 "
+                @click="openFile = file"
               >
-                {{ file.nameDotType }}
+                {{ file.name }}
               </li>
             </ul>
           </div>
         </div>
       </aside>
-      <!-- Main editor -->
+      <!-- Main editor area -->
       <main class="relative flex-1 flex-shrink-0 bg-gray-100">
-        <div class="my-4 mx-auto w-2/5 rounded-sm border border-orange-600 shadow-md shadow-orange-200">
-          <MonacoEditor v-model="focusedInstructionCode" />
-        </div>
+        <!-- Editors for each open file -->
+        <FileView v-if="openFile" :file="openFile" :key="openFile.id" />
       </main>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import SButton from "@/components/basic/SButton.vue";
-import MonacoEditor from "@/components/MonacoEditor.vue";
-import { graphql } from "@/gql";
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
-import {
-  ClipboardDocumentIcon,
-  ClockIcon,
-  Cog8ToothIcon,
-  PlayIcon,
-  QuestionMarkCircleIcon,
-  WrenchIcon,
-} from "@heroicons/vue/24/outline";
-import { useQuery } from "@vue/apollo-composable";
-import { computed } from "vue";
-
-const props = defineProps<{
-  organization: string;
-  project: string;
-}>();
-
-const user = {
-  name: "Florian Cäsar",
-  email: "yatima@symbolx.com",
-};
-const projectNavigation = [{ name: "Rename", href: "#" }];
-const userNavigation = [
-  { name: "Settings", href: "#" },
-  { name: "Sign out", href: "#" },
-];
-
-const viewNavigation = [
-  { name: "Explorer", icon: ClipboardDocumentIcon, selected: true },
-  { name: "Versions", icon: ClockIcon },
-];
-
-function compileProgram() {
-  console.log("compileProgram");
-}
-
-const ProjectVersionFragment = graphql(/* GraphQL */ `
-  fragment ProjectVersionFragment on ProjectVersion {
-    name
-    description
-    createdAt
-    committedAt
-  }
-`);
-
-const TaskFragment = graphql(/* GraphQL */ `
-  fragment TaskFragment on Task {
-    name
-    createdAt
-    updatedAt
-  }
-`);
-
-const InstructionFragment = graphql(/* GraphQL */ `
-  fragment InstructionFragment on Instruction {
-    name
-    createdAt
-    updatedAt
-    builtinId
-    code
-    scope
-  }
-`);
-
-const { result: projectId } = useQuery(
-  graphql(/* GraphQL */ `
-    query getProjectBySlug($organization: String!, $project: String!) {
-      projectBySlug(organization: $organization, project: $project) {
-        id
-      }
-    }
-  `),
-  () => ({
-    organization: props.organization,
-    project: props.project,
-  })
-);
-
-const { result: versionsQuery } = useQuery(
-  graphql(/* GraphQL */ `
-    query getProjectVersions($id: GlobalID!) {
-      project(id: $id) {
-        id
-        name
-        slug
-        head {
-          id
-          ...ProjectVersionFragment
-        }
-        versions {
-          id
-          ...ProjectVersionFragment
-        }
-      }
-    }
-  `),
-  () => ({ id: projectId.value?.projectBySlug?.id }),
-  () => ({ enabled: !!projectId.value?.projectBySlug?.id })
-);
-
-const currentVersion = computed(() => versionsQuery.value?.project?.head);
-const { result: filesResult } = useQuery(
-  graphql(/* GraphQL */ `
-    query getProjectVersionFiles($id: GlobalID!) {
-      projectVersion(id: $id) {
-        id
-        files {
-          id
-          name
-          type
-          nameDotType
-        }
-        program {
-          id
-          name
-          schema
-          children {
-            id
-            ...TaskFragment
-            templateImplementation {
-              id
-              ...InstructionFragment
-            }
-            children {
-              id
-              ...TaskFragment
-            }
-          }
-        }
-      }
-    }
-  `),
-  () => ({ id: currentVersion.value?.id }),
-  () => ({ enabled: !!currentVersion.value?.id })
-);
-const files = computed(() => filesResult.value?.projectVersion?.files);
-const focusedFile = computed(() => files.value?.[0]);
-
-const focusedInstructionCode = "\
-def x(): \n\
-  print('Hello world!');\n\
-  let y = 1;\n\
-  return y;\n\
-";
-</script>

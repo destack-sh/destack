@@ -1,3 +1,11 @@
+<script lang="ts" setup>
+import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
+import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/24/solid";
+
+defineProps<{ modelValue: any; options: any[]; label?: string; emptyText?: string; withCheck?: boolean }>();
+defineEmits<{ (e: "update:modelValue", value: any): void }>();
+</script>
+
 <template>
   <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
     <ListboxLabel v-if="label" class="block text-sm font-medium text-gray-700"> {{ label }} </ListboxLabel>
@@ -57,10 +65,3 @@
     </div>
   </Listbox>
 </template>
-<script lang="ts" setup>
-import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/24/solid";
-
-defineProps<{ modelValue: any; options: any[]; label?: string; emptyText?: string; withCheck?: boolean }>();
-defineEmits<{ (e: "update:modelValue", value: any): void }>();
-</script>

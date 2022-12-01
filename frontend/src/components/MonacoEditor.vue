@@ -1,8 +1,3 @@
-<template>
-  <div class="w-full" id="editor-container">
-    <div id="editor" class="h-full w-full"></div>
-  </div>
-</template>
 <script lang="ts" setup>
 import loader from "@monaco-editor/loader";
 import type * as monaco from "monaco-editor";
@@ -71,3 +66,9 @@ onMounted(() => {
   });
 });
 </script>
+
+<template>
+  <div class="w-full" id="editor-container">
+    <div id="editor" class="h-full w-full"></div>
+  </div>
+</template>

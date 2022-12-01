@@ -1,3 +1,23 @@
+<script setup lang="ts">
+import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from "@headlessui/vue";
+import { XMarkIcon } from "@heroicons/vue/24/outline";
+import { ref } from "vue";
+
+defineProps<{ title?: string }>();
+
+const open = ref(false);
+
+function show() {
+  open.value = true;
+}
+
+function hide() {
+  open.value = false;
+}
+
+defineExpose({ show, hide });
+</script>
+
 <template>
   <TransitionRoot as="template" :show="open">
     <Dialog as="div" class="relative z-10" @close="open = false">
@@ -53,23 +73,3 @@
     </Dialog>
   </TransitionRoot>
 </template>
-
-<script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from "@headlessui/vue";
-import { XMarkIcon } from "@heroicons/vue/24/outline";
-import { ref } from "vue";
-
-defineProps<{ title?: string }>();
-
-const open = ref(false);
-
-function show() {
-  open.value = true;
-}
-
-function hide() {
-  open.value = false;
-}
-
-defineExpose({ show, hide });
-</script>

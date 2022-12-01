@@ -1,13 +1,3 @@
-<template>
-  <router-link v-if="to" :to="to">
-    <button :type="type" :class="style">
-      <slot>{{ text }}</slot>
-    </button>
-  </router-link>
-  <button v-else :type="type" :class="style">
-    <slot>{{ text }}</slot>
-  </button>
-</template>
 <script lang="ts" setup>
 import { computed, type PropType } from "vue";
 
@@ -41,3 +31,14 @@ const variantStyles: Record<string, Record<string, string>> = {
 
 const style = computed(() => baseStyles[props.variant] + " " + variantStyles[props.variant][props.color]);
 </script>
+
+<template>
+  <router-link v-if="to" :to="to">
+    <button :type="type" :class="style">
+      <slot>{{ text }}</slot>
+    </button>
+  </router-link>
+  <button v-else :type="type" :class="style">
+    <slot>{{ text }}</slot>
+  </button>
+</template>

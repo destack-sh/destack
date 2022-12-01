@@ -59,6 +59,8 @@ class ProjectVersion(gql.Node):
 class File(gql.Node):
     project_version: ProjectVersion
     name: auto
+    created_at: auto
+    updated_at: auto
     is_folder: auto
     parent: Optional[File]  # containing folder
     files: list[File]  # if folder
