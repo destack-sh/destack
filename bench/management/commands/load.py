@@ -121,7 +121,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
     # read task file lines
     with open(path, "r") as f:
         lines = f.readlines()
-    imports, segments = parse_task_file_segments(lines)
+    imports, segments = parse_file_segment(lines)
     for library_import in imports:
         library_org, library_slug = library_import.library.split("/")
         library = Project.objects.get_by_slug(library_org, library_slug)
@@ -178,7 +178,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
         logger.info(f"Define {symbol_def} in {symbol_def.file}")
 
 
-def parse_task_file_segments(lines: list[str]) -> tuple[list[LibraryImport], list[FileSegment]]:
+def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[FileSegment]]:
     segments: list[FileSegment] = []
     imports: list[LibraryImport] = []
 
@@ -231,7 +231,8 @@ def parse_task(
         if "parent" in segment.symbol_args:
             parent_name = segment.symbol_args["parent"]
             parent = project_v.symbol_definition(parent_name, SymbolType.TASK)
-            parent.children.add(symbol_def)
+            symbol_def.parent = parent
+            symbol_def.index = parent.children.count()
 
     return task, on_defined
 
