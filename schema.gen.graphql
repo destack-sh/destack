@@ -44,9 +44,10 @@ type Compilation implements Node {
   updatedAt: DateTime!
   task: Task!
   name: String!
-  backends: [SymbolDefinition!]!
-  outputTask: SymbolDefinition
-  outputCode: SymbolDefinition
+  backends: [Model!]!
+  targetTask: Task
+  targetCode: Code
+  mappings: [SourceMapping!]!
 }
 
 type Dataset implements SymbolContent & Node {
@@ -110,8 +111,8 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
-  compile(projectVersionId: UUID!, taskId: UUID!): Void
-  runProgram(projectId: UUID!): Void
+  compile(compilationId: UUID!): Void
+  run(codeId: UUID!): Void
 }
 
 """An object with a Globally Unique ID"""
@@ -208,7 +209,8 @@ type ProjectVersion implements Node {
   createdAt: DateTime!
   committed: Boolean!
   committedAt: DateTime
-  program(pk: ID): Task
+  libraries: [ProjectVersion!]!
+  mainProgram: SymbolDefinition
   files: [File!]!
   definitions: [SymbolDefinition!]!
 }
@@ -275,6 +277,15 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): OrganizationConnection!
+}
+
+type SourceMapping implements Node {
+  id: GlobalID!
+  compilation: Compilation!
+  source: SymbolDefinition!
+  sourcePath: JSON!
+  target: SymbolDefinition!
+  targetPath: JSON!
 }
 
 interface SymbolContent implements Node {

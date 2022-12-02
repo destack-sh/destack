@@ -14,6 +14,30 @@ const TaskContent = graphql(/* GraphQL */ `
       id
       nameDotType
     }
+    compilations {
+      id
+      ...CompilationHeader
+    }
+  }
+`);
+
+const CompilationHeader = graphql(/* GraphQL */ `
+  fragment CompilationHeader on Compilation {
+    name
+    createdAt
+    updatedAt
+    backends {
+      id
+      nameDotType
+    }
+    targetTask {
+      id
+      nameDotType
+    }
+    targetCode {
+      id
+      nameDotType
+    }
   }
 `);
 

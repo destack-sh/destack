@@ -41,7 +41,7 @@ function getRelOrAbsTime(commit: ProjectVersionHeaderFragment) {
 <template>
   <div>
     <!-- View header -->
-    <div class="flex flex-row justify-between border-b border-gray-200 px-2 py-4">
+    <div class="flex flex-row justify-between border-b border-gray-200 px-3 py-4">
       <span class="text-xs font-bold uppercase">Version History</span>
       <!-- TODO @Feature: select explorer get_view (by type, by task tree) -->
     </div>

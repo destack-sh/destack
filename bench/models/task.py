@@ -32,10 +32,8 @@ class Task(SymbolContent):
         # deep copy compilations
         for compilation in self.compilations.all():
             compilation.pk = None
-            replace_refs(compilation, compilation, refs, include_many_to_many=False)
-            compilation.save()
-            replace_refs(compilation, compilation, refs, include_one_to_many=False)
-            compilation.save()
+            compilation.project_version = to.definition.project_version
+            compilation.deepcopy(to=compilation, refs=refs)
 
     def __str__(self):
         return f"{self.definition_str}(schema={self.schema})"
@@ -50,17 +48,32 @@ class Compilation(UUIDModel):
     Depending on the compilation target and options, various optimizations may be applied.
     """
 
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="compilations"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     backends = models.ManyToManyField("Model", related_name="compilations+")
-    output_task = models.ForeignKey(
+    target_task = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="compilations+"
     )
-    output_code = models.ForeignKey(
-        "Code", on_delete=models.CASCADE, null=True, related_name="source_compilation"
+    target_code = models.ForeignKey(
+        "Code", on_delete=models.CASCADE, null=True, related_name="source_compilation+"
     )
+    # mappings via SourceMapping
+
+    def deepcopy(self, to: Compilation, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        replace_refs(self, to, refs, include_many_to_many=False)
+        to.save()
+        replace_refs(self, to, refs, include_one_to_many=False)
+        to.save()
+        # deep copy mappings
+        for mapping in self.mappings.all():
+            mapping.pk = None
+            mapping.compilation = to
+            mapping.save()
 
     def __str__(self):
         return f"{self.id.hex}.compilation"
@@ -72,8 +85,22 @@ class Compilation(UUIDModel):
         ]
 
 
-class ExpectationManager(SymbolContentManager, models.Manager["Expectation"]):
-    pass
+class SourceMapping(UUIDModel):
+    """
+    A source map for compilations to track the mapping between source and target instructions.
+    """
+
+    compilation = models.ForeignKey(
+        "Compilation", on_delete=models.CASCADE, related_name="mappings"
+    )
+    source = models.ForeignKey(
+        "SymbolDefinition", on_delete=models.CASCADE, related_name="target_mappings"
+    )
+    source_path = models.JSONField()
+    target = models.ForeignKey(
+        "SymbolDefinition", on_delete=models.CASCADE, related_name="source_mappings"
+    )
+    target_path = models.JSONField()
 
 
 class Expectation(SymbolContent):
@@ -91,5 +118,3 @@ class Expectation(SymbolContent):
 
     def __str__(self):
         return f"{self.definition_str}(description={self.description})"
-
-    objects = ExpectationManager()

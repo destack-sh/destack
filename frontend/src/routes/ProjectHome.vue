@@ -3,7 +3,7 @@ import SButton from "@/components/basic/SButton.vue";
 import FileInterface from "@/components/FileInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
-import { graphql, type FragmentType } from "@/gql";
+import { graphql, useFragment } from "@/gql";
 import { EDITOR_STATE_KEY, type EditorState, type FileHeader, type SymbolDefinitionHeader } from "@/utils/editor";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -15,8 +15,8 @@ import {
   QuestionMarkCircleIcon,
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
-import { useQuery } from "@vue/apollo-composable";
-import { computed, provide, ref, watch, watchEffect, type Ref } from "vue";
+import { useMutation, useQuery } from "@vue/apollo-composable";
+import { computed, provide, ref, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -35,6 +35,7 @@ const userNavigation = [
   { name: "Sign out", href: "#" },
 ];
 
+// views for the sidebar
 type View = {
   id: "explorer" | "version-history";
   name: string;
@@ -46,12 +47,16 @@ const views: View[] = [
 ];
 const activeView: Ref<View> = ref(views[0]);
 
-function compileProgram() {
-  console.log("compileProgram");
-}
+const { mutate: compileTask } = useMutation(
+  graphql(/* GraphQL */ `
+    mutation compileTask($compilationId: UUID!) {
+      compile(compilationId: $compilationId)
+    }
+  `)
+);
 
 // real data
-const ProjectVersionHeaderFragment = graphql(/* GraphQL */ `
+const ProjectVersionHeader = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     name
     description
@@ -60,7 +65,6 @@ const ProjectVersionHeaderFragment = graphql(/* GraphQL */ `
     committedAt
   }
 `);
-type ProjectVersionHeader = FragmentType<typeof ProjectVersionHeaderFragment>;
 
 const { result: projectId } = useQuery(
   graphql(/* GraphQL */ `
@@ -98,25 +102,46 @@ const { result: versionsQuery } = useQuery(
   () => ({ enabled: !!projectId.value?.projectBySlug?.id })
 );
 
-const projectWithVersions = computed(() => versionsQuery.value?.project);
-const currentVersion = computed(() => versionsQuery.value?.project?.head);
-const { result: filesResult } = useQuery(
+const ProjectVersionContent = graphql(/* GraphQL */ `
+  fragment ProjectVersionContent on ProjectVersion {
+    id
+    name
+    description
+    createdAt
+    committed
+    committedAt
+    # mainProgram {
+    #   id
+    #   name
+    #   type
+    #   nameDotType
+    #   content {
+    #     ...TaskContent
+    #   }
+    # }
+    files {
+      id
+      ...FileHeader
+    }
+  }
+`);
+
+const { result: contentQuery } = useQuery(
   graphql(/* GraphQL */ `
-    query getProjectVersionFiles($id: GlobalID!) {
+    query getProjectVersionContent($id: GlobalID!) {
       projectVersion(id: $id) {
         id
-        ...ProjectVersionHeader
-        files {
-          id
-          ...FileHeader
-        }
+        ...ProjectVersionContent
       }
     }
   `),
-  () => ({ id: currentVersion.value?.id }),
-  () => ({ enabled: !!currentVersion.value?.id })
+  () => ({ id: versionsQuery.value?.project?.head?.id }),
+  () => ({ enabled: !!versionsQuery.value?.project?.head?.id })
 );
-const files = computed(() => filesResult.value?.projectVersion?.files || []);
+const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
+
+const projectWithVersions = computed(() => versionsQuery.value?.project);
+const files = computed(() => content.value?.files || []);
 
 // set up editor state
 const router = useRouter();
@@ -214,7 +239,7 @@ watchEffect(() => {
           <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
             <SButton text="Build">
               <WrenchIcon class="h-5 w-5" aria-hidden="true" />
-              <span class="ml-1" @click="compileProgram">Compile</span>
+              <span class="ml-1" @click="compile">Compile</span>
             </SButton>
             <SButton text="Run">
               <PlayIcon class="h-5 w-5" aria-hidden="true" />
@@ -258,7 +283,7 @@ watchEffect(() => {
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
-      <aside class="flex h-full w-80 flex-shrink-0 resize-x border-r border-gray-200">
+      <aside class="flex h-full w-64 flex-shrink-0 resize-x border-r border-gray-200 lg:w-80">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">

@@ -37,4 +37,4 @@ class Command(BaseCommand):
         compilation, _ = task_def.task.compilations.get_or_create(name="default")
         compilation.backends.set(backends)
         task_def.task.compilations.set([compilation])
-        async_to_sync(compiler.compile)(project_v, task_def.task, "default")
+        async_to_sync(compiler.compile)(project_v, compilation)

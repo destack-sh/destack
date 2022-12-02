@@ -51,7 +51,8 @@ class ProjectVersion(gql.Node):
     created_at: auto
     committed: auto
     committed_at: auto
-    program: Optional[Task]
+    libraries: list[ProjectVersion]
+    main_program: Optional[SymbolDefinition]
     files: list[File]
     definitions: list[SymbolDefinition]
 
@@ -108,9 +109,19 @@ class Compilation(gql.Node):
     updated_at: auto
     task: Task
     name: auto
-    backends: list[SymbolDefinition]
-    output_task: Optional[SymbolDefinition]
-    output_code: Optional[SymbolDefinition]
+    backends: list[Model]
+    target_task: Optional[Task]
+    target_code: Optional[Code]
+    mappings: list[SourceMapping]
+
+
+@gql.django.type(models.SourceMapping)
+class SourceMapping(gql.Node):
+    compilation: Compilation
+    source: SymbolDefinition
+    source_path: auto
+    target: SymbolDefinition
+    target_path: auto
 
 
 @gql.django.type(models.Expectation)

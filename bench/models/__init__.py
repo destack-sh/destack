@@ -5,7 +5,7 @@ from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .symbol import SymbolContent, SymbolDefinition, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
-from .task import Compilation, Expectation, Task
+from .task import Compilation, Expectation, SourceMapping, Task
 from .user import User
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "TaggableMixin",
     "Task",
     "Compilation",
+    "SourceMapping",
     "Expectation",
     "Code",
     "CodeArgument",

@@ -40,7 +40,7 @@ class Command(BaseCommand):
             compilation: Compilation = main_program.task.compilations.get()
         else:
             compilation = main_program.task.compilations.get(name=compilation_name)
-        main_code = compilation.output_code
+        main_code = compilation.target_code
 
         executor = Executor()
         output = async_to_sync(executor.run)(main_code, {"input": input})

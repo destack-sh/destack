@@ -22,7 +22,7 @@ def run_program(request: Request, organization: str, project: str) -> Response:
     compiled_program = project_v.main_program.task_.compilations.get()
 
     try:
-        output = async_to_sync(executor.run)(compiled_program.output_code, variables)
+        output = async_to_sync(executor.run)(compiled_program.target_code, variables)
         return Response({"output": output})
     except Exception as e:
         return Response({"error": str(e)}, status=400)
