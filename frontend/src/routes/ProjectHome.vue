@@ -4,7 +4,7 @@ import FileInterface from "@/components/FileInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, type FragmentType } from "@/gql";
-import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
+import { EDITOR_STATE_KEY, type EditorState, type FileHeader, type SymbolDefinitionHeader } from "@/utils/editor";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -16,7 +16,8 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, provide, ref, watchEffect, type Ref } from "vue";
+import { computed, provide, ref, watch, watchEffect, type Ref } from "vue";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{
   organization: string;
@@ -107,9 +108,7 @@ const { result: filesResult } = useQuery(
         ...ProjectVersionHeader
         files {
           id
-          name
-          createdAt
-          updatedAt
+          ...FileHeader
         }
       }
     }
@@ -120,18 +119,39 @@ const { result: filesResult } = useQuery(
 const files = computed(() => filesResult.value?.projectVersion?.files || []);
 
 // set up editor state
-
+const router = useRouter();
 const state: EditorState = {
   focusedFile: ref(null),
   focusedDefinition: ref(null),
+
+  focusFile(file: FileHeader) {
+    state.focusedFile.value = file;
+    // set router url to current url + #path
+    router.replace({ hash: "#" + file.path + ".instruct" });
+  },
+  focusDefinition(definition: SymbolDefinitionHeader) {
+    state.focusedDefinition.value = definition;
+  },
 };
+
+// focus file from url if hash changes
+watchEffect(() => {
+  const hash = router.currentRoute.value.hash;
+  if (hash && files.value) {
+    const path = hash.slice(1).slice(0, -"instruct".length - 1);
+    const file = files.value.find((file) => file.path === path);
+    if (file) {
+      state.focusFile(file);
+    }
+  }
+});
 
 provide(EDITOR_STATE_KEY, state);
 
-// open first file if none is open
+// open first file if none is open and there is no hash
 watchEffect(() => {
-  if (files.value && !state.focusedFile.value) {
-    state.focusedFile.value = files.value[0];
+  if (files.value && files.value.length >= 1 && !state.focusedFile.value && !router.currentRoute.value.hash) {
+    state.focusFile(files.value[0]);
   }
 });
 </script>
@@ -180,9 +200,9 @@ watchEffect(() => {
                 class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
               >
                 <MenuItem v-for="item in projectNavigation" :key="item.name" v-slot="{ active }">
-                  <a :href="item.href" :class="[active ? 'bg-gray-50' : '', 'block py-2 px-4 text-sm text-gray-700']">{{
-                    item.name
-                  }}</a>
+                  <a :href="item.href" :class="[active ? 'bg-gray-50' : '', 'block py-2 px-4 text-sm text-gray-700']">
+                    {{ item.name }}
+                  </a>
                 </MenuItem>
               </MenuItems>
             </transition>
@@ -225,9 +245,9 @@ watchEffect(() => {
                 class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
               >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                  <a :href="item.href" :class="[active ? 'bg-gray-50' : '', 'block py-2 px-4 text-sm text-gray-700']">{{
-                    item.name
-                  }}</a>
+                  <a :href="item.href" :class="[active ? 'bg-gray-50' : '', 'block py-2 px-4 text-sm text-gray-700']">
+                    {{ item.name }}
+                  </a>
                 </MenuItem>
               </MenuItems>
             </transition>

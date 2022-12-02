@@ -60,6 +60,7 @@ class ProjectVersion(gql.Node):
 class File(gql.Node):
     project_version: ProjectVersion
     name: auto
+    path: auto
     created_at: auto
     updated_at: auto
     is_folder: auto

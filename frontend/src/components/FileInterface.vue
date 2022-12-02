@@ -13,6 +13,7 @@ const FileHeader = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
     name
+    path
     createdAt
     updatedAt
   }
@@ -73,17 +74,8 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
 };
 
 const editorState = inject<EditorState>(EDITOR_STATE_KEY);
-const isFocused = computed(() => editorState?.focusedFile.value?.id == fileHeader.id);
-
 function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
   return editorState?.focusedDefinition.value?.id == definition.id;
-}
-
-function focusDefinition(definition: SymbolDefinitionHeader) {
-  // TODO @Cleanup: avoid direct editor state mutation
-  if (editorState) {
-    editorState.focusedDefinition.value = definition;
-  }
 }
 </script>
 
@@ -94,7 +86,7 @@ function focusDefinition(definition: SymbolDefinitionHeader) {
       :key="definition.id"
       class="mx-auto w-full max-w-[1000px] rounded-sm border bg-white py-2 px-2 transition-all"
       :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
-      @mousedown="focusDefinition(definition)"
+      @mousedown="editorState?.focusDefinition(definition)"
     >
       <span
         class="m-1 text-sm"

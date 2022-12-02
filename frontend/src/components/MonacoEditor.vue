@@ -127,5 +127,6 @@ onBeforeUnmount(() => {
 }
 .focused .active-line-number {
   color: #ea580c !important;
+  font-weight: 600;
 }
 </style>

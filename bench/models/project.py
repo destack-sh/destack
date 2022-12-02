@@ -417,7 +417,7 @@ class File(UUIDModel):
         else:
             return f"{self.project_version}/{self.name}"
 
-    @property
+    @gql.model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
         return f"{self.parent.path}/{self.name}" if self.parent else self.name
 
