@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 
-import { createPinia } from "pinia";
 import { createApp, h, provide } from "vue";
 import { version } from "../../package.json";
 
@@ -23,7 +22,6 @@ async function init() {
     render: () => h(App),
   });
 
-  app.use(createPinia());
   app.use(router);
   app.use(createMetaManager());
 

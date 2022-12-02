@@ -22,39 +22,6 @@ random: random.Random
 # @symbol task: generate_command
 schema = {"input": {"input": "str"}, "output": {"command": "str"}}
 
-# @symbol task parent=generate_command: lookup_docs
-schema = {"input": {"input": "str"}, "output": {"docs": "str"}}
-
-
-# @symbol code task=lookup_docs: lookup_docs
-async def lookup_docs(input: str) -> str:
-    # get potentially relevant utilities
-    utilities = await llm(
-        model,
-        "What utilities are relevant to the following code? (e.g. kubectl,ssh)" "\n\n{input}\n\n",
-        input=input,
-    )
-    # clean up output
-    utilities = utilities.split(", ")
-    utilities = [u.strip() for u in utilities]
-
-    docs_by_utility = {}
-    # TODO @Performance: async batch docs lookups with aiohttp
-    for utility in utilities:
-        if utility in docs_by_utility:
-            continue
-
-        # use requests to get the docs from http://man.he.net/?topic={utility}
-        try:
-            response = requests.get(f"http://man.he.net/?topic={utility}&")
-            docs_by_utility[utility] = response.text
-        except RuntimeError:
-            # ignore errors
-            pass
-
-    # extract relevant docs
-    return "\n".join(docs_by_utility.values())
-
 
 # @symbol data: generate_command
 generate_command = [
@@ -368,3 +335,39 @@ async def generate_chain_examples(n_samples: int) -> list[dict]:
 # @symbol expect task=generate_command: chain_commands
 expectation = "Break the input down into a sequence of steps."
 statements = ["generate_chain_examples.code"]
+
+# @path docs
+
+
+# @symbol task parent=generate_command: lookup_docs
+schema = {"input": {"input": "str"}, "output": {"docs": "str"}}
+
+
+# @symbol code task=lookup_docs: lookup_docs
+async def lookup_docs(input: str) -> str:
+    # get potentially relevant utilities
+    utilities = await llm(
+        model,
+        "What utilities are relevant to the following code? (e.g. kubectl,ssh)" "\n\n{input}\n\n",
+        input=input,
+    )
+    # clean up output
+    utilities = utilities.split(", ")
+    utilities = [u.strip() for u in utilities]
+
+    docs_by_utility = {}
+    # TODO @Performance: async batch docs lookups with aiohttp
+    for utility in utilities:
+        if utility in docs_by_utility:
+            continue
+
+        # use requests to get the docs from http://man.he.net/?topic={utility}
+        try:
+            response = requests.get(f"http://man.he.net/?topic={utility}&")
+            docs_by_utility[utility] = response.text
+        except RuntimeError:
+            # ignore errors
+            pass
+
+    # extract relevant docs
+    return "\n".join(docs_by_utility.values())

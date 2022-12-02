@@ -92,11 +92,17 @@ function focusDefinition(definition: SymbolDefinitionHeader) {
     <div
       v-for="definition in definitions"
       :key="definition.id"
-      class="mx-auto w-full max-w-[1000px] rounded-sm border bg-white py-2 px-2"
+      class="mx-auto w-full max-w-[1000px] rounded-sm border bg-white py-2 px-2 transition-all"
       :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
       @mousedown="focusDefinition(definition)"
     >
-      <span class="m-1 text-sm text-gray-900">
+      <span
+        class="m-1 text-sm"
+        :class="{
+          'text-orange-400': !isDefinitionFocused(definition),
+          'text-orange-600': isDefinitionFocused(definition),
+        }"
+      >
         {{ definition.nameDotType }}
       </span>
       <div class="relative min-h-fit overflow-clip">
@@ -105,6 +111,7 @@ function focusDefinition(definition: SymbolDefinitionHeader) {
           :is="interfaces[definition.type].component"
           :definition="definition"
           :content="definition.content"
+          :focused="isDefinitionFocused(definition)"
         />
         <span class="text-red-500" v-else> cannot render {{ definition.type }} </span>
       </div>

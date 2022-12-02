@@ -7,6 +7,7 @@ const TaskContent = graphql(/* GraphQL */ `
     schema
     expectations {
       id
+      description
       nameDotType
     }
     templateImplementation {
@@ -20,10 +21,13 @@ const props = defineProps<{ content: FragmentType<typeof TaskContent> }>();
 const content = useFragment(TaskContent, props.content);
 </script>
 <template>
-  <div>
+  <div class="m-2 text-sm">
     {{ content.schema }}
-    <span v-for="expectation in content.expectations" :key="expectation.id">
-      {{ expectation.nameDotType }}
-    </span>
+    <ul class="flex flex-col gap-2">
+      <li class="flex flex-col" v-for="expectation in content.expectations" :key="expectation.id">
+        <span class="text-orange-600">{{ expectation.nameDotType }}</span>
+        <span>{{ expectation.description }}</span>
+      </li>
+    </ul>
   </div>
 </template>
