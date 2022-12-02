@@ -5,12 +5,6 @@ import { inject } from "vue";
 const props = defineProps<{ files: FileHeader[] }>();
 
 const state = inject<EditorState>(EDITOR_STATE_KEY);
-
-function focusFile(file: FileHeader) {
-  if (state) {
-    state.focusedFile.value = file;
-  }
-}
 </script>
 <template>
   <div>
@@ -32,7 +26,7 @@ function focusFile(file: FileHeader) {
               ? 'bg-orange-100 font-bold text-orange-700'
               : 'text-gray-700 hover:text-orange-700'
           "
-          @click="focusFile(file)"
+          @click="state?.focusFile(file)"
         >
           <!-- There may be other types later, but currently it's all instruct -->
           {{ file.name }}<span class="font-normal">.instruct</span>
