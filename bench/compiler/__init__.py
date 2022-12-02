@@ -15,9 +15,9 @@ from django.db.models import QuerySet
 
 from bench.executor import Executor
 from bench.models import (
+    Code,
     Dataset,
     File,
-    Instruction,
     Model,
     ModelInferenceSettings,
     Organization,
@@ -26,7 +26,7 @@ from bench.models import (
     SymbolDefinition,
     SymbolType,
 )
-from bench.models.instruction import InstructionParameterType, InstructionScope
+from bench.models.code import CodeParameterType
 from bench.models.symbol import SYMBOL_CONTENT_FIELDS
 from bench.models.task import Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
@@ -51,14 +51,14 @@ def get_stdlib_model(path: str) -> Model:
     return stdlib.head_.symbol_definition(model_name, SymbolType.MODEL).model_
 
 
-def get_stdlib_instruction(path: str) -> Instruction:
+def get_stdlib_code(path: str) -> Code:
     """
-    Gets the instruction from a stdlib where path=owner/instruction
+    Gets the code from a stdlib where path=owner/code
     """
-    owner_slug, instruction_name = path.split("/")
+    owner_slug, code_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol_definition(instruction_name, SymbolType.INSTRUCTION).instruction_
+    return stdlib.head_.symbol_definition(code_name, SymbolType.CODE).code_
 
 
 class ExpectationStatementType(enum.Enum):
@@ -91,21 +91,21 @@ class StatementData:
         return cast(Dataset, self.definition.content)
 
     @property
-    def instruction(self) -> Instruction:
-        if self.symbol_type != SymbolType.INSTRUCTION:
-            raise ValueError(f"expectation statement is not an instruction: {self}")
-        return cast(Instruction, self.definition.instruction)
+    def code(self) -> Code:
+        if self.symbol_type != SymbolType.CODE:
+            raise ValueError(f"expectation statement is not an code: {self}")
+        return cast(Code, self.definition.code)
 
     @cached_property
     def type(self) -> ExpectationStatementType:
         # (naive implementation: guess statement type)
         # TODO @Feature: define expectation statement type in statement
-        if self.symbol_type == SymbolType.INSTRUCTION:
-            if self.instruction.code_function_name is None:
+        if self.symbol_type == SymbolType.CODE:
+            if self.code.code_function_name is None:
                 raise ValueError(f"expectation statement has no code function: {self}")
-            if "gen" in self.instruction.code_function_name:
+            if "gen" in self.code.code_function_name:
                 return ExpectationStatementType.GENERATE
-            elif "verif" in self.instruction.code_function_name:
+            elif "verif" in self.code.code_function_name:
                 return ExpectationStatementType.VERIFY
             else:
                 return ExpectationStatementType.TRANSFORM
@@ -122,13 +122,17 @@ class TaskData:
     examples: dict[UUID, RecordBatch]  # by dataset id
     parent: Optional[TaskData]
     children: dict[UUID, TaskData]  # by task id
-    template_implementation: Optional[Instruction]
+    template_implementation: Optional[Code]
     optimal_backend: Optional[Model]
     task: Task
 
     @property
     def definition(self) -> SymbolDefinition:
         return self.task.definition
+
+    @property
+    def schema(self):
+        return self.task.schema
 
     def __str__(self):
         return f"TaskData({self.task})"
@@ -165,12 +169,12 @@ class TaskData:
         return {e.id: e for e in self.expectations}
 
     @cached_property
-    def instruction_statements(self) -> list[tuple[UUID, StatementData]]:
+    def code_statements(self) -> list[tuple[UUID, StatementData]]:
         return [
             (expectation_id, statement)
             for expectation_id, statements in self.statements.items()
             for statement in statements
-            if statement.symbol_type == SymbolType.INSTRUCTION
+            if statement.symbol_type == SymbolType.CODE
         ]
 
     @staticmethod
@@ -189,7 +193,7 @@ class TaskData:
 
     @classmethod
     def _from_task_rec(cls, task: Task, parent: Optional[TaskData]) -> TaskData:
-        # collect and cache statements (examples/instructions)
+        # collect and cache statements (examples/code)
         expectations: list[Expectation] = []
         statements: dict = defaultdict(list)
         for expectation in task.expectations.all():
@@ -231,18 +235,18 @@ class TaskData:
 
 class Compiler:
     """
-    Transforms and optimizes a task definition into a set of executable instructions (incl. arguments).
+    Transforms and optimizes a task definition into a set of executable code (incl. arguments).
     """
 
     def __init__(self, executor: Executor):
         self.executor = executor
         # TODO @Cleanup: make compiler backend model configurable?
         self.compiler_model = get_stdlib_model("openai/text-davinci-003")
-        self.get_temperature = get_stdlib_instruction("symbolx/get_temperature")
+        self.get_temperature = get_stdlib_code("symbolx/get_temperature")
 
     async def compile(self, project_v: ProjectVersion, task: Task, compilation_name: str) -> None:
         """
-        Compiles a task into an executable instruction.
+        Compiles a task into an executable code.
         """
 
         # get data
@@ -252,11 +256,11 @@ class Compiler:
         backends: list[Model] = list(compilation.backends.all())
 
         # run compile
-        main_task, main_instruct = await self.compile_task(project_v, task, backends)
+        main_task, main_code = await self.compile_task(project_v, task, backends)
 
         # save result
         compilation.output_task = main_task
-        compilation.output_instruction = main_instruct
+        compilation.output_code = main_code
         await sync_to_async(compilation.save)()
 
     async def compile_task(
@@ -264,23 +268,23 @@ class Compiler:
         project_v: ProjectVersion,
         task: Task,
         backends: list[Model],
-    ) -> tuple[Task, Instruction]:
+    ) -> tuple[Task, Code]:
         """
-        Compiles a task into an executable instruction.
+        Compiles a task into an executable code.
 
         General compile:
         1. Lay out task tree (tasks may have recursive subtasks)
         2. Optimize task tree for backends and options
            - Expand, refactor and merge subtasks for backend
            - Use backend statistics for task heuristics, choosing optimal backends
-           - May build (partial) instructions to update/gather statistics
-        3. Build parallel instruction tree (map tasks to instructions)
-           Respect instruction templates where defined.
-           - Replace task references with compiled instructions
-           - Build model instructions from task definitions without templates
-           - Use default instructions for parent tasks
-           - Copy instructions if explicitly defined (and requested)
-        4. Optimize instruction tree for backends and options
+           - May build (partial) code to update/gather statistics
+        3. Build parallel code tree (map tasks to code)
+           Respect code templates where defined.
+           - Replace task references with compiled code
+           - Build model code from task definitions without templates
+           - Use default code for parent tasks
+           - Copy code if explicitly defined (and requested)
+        4. Optimize code tree for backends and options
         """
         logger.info("compile.started", task=task)
 
@@ -296,29 +300,27 @@ class Compiler:
         for t in task_data.walk_tree_dfs():
             t.optimal_backend = backends[0]
 
-        # 3. build the instruction tree
+        # 3. build the code tree
         logger.info("compile.build.started", task=task_data.task)
-        main_instruct = await self._build_instruction(project_v, task_data)
-        logger.info("compile.build.finished", task=task_data.task, main=main_instruct)
+        main_code = await self._build_code(project_v, task_data)
+        logger.info("compile.build.finished", task=task_data.task, main=main_code)
 
-        # 4. no further instruction optimization yet
+        # 4. no further code optimization yet
 
-        logger.info("compile.finished", task=task_data, main=main_instruct)
-        return task_data.task, main_instruct
+        logger.info("compile.finished", task=task_data, main=main_code)
+        return task_data.task, main_code
 
-    async def _build_instruction(
-        self, project_v: ProjectVersion, task_data: TaskData
-    ) -> Instruction:
+    async def _build_code(self, project_v: ProjectVersion, task_data: TaskData) -> Code:
         """
-        Builds an instruction from a task definition.
+        Builds an code from a task definition.
 
-        Basic model instruction compilation:
-        (ignoring subtasks and source instruction)
+        Basic model code compilation:
+        (ignoring subtasks and source code)
         1. Render explanation descriptions into basic task description.
         2. Collect and render examples from expectations and examples.
         3. Convert task descriptions and examples to backend model format.
         4. Determine optimal settings for backend model.
-        5. Build prompt and bake into model instruction.
+        5. Build prompt and bake into model code.
         """
 
         # 1. render expectation statements
@@ -347,18 +349,18 @@ class Compiler:
             task_data, task_description, compiled_examples_dataset
         )
 
-        # 5. build prompt and bake into model instruction
+        # 5. build prompt and bake into model code
         # (naive implementation)
-        llm_instruction = await sync_to_async(self._build_llm_instruction)(
+        llm_code = await sync_to_async(self._build_llm_code)(
             genfile, task_data, task_description, compiled_examples_dataset, settings
         )
-        return llm_instruction
+        return llm_code
 
     async def _compile_examples(self, task_data: TaskData) -> list[dict]:
         """
         Compiles examples for the given task.
 
-        Examples are generated using instructions and examples from expectation statements.
+        Examples are generated using code and examples from expectation statements.
         """
 
         # 2.1 collect static examples
@@ -368,7 +370,7 @@ class Compiler:
         # 2.2 collect dynamic examples from expectations
         # (naive implementation: should be done iteratively & in parallel, picking optimal examples)
         dynamic_examples: list[dict] = []
-        for expect_id, statement in task_data.instruction_statements:
+        for expect_id, statement in task_data.code_statements:
             expectation = task_data.expectations_by_id[expect_id]
             # select relevant examples for statement
             # (naive implementation: random sample)
@@ -379,7 +381,7 @@ class Compiler:
                 relevant_examples = local_random.sample(static_examples, n_samples)
                 for example in relevant_examples:
                     transformed = await self.executor.run(
-                        statement.instruction, arguments={"example": example}
+                        statement.code, arguments={"example": example}
                     )
                     if isinstance(transformed, dict):
                         dynamic_examples.append(transformed)
@@ -390,14 +392,14 @@ class Compiler:
                     # ignore other types of results
             elif statement.type == ExpectationStatementType.GENERATE:
                 examples = await self.executor.run(
-                    statement.instruction, arguments={"n_samples": n_samples}
+                    statement.code, arguments={"n_samples": n_samples}
                 )
                 if isinstance(examples, list):
                     # (naive implementation: use all generated examples)
                     dynamic_examples.extend(examples)
                 # ignore other types of results
             elif statement.type == ExpectationStatementType.VERIFY:
-                # TODO @Feature: render verify expectations into example instructions
+                # TODO @Feature: render verify expectations into example code
                 pass
             else:
                 raise NotImplementedError(f"{expectation} statement {statement} not supported")
@@ -436,29 +438,35 @@ class Compiler:
                 "examples": examples_dataset,
             },
         )
+        if not isinstance(temperature, float):
+            raise ValueError(
+                f"temperature from {self.get_temperature} is not a float: {temperature}"
+            )
+
         examples = await _acollect(examples_dataset)
         # set max tokens to sum of max length of output keys across examples plus 20%
         max_tokens = int(
             sum(max(len(example[key]) for example in examples) for key in task_data.output_keys)
         )
+
+        if task_data.optimal_backend is None:
+            raise ValueError(f"task {task_data.definition} has no optimal backend set")
         settings = task_data.optimal_backend.default_settings
         settings.pk = None
         settings.temperature = temperature
         settings.max_tokens = max_tokens
         return settings
 
-    def _build_llm_instruction(
+    def _build_llm_code(
         self,
         genfile: File,
         task_data: TaskData,
         task_description: str,
         task_examples: Dataset,
         settings: ModelInferenceSettings,
-    ) -> Instruction:
+    ) -> Code:
         if not task_data.optimal_backend:
-            raise ValueError(
-                f"cannot build instruction for {task_data.task}: optimal backend not set"
-            )
+            raise ValueError(f"cannot build code for {task_data.task}: optimal backend not set")
         # build prompt template
         prompt_prefix: str = task_description + "\n"
         prompt_example = "".join(
@@ -470,10 +478,9 @@ class Compiler:
             main_output_key = tuple(task_data.output_keys)[0]
             prompt_input = prompt_input + f"{main_output_key}: "
 
-        scope = InstructionScope.PROGRAM if task_data.parent is None else InstructionScope.FUNCTION
-        llm_instruction = Instruction(task=task_data.task, scope=scope, builtin_id="llm_fewshot")
-        genfile.create_definition(task_data.definition.name, llm_instruction)
-        llm_instruction.bind_arguments(
+        llm_code = Code(task=task_data.task, schema=task_data.schema, builtin_id="llm_fewshot")
+        genfile.create_definition(task_data.definition.name, llm_code)
+        llm_code.bind_arguments(
             model=task_data.optimal_backend.definition,
             prompt_prefix=prompt_prefix,
             prompt_example=prompt_example,
@@ -483,5 +490,5 @@ class Compiler:
         )
         # add parameter for input keys
         for key in task_data.input_keys:
-            llm_instruction.bind_argument(key, InstructionParameterType.JSON)
-        return llm_instruction
+            llm_code.bind_argument(key, CodeParameterType.VALUE)
+        return llm_code

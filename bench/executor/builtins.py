@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Optional
 
 from bench.backend.base import Completion, ModelHandle
@@ -12,7 +14,7 @@ async def llm(
     prompt: str,
     return_full: bool = False,
     strip: bool = True,
-    settings: dict[str, Any] = None,
+    settings: dict[str, Any] | None = None,
     **variables: dict[str, Any],
 ):
     """
@@ -47,7 +49,7 @@ async def llm_fewshot(
     examples: RecordBatch,
     return_full: bool = False,
     strip: bool = True,
-    settings: dict[str, Any] = None,
+    settings: dict[str, Any] | None = None,
     **variables: dict[str, Any],
 ):
     """
@@ -118,7 +120,7 @@ async def llm_classify(
         return completion["text"].strip()
 
 
-instruction_builtins: dict = {
+code_builtins: dict = {
     "llm": llm,
     "llm_fewshot": llm_fewshot,
     "llm_classify": llm_classify,

@@ -8,7 +8,7 @@ from bench.utils.record import RecordBatch
 
 Model = ModelHandle
 Dataset = RecordBatch
-Instruction: Callable
+Code: Callable
 llm: Callable
 llm_fewshot: Callable
 llm_classify: Callable
@@ -36,7 +36,7 @@ temperature_examples = [
     },
 ]
 
-# @symbol instruct: get_temperature
+# @symbol code: get_temperature
 model: Model  # @param
 description: str  # @param
 examples: Dataset  # @param

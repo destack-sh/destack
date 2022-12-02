@@ -14,7 +14,7 @@ class TaskManager(SymbolContentManager, models.Manager["Task"]):
 
 class Task(SymbolContent):
     """
-    A task describes the interface and desired behaviour of an instruction.
+    A task describes the interface and desired behaviour of an code.
 
     A task may have sub-tasks, forming a task tree.
     Sub-tasks define smaller tasks which are composed or represented by the parent task.
@@ -23,7 +23,7 @@ class Task(SymbolContent):
     schema = models.JSONField()
     expectations = models.ManyToManyField("Expectation", related_name="tasks")
     template_implementation = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="templates"
+        "Code", on_delete=models.CASCADE, null=True, related_name="templates"
     )
     # compilations via Compilation
 
@@ -45,7 +45,7 @@ class Task(SymbolContent):
 
 class Compilation(UUIDModel):
     """
-    A compilation translates a task with a template instruction tree (instruction) into a runnable instruction.
+    A compilation translates a task with a template code tree (code) into a runnable code.
 
     Depending on the compilation target and options, various optimizations may be applied.
     """
@@ -58,8 +58,8 @@ class Compilation(UUIDModel):
     output_task = models.ForeignKey(
         "Task", on_delete=models.CASCADE, null=True, related_name="compilations+"
     )
-    output_instruction = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="source_compilation"
+    output_code = models.ForeignKey(
+        "Code", on_delete=models.CASCADE, null=True, related_name="source_compilation"
     )
 
     def __str__(self):
@@ -81,7 +81,7 @@ class Expectation(SymbolContent):
     An expectation specifies a task's expected behavior.
     It can instruct or explain the context and relations of expected behavior.
 
-    The main text of an expectation is its description and instructions & examples are statements.
+    The main text of an expectation is its description and code & examples are statements.
     """
 
     description = models.TextField()

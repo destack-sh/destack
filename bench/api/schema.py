@@ -65,7 +65,7 @@ schema = strawberry.Schema(
     types=[
         types.Task,
         types.Expectation,
-        types.Instruction,
+        types.Code,
         types.Model,
         types.Dataset,
         types.DatasetView,

@@ -51,7 +51,7 @@ class Project(TaggableMixin, UUIDModel):
     All versions are available in 'versions' and may not be linear (also like in Git).
     Projects define symbols organized into files.
 
-    Executable projects have main programs (top-level program instructions).
+    Executable projects have main programs (top-level program code).
     Library projects define reusable symbols (like in software).
     """
 
@@ -363,16 +363,19 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         self.files.all().delete()
 
     @transaction.atomic
-    def commit(self, name: Optional[str] = None):
+    def commit(self, name: Optional[str] = None, description: Optional[str] = None):
         if self.committed:
             raise ValueError(f"already committed: {self}")
 
         self.committed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        self.name = name
+        if name is not None:
+            self.name = name
+        if description is not None:
+            self.description = description
         # mark all symbol definitions as committed if they aren't already
         # TODO @Performance: commit symbol content server-side in SQL
         for symbol_def in self.definitions.all().prefetch_related(
-            "task", "expectation", "instruction", "model", "dataset", "dataset_view"
+            "task", "expectation", "code", "model", "dataset", "dataset_view"
         ):
             if not symbol_def.committed:
                 symbol_def.committed_in = self

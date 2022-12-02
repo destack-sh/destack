@@ -27,7 +27,7 @@ export type Execution = {
   parent: string; // fk to Execution.parent
   children: Execution[];
   flow: string; // fk to FlowVersion.id
-  flow_instruction: string; // fk to FlowNode.id
+  flow_code: string; // fk to FlowNode.id
   model: string; // fk as ModelVersion.name@ModelVersion.version
   connected_artifacts: Array<ExecutionArtifactConnection>;
 };

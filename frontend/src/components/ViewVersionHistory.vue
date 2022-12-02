@@ -15,8 +15,6 @@ const commits = computed(() => {
 function getRelOrAbsTime(commit: ProjectVersionHeaderFragment) {
   const committedAt = DateTime.fromISO(commit.committedAt);
   const timeSinceCommit = now.value.diff(committedAt);
-  console.log(timeSinceCommit.as("days"));
-  console.log(Math.round(timeSinceCommit.as("minutes")));
   // get relative like 2h or 6d if less than 1 week
   // get absolute if more than 1 week
   if (timeSinceCommit.as("days") < 7) {
@@ -25,7 +23,9 @@ function getRelOrAbsTime(commit: ProjectVersionHeaderFragment) {
     const minutes = Math.round(timeSinceCommit.as("minutes"));
     const hours = Math.round(timeSinceCommit.as("hours"));
     const days = Math.round(timeSinceCommit.as("days"));
-    if (hours < 1) {
+    if (minutes < 1) {
+      return "now";
+    } else if (hours < 1) {
       return `${minutes}m`;
     } else if (days < 1) {
       return `${hours}h`;
@@ -37,10 +37,6 @@ function getRelOrAbsTime(commit: ProjectVersionHeaderFragment) {
     return committedAt.toLocaleString(DateTime.DATE_MED);
   }
 }
-
-const commitTimes = computed(() => {
-  return commits.value.map((c) => getRelOrAbsTime(c));
-});
 </script>
 <template>
   <div>
@@ -69,7 +65,7 @@ const commitTimes = computed(() => {
               <div class="flex min-w-0 flex-1 justify-between space-x-4 pt-1">
                 <div>
                   <p class="text-xs font-bold text-gray-900">{{ version.name || "Unnamed" }}</p>
-                  <p class="text-xs text-gray-500">(autosave)</p>
+                  <p class="text-xs text-gray-500">{{ version.description || "(autosave)" }}</p>
                 </div>
                 <div class="whitespace-nowrap text-right text-xs text-gray-500">
                   <time :datetime="version.committedAt">

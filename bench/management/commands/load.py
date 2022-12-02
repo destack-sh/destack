@@ -1,6 +1,10 @@
+from __future__ import annotations
+
+import datetime
 import typing
 from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
 from typing import Optional
 
 import structlog
@@ -10,11 +14,11 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench.executor import Executor
-from bench.executor.builtins import instruction_builtins
+from bench.executor.builtins import code_builtins
 from bench.models import (
+    Code,
     Dataset,
     Expectation,
-    Instruction,
     Organization,
     Project,
     ProjectVersion,
@@ -23,7 +27,7 @@ from bench.models import (
     SymbolType,
     Task,
 )
-from bench.models.instruction import InstructionParameterType
+from bench.models.code import CodeParameterType
 
 logger = structlog.get_logger(__name__)
 
@@ -64,7 +68,7 @@ class FileSegment:
 
 
 class Command(BaseCommand):
-    help = "Loads a task definition from a file into a project"
+    help = "Loads a instructions from a file into a project"
 
     def add_arguments(self, parser: CommandParser):
         # project as organization/project
@@ -86,10 +90,17 @@ class Command(BaseCommand):
                 organization=organization, name=project_slug, slug=project_slug
             )
 
-        project_v = project.create_version()
-        project_v.reset()
+        last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
+        version_id = str(int(last_modified.timestamp()))
 
+        if project.head_.committed:
+            project_v = project.create_version(name=version_id)
+        else:
+            project_v = project.head_
+
+        project_v.reset()
         load_symbols(project_v, path)
+        project_v.commit(name=version_id, description=f"load from {path}")
 
         # set task as new main program
         # (not sure if we'll have a single "main" going forward)
@@ -101,7 +112,7 @@ class Command(BaseCommand):
         # advance head to new version
         project.head = project_v
         project.save()
-        logger.info(f"Updated head in {project}")
+        logger.info(f"Updated head to {project_v} in {project}")
 
 
 def load_symbols(project_v: ProjectVersion, path: str):
@@ -127,8 +138,10 @@ def load_symbols(project_v: ProjectVersion, path: str):
 
         definitions = async_to_sync(executor.run_get_definitions)(segment.full_code, {})
 
-        def _get_definition(name: str, required: bool = True):
-            if name not in definitions:
+        def _get_definition(name: str | None = None, required: bool = True):
+            if name is None:
+                return definitions
+            elif name not in definitions:
                 if not required:
                     return None
                 else:
@@ -140,7 +153,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
         segment_parsers: dict[str, typing.Callable] = {
             SymbolType.TASK: parse_task,
             SymbolType.EXPECTATION: parse_expect,
-            SymbolType.INSTRUCTION: parse_instruct,
+            SymbolType.CODE: parse_code,
             SymbolType.DATASET: parse_data,
         }
         segment_parser = segment_parsers.get(segment.symbol_type)
@@ -223,31 +236,31 @@ def parse_task(
     return task, on_defined
 
 
-def parse_instruct(
+def parse_code(
     project_v: ProjectVersion,
     segment: FileSegment,
     lookup_def: typing.Callable,
 ):
     function = lookup_def(segment.symbol_name)
     if not callable(function):
-        raise ValueError(f"instruct symbol '{segment.symbol_name}' is not typing.Callable")
-    instruction = Instruction.objects.create(
-        code=segment.full_code, code_function_name=function.__name__
+        raise ValueError(f"code symbol '{segment.symbol_name}' is not typing.Callable")
+    code = Code.objects.create(
+        code=segment.full_code, schema={}, code_function_name=function.__name__
     )
-    consumed_lines = bind_instruction_parameters(segment, project_v, instruction)
+    consumed_lines = bind_code_parameters(segment, project_v, code)
     if consumed_lines:
         # remove consumed lines from segment
         segment.lines = segment.lines[consumed_lines:]
-        instruction.code = segment.full_code
-        instruction.save()
+        code.code = segment.full_code
+        code.save()
 
     if "task" in segment.symbol_args:
         task_name = segment.symbol_args["task"]
         task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
-        instruction.task = task
-        task.template_implementation = instruction
+        code.task = task
+        task.template_implementation = code
 
-    return instruction
+    return code
 
 
 def parse_data(
@@ -283,7 +296,7 @@ def parse_expect(
 
         statement_def = project_v.symbol_definition(statement_name, statement_type)
         if statement_def.type in (
-            SymbolType.INSTRUCTION,
+            SymbolType.CODE,
             SymbolType.DATASET,
             SymbolType.DATASET_VIEW,
         ):
@@ -300,13 +313,13 @@ def parse_expect(
     return expectation
 
 
-def bind_instruction_parameters(
+def bind_code_parameters(
     segment: FileSegment,
     project_v: ProjectVersion,
-    instruction: Instruction,
+    code: Code,
 ) -> int:
     # parameters are defined as type only definition lines like:
-    # name: Task|Instruction|Model|Dataset|DatasetView
+    # name: Task|Code|Model|Dataset|DatasetView
     # name: <type>
     # Parameters are bound to their name or an @alias unless @param is appended (in comment).
     consumed_lines: int = 0
@@ -323,21 +336,21 @@ def bind_instruction_parameters(
         param_name, param_type = line.split(":", 1)
         param_name = param_name.strip()
         param_type = param_type.strip()
-        if param_name in instruction_builtins:
+        if param_name in code_builtins:
             continue  # ignore builtins
 
         param_schema = None
         if param_type == "Dataset":
-            param_type = InstructionParameterType.DATASET
+            param_type = CodeParameterType.DATA
         elif param_type == "Model":
-            param_type = InstructionParameterType.MODEL
-        elif param_type == "Instruction":
-            param_type = InstructionParameterType.INSTRUCTION
+            param_type = CodeParameterType.MODEL
+        elif param_type == "Code":
+            param_type = CodeParameterType.CODE
         else:
             # just use python type as schema for now
             param_schema = param_type
-            param_type = InstructionParameterType.JSON
-        instruction.add_parameter(name=param_name, type=param_type, schema=param_schema)
+            param_type = CodeParameterType.VALUE
+        code.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
         if "@param" in comment:
             # free parameter, don't try to bind argument value
@@ -349,8 +362,8 @@ def bind_instruction_parameters(
         else:
             symbol_ref_name = param_name
 
-        if param_type == InstructionParameterType.JSON:
+        if param_type == CodeParameterType.VALUE:
             raise NotImplementedError(f"json argument resolution not supported: {line}")
         symbol_def = project_v.symbol_definition(symbol_ref_name)
-        instruction.bind_argument(param_name, symbol_def)
+        code.bind_argument(param_name, symbol_def)
     return consumed_lines

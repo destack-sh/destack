@@ -11,7 +11,7 @@ from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import Dataset, DatasetView, Expectation, Instruction, Model, Task
+    from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task
     from bench.models.project import ProjectVersion
 
 
@@ -22,7 +22,7 @@ class SymbolType(models.TextChoices):
 
     TASK = "task", "Task"
     EXPECTATION = "expect", "Expectation"
-    INSTRUCTION = "instruct", "Instruction"
+    CODE = "code", "Code"
     MODEL = "model", "Model"
     DATASET = "data", "Dataset"
     DATASET_VIEW = "view", "DatasetView"
@@ -30,14 +30,14 @@ class SymbolType(models.TextChoices):
     @staticmethod
     def from_content(content: SymbolContent) -> SymbolType:
         # re-import for real to avoid circular import (above is only for type checking)
-        from bench.models import Dataset, DatasetView, Expectation, Instruction, Model, Task  # noqa
+        from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task  # noqa
 
         if isinstance(content, Task):
             return SymbolType.TASK
         elif isinstance(content, Expectation):
             return SymbolType.EXPECTATION
-        elif isinstance(content, Instruction):
-            return SymbolType.INSTRUCTION
+        elif isinstance(content, Code):
+            return SymbolType.CODE
         elif isinstance(content, Model):
             return SymbolType.MODEL
         elif isinstance(content, Dataset):
@@ -56,14 +56,7 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
         **kwargs,
     ):
         # re-import for real (not just for type checking) to avoid circular import
-        from bench.models import (  # noqa: F401
-            Dataset,
-            DatasetView,
-            Expectation,
-            Instruction,
-            Model,
-            Task,
-        )
+        from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task  # noqa: F401
 
         # save content if it's not loaded from the db
         # (don't test via pk since we set that automatically)
@@ -78,7 +71,7 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
 SYMBOL_TYPE_TO_FIELD = {
     SymbolType.TASK: "task",
     SymbolType.EXPECTATION: "expectation",
-    SymbolType.INSTRUCTION: "instruction",
+    SymbolType.CODE: "code",
     SymbolType.MODEL: "model",
     SymbolType.DATASET: "dataset",
     SymbolType.DATASET_VIEW: "dataset_view",
@@ -114,8 +107,8 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     expectation = models.OneToOneField(
         "Expectation", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-    instruction = models.OneToOneField(
-        "Instruction", on_delete=models.RESTRICT, null=True, related_name="definition"
+    code = models.OneToOneField(
+        "Code", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
     model = models.OneToOneField(
         "Model", on_delete=models.RESTRICT, null=True, related_name="definition"
@@ -158,10 +151,10 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
 
     @gql.model_cached_property(
         only=["type"],
-        select_related=["task", "expectation", "instruction", "model", "dataset", "dataset_view"],
+        select_related=["task", "expectation", "code", "model", "dataset", "dataset_view"],
     )
-    def content(self) -> Union[Task, Expectation, Instruction, Model, Dataset, DatasetView]:
-        content: Union[Task, Expectation, Instruction, Model, Dataset, DatasetView, None] = getattr(
+    def content(self) -> Union[Task, Expectation, Code, Model, Dataset, DatasetView]:
+        content: Union[Task, Expectation, Code, Model, Dataset, DatasetView, None] = getattr(
             self, self.type_to_field(self.type)
         )
         if content is None:
@@ -186,9 +179,9 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
             return self.content  # noqa
 
     @property
-    def instruction_(self) -> Instruction:
+    def code_(self) -> Code:
         if TYPE_CHECKING:
-            return cast(Instruction, self.content)
+            return cast(Code, self.content)
         else:
             return self.content  # noqa
 
@@ -261,7 +254,7 @@ class SymbolContent(UUIDModel):
     def definition_str(self) -> str:
         """Gets a definition str for logging that handles not yet defined symbol contents"""
         # check if definition is in model cache
-        if "definition" in self._state.fields_cache:
+        if "definition" in self._state.fields_cache:  # type: ignore
             return str(self.definition)
         else:
             return "<undefined>"

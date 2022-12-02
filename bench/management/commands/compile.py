@@ -8,7 +8,7 @@ from bench.models import Project, SymbolType
 
 
 class Command(BaseCommand):
-    help = "Compiles a task into optimized instructions"
+    help = "Compiles a task into optimized code"
 
     def add_arguments(self, parser: CommandParser):
         # project name as organization/project

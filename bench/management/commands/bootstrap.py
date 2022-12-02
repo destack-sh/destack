@@ -1,4 +1,5 @@
 import datetime
+from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
@@ -12,11 +13,19 @@ from bench.models.project import ProjectType, ProjectVersion
 
 logger = structlog.get_logger(__name__)
 
-providers = [
-    {
-        "name": "OpenAI",
-        "slug": "openai",
-        "models": [
+
+@dataclass
+class Provider:
+    name: str
+    slug: str
+    models: list[str]
+
+
+providers: list[Provider] = [
+    Provider(
+        name="OpenAI",
+        slug="openai",
+        models=[
             "text-davinci-003",
             "text-davinci-002",
             "text-curie-001",
@@ -25,17 +34,8 @@ providers = [
             "code-davinci-002",
             "code-cushman-001",
         ],
-    },
-    {
-        "name": "Goose AI",
-        "slug": "gooseai",
-        "models": [
-            "fairseq-13b",
-            "fairseq-6b-7b",
-            "gpt-j-20b",
-            "gpt-j-6b",
-        ],
-    },
+    ),
+    Provider("Goose AI", "gooseai", ["fairseq-13b", "fairseq-6b-7b", "gpt-j-20b", "gpt-j-6b"]),
 ]
 
 
@@ -89,7 +89,7 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
 @transaction.atomic
 def create_model_providers():
     for provider in providers:
-        stdlib = get_or_create_stdlib(provider["name"], provider["slug"])
+        stdlib = get_or_create_stdlib(provider.name, provider.slug)
         stdlib_v: ProjectVersion = stdlib.head_
         # version with date format like 2022.11.29
         version_id = datetime.datetime.now().strftime("%Y.%m.%d")
@@ -101,8 +101,8 @@ def create_model_providers():
         stdlib_v.reset()
 
         # add models to library
-        for model_id in provider["models"]:
-            provider_key = ProviderKey[provider["slug"].upper()]  # type: ignore
+        for model_id in provider.models:
+            provider_key = ProviderKey[provider.slug.upper()]
             model = Model.objects.create(
                 external_name=model_id,
                 provider=provider_key,
@@ -116,7 +116,7 @@ def create_model_providers():
         stdlib.head = stdlib_v
         stdlib.save()
 
-        logger.info(f"Created provider library {stdlib_v} with models: {provider['models']}")
+        logger.info(f"Created provider library {stdlib_v} with models: {provider.models}")
 
 
 def get_or_create_stdlib(organization_name: str, organization_slug: str) -> Project:

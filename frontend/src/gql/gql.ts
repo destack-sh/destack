@@ -3,16 +3,16 @@ import * as types from "./graphql";
 import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 
 const documents = {
+  "\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n":
+    types.CodeContentFragmentDoc,
   "\n  fragment DatasetContent on Dataset {\n    id\n    records {\n      data\n      index\n    }\n  }\n":
     types.DatasetContentFragmentDoc,
   "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n":
     types.ExpectationContentFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n":
     types.FileHeaderFragmentDoc,
-  "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  ":
+  "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  ":
     types.GetFileByIdDocument,
-  "\n  fragment InstructionContent on Instruction {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n":
-    types.InstructionContentFragmentDoc,
   "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n":
     types.TaskContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n":
@@ -26,6 +26,9 @@ const documents = {
 };
 
 export function graphql(
+  source: "\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"];
+export function graphql(
   source: "\n  fragment DatasetContent on Dataset {\n    id\n    records {\n      data\n      index\n    }\n  }\n"
 ): typeof documents["\n  fragment DatasetContent on Dataset {\n    id\n    records {\n      data\n      index\n    }\n  }\n"];
 export function graphql(
@@ -35,11 +38,8 @@ export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    name\n    createdAt\n    updatedAt\n  }\n"];
 export function graphql(
-  source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...InstructionContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "];
-export function graphql(
-  source: "\n  fragment InstructionContent on Instruction {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment InstructionContent on Instruction {\n    id\n    builtinId\n    code\n    parameters {\n      name\n      type\n      schema\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"];
+  source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n"
 ): typeof documents["\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n"];

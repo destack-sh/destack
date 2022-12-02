@@ -23,13 +23,57 @@ export type Scalars = {
   Void: any;
 };
 
+export type Code = Node &
+  SymbolContent & {
+    __typename?: "Code";
+    arguments: Array<CodeArgument>;
+    builtinId?: Maybe<Scalars["String"]>;
+    code?: Maybe<Scalars["String"]>;
+    id: Scalars["GlobalID"];
+    nameDotType: Scalars["String"];
+    parameters: Array<CodeParameter>;
+    task?: Maybe<Task>;
+  };
+
+export type CodeArgument = Node & {
+  __typename?: "CodeArgument";
+  code: Code;
+  codeFree: Code;
+  createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  reference?: Maybe<SymbolDefinition>;
+  type: Scalars["String"];
+  updatedAt: Scalars["DateTime"];
+  value?: Maybe<Scalars["JSON"]>;
+};
+
+export type CodeParameter = Node & {
+  __typename?: "CodeParameter";
+  code: Code;
+  createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  schema?: Maybe<Scalars["JSON"]>;
+  type: CodeParameterType;
+  updatedAt: Scalars["DateTime"];
+};
+
+/** An enumeration. */
+export enum CodeParameterType {
+  Code = "CODE",
+  Data = "DATA",
+  Model = "MODEL",
+  Value = "VALUE",
+}
+
 export type Compilation = Node & {
   __typename?: "Compilation";
   backends: Array<SymbolDefinition>;
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  outputInstruction?: Maybe<SymbolDefinition>;
+  outputCode?: Maybe<SymbolDefinition>;
   outputTask?: Maybe<SymbolDefinition>;
   task: Task;
   updatedAt: Scalars["DateTime"];
@@ -81,51 +125,6 @@ export type File = Node & {
   projectVersion: ProjectVersion;
   updatedAt: Scalars["DateTime"];
 };
-
-export type Instruction = Node &
-  SymbolContent & {
-    __typename?: "Instruction";
-    arguments: Array<InstructionArgument>;
-    builtinId?: Maybe<Scalars["String"]>;
-    code?: Maybe<Scalars["String"]>;
-    id: Scalars["GlobalID"];
-    nameDotType: Scalars["String"];
-    parameters: Array<InstructionParameter>;
-    scope: Scalars["String"];
-    task?: Maybe<Task>;
-  };
-
-export type InstructionArgument = Node & {
-  __typename?: "InstructionArgument";
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  instruction: Instruction;
-  instructionFree: Instruction;
-  name: Scalars["String"];
-  reference?: Maybe<SymbolDefinition>;
-  type: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
-  value?: Maybe<Scalars["JSON"]>;
-};
-
-export type InstructionParameter = Node & {
-  __typename?: "InstructionParameter";
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  instruction: Instruction;
-  name: Scalars["String"];
-  schema?: Maybe<Scalars["JSON"]>;
-  type: InstructionParameterType;
-  updatedAt: Scalars["DateTime"];
-};
-
-/** An enumeration. */
-export enum InstructionParameterType {
-  Dataset = "DATASET",
-  Instruction = "INSTRUCTION",
-  Json = "JSON",
-  Model = "MODEL",
-}
 
 export type Model = Node &
   SymbolContent & {
@@ -346,10 +345,10 @@ export type SymbolDefinitionContentArgs = {
 
 /** The type of symbol to define in a project. */
 export enum SymbolType {
+  Code = "CODE",
   Dataset = "DATASET",
   DatasetView = "DATASET_VIEW",
   Expectation = "EXPECTATION",
-  Instruction = "INSTRUCTION",
   Model = "MODEL",
   Task = "TASK",
 }
@@ -398,6 +397,21 @@ export type UserEdge = {
   node: User;
 };
 
+export type CodeContentFragment = {
+  __typename?: "Code";
+  id: any;
+  builtinId?: string | null;
+  code?: string | null;
+  parameters: Array<{ __typename?: "CodeParameter"; name: string; type: CodeParameterType; schema?: any | null }>;
+  arguments: Array<{
+    __typename?: "CodeArgument";
+    name: string;
+    type: string;
+    value?: any | null;
+    reference?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
+  }>;
+} & { " $fragmentName"?: "CodeContentFragment" };
+
 export type DatasetContentFragment = {
   __typename?: "Dataset";
   id: any;
@@ -434,13 +448,11 @@ export type GetFileByIdQuery = {
           createdAt: any;
           updatedAt: any;
           content:
+            | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
             | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
             | { __typename?: "DatasetView" }
             | ({ __typename?: "Expectation" } & {
                 " $fragmentRefs"?: { ExpectationContentFragment: ExpectationContentFragment };
-              })
-            | ({ __typename?: "Instruction" } & {
-                " $fragmentRefs"?: { InstructionContentFragment: InstructionContentFragment };
               })
             | { __typename?: "Model" }
             | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } });
@@ -448,26 +460,6 @@ export type GetFileByIdQuery = {
       } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | null;
 };
-
-export type InstructionContentFragment = {
-  __typename?: "Instruction";
-  id: any;
-  builtinId?: string | null;
-  code?: string | null;
-  parameters: Array<{
-    __typename?: "InstructionParameter";
-    name: string;
-    type: InstructionParameterType;
-    schema?: any | null;
-  }>;
-  arguments: Array<{
-    __typename?: "InstructionArgument";
-    name: string;
-    type: string;
-    value?: any | null;
-    reference?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
-  }>;
-} & { " $fragmentName"?: "InstructionContentFragment" };
 
 export type TaskContentFragment = {
   __typename?: "Task";
@@ -533,6 +525,59 @@ export type GetProjectVersionFilesQuery = {
     | null;
 };
 
+export const CodeContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "CodeContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Code" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "builtinId" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parameters" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "schema" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "arguments" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "value" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<CodeContentFragment, unknown>;
 export const DatasetContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -607,59 +652,6 @@ export const FileHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<FileHeaderFragment, unknown>;
-export const InstructionContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "InstructionContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Instruction" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "builtinId" } },
-          { kind: "Field", name: { kind: "Name", value: "code" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parameters" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "schema" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "arguments" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "value" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "reference" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<InstructionContentFragment, unknown>;
 export const TaskContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -769,7 +761,7 @@ export const GetFileByIdDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "InstructionContent" } },
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "CodeContent" } },
                             { kind: "FragmentSpread", name: { kind: "Name", value: "DatasetContent" } },
                             { kind: "FragmentSpread", name: { kind: "Name", value: "ExpectationContent" } },
                             { kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } },
@@ -786,7 +778,7 @@ export const GetFileByIdDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
-    ...InstructionContentFragmentDoc.definitions,
+    ...CodeContentFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
     ...ExpectationContentFragmentDoc.definitions,
     ...TaskContentFragmentDoc.definitions,

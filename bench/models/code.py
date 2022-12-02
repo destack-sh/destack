@@ -14,84 +14,64 @@ from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel, is_jsonable
 
 
-class InstructionScope(models.TextChoices):
-    """
-    The scope of instruction defines its semantics.
-
-    Modules are container for programs and functions.
-    Programs are top-level deployable instructions with only values as free parameters.
-    Functions are reusable instructions for pure functions with any parameters & arguments.
-    """
-
-    # TODO @Architecture: maybe Instruction modules should be a ProjectFile-level concept?
-    MODULE = "module", "Module"
-    PROGRAM = "program", "Program"
-    FUNCTION = "function", "Function"
-
-
-class InstructionManager(SymbolContentManager, models.Manager["Instruction"]):
+class CodeManager(SymbolContentManager, models.Manager["Code"]):
     pass
 
 
-class Instruction(SymbolContent):
+class Code(SymbolContent):
     """
-    Instructions specify how to do something using datasets, models and other instructions.
-    Like in software, Instructions form a tree and are implemented as code with some syntactic sugar.
-
-    Instructions define and implement tasks which define the interface and guide instruction compilation.
-    As an (async) Python function, instructions are defined as code (either in-place or as a built-in).
-    Instructions may contain and use other instructions, forming an instruction tree.
+    Code specifies how to do something using datasets, models and other code.
+    Code is just async Python code (either defined in-place or as a built-in).
     """
 
-    task = models.ForeignKey(
-        "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
-    )
-    scope: models.CharField = models.CharField(
-        max_length=64, choices=InstructionScope.choices, default=InstructionScope.FUNCTION
-    )
+    schema = models.JSONField()
     # either set builtin id or set custom code
     builtin_id = models.CharField(blank=True, null=True, max_length=256)
     code = models.TextField(blank=True, null=True)
     code_function_name = models.CharField(blank=True, null=True, max_length=256)
+    task = models.ForeignKey(
+        "Task", on_delete=models.CASCADE, null=True, related_name="implementations"
+    )
+    # parameters to/from CodeParameter
+    # arguments to/from CodeArgument
 
-    # parameters to/from InstructionParameter
-    # arguments to/from InstructionArgument
-
-    def deepcopy(self, to: Instruction, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Code, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         super().deepcopy(to, refs)
         # copy parameters
         for parameter in self.parameters.all():
             parameter.id = None
-            parameter.instruction = to
+            parameter.code = to
             parameter.save()
         # copy arguments
         for argument in self.arguments.all():
             if argument.reference_id not in refs:
                 continue
             argument.id = None
-            argument.instruction = to
+            argument.code = to
             argument.reference = cast(SymbolDefinition, refs[argument.reference_id])
             argument.save()
 
     def __str__(self):
         if self.builtin_id:
             content = f"builtin={self.builtin_id}"
-        elif self.code_function_name:
+        elif self.code_function_name and self.code:
             content = f"function={self.code_function_name},length={len(self.code)}"
-        else:
+        elif self.code:
             content = f"length={len(self.code)}"
+        else:
+            raise ValueError(f"code has no content: {self}")
         return f"{self.definition_str}({content})"
 
     def add_parameter(
         self,
         name: str,
-        type: InstructionParameterType,
+        type: CodeParameterType,
         exists_ok: bool = False,
         schema: Optional[Any] = None,
-    ) -> InstructionParameter:
+    ) -> CodeParameter:
         if exists_ok:
-            parameter, created = InstructionParameter.objects.get_or_create(
-                instruction=self, name=name, defaults={"type": type, "schema": schema}
+            parameter, created = CodeParameter.objects.get_or_create(
+                code=self, name=name, defaults={"type": type, "schema": schema}
             )
             if not created:
                 parameter.type = type
@@ -99,35 +79,33 @@ class Instruction(SymbolContent):
                 parameter.save()
             return parameter
         else:
-            return InstructionParameter.objects.create(
-                instruction=self, name=name, type=type, schema=schema
-            )
+            return CodeParameter.objects.create(code=self, name=name, type=type, schema=schema)
 
     async def aadd_parameter(
         self,
         name: str,
-        type: InstructionParameterType,
+        type: CodeParameterType,
         exists_ok: bool = False,
         schema: Optional[dict] = None,
-    ) -> InstructionParameter:
+    ) -> CodeParameter:
         return await sync_to_async(self.add_parameter)(name, type, exists_ok, schema)
 
     @transaction.atomic
     def bind_argument(
         self, name: str, value: Any | SymbolDefinition, exists_ok: bool = False
-    ) -> tuple[InstructionParameter, InstructionArgument]:
+    ) -> tuple[CodeParameter, CodeArgument]:
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
         # get/create parameter and corresponding argument
-        argument_type = InstructionParameterType.from_value(value)
-        if argument_type == InstructionParameterType.JSON:
+        argument_type = CodeParameterType.from_value(value)
+        if argument_type == CodeParameterType.VALUE:
             value, reference = value, None
         else:
             value, reference = None, value
 
         parameter = self.add_parameter(name, argument_type, exists_ok=True)
-        argument, created = InstructionArgument.objects.get_or_create(
-            instruction=self,
+        argument, created = CodeArgument.objects.get_or_create(
+            code=self,
             name=name,
             defaults=dict(type=argument_type, value=value, reference=reference),
         )
@@ -153,123 +131,115 @@ class Instruction(SymbolContent):
 
     @property
     def anonymous(self) -> bool:
-        """Whether this instruction is defined as anonymous code ir with a defined function (same name)"""
+        """Whether this code is defined as anonymous code ir with a defined function (same name)"""
         if self.builtin_id is not None:
             # builtins are always directly callable
             return False
         elif self.code is not None:
             return self.code_function_name is None
         else:
-            raise ValueError(f"instruction {self} must have either builtin_id or code")
+            raise ValueError(f"code {self} must have either builtin_id or code")
 
-    objects = InstructionManager()
+    objects = CodeManager()
 
     class Meta(SymbolContent.Meta):
         constraints = [
             # ensure either builtin_id or code is set
             models.CheckConstraint(
-                name="bench_instruction_builtin_id_xor_code_ck",
+                name="bench_code_builtin_id_xor_code_ck",
                 check=(models.Q(builtin_id__isnull=False) ^ models.Q(code__isnull=False)),
             ),
         ]
 
 
-class InstructionParameterType(models.TextChoices):
-    DATASET = "dataset"
+class CodeParameterType(models.TextChoices):
+    DATA = "dataset"
     MODEL = "model"
-    INSTRUCTION = "instruction"
-    JSON = "json"
+    CODE = "code"
+    VALUE = "value"
 
     @staticmethod
-    def from_value(obj: Any | SymbolDefinition) -> InstructionParameterType:
+    def from_value(obj: Any | SymbolDefinition) -> CodeParameterType:
         if isinstance(obj, SymbolDefinition):
             if obj.type == SymbolType.DATASET or obj.type == SymbolType.DATASET_VIEW:
-                return InstructionParameterType.DATASET
+                return CodeParameterType.DATA
             elif obj.type == SymbolType.MODEL:
-                return InstructionParameterType.MODEL
-            elif obj.type == SymbolType.INSTRUCTION:
-                return InstructionParameterType.INSTRUCTION
+                return CodeParameterType.MODEL
+            elif obj.type == SymbolType.CODE:
+                return CodeParameterType.CODE
             else:
-                raise ValueError(f"unexpected symbol type for instruction parameter: {obj}")
+                raise ValueError(f"unexpected symbol type for code parameter: {obj}")
         elif is_jsonable(obj):
-            return InstructionParameterType.JSON
+            return CodeParameterType.VALUE
         else:
-            raise ValueError(f"unknown object {obj} to instruction parameter")
+            raise ValueError(f"unknown object {obj} to code parameter")
 
 
-class InstructionParameter(UUIDModel):
+class CodeParameter(UUIDModel):
     """
-    A parameter is a named argument to a function which is bound by a InstructionArgument.
+    A parameter is a named argument to a function which is bound by a CodeArgument.
 
     Parameters are typed using ?
     # TODO @Feature: type parameters and schemas
     """
 
-    instruction = models.ForeignKey(
-        Instruction, on_delete=models.CASCADE, related_name="parameters"
-    )
+    code = models.ForeignKey(Code, on_delete=models.CASCADE, related_name="parameters")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = TextChoicesField(choices_enum=InstructionParameterType)
+    type = TextChoicesField(choices_enum=CodeParameterType)
     schema = models.JSONField(null=True)
 
     def __str__(self):
-        return f"{self.instruction}/parameters/{self.name}(type={self.type})"
+        return f"{self.code}/parameters/{self.name}(type={self.type})"
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                name="bench_instruction_parameter_ak",
-                fields=["instruction", "name"],
+                name="bench_code_parameter_ak",
+                fields=["code", "name"],
             )
         ]
 
 
-class InstructionArgument(UUIDModel):
+class CodeArgument(UUIDModel):
     """
-    An argument is value bound to an instruction, usually to an instruction parameter.
+    An argument is bound value to some code, usually associated with a parameter.
     An argument can be a reference to a symbol or a specific value.
 
     Note: if there is no corresponding parameter the argument is an anonymous import. This
      doesn't seem perfect, but works for now.
     """
 
-    instruction = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="arguments"
-    )
-    instruction_free = models.ForeignKey(
-        "Instruction", on_delete=models.CASCADE, null=True, related_name="+"
-    )
+    code = models.ForeignKey("code", on_delete=models.CASCADE, null=True, related_name="arguments")
+    code_free = models.ForeignKey("code", on_delete=models.CASCADE, null=True, related_name="+")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    type = models.CharField(max_length=64, choices=InstructionParameterType.choices)
+    type = models.CharField(max_length=64, choices=CodeParameterType.choices)
     reference = models.ForeignKey("SymbolDefinition", on_delete=models.CASCADE, null=True)
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.instruction}/arguments/{self.name}(type={self.type})"
+        return f"{self.code}/arguments/{self.name}(type={self.type})"
 
     class Meta:
         constraints = [
             # TODO @Robustness: ensure that only one argument value type is set
-            # ensure that either instruction or instruction_free is set
+            # ensure that either code or code_free is set
             models.CheckConstraint(
-                name="bench_instruction_argument_bound_free_ck",
-                check=(
-                    models.Q(instruction__isnull=True) ^ models.Q(instruction_free__isnull=True)
-                ),
+                name="bench_code_argument_bound_free_ck",
+                check=(models.Q(code__isnull=True) ^ models.Q(code_free__isnull=True)),
             ),
-            # ensure that instruction bound/free can only be bound once per name
-            # (two separate constraints because of the OR on nullable instruction/instruction_free)
+            # ensure that code bound/free can only be bound once per name
+            # (two separate constraints because of the OR on nullable code/code_free)
             models.UniqueConstraint(
-                name="bench_instruction_argument_bound_name_ak",
-                fields=["instruction", "name"],
+                name="bench_code_argument_bound_name_ak",
+                fields=["code", "name"],
             ),
             models.UniqueConstraint(
-                name="bench_instruction_argument_free_name_ak",
-                fields=["instruction_free", "name"],
+                name="bench_code_argument_free_name_ak",
+                fields=["code_free", "name"],
             ),
         ]
 
@@ -292,7 +262,7 @@ PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
 
 class Execution(UUIDTModel):
     """
-    The execution of a hierarchical instruction.
+    The execution of a hierarchical code.
     """
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -311,8 +281,8 @@ class Execution(UUIDTModel):
     parent = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
-    instruction = models.ForeignKey(
-        "Instruction",
+    code = models.ForeignKey(
+        "code",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
