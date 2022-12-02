@@ -36,7 +36,6 @@ function focusFile(file: FileHeader) {
         >
           {{ file.name }}
         </li>
-        <!-- Icon to the left -->
       </ul>
     </div>
   </div>

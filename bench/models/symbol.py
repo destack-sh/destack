@@ -266,9 +266,13 @@ class SymbolContent(UUIDModel):
         else:
             return "<undefined>"
 
-    @property
+    @gql.model_property(only=["definition"], select_related=["definition"])
     def type(self) -> SymbolType:
         return self.definition.type
+
+    @gql.model_property(only=["definition"], select_related=["definition"])
+    def name_dot_type(self) -> str:
+        return self.definition.name_dot_type
 
     def deepcopy(self, to: Any, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         """

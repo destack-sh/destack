@@ -87,7 +87,7 @@ class SymbolDefinition(gql.Node):
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    pass
+    name_dot_type: auto
     # TODO @Cleanup: fix definition in SymbolContent interface
     #  (should work since it's a 1:1 but doesn't)
     # definition: SymbolDefinition
@@ -114,7 +114,6 @@ class Compilation(gql.Node):
 
 @gql.django.type(models.Expectation)
 class Expectation(SymbolContent):
-    task: Task
     description: auto
     statements: list[SymbolDefinition]
 
