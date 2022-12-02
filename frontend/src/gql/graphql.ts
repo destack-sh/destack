@@ -236,6 +236,7 @@ export type ProjectEdge = {
 export type ProjectVersion = Node & {
   __typename?: "ProjectVersion";
   children: Array<ProjectVersion>;
+  committed: Scalars["Boolean"];
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   definitions: Array<SymbolDefinition>;
@@ -462,6 +463,7 @@ export type ProjectVersionHeaderFragment = {
   name?: string | null;
   description?: string | null;
   createdAt: any;
+  committed: boolean;
   committedAt?: any | null;
 } & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
 
@@ -503,11 +505,13 @@ export type GetProjectVersionFilesQueryVariables = Exact<{
 
 export type GetProjectVersionFilesQuery = {
   __typename?: "Query";
-  projectVersion?: {
-    __typename?: "ProjectVersion";
-    id: any;
-    files: Array<{ __typename?: "File"; id: any; name: string; createdAt: any; updatedAt: any }>;
-  } | null;
+  projectVersion?:
+    | ({
+        __typename?: "ProjectVersion";
+        id: any;
+        files: Array<{ __typename?: "File"; id: any; name: string; createdAt: any; updatedAt: any }>;
+      } & { " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment } })
+    | null;
 };
 
 export const DatasetContentFragmentDoc = {
@@ -622,6 +626,7 @@ export const ProjectVersionHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
           { kind: "Field", name: { kind: "Name", value: "committedAt" } },
         ],
       },
@@ -839,6 +844,7 @@ export const GetProjectVersionFilesDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "files" },
@@ -858,5 +864,6 @@ export const GetProjectVersionFilesDocument = {
         ],
       },
     },
+    ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<GetProjectVersionFilesQuery, GetProjectVersionFilesQueryVariables>;

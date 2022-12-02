@@ -3,7 +3,7 @@ import DatasetInterface from "@/components/DatasetInterface.vue";
 import InstructionInterface from "@/components/InstructionInterface.vue";
 import { graphql, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
-import { EditorState, EDITOR_STATE_KEY, type SymbolDefinitionHeader } from "@/utils/editor";
+import { type EditorState, EDITOR_STATE_KEY, type SymbolDefinitionHeader } from "@/utils/editor";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, inject } from "vue";
 
@@ -78,13 +78,13 @@ function focusDefinition(definition: SymbolDefinitionHeader) {
 </script>
 
 <template>
-  <div class="m-6 flex flex-col gap-6 overflow-y-scroll">
+  <div class="m-6 flex flex-col gap-6">
     <div
       v-for="definition in definitions"
       :key="definition.id"
       class="mx-auto w-full max-w-[1000px] rounded-sm border bg-white py-2 px-2"
       :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
-      @click="focusDefinition(definition)"
+      @mousedown="focusDefinition(definition)"
     >
       <span class="m-1 text-sm text-gray-900">
         {{ definition.nameDotType }}

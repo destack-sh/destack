@@ -49,6 +49,7 @@ class ProjectVersion(gql.Node):
     parents: list[ProjectVersion]
     children: list[ProjectVersion]
     created_at: auto
+    committed: auto
     committed_at: auto
     program: Optional[Task]
     files: list[File]
