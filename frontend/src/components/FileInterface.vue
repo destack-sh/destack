@@ -1,13 +1,15 @@
 <script lang="ts" setup>
 import DatasetInterface from "@/components/DatasetInterface.vue";
+import ExpectationInterface from "@/components/ExpectationInterface.vue";
 import InstructionInterface from "@/components/InstructionInterface.vue";
-import { graphql, type FragmentType } from "@/gql";
+import TaskInterface from "@/components/TaskInterface.vue";
+import { graphql, useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
-import { type EditorState, EDITOR_STATE_KEY, type SymbolDefinitionHeader } from "@/utils/editor";
+import { EDITOR_STATE_KEY, type EditorState, type SymbolDefinitionHeader } from "@/utils/editor";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, inject } from "vue";
 
-const FileHeaderFragment = graphql(/* GraphQL */ `
+const FileHeader = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
     name
@@ -15,9 +17,9 @@ const FileHeaderFragment = graphql(/* GraphQL */ `
     updatedAt
   }
 `);
-type FileHeader = FragmentType<typeof FileHeaderFragment>;
 
-const props = defineProps<{ file: FileHeader }>();
+const props = defineProps<{ file: FragmentType<typeof FileHeader> }>();
+const fileHeader = useFragment(FileHeader, props.file);
 
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
@@ -35,13 +37,15 @@ const { result: file } = useQuery(
           content {
             ...InstructionContent
             ...DatasetContent
+            ...ExpectationContent
+            ...TaskContent
           }
         }
       }
     }
   `),
   () => ({
-    fileId: props.file.id,
+    fileId: fileHeader.id,
   })
 );
 
@@ -60,10 +64,16 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
   [SymbolType.Instruction]: {
     component: InstructionInterface,
   },
+  [SymbolType.Expectation]: {
+    component: ExpectationInterface,
+  },
+  [SymbolType.Task]: {
+    component: TaskInterface,
+  },
 };
 
 const editorState = inject<EditorState>(EDITOR_STATE_KEY);
-const isFocused = computed(() => editorState?.focusedFile.value?.id == props.file.id);
+const isFocused = computed(() => editorState?.focusedFile.value?.id == fileHeader.id);
 
 function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
   return editorState?.focusedDefinition.value?.id == definition.id;

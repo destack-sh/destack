@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
+import type { DatasetContentFragment } from "@/gql/graphql";
 import { computed } from "vue";
 
-const DatasetContentFragment = graphql(/* GraphQL */ `
+const DatasetContent = graphql(/* GraphQL */ `
   fragment DatasetContent on Dataset {
     id
     records {
@@ -12,19 +13,18 @@ const DatasetContentFragment = graphql(/* GraphQL */ `
     }
   }
 `);
-type DatasetContent = FragmentType<typeof DatasetContentFragment>;
 
-const props = defineProps<{ content: DatasetContent }>();
-const content = useFragment(DatasetContentFragment, props.content);
+const props = defineProps<{ content: FragmentType<typeof DatasetContent> }>();
+const content = useFragment(DatasetContent, props.content);
 
-function datasetToJsonObj(content: DatasetContent) {
+function datasetToJsonObj(content: DatasetContentFragment) {
   return content.records.map((r) => r.data);
 }
 
-const asJsonObj = computed(() => datasetToJsonObj(props.content));
+const contentAsJsonObj = computed(() => datasetToJsonObj(content));
 </script>
 <template>
   <div class="h-full w-full">
-    <MonacoEditor :model-value="JSON.stringify(asJsonObj, null, 2)" language="json" />
+    <MonacoEditor :model-value="JSON.stringify(contentAsJsonObj, null, 2)" language="json" />
   </div>
 </template>
