@@ -9,7 +9,7 @@ const state = inject<EditorState>(EDITOR_STATE_KEY);
 <template>
   <div>
     <!-- View header -->
-    <div class="flex flex-row justify-between border-b border-gray-200 px-2 py-4">
+    <div class="flex flex-row justify-between border-b border-gray-200 px-3 py-4">
       <span class="text-xs font-bold uppercase">Explorer</span>
       <!-- TODO @Feature: select explorer get_view (by type, by task tree) -->
     </div>
@@ -20,7 +20,7 @@ const state = inject<EditorState>(EDITOR_STATE_KEY);
         <li
           v-for="file in files"
           :key="file.id"
-          class="relative py-0.5 px-2 hover:cursor-pointer"
+          class="relative py-0.5 px-3 hover:cursor-pointer"
           :class="
             file.id == state?.focusedFile.value?.id
               ? 'bg-orange-100 font-bold text-orange-700'

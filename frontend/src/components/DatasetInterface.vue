@@ -14,14 +14,14 @@ const DatasetContent = graphql(/* GraphQL */ `
   }
 `);
 
-const props = defineProps<{ content: FragmentType<typeof DatasetContent>; focused: bool }>();
-const content = useFragment(DatasetContent, props.content);
+const props = defineProps<{ content: FragmentType<typeof DatasetContent>; focused: boolean }>();
+const content = computed(() => useFragment(DatasetContent, props.content));
 
 function datasetToJsonObj(content: DatasetContentFragment) {
   return content.records.map((r) => r.data);
 }
 
-const contentAsJsonObj = computed(() => datasetToJsonObj(content));
+const contentAsJsonObj = computed(() => datasetToJsonObj(content.value));
 </script>
 <template>
   <div class="h-full w-full">

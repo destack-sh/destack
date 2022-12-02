@@ -28,7 +28,7 @@ from bench.models import (
 )
 from bench.models.code import CodeParameterType
 from bench.models.symbol import SYMBOL_CONTENT_FIELDS
-from bench.models.task import Expectation, Task
+from bench.models.task import Compilation, Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
 
 logger = structlog.get_logger(__name__)
@@ -244,23 +244,20 @@ class Compiler:
         self.compiler_model = get_stdlib_model("openai/text-davinci-003")
         self.get_temperature = get_stdlib_code("symbolx/get_temperature")
 
-    async def compile(self, project_v: ProjectVersion, task: Task, compilation_name: str) -> None:
+    async def compile(self, project_v: ProjectVersion, compilation: Compilation) -> None:
         """
         Compiles a task into an executable code.
         """
-
         # get data
-        compilation = (
-            await task.compilations.all().prefetch_related("backends").aget(name=compilation_name)
-        )
-        backends: list[Model] = list(compilation.backends.all())
+        task = compilation.task
+        backends: list[Model] = await _acollect(compilation.backends.all())
 
         # run compile
         main_task, main_code = await self.compile_task(project_v, task, backends)
 
         # save result
-        compilation.output_task = main_task
-        compilation.output_code = main_code
+        compilation.target_task = main_task
+        compilation.target_code = main_code
         await sync_to_async(compilation.save)()
 
     async def compile_task(
@@ -479,7 +476,7 @@ class Compiler:
             prompt_input = prompt_input + f"{main_output_key}: "
 
         llm_code = Code(task=task_data.task, schema=task_data.schema, builtin_id="llm_fewshot")
-        genfile.create_definition(task_data.definition.name, llm_code)
+        genfile.create_definition(task_data.definition.name, llm_code, generated=True)
         llm_code.bind_arguments(
             model=task_data.optimal_backend.definition,
             prompt_prefix=prompt_prefix,

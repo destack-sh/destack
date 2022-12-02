@@ -91,7 +91,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       <span
         class="m-1 text-sm"
         :class="{
-          'text-orange-400': !isDefinitionFocused(definition),
+          'text-orange-900': !isDefinitionFocused(definition),
           'text-orange-600': isDefinitionFocused(definition),
         }"
       >

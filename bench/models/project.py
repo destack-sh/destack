@@ -66,7 +66,6 @@ class Project(TaggableMixin, UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
     # branches via ProjectBranch
-    # programs via Program
 
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
@@ -160,7 +159,6 @@ class Project(TaggableMixin, UUIDModel):
             if old_definition.parent_id is not None:
                 new_definition.parent = new_definitions[old_definition.parent_id]
             new_definition.save()
-
         # head has advanced to new version
         if assigned_parent == self.head:
             self.head = new_version
@@ -222,9 +220,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     )
     # files via ProjectFile
     # definitions via SymbolDefinition
-    backends: models.ManyToManyField = models.ManyToManyField(
-        "SymbolDefinition", related_name="referenced_in_projects+", blank=True
-    )
+    # compilations via Compilation
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
@@ -432,10 +428,7 @@ class File(UUIDModel):
         definition.save()
 
     def create_definition(
-        self,
-        name: str,
-        content: SymbolContent,
-        parent: Optional[SymbolDefinition] = None,
+        self, name: str, content: SymbolContent, parent: Optional[SymbolDefinition] = None, **kwargs
     ) -> SymbolDefinition:
         index = self.definitions.count() if parent is None else parent.children.count()
         definition = SymbolDefinition.objects.create_definition(
@@ -445,6 +438,7 @@ class File(UUIDModel):
             parent=parent,
             file=self,
             index=index,
+            **kwargs,
         )
         return definition
 
