@@ -15,7 +15,7 @@ export function useNow(updateInterval = 60000) {
 
   return now;
 }
-const defaultLuxonOptions: ToRelativeOptions = {
+export const defaultLuxonOptions: ToRelativeOptions = {
   locale: "en-US",
   style: "narrow",
   unit: ["years", "months", "weeks", "days", "hours", "minutes"],
@@ -25,7 +25,7 @@ export function useTimeFromNow(updateInterval = 60000, luxonOptions = defaultLux
   const now = useNow(updateInterval);
   function getTimeFromNow(dt: DateTime): string | null {
     if (now.value.diff(dt, "seconds").seconds < 60) {
-      return "just now";
+      return "now";
     } else {
       return dt.toRelative({ ...luxonOptions, base: now.value });
     }

@@ -202,6 +202,7 @@ type ProjectVersion implements Node {
   parents: [ProjectVersion!]!
   children: [ProjectVersion!]!
   createdAt: DateTime!
+  committed: Boolean!
   committedAt: DateTime
   program(pk: ID): Task
   files: [File!]!

@@ -73,13 +73,13 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     if exists:
         logger.warn(f"Overwriting library {stdlib_v} at {version_id}")
     else:
-        stdlib_v = stdlib.create_version(version_id, parent=stdlib_v)
+        stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
 
     stdlib_v.reset()
     load_symbols(stdlib_v, path)
 
     # advance head
-    stdlib_v.commit()
+    stdlib_v.commit(name=version_id)
     stdlib.head = stdlib_v
     stdlib.save()
 
@@ -97,7 +97,7 @@ def create_model_providers():
             # skip if version already exists
             logger.info(f"Skip updating library {stdlib_v} to {version_id} (already exists)")
             continue
-        stdlib_v = stdlib.create_version(version_id, parent=stdlib_v)
+        stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
         stdlib_v.reset()
 
         # add models to library
@@ -112,7 +112,7 @@ def create_model_providers():
             model_file.create_definition(model_id, model)
 
         # advance head
-        stdlib_v.commit()
+        stdlib_v.commit(version_id)
         stdlib.head = stdlib_v
         stdlib.save()
 

@@ -10,6 +10,7 @@ from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
+from strawberry_django_plus import gql
 
 from bench.models.symbol import SymbolContent, SymbolDefinition, SymbolType
 from bench.models.tag import TaggableMixin
@@ -363,6 +364,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
     @transaction.atomic
     def commit(self, name: Optional[str] = None):
+        if self.committed:
+            raise ValueError(f"already committed: {self}")
+
         self.committed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.name = name
         # mark all symbol definitions as committed if they aren't already
@@ -375,8 +379,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
                 symbol_def.save()
         self.save()
 
-    @property
-    def committed(self):
+    @gql.model_property(only=["committed_at"])
+    def committed(self) -> bool:
         return self.committed_at is not None
 
     @property

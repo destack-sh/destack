@@ -3,7 +3,7 @@ import SButton from "@/components/basic/SButton.vue";
 import FileInterface from "@/components/FileInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
-import { graphql } from "@/gql";
+import { graphql, type FragmentType } from "@/gql";
 import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -55,9 +55,11 @@ const ProjectVersionHeaderFragment = graphql(/* GraphQL */ `
     name
     description
     createdAt
+    committed
     committedAt
   }
 `);
+type ProjectVersionHeader = FragmentType<typeof ProjectVersionHeaderFragment>;
 
 const { result: projectId } = useQuery(
   graphql(/* GraphQL */ `
@@ -102,6 +104,7 @@ const { result: filesResult } = useQuery(
     query getProjectVersionFiles($id: GlobalID!) {
       projectVersion(id: $id) {
         id
+        ...ProjectVersionHeader
         files {
           id
           name
@@ -266,13 +269,15 @@ watchEffect(() => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex-1 flex-shrink-0 resize-x overflow-y-auto bg-gray-100">
-        <!-- Editors for each open file -->
-        <FileInterface
-          v-if="state.focusedFile.value"
-          :file="state.focusedFile.value"
-          :key="state.focusedFile.value.id"
-        />
+      <main class="relative flex h-full w-full flex-1 bg-gray-100">
+        <div class="absolute top-0 left-0 h-full w-full flex-1 overflow-y-auto">
+          <!-- Editors for each open file -->
+          <FileInterface
+            v-if="state.focusedFile.value"
+            :file="state.focusedFile.value"
+            :key="state.focusedFile.value.id"
+          />
+        </div>
       </main>
     </div>
   </div>
