@@ -19,10 +19,10 @@ def run_program(request: Request, organization: str, project: str) -> Response:
     project_v = project_instance.head_
     if project_v.main_program is None:
         return Response({"error": "no main program"}, status=400)
-    compiled_program = project_v.main_program.task_.compilations.first()
+    compiled_program = project_v.main_program.task_.compilations.get()
 
     try:
-        output = async_to_sync(executor.run)(compiled_program.output_instruction, variables)
+        output = async_to_sync(executor.run)(compiled_program.output_code, variables)
         return Response({"output": output})
     except Exception as e:
         return Response({"error": str(e)}, status=400)

@@ -2,8 +2,8 @@
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 
-const InstructionContentFragment = graphql(/* GraphQL */ `
-  fragment InstructionContent on Instruction {
+const CodeContentFragment = graphql(/* GraphQL */ `
+  fragment CodeContent on Code {
     id
     builtinId
     code
@@ -23,10 +23,10 @@ const InstructionContentFragment = graphql(/* GraphQL */ `
     }
   }
 `);
-type InstructionContent = FragmentType<typeof InstructionContentFragment>;
+type CodeContent = FragmentType<typeof CodeContentFragment>;
 
-const props = defineProps<{ content: InstructionContent }>();
-const content = useFragment(InstructionContentFragment, props.content);
+const props = defineProps<{ content: CodeContent }>();
+const content = useFragment(CodeContentFragment, props.content);
 </script>
 <template>
   <div>

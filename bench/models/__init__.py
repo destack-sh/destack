@@ -1,12 +1,5 @@
+from .code import Code, CodeArgument, CodeParameter, Execution, ExecutionStatus
 from .dataset import Dataset, DatasetRecord, DatasetView
-from .instruction import (
-    Execution,
-    ExecutionStatus,
-    Instruction,
-    InstructionArgument,
-    InstructionParameter,
-    InstructionScope,
-)
 from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
 from .project import File, Project, ProjectVersion
@@ -22,10 +15,9 @@ __all__ = [
     "Task",
     "Compilation",
     "Expectation",
-    "Instruction",
-    "InstructionScope",
-    "InstructionArgument",
-    "InstructionParameter",
+    "Code",
+    "CodeArgument",
+    "CodeParameter",
     "Execution",
     "ExecutionStatus",
     "Organization",

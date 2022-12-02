@@ -109,7 +109,7 @@ class Compilation(gql.Node):
     name: auto
     backends: list[SymbolDefinition]
     output_task: Optional[SymbolDefinition]
-    output_instruction: Optional[SymbolDefinition]
+    output_code: Optional[SymbolDefinition]
 
 
 @gql.django.type(models.Expectation)
@@ -118,19 +118,18 @@ class Expectation(SymbolContent):
     statements: list[SymbolDefinition]
 
 
-@gql.django.type(models.Instruction)
-class Instruction(SymbolContent):
+@gql.django.type(models.Code)
+class Code(SymbolContent):
     task: Optional[Task]
-    scope: auto
     builtin_id: auto
     code: auto
-    parameters: list[InstructionParameter]
-    arguments: list[InstructionArgument]
+    parameters: list[CodeParameter]
+    arguments: list[CodeArgument]
 
 
-@gql.django.type(models.InstructionParameter)
-class InstructionParameter(gql.Node):
-    instruction: Instruction
+@gql.django.type(models.CodeParameter)
+class CodeParameter(gql.Node):
+    code: Code
     name: auto
     created_at: auto
     updated_at: auto
@@ -138,10 +137,10 @@ class InstructionParameter(gql.Node):
     schema: auto
 
 
-@gql.django.type(models.InstructionArgument)
-class InstructionArgument(gql.Node):
-    instruction: Instruction
-    instruction_free: Instruction
+@gql.django.type(models.CodeArgument)
+class CodeArgument(gql.Node):
+    code: Code
+    code_free: Code
     name: auto
     created_at: auto
     updated_at: auto

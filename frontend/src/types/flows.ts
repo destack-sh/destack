@@ -20,7 +20,7 @@ export type FlowVersion = Taggable & {
   committed: boolean;
 };
 
-export type FlowInstruction = Taggable & {
+export type FlowCode = Taggable & {
   id: string;
   name: string;
 };

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
-import InstructionInterface from "@/components/InstructionInterface.vue";
+import CodeInterface from "@/components/CodeInterface.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
@@ -35,7 +35,7 @@ const { result: file } = useQuery(
           createdAt
           updatedAt
           content {
-            ...InstructionContent
+            ...CodeContent
             ...DatasetContent
             ...ExpectationContent
             ...TaskContent
@@ -61,8 +61,8 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
   [SymbolType.Dataset]: {
     component: DatasetInterface,
   },
-  [SymbolType.Instruction]: {
-    component: InstructionInterface,
+  [SymbolType.Code]: {
+    component: CodeInterface,
   },
   [SymbolType.Expectation]: {
     component: ExpectationInterface,

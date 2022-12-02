@@ -34,7 +34,8 @@ function focusFile(file: FileHeader) {
           "
           @click="focusFile(file)"
         >
-          {{ file.name }}
+          <!-- There may be other types later, but currently it's all instruct -->
+          {{ file.name }}<span class="font-normal">.instruct</span>
         </li>
       </ul>
     </div>
