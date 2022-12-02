@@ -23,14 +23,13 @@ const CodeContentFragment = graphql(/* GraphQL */ `
     }
   }
 `);
-type CodeContent = FragmentType<typeof CodeContentFragment>;
 
-const props = defineProps<{ content: CodeContent }>();
+const props = defineProps<{ content: FragmentType<typeof CodeContentFragment>; focused: boolean }>();
 const content = useFragment(CodeContentFragment, props.content);
 </script>
 <template>
   <div>
     <div v-if="!content.code">builtin {{ content.builtinId }}</div>
-    <MonacoEditor v-else :model-value="content.code" language="python" />
+    <MonacoEditor v-else :model-value="content.code" language="python" :focused="focused" />
   </div>
 </template>

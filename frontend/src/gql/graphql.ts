@@ -465,7 +465,7 @@ export type TaskContentFragment = {
   __typename?: "Task";
   id: any;
   schema: any;
-  expectations: Array<{ __typename?: "Expectation"; id: any; nameDotType: string }>;
+  expectations: Array<{ __typename?: "Expectation"; id: any; description: string; nameDotType: string }>;
   templateImplementation?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
 } & { " $fragmentName"?: "TaskContentFragment" };
 
@@ -671,6 +671,7 @@ export const TaskContentFragmentDoc = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
                 { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
               ],
             },

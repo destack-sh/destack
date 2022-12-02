@@ -13,7 +13,7 @@ const documents = {
     types.FileHeaderFragmentDoc,
   "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  ":
     types.GetFileByIdDocument,
-  "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n":
+  "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n":
     types.TaskContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
@@ -41,8 +41,8 @@ export function graphql(
   source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n"
-): typeof documents["\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n"];
+  source: "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n"
+): typeof documents["\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"];

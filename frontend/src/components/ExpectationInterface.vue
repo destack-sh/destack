@@ -16,7 +16,7 @@ const props = defineProps<{ content: FragmentType<typeof ExpectationContent> }>(
 const content = useFragment(ExpectationContent, props.content);
 </script>
 <template>
-  <div>
+  <div class="m-2 text-sm">
     {{ content.description }}
     <span v-for="statement in content.statements" :key="statement.id">
       {{ statement.nameDotType }}
