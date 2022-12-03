@@ -50,7 +50,7 @@ const activeView: Ref<View> = ref(views[0]);
 // real data
 const { result: projectId } = useQuery(
   graphql(/* GraphQL */ `
-    query getProjectBySlug($organization: String!, $project: String!) {
+    query projectBySlug($organization: String!, $project: String!) {
       projectBySlug(organization: $organization, project: $project) {
         id
       }
@@ -64,7 +64,7 @@ const { result: projectId } = useQuery(
 
 const { result: versionsQuery } = useQuery(
   graphql(/* GraphQL */ `
-    query getProjectVersions($id: GlobalID!) {
+    query projectVersions($id: GlobalID!) {
       project(id: $id) {
         id
         name
@@ -111,7 +111,7 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
 
 const { result: contentQuery } = useQuery(
   graphql(/* GraphQL */ `
-    query getProjectVersionContent($id: GlobalID!) {
+    query projectVersionContent($id: GlobalID!) {
       projectVersion(id: $id) {
         id
         ...ProjectVersionContent
@@ -148,10 +148,17 @@ const { mutate: compileTask } = useMutation(
         }
       }
     }
-  `)
+  `),
+  // TODO @Performance: don't refetch all file contents post compilation
+  //  just update the cache with new source mappings (and remove old ones)
+  //  This applies to all mutations, not just this one.
+  { refetchQueries: ["projectVersionContent", "fileContentById"] }
 );
 
 const isCompiling = ref(false);
+const canCompile = computed(() => !isCompiling.value && compilations.value?.length > 0);
+const canRun = false;
+
 async function compileAll() {
   isCompiling.value = true;
   console.log("compiling", compilations.value);
@@ -159,8 +166,42 @@ async function compileAll() {
   const compilationPayloads = await Promise.all(compilationMutations);
   console.log("compiled", compilationPayloads);
   isCompiling.value = false;
-  // TODO @Feature: invalidate cache for generated files/definitions
 }
+
+const { mutate: addCompilationTarget } = useMutation(
+  graphql(/* GraphQL */ `
+    mutation addCompilationTarget($input: AddCompilationInput!) {
+      addCompilationTarget(input: $input) {
+        compilation {
+          id
+          name
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  `),
+  { refetchQueries: ["projectVersionContent"] }
+);
+async function createCompilation() {
+  if (!content.value?.mainProgram) {
+    throw new Error("no main program in current version");
+  }
+
+  await addCompilationTarget({
+    input: {
+      taskDefinitionId: content.value?.mainProgram?.id,
+      name: "default",
+      backends: ["openai/text-davinci-003"],
+    },
+  });
+}
+
+const compileNavigation = computed(() => [
+  { name: "Compile all", action: compileAll, disabled: !canCompile.value },
+  { name: "Compile optimized", action: compileAll, disabled: !canCompile.value },
+  { name: "Add build target", action: createCompilation },
+]);
 
 // set up editor state
 const router = useRouter();
@@ -244,7 +285,7 @@ watchEffect(() => {
                 class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
               >
                 <MenuItem v-for="item in projectNavigation" :key="item.name" v-slot="{ active }">
-                  <a :href="item.href" :class="[active ? 'bg-gray-50' : '', 'block py-2 px-4 text-sm text-gray-700']">
+                  <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
                     {{ item.name }}
                   </a>
                 </MenuItem>
@@ -256,23 +297,65 @@ watchEffect(() => {
         <div class="flex items-center justify-end">
           <!-- Controls -->
           <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+            <!-- Compile menu -->
+            <div class="flex flex-row">
+              <button
+                :class="[
+                  'group inline-flex items-center justify-center rounded-l-sm py-2 px-3 text-sm font-semibold focus:outline-none',
+                  'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
+                  !canCompile ? 'cursor-not-allowed opacity-50' : '',
+                ]"
+                :disabled="!canCompile"
+              >
+                <WrenchIcon class="h-5 w-5" aria-hidden="true" />
+                <span class="ml-1" @click="compileAll">Compile</span>
+              </button>
+              <Menu as="div" class="relative h-full flex-shrink-0">
+                <MenuButton
+                  :class="[
+                    'flex h-full rounded-r-sm px-2 py-2 text-left',
+                    'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
+                    'border-l border-orange-200',
+                  ]"
+                >
+                  <ChevronDownIcon class="h-5 w-5" aria-hidden="true" />
+                </MenuButton>
+                <transition
+                  enter-active-class="transition duration-100 ease-out"
+                  enter-from-class="transform opacity-0"
+                  enter-to-class="transform opacity-100"
+                  leave-active-class="transition duration-75 ease-in"
+                  leave-from-class="transform opacity-100"
+                  leave-to-class="transform opacity-0"
+                >
+                  <MenuItems
+                    class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                  >
+                    <MenuItem v-for="item in compileNavigation" :key="item.name" v-slot="{ active }">
+                      <button
+                        :class="[
+                          active ? 'bg-gray-100' : '',
+                          item.disabled ? 'cursor-not-allowed text-gray-500' : 'text-gray-700',
+                          'w-full py-2 px-4 text-left text-sm',
+                        ]"
+                        @click="item.action"
+                        :disabled="item.disabled"
+                      >
+                        {{ item.name }}
+                      </button>
+                    </MenuItem>
+                  </MenuItems>
+                </transition>
+              </Menu>
+            </div>
+            <!-- Run menu -->
             <button
               :class="[
                 'group inline-flex items-center justify-center rounded-sm py-2 px-3 text-sm font-semibold focus:outline-none',
                 'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
-                isCompiling ? 'cursor-not-allowed opacity-50' : '',
+                !canRun ? 'cursor-not-allowed opacity-50' : '',
               ]"
-              :disabled="isCompiling"
-              v-if="compilations.length > 0"
-            >
-              <WrenchIcon class="h-5 w-5" aria-hidden="true" />
-              <span class="ml-1" @click="compileAll">Compile</span>
-            </button>
-            <button
-              :class="[
-                'group inline-flex items-center justify-center rounded-sm py-2 px-3 text-sm font-semibold focus:outline-none',
-                'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
-              ]"
+              :disabled="!canRun"
             >
               <PlayIcon class="h-5 w-5" aria-hidden="true" />
               <span class="ml-1">Run</span>
@@ -302,7 +385,7 @@ watchEffect(() => {
                 class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
               >
                 <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                  <a :href="item.href" :class="[active ? 'bg-gray-50' : '', 'block py-2 px-4 text-sm text-gray-700']">
+                  <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
                     {{ item.name }}
                   </a>
                 </MenuItem>

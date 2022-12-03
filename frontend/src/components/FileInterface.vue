@@ -3,6 +3,7 @@ import CodeInterface from "@/components/CodeInterface.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
+import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
 import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
@@ -15,7 +16,7 @@ const fileHeader = useFragment(FileHeaderType, props.file);
 
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
-    query getFileById($fileId: GlobalID!) {
+    query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
         id
         ...FileHeader
@@ -45,6 +46,8 @@ const { result: file } = useQuery(
 const definitions = computed(() => {
   return file.value?.file?.definitions || [];
 });
+
+const { getTimeFromNowString } = useTimeFromNow();
 
 type DefinitionInterface = {
   component: any;
@@ -92,6 +95,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       <span v-if="definition.generated">
         <span class="text-xs text-gray-500">(generated)</span>
       </span>
+      <span class="text-xs text-gray-500"> edited {{ getTimeFromNowString(definition.updatedAt) }} </span>
       <div class="relative min-h-fit overflow-clip">
         <!-- TODO @Cleanup: access symbol props via definition only (like generated) -->
         <component

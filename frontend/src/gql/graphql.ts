@@ -20,6 +20,17 @@ export type Scalars = {
   JSON: any;
 };
 
+export type AddCompilationInput = {
+  backends: Array<Scalars["String"]>;
+  name: Scalars["String"];
+  taskDefinitionId: Scalars["GlobalID"];
+};
+
+export type AddCompilationPayload = {
+  __typename?: "AddCompilationPayload";
+  compilation: Compilation;
+};
+
 export type Code = Node &
   SymbolContent & {
     __typename?: "Code";
@@ -145,7 +156,12 @@ export type Model = Node &
 
 export type Mutation = {
   __typename?: "Mutation";
+  addCompilationTarget: AddCompilationPayload;
   compile: CompilePayload;
+};
+
+export type MutationAddCompilationTargetArgs = {
+  input: AddCompilationInput;
 };
 
 export type MutationCompileArgs = {
@@ -436,11 +452,11 @@ export type ExpectationContentFragment = {
   statements: Array<{ __typename?: "SymbolDefinition"; id: any; nameDotType: string }>;
 } & { " $fragmentName"?: "ExpectationContentFragment" };
 
-export type GetFileByIdQueryVariables = Exact<{
+export type FileContentByIdQueryVariables = Exact<{
   fileId: Scalars["GlobalID"];
 }>;
 
-export type GetFileByIdQuery = {
+export type FileContentByIdQuery = {
   __typename?: "Query";
   file?:
     | ({
@@ -482,21 +498,18 @@ export type TaskContentFragment = {
   >;
 } & { " $fragmentName"?: "TaskContentFragment" };
 
-export type GetProjectBySlugQueryVariables = Exact<{
+export type ProjectBySlugQueryVariables = Exact<{
   organization: Scalars["String"];
   project: Scalars["String"];
 }>;
 
-export type GetProjectBySlugQuery = {
-  __typename?: "Query";
-  projectBySlug?: { __typename?: "Project"; id: any } | null;
-};
+export type ProjectBySlugQuery = { __typename?: "Query"; projectBySlug?: { __typename?: "Project"; id: any } | null };
 
-export type GetProjectVersionsQueryVariables = Exact<{
+export type ProjectVersionsQueryVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type GetProjectVersionsQuery = {
+export type ProjectVersionsQuery = {
   __typename?: "Query";
   project?: {
     __typename?: "Project";
@@ -537,11 +550,11 @@ export type ProjectVersionContentFragment = {
   >;
 } & { " $fragmentName"?: "ProjectVersionContentFragment" };
 
-export type GetProjectVersionContentQueryVariables = Exact<{
+export type ProjectVersionContentQueryVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type GetProjectVersionContentQuery = {
+export type ProjectVersionContentQuery = {
   __typename?: "Query";
   projectVersion?:
     | ({ __typename?: "ProjectVersion"; id: any } & {
@@ -571,6 +584,18 @@ export type CompileTaskMutation = {
         | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
         | null;
     };
+  };
+};
+
+export type AddCompilationTargetMutationVariables = Exact<{
+  input: AddCompilationInput;
+}>;
+
+export type AddCompilationTargetMutation = {
+  __typename?: "Mutation";
+  addCompilationTarget: {
+    __typename?: "AddCompilationPayload";
+    compilation: { __typename?: "Compilation"; id: any; name: string; createdAt: any; updatedAt: any };
   };
 };
 
@@ -927,13 +952,13 @@ export const ProjectVersionHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectVersionHeaderFragment, unknown>;
-export const GetFileByIdDocument = {
+export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "getFileById" },
+      name: { kind: "Name", value: "fileContentById" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -1000,14 +1025,14 @@ export const GetFileByIdDocument = {
     ...ExpectationContentFragmentDoc.definitions,
     ...TaskContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<GetFileByIdQuery, GetFileByIdQueryVariables>;
-export const GetProjectBySlugDocument = {
+} as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
+export const ProjectBySlugDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "getProjectBySlug" },
+      name: { kind: "Name", value: "projectBySlug" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -1047,14 +1072,14 @@ export const GetProjectBySlugDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>;
-export const GetProjectVersionsDocument = {
+} as unknown as DocumentNode<ProjectBySlugQuery, ProjectBySlugQueryVariables>;
+export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "getProjectVersions" },
+      name: { kind: "Name", value: "projectVersions" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -1111,14 +1136,14 @@ export const GetProjectVersionsDocument = {
     },
     ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<GetProjectVersionsQuery, GetProjectVersionsQueryVariables>;
-export const GetProjectVersionContentDocument = {
+} as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
+export const ProjectVersionContentDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "getProjectVersionContent" },
+      name: { kind: "Name", value: "projectVersionContent" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -1152,7 +1177,7 @@ export const GetProjectVersionContentDocument = {
     },
     ...ProjectVersionContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<GetProjectVersionContentQuery, GetProjectVersionContentQueryVariables>;
+} as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
 export const CompileTaskDocument = {
   kind: "Document",
   definitions: [
@@ -1231,3 +1256,57 @@ export const CompileTaskDocument = {
     ...CodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompileTaskMutation, CompileTaskMutationVariables>;
+export const AddCompilationTargetDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "addCompilationTarget" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "AddCompilationInput" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "addCompilationTarget" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "compilation" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<AddCompilationTargetMutation, AddCompilationTargetMutationVariables>;

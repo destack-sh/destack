@@ -1,42 +1,15 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
-import type { Project, ProjectVersionHeaderFragment } from "@/gql/graphql";
+import type { Project } from "@/gql/graphql";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
-import { DateTime } from "luxon";
 import { computed } from "vue";
 const props = defineProps<{ project: Project }>();
 
-const { now } = useTimeFromNow();
+const { getTimeFromNowString } = useTimeFromNow();
 
 const commits = computed(() => {
   return props.project.versions.filter((v) => v.committed);
 });
-
-function getRelOrAbsTime(commit: ProjectVersionHeaderFragment) {
-  const committedAt = DateTime.fromISO(commit.committedAt);
-  const timeSinceCommit = now.value.diff(committedAt);
-  // get relative like 2h or 6d if less than 1 week
-  // get absolute if more than 1 week
-  if (timeSinceCommit.as("days") < 7) {
-    // format as 10m, 2h, 3d
-    // round to nearest whole number
-    const minutes = Math.round(timeSinceCommit.as("minutes"));
-    const hours = Math.round(timeSinceCommit.as("hours"));
-    const days = Math.round(timeSinceCommit.as("days"));
-    if (minutes < 1) {
-      return "now";
-    } else if (hours < 1) {
-      return `${minutes}m`;
-    } else if (days < 1) {
-      return `${hours}h`;
-    } else {
-      return `${days}d`;
-    }
-  } else {
-    // format as Nov 4, 2021
-    return committedAt.toLocaleString(DateTime.DATE_MED);
-  }
-}
 </script>
 <template>
   <div>
@@ -69,7 +42,7 @@ function getRelOrAbsTime(commit: ProjectVersionHeaderFragment) {
                 </div>
                 <div class="whitespace-nowrap text-right text-xs text-gray-500">
                   <time :datetime="version.committedAt">
-                    {{ getRelOrAbsTime(version) }}
+                    {{ getTimeFromNowString(version.committedAt) }}
                   </time>
                 </div>
               </div>

@@ -21,13 +21,30 @@ export const defaultLuxonOptions: ToRelativeOptions = {
   unit: ["years", "months", "weeks", "days", "hours", "minutes"],
 };
 
-export function useTimeFromNow(updateInterval = 60000, luxonOptions = defaultLuxonOptions) {
+export function useTimeFromNow(updateInterval = 60000) {
   const now = useNow(updateInterval);
   function getTimeFromNow(dt: DateTime): string | null {
-    if (now.value.diff(dt, "seconds").seconds < 60) {
-      return "now";
+    const delta = now.value.diff(dt);
+    // get relative like 2h or 6d if less than 1 week
+    // get absolute if more than 1 week
+    if (delta.as("days") < 7) {
+      // format as 10m, 2h, 3d
+      // round to nearest whole number
+      const minutes = Math.round(delta.as("minutes"));
+      const hours = Math.round(delta.as("hours"));
+      const days = Math.round(delta.as("days"));
+      if (minutes < 1) {
+        return "now";
+      } else if (hours < 1) {
+        return `${minutes}m`;
+      } else if (days < 1) {
+        return `${hours}h`;
+      } else {
+        return `${days}d`;
+      }
     } else {
-      return dt.toRelative({ ...luxonOptions, base: now.value });
+      // format as e.g., Nov 4, 2021
+      return dt.toLocaleString(DateTime.DATE_MED);
     }
   }
 
