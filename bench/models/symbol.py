@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Union, cast
 from uuid import UUID
 
 from django.db import models
+from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
@@ -229,6 +230,12 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
                 condition=models.Q(parent__isnull=False),
             ),
         ]
+
+
+# auto delete symbol content if symbol definition is deleted
+@receiver(models.signals.post_delete, sender=SymbolDefinition)
+def auto_delete_symbol_content(sender, instance: SymbolDefinition, **kwargs):
+    instance.content.delete()
 
 
 class SymbolContentManager(models.Manager):

@@ -34,6 +34,7 @@ class Task(SymbolContent):
             compilation.pk = None
             compilation.project_version = to.definition.project_version
             compilation.deepcopy(to=compilation, refs=refs)
+            compilation.save()
 
     def __str__(self):
         return f"{self.definition_str}(schema={self.schema})"
@@ -57,10 +58,10 @@ class Compilation(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     backends = models.ManyToManyField("Model", related_name="compilations+")
     target_task = models.ForeignKey(
-        "Task", on_delete=models.CASCADE, null=True, related_name="compilations+"
+        "Task", on_delete=models.SET_NULL, null=True, related_name="compilations+"
     )
     target_code = models.ForeignKey(
-        "Code", on_delete=models.CASCADE, null=True, related_name="source_compilation+"
+        "Code", on_delete=models.SET_NULL, null=True, related_name="source_compilation+"
     )
     # mappings via SourceMapping
 
@@ -73,6 +74,7 @@ class Compilation(UUIDModel):
         for mapping in self.mappings.all():
             mapping.pk = None
             mapping.compilation = to
+            replace_refs(mapping, mapping, refs)
             mapping.save()
 
     def __str__(self):
