@@ -26,6 +26,7 @@ const { result: file } = useQuery(
           nameDotType
           createdAt
           updatedAt
+          generated
           content {
             ...CodeContent
             ...DatasetContent
@@ -88,12 +89,17 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       >
         {{ definition.nameDotType }}
       </span>
+      <span v-if="definition.generated">
+        <span class="text-xs text-gray-500">(generated)</span>
+      </span>
       <div class="relative min-h-fit overflow-clip">
+        <!-- TODO @Cleanup: access symbol props via definition only (like generated) -->
         <component
           v-if="interfaces[definition.type]"
           :is="interfaces[definition.type].component"
           :definition="definition"
           :content="definition.content"
+          :generated="definition.generated"
           :focused="isDefinitionFocused(definition)"
         />
         <span class="text-red-500" v-else> cannot render {{ definition.type }} </span>

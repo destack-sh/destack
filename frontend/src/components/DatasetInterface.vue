@@ -14,7 +14,7 @@ const DatasetContent = graphql(/* GraphQL */ `
   }
 `);
 
-const props = defineProps<{ content: FragmentType<typeof DatasetContent>; focused: boolean }>();
+const props = defineProps<{ content: FragmentType<typeof DatasetContent>; generated: boolean; focused: boolean }>();
 const content = computed(() => useFragment(DatasetContent, props.content));
 
 function datasetToJsonObj(content: DatasetContentFragment) {
@@ -25,6 +25,11 @@ const contentAsJsonObj = computed(() => datasetToJsonObj(content.value));
 </script>
 <template>
   <div class="h-full w-full">
-    <MonacoEditor :model-value="JSON.stringify(contentAsJsonObj, null, 2)" language="json" :focused="focused" />
+    <MonacoEditor
+      :model-value="JSON.stringify(contentAsJsonObj, null, 2)"
+      language="json"
+      :focused="focused"
+      :readonly="generated"
+    />
   </div>
 </template>

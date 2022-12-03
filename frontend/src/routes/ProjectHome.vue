@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import SButton from "@/components/basic/SButton.vue";
 import FileInterface from "@/components/FileInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
@@ -134,14 +133,33 @@ const compilations = computed(
 const { mutate: compileTask } = useMutation(
   graphql(/* GraphQL */ `
     mutation compileTask($compilationId: GlobalID!) {
-      compile(compilationId: $compilationId)
+      compile(input: { compilationId: $compilationId }) {
+        compilation {
+          id
+          name
+          createdAt
+          updatedAt
+          targetTask {
+            ...TaskContent
+          }
+          targetCode {
+            ...CodeContent
+          }
+        }
+      }
     }
   `)
 );
 
+const isCompiling = ref(false);
 async function compileAll() {
+  isCompiling.value = true;
+  console.log("compiling", compilations.value);
   const compilationMutations = compilations.value.map((c) => compileTask({ compilationId: c.id }));
-  await Promise.all(compilationMutations);
+  const compilationPayloads = await Promise.all(compilationMutations);
+  console.log("compiled", compilationPayloads);
+  isCompiling.value = false;
+  // TODO @Feature: invalidate cache for generated files/definitions
 }
 
 // set up editor state
@@ -238,14 +256,27 @@ watchEffect(() => {
         <div class="flex items-center justify-end">
           <!-- Controls -->
           <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
-            <SButton text="Build" v-if="compilations.length > 0">
+            <button
+              :class="[
+                'group inline-flex items-center justify-center rounded-sm py-2 px-3 text-sm font-semibold focus:outline-none',
+                'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
+                isCompiling ? 'cursor-not-allowed opacity-50' : '',
+              ]"
+              :disabled="isCompiling"
+              v-if="compilations.length > 0"
+            >
               <WrenchIcon class="h-5 w-5" aria-hidden="true" />
               <span class="ml-1" @click="compileAll">Compile</span>
-            </SButton>
-            <SButton text="Run">
+            </button>
+            <button
+              :class="[
+                'group inline-flex items-center justify-center rounded-sm py-2 px-3 text-sm font-semibold focus:outline-none',
+                'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
+              ]"
+            >
               <PlayIcon class="h-5 w-5" aria-hidden="true" />
               <span class="ml-1">Run</span>
-            </SButton>
+            </button>
           </div>
 
           <!-- Profile dropdown -->

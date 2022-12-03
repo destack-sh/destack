@@ -9,7 +9,7 @@ const documents = {
     types.DatasetContentFragmentDoc,
   "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n":
     types.ExpectationContentFragmentDoc,
-  "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  ":
+  "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          generated\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  ":
     types.GetFileByIdDocument,
   "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.TaskContentFragmentDoc,
@@ -21,7 +21,7 @@ const documents = {
     types.ProjectVersionContentFragmentDoc,
   "\n    query getProjectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
     types.GetProjectVersionContentDocument,
-  "\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(compilationId: $compilationId)\n    }\n  ":
+  "\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(input: { compilationId: $compilationId }) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n          targetTask {\n            ...TaskContent\n          }\n          targetCode {\n            ...CodeContent\n          }\n        }\n      }\n    }\n  ":
     types.CompileTaskDocument,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
@@ -41,8 +41,8 @@ export function graphql(
   source: "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n"
 ): typeof documents["\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n"];
 export function graphql(
-  source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          generated\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query getFileById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          nameDotType\n          createdAt\n          updatedAt\n          generated\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
 ): typeof documents["\n  fragment TaskContent on Task {\n    id\n    schema\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
@@ -59,8 +59,8 @@ export function graphql(
   source: "\n    query getProjectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
 ): typeof documents["\n    query getProjectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(compilationId: $compilationId)\n    }\n  "
-): typeof documents["\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(compilationId: $compilationId)\n    }\n  "];
+  source: "\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(input: { compilationId: $compilationId }) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n          targetTask {\n            ...TaskContent\n          }\n          targetCode {\n            ...CodeContent\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(input: { compilationId: $compilationId }) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n          targetTask {\n            ...TaskContent\n          }\n          targetCode {\n            ...CodeContent\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"];

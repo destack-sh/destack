@@ -50,6 +50,14 @@ type Compilation implements Node {
   mappings: [SourceMapping!]!
 }
 
+input CompileInput {
+  compilationId: GlobalID!
+}
+
+type CompilePayload {
+  compilation: Compilation!
+}
+
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
@@ -111,7 +119,7 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
-  compile(compilationId: GlobalID!): Void
+  compile(input: CompileInput!): CompilePayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -305,6 +313,7 @@ type SymbolDefinition implements Node {
   index: Int
   createdAt: DateTime!
   updatedAt: DateTime!
+  generated: Boolean!
   committedIn: ProjectVersion
   committed: Boolean!
   content(pk: ID): SymbolContent!
@@ -362,6 +371,3 @@ type UserEdge {
   """The item at the end of the edge"""
   node: User!
 }
-
-"""Represents NULL values"""
-scalar Void
