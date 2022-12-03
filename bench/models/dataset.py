@@ -9,13 +9,17 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
+from bench.models.schema import SchemaField
 from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition
 from bench.models.utils import UUIDModel
+from bench.utils.schema import SchemaElement, derive_schema_from_records
 
 
 class DatasetManager(SymbolContentManager, models.Manager["Dataset"]):
-    def from_list(self, records: list[dict]) -> Dataset:
-        dataset = cast(Dataset, self.create())
+    def from_list(self, records: list[dict], schema: Optional[SchemaElement]) -> Dataset:
+        if schema is None:
+            schema = derive_schema_from_records(records)
+        dataset = cast(Dataset, self.create(schema=schema))
         dataset.set(records)
         return dataset
 
@@ -32,7 +36,7 @@ class Dataset(SymbolContent):
 
     # records from DatasetRecord.dataset
     # annotations from DatasetAnnotation.dataset
-    schema = models.JSONField(null=True, blank=True)
+    schema = SchemaField("record")
     length = models.IntegerField(default=0)
 
     objects: DatasetManager = DatasetManager()
@@ -95,10 +99,10 @@ class Dataset(SymbolContent):
         return await sync_to_async(self.extend)(records)
 
     @transaction.atomic
-    def set(self, records: list[dict], derive_schema: bool = True):
+    def set(self, records: list[dict], derive_schema: bool = False):
         self.clear()
         if derive_schema:
-            self.schema = {k: type(v).__name__ for k, v in records[0].items()}
+            self.schema = derive_schema_from_records(records)
         self.extend(records)
 
     def update(self, index: int, record: dict):

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from django.db import models, transaction
 
+from bench.models.schema import SchemaElementField, SchemaField
 from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, replace_refs
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
@@ -24,7 +25,8 @@ class Task(SymbolContent):
     Sub-tasks define smaller tasks which are composed or represented by the parent task.
     """
 
-    schema = models.JSONField()
+    input_schema = SchemaField("input")
+    output_schema = SchemaElementField("output")
     expectations = models.ManyToManyField("Expectation", related_name="tasks")
     template_implementation = models.ForeignKey(
         "Code", on_delete=models.CASCADE, null=True, related_name="templates"

@@ -7,6 +7,18 @@ from strawberry_django_plus import gql
 
 import bench.models.symbol
 from bench import models
+from bench.utils import schema
+
+ValueType = gql.enum(schema.ValueType)
+
+
+@gql.type
+class SchemaElement:
+    name: str
+    type: ValueType
+    # TODO @Cleanup: schema element choices should be unions
+    choices: Optional[list[str]]
+    elements: Optional[list[SchemaElement]]
 
 
 @gql.django.type(models.User)
@@ -99,7 +111,8 @@ class SymbolContent(gql.Node):
 
 @gql.django.type(models.Task)
 class Task(SymbolContent):
-    schema: auto
+    input_schema: SchemaElement
+    output_schema: SchemaElement
     expectations: list[Expectation]
     template_implementation: Optional[SymbolDefinition]
     compilations: list[Compilation]
@@ -134,6 +147,8 @@ class Expectation(SymbolContent):
 
 @gql.django.type(models.Code)
 class Code(SymbolContent):
+    input_schema: SchemaElement
+    output_schema: SchemaElement
     task: Optional[Task]
     builtin_id: auto
     code: auto
@@ -148,7 +163,7 @@ class CodeParameter(gql.Node):
     created_at: auto
     updated_at: auto
     type: auto
-    schema: auto
+    schema: Optional[SchemaElement]
 
 
 @gql.django.type(models.CodeArgument)
@@ -171,7 +186,7 @@ class Model(SymbolContent):
 
 @gql.django.type(models.Dataset)
 class Dataset(SymbolContent):
-    schema: auto
+    schema: SchemaElement
     length: auto
     records: list[DatasetRecord]
 
