@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from django.db import models
+from django.db import models, transaction
 
 from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, replace_refs
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
+
+if TYPE_CHECKING:
+    from bench.models import Model
 
 
 class TaskManager(SymbolContentManager, models.Manager["Task"]):
@@ -25,6 +29,7 @@ class Task(SymbolContent):
     template_implementation = models.ForeignKey(
         "Code", on_delete=models.CASCADE, null=True, related_name="templates"
     )
+
     # compilations via Compilation
 
     def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
@@ -35,6 +40,16 @@ class Task(SymbolContent):
             compilation.project_version = to.definition.project_version
             compilation.deepcopy(to=compilation, refs=refs)
             compilation.save()
+
+    @transaction.atomic
+    def add_compilation(self, name: str, backends: list[Model]) -> Compilation:
+        compilation = Compilation.objects.create(
+            project_version=self.definition.project_version,
+            task=self,
+            name=name,
+        )
+        compilation.backends.set(backends)
+        return compilation
 
     def __str__(self):
         return f"{self.definition_str}(schema={self.schema})"
@@ -63,6 +78,7 @@ class Compilation(UUIDModel):
     target_code = models.ForeignKey(
         "Code", on_delete=models.SET_NULL, null=True, related_name="source_compilation+"
     )
+
     # mappings via SourceMapping
 
     def deepcopy(self, to: Compilation, refs: dict[UUID, SymbolDefinition | SymbolContent]):

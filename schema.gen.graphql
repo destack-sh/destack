@@ -1,3 +1,13 @@
+input AddCompilationInput {
+  taskDefinitionId: GlobalID!
+  name: String!
+  backends: [String!]!
+}
+
+type AddCompilationPayload {
+  compilation: Compilation!
+}
+
 type Code implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
@@ -119,6 +129,7 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
+  addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
 }
 

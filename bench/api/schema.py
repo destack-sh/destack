@@ -13,7 +13,7 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
-from bench.compiler import Compiler
+from bench.compiler import Compiler, get_stdlib_model
 from bench.executor import Executor
 from bench.settings import DEBUG, TEST
 
@@ -46,8 +46,27 @@ class CompilePayload:
     compilation: types.Compilation
 
 
+@strawberry.input
+class AddCompilationInput:
+    task_definition_id: GlobalID
+    name: str
+    backends: list[str]
+
+
+@strawberry.type
+class AddCompilationPayload:
+    compilation: types.Compilation
+
+
 @strawberry.type
 class Mutation:
+    @strawberry.mutation
+    def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:
+        task = models.SymbolDefinition.objects.get(id=input.task_definition_id.node_id).task_
+        backends = [get_stdlib_model(backend) for backend in input.backends]
+        compilation = task.add_compilation(input.name, backends)
+        return AddCompilationPayload(compilation=compilation)
+
     @strawberry.mutation
     def compile(self, input: CompileInput) -> CompilePayload:
         compilation = (
