@@ -354,7 +354,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return available_symbols_str
 
     def reset(self):
-        # deletes all our references and definitions but not their contents
+        # deletes all files and definitions (cascades to contents)
         self.definitions.all().delete()
         self.files.all().delete()
 
