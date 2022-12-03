@@ -45,3 +45,16 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     }
   }
 `);
+
+export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
+  fragment SchemaElementContentDeep on SchemaElement {
+    name
+    type
+    choices
+    elements {
+      name
+      type
+      choices
+    }
+  }
+`);

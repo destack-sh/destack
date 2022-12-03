@@ -38,7 +38,9 @@ export type Code = Node &
     builtinId?: Maybe<Scalars["String"]>;
     code?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
+    inputSchema: SchemaElement;
     nameDotType: Scalars["String"];
+    outputSchema: SchemaElement;
     parameters: Array<CodeParameter>;
     task?: Maybe<Task>;
   };
@@ -62,7 +64,7 @@ export type CodeParameter = Node & {
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  schema?: Maybe<Scalars["JSON"]>;
+  schema?: Maybe<SchemaElement>;
   type: CodeParameterType;
   updatedAt: Scalars["DateTime"];
 };
@@ -104,7 +106,7 @@ export type Dataset = Node &
     length: Scalars["Int"];
     nameDotType: Scalars["String"];
     records: Array<DatasetRecord>;
-    schema?: Maybe<Scalars["JSON"]>;
+    schema: SchemaElement;
   };
 
 export type DatasetRecord = Node & {
@@ -332,6 +334,14 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type SchemaElement = {
+  __typename?: "SchemaElement";
+  choices?: Maybe<Array<Scalars["String"]>>;
+  elements?: Maybe<Array<SchemaElement>>;
+  name: Scalars["String"];
+  type: ValueType;
+};
+
 export type SourceMapping = Node & {
   __typename?: "SourceMapping";
   compilation: Compilation;
@@ -386,8 +396,9 @@ export type Task = Node &
     compilations: Array<Compilation>;
     expectations: Array<Expectation>;
     id: Scalars["GlobalID"];
+    inputSchema: SchemaElement;
     nameDotType: Scalars["String"];
-    schema: Scalars["JSON"];
+    outputSchema: SchemaElement;
     templateImplementation?: Maybe<SymbolDefinition>;
   };
 
@@ -424,12 +435,37 @@ export type UserEdge = {
   node: User;
 };
 
+/** An enumeration. */
+export enum ValueType {
+  Array = "ARRAY",
+  Boolean = "BOOLEAN",
+  Null = "NULL",
+  Number = "NUMBER",
+  Object = "OBJECT",
+  String = "STRING",
+}
+
 export type CodeContentFragment = {
   __typename?: "Code";
   id: any;
   builtinId?: string | null;
   code?: string | null;
-  parameters: Array<{ __typename?: "CodeParameter"; name: string; type: CodeParameterType; schema?: any | null }>;
+  inputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  outputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  parameters: Array<{
+    __typename?: "CodeParameter";
+    name: string;
+    type: CodeParameterType;
+    schema?:
+      | ({ __typename?: "SchemaElement" } & {
+          " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+        })
+      | null;
+  }>;
   arguments: Array<{
     __typename?: "CodeArgument";
     name: string;
@@ -442,6 +478,9 @@ export type CodeContentFragment = {
 export type DatasetContentFragment = {
   __typename?: "Dataset";
   id: any;
+  schema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
   records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }>;
 } & { " $fragmentName"?: "DatasetContentFragment" };
 
@@ -488,7 +527,12 @@ export type FileContentByIdQuery = {
 export type TaskContentFragment = {
   __typename?: "Task";
   id: any;
-  schema: any;
+  inputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  outputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
   expectations: Array<{ __typename?: "Expectation"; id: any; description: string; nameDotType: string }>;
   templateImplementation?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
   compilations: Array<
@@ -630,6 +674,49 @@ export type CompilationHeaderFragment = {
   targetCode?: { __typename?: "Code"; id: any; nameDotType: string } | null;
 } & { " $fragmentName"?: "CompilationHeaderFragment" };
 
+export type SchemaElementContentDeepFragment = {
+  __typename?: "SchemaElement";
+  name: string;
+  type: ValueType;
+  choices?: Array<string> | null;
+  elements?: Array<{
+    __typename?: "SchemaElement";
+    name: string;
+    type: ValueType;
+    choices?: Array<string> | null;
+  }> | null;
+} & { " $fragmentName"?: "SchemaElementContentDeepFragment" };
+
+export const SchemaElementContentDeepFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "SchemaElementContentDeep" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SchemaElement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "choices" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "elements" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "choices" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<SchemaElementContentDeepFragment, unknown>;
 export const CodeContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -645,13 +732,36 @@ export const CodeContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "code" } },
           {
             kind: "Field",
+            name: { kind: "Name", value: "inputSchema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "outputSchema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
+          {
+            kind: "Field",
             name: { kind: "Name", value: "parameters" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "name" } },
                 { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "schema" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "schema" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+                  },
+                },
               ],
             },
           },
@@ -694,6 +804,14 @@ export const DatasetContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "schema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "records" },
@@ -812,7 +930,22 @@ export const TaskContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "schema" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "inputSchema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "outputSchema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "expectations" },
@@ -850,7 +983,6 @@ export const TaskContentFragmentDoc = {
         ],
       },
     },
-    ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<TaskContentFragment, unknown>;
 export const FileHeaderFragmentDoc = {
@@ -927,8 +1059,6 @@ export const ProjectVersionContentFragmentDoc = {
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
-    ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentFragment, unknown>;
 export const ProjectVersionHeaderFragmentDoc = {
@@ -1021,9 +1151,11 @@ export const FileContentByIdDocument = {
     },
     ...FileHeaderFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
     ...ExpectationContentFragmentDoc.definitions,
     ...TaskContentFragmentDoc.definitions,
+    ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const ProjectBySlugDocument = {
@@ -1176,6 +1308,8 @@ export const ProjectVersionContentDocument = {
       },
     },
     ...ProjectVersionContentFragmentDoc.definitions,
+    ...FileHeaderFragmentDoc.definitions,
+    ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
 export const CompileTaskDocument = {
@@ -1253,6 +1387,8 @@ export const CompileTaskDocument = {
       },
     },
     ...TaskContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+    ...CompilationHeaderFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompileTaskMutation, CompileTaskMutationVariables>;
