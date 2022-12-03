@@ -18,8 +18,6 @@ export type Scalars = {
   GlobalID: any;
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
-  /** Represents NULL values */
-  Void: any;
 };
 
 export type Code = Node &
@@ -77,6 +75,15 @@ export type Compilation = Node & {
   targetTask?: Maybe<Task>;
   task: Task;
   updatedAt: Scalars["DateTime"];
+};
+
+export type CompileInput = {
+  compilationId: Scalars["GlobalID"];
+};
+
+export type CompilePayload = {
+  __typename?: "CompilePayload";
+  compilation: Compilation;
 };
 
 export type Dataset = Node &
@@ -138,11 +145,11 @@ export type Model = Node &
 
 export type Mutation = {
   __typename?: "Mutation";
-  compile?: Maybe<Scalars["Void"]>;
+  compile: CompilePayload;
 };
 
 export type MutationCompileArgs = {
-  compilationId: Scalars["GlobalID"];
+  input: CompileInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -332,6 +339,7 @@ export type SymbolDefinition = Node & {
   content: SymbolContent;
   createdAt: Scalars["DateTime"];
   file: File;
+  generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
   index?: Maybe<Scalars["Int"]>;
   name: Scalars["String"];
@@ -446,6 +454,7 @@ export type GetFileByIdQuery = {
           nameDotType: string;
           createdAt: any;
           updatedAt: any;
+          generated: boolean;
           content:
             | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
             | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
@@ -545,7 +554,25 @@ export type CompileTaskMutationVariables = Exact<{
   compilationId: Scalars["GlobalID"];
 }>;
 
-export type CompileTaskMutation = { __typename?: "Mutation"; compile?: any | null };
+export type CompileTaskMutation = {
+  __typename?: "Mutation";
+  compile: {
+    __typename?: "CompilePayload";
+    compilation: {
+      __typename?: "Compilation";
+      id: any;
+      name: string;
+      createdAt: any;
+      updatedAt: any;
+      targetTask?:
+        | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+        | null;
+      targetCode?:
+        | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
+        | null;
+    };
+  };
+};
 
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
@@ -944,6 +971,7 @@ export const GetFileByIdDocument = {
                       { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "generated" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "content" },
@@ -1148,13 +1176,58 @@ export const CompileTaskDocument = {
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "compilationId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "compilationId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
+                    },
+                  ],
+                },
               },
             ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "compilation" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "targetTask" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "targetCode" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "CodeContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
           },
         ],
       },
     },
+    ...TaskContentFragmentDoc.definitions,
+    ...CodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompileTaskMutation, CompileTaskMutationVariables>;

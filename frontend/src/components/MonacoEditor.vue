@@ -7,6 +7,7 @@ const props = defineProps<{
   modelValue: string;
   language: "json" | "python";
   focused: boolean;
+  readonly?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -71,6 +72,7 @@ function initMonaco(monaco: Monaco) {
     minimap: {
       enabled: false,
     },
+    readOnly: props.readonly,
     scrollBeyondLastLine: false,
     lineDecorationsWidth: 10,
     hideCursorInOverviewRuler: true,

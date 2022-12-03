@@ -418,7 +418,7 @@ class Compiler:
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
         dataset = Dataset.objects.from_list(compiled_examples)
-        genfile.create_definition("examples", dataset)
+        genfile.create_definition("examples", dataset, generated=True)
         compiled_examples_keys = dataset.schema.keys()
         if compiled_examples_keys != {*task_data.input_keys, *task_data.output_keys}:
             raise ValueError(

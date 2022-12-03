@@ -102,6 +102,7 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     committed_in = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)
     generated = models.BooleanField(default=False)
+    # source_mappings via SourceMapping
 
     task = models.OneToOneField(
         "Task", on_delete=models.RESTRICT, null=True, related_name="definition"
