@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { graphql, useFragment, type FragmentType } from "@/gql";
+import { computed } from "vue";
 
 const TaskContent = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
@@ -21,28 +22,8 @@ const TaskContent = graphql(/* GraphQL */ `
   }
 `);
 
-const CompilationHeader = graphql(/* GraphQL */ `
-  fragment CompilationHeader on Compilation {
-    name
-    createdAt
-    updatedAt
-    backends {
-      id
-      nameDotType
-    }
-    targetTask {
-      id
-      nameDotType
-    }
-    targetCode {
-      id
-      nameDotType
-    }
-  }
-`);
-
 const props = defineProps<{ content: FragmentType<typeof TaskContent> }>();
-const content = useFragment(TaskContent, props.content);
+const content = computed(() => useFragment(TaskContent, props.content));
 </script>
 <template>
   <div class="m-2 text-sm">

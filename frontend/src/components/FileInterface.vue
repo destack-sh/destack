@@ -1,26 +1,17 @@
 <script lang="ts" setup>
+import CodeInterface from "@/components/CodeInterface.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
-import CodeInterface from "@/components/CodeInterface.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
-import { EDITOR_STATE_KEY, type EditorState, type SymbolDefinitionHeader } from "@/utils/editor";
+import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
+import { FileHeaderType } from "@/utils/fragments";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, inject } from "vue";
 
-const FileHeader = graphql(/* GraphQL */ `
-  fragment FileHeader on File {
-    id
-    name
-    path
-    createdAt
-    updatedAt
-  }
-`);
-
-const props = defineProps<{ file: FragmentType<typeof FileHeader> }>();
-const fileHeader = useFragment(FileHeader, props.file);
+const props = defineProps<{ file: FragmentType<typeof FileHeaderType> }>();
+const fileHeader = useFragment(FileHeaderType, props.file);
 
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `

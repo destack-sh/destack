@@ -1,3 +1,4 @@
+import structlog
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -7,6 +8,8 @@ from bench.models.user import User
 
 TEST_USER_EMAIL = "yatima@symbolx.com"
 
+logger = structlog.get_logger(__name__)
+
 
 class Command(BaseCommand):
     help = "Sets up dev environment with sample data"
@@ -15,7 +18,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         organization = Organization.objects.get_by_slug("symbolx")
         # create test organization and user if they don't exist
-        if not User.objects.filter(email=TEST_USER_EMAIL).exists():
+        user = User.objects.filter(email=TEST_USER_EMAIL).first()
+        if user is None:
             user = User.objects.create(
                 email=TEST_USER_EMAIL,
                 password="password",
@@ -23,4 +27,6 @@ class Command(BaseCommand):
                 is_staff=True,
             )
             user.join_organization(organization, OrganizationMembership.Level.Owner)
-            self.stdout.write(self.style.SUCCESS(f"Created bootstrap user: {user}"))
+            logger.info(f"Created bootstrap user: {user}")
+        else:
+            logger.info(f"Bootstrap user already exists: {user}")
