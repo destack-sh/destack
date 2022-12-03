@@ -20,8 +20,8 @@ random: random.Random
 # @path main
 
 # @symbol task: generate_command
-schema = {"input": {"input": "str"}, "output": {"command": "str"}}
-
+input_schema = [{"name": "input", "type": "string"}]
+output_schema = [{"name": "command", "type": "string"}]
 
 # @symbol data: generate_command
 generate_command = [
@@ -51,7 +51,6 @@ generate_command = [
     },
 ]
 
-
 # @symbol expect task=generate_command: generate_command
 expectation = "Translate a natural language comment or code into a safe bash command."
 statements = ["generate_command.data"]
@@ -80,6 +79,7 @@ async def verify_result_is_safe(example: dict) -> bool:
 # @symbol expect task=generate_command: safe_output
 expectation = "The command should be safe to execute (does not do irreversible damage or changes)."
 statements = ["verify_result_is_safe.code"]
+
 
 # @symbol code: verify_valid_bash_command
 async def verify_valid_bash_command(example: dict) -> bool:
@@ -132,7 +132,7 @@ async def paraphrase(input: str) -> str:
 
 
 # @symbol code: perturb_spacing
-async def perturb_spacing(input: str) -> dict:
+async def perturb_spacing(input: str) -> str:
     # insert/remove/replace random spaces, tabs, commas, etc.
     chars = "   ,;-"
     # pick 2 random characters to add/remove
@@ -274,7 +274,10 @@ statements = ["verify_respect_command_hints.code", "expect_respect_command_hints
 # @path composition
 
 # @symbol task parent=generate_command: break_down_task
-schema = {"input": "str", "steps": "list[str]"}
+input_schema = [{"name": "input", "type": "string"}]
+output_schema = [
+    {"name": "steps", "type": "array", "elements": [{"name": "step", "type": "string"}]}
+]
 
 # @symbol data: pipeable_commands
 pipeable_commands = [
@@ -340,8 +343,8 @@ statements = ["generate_chain_examples.code"]
 
 
 # @symbol task parent=generate_command: lookup_docs
-schema = {"input": {"input": "str"}, "output": {"docs": "str"}}
-
+input_schema = [{"name": "input", "type": "string"}]
+output_schema = [{"name": "docs", "type": "string"}]
 
 # @symbol code task=lookup_docs: lookup_docs
 async def lookup_docs(input: str) -> str:

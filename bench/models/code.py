@@ -10,8 +10,10 @@ from asgiref.sync import sync_to_async
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
 
+from bench.models.schema import SchemaElementField, SchemaField
 from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, SymbolType
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, UUIDTModel, is_jsonable
+from bench.utils.schema import SchemaElement
 
 
 class CodeManager(SymbolContentManager, models.Manager["Code"]):
@@ -24,7 +26,8 @@ class Code(SymbolContent):
     Code is just async Python code (either defined in-place or as a built-in).
     """
 
-    schema = models.JSONField()
+    input_schema = SchemaField("input")
+    output_schema = SchemaElementField("output")
     # either set builtin id or set custom code
     builtin_id = models.CharField(blank=True, null=True, max_length=256)
     code = models.TextField(blank=True, null=True)
@@ -67,7 +70,7 @@ class Code(SymbolContent):
         name: str,
         type: CodeParameterType,
         exists_ok: bool = False,
-        schema: Optional[Any] = None,
+        schema: Optional[SchemaElement] = None,
     ) -> CodeParameter:
         if exists_ok:
             parameter, created = CodeParameter.objects.get_or_create(
@@ -178,9 +181,7 @@ class CodeParameterType(models.TextChoices):
 class CodeParameter(UUIDModel):
     """
     A parameter is a named argument to a function which is bound by a CodeArgument.
-
-    Parameters are typed using ?
-    # TODO @Feature: type parameters and schemas
+    Parameters are typed using SchemaElements.
     """
 
     code = models.ForeignKey(Code, on_delete=models.CASCADE, related_name="parameters")
@@ -188,7 +189,7 @@ class CodeParameter(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=CodeParameterType)
-    schema = models.JSONField(null=True)
+    schema = SchemaElementField(null=True, blank=True)  # models need not have a schema
 
     def __str__(self):
         return f"{self.code}/parameters/{self.name}(type={self.type})"

@@ -28,6 +28,13 @@ from bench.models import (
     Task,
 )
 from bench.models.code import CodeParameterType
+from bench.utils.schema import (
+    SchemaElement,
+    SchemaObjectSerializer,
+    derive_schema_from_function,
+    derive_schema_from_records,
+    get_value_type,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -142,7 +149,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
                 if not required:
                     return None
                 else:
-                    raise ValueError(
+                    raise LookupError(
                         f"definition '{name}' not found in segment '{segment.header}':\n{segment.full_code}"
                     )
             return definitions[name]
@@ -221,8 +228,9 @@ def parse_task(
     segment: FileSegment,
     lookup_def: typing.Callable,
 ) -> tuple[SymbolContent, typing.Callable[[SymbolDefinition], None]]:
-    schema = lookup_def("schema")
-    task = Task.objects.create(schema=schema)
+    input_schema = SchemaObjectSerializer.from_json("input", lookup_def("input_schema"))
+    output_schema = SchemaObjectSerializer.from_json("output", lookup_def("output_schema"))
+    task = Task.objects.create(input_schema=input_schema, output_schema=output_schema)
 
     def on_defined(symbol_def: SymbolDefinition):
         if "parent" in segment.symbol_args:
@@ -242,8 +250,12 @@ def parse_code(
     function = lookup_def(segment.symbol_name)
     if not callable(function):
         raise ValueError(f"code symbol '{segment.symbol_name}' is not typing.Callable")
+    input_schema, output_schema = derive_schema_from_function(function)
     code = Code.objects.create(
-        code=segment.full_code, schema={}, code_function_name=function.__name__
+        code=segment.full_code,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        code_function_name=function.__name__,
     )
     consumed_lines = bind_code_parameters(segment, project_v, code)
     if consumed_lines:
@@ -266,10 +278,14 @@ def parse_data(
     segment: FileSegment,
     lookup_def: typing.Callable,
 ):
-    dataset_records = lookup_def(segment.symbol_name)
-    if not isinstance(dataset_records, list):
+    records = lookup_def(segment.symbol_name)
+    try:
+        schema = SchemaObjectSerializer.from_json("record", lookup_def("schema"))
+    except LookupError:
+        schema = derive_schema_from_records(records)
+    if not isinstance(records, list):
         raise ValueError(f"data symbol '{segment.symbol_name}' is not a list")
-    dataset = Dataset.objects.from_list(dataset_records)
+    dataset = Dataset.objects.from_list(records, schema)
     return dataset
 
 
@@ -345,8 +361,7 @@ def bind_code_parameters(
         elif param_type == "Code":
             param_type = CodeParameterType.CODE
         else:
-            # just use python type as schema for now
-            param_schema = param_type
+            param_schema = SchemaElement(name=param_name, type=get_value_type(param_type))
             param_type = CodeParameterType.VALUE
         code.add_parameter(name=param_name, type=param_type, schema=param_schema)
 

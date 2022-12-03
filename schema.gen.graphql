@@ -11,6 +11,7 @@ type AddCompilationPayload {
 type Code implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
+  schema: JSON!
   task: Task
   builtinId: String
   code: String
@@ -37,7 +38,7 @@ type CodeParameter implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   type: CodeParameterType!
-  schema: JSON
+  schema: JSON!
 }
 
 """An enumeration."""
@@ -71,7 +72,7 @@ type CompilePayload {
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
-  schema: JSON
+  schema: JSON!
   length: Int!
   records: [DatasetRecord!]!
 }

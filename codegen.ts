@@ -10,6 +10,7 @@ const config: CodegenConfig = {
       preset: "client",
       config: {
         useTypeImports: true,
+        dedupeFragments: true,
         withCompositionFunctions: true,
       },
       plugins: [],
