@@ -111,8 +111,7 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
-  compile(compilationId: UUID!): Void
-  run(codeId: UUID!): Void
+  compile(compilationId: GlobalID!): Void
 }
 
 """An object with a Globally Unique ID"""
@@ -212,6 +211,7 @@ type ProjectVersion implements Node {
   libraries: [ProjectVersion!]!
   mainProgram: SymbolDefinition
   files: [File!]!
+  compilations: [Compilation!]!
   definitions: [SymbolDefinition!]!
 }
 
@@ -328,8 +328,6 @@ type Task implements SymbolContent & Node {
   templateImplementation: SymbolDefinition
   compilations: [Compilation!]!
 }
-
-scalar UUID
 
 type User implements Node {
   id: GlobalID!

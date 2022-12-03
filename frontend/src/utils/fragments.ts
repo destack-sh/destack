@@ -1,7 +1,8 @@
 import { graphql } from "@/gql";
 
-export const ProjectVersionHeaderFragment = graphql(/* GraphQL */ `
+export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
+    id
     name
     description
     createdAt
@@ -10,12 +11,37 @@ export const ProjectVersionHeaderFragment = graphql(/* GraphQL */ `
   }
 `);
 
-export const FileHeaderFragment = graphql(/* GraphQL */ `
+export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
     name
     path
     createdAt
     updatedAt
+  }
+`);
+
+export const CompilationHeaderType = graphql(/* GraphQL */ `
+  fragment CompilationHeader on Compilation {
+    id
+    name
+    createdAt
+    updatedAt
+    task {
+      id
+      nameDotType
+    }
+    backends {
+      id
+      nameDotType
+    }
+    targetTask {
+      id
+      nameDotType
+    }
+    targetCode {
+      id
+      nameDotType
+    }
   }
 `);

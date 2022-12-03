@@ -100,14 +100,11 @@ class Command(BaseCommand):
 
         project_v.reset()
         load_symbols(project_v, path)
-        project_v.commit(name=version_id, description=f"load from {path}")
-
-        # set task as new main program
-        # (not sure if we'll have a single "main" going forward)
         if main:
+            # (we likely won't have a single "main" going forward)
             project_v.main_program = project_v.symbol_definition(main, SymbolType.TASK)
-            project_v.save()
             logger.info(f"Set {project_v.main_program} as main program in {project_v}")
+        project_v.commit(name=version_id, description=f"reload from {path}")
 
         # advance head to new version
         project.head = project_v

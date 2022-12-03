@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import Optional, Type, Union
 
 import strawberry
@@ -10,6 +9,7 @@ from strawberry.extensions import AddValidationRules, Extension, ParserCache, Qu
 from strawberry_django_plus import gql
 from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
+from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
@@ -38,15 +38,15 @@ class Query:
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    def compile(self, compilation_id: uuid.UUID) -> None:
-        compilation = models.Compilation.objects.get(id=compilation_id)
+    def compile(self, compilation_id: GlobalID) -> None:
+        compilation = (
+            models.Compilation.objects.all()
+            .select_related("project_version", "task", "target_task", "target_code")
+            .get(id=compilation_id.node_id)
+        )
         executor = Executor()
         compiler = Compiler(executor)
         async_to_sync(compiler.compile)(compilation)
-
-    @strawberry.mutation
-    def run(self, code_id: uuid.UUID) -> None:
-        pass
 
 
 default_extensions: list[Union[Type[Extension], Extension]] = [

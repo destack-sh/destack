@@ -244,16 +244,16 @@ class Compiler:
         self.compiler_model = get_stdlib_model("openai/text-davinci-003")
         self.get_temperature = get_stdlib_code("symbolx/get_temperature")
 
-    async def compile(self, project_v: ProjectVersion, compilation: Compilation) -> None:
+    async def compile(self, compilation: Compilation) -> None:
         """
         Compiles a task into an executable code.
         """
         # get data
-        task = compilation.task
+        project_v = compilation.project_version
         backends: list[Model] = await _acollect(compilation.backends.all())
 
         # run compile
-        main_task, main_code = await self.compile_task(project_v, task, backends)
+        main_task, main_code = await self.compile_task(project_v, compilation, backends)
 
         # save result
         compilation.target_task = main_task
@@ -263,7 +263,7 @@ class Compiler:
     async def compile_task(
         self,
         project_v: ProjectVersion,
-        task: Task,
+        compilation: Compilation,
         backends: list[Model],
     ) -> tuple[Task, Code]:
         """
@@ -283,12 +283,13 @@ class Compiler:
            - Copy code if explicitly defined (and requested)
         4. Optimize code tree for backends and options
         """
-        logger.info("compile.started", task=task)
+        log = logger.bind(compilation=compilation, task=compilation.task)
+        log.info("compile.started")
 
         # 1. lay out the task tree
-        logger.info("compile.layout.started", task=task)
-        task_data = await sync_to_async(TaskData.from_task)(task)
-        logger.info("compile.layout.finished", task=task, task_def=task)
+        log.info("compile.layout.started")
+        task_data = await sync_to_async(TaskData.from_task)(compilation.task)
+        log.info("compile.layout.finished")
 
         # 2. naively set optimal backend for all tasks
         # TODO @Performance: use proper heuristics to decide optimal backend
@@ -298,18 +299,20 @@ class Compiler:
             t.optimal_backend = backends[0]
 
         # 3. build the code tree
-        logger.info("compile.build.started", task=task_data.task)
-        main_code = await self._build_code(project_v, task_data)
-        logger.info("compile.build.finished", task=task_data.task, main=main_code)
+        log.info("compile.build.started", task=task_data.task)
+        target_code = await self._build_code(project_v, compilation, task_data)
+        log.info("compile.build.finished", target_task=task_data.task, target_code=target_code)
 
         # 4. no further code optimization yet
 
-        logger.info("compile.finished", task=task_data, main=main_code)
-        return task_data.task, main_code
+        log.info("compile.finished", target_task=task_data, target_code=target_code)
+        return task_data.task, target_code
 
-    async def _build_code(self, project_v: ProjectVersion, task_data: TaskData) -> Code:
+    async def _build_code(
+        self, project_v: ProjectVersion, compilation: Compilation, task_data: TaskData
+    ) -> Code:
         """
-        Builds an code from a task definition.
+        Generates target code from a task definition.
 
         Basic model code compilation:
         (ignoring subtasks and source code)
@@ -331,9 +334,9 @@ class Compiler:
         # (naive implementation: random order)
         random.shuffle(compiled_examples)
 
-        genfile = await sync_to_async(self._get_clean_genfile)(project_v, task_data)
+        genfile = await sync_to_async(self._get_clean_genfile)(project_v, compilation)
         # write examples to file
-        compiled_examples_dataset = await sync_to_async(self._write_llm_examples)(
+        compiled_examples_dataset = await sync_to_async(self._gen_llm_examples)(
             genfile, compiled_examples, task_data
         )
 
@@ -348,7 +351,7 @@ class Compiler:
 
         # 5. build prompt and bake into model code
         # (naive implementation)
-        llm_code = await sync_to_async(self._build_llm_code)(
+        llm_code = await sync_to_async(self._gen_llm_code)(
             genfile, task_data, task_description, compiled_examples_dataset, settings
         )
         return llm_code
@@ -403,14 +406,15 @@ class Compiler:
         compiled_examples = [*static_examples, *dynamic_examples]
         return compiled_examples
 
-    def _get_clean_genfile(self, project_v: ProjectVersion, task_data: TaskData) -> File:
+    def _get_clean_genfile(self, project_v: ProjectVersion, compilation: Compilation) -> File:
+        source_path = compilation.task.definition.file.path
         file = project_v.create_file_from_path(
-            task_data.definition.file.path + ".gen", exists_ok=True
+            source_path + "." + compilation.name + ".gen", exists_ok=True
         )
         file.definitions.all().delete()
         return file
 
-    def _write_llm_examples(
+    def _gen_llm_examples(
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
         dataset = Dataset.objects.from_list(compiled_examples)
@@ -454,7 +458,7 @@ class Compiler:
         settings.max_tokens = max_tokens
         return settings
 
-    def _build_llm_code(
+    def _gen_llm_code(
         self,
         genfile: File,
         task_data: TaskData,

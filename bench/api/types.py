@@ -54,6 +54,7 @@ class ProjectVersion(gql.Node):
     libraries: list[ProjectVersion]
     main_program: Optional[SymbolDefinition]
     files: list[File]
+    compilations: list[Compilation]
     definitions: list[SymbolDefinition]
 
 

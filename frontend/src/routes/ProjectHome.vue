@@ -5,6 +5,7 @@ import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { EDITOR_STATE_KEY, type EditorState, type FileHeader, type SymbolDefinitionHeader } from "@/utils/editor";
+import { CompilationHeaderType, FileHeaderType } from "@/utils/fragments";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -47,25 +48,7 @@ const views: View[] = [
 ];
 const activeView: Ref<View> = ref(views[0]);
 
-const { mutate: compileTask } = useMutation(
-  graphql(/* GraphQL */ `
-    mutation compileTask($compilationId: UUID!) {
-      compile(compilationId: $compilationId)
-    }
-  `)
-);
-
 // real data
-const ProjectVersionHeader = graphql(/* GraphQL */ `
-  fragment ProjectVersionHeader on ProjectVersion {
-    name
-    description
-    createdAt
-    committed
-    committedAt
-  }
-`);
-
 const { result: projectId } = useQuery(
   graphql(/* GraphQL */ `
     query getProjectBySlug($organization: String!, $project: String!) {
@@ -110,18 +93,19 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
-    # mainProgram {
-    #   id
-    #   name
-    #   type
-    #   nameDotType
-    #   content {
-    #     ...TaskContent
-    #   }
-    # }
+    mainProgram {
+      id
+      name
+      type
+      nameDotType
+    }
     files {
       id
       ...FileHeader
+    }
+    compilations {
+      id
+      ...CompilationHeader
     }
   }
 `);
@@ -141,7 +125,24 @@ const { result: contentQuery } = useQuery(
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
 
 const projectWithVersions = computed(() => versionsQuery.value?.project);
-const files = computed(() => content.value?.files || []);
+const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
+const compilations = computed(
+  () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
+);
+
+// mutations
+const { mutate: compileTask } = useMutation(
+  graphql(/* GraphQL */ `
+    mutation compileTask($compilationId: GlobalID!) {
+      compile(compilationId: $compilationId)
+    }
+  `)
+);
+
+async function compileAll() {
+  const compilationMutations = compilations.value.map((c) => compileTask({ compilationId: c.id }));
+  await Promise.all(compilationMutations);
+}
 
 // set up editor state
 const router = useRouter();
@@ -237,9 +238,9 @@ watchEffect(() => {
         <div class="flex items-center justify-end">
           <!-- Controls -->
           <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
-            <SButton text="Build">
+            <SButton text="Build" v-if="compilations.length > 0">
               <WrenchIcon class="h-5 w-5" aria-hidden="true" />
-              <span class="ml-1" @click="compile">Compile</span>
+              <span class="ml-1" @click="compileAll">Compile</span>
             </SButton>
             <SButton text="Run">
               <PlayIcon class="h-5 w-5" aria-hidden="true" />
