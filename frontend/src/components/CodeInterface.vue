@@ -7,10 +7,18 @@ const CodeContentFragment = graphql(/* GraphQL */ `
     id
     builtinId
     code
+    inputSchema {
+      ...SchemaElementContentDeep
+    }
+    outputSchema {
+      ...SchemaElementContentDeep
+    }
     parameters {
       name
       type
-      schema
+      schema {
+        ...SchemaElementContentDeep
+      }
     }
     arguments {
       name

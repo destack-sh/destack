@@ -5,7 +5,12 @@ import { computed } from "vue";
 const TaskContent = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
     id
-    schema
+    inputSchema {
+      ...SchemaElementContentDeep
+    }
+    outputSchema {
+      ...SchemaElementContentDeep
+    }
     expectations {
       id
       description
@@ -26,8 +31,8 @@ const props = defineProps<{ content: FragmentType<typeof TaskContent> }>();
 const content = computed(() => useFragment(TaskContent, props.content));
 </script>
 <template>
-  <div class="m-2 text-sm">
-    {{ content.schema }}
+  <div class="m-2 text-sm text-gray-900">
+    {{ content.inputSchema }} -> {{ content.outputSchema }}
     <ul class="flex flex-col gap-2">
       <li class="flex flex-col" v-for="expectation in content.expectations" :key="expectation.id">
         <span class="text-orange-600">{{ expectation.nameDotType }}</span>

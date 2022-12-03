@@ -100,15 +100,6 @@ function initMonaco(monaco: Monaco) {
   });
 }
 
-// update theme if we are focused
-watch([toRef(props, "focused"), editor], () => {
-  if (editor.value) {
-    editor.value?.updateOptions({
-      // theme: props.focused ? "benchf" : "bench",
-    });
-  }
-});
-
 // close monaco editor on unmount
 onBeforeUnmount(() => {
   if (editor.value) {

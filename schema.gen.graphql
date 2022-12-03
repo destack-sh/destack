@@ -11,7 +11,8 @@ type AddCompilationPayload {
 type Code implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
-  schema: JSON!
+  inputSchema: SchemaElement!
+  outputSchema: SchemaElement!
   task: Task
   builtinId: String
   code: String
@@ -38,7 +39,7 @@ type CodeParameter implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   type: CodeParameterType!
-  schema: JSON!
+  schema: SchemaElement
 }
 
 """An enumeration."""
@@ -72,7 +73,7 @@ type CompilePayload {
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
-  schema: JSON!
+  schema: SchemaElement!
   length: Int!
   records: [DatasetRecord!]!
 }
@@ -299,6 +300,13 @@ type Query {
   ): OrganizationConnection!
 }
 
+type SchemaElement {
+  name: String!
+  type: ValueType!
+  choices: [String!]
+  elements: [SchemaElement!]
+}
+
 type SourceMapping implements Node {
   id: GlobalID!
   compilation: Compilation!
@@ -344,7 +352,8 @@ enum SymbolType {
 type Task implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
-  schema: JSON!
+  inputSchema: SchemaElement!
+  outputSchema: SchemaElement!
   expectations: [Expectation!]!
   templateImplementation: SymbolDefinition
   compilations: [Compilation!]!
@@ -382,4 +391,14 @@ type UserEdge {
 
   """The item at the end of the edge"""
   node: User!
+}
+
+"""An enumeration."""
+enum ValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  OBJECT
+  ARRAY
+  NULL
 }

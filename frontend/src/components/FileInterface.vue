@@ -79,24 +79,29 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
     <div
       v-for="definition in definitions"
       :key="definition.id"
-      class="mx-auto w-full max-w-[1000px] rounded-sm border bg-white py-2 px-2 transition-all"
-      :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
+      class="relative mx-auto w-full max-w-[1000px] transition-all"
       @mousedown="editorState?.focusDefinition(definition)"
     >
-      <span
-        class="m-1 text-sm"
-        :class="{
-          'text-orange-900': !isDefinitionFocused(definition),
-          'text-orange-600': isDefinitionFocused(definition),
-        }"
+      <div>
+        <span
+          class="m-1 text-sm"
+          :class="{
+            'text-gray-900': !isDefinitionFocused(definition),
+            'text-orange-600': isDefinitionFocused(definition),
+          }"
+        >
+          {{ definition.nameDotType }}
+        </span>
+        <span v-if="definition.generated">
+          <span class="text-xs text-gray-500">(generated)</span>
+        </span>
+        <span class="text-xs text-gray-500"> edited {{ getTimeFromNowString(definition.updatedAt) }} </span>
+      </div>
+
+      <div
+        class="relative overflow-clip rounded-sm border bg-white py-2 px-2"
+        :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
       >
-        {{ definition.nameDotType }}
-      </span>
-      <span v-if="definition.generated">
-        <span class="text-xs text-gray-500">(generated)</span>
-      </span>
-      <span class="text-xs text-gray-500"> edited {{ getTimeFromNowString(definition.updatedAt) }} </span>
-      <div class="relative min-h-fit overflow-clip">
         <!-- TODO @Cleanup: access symbol props via definition only (like generated) -->
         <component
           v-if="interfaces[definition.type]"

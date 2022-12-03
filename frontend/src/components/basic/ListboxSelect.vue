@@ -1,17 +1,16 @@
 <script lang="ts" setup>
-import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { CheckIcon, ChevronUpDownIcon } from "@heroicons/vue/24/solid";
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
+import { ChevronUpDownIcon } from "@heroicons/vue/24/solid";
 
-defineProps<{ modelValue: any; options: any[]; label?: string; emptyText?: string; withCheck?: boolean }>();
+defineProps<{ modelValue: any; options: any[]; label?: string; emptyText?: string }>();
 defineEmits<{ (e: "update:modelValue", value: any): void }>();
 </script>
 
 <template>
   <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
-    <ListboxLabel v-if="label" class="block text-sm font-medium text-gray-700"> {{ label }} </ListboxLabel>
     <div class="relative mt-1">
       <ListboxButton
-        class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 sm:text-sm"
+        class="relative w-full cursor-default rounded-sm border border-white bg-white py-1 pl-2 pr-10 text-left text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
       >
         <span class="block truncate" :class="modelValue == null ? 'text-gray-500' : ''">
           {{ modelValue?.name || emptyText || "Select an option" }}
@@ -27,7 +26,7 @@ defineEmits<{ (e: "update:modelValue", value: any): void }>();
         leave-to-class="opacity-0"
       >
         <ListboxOptions
-          class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+          class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
           <ListboxOption
             as="template"
@@ -38,9 +37,8 @@ defineEmits<{ (e: "update:modelValue", value: any): void }>();
           >
             <li
               :class="[
-                active ? 'bg-orange-600 text-white' : 'text-gray-900',
-                withCheck ? 'pl-8 pr-4' : 'px-4',
-                'relative cursor-default select-none py-2',
+                active ? 'bg-gray-100 text-gray-700' : 'text-gray-700',
+                'relative cursor-default select-none px-2 py-1 text-sm',
               ]"
             >
               <slot name="option" :option="option" :active="active" :selected="selected">
@@ -48,16 +46,6 @@ defineEmits<{ (e: "update:modelValue", value: any): void }>();
                   {{ option.name }}
                 </span>
               </slot>
-
-              <span
-                v-if="selected && withCheck"
-                :class="[
-                  active ? 'text-white' : 'text-orange-600',
-                  'absolute inset-y-0 left-0 flex items-center pl-1.5',
-                ]"
-              >
-                <CheckIcon class="h-5 w-5" aria-hidden="true" />
-              </span>
             </li>
           </ListboxOption>
         </ListboxOptions>

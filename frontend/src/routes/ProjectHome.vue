@@ -369,7 +369,7 @@ watchEffect(() => {
                 class="flex flex-col bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
               >
                 <span class="sr-only">Open user menu</span>
-                <span class="text-xs font-bold">{{ user.name }}</span>
+                <span class="text-xs font-bold text-gray-900">{{ user.name }}</span>
                 <span class="text-xs text-gray-500">Personal</span>
               </MenuButton>
             </div>
