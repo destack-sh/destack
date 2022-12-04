@@ -8,12 +8,12 @@ defineEmits<{ (e: "update:modelValue", value: any): void }>();
 
 <template>
   <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
-    <div class="relative mt-1">
+    <div class="relative">
       <ListboxButton
-        class="relative w-full cursor-default rounded-sm border border-white bg-white py-1 pl-2 pr-10 text-left text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+        class="relative w-full cursor-default rounded-sm border border-white bg-white py-1 pr-7 text-left text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
       >
-        <span class="block truncate" :class="modelValue == null ? 'text-gray-500' : ''">
-          {{ modelValue?.name || emptyText || "Select an option" }}
+        <span class="block truncate" :class="modelValue == null ? 'text-gray-500' : 'text-gray-700'">
+          {{ modelValue?.name || emptyText }}
         </span>
         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
           <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -26,7 +26,7 @@ defineEmits<{ (e: "update:modelValue", value: any): void }>();
         leave-to-class="opacity-0"
       >
         <ListboxOptions
-          class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+          class="absolute z-10 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
         >
           <ListboxOption
             as="template"
