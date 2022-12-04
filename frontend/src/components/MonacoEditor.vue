@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import loader, { type Monaco } from "@monaco-editor/loader";
 import type * as monaco from "monaco-editor";
-import { onBeforeUnmount, onMounted, ref, shallowRef, toRef, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
+import { useElementSize } from "@vueuse/core";
 
 const props = defineProps<{
   modelValue: string;
@@ -12,8 +13,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
+
 let editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
 
+// sync modelValue into editor
 watch(
   () => props.modelValue,
   (value) => {
@@ -24,6 +27,7 @@ watch(
   }
 );
 
+const numLines = computed(() => props.modelValue.split("\n").length);
 function getEditorHeight(code: string) {
   const lines = code.split("\n").length;
   return lines * 19;
@@ -31,9 +35,20 @@ function getEditorHeight(code: string) {
 
 function updateEditorHeight(container: HTMLElement, code: string) {
   container.style.height = getEditorHeight(code) + "px";
+  editor.value?.layout({ width: container.clientWidth, height: container.clientHeight });
+}
+
+function onResize() {
+  if (editor.value && editorContainer.value) {
+    updateEditorHeight(editorContainer.value, props.modelValue);
+  }
 }
 
 const editorContainer: Ref<HTMLElement | null> = ref(null);
+const { width: editorContainerWidth } = useElementSize(editorContainer);
+// resize editor when container width changes
+watch(editorContainerWidth, onResize);
+
 onMounted(() => {
   loader.init().then(initMonaco);
 });
@@ -52,6 +67,9 @@ const BENCH_THEME_COLORS = {
 function initMonaco(monaco: Monaco) {
   if (!editorContainer.value) {
     throw new Error("editor container not found");
+  }
+  if (editor.value !== null) {
+    throw new Error("editor already initialized");
   }
 
   // define custom theme
@@ -90,8 +108,7 @@ function initMonaco(monaco: Monaco) {
     theme: "bench",
   });
 
-  editor.value.onDidChangeModelContent((event) => {
-    console.log("update model value from editor", event);
+  editor.value.onDidChangeModelContent(() => {
     const value = editor.value?.getValue();
     if (value && editorContainer.value) {
       updateEditorHeight(editorContainer.value, value);
@@ -109,8 +126,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="w-full" id="editor-container">
-    <div ref="editorContainer" :class="props.focused ? 'focused' : ''" class="editor-root h-full w-full"></div>
+  <div class="w-full">
+    <div ref="editorContainer" :class="props.focused ? 'focused' : ''" class="editor-root h-full w-full" />
   </div>
 </template>
 
