@@ -82,6 +82,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       class="relative mx-auto w-full max-w-[1000px] transition-all"
       @mousedown="editorState?.focusDefinition(definition)"
     >
+      <!-- Symbol definition header & controls -->
       <div>
         <span
           class="m-1 text-sm"
@@ -98,8 +99,9 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
         <span class="text-xs text-gray-500"> edited {{ getTimeFromNowString(definition.updatedAt) }} </span>
       </div>
 
+      <!-- Symbol content -->
       <div
-        class="relative overflow-clip rounded-sm border bg-white py-2 px-2"
+        class="rounded-sm border bg-white py-2 px-2"
         :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
       >
         <!-- TODO @Cleanup: access symbol props via definition only (like generated) -->
