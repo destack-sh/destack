@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import loader, { type Monaco } from "@monaco-editor/loader";
-import type * as monaco from "monaco-editor";
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 import { useElementSize } from "@vueuse/core";
+import type * as monaco from "monaco-editor";
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
@@ -27,7 +27,6 @@ watch(
   }
 );
 
-const numLines = computed(() => props.modelValue.split("\n").length);
 function getEditorHeight(code: string) {
   const lines = code.split("\n").length;
   return lines * 19;

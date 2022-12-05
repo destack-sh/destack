@@ -1,14 +1,35 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
-import type { Project } from "@/gql/graphql";
+import { graphql, useFragment, type FragmentType } from "@/gql";
+import { ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { BookmarkIcon } from "@heroicons/vue/24/outline";
+import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
-const props = defineProps<{ project: Project }>();
 
+const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
+const project = computed(() => useFragment(ProjectHeaderType, props.project));
 const { getTimeFromNowString } = useTimeFromNow();
 
+const { result: versionsQuery, loading } = useQuery(
+  graphql(/* GraphQL */ `
+    query projectVersions($projectId: GlobalID!) {
+      project(id: $projectId) {
+        id
+        versions {
+          ...ProjectVersionHeader
+        }
+      }
+    }
+  `),
+  () => ({
+    projectId: project.value.id,
+  })
+);
+const versions = computed(
+  () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
+);
 const commits = computed(() => {
-  return props.project.versions.filter((v) => v.committed);
+  return versions.value.filter((v) => v.committed);
 });
 </script>
 <template>
@@ -16,10 +37,9 @@ const commits = computed(() => {
     <!-- View header -->
     <div class="flex flex-row justify-between border-b border-gray-200 px-3 py-4">
       <span class="text-xs font-bold uppercase">Version History</span>
-      <!-- TODO @Feature: select explorer get_view (by type, by task tree) -->
     </div>
     <!-- View contents -->
-    <div class="flex flex-1 flex-col">
+    <div class="flex flex-1 flex-col" v-if="!loading">
       <!-- View: versions -->
       <ul role="list" class="m-3 -mb-8">
         <li v-for="(version, versionIdx) in commits" :key="version.id">

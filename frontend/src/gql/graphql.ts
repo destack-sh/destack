@@ -542,15 +542,8 @@ export type TaskContentFragment = {
   >;
 } & { " $fragmentName"?: "TaskContentFragment" };
 
-export type ProjectBySlugQueryVariables = Exact<{
-  organization: Scalars["String"];
-  project: Scalars["String"];
-}>;
-
-export type ProjectBySlugQuery = { __typename?: "Query"; projectBySlug?: { __typename?: "Project"; id: any } | null };
-
 export type ProjectVersionsQueryVariables = Exact<{
-  id: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"];
 }>;
 
 export type ProjectVersionsQuery = {
@@ -558,17 +551,24 @@ export type ProjectVersionsQuery = {
   project?: {
     __typename?: "Project";
     id: any;
-    name: string;
-    slug: string;
-    head: { __typename?: "ProjectVersion"; id: any } & {
-      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-    };
     versions: Array<
-      { __typename?: "ProjectVersion"; id: any } & {
+      { __typename?: "ProjectVersion" } & {
         " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
       }
     >;
   } | null;
+};
+
+export type ProjectBySlugQueryVariables = Exact<{
+  organization: Scalars["String"];
+  project: Scalars["String"];
+}>;
+
+export type ProjectBySlugQuery = {
+  __typename?: "Query";
+  projectBySlug?:
+    | ({ __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } })
+    | null;
 };
 
 export type ProjectVersionContentFragment = {
@@ -652,6 +652,17 @@ export type ProjectVersionHeaderFragment = {
   committed: boolean;
   committedAt?: any | null;
 } & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
+
+export type ProjectHeaderFragment = {
+  __typename?: "Project";
+  id: any;
+  name: string;
+  createdAt: any;
+  updatedAt: any;
+  head: { __typename?: "ProjectVersion" } & {
+    " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+  };
+} & { " $fragmentName"?: "ProjectHeaderFragment" };
 
 export type FileHeaderFragment = {
   __typename?: "File";
@@ -1082,6 +1093,33 @@ export const ProjectVersionHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectVersionHeaderFragment, unknown>;
+export const ProjectHeaderFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "head" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectHeaderFragment, unknown>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
@@ -1158,6 +1196,54 @@ export const FileContentByIdDocument = {
     ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
+export const ProjectVersionsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "projectVersions" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "versions" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectVersionHeaderFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
 export const ProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -1197,78 +1283,16 @@ export const ProjectBySlugDocument = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
             },
           },
         ],
       },
     },
-  ],
-} as unknown as DocumentNode<ProjectBySlugQuery, ProjectBySlugQueryVariables>;
-export const ProjectVersionsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "projectVersions" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "project" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "slug" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "head" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
-                    ],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "versions" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
+    ...ProjectHeaderFragmentDoc.definitions,
     ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
+} as unknown as DocumentNode<ProjectBySlugQuery, ProjectBySlugQueryVariables>;
 export const ProjectVersionContentDocument = {
   kind: "Document",
   definitions: [

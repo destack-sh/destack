@@ -2,8 +2,10 @@
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { ChevronUpDownIcon } from "@heroicons/vue/24/solid";
 
-defineProps<{ modelValue: any; options: any[]; label?: string; emptyText?: string }>();
-defineEmits<{ (e: "update:modelValue", value: any): void }>();
+type Option = { name: string; value: string };
+
+defineProps<{ modelValue: Option; options: Option[]; label?: string; emptyText?: string }>();
+defineEmits<{ (e: "update:modelValue", value: Option): void }>();
 </script>
 
 <template>
