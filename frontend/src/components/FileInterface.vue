@@ -106,7 +106,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       <!-- Symbol content -->
       <div
         class="rounded-sm border bg-white py-2 px-2"
-        :class="{ 'border-orange-600 shadow-md shadow-orange-300': isDefinitionFocused(definition) }"
+        :class="{ 'border-orange-600 shadow-outline shadow-orange-300': isDefinitionFocused(definition) }"
       >
         <!-- TODO @Cleanup: access symbol props via definition only (like generated) -->
         <component

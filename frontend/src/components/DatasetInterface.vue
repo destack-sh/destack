@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
+import SchemaElement from "@/components/SchemaElement.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import type { DatasetContentFragment } from "@/gql/graphql";
 import { SchemaElementContentDeepType } from "@/utils/fragments";
@@ -46,9 +47,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
     <!-- Schema & controls -->
     <div class="mx-2 my-1 flex flex-row justify-between">
       <div class="flex flex-row gap-2">
-        <span v-for="element in schemaElements" :key="element.name" class="text-sm text-gray-700">
-          {{ element.name }} <span class="text-gray-500">({{ element.type.toLowerCase() }})</span>
-        </span>
+        <SchemaElement v-for="element in schemaElements" :key="element.name" :element="element" />
       </div>
       <ListboxSelect class="max-w-fit" v-model="viewMode" :options="viewOptions"> </ListboxSelect>
     </div>
