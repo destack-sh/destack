@@ -38,16 +38,8 @@ type CodeParameter implements Node {
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  type: CodeParameterType!
+  type: SymbolParameterType!
   schema: SchemaElement
-}
-
-"""An enumeration."""
-enum CodeParameterType {
-  DATA
-  MODEL
-  CODE
-  VALUE
 }
 
 type Compilation implements Node {
@@ -326,7 +318,9 @@ type SymbolDefinition implements Node {
   projectVersion: ProjectVersion!
   name: String!
   type: SymbolType!
+  typeShortname: String!
   nameDotType: String!
+  typeNameDeclaration: String!
   file: File!
   parent: SymbolDefinition
   children: [SymbolDefinition!]!
@@ -337,6 +331,14 @@ type SymbolDefinition implements Node {
   committedIn: ProjectVersion
   committed: Boolean!
   content(pk: ID): SymbolContent!
+}
+
+"""An enumeration."""
+enum SymbolParameterType {
+  DATA
+  MODEL
+  CODE
+  VALUE
 }
 
 """The type of symbol to define in a project."""

@@ -88,7 +88,9 @@ class SymbolDefinition(gql.Node):
     project_version: ProjectVersion
     name: auto
     type: auto
+    type_shortname: auto
     name_dot_type: auto
+    type_name_declaration: auto
     file: File
     parent: Optional[SymbolDefinition]
     children: list[SymbolDefinition]

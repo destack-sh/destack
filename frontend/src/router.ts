@@ -4,7 +4,6 @@ import ProjectBench from "@/routes/ProjectBench.vue";
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 
-const forwardQuery = (route: RouteLocationNormalized) => route.query;
 const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
   ...route.query,
   ...route.params,
@@ -18,7 +17,7 @@ const routes = [
 
 // use custom query string decode to auto-coerce bools & numbers
 // based on https://github.com/ljharb/qs/issues/91#issuecomment-864680091
-function qsCoerceDecoder(str: string, decoder: any, charset: string) {
+function qsCoerceDecoder(str: string, decoder: never, charset: string) {
   const strWithoutPlus = str.replace(/\+/g, " ");
   if (charset === "iso-8859-1") {
     return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
@@ -28,7 +27,7 @@ function qsCoerceDecoder(str: string, decoder: any, charset: string) {
     return parseFloat(str);
   }
 
-  const keywords: Record<any, any> = {
+  const keywords: Record<string, true | false | null | undefined> = {
     true: true,
     false: false,
     null: null,

@@ -65,17 +65,9 @@ export type CodeParameter = Node & {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
   schema?: Maybe<SchemaElement>;
-  type: CodeParameterType;
+  type: SymbolParameterType;
   updatedAt: Scalars["DateTime"];
 };
-
-/** An enumeration. */
-export enum CodeParameterType {
-  Code = "CODE",
-  Data = "DATA",
-  Model = "MODEL",
-  Value = "VALUE",
-}
 
 export type Compilation = Node & {
   __typename?: "Compilation";
@@ -373,12 +365,22 @@ export type SymbolDefinition = Node & {
   parent?: Maybe<SymbolDefinition>;
   projectVersion: ProjectVersion;
   type: SymbolType;
+  typeNameDeclaration: Scalars["String"];
+  typeShortname: Scalars["String"];
   updatedAt: Scalars["DateTime"];
 };
 
 export type SymbolDefinitionContentArgs = {
   pk?: InputMaybe<Scalars["ID"]>;
 };
+
+/** An enumeration. */
+export enum SymbolParameterType {
+  Code = "CODE",
+  Data = "DATA",
+  Model = "MODEL",
+  Value = "VALUE",
+}
 
 /** The type of symbol to define in a project. */
 export enum SymbolType {
@@ -459,7 +461,7 @@ export type CodeContentFragment = {
   parameters: Array<{
     __typename?: "CodeParameter";
     name: string;
-    type: CodeParameterType;
+    type: SymbolParameterType;
     schema?:
       | ({ __typename?: "SchemaElement" } & {
           " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
@@ -506,7 +508,9 @@ export type FileContentByIdQuery = {
           id: any;
           name: string;
           type: SymbolType;
+          typeShortname: string;
           nameDotType: string;
+          typeNameDeclaration: string;
           createdAt: any;
           updatedAt: any;
           generated: boolean;
@@ -1161,7 +1165,9 @@ export const FileContentByIdDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "typeShortname" } },
                       { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
+                      { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "generated" } },

@@ -24,7 +24,9 @@ const { result: file } = useQuery(
           id
           name
           type
+          typeShortname
           nameDotType
+          typeNameDeclaration
           createdAt
           updatedAt
           generated
@@ -83,20 +85,22 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       @mousedown="editorState?.focusDefinition(definition)"
     >
       <!-- Symbol definition header & controls -->
-      <div>
+      <div class="mx-1 my-1.5 flex flex-row items-baseline">
+        <!-- declaration -->
         <span
-          class="m-1 text-sm"
+          class="text-sm"
           :class="{
-            'text-gray-900': !isDefinitionFocused(definition),
+            'text-black': !isDefinitionFocused(definition),
             'text-orange-600': isDefinitionFocused(definition),
           }"
         >
-          {{ definition.nameDotType }}
+          <span class="text-gray-90">{{ definition.typeShortname }}</span> <span class="">{{ definition.name }}</span>
         </span>
-        <span v-if="definition.generated">
-          <span class="text-xs text-gray-500">(generated)</span>
+        <!-- meta info -->
+        <span class="inline-flex flex-row items-baseline gap-1 px-2 text-xs">
+          <span class="text-gray-500"> {{ getTimeFromNowString(definition.updatedAt) }} </span>
+          <span v-if="definition.generated" class="text-gray-500">generated</span>
         </span>
-        <span class="text-xs text-gray-500"> edited {{ getTimeFromNowString(definition.updatedAt) }} </span>
       </div>
 
       <!-- Symbol content -->

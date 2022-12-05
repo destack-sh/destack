@@ -408,7 +408,7 @@ watchEffect(() => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex h-full w-full flex-1 bg-gray-100">
+      <main class="relative flex h-full w-full flex-1 bg-gray-50">
         <div class="absolute top-0 left-0 h-full w-full flex-1 overflow-y-auto">
           <!-- Editors for each open file -->
           <FileInterface

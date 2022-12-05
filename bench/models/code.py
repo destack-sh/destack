@@ -68,7 +68,7 @@ class Code(SymbolContent):
     def add_parameter(
         self,
         name: str,
-        type: CodeParameterType,
+        type: SymbolParameterType,
         exists_ok: bool = False,
         schema: Optional[SchemaElement] = None,
     ) -> CodeParameter:
@@ -87,7 +87,7 @@ class Code(SymbolContent):
     async def aadd_parameter(
         self,
         name: str,
-        type: CodeParameterType,
+        type: SymbolParameterType,
         exists_ok: bool = False,
         schema: Optional[dict] = None,
     ) -> CodeParameter:
@@ -100,8 +100,8 @@ class Code(SymbolContent):
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
         # get/create parameter and corresponding argument
-        argument_type = CodeParameterType.from_value(value)
-        if argument_type == CodeParameterType.VALUE:
+        argument_type = SymbolParameterType.from_value(value)
+        if argument_type == SymbolParameterType.VALUE:
             value, reference = value, None
         else:
             value, reference = None, value
@@ -155,25 +155,25 @@ class Code(SymbolContent):
         ]
 
 
-class CodeParameterType(models.TextChoices):
+class SymbolParameterType(models.TextChoices):
     DATA = "dataset"
     MODEL = "model"
     CODE = "code"
     VALUE = "value"
 
     @staticmethod
-    def from_value(obj: Any | SymbolDefinition) -> CodeParameterType:
+    def from_value(obj: Any | SymbolDefinition) -> SymbolParameterType:
         if isinstance(obj, SymbolDefinition):
             if obj.type == SymbolType.DATASET or obj.type == SymbolType.DATASET_VIEW:
-                return CodeParameterType.DATA
+                return SymbolParameterType.DATA
             elif obj.type == SymbolType.MODEL:
-                return CodeParameterType.MODEL
+                return SymbolParameterType.MODEL
             elif obj.type == SymbolType.CODE:
-                return CodeParameterType.CODE
+                return SymbolParameterType.CODE
             else:
                 raise ValueError(f"unexpected symbol type for code parameter: {obj}")
         elif is_jsonable(obj):
-            return CodeParameterType.VALUE
+            return SymbolParameterType.VALUE
         else:
             raise ValueError(f"unknown object {obj} to code parameter")
 
@@ -182,13 +182,17 @@ class CodeParameter(UUIDModel):
     """
     A parameter is a named argument to a function which is bound by a CodeArgument.
     Parameters are typed using SchemaElements.
+
+    TODO @Feature parameterize symbols other than code
+    Only code has parameters/arguments right now because it's most natural,
+    but we'll eventually parameterize other symbols like tasks and datasets.
     """
 
     code = models.ForeignKey(Code, on_delete=models.CASCADE, related_name="parameters")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = TextChoicesField(choices_enum=CodeParameterType)
+    type = TextChoicesField(choices_enum=SymbolParameterType)
     schema = SchemaElementField(null=True, blank=True)  # models need not have a schema
 
     def __str__(self):
@@ -217,7 +221,7 @@ class CodeArgument(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    type = models.CharField(max_length=64, choices=CodeParameterType.choices)
+    type = models.CharField(max_length=64, choices=SymbolParameterType.choices)
     reference = models.ForeignKey("SymbolDefinition", on_delete=models.CASCADE, null=True)
     value = models.JSONField(null=True, blank=True)
 

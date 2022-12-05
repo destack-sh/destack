@@ -35,7 +35,7 @@ const content = computed(() => useFragment(TaskContent, props.content));
     {{ content.inputSchema }} -> {{ content.outputSchema }}
     <ul class="flex flex-col gap-2">
       <li class="flex flex-col" v-for="expectation in content.expectations" :key="expectation.id">
-        <span class="text-orange-600">{{ expectation.nameDotType }}</span>
+        <span class="text-gray-500">{{ expectation.nameDotType }}</span>
         <span>{{ expectation.description }}</span>
       </li>
     </ul>
