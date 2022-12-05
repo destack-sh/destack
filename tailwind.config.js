@@ -13,6 +13,9 @@ module.exports = {
         teal: colors.teal,
         rose: colors.rose,
       },
+      boxShadow: {
+        outline: "4 4 3 3px rgba(0 0 0 / 0.05)",
+      },
     },
   },
   plugins: [
