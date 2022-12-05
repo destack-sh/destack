@@ -54,7 +54,7 @@ class Task(SymbolContent):
         return compilation
 
     def __str__(self):
-        return f"{self.definition_str}(schema={self.schema})"
+        return f"{self.definition_str}({self.input_schema}->{self.output_schema})"
 
     objects = TaskManager()
 

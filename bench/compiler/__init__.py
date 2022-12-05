@@ -30,6 +30,7 @@ from bench.models.code import CodeParameterType
 from bench.models.symbol import SYMBOL_CONTENT_FIELDS
 from bench.models.task import Compilation, Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
+from bench.utils.schema import SchemaElement
 
 logger = structlog.get_logger(__name__)
 
@@ -145,12 +146,12 @@ class TaskData:
         return self.task.id
 
     @property
-    def input_keys(self) -> set[str]:
-        return self.task.schema["input"].keys()
+    def input_schema(self) -> SchemaElement:
+        return self.task.input_schema
 
     @property
-    def output_keys(self) -> set[str]:
-        return self.task.schema["output"].keys()
+    def output_schema(self) -> SchemaElement:
+        return self.task.output_schema
 
     def walk_tree_dfs(self) -> Iterable[TaskData]:
         yield self
@@ -417,13 +418,13 @@ class Compiler:
     def _gen_llm_examples(
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
-        dataset = Dataset.objects.from_list(compiled_examples)
+        dataset = Dataset.objects.from_list(compiled_examples, schema="derive")
         genfile.create_definition("examples", dataset, generated=True)
-        compiled_examples_keys = dataset.schema.keys()
-        if compiled_examples_keys != {*task_data.input_keys, *task_data.output_keys}:
+        task_schema_keys = {*task_data.input_schema.keys, *task_data.output_schema.keys}
+        if set(dataset.schema.keys) != task_schema_keys:
             raise ValueError(
-                f"{task_data.definition} compiled examples {compiled_examples_keys} do not match "
-                f"input/output keys {task_data.input_keys, task_data.output_keys}"
+                f"{task_data.definition} compiled examples {dataset.schema.keys} do not match "
+                f"input/output keys {task_data.input_schema.keys, task_data.output_schema.keys}"
             )
         return dataset
 
@@ -447,7 +448,10 @@ class Compiler:
         examples = await _acollect(examples_dataset)
         # set max tokens to sum of max length of output keys across examples plus 20%
         max_tokens = int(
-            sum(max(len(example[key]) for example in examples) for key in task_data.output_keys)
+            sum(
+                max(len(example[key]) for example in examples)
+                for key in task_data.output_schema.keys
+            )
         )
 
         if task_data.optimal_backend is None:
@@ -471,15 +475,21 @@ class Compiler:
         # build prompt template
         prompt_prefix: str = task_description + "\n"
         prompt_example = "".join(
-            f"{key}: {{{key}}}\n" for key in chain(task_data.input_keys, task_data.output_keys)
+            f"{key}: {{{key}}}\n"
+            for key in chain(task_data.input_schema.keys, task_data.output_schema.keys)
         )
-        prompt_input = "".join(f"{key}: {{{key}}}\n" for key in task_data.input_keys)
-        if len(task_data.output_keys) == 1:
+        prompt_input = "".join(f"{key}: {{{key}}}\n" for key in task_data.input_schema.keys)
+        if len(task_data.output_schema.keys) == 1:
             # also add output key prefix if there is only one
-            main_output_key = tuple(task_data.output_keys)[0]
+            main_output_key = tuple(task_data.output_schema.keys)[0]
             prompt_input = prompt_input + f"{main_output_key}: "
 
-        llm_code = Code(task=task_data.task, schema=task_data.schema, builtin_id="llm_fewshot")
+        llm_code = Code(
+            task=task_data.task,
+            input_schema=task_data.input_schema,
+            output_schema=task_data.output_schema,
+            builtin_id="llm_fewshot",
+        )
         genfile.create_definition(task_data.definition.name, llm_code, generated=True)
         llm_code.bind_arguments(
             model=task_data.optimal_backend.definition,
@@ -490,6 +500,6 @@ class Compiler:
             settings=settings.as_dict(omit_empty=True),
         )
         # add parameter for input keys
-        for key in task_data.input_keys:
+        for key in task_data.input_schema.keys:
             llm_code.bind_argument(key, CodeParameterType.VALUE)
         return llm_code
