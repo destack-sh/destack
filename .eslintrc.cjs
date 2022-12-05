@@ -18,10 +18,12 @@ module.exports = {
       files: ["cypress/integration/**.spec.{js,ts,jsx,tsx}"],
       extends: ["plugin:cypress/recommended"],
     },
-    {
-      files: ["*.js", "*.ts"],
-      processor: "@graphql-eslint/graphql",
-    },
+    // TODO @Ops: use graphql-eslint (currently broken with prettier and Vue SFC files)
+    // {
+    //   files: ["*.js", "*.ts", "*.vue"],
+    //   processor: "@graphql-eslint/graphql",
+    //   plugins: ["@graphql-eslint"],
+    // },
     {
       files: ["*.graphql"],
       parser: "@graphql-eslint/eslint-plugin",
