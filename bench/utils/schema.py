@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import typing
 from collections import OrderedDict
 from enum import Enum
 from typing import Optional, Union
@@ -58,7 +59,10 @@ class SchemaElement:
 
     @property
     def keys(self) -> list[str]:
-        return [e.name for e in self.elements]
+        if self.elements is None:
+            return []
+        else:
+            return [e.name for e in self.elements]
 
     def __str__(self):
         elements_str = ", ".join(str(e) for e in self.elements) if self.elements else ""
@@ -79,14 +83,12 @@ def derive_schema_from_records(records: list[dict], name: str | None = "record")
     if not isinstance(records, list):
         raise ValueError("records must be a list")
     schema = derive_schema_from_record(records, name=name)
-    if schema is None or isinstance(schema, ValueType):
-        raise ValueError(f"schema could not be derived: {schema}")
+    if schema is None or schema.type != ValueType.ARRAY or schema.elements is None:
+        raise ValueError(f"schema could not be derived (invalid array schema): {schema}")
     return schema.elements[0]
 
 
-def derive_schema_from_record(
-    record: PyValueType, name: str | None = None
-) -> ValueType | SchemaElement | None:
+def derive_schema_from_record(record: PyValueType, name: str | None = None) -> SchemaElement | None:
     if isinstance(record, dict):
         if len(record) == 0:
             return None
@@ -94,7 +96,10 @@ def derive_schema_from_record(
         for key, value in record.items():
             if key in type_by_name:
                 continue
-            type_by_name[key] = derive_schema_from_record(value, name=key)
+            element = derive_schema_from_record(value, name=key)
+            if element is not None:
+                type_by_name[key] = element
+            # otherwise just ignore
         elements = list(type_by_name.values()) if type_by_name else None
         return SchemaElement(name=name or "", type=ValueType.OBJECT, elements=elements)
     elif isinstance(record, list):
@@ -112,17 +117,20 @@ def derive_schema_from_record(
         return SchemaElement(name=name or "", type=get_value_type(record))
 
 
-def derive_schema_from_function(function: callable) -> tuple[SchemaElement, SchemaElement]:
+def derive_schema_from_function(function: typing.Callable) -> tuple[SchemaElement, SchemaElement]:
     signature = inspect.signature(function)
 
-    input_schema = SchemaElement(name="input", type=ValueType.OBJECT, elements=[])
+    input_schema_elements = []
     for param in signature.parameters.values():
         ptype = param.annotation
         if ptype in ("Model", "Dataset"):
             continue  # ignore non-value types
         element = derive_schema_from_type(ptype, name=param.name)
         if element is not None:
-            input_schema.elements.append(element)
+            input_schema_elements.append(element)
+    input_schema = SchemaElement(
+        name="input", type=ValueType.OBJECT, elements=input_schema_elements
+    )
 
     output_schema = derive_schema_from_type(signature.return_annotation or "None", name="output")
     if output_schema is None:
@@ -134,33 +142,38 @@ def derive_schema_from_function(function: callable) -> tuple[SchemaElement, Sche
 def derive_schema_from_type(typ: type | str, name: str) -> SchemaElement | None:
     if typ in ("Model", "Dataset"):
         return None
-    # evaluate type annotations (assumes no imports)
+    # evaluate type annotations (assumes no special imports)
+    resolved_type: type
     if isinstance(typ, str):
-        typ = eval(typ)
+        resolved_type = eval(typ)
+        if not isinstance(resolved_type, type):
+            raise ValueError(f"could not evaluate type: {typ}")
+    else:
+        resolved_type = typ
 
     # get type annotation from generic alias
-    if hasattr(typ, "__origin__"):
-        typ = typ.__origin__
-        subtypes = getattr(typ, "__args__", None)
+    if hasattr(resolved_type, "__origin__"):
+        resolved_type = resolved_type.__origin__
+        subtypes = getattr(resolved_type, "__args__", None)
     else:
         subtypes = None
 
-    if typ is Union:
+    if resolved_type is Union:
         # don't support unions
         return None
 
-    if issubclass(typ, list):
+    if issubclass(resolved_type, list):
         if subtypes is not None:
             element_type = derive_schema_from_type(subtypes[0], name)
             elements = [element_type] if element_type is not None else None
         else:
             elements = None
         return SchemaElement(name, ValueType.ARRAY, elements=elements)
-    elif issubclass(typ, dict):
+    elif issubclass(resolved_type, dict):
         # not possible to derive schema from dict
         return SchemaElement(name, ValueType.OBJECT, elements=None)
     else:
-        return SchemaElement(name, PYTYPE_TO_VALUE_TYPE[typ])
+        return SchemaElement(name, PYTYPE_TO_VALUE_TYPE[resolved_type])
 
 
 class SchemaElementSerializer:
@@ -181,7 +194,7 @@ class SchemaElementSerializer:
     @staticmethod
     def from_json(json: dict) -> "SchemaElement":
         elements = (
-            [SchemaElementSerializer.from_json(e) for e in json.get("elements")]
+            [SchemaElementSerializer.from_json(e) for e in json.get("elements", [])]
             if json.get("elements") is not None
             else None
         )
