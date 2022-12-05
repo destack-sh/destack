@@ -8,6 +8,7 @@ import { DefaultApolloClient } from "@vue/apollo-composable";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
+import Mousetrap from "mousetrap";
 
 async function init() {
   const apolloClient = new ApolloClient({
@@ -27,7 +28,7 @@ async function init() {
 
   app.mount("#app");
 
-  console.group(`%cProject Information`, "color:orangered"); // groupCollapsed
+  console.group(`%Bench Build Information`, "color:orangered"); // groupCollapsed
 
   if (import.meta.env.DEV) {
     console.info(`%cVersion: v${version}`, "color:orangered");
@@ -39,6 +40,13 @@ async function init() {
   // prevent opening files that are dragged over the window
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
+
+  // capture ctrl + s
+  Mousetrap.bind(["ctrl+s", "meta+s"], function () {
+    // ignore for now
+    console.log("save (doesn't do anything)");
+    return false;
+  });
 }
 
 init();
