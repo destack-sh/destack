@@ -27,7 +27,7 @@ from bench.models import (
     SymbolType,
     Task,
 )
-from bench.models.code import CodeParameterType
+from bench.models.code import SymbolParameterType
 from bench.utils.schema import (
     SchemaElement,
     SchemaObjectSerializer,
@@ -355,14 +355,14 @@ def bind_code_parameters(
 
         param_schema = None
         if param_type == "Dataset":
-            param_type = CodeParameterType.DATA
+            param_type = SymbolParameterType.DATA
         elif param_type == "Model":
-            param_type = CodeParameterType.MODEL
+            param_type = SymbolParameterType.MODEL
         elif param_type == "Code":
-            param_type = CodeParameterType.CODE
+            param_type = SymbolParameterType.CODE
         else:
             param_schema = SchemaElement(name=param_name, type=get_value_type(param_type))
-            param_type = CodeParameterType.VALUE
+            param_type = SymbolParameterType.VALUE
         code.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
         if "@param" in comment:
@@ -375,7 +375,7 @@ def bind_code_parameters(
         else:
             symbol_ref_name = param_name
 
-        if param_type == CodeParameterType.VALUE:
+        if param_type == SymbolParameterType.VALUE:
             raise NotImplementedError(f"json argument resolution not supported: {line}")
         symbol_def = project_v.symbol_definition(symbol_ref_name)
         code.bind_argument(param_name, symbol_def)

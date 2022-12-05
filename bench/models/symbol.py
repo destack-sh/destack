@@ -152,6 +152,14 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     def name_dot_type(self) -> str:
         return f"{self.name}.{self.type}"
 
+    @gql.model_property(only=["name", "type"])
+    def type_name_declaration(self) -> str:
+        return f"{self.type} {self.name}"
+
+    @gql.model_property(only=["type"])
+    def type_shortname(self) -> str:
+        return self.type
+
     @gql.model_cached_property(
         only=["type"],
         select_related=["task", "expectation", "code", "model", "dataset", "dataset_view"],
@@ -275,6 +283,10 @@ class SymbolContent(UUIDModel):
     @gql.model_property(only=["definition"], select_related=["definition"])
     def name_dot_type(self) -> str:
         return self.definition.name_dot_type
+
+    @gql.model_property(only=["definition"], select_related=["definition"])
+    def type_name_declaration(self) -> str:
+        return self.definition.type_name_declaration
 
     def deepcopy(self, to: Any, refs: dict[UUID, SymbolDefinition | SymbolContent]):
         """

@@ -17,7 +17,7 @@ from bench.backend.base import Completion, ModelHandle, ModelProvider
 from bench.backend.openai import OpenAIProvider
 from bench.executor.builtins import code_builtins
 from bench.models import Dataset, Model, SymbolContent, SymbolDefinition, SymbolType
-from bench.models.code import Code, CodeArgument, CodeParameter, CodeParameterType
+from bench.models.code import Code, CodeArgument, CodeParameter, SymbolParameterType
 from bench.models.dataset import DatasetView
 from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
@@ -321,7 +321,7 @@ class Executor:
         )
         bound_arguments_resolved: dict[str, Any] = {}
         async for argument in bound_arguments:
-            if argument.type == CodeParameterType.VALUE:
+            if argument.type == SymbolParameterType.VALUE:
                 bound_arguments_resolved[argument.name] = argument.value
                 continue
             if argument.reference is None:
@@ -373,16 +373,16 @@ class Executor:
                 continue
             # check that all arguments are of the correct type
             # TODO @Robustness: check that the argument has the correct schema
-            if parameter.type == CodeParameterType.CODE:
+            if parameter.type == SymbolParameterType.CODE:
                 if not callable(arguments[parameter.name]):
                     raise ValueError(f"argument {parameter.name} for {code} is not a callable")
-            elif parameter.type == CodeParameterType.MODEL:
+            elif parameter.type == SymbolParameterType.MODEL:
                 if not isinstance(arguments[parameter.name], ModelHandle):
                     raise ValueError(f"argument {parameter.name} for {code} is not a model handler")
-            elif parameter.type == CodeParameterType.DATA:
+            elif parameter.type == SymbolParameterType.DATA:
                 if not isinstance(arguments[parameter.name], RecordBatch):
                     raise ValueError(f"argument {parameter.name} for {code} is not a dataset")
-            elif parameter.type == CodeParameterType.VALUE:
+            elif parameter.type == SymbolParameterType.VALUE:
                 # check that the argument is a JSON object or primitive
                 if not isinstance(
                     arguments[parameter.name], (dict, list, str, int, float, bool, type(None))

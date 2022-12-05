@@ -26,7 +26,7 @@ from bench.models import (
     SymbolDefinition,
     SymbolType,
 )
-from bench.models.code import CodeParameterType
+from bench.models.code import SymbolParameterType
 from bench.models.symbol import SYMBOL_CONTENT_FIELDS
 from bench.models.task import Compilation, Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
@@ -430,11 +430,9 @@ class Compiler:
         # (naive implementation: set only temperature and max_tokens)
         temperature = await self.executor.run(
             self.get_temperature,
-            arguments={
-                "model": self.compiler_model,
-                "description": task_description,
-                "examples": examples_dataset,
-            },
+            arguments=dict(
+                model=self.compiler_model, description=task_description, examples=examples_dataset
+            ),
         )
         if not isinstance(temperature, float):
             raise ValueError(
@@ -497,5 +495,5 @@ class Compiler:
         )
         # add parameter for input keys
         for key in task_data.input_schema.keys:
-            llm_code.bind_argument(key, CodeParameterType.VALUE)
+            llm_code.bind_argument(key, SymbolParameterType.VALUE)
         return llm_code
