@@ -11,7 +11,7 @@ class SchemaElementField(models.JSONField):
     def from_db_value(self, value, expression, connection):
         if value is None:
             return value
-        value = super().from_db_value(value, expression, connection)
+        value = super().from_db_value(value, expression, connection)  # type: ignore
         return SchemaElementSerializer.from_json(value)
 
     def to_python(self, value):
@@ -41,7 +41,7 @@ class SchemaField(models.JSONField):
     def from_db_value(self, value, expression, connection):
         if value is None:
             return value
-        value = super().from_db_value(value, expression, connection)
+        value = super().from_db_value(value, expression, connection)  # type: ignore
         elements = [SchemaElementSerializer.from_json(e) for e in value]
         return SchemaElement(name=self.name, type=ValueType.OBJECT, elements=elements)
 

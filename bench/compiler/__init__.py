@@ -131,10 +131,6 @@ class TaskData:
     def definition(self) -> SymbolDefinition:
         return self.task.definition
 
-    @property
-    def schema(self):
-        return self.task.schema
-
     def __str__(self):
         return f"TaskData({self.task})"
 
