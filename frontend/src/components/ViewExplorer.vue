@@ -2,7 +2,7 @@
 import { EDITOR_STATE_KEY, type EditorState, type FileHeader } from "@/utils/editor";
 import { inject } from "vue";
 
-const props = defineProps<{ files: FileHeader[] }>();
+defineProps<{ files: FileHeader[] }>();
 
 const state = inject<EditorState>(EDITOR_STATE_KEY);
 </script>

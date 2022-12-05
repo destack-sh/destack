@@ -13,10 +13,10 @@ const documents = {
     types.FileContentByIdDocument,
   "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.TaskContentFragmentDoc,
-  "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        id\n      }\n    }\n  ":
-    types.ProjectBySlugDocument,
-  "\n    query projectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionHeader\n        }\n        versions {\n          id\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
+  "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
+  "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
+    types.ProjectBySlugDocument,
   "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n      nameDotType\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.ProjectVersionContentFragmentDoc,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
@@ -27,6 +27,8 @@ const documents = {
     types.AddCompilationTargetDocument,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
+  "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n":
+    types.ProjectHeaderFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n":
     types.FileHeaderFragmentDoc,
   "\n  fragment CompilationHeader on Compilation {\n    id\n    name\n    createdAt\n    updatedAt\n    task {\n      id\n      nameDotType\n    }\n    backends {\n      id\n      nameDotType\n    }\n    targetTask {\n      id\n      nameDotType\n    }\n    targetCode {\n      id\n      nameDotType\n    }\n  }\n":
@@ -51,11 +53,11 @@ export function graphql(
   source: "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
 ): typeof documents["\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      nameDotType\n    }\n    templateImplementation {\n      id\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
 export function graphql(
-  source: "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        id\n      }\n    }\n  "
-): typeof documents["\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        id\n      }\n    }\n  "];
+  source: "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
+): typeof documents["\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    query projectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionHeader\n        }\n        versions {\n          id\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
-): typeof documents["\n    query projectVersions($id: GlobalID!) {\n      project(id: $id) {\n        id\n        name\n        slug\n        head {\n          id\n          ...ProjectVersionHeader\n        }\n        versions {\n          id\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
+  source: "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
+): typeof documents["\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n      nameDotType\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n      nameDotType\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
@@ -71,6 +73,9 @@ export function graphql(
 export function graphql(
   source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"];
+export function graphql(
+  source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n"];

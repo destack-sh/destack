@@ -11,6 +11,18 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
+export const ProjectHeaderType = graphql(/* GraphQL */ `
+  fragment ProjectHeader on Project {
+    id
+    name
+    createdAt
+    updatedAt
+    head {
+      ...ProjectVersionHeader
+    }
+  }
+`);
+
 export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id

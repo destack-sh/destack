@@ -25,12 +25,13 @@ const schema = computed(() => useFragment(SchemaElementContentDeepType, content.
 const schemaElements = computed(() => schema.value?.elements || []);
 
 type ViewMode = "table" | "json" | "jsonl";
-const viewOptions: { name: string; value: ViewMode }[] = [
+type View = { name: string; value: ViewMode };
+const viewOptions: View[] = [
   { name: "Table", value: "table" },
   { name: "JSONL", value: "jsonl" },
   { name: "JSON", value: "json" },
 ];
-const viewMode: Ref<any> = ref(viewOptions[0]);
+const viewMode: Ref<View> = ref(viewOptions[0]);
 
 function datasetToJsonObj(content: DatasetContentFragment) {
   return content.records.map((r) => r.data);

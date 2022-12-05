@@ -9,7 +9,7 @@ import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
 import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
 import { FileHeaderType } from "@/utils/fragments";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, inject } from "vue";
+import { computed, inject, type Component } from "vue";
 
 const props = defineProps<{ file: FragmentType<typeof FileHeaderType> }>();
 const fileHeader = useFragment(FileHeaderType, props.file);
@@ -50,7 +50,7 @@ const definitions = computed(() => {
 const { getTimeFromNowString } = useTimeFromNow();
 
 type DefinitionInterface = {
-  component: any;
+  component: Component;
 };
 
 const interfaces: Record<SymbolType, DefinitionInterface> = {

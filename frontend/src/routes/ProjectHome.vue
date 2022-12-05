@@ -4,7 +4,7 @@ import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { EDITOR_STATE_KEY, type EditorState, type FileHeader, type SymbolDefinitionHeader } from "@/utils/editor";
-import { CompilationHeaderType, FileHeaderType } from "@/utils/fragments";
+import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -16,7 +16,7 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import { computed, provide, ref, watchEffect, type Ref } from "vue";
+import { computed, provide, ref, watchEffect, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -39,7 +39,7 @@ const userNavigation = [
 type View = {
   id: "explorer" | "version-history";
   name: string;
-  icon: any;
+  icon: Component;
 };
 const views: View[] = [
   { id: "explorer", name: "Explorer", icon: ClipboardDocumentIcon },
@@ -48,11 +48,11 @@ const views: View[] = [
 const activeView: Ref<View> = ref(views[0]);
 
 // real data
-const { result: projectId } = useQuery(
+const { result: projectHeaderQuery } = useQuery(
   graphql(/* GraphQL */ `
     query projectBySlug($organization: String!, $project: String!) {
       projectBySlug(organization: $organization, project: $project) {
-        id
+        ...ProjectHeader
       }
     }
   `),
@@ -61,28 +61,8 @@ const { result: projectId } = useQuery(
     project: props.project,
   })
 );
-
-const { result: versionsQuery } = useQuery(
-  graphql(/* GraphQL */ `
-    query projectVersions($id: GlobalID!) {
-      project(id: $id) {
-        id
-        name
-        slug
-        head {
-          id
-          ...ProjectVersionHeader
-        }
-        versions {
-          id
-          ...ProjectVersionHeader
-        }
-      }
-    }
-  `),
-  () => ({ id: projectId.value?.projectBySlug?.id }),
-  () => ({ enabled: !!projectId.value?.projectBySlug?.id })
-);
+const projectHeader = computed(() => useFragment(ProjectHeaderType, projectHeaderQuery.value?.projectBySlug));
+const projectHead = computed(() => useFragment(ProjectVersionHeaderType, projectHeader.value?.head));
 
 const ProjectVersionContent = graphql(/* GraphQL */ `
   fragment ProjectVersionContent on ProjectVersion {
@@ -118,12 +98,11 @@ const { result: contentQuery } = useQuery(
       }
     }
   `),
-  () => ({ id: versionsQuery.value?.project?.head?.id }),
-  () => ({ enabled: !!versionsQuery.value?.project?.head?.id })
+  () => ({ id: projectHead.value?.id }),
+  () => ({ enabled: !!projectHead.value?.id })
 );
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
 
-const projectWithVersions = computed(() => versionsQuery.value?.project);
 const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
 const compilations = computed(
   () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
@@ -425,7 +404,7 @@ watchEffect(() => {
         </div>
         <div class="flex flex-1 flex-col">
           <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
-          <ViewVersionHistory v-else-if="activeView.id == 'version-history'" :project="projectWithVersions" />
+          <ViewVersionHistory v-else-if="activeView.id == 'version-history'" :project="projectHeader" />
         </div>
       </aside>
       <!-- Main editor area -->

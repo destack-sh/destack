@@ -1,13 +1,13 @@
-import { DateTime, type ToRelativeOptions } from "luxon";
+import { DateTime } from "luxon";
 import { onMounted, onUnmounted, ref, type Ref } from "vue";
 
 export function useNow(updateInterval = 60000) {
   /**
-   * Gets a computed reference to 'now' DateTime, updated every updateInterval.
+   * Gets a computed reference to 'now' DateTime, updated every updateInterval (ms).
    */
   const now: Ref<DateTime> = ref(DateTime.now());
 
-  let interval: NodeJS.Timer;
+  let interval: number;
   onMounted(() => {
     interval = setInterval(() => (now.value = DateTime.now()), updateInterval);
   });
@@ -15,11 +15,6 @@ export function useNow(updateInterval = 60000) {
 
   return now;
 }
-export const defaultLuxonOptions: ToRelativeOptions = {
-  locale: "en-US",
-  style: "narrow",
-  unit: ["years", "months", "weeks", "days", "hours", "minutes"],
-};
 
 export function useTimeFromNow(updateInterval = 60000) {
   const now = useNow(updateInterval);
