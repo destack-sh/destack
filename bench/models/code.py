@@ -58,12 +58,12 @@ class Code(SymbolContent):
         if self.builtin_id:
             content = f"builtin={self.builtin_id}"
         elif self.code_function_name and self.code:
-            content = f"function={self.code_function_name},length={len(self.code)}"
+            content = f"function={self.code_function_name},chars={len(self.code)},lines={len(self.code.splitlines())}"
         elif self.code:
             content = f"length={len(self.code)}"
         else:
             raise ValueError(f"code has no content: {self}")
-        return f"{self.definition_str}({content})"
+        return f"{self.definition_str}({content},{self.input_schema}->{self.output_schema})"
 
     def add_parameter(
         self,

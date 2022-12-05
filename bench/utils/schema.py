@@ -56,6 +56,24 @@ class SchemaElement:
     choices: Optional[list[PyValueType]] = None
     elements: Optional[list["SchemaElement"]] = None
 
+    @property
+    def keys(self) -> list[str]:
+        return [e.name for e in self.elements]
+
+    def __str__(self):
+        elements_str = ", ".join(str(e) for e in self.elements) if self.elements else ""
+        if self.type == ValueType.OBJECT:
+            # output as name={elem1, elem2, ...}
+            return f"{self.name}={{{elements_str}}}"
+        elif self.type == ValueType.ARRAY:
+            # output as name=[elem1, elem2, ...]
+            return f"{self.name}=[{elements_str}]"
+        else:
+            if not self.choices:
+                return f"{self.name}={self.type.value}"
+            else:
+                return f"{self.name}={self.type.value}(enum)"
+
 
 def derive_schema_from_records(records: list[dict], name: str | None = "record") -> SchemaElement:
     if not isinstance(records, list):

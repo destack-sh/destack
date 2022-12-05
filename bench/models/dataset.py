@@ -1,7 +1,16 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence, cast
+from typing import (
+    Any,
+    AsyncIterator,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    Sequence,
+    cast,
+)
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
@@ -16,8 +25,8 @@ from bench.utils.schema import SchemaElement, derive_schema_from_records
 
 
 class DatasetManager(SymbolContentManager, models.Manager["Dataset"]):
-    def from_list(self, records: list[dict], schema: Optional[SchemaElement]) -> Dataset:
-        if schema is None:
+    def from_list(self, records: list[dict], schema: SchemaElement | Literal["derive"]) -> Dataset:
+        if schema == "derive":
             schema = derive_schema_from_records(records)
         dataset = cast(Dataset, self.create(schema=schema))
         dataset.set(records)

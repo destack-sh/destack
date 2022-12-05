@@ -34,7 +34,7 @@ class Command(BaseCommand):
 
         executor = Executor()
         compiler = Compiler(executor)
-        compilation, _ = task_def.task.compilations.get_or_create(
+        compilation, _ = task_def.task.compilations.select_related("project_version").get_or_create(
             project_version=project_v, name="default"
         )
         compilation.backends.set(backends)
