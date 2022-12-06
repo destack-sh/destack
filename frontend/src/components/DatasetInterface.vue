@@ -34,6 +34,7 @@ const viewOptions: View[] = [
   { name: "JSON", value: "json" },
 ];
 const viewMode: Ref<View> = ref(viewOptions[0]);
+const showTableHeader = ref(false);
 
 function datasetToJsonObj(content: DatasetContentFragment) {
   return content.records.map((r) => r.data);
@@ -64,6 +65,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
     <!-- Data view -->
     <MonacoEditor
       v-if="viewMode.value == 'jsonl'"
+      class="-mx-10"
       :model-value="contentAsJsonlText"
       language="json"
       :focused="focused"
@@ -71,13 +73,18 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
     />
     <MonacoEditor
       v-else-if="viewMode.value == 'json'"
+      class="-mx-10"
       :model-value="contentAsJsonText"
       language="json"
       :focused="focused"
       :readonly="generated"
     />
-    <table v-else-if="viewMode.value == 'table'" class="h-full w-full divide-y divide-gray-300 rounded-sm">
-      <thead class="bg-gray-50">
+    <table
+      v-else-if="viewMode.value == 'table'"
+      class="h-full w-full rounded-sm"
+      :class="{ ' divide-y divide-gray-300': showTableHeader }"
+    >
+      <thead class="bg-gray-50" v-show="showTableHeader">
         <tr>
           <th
             v-for="element in schemaElements"
@@ -89,14 +96,20 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-200">
-        <tr v-for="record in content.records" :key="record.index">
+        <tr class="relative" v-for="record in content.records" :key="record.index">
           <td
             v-for="element in schemaElements"
             :key="element.name"
-            class="whitespace-pre-wrap px-2 py-1.5 text-sm text-gray-900"
+            class="whitespace-pre-wrap px-2 py-1 text-sm text-gray-900"
           >
             {{ record.data[element.name] || "" }}
           </td>
+          <!-- Imitate Monaco line numbers -->
+          <span
+            class="absolute top-1 -left-10 w-6 text-right font-mono text-sm"
+            :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
+            >{{ record.index + 1 }}</span
+          >
         </tr>
       </tbody>
     </table>

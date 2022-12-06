@@ -409,7 +409,7 @@ watchEffect(() => {
       </aside>
       <!-- Main editor area -->
       <main class="relative flex h-full w-full flex-1 bg-gray-50">
-        <div class="absolute top-0 left-0 h-full w-full flex-1 overflow-y-auto">
+        <div class="absolute top-0 left-0 h-full w-full min-w-[600px] flex-1 overflow-x-auto overflow-y-auto">
           <!-- Editors for each open file -->
           <FileInterface
             v-if="state.focusedFile.value"
