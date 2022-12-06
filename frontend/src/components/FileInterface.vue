@@ -82,7 +82,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       v-for="definition in definitions"
       :key="definition.id"
       class="relative mx-auto w-full max-w-[1000px] transition-all"
-      @mousedown="editorState?.focusDefinition(definition)"
+      @mousedown="editorState?.focusDefinition(fileHeader, definition)"
     >
       <!-- Symbol definition header & controls -->
       <div class="mx-1 my-1.5 flex flex-row items-baseline">

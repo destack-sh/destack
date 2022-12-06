@@ -52,6 +52,9 @@ export const useEditorState = defineStore("editor", {
     focusedFile(state) {
       return state.focusedEditor?.type == "file" ? (state.focusedEditor as FileEditor).file : null;
     },
+    focusedGroup(state) {
+      return state.focusedEditor?.group;
+    },
   },
   actions: {
     openEditor(editor: Editor, group?: EditorGroup): void {
@@ -70,10 +73,22 @@ export const useEditorState = defineStore("editor", {
         group.editors.push(editor);
       }
     },
+    closeEditor(editor: Editor): void {
+      console.log(`close editor ${editor.path}`);
+      if (editor.group != null) {
+        // remove from old group
+        editor.group.editors = editor.group.editors.filter((e) => e != editor);
+        if (editor.group.activeEditor == editor) {
+          editor.group.activeEditor = editor.group.editors[0] || null;
+        }
+      }
+    },
+    moveEditor(editor: Editor, group: EditorGroup): void {
+      this.openEditor(editor, group);
+    },
     openFile(file: FileHeader, group?: EditorGroup): Editor {
-      group = group || this.left;
-      let editor = group.editors.find((e) => e.type == "file" && (e as FileEditor).file?.id == file.id);
-      console.log(`open file ${file.id} ${file.path} in group ${group.id}`);
+      let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).file?.id == file.id);
+      console.log(`open file ${file.id} ${file.path}`);
       if (!editor) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
         editor = {
@@ -83,6 +98,14 @@ export const useEditorState = defineStore("editor", {
           path: file.path + ".instruct",
           group: null,
         } as FileEditor;
+      }
+      // if group wasn't passed, just return the editor if it's already open
+      if (!group && editor.group) {
+        return editor;
+      }
+      // otherwise open in the group or the fallback group
+      group = group || this.focusedGroup || this.left; // use active group if available
+      if (editor.group != group) {
         this.openEditor(editor, group);
       }
       return editor;
@@ -100,8 +123,9 @@ export const useEditorState = defineStore("editor", {
       this.focusEditor(editor);
       return editor;
     },
-    focusDefinition(definition: SymbolDefinitionHeader) {
+    focusDefinition(file: FileHeader, definition: SymbolDefinitionHeader, group?: EditorGroup) {
       // TODO @Feature: auto-focus the file that contains the definition
+      this.focusFile(file, group);
       this.focusedDefinition = definition;
     },
   },
