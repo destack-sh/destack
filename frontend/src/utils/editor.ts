@@ -84,7 +84,11 @@ export const useEditorState = defineStore("editor", {
       }
     },
     moveEditor(editor: Editor, group: EditorGroup): void {
+      const wasFocused = editor == this.focusedEditor;
       this.openEditor(editor, group);
+      if (wasFocused) {
+        this.focusEditor(editor);
+      }
     },
     openFile(file: FileHeader, group?: EditorGroup): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).file?.id == file.id);
