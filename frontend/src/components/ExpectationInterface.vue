@@ -14,16 +14,25 @@ const ExpectationContent = graphql(/* GraphQL */ `
   }
 `);
 
-const props = defineProps<{ content: FragmentType<typeof ExpectationContent> }>();
+const props = defineProps<{ content: FragmentType<typeof ExpectationContent>; focused: boolean }>();
 const content = useFragment(ExpectationContent, props.content);
 </script>
 <template>
   <div class="m-2 flex flex-col text-sm text-gray-900">
     {{ content.description }}
-    <div class="mt-2">
-      <span class="italic" v-for="statement in content.statements" :key="statement.id">
-        {{ statement.typeNameDeclaration }}
-      </span>
+    <!-- Statements -->
+    <div class="relative flex flex-col">
+      <div v-for="(statement, index) in content.statements" :key="statement.id">
+        <span class="italic">
+          {{ statement.typeNameDeclaration }}
+        </span>
+        <!-- Imitate Monaco line numbers -->
+        <span
+          class="absolute top-0 -left-12 w-6 text-right font-mono text-sm"
+          :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
+          >{{ index + 1 }}</span
+        >
+      </div>
     </div>
   </div>
 </template>
