@@ -53,8 +53,11 @@ onMounted(() => {
 });
 
 const BENCH_THEME_COLORS = {
-  "editorLineNumber.foreground": "#fed7aa",
-  "editorLineNumber.activeForeground": "#fb923c",
+  // transparent background
+  "editor.background": "#00000000",
+  // line numbers (when not focused, focused colors are set in style bellow)
+  "editorLineNumber.foreground": "#ffedd5",
+  "editorLineNumber.activeForeground": "#fdba74",
   // set selection color
   "editor.selectionBackground": "#fdba74",
   // set cursor color
@@ -109,11 +112,12 @@ function initMonaco(monaco: Monaco) {
     },
     readOnly: props.readonly,
     scrollBeyondLastLine: false,
-    lineDecorationsWidth: 10,
+    lineDecorationsWidth: 24,
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
     lineNumbersMinChars: 3,
+    lineNumbers: "on",
     renderLineHighlight: "none",
     // disable folding
     folding: false,

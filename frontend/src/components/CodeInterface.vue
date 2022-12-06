@@ -95,6 +95,7 @@ function getArgument(name: string) {
       </div>
     </div>
     <MonacoEditor
+      class="-mx-10"
       v-if="content.code"
       :model-value="content.code"
       language="python"
