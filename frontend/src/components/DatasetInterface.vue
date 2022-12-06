@@ -29,9 +29,9 @@ const schemaElements = computed(() => schema.value?.elements || []);
 type ViewMode = "table" | "json" | "jsonl";
 type View = { name: string; value: ViewMode };
 const viewOptions: View[] = [
-  { name: "Table", value: "table" },
-  { name: "JSONL", value: "jsonl" },
-  { name: "JSON", value: "json" },
+  { name: "table", value: "table" },
+  { name: "jsonl", value: "jsonl" },
+  { name: "json", value: "json" },
 ];
 const viewMode: Ref<View> = ref(viewOptions[0]);
 const showTableHeader = ref(false);
