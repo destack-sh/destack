@@ -21,15 +21,15 @@ const content = useFragment(ExpectationContent, props.content);
   <div class="m-2 flex flex-col text-sm text-gray-900">
     {{ content.description }}
     <!-- Statements -->
-    <div class="relative flex flex-col">
-      <div v-for="(statement, index) in content.statements" :key="statement.id">
+    <div class="flex flex-col">
+      <div class="relative" v-for="(statement, index) in content.statements" :key="statement.id">
         <span class="tracking-wide">
           {{ statement.typeNameDeclaration }}
         </span>
         <!-- Imitate Monaco line numbers -->
         <span
           class="absolute top-0 -left-12 w-6 select-none text-right font-mono text-sm"
-          :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
+          :class="{ 'text-orange-200': !focused, 'text-orange-400': focused }"
           >{{ index + 1 }}</span
         >
       </div>

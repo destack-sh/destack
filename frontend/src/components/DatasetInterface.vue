@@ -107,7 +107,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           <!-- Imitate Monaco line numbers -->
           <span
             class="absolute top-1 -left-10 w-6 select-none text-right font-mono text-sm"
-            :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
+            :class="{ 'text-orange-200': !focused, 'text-orange-400': focused }"
             >{{ record.index + 1 }}</span
           >
         </tr>

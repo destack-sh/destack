@@ -193,7 +193,7 @@ watchEffect(() => {
   if (hash && files.value) {
     const path = hash.slice(1).slice(0, -"instruct".length - 1);
     const file = files.value.find((file) => file.path === path);
-    if (file && state.focusedFile == null) {
+    if (file && state.focusedEditor == null) {
       state.focusFile(file);
     }
   }
@@ -208,7 +208,7 @@ watchEffect(() => {
 
 // open first file if none is open and there is no hash
 watchEffect(() => {
-  if (files.value && files.value.length >= 1 && !state.focusedFile && !router.currentRoute.value.hash) {
+  if (files.value && files.value.length >= 1 && state.focusedEditor == null && !router.currentRoute.value.hash) {
     state.focusFile(files.value[0]);
   }
 });
