@@ -17,7 +17,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import Mousetrap from "mousetrap";
-import { computed, provide, ref, watchEffect, type Component, type Ref } from "vue";
+import { computed, ref, watchEffect, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -214,6 +214,7 @@ watchEffect(() => {
 });
 
 // shortcuts
+// TODO @Cleanup: unbind shortcuts on unmount
 // move editor to next group
 Mousetrap.bind("ctrl+shift+right", () => {
   if (state.focusedEditor) {
@@ -394,7 +395,7 @@ Mousetrap.bind("ctrl+shift+left", () => {
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
-      <aside class="flex h-full w-64 flex-shrink-0 resize-x border-r border-gray-200 lg:w-80">
+      <aside class="flex h-full w-64 flex-shrink-0 resize-x border-r border-gray-200 lg:w-72">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
