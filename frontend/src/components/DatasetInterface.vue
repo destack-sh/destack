@@ -13,6 +13,7 @@ const DatasetContentType = graphql(/* GraphQL */ `
     schema {
       ...SchemaElementContentDeep
     }
+    length
     records {
       data
       index
@@ -45,11 +46,18 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
 <template>
   <div class="flex h-full w-full flex-col">
     <!-- Schema & controls -->
-    <div class="mx-2 my-1 flex flex-row justify-between">
+    <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+      <!-- Schema -->
       <div class="flex flex-row gap-2">
         <SchemaElement v-for="element in schemaElements" :key="element.name" :element="element" />
       </div>
-      <ListboxSelect class="max-w-fit" v-model="viewMode" :options="viewOptions"> </ListboxSelect>
+      <!-- Controls & meta -->
+      <div class="flex flex-row items-baseline gap-2">
+        <span class="text-xs text-gray-500"
+          ><span class="text-gray-700">{{ content.length }}</span> records</span
+        >
+        <ListboxSelect class="max-w-fit text-xs" v-model="viewMode" :options="viewOptions"> </ListboxSelect>
+      </div>
     </div>
 
     <!-- Data view -->

@@ -480,6 +480,7 @@ export type CodeContentFragment = {
 export type DatasetContentFragment = {
   __typename?: "Dataset";
   id: any;
+  length: number;
   schema: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
@@ -827,6 +828,7 @@ export const DatasetContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "length" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "records" },
