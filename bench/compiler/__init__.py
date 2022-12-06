@@ -495,5 +495,5 @@ class Compiler:
         )
         # add parameter for input keys
         for key in task_data.input_schema.keys:
-            llm_code.bind_argument(key, SymbolParameterType.VALUE)
+            llm_code.add_parameter(key, SymbolParameterType.VALUE)
         return llm_code
