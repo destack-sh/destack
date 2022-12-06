@@ -29,7 +29,7 @@ const state = inject<EditorState>(EDITOR_STATE_KEY);
           @click="state?.focusFile(file)"
         >
           <!-- There may be other types later, but currently it's all instruct -->
-          {{ file.name }}<span class="font-normal">.instruct</span>
+          {{ file.path }}<span class="font-normal">.instruct</span>
         </li>
       </ul>
     </div>

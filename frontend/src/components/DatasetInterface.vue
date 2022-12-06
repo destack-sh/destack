@@ -100,13 +100,13 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           <td
             v-for="element in schemaElements"
             :key="element.name"
-            class="whitespace-pre-wrap px-2 py-1 text-sm text-gray-900"
+            class="whitespace-pre-wrap px-2 py-1 align-top text-sm text-gray-900"
           >
             {{ record.data[element.name] || "" }}
           </td>
           <!-- Imitate Monaco line numbers -->
           <span
-            class="absolute top-1 -left-10 w-6 text-right font-mono text-sm"
+            class="absolute top-1 -left-10 w-6 select-none text-right font-mono text-sm"
             :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
             >{{ record.index + 1 }}</span
           >
