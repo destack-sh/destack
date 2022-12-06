@@ -43,6 +43,7 @@ export type Code = Node &
     outputSchema: SchemaElement;
     parameters: Array<CodeParameter>;
     task?: Maybe<Task>;
+    typeNameDeclaration: Scalars["String"];
   };
 
 export type CodeArgument = Node & {
@@ -99,6 +100,7 @@ export type Dataset = Node &
     nameDotType: Scalars["String"];
     records: Array<DatasetRecord>;
     schema: SchemaElement;
+    typeNameDeclaration: Scalars["String"];
   };
 
 export type DatasetRecord = Node & {
@@ -114,6 +116,7 @@ export type DatasetView = Node &
     dataset: Dataset;
     id: Scalars["GlobalID"];
     nameDotType: Scalars["String"];
+    typeNameDeclaration: Scalars["String"];
   };
 
 export type Expectation = Node &
@@ -123,6 +126,7 @@ export type Expectation = Node &
     id: Scalars["GlobalID"];
     nameDotType: Scalars["String"];
     statements: Array<SymbolDefinition>;
+    typeNameDeclaration: Scalars["String"];
   };
 
 export type File = Node & {
@@ -146,6 +150,7 @@ export type Model = Node &
     id: Scalars["GlobalID"];
     nameDotType: Scalars["String"];
     provider: Scalars["String"];
+    typeNameDeclaration: Scalars["String"];
   };
 
 export type Mutation = {
@@ -347,6 +352,7 @@ export type SourceMapping = Node & {
 export type SymbolContent = {
   id: Scalars["GlobalID"];
   nameDotType: Scalars["String"];
+  typeNameDeclaration: Scalars["String"];
 };
 
 export type SymbolDefinition = Node & {
@@ -402,6 +408,7 @@ export type Task = Node &
     nameDotType: Scalars["String"];
     outputSchema: SchemaElement;
     templateImplementation?: Maybe<SymbolDefinition>;
+    typeNameDeclaration: Scalars["String"];
   };
 
 export type User = Node & {
@@ -473,7 +480,7 @@ export type CodeContentFragment = {
     name: string;
     type: string;
     value?: any | null;
-    reference?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
+    reference?: { __typename?: "SymbolDefinition"; id: any; typeNameDeclaration: string } | null;
   }>;
 } & { " $fragmentName"?: "CodeContentFragment" };
 
@@ -491,7 +498,13 @@ export type ExpectationContentFragment = {
   __typename?: "Expectation";
   id: any;
   description: string;
-  statements: Array<{ __typename?: "SymbolDefinition"; id: any; nameDotType: string }>;
+  statements: Array<{
+    __typename?: "SymbolDefinition";
+    id: any;
+    name: string;
+    typeNameDeclaration: string;
+    nameDotType: string;
+  }>;
 } & { " $fragmentName"?: "ExpectationContentFragment" };
 
 export type FileContentByIdQueryVariables = Exact<{
@@ -538,8 +551,19 @@ export type TaskContentFragment = {
   outputSchema: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
-  expectations: Array<{ __typename?: "Expectation"; id: any; description: string; nameDotType: string }>;
-  templateImplementation?: { __typename?: "SymbolDefinition"; id: any; nameDotType: string } | null;
+  expectations: Array<{
+    __typename?: "Expectation";
+    id: any;
+    description: string;
+    typeNameDeclaration: string;
+    nameDotType: string;
+  }>;
+  templateImplementation?: {
+    __typename?: "SymbolDefinition";
+    id: any;
+    typeNameDeclaration: string;
+    nameDotType: string;
+  } | null;
   compilations: Array<
     { __typename?: "Compilation"; id: any } & {
       " $fragmentRefs"?: { CompilationHeaderFragment: CompilationHeaderFragment };
@@ -797,7 +821,7 @@ export const CodeContentFragmentDoc = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
+                      { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
                     ],
                   },
                 },
@@ -864,6 +888,8 @@ export const ExpectationContentFragmentDoc = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
                 { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
               ],
             },
@@ -971,6 +997,7 @@ export const TaskContentFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
                 { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
               ],
             },
@@ -982,6 +1009,7 @@ export const TaskContentFragmentDoc = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
                 { kind: "Field", name: { kind: "Name", value: "nameDotType" } },
               ],
             },

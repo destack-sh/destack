@@ -17,10 +17,12 @@ const TaskContent = graphql(/* GraphQL */ `
     expectations {
       id
       description
+      typeNameDeclaration
       nameDotType
     }
     templateImplementation {
       id
+      typeNameDeclaration
       nameDotType
     }
     compilations {
@@ -39,6 +41,10 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
   <div class="text-sm text-gray-900">
     <!-- Schema & controls -->
     <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+      <!-- Controls -->
+      <div class="flex flex-row items-baseline gap-2">
+        <span class="text-xs font-semibold text-gray-700">main</span>
+      </div>
       <!-- Schema -->
       <div class="flex flex-row items-center gap-1" v-if="inputSchema && outputSchema">
         <!-- Input schema -->
@@ -52,12 +58,11 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
           <SchemaElement :element="outputSchema" />
         </div>
       </div>
-      <!-- Controls -->
     </div>
     <!-- Expectations -->
     <ul class="m-2 flex flex-col gap-2">
       <li class="flex flex-col" v-for="expectation in content.expectations" :key="expectation.id">
-        <span class="text-gray-500">{{ expectation.nameDotType }}</span>
+        <span class="italic text-gray-500">{{ expectation.typeNameDeclaration }}</span>
         <span>{{ expectation.description }}</span>
       </li>
     </ul>
