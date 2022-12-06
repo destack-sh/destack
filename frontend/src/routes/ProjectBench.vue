@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import FileInterface from "@/components/FileInterface.vue";
+import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
-import { EDITOR_STATE_KEY, type EditorState, type FileHeader, type SymbolDefinitionHeader } from "@/utils/editor";
+import {
+  EDITOR_STATE_KEY,
+  type Editor,
+  type EditorGroup,
+  type EditorState,
+  type FileEditor,
+  type FileHeader,
+  type SymbolDefinitionHeader,
+} from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -185,15 +193,70 @@ const compileNavigation = computed(() => [
 // set up editor state
 const router = useRouter();
 const state: EditorState = {
-  focusedFile: ref(null),
+  left: {
+    id: "1",
+    name: ref("left"),
+    editors: ref([]),
+  },
+  right: {
+    id: "2",
+    name: ref("right"),
+    editors: ref([]),
+  },
+
+  editorGroups: computed(() => [state.left, state.right]),
+  editors: computed(() => [...state.left.editors.value, ...state.right.editors.value]),
+
+  focusedEditor: ref(null),
+  focusedFile: computed(() => {
+    if (state.focusedEditor.value?.type == "file") {
+      return (state.focusedEditor.value as FileEditor).file.value;
+    } else {
+      return null;
+    }
+  }),
   focusedDefinition: ref(null),
 
-  focusFile(file: FileHeader) {
-    state.focusedFile.value = file;
-    // set router url to current url + #path
-    router.replace({ hash: "#" + file.path + ".instruct" });
+  openEditor(editor: Editor, group?: EditorGroup): void {
+    console.log(`open editor ${editor.path.value} in group ${group?.name.value}`);
+    group = group || state.left;
+    // change editor group if different
+    if (editor.group.value != group) {
+      if (editor.group.value != null) {
+        // remove from old group
+        editor.group.value.editors.value = editor.group.value.editors.value.filter((e) => e != editor);
+      }
+      editor.group.value = group;
+      group.editors.value.push(editor);
+    }
+  },
+  openFile(file: FileHeader, group?: EditorGroup): Editor {
+    group = group || state.left;
+    let editor = group.editors.value.find((e) => e.type == "file" && (e as FileEditor).file.value?.id == file.id);
+    console.log(`open file ${file.id} ${file.path} in group ${group.id}`);
+    if (!editor) {
+      console.log(`create new file editor for ${file.id} ${file.path}`);
+      editor = {
+        type: "file",
+        file: ref(file),
+        path: computed(() => (editor as FileEditor).file.value.path + ".instruct"),
+        group: ref(null),
+      } as FileEditor;
+      state.openEditor(editor, group);
+    }
+    return editor;
+  },
+  focusEditor(editor: Editor): void {
+    state.focusedEditor.value = editor;
+    router.replace({ hash: "#" + editor.path.value });
+  },
+  focusFile(file: FileHeader, group?: EditorGroup): Editor {
+    const editor = state.openFile(file, group);
+    state.focusEditor(editor);
+    return editor;
   },
   focusDefinition(definition: SymbolDefinitionHeader) {
+    // TODO @Feature: auto-focus the file that contains the definition
     state.focusedDefinition.value = definition;
   },
 };
@@ -415,15 +478,12 @@ watchEffect(() => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex h-full w-full flex-1 bg-gray-50">
-        <div class="absolute top-0 left-0 h-full w-full min-w-[700px] flex-1 overflow-auto">
-          <!-- Editors for each open file -->
-          <FileInterface
-            v-if="state.focusedFile.value"
-            :file="state.focusedFile.value"
-            :key="state.focusedFile.value.id"
-          />
-        </div>
+      <main class="relative flex h-full w-full flex-1 flex-row bg-gray-50">
+        <!-- Left editor group -->
+        <EditorGroupInterface
+          :group="state.left"
+          class="absolute top-0 left-0 h-full w-full min-w-[700px] flex-1 overflow-auto"
+        />
       </main>
     </div>
   </div>

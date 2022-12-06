@@ -66,7 +66,7 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
         <span>{{ expectation.description }}</span>
         <!-- Imitate Monaco line numbers -->
         <span
-          class="absolute top-0.5 -left-12 w-6 text-right font-mono text-sm"
+          class="absolute top-0.5 -left-12 w-6 select-none text-right font-mono text-sm"
           :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
           >{{ index + 1 }}</span
         >
