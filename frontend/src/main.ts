@@ -9,12 +9,14 @@ import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
 import Mousetrap from "mousetrap";
+import { createPinia } from "pinia";
 
 async function init() {
   const apolloClient = new ApolloClient({
     uri: "http://localhost:8000/graphql",
     cache: new InMemoryCache(),
   });
+  const pinia = createPinia();
 
   const app = createApp({
     setup() {
@@ -24,6 +26,7 @@ async function init() {
   });
 
   app.use(router);
+  app.use(pinia);
   app.use(createMetaManager());
 
   app.mount("#app");

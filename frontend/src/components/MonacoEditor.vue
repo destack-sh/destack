@@ -2,7 +2,7 @@
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
 import type * as monaco from "monaco-editor";
-import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
@@ -141,7 +141,8 @@ function initMonaco(monaco: Monaco) {
 // close monaco editor on unmount
 onBeforeUnmount(() => {
   if (editor.value) {
-    editor.value.dispose();
+    // close in next tick to avoid slow frame
+    nextTick(() => editor.value?.dispose());
   }
 });
 </script>

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
-import { EDITOR_STATE_KEY, type EditorState, type FileHeader } from "@/utils/editor";
-import { inject } from "vue";
+import { useEditorState, type FileHeader } from "@/utils/editor";
 
 defineProps<{ files: FileHeader[] }>();
 
-const state = inject<EditorState>(EDITOR_STATE_KEY);
+const editor = useEditorState();
 </script>
 <template>
   <div>
@@ -22,11 +21,11 @@ const state = inject<EditorState>(EDITOR_STATE_KEY);
           :key="file.id"
           class="relative py-0.5 px-3 hover:cursor-pointer"
           :class="
-            file.id == state?.focusedFile.value?.id
-              ? 'bg-orange-100 font-bold text-orange-700'
-              : 'text-gray-700 hover:text-orange-700'
+            file.id == editor?.focusedFile?.id
+              ? 'bg-orange-100 font-bold text-orange-600'
+              : 'text-gray-700 hover:text-orange-600'
           "
-          @click="state?.focusFile(file)"
+          @click="editor?.focusFile(file)"
         >
           <!-- There may be other types later, but currently it's all instruct -->
           {{ file.path }}<span class="font-normal">.instruct</span>

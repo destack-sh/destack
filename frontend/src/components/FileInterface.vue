@@ -6,10 +6,10 @@ import TaskInterface from "@/components/TaskInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
-import { EDITOR_STATE_KEY, type EditorState } from "@/utils/editor";
+import { useEditorState } from "@/utils/editor";
 import { FileHeaderType } from "@/utils/fragments";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, inject, type Component } from "vue";
+import { computed, type Component } from "vue";
 
 const props = defineProps<{ file: FragmentType<typeof FileHeaderType> }>();
 const fileHeader = useFragment(FileHeaderType, props.file);
@@ -70,9 +70,9 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
   },
 };
 
-const editorState = inject<EditorState>(EDITOR_STATE_KEY);
+const editorState = useEditorState();
 function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
-  return editorState?.focusedDefinition.value?.id == definition.id;
+  return editorState.focusedDefinition?.id == definition.id;
 }
 </script>
 
@@ -106,7 +106,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
       <!-- Symbol content -->
       <div
         class="rounded-sm border bg-white py-2 px-2"
-        :class="{ 'border-orange-600 shadow-outline shadow-orange-300': isDefinitionFocused(definition) }"
+        :class="{ 'border-orange-600 shadow-orange-300': isDefinitionFocused(definition) }"
       >
         <!-- TODO @Cleanup: access symbol props via definition only (like generated) -->
         <component

@@ -36,6 +36,7 @@
     "monaco-editor": "^0.34.1",
     "monaco-languageclient": "^4.0.1",
     "mousetrap": "^1.6.5",
+    "pinia": "^2.0.27",
     "qs": "^6.10.5",
     "vue": "^3.2.45",
     "vue-meta": "^3.0.0-alpha.9",
