@@ -32,7 +32,7 @@ const TaskContent = graphql(/* GraphQL */ `
   }
 `);
 
-const props = defineProps<{ content: FragmentType<typeof TaskContent> }>();
+const props = defineProps<{ content: FragmentType<typeof TaskContent>; focused: boolean }>();
 const content = computed(() => useFragment(TaskContent, props.content));
 const inputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.inputSchema));
 const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.outputSchema));
@@ -61,9 +61,15 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
     </div>
     <!-- Expectations -->
     <ul class="m-2 flex flex-col gap-2">
-      <li class="flex flex-col" v-for="expectation in content.expectations" :key="expectation.id">
+      <li class="relative flex flex-col" v-for="(expectation, index) in content.expectations" :key="expectation.id">
         <span class="italic text-gray-500">{{ expectation.typeNameDeclaration }}</span>
         <span>{{ expectation.description }}</span>
+        <!-- Imitate Monaco line numbers -->
+        <span
+          class="absolute top-0.5 -left-12 w-6 text-right font-mono text-sm"
+          :class="{ 'text-orange-100': !focused, 'text-orange-400': focused }"
+          >{{ index + 1 }}</span
+        >
       </li>
     </ul>
   </div>
