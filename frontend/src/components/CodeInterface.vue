@@ -87,7 +87,7 @@ function getArgument(name: string) {
             <span v-if="getArgument(parameter.name)?.value != null">
               {{ getArgument(parameter.name)?.value }}
             </span>
-            <span class="italic" v-else-if="getArgument(parameter.name)?.reference != null">
+            <span class="tracking-wide" v-else-if="getArgument(parameter.name)?.reference != null">
               {{ getArgument(parameter.name)?.reference?.typeNameDeclaration }}
             </span>
           </template>
