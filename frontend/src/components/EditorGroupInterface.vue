@@ -31,13 +31,13 @@ function changeTab(index: number) {
   <div>
     <TabGroup :selected-index="selectedTab" @change="changeTab">
       <!-- Tabs -->
-      <TabList class="flex divide-x divide-gray-200 border-b border-gray-200">
+      <TabList class="flex border-b border-gray-200">
         <Tab as="template" v-for="editor in group.editors" :key="editor.path" v-slot="{ selected }">
           <button
             :class="{
-              'border-b-2 py-2 px-3 text-sm outline-none': true,
+              'border-r border-b-2 border-r-gray-200 py-2 px-3 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-700 hover:text-orange-600': !selected,
-              'border-orange-600 bg-orange-100 text-orange-600': selected,
+              'border-b-orange-600 bg-orange-100 text-orange-600': selected,
             }"
           >
             {{ editor.path }}
