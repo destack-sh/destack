@@ -37,18 +37,22 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
 </script>
 <template>
   <div class="text-sm text-gray-900">
-    <!-- Schema -->
-    <div class="mx-2 my-1 flex flex-row items-center gap-1" v-if="inputSchema && outputSchema">
-      <!-- Input schema -->
-      <div class="flex flex-row gap-2">
-        <SchemaElement v-for="element in inputSchema.elements" :key="element.id" :element="element" />
+    <!-- Schema & controls -->
+    <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+      <!-- Schema -->
+      <div class="flex flex-row items-center gap-1" v-if="inputSchema && outputSchema">
+        <!-- Input schema -->
+        <div class="flex flex-row gap-2">
+          <SchemaElement v-for="element in inputSchema.elements" :key="element.id" :element="element" />
+        </div>
+        <!-- Nice fat arrow -->
+        <ArrowLongRightIcon class="h-4 w-4 text-gray-400" />
+        <!-- Output schema -->
+        <div class="flex flex-row">
+          <SchemaElement :element="outputSchema" />
+        </div>
       </div>
-      <!-- Nice fat arrow -->
-      <ArrowLongRightIcon class="h-5 w-5 text-gray-400" />
-      <!-- Output schema -->
-      <div class="flex flex-row">
-        <SchemaElement :element="outputSchema" />
-      </div>
+      <!-- Controls -->
     </div>
     <!-- Expectations -->
     <ul class="m-2 flex flex-col gap-2">

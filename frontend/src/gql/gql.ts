@@ -5,7 +5,7 @@ import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-
 const documents = {
   "\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n":
     types.CodeContentFragmentDoc,
-  "\n  fragment DatasetContent on Dataset {\n    id\n    schema {\n      ...SchemaElementContentDeep\n    }\n    records {\n      data\n      index\n    }\n  }\n":
+  "\n  fragment DatasetContent on Dataset {\n    id\n    schema {\n      ...SchemaElementContentDeep\n    }\n    length\n    records {\n      data\n      index\n    }\n  }\n":
     types.DatasetContentFragmentDoc,
   "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n":
     types.ExpectationContentFragmentDoc,
@@ -41,8 +41,8 @@ export function graphql(
   source: "\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        nameDotType\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment DatasetContent on Dataset {\n    id\n    schema {\n      ...SchemaElementContentDeep\n    }\n    records {\n      data\n      index\n    }\n  }\n"
-): typeof documents["\n  fragment DatasetContent on Dataset {\n    id\n    schema {\n      ...SchemaElementContentDeep\n    }\n    records {\n      data\n      index\n    }\n  }\n"];
+  source: "\n  fragment DatasetContent on Dataset {\n    id\n    schema {\n      ...SchemaElementContentDeep\n    }\n    length\n    records {\n      data\n      index\n    }\n  }\n"
+): typeof documents["\n  fragment DatasetContent on Dataset {\n    id\n    schema {\n      ...SchemaElementContentDeep\n    }\n    length\n    records {\n      data\n      index\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n"
 ): typeof documents["\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      nameDotType\n    }\n  }\n"];
