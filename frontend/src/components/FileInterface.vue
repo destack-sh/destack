@@ -86,17 +86,17 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
     >
       <!-- Symbol definition header & controls -->
       <div class="mx-1 my-1.5 flex flex-row items-baseline">
-        <!-- declaration -->
+        <!-- Symbol declaration -->
         <span
-          class="text-sm"
+          class="text-sm italic"
           :class="{
             'text-black': !isDefinitionFocused(definition),
             'text-orange-600': isDefinitionFocused(definition),
           }"
         >
-          <span class="text-gray-90">{{ definition.typeShortname }}</span> <span class="">{{ definition.name }}</span>
+          <span>{{ definition.typeShortname }}</span> <span class="">{{ definition.name }}</span>
         </span>
-        <!-- meta info -->
+        <!-- Symbol meta info -->
         <span class="inline-flex flex-row items-baseline gap-1 px-2 text-xs">
           <span class="text-gray-500"> {{ getTimeFromNowString(definition.updatedAt) }} </span>
           <span v-if="definition.generated" class="text-gray-500">generated</span>

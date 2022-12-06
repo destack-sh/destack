@@ -30,7 +30,7 @@ const CodeContentFragment = graphql(/* GraphQL */ `
       value
       reference {
         id
-        nameDotType
+        typeNameDeclaration
       }
     }
   }
@@ -44,11 +44,22 @@ const props = defineProps<{
 const content = computed(() => useFragment(CodeContentFragment, props.content));
 const inputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.inputSchema));
 const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.outputSchema));
+
+const parameters = computed(() => content.value?.parameters ?? []);
+const arguments_ = computed(() => content.value?.arguments ?? []);
+
+function getArgument(name: string) {
+  return arguments_.value?.find((a) => a.name === name);
+}
 </script>
 <template>
   <div>
     <!-- Schema & controls -->
     <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+      <!-- Controls & meta -->
+      <div class="flex flex-row items-baseline gap-2">
+        <span class="text-xs font-semibold text-gray-700">{{ content.builtinId || "python" }}</span>
+      </div>
       <!-- Schema -->
       <div class="flex flex-row items-center gap-1" v-if="inputSchema && outputSchema">
         <!-- Input schema -->
@@ -62,9 +73,25 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
           <SchemaElement :element="outputSchema" />
         </div>
       </div>
-      <!-- Controls & meta -->
-      <div class="flex flex-row items-baseline gap-2">
-        <span class="text-xs text-gray-700">{{ content.builtinId || "PythonX" }}</span>
+    </div>
+    <!-- Parameters (with argument if available) -->
+    <div class="m-2 flex flex-col gap-2">
+      <div class="grid grid-cols-4 gap-2" v-for="parameter in parameters" :key="parameter.name">
+        <div class="flex flex-row items-baseline gap-1 text-sm text-gray-900">
+          <span>{{ parameter.name }}</span>
+          <span class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
+        </div>
+        <div class="col-span-3 text-sm text-gray-900">
+          <!-- Show argument if it's bound -->
+          <template v-if="getArgument(parameter.name)">
+            <span v-if="getArgument(parameter.name)?.value != null">
+              {{ getArgument(parameter.name)?.value }}
+            </span>
+            <span class="italic" v-else-if="getArgument(parameter.name)?.reference != null">
+              {{ getArgument(parameter.name)?.reference?.typeNameDeclaration }}
+            </span>
+          </template>
+        </div>
       </div>
     </div>
     <MonacoEditor

@@ -47,16 +47,17 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
   <div class="flex h-full w-full flex-col">
     <!-- Schema & controls -->
     <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
-      <!-- Schema -->
-      <div class="flex flex-row gap-2">
-        <SchemaElement v-for="element in schemaElements" :key="element.name" :element="element" />
-      </div>
       <!-- Controls & meta -->
       <div class="flex flex-row items-baseline gap-2">
+        <span class="text-xs font-semibold text-gray-700">db</span>
         <span class="text-xs text-gray-500"
           ><span class="text-gray-700">{{ content.length }}</span> records</span
         >
-        <ListboxSelect class="max-w-fit text-xs" v-model="viewMode" :options="viewOptions"> </ListboxSelect>
+        <ListboxSelect class="-mr-2 max-w-fit text-xs" v-model="viewMode" :options="viewOptions" />
+      </div>
+      <!-- Schema -->
+      <div class="flex flex-row gap-2">
+        <SchemaElement v-for="element in schemaElements" :key="element.name" :element="element" />
       </div>
     </div>
 
@@ -81,7 +82,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           <th
             v-for="element in schemaElements"
             :key="element.name"
-            class="px-2 py-2.5 text-left text-sm font-semibold text-gray-900"
+            class="px-2 py-1.5 text-left text-sm font-normal text-gray-900"
           >
             {{ element.name }}
           </th>
@@ -92,9 +93,9 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           <td
             v-for="element in schemaElements"
             :key="element.name"
-            class="whitespace-nowrap px-2 py-2 text-sm text-gray-900"
+            class="whitespace-pre-wrap px-2 py-1.5 text-sm text-gray-900"
           >
-            {{ record.data[element.name] }}
+            {{ record.data[element.name] || "" }}
           </td>
         </tr>
       </tbody>

@@ -106,6 +106,7 @@ class SymbolDefinition(gql.Node):
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
     name_dot_type: auto
+    type_name_declaration: auto
     # TODO @Cleanup: fix definition in SymbolContent interface
     #  (should work since it's a 1:1 but doesn't)
     # definition: SymbolDefinition
