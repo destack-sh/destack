@@ -71,7 +71,9 @@ const BENCH_THEME_COLORS = {
 
 function initMonaco(monaco: Monaco) {
   if (!editorContainer.value) {
-    throw new Error("editor container not found");
+    // can happen when component is unmounted again before initMonaco is called
+    console.error("editor container not found");
+    return;
   }
   if (editor.value !== null) {
     throw new Error("editor already initialized");
