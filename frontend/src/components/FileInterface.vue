@@ -77,7 +77,7 @@ function isDefinitionFocused(definition: Pick<SymbolDefinition, "id">) {
 </script>
 
 <template>
-  <div class="m-6 flex flex-col gap-6">
+  <div class="mx-7 my-5 flex flex-col gap-6">
     <div
       v-for="definition in definitions"
       :key="definition.id"
