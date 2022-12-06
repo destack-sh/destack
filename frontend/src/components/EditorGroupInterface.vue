@@ -11,7 +11,6 @@ const selectedTab = ref(0);
 watch(
   () => [props.group.activeEditor, props.group.editors],
   () => {
-    console.log(`update selected tab in ${props.group.id}`, props.group);
     if (props.group.activeEditor != null && props.group.editors.length > 0) {
       const activeEditorIndex = props.group.editors.findIndex((editor) => editor.id === props.group.activeEditor?.id);
       if (activeEditorIndex < 0) {
@@ -22,16 +21,15 @@ watch(
   }
 );
 const focused = computed(() => editorState.focusedEditor?.group?.id == props.group.id);
-
-function changeTab(index: number) {
-  editorState.focusEditor(props.group.editors[index]);
-}
 </script>
 <template>
   <!-- Tabbed editors for that group -->
   <div>
-    <TabGroup :selected-index="selectedTab" @change="changeTab">
+    <TabGroup :selected-index="selectedTab">
       <!-- Tabs -->
+      <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
+       because we want to trigger re-focus even if it's already selected
+      (happens if there are multiple active editor groups)  -->
       <TabList class="flex border-b border-gray-200">
         <Tab as="template" v-for="editor in group.editors" :key="editor.path" v-slot="{ selected }">
           <button
@@ -42,11 +40,13 @@ function changeTab(index: number) {
               'border-b-orange-600 ': selected && focused,
             }"
             @click.middle="editorState.closeEditor(editor)"
+            @click.prevent="editorState.focusEditor(editor)"
           >
             {{ editor.path }}
           </button>
         </Tab>
       </TabList>
+      <!-- Contents -->
       <TabPanels class="w-full">
         <TabPanel v-for="(editor, index) in group.editors" :key="index">
           <div class="h-full w-full">
