@@ -56,7 +56,7 @@ const BENCH_THEME_COLORS = {
   // transparent background
   "editor.background": "#00000000",
   // line numbers (when not focused, focused colors are set in style bellow)
-  "editorLineNumber.foreground": "#ffedd5",
+  "editorLineNumber.foreground": "#fed7aa",
   "editorLineNumber.activeForeground": "#fdba74",
   // set selection color
   "editor.selectionBackground": "#fdba74",

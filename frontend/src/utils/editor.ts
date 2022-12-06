@@ -4,6 +4,18 @@ import { defineStore } from "pinia";
 export type FileHeader = Pick<File, "id" | "name" | "path" | "createdAt" | "updatedAt">;
 export type SymbolDefinitionHeader = Pick<SymbolDefinition, "id" | "name" | "type" | "createdAt" | "updatedAt">;
 
+export type RunConfiguration = {
+  name: string;
+  symbol: SymbolDefinitionHeader;
+};
+
+export function makeRunConfiguration(file: FileHeader, symbol: SymbolDefinitionHeader): RunConfiguration {
+  return {
+    name: `Run: ${file.path}.${symbol.name}`,
+    symbol: symbol,
+  } as RunConfiguration;
+}
+
 export type Editor = {
   type: "file" | "symbol" | "run";
   id: string;
@@ -14,6 +26,16 @@ export type Editor = {
 export type FileEditor = Editor & {
   type: "file";
   file: FileHeader;
+};
+
+export type SymbolEditor = Editor & {
+  type: "symbol";
+  symbol: SymbolDefinitionHeader;
+};
+
+export type RunEditor = Editor & {
+  type: "run";
+  runConfiguration: RunConfiguration;
 };
 
 export type EditorGroup = {
@@ -30,6 +52,36 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
     editors: [],
     activeEditor: null,
   };
+}
+
+export function makeFileEditor(file: FileHeader): FileEditor {
+  return {
+    // append random string to enable multiple editors for the same file
+    id: file.id + "-" + Math.random().toString(36),
+    type: "file",
+    file: file,
+    path: file.path + ".instruct",
+    group: null,
+  } as FileEditor;
+}
+
+export function makeSymbolEditor(symbol: SymbolDefinitionHeader): SymbolEditor {
+  return {
+    // append random string to enable multiple editors for the same symbol
+    id: symbol.id + "-" + Math.random().toString(36),
+    type: "symbol",
+    path: symbol.name,
+    group: null,
+  } as SymbolEditor;
+}
+
+export function makeRunEditor(runConfiguration: RunConfiguration): RunEditor {
+  return {
+    id: "run-" + runConfiguration.symbol.id + Math.random().toString(36),
+    type: "run",
+    path: runConfiguration.name,
+    group: null,
+  } as RunEditor;
 }
 
 // TODO @Architecture: should editor state be apollo local state?
@@ -73,6 +125,7 @@ export const useEditorState = defineStore("editor", {
         group.editors.push(editor);
       }
     },
+
     closeEditor(editor: Editor): void {
       console.log(`close editor ${editor.path}`);
       if (editor.group != null) {
@@ -83,6 +136,7 @@ export const useEditorState = defineStore("editor", {
         }
       }
     },
+
     moveEditor(editor: Editor, group: EditorGroup): void {
       const wasFocused = editor == this.focusedEditor;
       this.openEditor(editor, group);
@@ -90,30 +144,27 @@ export const useEditorState = defineStore("editor", {
         this.focusEditor(editor);
       }
     },
+
     openFile(file: FileHeader, group?: EditorGroup): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).file?.id == file.id);
       console.log(`open file ${file.id} ${file.path}`);
       if (!editor) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
-        editor = {
-          id: file.id + "-" + Math.random().toString(36),
-          type: "file",
-          file: file,
-          path: file.path + ".instruct",
-          group: null,
-        } as FileEditor;
+        editor = makeFileEditor(file);
       }
       // if group wasn't passed, just return the editor if it's already open
       if (!group && editor.group) {
         return editor;
+      } else {
+        // otherwise open in the group or the fallback group
+        group = group || this.focusedGroup || this.left; // use active group if available
+        if (editor.group != group) {
+          this.openEditor(editor, group);
+        }
+        return editor;
       }
-      // otherwise open in the group or the fallback group
-      group = group || this.focusedGroup || this.left; // use active group if available
-      if (editor.group != group) {
-        this.openEditor(editor, group);
-      }
-      return editor;
     },
+
     focusEditor(editor: Editor): void {
       console.log(`focus editor ${editor.path} in group ${editor.group?.id}`);
       if (!editor.group) {
@@ -122,11 +173,13 @@ export const useEditorState = defineStore("editor", {
       this.focusedEditor = editor;
       editor.group.activeEditor = editor;
     },
+
     focusFile(file: FileHeader, group?: EditorGroup): Editor {
       const editor = this.openFile(file, group);
       this.focusEditor(editor);
       return editor;
     },
+
     focusDefinition(file: FileHeader, definition: SymbolDefinitionHeader, group?: EditorGroup) {
       // TODO @Feature: auto-focus the file that contains the definition
       this.focusFile(file, group);
