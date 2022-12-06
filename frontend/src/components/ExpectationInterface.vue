@@ -23,7 +23,7 @@ const content = useFragment(ExpectationContent, props.content);
     <!-- Statements -->
     <div class="relative flex flex-col">
       <div v-for="(statement, index) in content.statements" :key="statement.id">
-        <span class="italic">
+        <span class="tracking-wide">
           {{ statement.typeNameDeclaration }}
         </span>
         <!-- Imitate Monaco line numbers -->
