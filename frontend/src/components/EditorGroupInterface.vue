@@ -2,7 +2,7 @@
 import FileInterface from "@/components/FileInterface.vue";
 import { useEditorState, type EditorGroup, type FileEditor } from "@/utils/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
 
@@ -21,6 +21,7 @@ watch(
     }
   }
 );
+const focused = computed(() => editorState.focusedEditor?.group?.id == props.group.id);
 
 function changeTab(index: number) {
   editorState.focusEditor(props.group.editors[index]);
@@ -37,8 +38,10 @@ function changeTab(index: number) {
             :class="{
               'border-r border-b-2 border-r-gray-200 py-2 px-3 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-700 hover:text-orange-600': !selected,
-              'border-b-orange-600 bg-orange-100 text-orange-600': selected,
+              ' bg-orange-100 text-orange-600': selected,
+              'border-b-orange-600 ': selected && focused,
             }"
+            @click.middle="editorState.closeEditor(editor)"
           >
             {{ editor.path }}
           </button>
@@ -48,6 +51,9 @@ function changeTab(index: number) {
         <TabPanel v-for="(editor, index) in group.editors" :key="index">
           <div class="h-full w-full">
             <FileInterface v-if="editor.type == 'file'" :file="(editor as FileEditor).file" />
+            <div v-else class="h-full w-full text-center">
+              <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
+            </div>
           </div>
         </TabPanel>
       </TabPanels>

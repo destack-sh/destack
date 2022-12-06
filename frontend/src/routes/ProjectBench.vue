@@ -16,6 +16,7 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
+import Mousetrap from "mousetrap";
 import { computed, provide, ref, watchEffect, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -209,6 +210,22 @@ watchEffect(() => {
 watchEffect(() => {
   if (files.value && files.value.length >= 1 && !state.focusedFile && !router.currentRoute.value.hash) {
     state.focusFile(files.value[0]);
+  }
+});
+
+// shortcuts
+// move editor to next group
+Mousetrap.bind("ctrl+shift+right", () => {
+  if (state.focusedEditor) {
+    console.log("move focused editor to next group");
+    state.moveEditor(state.focusedEditor, state.right);
+  }
+});
+// move editor to previous group
+Mousetrap.bind("ctrl+shift+left", () => {
+  if (state.focusedEditor) {
+    console.log("move focused editor to previous group");
+    state.moveEditor(state.focusedEditor, state.left);
   }
 });
 </script>
@@ -408,11 +425,14 @@ watchEffect(() => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex h-full w-full flex-1 flex-row bg-gray-50">
+      <main class="relative flex h-full w-full flex-1 flex-row divide-x divide-gray-200 bg-gray-50">
         <!-- Left editor group -->
+        <EditorGroupInterface :group="state.left" class="h-full w-full min-w-[700px] flex-1 overflow-auto" />
+        <!-- Right editor group -->
         <EditorGroupInterface
-          :group="state.left"
-          class="absolute top-0 left-0 h-full w-full min-w-[700px] flex-1 overflow-auto"
+          v-if="state.right.editors.length > 0"
+          :group="state.right"
+          class="h-full w-full min-w-[700px] flex-1 overflow-auto"
         />
       </main>
     </div>
