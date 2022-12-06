@@ -230,11 +230,18 @@ watchEffect(() => {
           <!-- Home -->
           <div class="flex flex-shrink-0 items-center px-4 py-2 hover:bg-gray-50">
             <a href="#">
-              <img
-                class="block h-8 w-auto"
-                src="https://tailwindui.com/img/logos/mark.svg?color=orange&shade=600"
-                alt="Bench"
-              />
+              <svg viewBox="0 0 100 100" class="h-8 w-8 text-orange-600">
+                <!-- A workbench -->
+                <path
+                  d="M 50 0 L 100 25 L 100 75 L 50 100 L 0 75 L 0 25 Z"
+                  fill="currentColor"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <!-- With an X across edge to edge -->
+                <path d="M 0 20 L 100 80" stroke="white" stroke-width="6" />
+                <path d="M 100 20 L 0 80" stroke="white" stroke-width="6" />
+              </svg>
             </a>
           </div>
           <!-- Current project menu -->
@@ -409,7 +416,7 @@ watchEffect(() => {
       </aside>
       <!-- Main editor area -->
       <main class="relative flex h-full w-full flex-1 bg-gray-50">
-        <div class="absolute top-0 left-0 h-full w-full min-w-[600px] flex-1 overflow-x-auto overflow-y-auto">
+        <div class="absolute top-0 left-0 h-full w-full min-w-[700px] flex-1 overflow-auto">
           <!-- Editors for each open file -->
           <FileInterface
             v-if="state.focusedFile.value"
