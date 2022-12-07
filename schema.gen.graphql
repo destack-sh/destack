@@ -130,6 +130,7 @@ type Model implements SymbolContent & Node {
 type Mutation {
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
+  run(input: RunCodeInput!): RunCodePayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -277,6 +278,10 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
+  symbol(
+    """The ID of the object."""
+    id: GlobalID!
+  ): SymbolDefinition
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -295,6 +300,26 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): OrganizationConnection!
+}
+
+input RunCodeInput {
+  codeId: GlobalID!
+  arguments: [RunCodeValueArgumentInput!]!
+}
+
+type RunCodeOutput {
+  name: String!
+  value: String!
+}
+
+type RunCodePayload {
+  code: Code!
+  outputs: [RunCodeOutput!]!
+}
+
+input RunCodeValueArgumentInput {
+  name: String!
+  value: String!
 }
 
 type SchemaElement {

@@ -239,7 +239,7 @@ async def verify_respect_command_hints(example: dict) -> bool:
 model: Model  # @alias text-davinci-003
 
 
-async def expect_respect_command_hints(example: dict) -> Optional[dict]:
+async def expect_respect_command_hints(example: dict):
     # get another way of running the same command
     utility = example["command"].split()[0]
     # if the utility contains non-alpha characters, skip

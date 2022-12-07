@@ -132,9 +132,13 @@ def derive_schema_from_function(function: typing.Callable) -> tuple[SchemaElemen
         name="input", type=ValueType.OBJECT, elements=input_schema_elements
     )
 
-    output_schema = derive_schema_from_type(signature.return_annotation or "None", name="output")
-    if output_schema is None:
+    return_type = signature.return_annotation
+    if not return_type or return_type == inspect.Signature.empty:
         output_schema = SchemaElement(name="output", type=ValueType.NULL, elements=None)
+    else:
+        output_schema = derive_schema_from_type(return_type, name="output")
+        if output_schema is None:
+            output_schema = SchemaElement(name="output", type=ValueType.NULL, elements=None)
 
     return input_schema, output_schema
 

@@ -1,6 +1,11 @@
-import type { File, SymbolDefinition } from "@/gql/graphql";
+import type { File, Project, ProjectVersion, SymbolDefinition } from "@/gql/graphql";
 import { defineStore } from "pinia";
 
+export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
+export type ProjectVersionHeader = Pick<
+  ProjectVersion,
+  "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
+>;
 export type FileHeader = Pick<File, "id" | "name" | "path" | "createdAt" | "updatedAt">;
 export type SymbolDefinitionHeader = Pick<SymbolDefinition, "id" | "name" | "type" | "createdAt" | "updatedAt">;
 
@@ -35,7 +40,7 @@ export type SymbolEditor = Editor & {
 
 export type RunEditor = Editor & {
   type: "run";
-  runConfiguration: RunConfiguration;
+  config: RunConfiguration;
 };
 
 export type EditorGroup = {
@@ -75,11 +80,12 @@ export function makeSymbolEditor(symbol: SymbolDefinitionHeader): SymbolEditor {
   } as SymbolEditor;
 }
 
-export function makeRunEditor(runConfiguration: RunConfiguration): RunEditor {
+export function makeRunEditor(config: RunConfiguration): RunEditor {
   return {
-    id: "run-" + runConfiguration.symbol.id + Math.random().toString(36),
+    id: "run-" + config.symbol.id + Math.random().toString(36),
     type: "run",
-    path: runConfiguration.name,
+    path: config.name,
+    config: config,
     group: null,
   } as RunEditor;
 }
@@ -88,6 +94,9 @@ export function makeRunEditor(runConfiguration: RunConfiguration): RunEditor {
 export const useEditorState = defineStore("editor", {
   state: () => {
     return {
+      // if feels especially wrong to have non-editor state from project here
+      // (it's also linked in the Editor states)
+      currentProject: null as ProjectHeader | null,
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
@@ -109,6 +118,10 @@ export const useEditorState = defineStore("editor", {
     },
   },
   actions: {
+    setProject(project: ProjectHeader): void {
+      this.currentProject = project;
+    },
+
     openEditor(editor: Editor, group?: EditorGroup): void {
       console.log(`open editor ${editor.path} in group ${group?.name}`);
       group = group || this.left;

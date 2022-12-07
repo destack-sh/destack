@@ -161,7 +161,7 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
         return self.type
 
     @gql.model_cached_property(
-        only=["type"],
+        only=["type", "task", "expectation", "code", "model", "dataset", "dataset_view"],
         select_related=["task", "expectation", "code", "model", "dataset", "dataset_view"],
     )
     def content(self) -> Union[Task, Expectation, Code, Model, Dataset, DatasetView]:

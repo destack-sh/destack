@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import FileInterface from "@/components/FileInterface.vue";
-import { useEditorState, type EditorGroup, type FileEditor } from "@/utils/editor";
+import RunInterface from "@/components/RunInterface.vue";
+import { useEditorState, type EditorGroup, type FileEditor, type RunEditor } from "@/utils/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { computed, ref, watch } from "vue";
 
@@ -51,6 +52,7 @@ const focused = computed(() => editorState.focusedEditor?.group?.id == props.gro
         <TabPanel v-for="(editor, index) in group.editors" :key="index">
           <div class="h-full w-full">
             <FileInterface v-if="editor.type == 'file'" :file="(editor as FileEditor).file" />
+            <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" />
             <div v-else class="h-full w-full text-center">
               <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
             </div>
