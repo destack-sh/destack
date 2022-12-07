@@ -490,6 +490,7 @@ class Compiler:
             prompt_prefix=prompt_prefix,
             prompt_example=prompt_example,
             prompt_input=prompt_input,
+            return_structured=True,  # get a dict back
             examples=task_examples.definition,
             settings=settings.as_dict(omit_empty=True),
         )

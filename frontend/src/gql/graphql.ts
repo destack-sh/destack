@@ -355,7 +355,7 @@ export type RunCodeOutput = {
 export type RunCodePayload = {
   __typename?: "RunCodePayload";
   code: Code;
-  outputs: Array<RunCodeOutput>;
+  outputs?: Maybe<Array<RunCodeOutput>>;
 };
 
 export type RunCodeValueArgumentInput = {
@@ -614,12 +614,14 @@ export type CodeToRunQuery = {
     name: string;
     typeNameDeclaration: string;
     content:
-      | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentToRunFragment: CodeContentToRunFragment } })
-      | { __typename?: "Dataset" }
-      | { __typename?: "DatasetView" }
-      | { __typename?: "Expectation" }
-      | { __typename?: "Model" }
-      | { __typename?: "Task" };
+      | ({ __typename?: "Code"; id: any } & {
+          " $fragmentRefs"?: { CodeContentToRunFragment: CodeContentToRunFragment };
+        })
+      | { __typename?: "Dataset"; id: any }
+      | { __typename?: "DatasetView"; id: any }
+      | { __typename?: "Expectation"; id: any }
+      | { __typename?: "Model"; id: any }
+      | { __typename?: "Task"; id: any };
   } | null;
 };
 
@@ -629,7 +631,10 @@ export type RunMutationVariables = Exact<{
 
 export type RunMutation = {
   __typename?: "Mutation";
-  run: { __typename?: "RunCodePayload"; outputs: Array<{ __typename?: "RunCodeOutput"; name: string; value: string }> };
+  run: {
+    __typename?: "RunCodePayload";
+    outputs?: Array<{ __typename?: "RunCodeOutput"; name: string; value: string }> | null;
+  };
 };
 
 export type TaskContentFragment = {
@@ -1435,6 +1440,7 @@ export const CodeToRunDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
                       {
                         kind: "InlineFragment",
                         typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Code" } },
