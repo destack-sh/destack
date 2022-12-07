@@ -80,7 +80,7 @@ class RunCodeOutput:
 @strawberry.type
 class RunCodePayload:
     code: types.Code
-    outputs: list[RunCodeOutput]
+    outputs: Optional[list[RunCodeOutput]]
 
 
 @strawberry.type

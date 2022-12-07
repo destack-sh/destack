@@ -314,7 +314,7 @@ type RunCodeOutput {
 
 type RunCodePayload {
   code: Code!
-  outputs: [RunCodeOutput!]!
+  outputs: [RunCodeOutput!]
 }
 
 input RunCodeValueArgumentInput {

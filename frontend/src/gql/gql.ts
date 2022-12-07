@@ -13,7 +13,7 @@ const documents = {
     types.FileContentByIdDocument,
   "\n  fragment CodeContentToRun on Code {\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        typeNameDeclaration\n      }\n    }\n  }\n":
     types.CodeContentToRunFragmentDoc,
-  "\n    query codeToRun($id: GlobalID!) {\n      symbol(id: $id) {\n        id\n        type\n        name\n        typeNameDeclaration\n        content {\n          ... on Code {\n            ...CodeContentToRun\n          }\n        }\n      }\n    }\n  ":
+  "\n    query codeToRun($id: GlobalID!) {\n      symbol(id: $id) {\n        id\n        type\n        name\n        typeNameDeclaration\n        content {\n          id\n          ... on Code {\n            ...CodeContentToRun\n          }\n        }\n      }\n    }\n  ":
     types.CodeToRunDocument,
   "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  ":
     types.RunDocument,
@@ -59,8 +59,8 @@ export function graphql(
   source: "\n  fragment CodeContentToRun on Code {\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        typeNameDeclaration\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment CodeContentToRun on Code {\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        typeNameDeclaration\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n    query codeToRun($id: GlobalID!) {\n      symbol(id: $id) {\n        id\n        type\n        name\n        typeNameDeclaration\n        content {\n          ... on Code {\n            ...CodeContentToRun\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query codeToRun($id: GlobalID!) {\n      symbol(id: $id) {\n        id\n        type\n        name\n        typeNameDeclaration\n        content {\n          ... on Code {\n            ...CodeContentToRun\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query codeToRun($id: GlobalID!) {\n      symbol(id: $id) {\n        id\n        type\n        name\n        typeNameDeclaration\n        content {\n          id\n          ... on Code {\n            ...CodeContentToRun\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query codeToRun($id: GlobalID!) {\n      symbol(id: $id) {\n        id\n        type\n        name\n        typeNameDeclaration\n        content {\n          id\n          ... on Code {\n            ...CodeContentToRun\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "
 ): typeof documents["\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "];

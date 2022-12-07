@@ -45,6 +45,7 @@ const { result: resolvedSymbol } = useQuery(
         name
         typeNameDeclaration
         content {
+          id
           ... on Code {
             ...CodeContentToRun
           }
@@ -94,7 +95,7 @@ const visibleParameters = computed(() => {
 
 const sessionArguments: Ref<Record<string, string>> = ref({});
 
-const lastOutputs: Ref<RunCodeOutput[]> = [];
+const lastOutputs: Ref<RunCodeOutput[]> = ref([]);
 
 const { mutate: run, loading: running } = useMutation(
   graphql(/* GraphQL */ `
@@ -112,7 +113,7 @@ const { mutate: run, loading: running } = useMutation(
 async function runCode() {
   const result = await run({
     input: {
-      codeId: symbol.value?.id,
+      codeId: resolvedSymbol.value?.symbol?.content.id,
       arguments: Object.keys(sessionArguments.value).map((name) => ({
         name,
         value: sessionArguments.value[name],
@@ -154,7 +155,7 @@ async function runCode() {
               <!-- Show argument editor otherwise -->
               <template v-else>
                 <input
-                  v-bind="sessionArguments[parameter.name]"
+                  v-model="sessionArguments[parameter.name]"
                   :name="parameter.name"
                   :id="parameter.name"
                   class="block w-full rounded-sm border border-transparent text-gray-900 placeholder-gray-400 outline-none focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
