@@ -29,6 +29,7 @@ class Query:
     projects: gql.relay.Connection[types.Project] = gql.relay.connection()
     projectVersion: Optional[types.ProjectVersion] = gql.relay.node()
     file: Optional[types.File] = gql.relay.node()
+    symbol: Optional[types.SymbolDefinition] = gql.relay.node()
     organization: Optional[types.Organization] = gql.relay.node()
     organizationBySlug: Optional[types.Organization] = gql.django.field(
         resolver=models.Organization.objects.get_by_slug
@@ -58,6 +59,30 @@ class AddCompilationPayload:
     compilation: types.Compilation
 
 
+@strawberry.input
+class RunCodeValueArgumentInput:
+    name: str
+    value: str
+
+
+@strawberry.input
+class RunCodeInput:
+    code_id: GlobalID
+    arguments: list[RunCodeValueArgumentInput]
+
+
+@strawberry.type
+class RunCodeOutput:
+    name: str
+    value: str
+
+
+@strawberry.type
+class RunCodePayload:
+    code: types.Code
+    outputs: list[RunCodeOutput]
+
+
 @strawberry.type
 class Mutation:
     @strawberry.mutation
@@ -78,6 +103,16 @@ class Mutation:
         compiler = Compiler(executor)
         async_to_sync(compiler.compile)(compilation)
         return CompilePayload(compilation=compilation)
+
+    @strawberry.mutation
+    def run(self, input: RunCodeInput) -> RunCodePayload:
+        code = models.Code.objects.get(id=input.code_id.node_id)
+        # assumes only value arguments
+        arguments = {arg.name: arg.value for arg in input.arguments}
+        executor = Executor()
+        output = async_to_sync(executor.run)(code, arguments)
+        outputs = [RunCodeOutput(name=name, value=value) for name, value in output.items()]
+        return RunCodePayload(code=code, outputs=outputs)
 
 
 default_extensions: list[Union[Type[Extension], Extension]] = [

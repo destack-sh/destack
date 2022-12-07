@@ -335,7 +335,7 @@ def bind_code_parameters(
     # parameters are defined as type only definition lines like:
     # name: Task|Code|Model|Dataset|DatasetView
     # name: <type>
-    # Parameters are bound to their name or an @alias unless @param is appended (in comment).
+    # Parameters are bound to their name or an @alias.
     consumed_lines: int = 0
     for line in segment.lines:
         # assume all parameters are declared up front
@@ -365,10 +365,6 @@ def bind_code_parameters(
             param_type = SymbolParameterType.VALUE
         code.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
-        if "@param" in comment:
-            # free parameter, don't try to bind argument value
-            continue
-
         # use alias if set
         if "@alias" in comment:
             symbol_ref_name = comment[comment.find("@alias") + 6 :].strip()
@@ -379,4 +375,7 @@ def bind_code_parameters(
             raise NotImplementedError(f"json argument resolution not supported: {line}")
         symbol_def = project_v.symbol_definition(symbol_ref_name)
         code.bind_argument(param_name, symbol_def)
+    # parameters can also be defined in the schema extracted from the function signature
+    for param in code.input_schema.elements:
+        code.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
     return consumed_lines

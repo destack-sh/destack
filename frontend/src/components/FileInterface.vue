@@ -6,13 +6,7 @@ import TaskInterface from "@/components/TaskInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type SymbolDefinition } from "@/gql/graphql";
-import {
-  makeRunConfiguration,
-  makeRunEditor,
-  useEditorState,
-  type RunConfiguration,
-  type SymbolDefinitionHeader,
-} from "@/utils/editor";
+import { makeRunConfiguration, makeRunEditor, useEditorState, type SymbolDefinitionHeader } from "@/utils/editor";
 import { FileHeaderType } from "@/utils/fragments";
 import { ArrowPathIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -94,19 +88,19 @@ function getSymbolMetaActions(definition: SymbolDefinitionHeader & Pick<SymbolDe
     actions.push({
       icon: WrenchIcon,
       label: "Compile",
-      action: () => ({}),
+      action: () => console.error("compile not implemented yet"),
     });
     actions.push({
       icon: PlayIcon,
       label: "Run",
-      action: () => ({}),
+      action: () => console.error("run not implemented yet"),
     });
   } else if (definition.type == SymbolType.Code) {
     if (definition.generated) {
       actions.push({
         icon: ArrowPathIcon,
         label: "Re-compile",
-        action: () => ({}),
+        action: () => console.error("re-compile not implemented yet"),
       });
     }
     actions.push({
@@ -119,13 +113,21 @@ function getSymbolMetaActions(definition: SymbolDefinitionHeader & Pick<SymbolDe
         editorState.focusEditor(runEditor);
       },
     });
+  } else if (definition.type == SymbolType.Dataset) {
+    if (definition.generated) {
+      actions.push({
+        icon: ArrowPathIcon,
+        label: "Re-compile",
+        action: () => console.error("re-compile not implemented yet"),
+      });
+    }
   }
   return actions;
 }
 </script>
 
 <template>
-  <div class="mx-8 my-5 flex flex-col gap-6">
+  <div class="mx-8 my-3 flex flex-col gap-6">
     <div
       v-for="definition in definitions"
       :key="definition.id"
@@ -152,7 +154,7 @@ function getSymbolMetaActions(definition: SymbolDefinitionHeader & Pick<SymbolDe
           </span>
         </div>
         <!-- Symbol meta controls -->
-        <span class="-mb-1 inline-flex flex-row gap-1">
+        <span class="inline-flex flex-row gap-1">
           <button
             v-for="action in getSymbolMetaActions(definition)"
             :key="action.label"

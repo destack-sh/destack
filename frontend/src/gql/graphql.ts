@@ -157,6 +157,7 @@ export type Mutation = {
   __typename?: "Mutation";
   addCompilationTarget: AddCompilationPayload;
   compile: CompilePayload;
+  run: RunCodePayload;
 };
 
 export type MutationAddCompilationTargetArgs = {
@@ -165,6 +166,10 @@ export type MutationAddCompilationTargetArgs = {
 
 export type MutationCompileArgs = {
   input: CompileInput;
+};
+
+export type MutationRunArgs = {
+  input: RunCodeInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -277,6 +282,7 @@ export type Query = {
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
+  symbol?: Maybe<SymbolDefinition>;
   user?: Maybe<User>;
   users: UserConnection;
 };
@@ -320,6 +326,10 @@ export type QueryProjectsArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type QuerySymbolArgs = {
+  id: Scalars["GlobalID"];
+};
+
 export type QueryUserArgs = {
   id: Scalars["GlobalID"];
 };
@@ -329,6 +339,28 @@ export type QueryUsersArgs = {
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type RunCodeInput = {
+  arguments: Array<RunCodeValueArgumentInput>;
+  codeId: Scalars["GlobalID"];
+};
+
+export type RunCodeOutput = {
+  __typename?: "RunCodeOutput";
+  name: Scalars["String"];
+  value: Scalars["String"];
+};
+
+export type RunCodePayload = {
+  __typename?: "RunCodePayload";
+  code: Code;
+  outputs: Array<RunCodeOutput>;
+};
+
+export type RunCodeValueArgumentInput = {
+  name: Scalars["String"];
+  value: Scalars["String"];
 };
 
 export type SchemaElement = {
@@ -540,6 +572,64 @@ export type FileContentByIdQuery = {
         }>;
       } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | null;
+};
+
+export type CodeContentToRunFragment = {
+  __typename?: "Code";
+  inputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  outputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  parameters: Array<{
+    __typename?: "CodeParameter";
+    name: string;
+    type: SymbolParameterType;
+    schema?:
+      | ({ __typename?: "SchemaElement" } & {
+          " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+        })
+      | null;
+  }>;
+  arguments: Array<{
+    __typename?: "CodeArgument";
+    name: string;
+    type: string;
+    value?: any | null;
+    reference?: { __typename?: "SymbolDefinition"; id: any; typeNameDeclaration: string } | null;
+  }>;
+} & { " $fragmentName"?: "CodeContentToRunFragment" };
+
+export type CodeToRunQueryVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type CodeToRunQuery = {
+  __typename?: "Query";
+  symbol?: {
+    __typename?: "SymbolDefinition";
+    id: any;
+    type: SymbolType;
+    name: string;
+    typeNameDeclaration: string;
+    content:
+      | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentToRunFragment: CodeContentToRunFragment } })
+      | { __typename?: "Dataset" }
+      | { __typename?: "DatasetView" }
+      | { __typename?: "Expectation" }
+      | { __typename?: "Model" }
+      | { __typename?: "Task" };
+  } | null;
+};
+
+export type RunMutationVariables = Exact<{
+  input: RunCodeInput;
+}>;
+
+export type RunMutation = {
+  __typename?: "Mutation";
+  run: { __typename?: "RunCodePayload"; outputs: Array<{ __typename?: "RunCodeOutput"; name: string; value: string }> };
 };
 
 export type TaskContentFragment = {
@@ -899,6 +989,79 @@ export const ExpectationContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ExpectationContentFragment, unknown>;
+export const CodeContentToRunFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "CodeContentToRun" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Code" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "inputSchema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "outputSchema" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parameters" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "schema" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+                  },
+                },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "arguments" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "value" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<CodeContentToRunFragment, unknown>;
 export const CompilationHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1232,6 +1395,116 @@ export const FileContentByIdDocument = {
     ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
+export const CodeToRunDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "codeToRun" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbol" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "InlineFragment",
+                        typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Code" } },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "CodeContentToRun" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...CodeContentToRunFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CodeToRunQuery, CodeToRunQueryVariables>;
+export const RunDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "run" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "RunCodeInput" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "run" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "outputs" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RunMutation, RunMutationVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [

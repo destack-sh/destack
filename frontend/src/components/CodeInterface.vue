@@ -44,7 +44,6 @@ const props = defineProps<{
 const content = computed(() => useFragment(CodeContentFragment, props.content));
 const inputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.inputSchema));
 const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.outputSchema));
-
 const parameters = computed(() => content.value?.parameters ?? []);
 const arguments_ = computed(() => content.value?.arguments ?? []);
 

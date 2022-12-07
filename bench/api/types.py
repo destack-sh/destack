@@ -181,6 +181,19 @@ class CodeArgument(gql.Node):
     value: auto
 
 
+@gql.django.type(models.Execution)
+class Execution(gql.Node):
+    created_at: auto
+    updated_at: auto
+    started_at: auto
+    terminated_at: auto
+    status: auto
+    metadata: auto
+    parent: Optional[Execution]
+    children: list[Execution]
+    code: Code
+
+
 @gql.django.type(models.Model)
 class Model(SymbolContent):
     baseline: Optional[Model]

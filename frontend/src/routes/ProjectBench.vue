@@ -17,7 +17,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import Mousetrap from "mousetrap";
-import { computed, ref, watchEffect, type Component, type Ref } from "vue";
+import { computed, ref, watch, watchEffect, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -163,7 +163,7 @@ const { mutate: addCompilationTarget } = useMutation(
   `),
   { refetchQueries: ["projectVersionContent"] }
 );
-async function createCompilation() {
+async function createDefaultCompilation() {
   if (!content.value?.mainProgram) {
     throw new Error("no main program in current version");
   }
@@ -180,7 +180,7 @@ async function createCompilation() {
 const compileNavigation = computed(() => [
   { name: "Compile all", action: compileAll, disabled: !canCompile.value },
   { name: "Compile optimized", action: compileAll, disabled: !canCompile.value },
-  { name: "Add build target", action: createCompilation },
+  { name: "Add default target", action: createDefaultCompilation },
 ]);
 
 // set up editor state
@@ -212,6 +212,20 @@ watchEffect(() => {
     state.focusFile(files.value[0]);
   }
 });
+
+// TODO @Feature: store and restore editor state per project
+// reset editor state for project if project changes
+watch(
+  () => projectHeader.value,
+  (projectHeader) => {
+    if (projectHeader && state.currentProject?.id != projectHeader.id) {
+      console.log(`reset editor state for project ${projectHeader.id}`);
+      state.$reset();
+      state.setProject(projectHeader);
+    }
+  },
+  { immediate: true }
+);
 
 // shortcuts
 // TODO @Cleanup: unbind shortcuts on unmount
