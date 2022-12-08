@@ -14,7 +14,8 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench.backend.builtins import code_builtins
-from bench.backend.executor import Executor, Resolver
+from bench.backend.executor import Executor
+from bench.backend.resolver import Resolver
 from bench.models import (
     Code,
     Dataset,

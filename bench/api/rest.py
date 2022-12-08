@@ -3,7 +3,8 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.backend.executor import Executor, Resolver
+from bench.backend.executor import Executor
+from bench.backend.resolver import Resolver
 from bench.models import Project
 
 executor = Executor(Resolver())

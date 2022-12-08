@@ -368,6 +368,7 @@ export type SchemaElement = {
   choices?: Maybe<Array<Scalars["String"]>>;
   elements?: Maybe<Array<SchemaElement>>;
   name: Scalars["String"];
+  required: Scalars["Boolean"];
   type: ValueType;
 };
 

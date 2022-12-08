@@ -54,6 +54,7 @@ def get_value_type_from_type(typ: type) -> ValueType:
 class SchemaElement:
     name: str
     type: ValueType
+    required: bool = True
     choices: Optional[list[PyValueType]] = None
     elements: Optional[list["SchemaElement"]] = None
 
@@ -65,18 +66,19 @@ class SchemaElement:
             return [e.name for e in self.elements]
 
     def __str__(self):
+        required_str = "?" if not self.required else ""
         elements_str = ", ".join(str(e) for e in self.elements) if self.elements else ""
         if self.type == ValueType.OBJECT:
             # output as name={elem1, elem2, ...}
-            return f"{self.name}={{{elements_str}}}"
+            return f"{self.name}={{{elements_str}}}{required_str}"
         elif self.type == ValueType.ARRAY:
             # output as name=[elem1, elem2, ...]
-            return f"{self.name}=[{elements_str}]"
+            return f"{self.name}=[{elements_str}]{required_str}"
         else:
             if not self.choices:
-                return f"{self.name}={self.type.value}"
+                return f"{self.name}={self.type.value}{required_str}"
             else:
-                return f"{self.name}={self.type.value}(enum)"
+                return f"{self.name}={self.type.value}(enum){required_str}"
 
 
 def derive_schema_from_records(records: list[dict], name: str | None = "record") -> SchemaElement:
@@ -143,41 +145,48 @@ def derive_schema_from_function(function: typing.Callable) -> tuple[SchemaElemen
     return input_schema, output_schema
 
 
-def derive_schema_from_type(typ: type | str, name: str) -> SchemaElement | None:
+def derive_schema_from_type(
+    typ: type | str, name: str, required: bool = True
+) -> SchemaElement | None:
     if typ in ("Model", "Dataset"):
         return None
     # evaluate type annotations (assumes no special imports)
     resolved_type: type
     if isinstance(typ, str):
         resolved_type = eval(typ)
-        if not isinstance(resolved_type, type):
-            raise ValueError(f"could not evaluate type: {typ}")
     else:
         resolved_type = typ
 
     # get type annotation from generic alias
     if hasattr(resolved_type, "__origin__"):
-        resolved_type = resolved_type.__origin__
-        subtypes = getattr(resolved_type, "__args__", None)
+        if resolved_type.__origin__ is Union:
+            subtypes = getattr(resolved_type, "__args__")
+            if len(subtypes) == 2 or type(None) in subtypes:
+                return derive_schema_from_type(subtypes[0], name, required=False)
+            # don't support classic unions (yet), only optionals
+            else:
+                raise ValueError(f"unsupported union type: {typ}")
+        else:
+            resolved_type = resolved_type.__origin__
+            subtypes = getattr(resolved_type, "__args__", None)
     else:
         subtypes = None
 
-    if resolved_type is Union:
-        # don't support unions
-        return None
+    if not isinstance(resolved_type, type):
+        raise ValueError(f"invalid type: {typ}")
 
     if issubclass(resolved_type, list):
         if subtypes is not None:
-            element_type = derive_schema_from_type(subtypes[0], name)
+            element_type = derive_schema_from_type(subtypes[0], name, required=required)
             elements = [element_type] if element_type is not None else None
         else:
             elements = None
         return SchemaElement(name, ValueType.ARRAY, elements=elements)
     elif issubclass(resolved_type, dict):
         # not possible to derive schema from dict
-        return SchemaElement(name, ValueType.OBJECT, elements=None)
+        return SchemaElement(name, ValueType.OBJECT, required=required, elements=None)
     else:
-        return SchemaElement(name, PYTYPE_TO_VALUE_TYPE[resolved_type])
+        return SchemaElement(name, PYTYPE_TO_VALUE_TYPE[resolved_type], required=required)
 
 
 class SchemaElementSerializer:
@@ -191,6 +200,7 @@ class SchemaElementSerializer:
         return {
             "name": schema_element.name,
             "type": schema_element.type.value,
+            "required": schema_element.required,
             "choices": schema_element.choices,
             "elements": elements,
         }
@@ -205,6 +215,7 @@ class SchemaElementSerializer:
         return SchemaElement(
             name=json["name"],
             type=ValueType(json["type"]),
+            required=json.get("required", True),
             choices=json.get("choices"),
             elements=elements,
         )

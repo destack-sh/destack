@@ -11,11 +11,11 @@ from random import Random
 from typing import Any, Union
 
 import structlog
-from django.db.models import QuerySet
 
 from bench.backend.builtins import code_builtins
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
+from bench.backend.resolver import Resolver
 from bench.backend.types import (
     CodeCallable,
     LoadedCode,
@@ -29,18 +29,18 @@ from bench.backend.types import (
     ResolvedSymbol,
     Value,
 )
-from bench.models import Dataset, Model, SymbolContent, SymbolDefinition, SymbolType
-from bench.models.code import Code, CodeArgument, CodeParameter, Execution, SymbolParameterType
-from bench.models.dataset import DatasetView
+from bench.models import Dataset, Model, SymbolContent, SymbolDefinition
+from bench.models.code import Code, SymbolParameterType
 from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
-from bench.utils.record import RecordBatch, RecordList
+from bench.utils.record import RecordBatch
+from bench.utils.schema import SchemaElement, get_value_type
 
 logger = structlog.stdlib.get_logger()
 
 
 class SandboxError(Exception):
-    def __init__(self, message: str, exception: Exception):
+    def __init__(self, message: str, exception: typing.Optional[Exception] = None):
         super().__init__(message)
         self.exception = exception
 
@@ -80,7 +80,7 @@ class Tracer:
         pass
 
 
-class MultiTracer:
+class MultiTracer(Tracer):
     """
     A worker-side tracer that delegates to multiple tracers.
 
@@ -116,54 +116,60 @@ class ExecutionTracer(Tracer):
     A worker-side tracer that records the execution of a code.
     """
 
-    def __init__(self, execution: Execution):
-        self.execution_trace = [execution]
+    def __init__(self):
+        self.execution_trace = []
+
+
+class ValidationError(SandboxError):
+    pass
 
 
 class ValidationTracer(Tracer):
     """
-    A worker-side tracer that validates the parameters and results of code.
+    A worker-side tracer that validates inputs and outputs.
     """
 
-    def _check_arguments(
-        self,
-        code: Code,
-        parameters: dict[str, CodeParameter],
-        arguments: dict[str, Any],
-        check_required: bool,
-    ) -> None:
-        """
-        Checks that all required arguments are present and valid for the code, raising an error if not.
-        """
-        for parameter in parameters.values():
-            # check that all required arguments are present
-            if check_required and parameter.name not in arguments:
-                raise ValueError(f"required parameter {parameter.name} not bound for {code}")
-            if not check_required and parameter.name not in arguments:
+    def code_enter(self, code: LoadedCode, args, kwargs):
+        # validate kwargs
+        for name, value in kwargs.items():
+            parameter = code.parameters.get(name)
+            if parameter is None:
+                # TODO @Typing: error on unknown parameters?
+                #  Currently we ignore this because schema elements don't include non-value types.
+                # ignore unknown parameters for now
                 continue
-            # check that all arguments are of the correct type
-            # TODO @Robustness: check that the argument has the correct schema
-            if parameter.type == SymbolParameterType.CODE:
-                if not callable(arguments[parameter.name]):
-                    raise ValueError(f"argument {parameter.name} for {code} is not a callable")
-            elif parameter.type == SymbolParameterType.MODEL:
-                if not isinstance(arguments[parameter.name], ModelHandle):
-                    raise ValueError(f"argument {parameter.name} for {code} is not a model handler")
-            elif parameter.type == SymbolParameterType.DATA:
-                if not isinstance(arguments[parameter.name], RecordBatch):
-                    raise ValueError(f"argument {parameter.name} for {code} is not a dataset")
-            elif parameter.type == SymbolParameterType.VALUE:
-                # check that the argument is a JSON object or primitive
-                if not isinstance(
-                    arguments[parameter.name], (dict, list, str, int, float, bool, type(None))
-                ):
-                    raise ValueError(
-                        f"argument {parameter.name} for {code} is not a JSON object or primitive"
-                    )
-            else:
-                raise RuntimeError(f"unknown parameter type for {code}: {parameter.type}")
+            self._check_argument(code, value, parameter)
 
-        # ignore extraneous arguments
+    def code_exit(self, code: LoadedCode, args, kwargs, result):
+        self._check_schema(code, result, code.output_schema)
+
+    def _check_schema(self, code: LoadedCode, value: Any, schema: SchemaElement):
+        # TODO @Typing: recursive schema validation
+        value_type = get_value_type(value)
+        if not schema.required and value is None:
+            return
+        elif value_type != schema.type:
+            raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
+
+    def _check_argument(self, code: LoadedCode, value: Any, parameter: ResolvedParameter):
+        # TODO @Typing: check that the argument has the correct schema
+        if parameter.type == SymbolParameterType.CODE:
+            if not callable(value):
+                raise ValidationError(f"argument {parameter.name} to {code} is not a callable")
+        elif parameter.type == SymbolParameterType.MODEL:
+            if not isinstance(value, ModelHandle):
+                raise ValidationError(f"argument {parameter.name} to {code} is not a model handler")
+        elif parameter.type == SymbolParameterType.DATA:
+            if not isinstance(value, RecordBatch):
+                raise ValidationError(f"argument {parameter.name} tp {code} is not a dataset")
+        elif parameter.type == SymbolParameterType.VALUE:
+            # check that the argument is a JSON object or primitive
+            if not isinstance(value, (dict, list, str, int, float, bool, type(None))):
+                raise ValueError(
+                    f"argument {parameter.name} for {code} is not a JSON object or primitive"
+                )
+        else:
+            raise RuntimeError(f"unknown parameter type for {code}: {parameter.type}")
 
 
 class ModelProxy(ModelHandle):
@@ -285,108 +291,6 @@ class CodeProxy:
             log.debug("code.call.exception", exception=exception)
             self.tracer.code_exception(self.code, args, kwargs, exception)
             raise
-
-
-class Resolver:
-    """
-    Server-side resolver to fetch all recursive arguments and contents.
-    """
-
-    async def resolve_model(
-        self, model: Model, settings: typing.Optional[ModelInferenceSettings]
-    ) -> ResolvedModel:
-        return ResolvedModel(
-            definition_id=model.definition.id,
-            symbol_id=model.id,
-            name=model.definition.name,
-            type=SymbolType.MODEL,
-            settings=settings,
-            default_settings=model.default_settings,
-            provider=model.provider,
-            external_name=model.external_name,
-        )
-
-    async def resolve_dataset(
-        self, dataset: Dataset, view: typing.Optional[DatasetView]
-    ) -> ResolvedDataset:
-        if view is not None:
-            raise NotImplementedError("dataset views are not implemented yet")
-        # TODO @Performance: do not load all records when resolving dataset arguments
-        #  All functions are executed async, but dataset access is neater if it's synchronous.
-        #  So we pre-load everything and wrap it in a synchronous wrapper.
-        records = []
-        async for record in dataset:
-            records.append(record)
-        batch = RecordList(records)
-        return ResolvedDataset(
-            definition_id=dataset.definition.id,
-            symbol_id=dataset.id,
-            name=dataset.definition.name,
-            type=SymbolType.DATASET,
-            schema=dataset.schema,
-            records=batch,
-        )
-
-    async def resolve_code(self, code: Code) -> ResolvedCode:
-        parameters = await self._get_code_parameters(code)
-        arguments = await self.resolve_arguments(code)
-        return ResolvedCode(
-            definition_id=code.definition.id,
-            symbol_id=code.id,
-            name=code.definition.name,
-            type=SymbolType.CODE,
-            input_schema=code.input_schema,
-            output_schema=code.output_schema,
-            code_text=code.code,
-            code_function_name=code.code_function_name,
-            builtin_id=code.builtin_id,
-            parameters=parameters,
-            arguments=arguments,
-        )
-
-    async def _get_code_parameters(self, code: Code) -> dict[str, ResolvedParameter]:
-        parameters = {}
-        async for parameter in code.parameters.all():
-            parameters[parameter.name] = ResolvedParameter(name=parameter.name, type=parameter.type)
-        return parameters
-
-    async def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
-        bound_arguments: QuerySet[CodeArgument] = code.arguments.all().select_related(
-            "reference",
-            "reference__model",
-            "reference__model__default_settings",
-            "reference__dataset",
-            "reference__code",
-        )
-        bound_arguments_resolved: dict[str, Any] = {}
-        async for argument in bound_arguments:
-            if argument.type == SymbolParameterType.VALUE:
-                bound_arguments_resolved[argument.name] = argument.value
-                continue
-            if argument.reference is None:
-                raise ValueError(f"argument {argument} has no reference definition")
-            # resolve symbol reference
-            bound_arguments_resolved[argument.name] = await self.resolve_argument(
-                argument.reference
-            )
-        return bound_arguments_resolved
-
-    async def resolve_argument(
-        self, value: Value | SymbolDefinition | SymbolContent
-    ) -> ResolvedSymbol | Value:
-        if isinstance(value, SymbolContent):
-            value = value.definition
-        if isinstance(value, SymbolDefinition):
-            if value.type == SymbolType.MODEL:
-                return await self.resolve_model(value.model_, settings=None)
-            elif value.type == SymbolType.DATASET:
-                return await self.resolve_dataset(value.dataset_, view=None)
-            elif value.type == SymbolType.CODE:
-                return await self.resolve_code(value.code_)
-            else:
-                raise ValueError(f"unexpected argument type: {value}")
-        else:
-            return value
 
 
 class Proxy:
@@ -552,7 +456,8 @@ class Executor:
     async def run(
         self, code: ResolvedCode, arguments: dict[str, Value | ResolvedSymbol]
     ) -> dict[str, Any] | list[dict[str, Any]] | None:
-        proxy = Proxy(tracer=Tracer())  # noop tracer
+        tracers = [ValidationTracer()]
+        proxy = Proxy(tracer=MultiTracer(tracers))
         loaded_arguments = await self._load_arguments(arguments, proxy)
         unwrapped_arguments = self._unwrap_arguments(loaded_arguments, proxy)
 
