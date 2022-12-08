@@ -188,6 +188,7 @@ class Execution(gql.Node):
     updated_at: auto
     started_at: auto
     terminated_at: auto
+    duration_millis: auto
     status: auto
     inputs: auto
     outputs: auto

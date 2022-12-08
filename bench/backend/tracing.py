@@ -138,6 +138,7 @@ class ExecutionTracker:
             id=frame.id,
             parent_id=frame.parent.id if frame.parent else None,
             code_id=frame.code.symbol_id,
+            model_id=frame.model.symbol_id if frame.model else None,
             defaults=dict(
                 started_at=frame.entered_at,
                 terminated_at=frame.exited_at,

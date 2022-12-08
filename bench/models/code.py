@@ -6,6 +6,7 @@ from uuid import UUID
 from asgiref.sync import sync_to_async
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
+from strawberry_django_plus import gql
 
 from bench.models.schema import SchemaElementField, SchemaField
 from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, SymbolType
@@ -264,7 +265,7 @@ PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
 
 class Execution(UUIDTModel):
     """
-    The execution of a hierarchical code.
+    The execution of (hierarchical) code.
     """
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -302,3 +303,9 @@ class Execution(UUIDTModel):
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
+
+    @gql.model_property(only=["started_at", "terminated_at"])
+    def duration_millis(self) -> Optional[float]:
+        if self.started_at and self.terminated_at:
+            return (self.terminated_at - self.started_at).total_seconds() * 1000
+        return None
