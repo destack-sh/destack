@@ -124,6 +124,7 @@ export type Execution = Node & {
   children: Array<Execution>;
   code: Code;
   createdAt: Scalars["DateTime"];
+  durationMillis?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
   id: Scalars["GlobalID"];
   inputs?: Maybe<Scalars["JSON"]>;
@@ -646,6 +647,18 @@ export type CodeToRunQuery = {
   } | null;
 };
 
+export type ExecutionHeaderFragment = {
+  __typename?: "Execution";
+  id: any;
+  status: string;
+  createdAt: any;
+  startedAt?: any | null;
+  terminatedAt?: any | null;
+  durationMillis?: number | null;
+  code: { __typename?: "Code"; id: any; typeNameDeclaration: string };
+  model?: { __typename?: "Model"; id: any; typeNameDeclaration: string } | null;
+} & { " $fragmentName"?: "ExecutionHeaderFragment" };
+
 export type RunMutationVariables = Exact<{
   input: RunCodeInput;
 }>;
@@ -654,6 +667,21 @@ export type RunMutation = {
   __typename?: "Mutation";
   run: {
     __typename?: "RunCodePayload";
+    execution: {
+      __typename?: "Execution";
+      id: any;
+      children: Array<
+        {
+          __typename?: "Execution";
+          id: any;
+          children: Array<
+            { __typename?: "Execution"; id: any } & {
+              " $fragmentRefs"?: { ExecutionHeaderFragment: ExecutionHeaderFragment };
+            }
+          >;
+        } & { " $fragmentRefs"?: { ExecutionHeaderFragment: ExecutionHeaderFragment } }
+      >;
+    } & { " $fragmentRefs"?: { ExecutionHeaderFragment: ExecutionHeaderFragment } };
     outputs?: Array<{ __typename?: "RunCodeOutput"; name: string; value: string }> | null;
   };
 };
@@ -1088,6 +1116,49 @@ export const CodeContentToRunFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<CodeContentToRunFragment, unknown>;
+export const ExecutionHeaderFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ExecutionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Execution" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "durationMillis" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "code" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "model" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ExecutionHeaderFragment, unknown>;
 export const CompilationHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1515,6 +1586,39 @@ export const RunDocument = {
               selections: [
                 {
                   kind: "Field",
+                  name: { kind: "Name", value: "execution" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionHeader" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "children" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionHeader" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "children" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionHeader" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
                   name: { kind: "Name", value: "outputs" },
                   selectionSet: {
                     kind: "SelectionSet",
@@ -1530,6 +1634,7 @@ export const RunDocument = {
         ],
       },
     },
+    ...ExecutionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
 export const ProjectVersionsDocument = {

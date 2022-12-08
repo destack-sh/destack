@@ -98,6 +98,7 @@ type Execution implements Node {
 
   """Time of transition to a terminal status."""
   terminatedAt: DateTime
+  durationMillis: Float
   status: String!
   inputs: JSON
   outputs: JSON
