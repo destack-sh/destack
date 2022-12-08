@@ -13,7 +13,8 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
-from bench.backend.executor import Executor, Resolver
+from bench.backend.executor import Executor
+from bench.backend.resolver import Resolver
 from bench.compiler import Compiler, get_stdlib_model
 from bench.settings import DEBUG, TEST
 

@@ -78,7 +78,7 @@ class ResolvedCode(ResolvedSymbol):
     parameters: dict[str, ResolvedParameter]
     arguments: dict[str, ResolvedSymbol | typing.Any]
 
-    def __str__(self):
+    def __content_str__(self):
         # copied almost verbatim from Code.__str__
         if self.builtin_id:
             content = f"builtin={self.builtin_id}"

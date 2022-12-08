@@ -325,6 +325,7 @@ input RunCodeValueArgumentInput {
 type SchemaElement {
   name: String!
   type: ValueType!
+  required: Boolean!
   choices: [String!]
   elements: [SchemaElement!]
 }

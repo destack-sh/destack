@@ -239,7 +239,7 @@ async def verify_respect_command_hints(example: dict) -> bool:
 model: Model  # @alias text-davinci-003
 
 
-async def expect_respect_command_hints(example: dict):
+async def expect_respect_command_hints(example: dict) -> Optional[dict]:
     # get another way of running the same command
     utility = example["command"].split()[0]
     # if the utility contains non-alpha characters, skip
@@ -324,8 +324,8 @@ async def generate_chain_examples(n_samples: int) -> list[dict]:
             subcommands.append(command)
         # chain subcommands as appropriate
         chained_command = await llm(
-            model.configure(stop=["\n"], temperature=0.0),
-            "# chain these subcommands to '{input}': {subcommands}\n # chained in one line:\n",
+            model=model.configure(stop=["\n"], temperature=0.0),
+            prompt="# chain these subcommands to '{input}': {subcommands}\n # chained in one line:\n",
             input=example["input"],
             subcommands="\n".join(subcommands),
         )
@@ -350,8 +350,9 @@ output_schema = [{"name": "docs", "type": "string"}]
 async def lookup_docs(input: str) -> str:
     # get potentially relevant utilities
     utilities = await llm(
-        model,
-        "What utilities are relevant to the following code? (e.g. kubectl,ssh)" "\n\n{input}\n\n",
+        model=model,
+        prompt="What utilities are relevant to the following code? (e.g. kubectl,ssh)"
+        "\n\n{input}\n\n",
         input=input,
     )
     # clean up output
