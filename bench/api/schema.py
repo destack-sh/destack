@@ -13,8 +13,8 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
+from bench.backend.executor import Executor, Resolver
 from bench.compiler import Compiler, get_stdlib_model
-from bench.executor import Executor
 from bench.settings import DEBUG, TEST
 
 
@@ -99,7 +99,7 @@ class Mutation:
             .select_related("project_version", "task", "target_task", "target_code")
             .get(id=input.compilation_id.node_id)
         )
-        executor = Executor()
+        executor = Executor(Resolver())
         compiler = Compiler(executor)
         async_to_sync(compiler.compile)(compilation)
         return CompilePayload(compilation=compilation)
@@ -109,8 +109,8 @@ class Mutation:
         code = models.Code.objects.get(id=input.code_id.node_id)
         # assumes only value arguments
         arguments = {arg.name: arg.value for arg in input.arguments}
-        executor = Executor()
-        output = async_to_sync(executor.run)(code, arguments)
+        executor = Executor(Resolver())
+        output = async_to_sync(executor.resolve_and_run)(code, arguments)
         outputs = [RunCodeOutput(name=name, value=value) for name, value in output.items()]
         return RunCodePayload(code=code, outputs=outputs)
 

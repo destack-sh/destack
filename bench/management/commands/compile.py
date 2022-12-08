@@ -2,8 +2,8 @@ from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
+from bench.backend.executor import Executor, Resolver
 from bench.compiler import Compiler, get_stdlib_model
-from bench.executor import Executor
 from bench.models import Project, SymbolType
 
 
@@ -32,10 +32,10 @@ class Command(BaseCommand):
         if not backends:
             raise ValueError("no backends provided")
 
-        executor = Executor()
+        executor = Executor(Resolver())
         compiler = Compiler(executor)
         compilation, _ = task_def.task.compilations.select_related("project_version").get_or_create(
-            project_version=project_v, name="default"
+            project_version=project_v, task=task_def.task, name="default"
         )
         compilation.backends.set(backends)
         task_def.task.compilations.set([compilation])
