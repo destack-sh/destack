@@ -3,10 +3,10 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.executor import Executor
+from bench.backend.executor import Executor, Resolver
 from bench.models import Project
 
-executor = Executor()
+executor = Executor(Resolver())
 
 
 # TODO @Performance: execute run program endpoint non-blocking (async)
@@ -22,7 +22,7 @@ def run_program(request: Request, organization: str, project: str) -> Response:
     compiled_program = project_v.main_program.task_.compilations.get()
 
     try:
-        output = async_to_sync(executor.run)(compiled_program.target_code, variables)
+        output = async_to_sync(executor.resolve_and_run)(compiled_program.target_code, variables)
         return Response({"output": output})
     except Exception as e:
         return Response({"error": str(e)}, status=400)

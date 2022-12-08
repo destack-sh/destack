@@ -13,8 +13,8 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.executor import Executor
-from bench.executor.builtins import code_builtins
+from bench.backend.builtins import code_builtins
+from bench.backend.executor import Executor, Resolver
 from bench.models import (
     Code,
     Dataset,
@@ -134,13 +134,13 @@ def load_symbols(project_v: ProjectVersion, path: str):
         library_v = library.head  # just use head
         project_v.libraries.add(library_v)
         logger.info(f"Import library {library_v}")
-    executor = Executor()
+    executor = Executor(Resolver())
     # convert segments to a single task definition tree
     for segment in segments:
         if segment.header.startswith("ignore"):
             continue
 
-        definitions = async_to_sync(executor.run_get_definitions)(segment.full_code, {})
+        definitions = async_to_sync(executor.run_text)(segment.full_code, {})
 
         def _get_definition(name: str | None = None, required: bool = True):
             if name is None:

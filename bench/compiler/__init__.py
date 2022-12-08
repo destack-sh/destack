@@ -13,7 +13,7 @@ from asgiref.sync import sync_to_async
 from attr import dataclass
 from django.db.models import QuerySet
 
-from bench.executor import Executor
+from bench.backend.executor import Executor
 from bench.models import (
     Code,
     Dataset,
@@ -377,7 +377,7 @@ class Compiler:
             if statement.type == ExpectationStatementType.TRANSFORM:
                 relevant_examples = local_random.sample(static_examples, n_samples)
                 for example in relevant_examples:
-                    transformed = await self.executor.run(
+                    transformed = await self.executor.resolve_and_run(
                         statement.code, arguments={"example": example}
                     )
                     if isinstance(transformed, dict):
@@ -388,7 +388,7 @@ class Compiler:
                             dynamic_examples.append(transformed_example)
                     # ignore other types of results
             elif statement.type == ExpectationStatementType.GENERATE:
-                examples = await self.executor.run(
+                examples = await self.executor.resolve_and_run(
                     statement.code, arguments={"n_samples": n_samples}
                 )
                 if isinstance(examples, list):
@@ -428,7 +428,7 @@ class Compiler:
         self, task_data: TaskData, task_description: str, examples_dataset: Dataset
     ) -> ModelInferenceSettings:
         # (naive implementation: set only temperature and max_tokens)
-        temperature = await self.executor.run(
+        temperature = await self.executor.resolve_and_run(
             self.get_temperature,
             arguments=dict(
                 model=self.compiler_model, description=task_description, examples=examples_dataset
@@ -490,7 +490,7 @@ class Compiler:
             prompt_prefix=prompt_prefix,
             prompt_example=prompt_example,
             prompt_input=prompt_input,
-            return_structured=True,  # get a dict back
+            return_structured=True,
             examples=task_examples.definition,
             settings=settings.as_dict(omit_empty=True),
         )

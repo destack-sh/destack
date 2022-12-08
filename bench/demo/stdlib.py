@@ -37,9 +37,6 @@ temperature_examples = [
 ]
 
 # @symbol code: get_temperature
-model: Model  # @param
-description: str  # @param
-examples: Dataset  # @param
 temperature_examples: Dataset
 
 

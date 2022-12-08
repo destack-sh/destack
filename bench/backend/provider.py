@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Optional, TypedDict, Union
 
-from bench.models import Model
 from bench.models.model import ModelInferenceSettings
+
+if TYPE_CHECKING:
+    from bench.backend.executor import ResolvedModel
+else:
+    ResolvedModel = Any
 
 
 class ModelProvider(abc.ABC):
@@ -13,7 +17,7 @@ class ModelProvider(abc.ABC):
     """
 
     async def access(
-        self, model: Model, settings: ModelInferenceSettings, for_user: str
+        self, model: ResolvedModel, settings: ModelInferenceSettings, for_user: str
     ) -> ModelHandle:
         raise NotImplementedError
 

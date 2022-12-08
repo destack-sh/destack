@@ -4,7 +4,7 @@ from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
-from bench.executor import Executor
+from bench.backend.executor import Executor, Resolver
 from bench.models import Compilation, Project, SymbolType
 from bench.models.project import ProjectType
 
@@ -42,6 +42,6 @@ class Command(BaseCommand):
             compilation = main_program.task.compilations.get(name=compilation_name)
         main_code = compilation.target_code
 
-        executor = Executor()
-        output = async_to_sync(executor.run)(main_code, {"input": input})
+        executor = Executor(Resolver())
+        output = async_to_sync(executor.resolve_and_run)(main_code, {"input": input})
         print(output)
