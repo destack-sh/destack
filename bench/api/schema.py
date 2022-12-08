@@ -15,6 +15,7 @@ from bench import models
 from bench.api import types
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
+from bench.backend.tracing import ExecutionTrace
 from bench.compiler import Compiler, get_stdlib_model
 from bench.settings import DEBUG, TEST
 
@@ -81,6 +82,7 @@ class RunCodeOutput:
 @strawberry.type
 class RunCodePayload:
     code: types.Code
+    execution: types.Execution
     outputs: Optional[list[RunCodeOutput]]
 
 
@@ -111,9 +113,18 @@ class Mutation:
         # assumes only value arguments
         arguments = {arg.name: arg.value for arg in input.arguments}
         executor = Executor(Resolver())
-        output = async_to_sync(executor.resolve_and_run)(code, arguments)
-        outputs = [RunCodeOutput(name=name, value=value) for name, value in output.items()]
-        return RunCodePayload(code=code, outputs=outputs)
+        execution_trace = ExecutionTrace(frames=[])
+        output = async_to_sync(executor.resolve_and_run)(code, arguments, [execution_trace])
+
+        if execution_trace.root is None:
+            raise RuntimeError(f"empty execution trace for {code}")
+
+        if isinstance(output, dict):
+            outputs = [RunCodeOutput(name=name, value=value) for name, value in output.items()]
+        else:
+            outputs = [RunCodeOutput(name="output", value=output)]
+        execution = models.Execution.objects.get(id=execution_trace.root.id)
+        return RunCodePayload(code=code, execution=execution, outputs=outputs)
 
 
 default_extensions: list[Union[Type[Extension], Extension]] = [

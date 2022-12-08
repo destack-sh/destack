@@ -16,6 +16,15 @@ from bench.backend.builtins import code_builtins
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
 from bench.backend.resolver import Resolver
+from bench.backend.tracing import (
+    ExecutionTrace,
+    ExecutionTracer,
+    ExecutionTracker,
+    MultiTracer,
+    Trace,
+    Tracer,
+    ValidationTracer,
+)
 from bench.backend.types import (
     CodeCallable,
     LoadedCode,
@@ -25,16 +34,14 @@ from bench.backend.types import (
     ResolvedCode,
     ResolvedDataset,
     ResolvedModel,
-    ResolvedParameter,
     ResolvedSymbol,
     Value,
 )
 from bench.models import Dataset, Model, SymbolContent, SymbolDefinition
-from bench.models.code import Code, SymbolParameterType
+from bench.models.code import Code
 from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
-from bench.utils.schema import SchemaElement, get_value_type
 
 logger = structlog.stdlib.get_logger()
 
@@ -55,121 +62,6 @@ def _arguments_summary(arguments: Any) -> str:
         return ", ".join(type(value).__name__ for value in arguments)
     else:
         return type(arguments).__name__
-
-
-class Tracer:
-    """
-    A worker-side tracer that can be attached to an executor.
-
-    Tracer will be called in an async context on a worker pod.
-    """
-
-    def code_enter(self, code: LoadedCode, args, kwargs):
-        pass
-
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
-        pass
-
-    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
-        pass
-
-    def model_complete_enter(self, model: LoadedModel, prompt: str):
-        pass
-
-    def model_complete_exit(self, model: LoadedModel, prompt: str, completion: Completion):
-        pass
-
-
-class MultiTracer(Tracer):
-    """
-    A worker-side tracer that delegates to multiple tracers.
-
-    On exit, tracers are called in reverse order.
-    """
-
-    def __init__(self, tracers: list[Tracer]):
-        self.tracers = tracers
-
-    def code_enter(self, code: LoadedCode, args, kwargs):
-        for tracer in self.tracers:
-            tracer.code_enter(code, args, kwargs)
-
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
-        for tracer in reversed(self.tracers):
-            tracer.code_exit(code, args, kwargs, result)
-
-    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
-        for tracer in reversed(self.tracers):
-            tracer.code_exception(code, args, kwargs, exception)
-
-    def model_complete_enter(self, model: LoadedModel, prompt: str):
-        for tracer in self.tracers:
-            tracer.model_complete_enter(model, prompt)
-
-    def model_complete_exit(self, model: LoadedModel, prompt: str, completion: Completion):
-        for tracer in reversed(self.tracers):
-            tracer.model_complete_exit(model, prompt, completion)
-
-
-class ExecutionTracer(Tracer):
-    """
-    A worker-side tracer that records the execution of a code.
-    """
-
-    def __init__(self):
-        self.execution_trace = []
-
-
-class ValidationError(SandboxError):
-    pass
-
-
-class ValidationTracer(Tracer):
-    """
-    A worker-side tracer that validates inputs and outputs.
-    """
-
-    def code_enter(self, code: LoadedCode, args, kwargs):
-        # validate kwargs
-        for name, value in kwargs.items():
-            parameter = code.parameters.get(name)
-            if parameter is None:
-                # TODO @Typing: error on unknown parameters?
-                #  Currently we ignore this because schema elements don't include non-value types.
-                # ignore unknown parameters for now
-                continue
-            self._check_argument(code, value, parameter)
-
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
-        self._check_schema(code, result, code.output_schema)
-
-    def _check_schema(self, code: LoadedCode, value: Any, schema: SchemaElement):
-        # TODO @Typing: recursive schema validation
-        value_type = get_value_type(value)
-        if not schema.required and value is None:
-            return
-        elif value_type != schema.type:
-            raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
-
-    def _check_argument(self, code: LoadedCode, value: Any, parameter: ResolvedParameter):
-        # TODO @Typing: check that the argument has the correct schema
-        if parameter.type == SymbolParameterType.CODE:
-            if not callable(value):
-                raise ValidationError(f"argument {parameter.name} to {code} is not a callable")
-        elif parameter.type == SymbolParameterType.MODEL:
-            if not isinstance(value, ModelHandle):
-                raise ValidationError(f"argument {parameter.name} to {code} is not a model handler")
-        elif parameter.type == SymbolParameterType.DATA:
-            if not isinstance(value, RecordBatch):
-                raise ValidationError(f"argument {parameter.name} tp {code} is not a dataset")
-        elif parameter.type == SymbolParameterType.VALUE:
-            # check that the argument is a JSON object or primitive
-            if not isinstance(value, (dict, list, str, int, float, bool, type(None))):
-                raise ValueError(
-                    f"argument {parameter.name} for {code} is not a JSON object or primitive"
-                )
-        else:
-            raise RuntimeError(f"unknown parameter type for {code}: {parameter.type}")
 
 
 class ModelProxy(ModelHandle):
@@ -218,14 +110,14 @@ class ModelProxy(ModelHandle):
         # try to get from cache if enabled
         cached_result = None
         if self.use_cache:
-            cached_inference = await ModelInference.objects.filter(
+            inference = await ModelInference.objects.filter(
                 model_id=self.model.symbol_id,
                 operation=ModelOperation.COMPLETE,
                 settings_hash=settings_hash,
                 input_hash=input_hash,
             ).afirst()
-            if cached_inference is not None:
-                cached_result = cached_inference.output
+            if inference is not None:
+                cached_result = inference.output
 
         # cache miss or cache disabled
         if cached_result is None:
@@ -257,7 +149,7 @@ class ModelProxy(ModelHandle):
             else (len(c["text"]) for c in completion)
         )
         logger.debug("model.complete.exit", completion=completion_length)
-        self.tracer.model_complete_exit(self.model, prompt, completion)
+        self.tracer.model_complete_exit(self.model, prompt, completion, inference.id)
         return completion
 
     async def embed(self, text: str, settings: typing.Optional[dict[str, Any]] = None) -> bytes:
@@ -443,21 +335,39 @@ class Executor:
         except Exception as e:
             raise SandboxError(f"error running code with globals {globals}: {e}", e) from e
 
+    def _make_tracer(self, execution_tracker: ExecutionTracker, traces: list[Trace]) -> Tracer:
+        # TODO @Cleanup: passing empty traces to populate is a bit messy
+        tracers = []
+        for trace in traces:
+            if isinstance(trace, ExecutionTrace):
+                tracers.append(ExecutionTracer(execution_tracker, trace))
+            else:
+                raise ValueError(f"unknown trace type {trace}")
+        tracers.append(ValidationTracer())
+        return MultiTracer(tracers)
+
     async def resolve_and_run(
-        self, code: Code, arguments: dict[str, Value | SymbolDefinition | SymbolContent]
+        self,
+        code: Code,
+        arguments: dict[str, Value | SymbolDefinition | SymbolContent],
+        traces: list[Trace] | None = None,
     ):
         resolved_arguments = {
             name: await self.resolver.resolve_argument(argument)
             for name, argument in arguments.items()
         }
         resolved_code = await self.resolver.resolve_code(code)
-        return await self.run(resolved_code, resolved_arguments)
+        return await self.run(resolved_code, resolved_arguments, traces)
 
     async def run(
-        self, code: ResolvedCode, arguments: dict[str, Value | ResolvedSymbol]
+        self,
+        code: ResolvedCode,
+        arguments: dict[str, Value | ResolvedSymbol],
+        traces: list[Trace] | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]] | None:
-        tracers = [ValidationTracer()]
-        proxy = Proxy(tracer=MultiTracer(tracers))
+        execution_tracker = ExecutionTracker()
+        tracer = self._make_tracer(execution_tracker, traces or [])
+        proxy = Proxy(tracer=tracer)
         loaded_arguments = await self._load_arguments(arguments, proxy)
         unwrapped_arguments = self._unwrap_arguments(loaded_arguments, proxy)
 
@@ -469,7 +379,7 @@ class Executor:
             ) from e
 
         try:
-            return await proxy.unwrap_code(loaded_code)(**unwrapped_arguments)
+            output = await proxy.unwrap_code(loaded_code)(**unwrapped_arguments)
         except SandboxError:
             # re-raise sandbox errors
             raise
@@ -478,6 +388,10 @@ class Executor:
                 f"error running {code} with arguments {_arguments_summary(unwrapped_arguments)}: {e}",
                 e,
             ) from e
+        finally:
+            # TODO @Architecture: execution tracker should likely be long running
+            await execution_tracker.process_until_empty()
+        return output
 
     async def run_text(self, code_text: str, globals: dict[str, Any]) -> dict:
         # remember the globals we started with, do not modify originals

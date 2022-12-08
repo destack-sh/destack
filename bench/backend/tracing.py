@@ -1,0 +1,292 @@
+from __future__ import annotations
+
+import asyncio
+import copy
+import typing
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
+import pytz
+import structlog
+
+from bench.backend.provider import Completion, ModelHandle
+from bench.backend.types import LoadedCode, LoadedModel, ResolvedParameter
+from bench.models import Execution, ExecutionStatus
+from bench.models.code import SymbolParameterType
+from bench.utils.record import RecordBatch
+from bench.utils.schema import SchemaElement, get_value_type
+
+logger = structlog.get_logger(__name__)
+
+
+class Tracer:
+    """
+    A worker-side tracer that can be attached to an executor.
+
+    Tracer will be called in an async context on a worker pod.
+    """
+
+    def code_enter(self, code: LoadedCode, args, kwargs):
+        pass
+
+    def code_exit(self, code: LoadedCode, args, kwargs, result):
+        pass
+
+    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
+        pass
+
+    def model_complete_enter(self, model: LoadedModel, prompt: str):
+        pass
+
+    def model_complete_exit(
+        self, model: LoadedModel, prompt: str, completion: Completion, inference_id: uuid.UUID
+    ):
+        pass
+
+
+class MultiTracer(Tracer):
+    """
+    A worker-side tracer that delegates to multiple tracers.
+
+    On exit, tracers are called in reverse order.
+    """
+
+    def __init__(self, tracers: list[Tracer]):
+        self.tracers = tracers
+
+    def code_enter(self, code: LoadedCode, args, kwargs):
+        for tracer in self.tracers:
+            tracer.code_enter(code, args, kwargs)
+
+    def code_exit(self, code: LoadedCode, args, kwargs, result):
+        for tracer in reversed(self.tracers):
+            tracer.code_exit(code, args, kwargs, result)
+
+    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
+        for tracer in reversed(self.tracers):
+            tracer.code_exception(code, args, kwargs, exception)
+
+    def model_complete_enter(self, model: LoadedModel, prompt: str):
+        for tracer in self.tracers:
+            tracer.model_complete_enter(model, prompt)
+
+    def model_complete_exit(
+        self, model: LoadedModel, prompt: str, completion: Completion, inference_id: uuid.UUID
+    ):
+        for tracer in reversed(self.tracers):
+            tracer.model_complete_exit(model, prompt, completion, inference_id)
+
+
+class Trace:
+    """
+    A trace collected from a worker-side tracer.
+    """
+
+    pass
+
+
+@dataclass
+class ExecutionFrame:
+    id: uuid.UUID
+    code: LoadedCode
+    model: typing.Optional[LoadedModel]
+    parent: typing.Optional[ExecutionFrame]
+    entered_at: datetime
+    exited_at: typing.Optional[datetime]
+    inputs: dict[str, Any]
+    outputs: typing.Optional[dict[str, Any]]
+    inference_id: typing.Optional[uuid.UUID]
+    exception: typing.Optional[Exception]
+
+
+class ExecutionTracker:
+    def __init__(self):
+        self.pending_frames_queue: asyncio.Queue[ExecutionFrame] = asyncio.Queue()
+
+    def push_frame(self, frame: ExecutionFrame):
+        self.pending_frames_queue.put_nowait(frame)
+
+    async def process_forever(self):
+        # loop until cancelled
+        while True:
+            await self.process_one()
+
+    async def process_until_empty(self):
+        while not self.pending_frames_queue.empty():
+            await self.process_one()
+
+    async def process_one(self):
+        frame = await self.pending_frames_queue.get()
+        if frame.exited_at:
+            status = ExecutionStatus.Completed
+        elif frame.exception:
+            status = ExecutionStatus.Failed
+        else:
+            status = ExecutionStatus.Running
+
+        if frame.exception:
+            error = {
+                "message": str(frame.exception),
+                "type": type(frame.exception).__name__,
+            }
+        else:
+            error = None
+
+        await Execution.objects.aupdate_or_create(
+            id=frame.id,
+            parent_id=frame.parent.id if frame.parent else None,
+            code_id=frame.code.symbol_id,
+            defaults=dict(
+                started_at=frame.entered_at,
+                terminated_at=frame.exited_at,
+                status=status,
+                inputs=frame.inputs,
+                outputs=frame.outputs,
+                error=error,
+            ),
+        )
+        self.pending_frames_queue.task_done()
+
+    async def join(self):
+        await self.pending_frames_queue.join()
+
+
+@dataclass
+class ExecutionTrace(Trace):
+    frames: list[ExecutionFrame]
+
+    @property
+    def root(self) -> typing.Optional[ExecutionFrame]:
+        return self.frames[0] if self.frames else None
+
+
+class ExecutionTracer(Tracer):
+    """
+    A worker-side tracer that records the execution of a code.
+    """
+
+    def __init__(self, tracker: ExecutionTracker, trace: ExecutionTrace):
+        self.tracker = tracker
+        self.stacktrace: list[ExecutionFrame] = []
+        self.trace = trace
+
+    def _create_frame(
+        self,
+        code: typing.Optional[LoadedCode],
+        model: typing.Optional[LoadedModel],
+        inputs: dict[str, Any],
+    ):
+        parent = self.stacktrace[-1] if self.stacktrace else None
+        frame = ExecutionFrame(
+            id=uuid.uuid4(),
+            code=code,
+            model=model,
+            parent=parent,
+            entered_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            exited_at=None,
+            inputs=inputs,
+            outputs=None,
+            inference_id=None,
+            exception=None,
+        )
+        self.trace.frames.append(frame)
+        return frame
+
+    def code_enter(self, code: LoadedCode, args, kwargs):
+        inputs = {**copy.deepcopy(kwargs), "__args__": copy.deepcopy(args)}
+        frame = self._create_frame(code, None, inputs)
+        self.stacktrace.append(frame)
+        self.tracker.push_frame(frame)
+        logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
+
+    def code_exit(self, code: LoadedCode, args, kwargs, result):
+        frame = self.stacktrace.pop()
+        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.tracker.push_frame(frame)
+        logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
+
+    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
+        frame = self.stacktrace.pop()
+        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.exception = exception
+        self.tracker.push_frame(frame)
+        logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
+
+    def model_complete_enter(self, model: LoadedModel, prompt: str):
+        # warn if there is no code on the stack
+        parent_code = self.stacktrace[-1].code if self.stacktrace else None
+        if parent_code is None:
+            logger.warning(
+                "trace.model.complete.enter.missing_parent", model=model, prompt=len(prompt)
+            )
+
+        inputs = {"prompt": prompt}
+        frame = self._create_frame(parent_code, model, inputs)
+        self.stacktrace.append(frame)
+        self.tracker.push_frame(frame)
+        logger.debug("trace.model.complete.enter", frame=frame, stackdepth=len(self.stacktrace))
+
+    def model_complete_exit(
+        self, model: LoadedModel, prompt: str, completion: Completion, inference_id: uuid.UUID
+    ):
+        frame = self.stacktrace.pop()
+        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        # duplicating model inference in execution trace is not ideal but okay for now
+        frame.outputs = {"completion": completion}
+        frame.inference_id = inference_id
+        self.tracker.push_frame(frame)
+        logger.debug("trace.model.complete.exit", frame=frame, stackdepth=len(self.stacktrace))
+
+
+class ValidationError(Exception):
+    pass
+
+
+class ValidationTracer(Tracer):
+    """
+    A worker-side tracer that validates inputs and outputs.
+    """
+
+    def code_enter(self, code: LoadedCode, args, kwargs):
+        # validate kwargs
+        for name, value in kwargs.items():
+            parameter = code.parameters.get(name)
+            if parameter is None:
+                # TODO @Typing: error on unknown parameters?
+                #  Currently we ignore this because schema elements don't include non-value types.
+                # ignore unknown parameters for now
+                continue
+            self._check_argument(code, value, parameter)
+
+    def code_exit(self, code: LoadedCode, args, kwargs, result):
+        self._check_schema(code, result, code.output_schema)
+
+    def _check_schema(self, code: LoadedCode, value: Any, schema: SchemaElement):
+        # TODO @Typing: recursive schema validation
+        value_type = get_value_type(value)
+        if not schema.required and value is None:
+            return
+        elif value_type != schema.type:
+            raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
+
+    def _check_argument(self, code: LoadedCode, value: Any, parameter: ResolvedParameter):
+        # TODO @Typing: check that the argument has the correct schema
+        if parameter.type == SymbolParameterType.CODE:
+            if not callable(value):
+                raise ValidationError(f"argument {parameter.name} to {code} is not a callable")
+        elif parameter.type == SymbolParameterType.MODEL:
+            if not isinstance(value, ModelHandle):
+                raise ValidationError(f"argument {parameter.name} to {code} is not a model handler")
+        elif parameter.type == SymbolParameterType.DATA:
+            if not isinstance(value, RecordBatch):
+                raise ValidationError(f"argument {parameter.name} tp {code} is not a dataset")
+        elif parameter.type == SymbolParameterType.VALUE:
+            # check that the argument is a JSON object or primitive
+            if not isinstance(value, (dict, list, str, int, float, bool, type(None))):
+                raise ValueError(
+                    f"argument {parameter.name} for {code} is not a JSON object or primitive"
+                )
+        else:
+            raise RuntimeError(f"unknown parameter type for {code}: {parameter.type}")

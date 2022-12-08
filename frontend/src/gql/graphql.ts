@@ -119,6 +119,25 @@ export type DatasetView = Node &
     typeNameDeclaration: Scalars["String"];
   };
 
+export type Execution = Node & {
+  __typename?: "Execution";
+  children: Array<Execution>;
+  code: Code;
+  createdAt: Scalars["DateTime"];
+  error?: Maybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"];
+  inputs?: Maybe<Scalars["JSON"]>;
+  model?: Maybe<Model>;
+  outputs?: Maybe<Scalars["JSON"]>;
+  parent?: Maybe<Execution>;
+  /** Time of transition to RUNNING status. */
+  startedAt?: Maybe<Scalars["DateTime"]>;
+  status: Scalars["String"];
+  /** Time of transition to a terminal status. */
+  terminatedAt?: Maybe<Scalars["DateTime"]>;
+  updatedAt: Scalars["DateTime"];
+};
+
 export type Expectation = Node &
   SymbolContent & {
     __typename?: "Expectation";
@@ -355,6 +374,7 @@ export type RunCodeOutput = {
 export type RunCodePayload = {
   __typename?: "RunCodePayload";
   code: Code;
+  execution: Execution;
   outputs?: Maybe<Array<RunCodeOutput>>;
 };
 

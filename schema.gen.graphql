@@ -88,6 +88,26 @@ type DatasetView implements SymbolContent & Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
+type Execution implements Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """Time of transition to RUNNING status."""
+  startedAt: DateTime
+
+  """Time of transition to a terminal status."""
+  terminatedAt: DateTime
+  status: String!
+  inputs: JSON
+  outputs: JSON
+  error: JSON
+  parent: Execution
+  children: [Execution!]!
+  code: Code!
+  model: Model
+}
+
 type Expectation implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
@@ -314,6 +334,7 @@ type RunCodeOutput {
 
 type RunCodePayload {
   code: Code!
+  execution: Execution!
   outputs: [RunCodeOutput!]
 }
 

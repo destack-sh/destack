@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import traceback
-from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime, timezone
 from typing import Any, Optional, cast
 from uuid import UUID
 
@@ -281,7 +278,6 @@ class Execution(UUIDTModel):
     status = models.CharField(
         max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
     )
-    metadata = models.JSONField(null=True, blank=True)
 
     parent = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
@@ -303,73 +299,6 @@ class Execution(UUIDTModel):
         on_delete=models.SET_NULL,
         related_name="executions",
     )
-
-    def _set_transition_metadata(
-        self, status: ExecutionStatus, transition_metadata: Optional[dict]
-    ):
-        if transition_metadata is None:
-            return
-        if self.metadata is None:
-            self.metadata = {}
-        self.metadata[status.value] = transition_metadata
-
-    def update_status(self, status: ExecutionStatus, transition_metadata: Optional[dict] = None):
-        self.status = status
-        self._set_transition_metadata(status, transition_metadata)
-        self.save()
-
-    def start(
-        self,
-        status: ExecutionStatus = ExecutionStatus.Running,
-        transition_metadata: Optional[dict] = None,
-    ):
-        """
-        Marks this execution as started in the given status
-        """
-        self.started_at = datetime.utcnow().astimezone(tz=timezone.utc)
-        self.status = status
-        self._set_transition_metadata(status, transition_metadata)
-        self.save()
-
-    def terminate(
-        self,
-        status: ExecutionStatus = ExecutionStatus.Completed,
-        transition_metadata: Optional[dict] = None,
-    ):
-        """
-        Marks this execution as terminated in the given status
-        """
-        self.terminated_at = datetime.utcnow().astimezone(tz=timezone.utc)
-        self.status = status
-        self._set_transition_metadata(status, transition_metadata)
-        self.save()
-
-    @contextmanager
-    def capture(self, start: bool = True, start_metadata: Optional[dict] = None):
-        try:
-            if start:
-                self.start(transition_metadata=start_metadata)
-            yield
-            self.terminate()
-        except Exception as e:
-            stacktrace = traceback.format_stack()
-            self.terminate(
-                status=ExecutionStatus.Failed,
-                transition_metadata={"error": str(e), "stacktrace": stacktrace},
-            )
-            raise
-
-    @asynccontextmanager
-    async def acapture(self, start: bool = True, start_metadata: Optional[dict] = None):
-        try:
-            if start:
-                await sync_to_async(self.start)(transition_metadata=start_metadata)
-            yield
-            await sync_to_async(self.terminate)()
-        except Exception as e:
-            stacktrace = traceback.format_stack()
-            await sync_to_async(self.terminate)(
-                status=ExecutionStatus.Failed,
-                transition_metadata={"error": str(e), "stacktrace": stacktrace},
-            )
-            raise
+    inputs = models.JSONField(null=True, blank=True)
+    outputs = models.JSONField(null=True, blank=True)
+    error = models.JSONField(null=True, blank=True)
