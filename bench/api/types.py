@@ -189,10 +189,13 @@ class Execution(gql.Node):
     started_at: auto
     terminated_at: auto
     status: auto
-    metadata: auto
+    inputs: auto
+    outputs: auto
+    error: auto
     parent: Optional[Execution]
     children: list[Execution]
     code: Code
+    model: Optional[Model]
 
 
 @gql.django.type(models.Model)
