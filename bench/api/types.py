@@ -5,7 +5,6 @@ from typing import Optional
 from strawberry import auto
 from strawberry_django_plus import gql
 
-import bench.models.symbol
 from bench import models
 from bench.utils import schema
 
@@ -84,7 +83,7 @@ class File(gql.Node):
     definitions: list[SymbolDefinition]  # if file
 
 
-@gql.django.type(bench.models.symbol.SymbolDefinition)
+@gql.django.type(models.SymbolDefinition)
 class SymbolDefinition(gql.Node):
     project_version: ProjectVersion
     name: auto

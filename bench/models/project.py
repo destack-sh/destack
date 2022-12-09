@@ -227,6 +227,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             if old_definition.parent_id is not None:
                 new_definition.parent = new_definitions[old_definition.parent_id]
             new_definition.save()
+        if source.main_program:
+            target.main_program = new_definitions[source.main_program_id]
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"

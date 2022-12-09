@@ -70,3 +70,23 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
     }
   }
 `);
+
+export const SymbolDefinitionContentType = graphql(/* GraphQL */ `
+  fragment SymbolDefinitionContent on SymbolDefinition {
+    id
+    name
+    type
+    typeShortname
+    nameDotType
+    typeNameDeclaration
+    createdAt
+    updatedAt
+    generated
+    content {
+      ...CodeContent
+      ...DatasetContent
+      ...ExpectationContent
+      ...TaskContent
+    }
+  }
+`);

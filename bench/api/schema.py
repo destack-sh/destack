@@ -13,6 +13,7 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
+from bench.api.symbol import SymbolDefinitionMutation
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.backend.tracing import ExecutionTrace
@@ -87,7 +88,7 @@ class RunCodePayload:
 
 
 @strawberry.type
-class Mutation:
+class Mutation(SymbolDefinitionMutation):
     @strawberry.mutation
     def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:
         task = models.SymbolDefinition.objects.get(id=input.task_definition_id.node_id).task_

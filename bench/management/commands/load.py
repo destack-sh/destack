@@ -107,6 +107,7 @@ class Command(BaseCommand):
         if main:
             # (we likely won't have a single "main" going forward)
             project_v.main_program = project_v.symbol_definition(main, SymbolType.TASK)
+            project_v.save()
             logger.info(f"Set {project_v.main_program} as main program in {project_v}")
 
         # advance head to new version
