@@ -86,11 +86,13 @@ function initMonaco(monaco: Monaco) {
     rules: [
       // make keywords orange
       { token: "keyword", foreground: "#ea580c" },
+      { token: "string.key.json", foreground: "#ea580c" },
       // make comments grey
       { token: "comment", foreground: "#6b7280" },
       // make literals and constants orange
       { token: "number", foreground: "#d97706" },
       { token: "string", foreground: "#d97706" },
+      { token: "string.value.json", foreground: "#d97706" },
       { token: "constant.numeric", foreground: "#d97706" },
       { token: "constant.character", foreground: "#d97706" },
       { token: "constant.language", foreground: "#d97706" },
