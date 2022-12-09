@@ -101,6 +101,7 @@ export const useEditorState = defineStore("editor", {
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
       focusedDefinition: null as SymbolDefinitionHeader | null,
+      readonly: false,
     };
   },
   getters: {

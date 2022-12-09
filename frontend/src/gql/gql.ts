@@ -9,7 +9,7 @@ const documents = {
     types.DatasetContentFragmentDoc,
   "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      name\n      typeNameDeclaration\n      nameDotType\n    }\n  }\n":
     types.ExpectationContentFragmentDoc,
-  "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          typeShortname\n          nameDotType\n          typeNameDeclaration\n          createdAt\n          updatedAt\n          generated\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  ":
+  "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          ...SymbolDefinitionContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
   "\n  fragment CodeContentToRun on Code {\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        typeNameDeclaration\n      }\n    }\n  }\n":
     types.CodeContentToRunFragmentDoc,
@@ -19,6 +19,8 @@ const documents = {
     types.ExecutionHeaderFragmentDoc,
   "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  ":
     types.RunDocument,
+  "\n    mutation updateSymbolDefinitionName($id: GlobalID!, $name: String!) {\n      updateSymbolDefinition(input: { id: $id, name: $name }) {\n        __typename\n      }\n    }\n  ":
+    types.UpdateSymbolDefinitionNameDocument,
   "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      typeNameDeclaration\n      nameDotType\n    }\n    templateImplementation {\n      id\n      typeNameDeclaration\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.TaskContentFragmentDoc,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
@@ -43,6 +45,8 @@ const documents = {
     types.CompilationHeaderFragmentDoc,
   "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n":
     types.SchemaElementContentDeepFragmentDoc,
+  "\n  fragment SymbolDefinitionContent on SymbolDefinition {\n    id\n    name\n    type\n    typeShortname\n    nameDotType\n    typeNameDeclaration\n    createdAt\n    updatedAt\n    generated\n    content {\n      ...CodeContent\n      ...DatasetContent\n      ...ExpectationContent\n      ...TaskContent\n    }\n  }\n":
+    types.SymbolDefinitionContentFragmentDoc,
 };
 
 export function graphql(
@@ -55,8 +59,8 @@ export function graphql(
   source: "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      name\n      typeNameDeclaration\n      nameDotType\n    }\n  }\n"
 ): typeof documents["\n  fragment ExpectationContent on Expectation {\n    id\n    description\n    statements {\n      id\n      name\n      typeNameDeclaration\n      nameDotType\n    }\n  }\n"];
 export function graphql(
-  source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          typeShortname\n          nameDotType\n          typeNameDeclaration\n          createdAt\n          updatedAt\n          generated\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          name\n          type\n          typeShortname\n          nameDotType\n          typeNameDeclaration\n          createdAt\n          updatedAt\n          generated\n          content {\n            ...CodeContent\n            ...DatasetContent\n            ...ExpectationContent\n            ...TaskContent\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          ...SymbolDefinitionContent\n        }\n      }\n    }\n  "
+): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        definitions {\n          id\n          ...SymbolDefinitionContent\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment CodeContentToRun on Code {\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        typeNameDeclaration\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment CodeContentToRun on Code {\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    parameters {\n      name\n      type\n      schema {\n        ...SchemaElementContentDeep\n      }\n    }\n    arguments {\n      name\n      type\n      value\n      reference {\n        id\n        typeNameDeclaration\n      }\n    }\n  }\n"];
@@ -69,6 +73,9 @@ export function graphql(
 export function graphql(
   source: "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "
 ): typeof documents["\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "];
+export function graphql(
+  source: "\n    mutation updateSymbolDefinitionName($id: GlobalID!, $name: String!) {\n      updateSymbolDefinition(input: { id: $id, name: $name }) {\n        __typename\n      }\n    }\n  "
+): typeof documents["\n    mutation updateSymbolDefinitionName($id: GlobalID!, $name: String!) {\n      updateSymbolDefinition(input: { id: $id, name: $name }) {\n        __typename\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      typeNameDeclaration\n      nameDotType\n    }\n    templateImplementation {\n      id\n      typeNameDeclaration\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
 ): typeof documents["\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      typeNameDeclaration\n      nameDotType\n    }\n    templateImplementation {\n      id\n      typeNameDeclaration\n      nameDotType\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
@@ -105,6 +112,9 @@ export function graphql(
 export function graphql(
   source: "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n"
 ): typeof documents["\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n"];
+export function graphql(
+  source: "\n  fragment SymbolDefinitionContent on SymbolDefinition {\n    id\n    name\n    type\n    typeShortname\n    nameDotType\n    typeNameDeclaration\n    createdAt\n    updatedAt\n    generated\n    content {\n      ...CodeContent\n      ...DatasetContent\n      ...ExpectationContent\n      ...TaskContent\n    }\n  }\n"
+): typeof documents["\n  fragment SymbolDefinitionContent on SymbolDefinition {\n    id\n    name\n    type\n    typeShortname\n    nameDotType\n    typeNameDeclaration\n    createdAt\n    updatedAt\n    generated\n    content {\n      ...CodeContent\n      ...DatasetContent\n      ...ExpectationContent\n      ...TaskContent\n    }\n  }\n"];
 
 export function graphql(source: string): unknown;
 export function graphql(source: string) {

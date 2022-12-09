@@ -63,6 +63,8 @@ type CompilePayload {
   compilation: Compilation!
 }
 
+union CreateSymbolDefinitionPayload = SymbolDefinition | OperationInfo
+
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   nameDotType: String!
@@ -87,6 +89,8 @@ type DatasetView implements SymbolContent & Node {
 
 """Date with time (isoformat)"""
 scalar DateTime
+
+union DeleteSymbolDefinitionPayload = SymbolDefinition | OperationInfo
 
 type Execution implements Node {
   id: GlobalID!
@@ -149,6 +153,12 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
+  createSymbolDefinition(input: SymbolDefinitionInput!): CreateSymbolDefinitionPayload!
+  updateSymbolDefinition(input: SymbolDefinitionInputPartial!): UpdateSymbolDefinitionPayload!
+  deleteSymbolDefinition(
+    """Input of an object that implements the `Node` interface."""
+    input: NodeInput!
+  ): DeleteSymbolDefinitionPayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
   run(input: RunCodeInput!): RunCodePayload!
@@ -158,6 +168,40 @@ type Mutation {
 interface Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+}
+
+"""Input of an object that implements the `Node` interface."""
+input NodeInput {
+  id: GlobalID!
+}
+
+"""Multiple messages returned by an operation."""
+type OperationInfo {
+  """List of messages returned by the operation."""
+  messages: [OperationMessage!]!
+}
+
+"""An error that happened while executing an operation."""
+type OperationMessage {
+  """The kind of this message."""
+  kind: OperationMessageKind!
+
+  """The error message."""
+  message: String!
+
+  """
+  The field that caused the error, or `null` if it isn't associated with any particular field.
+  """
+  field: String
+}
+
+"""The kind of the returned message."""
+enum OperationMessageKind {
+  INFO
+  WARNING
+  ERROR
+  PERMISSION
+  VALIDATION
 }
 
 type Organization implements Node {
@@ -385,6 +429,15 @@ type SymbolDefinition implements Node {
   content(pk: ID): SymbolContent!
 }
 
+input SymbolDefinitionInput {
+  name: String!
+}
+
+input SymbolDefinitionInputPartial {
+  id: GlobalID!
+  name: String
+}
+
 """An enumeration."""
 enum SymbolParameterType {
   DATA
@@ -413,6 +466,8 @@ type Task implements SymbolContent & Node {
   templateImplementation: SymbolDefinition
   compilations: [Compilation!]!
 }
+
+union UpdateSymbolDefinitionPayload = SymbolDefinition | OperationInfo
 
 type User implements Node {
   id: GlobalID!
