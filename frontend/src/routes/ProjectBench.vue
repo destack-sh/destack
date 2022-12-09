@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DummyBlock from "@/components/DummyBlock.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
@@ -246,6 +247,7 @@ Mousetrap.bind("ctrl+shift+left", () => {
 </script>
 
 <template>
+  <!-- Root -->
   <div class="flex h-full flex-col">
     <!-- Header with controls and auth -->
     <header class="static mx-auto w-full flex-shrink-0 overflow-y-visible border-b border-gray-200 bg-white shadow-sm">
@@ -305,7 +307,7 @@ Mousetrap.bind("ctrl+shift+left", () => {
           </Menu>
         </div>
         <!-- Right side: controls (and profile) -->
-        <div class="flex items-center justify-end">
+        <div class="flex min-w-fit flex-shrink-0 items-center justify-end">
           <!-- Controls -->
           <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
             <!-- Compile menu -->
@@ -407,7 +409,7 @@ Mousetrap.bind("ctrl+shift+left", () => {
       </div>
     </header>
     <!-- Main content (sidebar + editor), spans horizontally -->
-    <div class="flex flex-1 flex-row">
+    <div class="relative flex max-h-full flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
       <aside class="flex h-full w-64 flex-shrink-0 resize-x border-r border-gray-200 lg:w-72">
         <!-- View selection -->
@@ -440,15 +442,19 @@ Mousetrap.bind("ctrl+shift+left", () => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="relative flex h-full w-full flex-1 flex-row divide-x divide-gray-200 bg-gray-50">
+      <main class="flex h-full w-full flex-1 divide-x divide-gray-200 bg-gray-50">
         <!-- Left editor group -->
-        <EditorGroupInterface :group="state.left" class="h-full w-full min-w-[700px] flex-1 overflow-auto" />
+        <div class="relative flex-1">
+          <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
+            <EditorGroupInterface :group="state.left" class="h-full w-full" />
+          </div>
+        </div>
         <!-- Right editor group -->
-        <EditorGroupInterface
-          v-if="state.right.editors.length > 0"
-          :group="state.right"
-          class="h-full w-full min-w-[700px] flex-1 overflow-auto"
-        />
+        <div class="relative flex-1" v-if="state.right.editors.length > 0">
+          <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
+            <EditorGroupInterface :group="state.right" class="h-full w-full" />
+          </div>
+        </div>
       </main>
     </div>
   </div>
