@@ -28,9 +28,6 @@ const { result: versionsQuery, loading } = useQuery(
 const versions = computed(
   () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
 );
-const commits = computed(() => {
-  return versions.value.filter((v) => v.committed);
-});
 </script>
 <template>
   <div>
@@ -42,10 +39,10 @@ const commits = computed(() => {
     <div class="flex flex-1 flex-col" v-if="!loading">
       <!-- View: versions -->
       <ul role="list" class="m-3 -mb-8">
-        <li v-for="(version, versionIdx) in commits" :key="version.id">
+        <li v-for="(version, versionIdx) in versions" :key="version.id">
           <div class="relative pb-4">
             <span
-              v-if="versionIdx !== commits.length - 1"
+              v-if="versionIdx !== versions.length - 1"
               class="absolute top-4 left-3 -ml-px h-full w-0.5 bg-gray-200"
               aria-hidden="true"
             />
@@ -60,11 +57,12 @@ const commits = computed(() => {
                   <p class="text-xs font-bold text-gray-900">{{ version.name || "Unnamed" }}</p>
                   <p class="text-xs text-gray-500">{{ version.description || "(autosave)" }}</p>
                 </div>
-                <div class="whitespace-nowrap text-right text-xs text-gray-500">
+                <div class="whitespace-nowrap text-right text-xs text-gray-500" v-if="version.committed">
                   <time :datetime="version.committedAt">
                     {{ getTimeFromNowString(version.committedAt) }}
                   </time>
                 </div>
+                <div v-else class="whitespace-nowrap text-right text-xs text-orange-600">current</div>
               </div>
             </div>
           </div>

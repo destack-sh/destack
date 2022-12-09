@@ -108,60 +108,13 @@ class Project(TaggableMixin, UUIDModel):
         )
         new_version.parents.add(assigned_parent)
 
-        # copy all project files and their symbol definitions from parent
-        # TODO @Performance: copy project version on commit server-side in SQL
-        #  This is awfully sequential and slow, particularly deepcopy of symbol definitions.
-        # Also TODO @Cleanup: created_at/updated_at are not copied correctly (they are set to now)
-        # 1. copy project files
-        new_files: dict[UUID, File] = {}
-        for file in assigned_parent.files.all():
-            old_id = file.id
-            file.pk = None
-            file.project_version = new_version
-            file.save()
-            new_files[old_id] = file
-        # 1.1 re-assign project file parents
-        for old_file in assigned_parent.files.all():
-            if old_file.parent_id is not None:
-                new_file = new_files[old_file.id]
-                new_file.parent = new_files[old_file.parent_id]
-                new_file.save()
-        # 2. copy symbol definitions and symbol contents
-        new_definitions: dict[UUID, SymbolDefinition] = {}
-        new_contents: dict[UUID, SymbolContent] = {}
-        for definition in assigned_parent.definitions.all():
-            old_content: SymbolContent = definition.content
-            # copy content
-            old_id = old_content.id
-            content = old_content
-            content.pk = None
-            content.save()
-            new_contents[old_id] = content
-            # copy definition
-            old_id = definition.id
-            definition.pk = None
-            definition.parent = None
-            definition.set_content(content)
-            definition.file = new_files[definition.file_id]
-            definition.project_version = new_version
-            definition.save()
-            new_definitions[old_id] = definition
-        refs: dict[UUID, SymbolContent | SymbolDefinition] = {**new_definitions, **new_contents}
-        # 2.1 re-assign references and deep copy symbols
-        for old_definition in assigned_parent.definitions.all():
-            new_definition = new_definitions[old_definition.id]
-            new_content = new_contents[old_definition.content_id]
-            # copy content
-            old_content = old_definition.content
-            old_content.deepcopy(to=new_content, refs=refs)
-            new_content.save()
-            # re-assign definition parent and content
-            if old_definition.parent_id is not None:
-                new_definition.parent = new_definitions[old_definition.parent_id]
-            new_definition.save()
+        # copy project content from parent
+        ProjectVersion.copy_project_version(assigned_parent, new_version)
+
         # head has advanced to new version
         if assigned_parent == self.head:
             self.head = new_version
+            self.save()
 
         return new_version
 
@@ -221,6 +174,59 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     # files via ProjectFile
     # definitions via SymbolDefinition
     # compilations via Compilation
+
+    @staticmethod
+    def copy_project_version(source: ProjectVersion, target: ProjectVersion):
+        # TODO @Performance: copy project version on commit server-side in SQL
+        #  This is awfully sequential and slow, particularly deepcopy of symbol definitions.
+        # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
+        # 1. copy project files
+        new_files: dict[UUID, File] = {}
+        for file in source.files.all():
+            old_id = file.id
+            file.pk = None
+            file.project_version = target
+            file.save()
+            new_files[old_id] = file
+        # 1.1 re-assign project file parents
+        for old_file in source.files.all():
+            if old_file.parent_id is not None:
+                new_file = new_files[old_file.id]
+                new_file.parent = new_files[old_file.parent_id]
+                new_file.save()
+        # 2. copy symbol definitions and symbol contents
+        new_definitions: dict[UUID, SymbolDefinition] = {}
+        new_contents: dict[UUID, SymbolContent] = {}
+        for definition in source.definitions.all():
+            old_content: SymbolContent = definition.content
+            # copy content
+            old_id = old_content.id
+            content = old_content
+            content.pk = None
+            content.save()
+            new_contents[old_id] = content
+            # copy definition
+            old_id = definition.id
+            definition.pk = None
+            definition.parent = None
+            definition.set_content(content)
+            definition.file = new_files[definition.file_id]
+            definition.project_version = target
+            definition.save()
+            new_definitions[old_id] = definition
+        refs: dict[UUID, SymbolContent | SymbolDefinition] = {**new_definitions, **new_contents}
+        # 2.1 re-assign references and deep copy symbols
+        for old_definition in source.definitions.all():
+            new_definition = new_definitions[old_definition.id]
+            new_content = new_contents[old_definition.content_id]
+            # copy content
+            old_content = old_definition.content
+            old_content.deepcopy(to=new_content, refs=refs)
+            new_content.save()
+            # re-assign definition parent and content
+            if old_definition.parent_id is not None:
+                new_definition.parent = new_definitions[old_definition.parent_id]
+            new_definition.save()
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
@@ -368,14 +374,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             self.name = name
         if description is not None:
             self.description = description
-        # mark all symbol definitions as committed if they aren't already
-        # TODO @Performance: commit symbol content server-side in SQL
-        for symbol_def in self.definitions.all().prefetch_related(
-            "task", "expectation", "code", "model", "dataset", "dataset_view"
-        ):
-            if not symbol_def.committed:
-                symbol_def.committed_in = self
-                symbol_def.save()
         self.save()
 
     @gql.model_property(only=["committed_at"])

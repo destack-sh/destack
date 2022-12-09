@@ -101,22 +101,18 @@ class Command(BaseCommand):
         last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
         version_id = str(int(last_modified.timestamp()))
 
-        if project.head_.committed:
-            project_v = project.create_version(name=version_id)
-        else:
-            project_v = project.head_
-
+        project_v = project.create_version(name=version_id)
         project_v.reset()
         load_symbols(project_v, path)
         if main:
             # (we likely won't have a single "main" going forward)
             project_v.main_program = project_v.symbol_definition(main, SymbolType.TASK)
             logger.info(f"Set {project_v.main_program} as main program in {project_v}")
-        project_v.commit(name=version_id, description=f"reload from {path}")
 
         # advance head to new version
         project.head = project_v
         project.save()
+
         logger.info(f"Updated head to {project_v} in {project}")
 
 
