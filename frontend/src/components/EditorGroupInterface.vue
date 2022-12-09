@@ -25,7 +25,7 @@ const focused = computed(() => editorState.focusedEditor?.group?.id == props.gro
 </script>
 <template>
   <!-- Tabbed editors for that group -->
-  <div>
+  <div class="flex flex-col">
     <TabGroup :selected-index="selectedTab">
       <!-- Tabs -->
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
@@ -48,9 +48,9 @@ const focused = computed(() => editorState.focusedEditor?.group?.id == props.gro
         </Tab>
       </TabList>
       <!-- Contents -->
-      <TabPanels class="w-full">
+      <TabPanels class="relative h-full w-full flex-1">
         <TabPanel v-for="(editor, index) in group.editors" :key="index">
-          <div class="h-full w-full">
+          <div class="absolute left-0 top-0 h-full w-full overflow-auto">
             <FileInterface v-if="editor.type == 'file'" :file="(editor as FileEditor).file" />
             <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" />
             <div v-else class="h-full w-full text-center">
