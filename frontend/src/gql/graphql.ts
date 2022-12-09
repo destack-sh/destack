@@ -412,8 +412,6 @@ export type SymbolContent = {
 export type SymbolDefinition = Node & {
   __typename?: "SymbolDefinition";
   children: Array<SymbolDefinition>;
-  committed: Scalars["Boolean"];
-  committedIn?: Maybe<ProjectVersion>;
   content: SymbolContent;
   createdAt: Scalars["DateTime"];
   file: File;

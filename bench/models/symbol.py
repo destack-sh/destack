@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Union, cast
 from uuid import UUID
 
+import structlog
 from django.db import models
 from django.dispatch import receiver
 from django_choices_field import TextChoicesField
@@ -14,6 +15,8 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 if TYPE_CHECKING:
     from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task
     from bench.models.project import ProjectVersion
+
+logger = structlog.get_logger(__name__)
 
 
 class SymbolType(models.TextChoices):
@@ -100,7 +103,6 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     index = models.IntegerField(null=True)  # index into file or parent if nested
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    committed_in = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)
     generated = models.BooleanField(default=False)
     # source_mappings via SourceMapping
 
@@ -122,10 +124,6 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     dataset_view = models.OneToOneField(
         "DatasetView", on_delete=models.RESTRICT, null=True, related_name="definition"
     )
-
-    @gql.model_property(only=["committed_in"])
-    def committed(self) -> bool:
-        return self.committed_in is not None
 
     def __str__(self):
         return f"{self.name_dot_type}@{self.id.hex}"
@@ -244,7 +242,11 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
 # auto delete symbol content if symbol definition is deleted
 @receiver(models.signals.post_delete, sender=SymbolDefinition)
 def auto_delete_symbol_content(sender, instance: SymbolDefinition, **kwargs):
-    instance.content.delete()
+    if "content" in instance._state.fields_cache:
+        instance.content.delete()
+    else:
+        # this shouldn't happen but just in case
+        pass
 
 
 class SymbolContentManager(models.Manager):

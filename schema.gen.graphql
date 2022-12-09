@@ -382,8 +382,6 @@ type SymbolDefinition implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   generated: Boolean!
-  committedIn: ProjectVersion
-  committed: Boolean!
   content(pk: ID): SymbolContent!
 }
 

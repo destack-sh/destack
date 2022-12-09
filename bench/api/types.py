@@ -99,8 +99,6 @@ class SymbolDefinition(gql.Node):
     created_at: auto
     updated_at: auto
     generated: auto
-    committed_in: Optional[ProjectVersion]
-    committed: auto
     content: SymbolContent
 
 
