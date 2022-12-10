@@ -130,6 +130,11 @@ class Symbol(TaggableMixin, UUIDModel):
         Deep copy this symbol to another symbol, replacing non-symbol references
          (incl. references to symbols within non-symbol relations like args/params)
         """
+        # copy content
+        new_content = refs[self.content_id]
+        self.content.deepcopy(to=new_content, refs=refs)
+        new_content.save()
+
         # copy parameters
         for parameter in self.parameters.all():
             parameter.id = None
@@ -137,11 +142,11 @@ class Symbol(TaggableMixin, UUIDModel):
             parameter.save()
         # copy arguments
         for argument in self.arguments.all():
-            if argument.reference_id not in refs:
-                continue
             argument.id = None
             argument.symbol = to
-            argument.reference = cast(Symbol, refs[argument.reference_id])
+            # replace ref (default to same ref if not in refs since library refs are not copied)
+            new_reference = refs.get(argument.reference_id, argument.reference)
+            argument.reference = cast(Symbol, new_reference)
             argument.save()
 
     parameters: models.QuerySet["SymbolParameter"]  # noqa via SymbolParameter.symbol

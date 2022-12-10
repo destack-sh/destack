@@ -195,11 +195,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         for old_symbol in source.symbols.all():
             new_symbol = new_symbols[old_symbol.id]
             old_symbol.deepcopy(to=new_symbol, refs=refs)
-            new_content = new_contents[old_symbol.content_id]
-            # copy content
-            old_content = old_symbol.content
-            old_content.deepcopy(to=new_content, refs=refs)
-            new_content.save()
             # re-assign symbol parent and content
             if old_symbol.parent_id is not None:
                 new_symbol.parent = new_symbols[old_symbol.parent_id]
