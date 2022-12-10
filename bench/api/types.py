@@ -64,10 +64,10 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     libraries: list[ProjectVersion]
-    main_program: Optional[SymbolDefinition]
+    main_program: Optional[Symbol]
     files: list[File]
     compilations: list[Compilation]
-    definitions: list[SymbolDefinition]
+    symbols: list[Symbol]
 
 
 @gql.django.type(models.File)
@@ -80,19 +80,19 @@ class File(gql.Node):
     is_folder: auto
     parent: Optional[File]  # containing folder
     files: list[File]  # if folder
-    definitions: list[SymbolDefinition]  # if file
+    symbols: list[Symbol]  # if file
 
 
-@gql.django.type(models.SymbolDefinition)
-class SymbolDefinition(gql.Node):
+@gql.django.type(models.Symbol)
+class Symbol(gql.Node):
     project_version: ProjectVersion
     name: auto
     type: auto
     type_shortname: auto
     type_name_declaration: auto
     file: File
-    parent: Optional[SymbolDefinition]
-    children: list[SymbolDefinition]
+    parent: Optional[Symbol]
+    children: list[Symbol]
     index: auto
     created_at: auto
     updated_at: auto
@@ -104,15 +104,15 @@ class SymbolDefinition(gql.Node):
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    # TODO @Cleanup: fix definition in SymbolContent interface
+    # TODO @Cleanup: fix symbol in SymbolContent interface
     #  (should work since it's a 1:1 but doesn't)
-    # definition: SymbolDefinition
+    # symbol: Symbol
     pass
 
 
 @gql.django.type(models.SymbolParameter)
 class SymbolParameter(gql.Node):
-    symbol: SymbolDefinition
+    symbol: Symbol
     name: auto
     created_at: auto
     updated_at: auto
@@ -122,22 +122,22 @@ class SymbolParameter(gql.Node):
 
 @gql.django.type(models.SymbolArgument)
 class SymbolArgument(gql.Node):
-    symbol: SymbolDefinition
+    symbol: Symbol
     name: auto
     created_at: auto
     updated_at: auto
     type: auto
-    reference: Optional[SymbolDefinition]
+    reference: Optional[Symbol]
     value: auto
 
 
 @gql.django.type(models.Task)
 class Task(SymbolContent):
-    definition: SymbolDefinition
+    symbol: Symbol
     input_schema: SchemaElement
     output_schema: SchemaElement
     expectations: list[Expectation]
-    template_implementation: Optional[SymbolDefinition]
+    template_implementation: Optional[Symbol]
     compilations: list[Compilation]
 
 
@@ -156,22 +156,22 @@ class Compilation(gql.Node):
 @gql.django.type(models.SourceMapping)
 class SourceMapping(gql.Node):
     compilation: Compilation
-    source: SymbolDefinition
+    source: Symbol
     source_path: auto
-    target: SymbolDefinition
+    target: Symbol
     target_path: auto
 
 
 @gql.django.type(models.Expectation)
 class Expectation(SymbolContent):
-    definition: SymbolDefinition
+    symbol: Symbol
     description: auto
-    statements: list[SymbolDefinition]
+    statements: list[Symbol]
 
 
 @gql.django.type(models.Code)
 class Code(SymbolContent):
-    definition: SymbolDefinition
+    symbol: Symbol
     input_schema: SchemaElement
     output_schema: SchemaElement
     task: Optional[Task]
@@ -198,14 +198,14 @@ class Execution(gql.Node):
 
 @gql.django.type(models.Model)
 class Model(SymbolContent):
-    definition: SymbolDefinition
+    symbol: Symbol
     baseline: Optional[Model]
     provider: auto
 
 
 @gql.django.type(models.Dataset)
 class Dataset(SymbolContent):
-    definition: SymbolDefinition
+    symbol: Symbol
     schema: SchemaElement
     length: auto
     records: list[DatasetRecord]
@@ -219,5 +219,5 @@ class DatasetRecord(gql.Node):
 
 @gql.django.type(models.DatasetView)
 class DatasetView(SymbolContent):
-    definition: SymbolDefinition
+    symbol: Symbol
     dataset: Dataset

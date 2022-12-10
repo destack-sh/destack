@@ -5,22 +5,22 @@ from bench import models
 from bench.api import types
 
 
-@gql.django.input(models.SymbolDefinition)
-class SymbolDefinitionInput:
+@gql.django.input(models.Symbol)
+class SymbolCreateInput:
+    project_version: auto
     name: auto
+    type: auto
+    file: auto
+    parent: auto
+    index: auto
 
 
-@gql.django.partial(models.SymbolDefinition)
-class SymbolDefinitionInputPartial(gql.NodeInput):
+@gql.django.partial(models.Symbol)
+class SymbolRenameInput(gql.NodeInput):
     name: auto
 
 
 @gql.type
-class SymbolDefinitionMutation:
-    create_symbol_definition: types.SymbolDefinition = gql.django.create_mutation(
-        SymbolDefinitionInput
-    )
-    update_symbol_definition: types.SymbolDefinition = gql.django.update_mutation(
-        SymbolDefinitionInputPartial
-    )
-    delete_symbol_definition: types.SymbolDefinition = gql.django.delete_mutation(gql.NodeInput)
+class SymbolMutation:
+    create_symbol: types.Symbol = gql.django.create_mutation(SymbolCreateInput)
+    rename_symbol: types.Symbol = gql.django.update_mutation(SymbolRenameInput)

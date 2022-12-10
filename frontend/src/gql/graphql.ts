@@ -23,7 +23,7 @@ export type Scalars = {
 export type AddCompilationInput = {
   backends: Array<Scalars["String"]>;
   name: Scalars["String"];
-  taskDefinitionId: Scalars["GlobalID"];
+  taskSymbolId: Scalars["GlobalID"];
 };
 
 export type AddCompilationPayload = {
@@ -36,10 +36,10 @@ export type Code = Node &
     __typename?: "Code";
     builtinId?: Maybe<Scalars["String"]>;
     code?: Maybe<Scalars["String"]>;
-    definition: SymbolDefinition;
     id: Scalars["GlobalID"];
     inputSchema: SchemaElement;
     outputSchema: SchemaElement;
+    symbol: Symbol;
     task?: Maybe<Task>;
   };
 
@@ -69,16 +69,16 @@ export type CompilePayload = {
   compilation: Compilation;
 };
 
-export type CreateSymbolDefinitionPayload = OperationInfo | SymbolDefinition;
+export type CreateSymbolPayload = OperationInfo | Symbol;
 
 export type Dataset = Node &
   SymbolContent & {
     __typename?: "Dataset";
-    definition: SymbolDefinition;
     id: Scalars["GlobalID"];
     length: Scalars["Int"];
     records: Array<DatasetRecord>;
     schema: SchemaElement;
+    symbol: Symbol;
   };
 
 export type DatasetRecord = Node & {
@@ -92,11 +92,9 @@ export type DatasetView = Node &
   SymbolContent & {
     __typename?: "DatasetView";
     dataset: Dataset;
-    definition: SymbolDefinition;
     id: Scalars["GlobalID"];
+    symbol: Symbol;
   };
-
-export type DeleteSymbolDefinitionPayload = OperationInfo | SymbolDefinition;
 
 export type Execution = Node & {
   __typename?: "Execution";
@@ -121,16 +119,15 @@ export type Execution = Node & {
 export type Expectation = Node &
   SymbolContent & {
     __typename?: "Expectation";
-    definition: SymbolDefinition;
     description: Scalars["String"];
     id: Scalars["GlobalID"];
-    statements: Array<SymbolDefinition>;
+    statements: Array<Symbol>;
+    symbol: Symbol;
   };
 
 export type File = Node & {
   __typename?: "File";
   createdAt: Scalars["DateTime"];
-  definitions: Array<SymbolDefinition>;
   files: Array<File>;
   id: Scalars["GlobalID"];
   isFolder: Scalars["Boolean"];
@@ -138,6 +135,7 @@ export type File = Node & {
   parent?: Maybe<File>;
   path: Scalars["String"];
   projectVersion: ProjectVersion;
+  symbols: Array<Symbol>;
   updatedAt: Scalars["DateTime"];
 };
 
@@ -145,19 +143,18 @@ export type Model = Node &
   SymbolContent & {
     __typename?: "Model";
     baseline?: Maybe<Model>;
-    definition: SymbolDefinition;
     id: Scalars["GlobalID"];
     provider: Scalars["String"];
+    symbol: Symbol;
   };
 
 export type Mutation = {
   __typename?: "Mutation";
   addCompilationTarget: AddCompilationPayload;
   compile: CompilePayload;
-  createSymbolDefinition: CreateSymbolDefinitionPayload;
-  deleteSymbolDefinition: DeleteSymbolDefinitionPayload;
+  createSymbol: CreateSymbolPayload;
+  renameSymbol: RenameSymbolPayload;
   run: RunCodePayload;
-  updateSymbolDefinition: UpdateSymbolDefinitionPayload;
 };
 
 export type MutationAddCompilationTargetArgs = {
@@ -168,20 +165,16 @@ export type MutationCompileArgs = {
   input: CompileInput;
 };
 
-export type MutationCreateSymbolDefinitionArgs = {
-  input: SymbolDefinitionInput;
+export type MutationCreateSymbolArgs = {
+  input: SymbolCreateInput;
 };
 
-export type MutationDeleteSymbolDefinitionArgs = {
-  input: NodeInput;
+export type MutationRenameSymbolArgs = {
+  input: SymbolRenameInput;
 };
 
 export type MutationRunArgs = {
   input: RunCodeInput;
-};
-
-export type MutationUpdateSymbolDefinitionArgs = {
-  input: SymbolDefinitionInputPartial;
 };
 
 /** An object with a Globally Unique ID */
@@ -305,15 +298,15 @@ export type ProjectVersion = Node & {
   committedAt?: Maybe<Scalars["DateTime"]>;
   compilations: Array<Compilation>;
   createdAt: Scalars["DateTime"];
-  definitions: Array<SymbolDefinition>;
   description?: Maybe<Scalars["String"]>;
   files: Array<File>;
   id: Scalars["GlobalID"];
   libraries: Array<ProjectVersion>;
-  mainProgram?: Maybe<SymbolDefinition>;
+  mainProgram?: Maybe<Symbol>;
   name?: Maybe<Scalars["String"]>;
   parents: Array<ProjectVersion>;
   project: Project;
+  symbols: Array<Symbol>;
 };
 
 export type Query = {
@@ -326,7 +319,7 @@ export type Query = {
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
-  symbol?: Maybe<SymbolDefinition>;
+  symbol?: Maybe<Symbol>;
   user?: Maybe<User>;
   users: UserConnection;
 };
@@ -385,6 +378,8 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type RenameSymbolPayload = OperationInfo | Symbol;
+
 export type RunCodeInput = {
   arguments: Array<RunCodeValueArgumentInput>;
   codeId: Scalars["GlobalID"];
@@ -421,10 +416,34 @@ export type SourceMapping = Node & {
   __typename?: "SourceMapping";
   compilation: Compilation;
   id: Scalars["GlobalID"];
-  source: SymbolDefinition;
+  source: Symbol;
   sourcePath: Scalars["JSON"];
-  target: SymbolDefinition;
+  target: Symbol;
   targetPath: Scalars["JSON"];
+};
+
+export type Symbol = Node & {
+  __typename?: "Symbol";
+  arguments: Array<SymbolArgument>;
+  children: Array<Symbol>;
+  content: SymbolContent;
+  createdAt: Scalars["DateTime"];
+  file: File;
+  generated: Scalars["Boolean"];
+  id: Scalars["GlobalID"];
+  index?: Maybe<Scalars["Int"]>;
+  name: Scalars["String"];
+  parameters: Array<SymbolParameter>;
+  parent?: Maybe<Symbol>;
+  projectVersion: ProjectVersion;
+  type: SymbolType;
+  typeNameDeclaration: Scalars["String"];
+  typeShortname: Scalars["String"];
+  updatedAt: Scalars["DateTime"];
+};
+
+export type SymbolContentArgs = {
+  pk?: InputMaybe<Scalars["ID"]>;
 };
 
 export type SymbolArgument = Node & {
@@ -432,8 +451,8 @@ export type SymbolArgument = Node & {
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  reference?: Maybe<SymbolDefinition>;
-  symbol: SymbolDefinition;
+  reference?: Maybe<Symbol>;
+  symbol: Symbol;
   type: Scalars["String"];
   updatedAt: Scalars["DateTime"];
   value?: Maybe<Scalars["JSON"]>;
@@ -443,37 +462,13 @@ export type SymbolContent = {
   id: Scalars["GlobalID"];
 };
 
-export type SymbolDefinition = Node & {
-  __typename?: "SymbolDefinition";
-  arguments: Array<SymbolArgument>;
-  children: Array<SymbolDefinition>;
-  content: SymbolContent;
-  createdAt: Scalars["DateTime"];
-  file: File;
-  generated: Scalars["Boolean"];
-  id: Scalars["GlobalID"];
-  index?: Maybe<Scalars["Int"]>;
+export type SymbolCreateInput = {
+  file: NodeInput;
+  index: Scalars["Int"];
   name: Scalars["String"];
-  parameters: Array<SymbolParameter>;
-  parent?: Maybe<SymbolDefinition>;
-  projectVersion: ProjectVersion;
+  parent?: InputMaybe<NodeInput>;
+  projectVersion: NodeInput;
   type: SymbolType;
-  typeNameDeclaration: Scalars["String"];
-  typeShortname: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
-};
-
-export type SymbolDefinitionContentArgs = {
-  pk?: InputMaybe<Scalars["ID"]>;
-};
-
-export type SymbolDefinitionInput = {
-  name: Scalars["String"];
-};
-
-export type SymbolDefinitionInputPartial = {
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
 };
 
 export type SymbolParameter = Node & {
@@ -482,7 +477,7 @@ export type SymbolParameter = Node & {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
   schema?: Maybe<SchemaElement>;
-  symbol: SymbolDefinition;
+  symbol: Symbol;
   type: SymbolParameterType;
   updatedAt: Scalars["DateTime"];
 };
@@ -494,6 +489,11 @@ export enum SymbolParameterType {
   Model = "MODEL",
   Value = "VALUE",
 }
+
+export type SymbolRenameInput = {
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+};
 
 /** The type of symbol to define in a project. */
 export enum SymbolType {
@@ -509,15 +509,13 @@ export type Task = Node &
   SymbolContent & {
     __typename?: "Task";
     compilations: Array<Compilation>;
-    definition: SymbolDefinition;
     expectations: Array<Expectation>;
     id: Scalars["GlobalID"];
     inputSchema: SchemaElement;
     outputSchema: SchemaElement;
-    templateImplementation?: Maybe<SymbolDefinition>;
+    symbol: Symbol;
+    templateImplementation?: Maybe<Symbol>;
   };
-
-export type UpdateSymbolDefinitionPayload = OperationInfo | SymbolDefinition;
 
 export type User = Node & {
   __typename?: "User";
@@ -573,8 +571,8 @@ export type CodeContentFragment = {
   outputSchema: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
-  definition: {
-    __typename?: "SymbolDefinition";
+  symbol: {
+    __typename?: "Symbol";
     parameters: Array<{
       __typename?: "SymbolParameter";
       name: string;
@@ -590,7 +588,7 @@ export type CodeContentFragment = {
       name: string;
       type: string;
       value?: any | null;
-      reference?: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string } | null;
+      reference?: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string } | null;
     }>;
   };
 } & { " $fragmentName"?: "CodeContentFragment" };
@@ -609,7 +607,7 @@ export type ExpectationContentFragment = {
   __typename?: "Expectation";
   id: any;
   description: string;
-  statements: Array<{ __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string }>;
+  statements: Array<{ __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string }>;
 } & { " $fragmentName"?: "ExpectationContentFragment" };
 
 export type FileContentByIdQueryVariables = Exact<{
@@ -622,10 +620,8 @@ export type FileContentByIdQuery = {
     | ({
         __typename?: "File";
         id: any;
-        definitions: Array<
-          { __typename?: "SymbolDefinition"; id: any } & {
-            " $fragmentRefs"?: { SymbolDefinitionContentFragment: SymbolDefinitionContentFragment };
-          }
+        symbols: Array<
+          { __typename?: "Symbol"; id: any } & { " $fragmentRefs"?: { SymbolContentFragment: SymbolContentFragment } }
         >;
       } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | null;
@@ -639,8 +635,8 @@ export type CodeContentToRunFragment = {
   outputSchema: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
-  definition: {
-    __typename?: "SymbolDefinition";
+  symbol: {
+    __typename?: "Symbol";
     parameters: Array<{
       __typename?: "SymbolParameter";
       name: string;
@@ -656,7 +652,7 @@ export type CodeContentToRunFragment = {
       name: string;
       type: string;
       value?: any | null;
-      reference?: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string } | null;
+      reference?: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string } | null;
     }>;
   };
 } & { " $fragmentName"?: "CodeContentToRunFragment" };
@@ -668,7 +664,7 @@ export type CodeToRunQueryVariables = Exact<{
 export type CodeToRunQuery = {
   __typename?: "Query";
   symbol?: {
-    __typename?: "SymbolDefinition";
+    __typename?: "Symbol";
     id: any;
     type: SymbolType;
     name: string;
@@ -696,12 +692,12 @@ export type ExecutionHeaderFragment = {
   code: {
     __typename?: "Code";
     id: any;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
   };
   model?: {
     __typename?: "Model";
     id: any;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
   } | null;
 } & { " $fragmentName"?: "ExecutionHeaderFragment" };
 
@@ -732,14 +728,16 @@ export type RunMutation = {
   };
 };
 
-export type UpdateSymbolDefinitionNameMutationVariables = Exact<{
+export type UpdateSymbolNameMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 }>;
 
-export type UpdateSymbolDefinitionNameMutation = {
+export type UpdateSymbolNameMutation = {
   __typename?: "Mutation";
-  updateSymbolDefinition: { __typename: "OperationInfo" } | { __typename: "SymbolDefinition" };
+  renameSymbol:
+    | { __typename?: "OperationInfo" }
+    | { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
 };
 
 export type TaskContentFragment = {
@@ -755,15 +753,10 @@ export type TaskContentFragment = {
     __typename?: "Expectation";
     id: any;
     description: string;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
-    statements: Array<{ __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string }>;
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
+    statements: Array<{ __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string }>;
   }>;
-  templateImplementation?: {
-    __typename?: "SymbolDefinition";
-    id: any;
-    name: string;
-    typeNameDeclaration: string;
-  } | null;
+  templateImplementation?: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string } | null;
   compilations: Array<
     { __typename?: "Compilation"; id: any } & {
       " $fragmentRefs"?: { CompilationHeaderFragment: CompilationHeaderFragment };
@@ -808,7 +801,7 @@ export type ProjectVersionContentFragment = {
   createdAt: any;
   committed: boolean;
   committedAt?: any | null;
-  mainProgram?: { __typename?: "SymbolDefinition"; id: any; name: string; type: SymbolType } | null;
+  mainProgram?: { __typename?: "Symbol"; id: any; name: string; type: SymbolType } | null;
   files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
   compilations: Array<
     { __typename?: "Compilation"; id: any } & {
@@ -905,22 +898,22 @@ export type CompilationHeaderFragment = {
   task: {
     __typename?: "Task";
     id: any;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
   };
   backends: Array<{
     __typename?: "Model";
     id: any;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
   }>;
   targetTask?: {
     __typename?: "Task";
     id: any;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
   } | null;
   targetCode?: {
     __typename?: "Code";
     id: any;
-    definition: { __typename?: "SymbolDefinition"; id: any; name: string; typeNameDeclaration: string };
+    symbol: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
   } | null;
 } & { " $fragmentName"?: "CompilationHeaderFragment" };
 
@@ -937,8 +930,8 @@ export type SchemaElementContentDeepFragment = {
   }> | null;
 } & { " $fragmentName"?: "SchemaElementContentDeepFragment" };
 
-export type SymbolDefinitionContentFragment = {
-  __typename?: "SymbolDefinition";
+export type SymbolContentFragment = {
+  __typename?: "Symbol";
   id: any;
   name: string;
   type: SymbolType;
@@ -956,7 +949,7 @@ export type SymbolDefinitionContentFragment = {
       })
     | { __typename?: "Model" }
     | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } });
-} & { " $fragmentName"?: "SymbolDefinitionContentFragment" };
+} & { " $fragmentName"?: "SymbolContentFragment" };
 
 export const SchemaElementContentDeepFragmentDoc = {
   kind: "Document",
@@ -1016,7 +1009,7 @@ export const CodeContentToRunFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "definition" },
+            name: { kind: "Name", value: "symbol" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -1098,7 +1091,7 @@ export const ExecutionHeaderFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1120,7 +1113,7 @@ export const ExecutionHeaderFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1181,7 +1174,7 @@ export const CompilationHeaderFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1203,7 +1196,7 @@ export const CompilationHeaderFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1225,7 +1218,7 @@ export const CompilationHeaderFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1247,7 +1240,7 @@ export const CompilationHeaderFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1399,7 +1392,7 @@ export const CodeContentFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "definition" },
+            name: { kind: "Name", value: "symbol" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -1558,7 +1551,7 @@ export const TaskContentFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "description" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definition" },
+                  name: { kind: "Name", value: "symbol" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -1611,13 +1604,13 @@ export const TaskContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<TaskContentFragment, unknown>;
-export const SymbolDefinitionContentFragmentDoc = {
+export const SymbolContentFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "SymbolDefinitionContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SymbolDefinition" } },
+      name: { kind: "Name", value: "SymbolContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Symbol" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
@@ -1646,7 +1639,7 @@ export const SymbolDefinitionContentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<SymbolDefinitionContentFragment, unknown>;
+} as unknown as DocumentNode<SymbolContentFragment, unknown>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
@@ -1681,12 +1674,12 @@ export const FileContentByIdDocument = {
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "definitions" },
+                  name: { kind: "Name", value: "symbols" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "SymbolDefinitionContent" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "SymbolContent" } },
                     ],
                   },
                 },
@@ -1697,7 +1690,7 @@ export const FileContentByIdDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
-    ...SymbolDefinitionContentFragmentDoc.definitions,
+    ...SymbolContentFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
     ...SchemaElementContentDeepFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
@@ -1851,13 +1844,13 @@ export const RunDocument = {
     ...ExecutionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
-export const UpdateSymbolDefinitionNameDocument = {
+export const UpdateSymbolNameDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "updateSymbolDefinitionName" },
+      name: { kind: "Name", value: "updateSymbolName" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -1875,7 +1868,7 @@ export const UpdateSymbolDefinitionNameDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateSymbolDefinition" },
+            name: { kind: "Name", value: "renameSymbol" },
             arguments: [
               {
                 kind: "Argument",
@@ -1899,14 +1892,27 @@ export const UpdateSymbolDefinitionNameDocument = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "__typename" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Symbol" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "typeNameDeclaration" } },
+                    ],
+                  },
+                },
+              ],
             },
           },
         ],
       },
     },
   ],
-} as unknown as DocumentNode<UpdateSymbolDefinitionNameMutation, UpdateSymbolDefinitionNameMutationVariables>;
+} as unknown as DocumentNode<UpdateSymbolNameMutation, UpdateSymbolNameMutationVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [

@@ -19,9 +19,9 @@ from bench.models import (
     DatasetView,
     Model,
     ModelInferenceSettings,
+    Symbol,
     SymbolArgument,
     SymbolContent,
-    SymbolDefinition,
     SymbolParameterType,
     SymbolType,
 )
@@ -37,9 +37,9 @@ class Resolver:
         self, model: Model, settings: typing.Optional[ModelInferenceSettings]
     ) -> ResolvedModel:
         return ResolvedModel(
-            definition_id=model.definition.id,
-            symbol_id=model.id,
-            name=model.definition.name,
+            symbol_id=model.symbol.id,
+            content_id=model.id,
+            name=model.symbol.name,
             type=SymbolType.MODEL,
             settings=settings,
             default_settings=model.default_settings,
@@ -60,9 +60,9 @@ class Resolver:
             records.append(record)
         batch = RecordList(records)
         return ResolvedDataset(
-            definition_id=dataset.definition.id,
-            symbol_id=dataset.id,
-            name=dataset.definition.name,
+            symbol_id=dataset.symbol.id,
+            content_id=dataset.id,
+            name=dataset.symbol.name,
             type=SymbolType.DATASET,
             schema=dataset.schema,
             records=batch,
@@ -72,9 +72,9 @@ class Resolver:
         parameters = await self._get_code_parameters(code)
         arguments = await self.resolve_arguments(code)
         return ResolvedCode(
-            definition_id=code.definition.id,
-            symbol_id=code.id,
-            name=code.definition.name,
+            symbol_id=code.symbol.id,
+            content_id=code.id,
+            name=code.symbol.name,
             type=SymbolType.CODE,
             input_schema=code.input_schema,
             output_schema=code.output_schema,
@@ -105,7 +105,7 @@ class Resolver:
                 bound_arguments_resolved[argument.name] = argument.value
                 continue
             if argument.reference is None:
-                raise ValueError(f"argument {argument} has no reference definition")
+                raise ValueError(f"argument {argument} has no symbol reference")
             # resolve symbol reference
             bound_arguments_resolved[argument.name] = await self.resolve_argument(
                 argument.reference
@@ -113,11 +113,11 @@ class Resolver:
         return bound_arguments_resolved
 
     async def resolve_argument(
-        self, value: Value | SymbolDefinition | SymbolContent
+        self, value: Value | Symbol | SymbolContent
     ) -> ResolvedSymbol | Value:
         if isinstance(value, SymbolContent):
-            value = value.definition
-        if isinstance(value, SymbolDefinition):
+            value = value.symbol
+        if isinstance(value, Symbol):
             if value.type == SymbolType.MODEL:
                 return await self.resolve_model(value.model_, settings=None)
             elif value.type == SymbolType.DATASET:

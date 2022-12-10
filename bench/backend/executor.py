@@ -37,7 +37,7 @@ from bench.backend.types import (
     ResolvedSymbol,
     Value,
 )
-from bench.models import Dataset, Model, SymbolContent, SymbolDefinition
+from bench.models import Dataset, Model, Symbol, SymbolContent
 from bench.models.code import Code
 from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
@@ -111,7 +111,7 @@ class ModelProxy(ModelHandle):
         cached_result = None
         if self.use_cache:
             inference = await ModelInference.objects.filter(
-                model_id=self.model.symbol_id,
+                model_id=self.model.content_id,
                 operation=ModelOperation.COMPLETE,
                 settings_hash=settings_hash,
                 input_hash=input_hash,
@@ -128,7 +128,7 @@ class ModelProxy(ModelHandle):
 
             # write to cache
             inference = await ModelInference.objects.acreate(
-                model_id=self.model.symbol_id,
+                model_id=self.model.content_id,
                 operation=ModelOperation.COMPLETE,
                 settings_hash=settings_hash,
                 input_hash=input_hash,
@@ -270,7 +270,7 @@ class Executor:
         if provider is None:
             raise ValueError(f"unknown provider {model.provider}")
         # TODO @Compliance: set actual user identifier for model access (e.g. for OpenAI)
-        user_identifier = model.symbol_id.hex
+        user_identifier = model.content_id.hex
         handle = await provider.access(
             model, model.settings or model.default_settings, for_user=user_identifier
         )
@@ -278,7 +278,7 @@ class Executor:
 
     async def _load_code(self, code: ResolvedCode, proxy: Proxy) -> LoadedCode:
         """
-        Resolves a code definition and all its arguments to an async callable.
+        Resolves a code symbol and all its arguments to an async callable.
         """
         loaded_arguments = await self._load_arguments(code.arguments, proxy)
         unwrapped_arguments = self._unwrap_arguments(loaded_arguments, proxy)
@@ -295,15 +295,15 @@ class Executor:
             # Code can be an anonymous function (just lines of code) or define an actual function.
             # Note that we don't actually run the inner function code here, we only initialise.
             if code.code_function_name is not None:
-                # Run code to get function definition.
-                definitions = await self.run_text(
+                # Run code to get function symbol.
+                symbols = await self.run_text(
                     code.code_text, {**dynamic_builtins, **unwrapped_arguments}
                 )
-                if code.code_function_name not in definitions:
+                if code.code_function_name not in symbols:
                     raise ValueError(
                         f"{code} function {code.code_function_name} not defined in code"
                     )
-                code_callable = definitions[code.code_function_name]
+                code_callable = symbols[code.code_function_name]
             else:
                 # TODO @Performance @Cleanup: just compile anonymous functions into named functions?
                 #  Currently re exec() the code every time it's called.
@@ -312,7 +312,7 @@ class Executor:
                         code.code_text, {**dynamic_builtins, **loaded_arguments, **kwargs}
                     )
 
-                _run_anonymous.__name__ = f"_anon_{code.symbol_id.hex}"
+                _run_anonymous.__name__ = f"_anon_{code.content_id.hex}"
                 code_callable = _run_anonymous
         loaded_code = LoadedCode(
             **code.__dict__,
@@ -323,7 +323,7 @@ class Executor:
 
     def _get_dynamic_builtins(self, code: ResolvedCode) -> dict:
         return {
-            "random": Random(code.symbol_id.hex.encode()),
+            "random": Random(code.content_id.hex.encode()),
         }
 
     async def _do_exec(self, code: str, globals: dict):
@@ -349,7 +349,7 @@ class Executor:
     async def resolve_and_run(
         self,
         code: Code,
-        arguments: dict[str, Value | SymbolDefinition | SymbolContent],
+        arguments: dict[str, Value | Symbol | SymbolContent],
         traces: list[Trace] | None = None,
     ):
         resolved_arguments = {

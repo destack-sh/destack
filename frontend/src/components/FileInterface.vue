@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import SymbolDefinitionInterface from "@/components/SymbolDefinitionInterface.vue";
+import SymbolInterface from "@/components/SymbolInterface.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { FileHeaderType } from "@/utils/fragments";
 import { useQuery } from "@vue/apollo-composable";
@@ -14,9 +14,9 @@ const { result: file } = useQuery(
       file(id: $fileId) {
         id
         ...FileHeader
-        definitions {
+        symbols {
           id
-          ...SymbolDefinitionContent
+          ...SymbolContent
         }
       }
     }
@@ -26,18 +26,18 @@ const { result: file } = useQuery(
   })
 );
 
-const definitions = computed(() => {
-  return file.value?.file?.definitions || [];
+const symbols = computed(() => {
+  return file.value?.file?.symbols || [];
 });
 </script>
 
 <template>
   <div class="mx-8 my-3 flex flex-col gap-6">
-    <SymbolDefinitionInterface
-      v-for="definition in definitions"
-      :key="definition.id"
+    <SymbolInterface
+      v-for="symbol in symbols"
+      :key="symbol.id"
       :file="fileHeader"
-      :definition="definition"
+      :symbol="symbol"
       class="mx-auto w-full max-w-[1000px]"
     />
   </div>

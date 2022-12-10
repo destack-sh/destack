@@ -1,5 +1,5 @@
 input AddCompilationInput {
-  taskDefinitionId: GlobalID!
+  taskSymbolId: GlobalID!
   name: String!
   backends: [String!]!
 }
@@ -10,7 +10,7 @@ type AddCompilationPayload {
 
 type Code implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
+  symbol: Symbol!
   inputSchema: SchemaElement!
   outputSchema: SchemaElement!
   task(pk: ID): Task
@@ -38,11 +38,11 @@ type CompilePayload {
   compilation: Compilation!
 }
 
-union CreateSymbolDefinitionPayload = SymbolDefinition | OperationInfo
+union CreateSymbolPayload = Symbol | OperationInfo
 
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
+  symbol: Symbol!
   schema: SchemaElement!
   length: Int!
   records: [DatasetRecord!]!
@@ -56,14 +56,12 @@ type DatasetRecord implements Node {
 
 type DatasetView implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
+  symbol: Symbol!
   dataset: Dataset!
 }
 
 """Date with time (isoformat)"""
 scalar DateTime
-
-union DeleteSymbolDefinitionPayload = SymbolDefinition | OperationInfo
 
 type Execution implements Node {
   id: GlobalID!
@@ -88,9 +86,9 @@ type Execution implements Node {
 
 type Expectation implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
+  symbol: Symbol!
   description: String!
-  statements: [SymbolDefinition!]!
+  statements: [Symbol!]!
 }
 
 type File implements Node {
@@ -103,7 +101,7 @@ type File implements Node {
   isFolder: Boolean!
   parent: File
   files: [File!]!
-  definitions: [SymbolDefinition!]!
+  symbols: [Symbol!]!
 }
 
 """
@@ -118,18 +116,14 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type Model implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
+  symbol: Symbol!
   baseline: Model
   provider: String!
 }
 
 type Mutation {
-  createSymbolDefinition(input: SymbolDefinitionInput!): CreateSymbolDefinitionPayload!
-  updateSymbolDefinition(input: SymbolDefinitionInputPartial!): UpdateSymbolDefinitionPayload!
-  deleteSymbolDefinition(
-    """Input of an object that implements the `Node` interface."""
-    input: NodeInput!
-  ): DeleteSymbolDefinitionPayload!
+  createSymbol(input: SymbolCreateInput!): CreateSymbolPayload!
+  renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
   run(input: RunCodeInput!): RunCodePayload!
@@ -264,10 +258,10 @@ type ProjectVersion implements Node {
   committed: Boolean!
   committedAt: DateTime
   libraries: [ProjectVersion!]!
-  mainProgram: SymbolDefinition
+  mainProgram: Symbol
   files: [File!]!
   compilations: [Compilation!]!
-  definitions: [SymbolDefinition!]!
+  symbols: [Symbol!]!
 }
 
 type Query {
@@ -317,7 +311,7 @@ type Query {
   symbol(
     """The ID of the object."""
     id: GlobalID!
-  ): SymbolDefinition
+  ): Symbol
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -337,6 +331,8 @@ type Query {
     last: Int = null
   ): OrganizationConnection!
 }
+
+union RenameSymbolPayload = Symbol | OperationInfo
 
 input RunCodeInput {
   codeId: GlobalID!
@@ -370,28 +366,13 @@ type SchemaElement {
 type SourceMapping implements Node {
   id: GlobalID!
   compilation: Compilation!
-  source: SymbolDefinition!
+  source: Symbol!
   sourcePath: JSON!
-  target: SymbolDefinition!
+  target: Symbol!
   targetPath: JSON!
 }
 
-type SymbolArgument implements Node {
-  id: GlobalID!
-  symbol: SymbolDefinition!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  type: String!
-  reference: SymbolDefinition
-  value: JSON
-}
-
-interface SymbolContent implements Node {
-  id: GlobalID!
-}
-
-type SymbolDefinition implements Node {
+type Symbol implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
   name: String!
@@ -399,8 +380,8 @@ type SymbolDefinition implements Node {
   typeShortname: String!
   typeNameDeclaration: String!
   file: File!
-  parent: SymbolDefinition
-  children: [SymbolDefinition!]!
+  parent: Symbol
+  children: [Symbol!]!
   index: Int
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -410,18 +391,33 @@ type SymbolDefinition implements Node {
   arguments: [SymbolArgument!]!
 }
 
-input SymbolDefinitionInput {
+type SymbolArgument implements Node {
+  id: GlobalID!
+  symbol: Symbol!
   name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  type: String!
+  reference: Symbol
+  value: JSON
 }
 
-input SymbolDefinitionInputPartial {
+interface SymbolContent implements Node {
   id: GlobalID!
-  name: String
+}
+
+input SymbolCreateInput {
+  projectVersion: NodeInput!
+  name: String!
+  type: SymbolType!
+  file: NodeInput!
+  parent: NodeInput
+  index: Int!
 }
 
 type SymbolParameter implements Node {
   id: GlobalID!
-  symbol: SymbolDefinition!
+  symbol: Symbol!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -437,6 +433,11 @@ enum SymbolParameterType {
   VALUE
 }
 
+input SymbolRenameInput {
+  id: GlobalID!
+  name: String
+}
+
 """The type of symbol to define in a project."""
 enum SymbolType {
   TASK
@@ -449,15 +450,13 @@ enum SymbolType {
 
 type Task implements SymbolContent & Node {
   id: GlobalID!
-  definition: SymbolDefinition!
+  symbol: Symbol!
   inputSchema: SchemaElement!
   outputSchema: SchemaElement!
   expectations: [Expectation!]!
-  templateImplementation: SymbolDefinition
+  templateImplementation: Symbol
   compilations: [Compilation!]!
 }
-
-union UpdateSymbolDefinitionPayload = SymbolDefinition | OperationInfo
 
 type User implements Node {
   id: GlobalID!

@@ -19,7 +19,7 @@ from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
 from bench.models.schema import SchemaField
-from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition
+from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager
 from bench.models.utils import UUIDModel
 from bench.utils.schema import SchemaElement, derive_schema_from_records
 
@@ -43,20 +43,19 @@ class Dataset(SymbolContent):
     A dataset of JSON records.
     """
 
-    # records from DatasetRecord.dataset
-    # annotations from DatasetAnnotation.dataset
+    records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
     schema = SchemaField("record")
     length = models.IntegerField(default=0)
 
     objects: DatasetManager = DatasetManager()
 
-    def deepcopy(self, to: Dataset, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Dataset, refs: dict[UUID, Symbol | SymbolContent]):
         super().deepcopy(to, refs)
         # copy nested non-symbol relations
         to.set(list(self))
 
     def __str__(self):
-        return f"{self.definition_str}(schema={self.schema}, length={self.length})"
+        return f"{self.symbol_str}(schema={self.schema}, length={self.length})"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -103,9 +102,6 @@ class Dataset(SymbolContent):
             self.save()
 
         return start_length, self.length
-
-    async def aextend(self, records: list[dict]) -> tuple[int, int]:
-        return await sync_to_async(self.extend)(records)
 
     @transaction.atomic
     def set(self, records: list[dict], derive_schema: bool = False):
@@ -180,4 +176,4 @@ class DatasetView(SymbolContent):
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
 
     def __str__(self):
-        return f"{self.definition_str}()"
+        return f"{self.symbol_str}()"

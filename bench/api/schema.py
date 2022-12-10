@@ -13,7 +13,7 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
-from bench.api.symbol import SymbolDefinitionMutation
+from bench.api.symbol import SymbolMutation
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.backend.tracing import ExecutionTrace
@@ -32,7 +32,7 @@ class Query:
     projects: gql.relay.Connection[types.Project] = gql.relay.connection()
     projectVersion: Optional[types.ProjectVersion] = gql.relay.node()
     file: Optional[types.File] = gql.relay.node()
-    symbol: Optional[types.SymbolDefinition] = gql.relay.node()
+    symbol: Optional[types.Symbol] = gql.relay.node()
     organization: Optional[types.Organization] = gql.relay.node()
     organizationBySlug: Optional[types.Organization] = gql.django.field(
         resolver=models.Organization.objects.get_by_slug
@@ -52,7 +52,7 @@ class CompilePayload:
 
 @strawberry.input
 class AddCompilationInput:
-    task_definition_id: GlobalID
+    task_symbol_id: GlobalID
     name: str
     backends: list[str]
 
@@ -88,10 +88,10 @@ class RunCodePayload:
 
 
 @strawberry.type
-class Mutation(SymbolDefinitionMutation):
+class Mutation(SymbolMutation):
     @strawberry.mutation
     def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:
-        task = models.SymbolDefinition.objects.get(id=input.task_definition_id.node_id).task_
+        task = models.Symbol.objects.get(id=input.task_symbol_id.node_id).task_
         backends = [get_stdlib_model(backend) for backend in input.backends]
         compilation = task.add_compilation(input.name, backends)
         return AddCompilationPayload(compilation=compilation)

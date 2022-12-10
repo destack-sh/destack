@@ -54,8 +54,8 @@ class SymbolType(models.TextChoices):
             raise ValueError(f"invalid symbol content type {type(content)}")
 
 
-class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
-    def create_definition(
+class SymbolManager(models.Manager["Symbol"]):
+    def create_symbol(
         self,
         content: SymbolContent,
         project_version: ProjectVersion,
@@ -70,7 +70,7 @@ class SymbolDefinitionManager(models.Manager["SymbolDefinition"]):
             content.save()
 
         content_type = SymbolType.from_content(content)
-        kwargs = {**kwargs, SymbolDefinition.type_to_field(content_type): content}
+        kwargs = {**kwargs, Symbol.type_to_field(content_type): content}
         return self.create(project_version=project_version, type=content_type, **kwargs)
 
 
@@ -85,23 +85,21 @@ SYMBOL_TYPE_TO_FIELD = {
 SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
 
 
-class SymbolDefinition(TaggableMixin, UUIDModel):
+class Symbol(TaggableMixin, UUIDModel):
     """
-    A definition of a symbol for a specific project version, living in a specific file.
-
-    In this implementation symbols can only be top-level definitions, not nested, which seems fine.
+    A symbol defining a primitive element in a specific project version and file.
     """
 
     project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="definitions"
+        "ProjectVersion", on_delete=models.CASCADE, related_name="symbols"
     )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=SymbolType)
-    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="definitions")
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="symbols")
     parent = models.ForeignKey(
-        "SymbolDefinition", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
+        "Symbol", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
-    # children via SymbolDefinition
+    children: models.QuerySet["Symbol"]  # noqa via Symbol.parent
     index = models.IntegerField(null=True)  # index into file or parent if nested
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -109,27 +107,27 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
     # source_mappings via SourceMapping
 
     task = models.OneToOneField(
-        "Task", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+        "Task", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
     expectation = models.OneToOneField(
-        "Expectation", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+        "Expectation", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
     code = models.OneToOneField(
-        "Code", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+        "Code", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
     model = models.OneToOneField(
-        "Model", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+        "Model", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
     dataset = models.OneToOneField(
-        "Dataset", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+        "Dataset", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
     dataset_view = models.OneToOneField(
-        "DatasetView", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+        "DatasetView", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
 
-    def deepcopy(self, to: SymbolDefinition, refs: dict[UUID, SymbolContent | SymbolDefinition]):
+    def deepcopy(self, to: Symbol, refs: dict[UUID, SymbolContent | Symbol]):
         """
-        Deep copy this symbol definition to another symbol, replacing non-symbol references
+        Deep copy this symbol to another symbol, replacing non-symbol references
          (incl. references to symbols within non-symbol relations like args/params)
         """
         # copy parameters
@@ -143,18 +141,11 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
                 continue
             argument.id = None
             argument.symbol = to
-            argument.reference = cast(SymbolDefinition, refs[argument.reference_id])
+            argument.reference = cast(Symbol, refs[argument.reference_id])
             argument.save()
 
-    # parameters to/from SymbolParameter
-    @property
-    def parameters(self) -> models.QuerySet["SymbolParameter"]:  # noqa
-        pass
-
-    # arguments to/from SymbolArgument
-    @property
-    def arguments(self) -> models.QuerySet["SymbolArgument"]:  # noqa
-        pass
+    parameters: models.QuerySet["SymbolParameter"]  # noqa via SymbolParameter.symbol
+    arguments: models.QuerySet["SymbolArgument"]  # noqa via SymbolArgument.symbol
 
     def __str__(self):
         return f"{self.type_name_declaration}@{self.id.hex}"
@@ -254,20 +245,16 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
         schema: Optional[SchemaElement] = None,
     ) -> SymbolParameter:
         if exists_ok:
-            parameter, created = SymbolParameter.objects.get_or_create(
+            parameter, _ = SymbolParameter.objects.update_or_create(
                 symbol=self, name=name, defaults={"type": type, "schema": schema}
             )
-            if not created:
-                parameter.type = type
-                parameter.schema = schema
-                parameter.save()
             return parameter
         else:
             return SymbolParameter.objects.create(symbol=self, name=name, type=type, schema=schema)
 
     @transaction.atomic
     def bind_argument(
-        self, name: str, value: Any | SymbolDefinition, exists_ok: bool = False
+        self, name: str, value: Any | Symbol, exists_ok: bool = False
     ) -> tuple[SymbolParameter, SymbolArgument]:
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
@@ -279,27 +266,21 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
             value, reference = None, value
 
         parameter = self.add_parameter(name, argument_type, exists_ok=True)
-        argument, created = SymbolArgument.objects.get_or_create(
+        argument, created = SymbolArgument.objects.update_or_create(
             symbol=self,
             name=name,
             defaults=dict(type=argument_type, value=value, reference=reference),
         )
         if not created and not exists_ok:
+            # (transaction will be rolled back)
             raise RuntimeError(f"{self} argument {argument} already exists")
-        elif not created:
-            # update parameter type and kwargs
-            argument.type = argument_type
-            argument.value = value
-            argument.reference = reference
-            argument.save()
-
         return parameter, argument
 
-    def bind_arguments(self, exists_ok: bool = False, **arguments: Any | SymbolDefinition):
+    def bind_arguments(self, exists_ok: bool = False, **arguments: Any | Symbol):
         for name, value in arguments.items():
             self.bind_argument(name, value, exists_ok)
 
-    objects: SymbolDefinitionManager = SymbolDefinitionManager()
+    objects: SymbolManager = SymbolManager()
 
     class Meta:
         default_manager_name = "objects"
@@ -307,21 +288,21 @@ class SymbolDefinition(TaggableMixin, UUIDModel):
         constraints = [
             # ensure unique index within file or parent
             models.UniqueConstraint(
-                name="bench_symbol_definition_file_index_ak",
+                name="bench_symbol_file_index_ak",
                 fields=["file", "index"],
                 condition=models.Q(parent__isnull=True),
             ),
             models.UniqueConstraint(
-                name="bench_symbol_definition_parent_index_ak",
+                name="bench_symbol_parent_index_ak",
                 fields=["parent", "index"],
                 condition=models.Q(parent__isnull=False),
             ),
         ]
 
 
-# auto delete symbol content if symbol definition is deleted
-@receiver(models.signals.post_delete, sender=SymbolDefinition)
-def auto_delete_symbol_content(sender, instance: SymbolDefinition, **kwargs):
+# auto delete symbol content if symbol is deleted
+@receiver(models.signals.post_delete, sender=Symbol)
+def auto_delete_symbol_content(sender, instance: Symbol, **kwargs):
     if "content" in instance._state.fields_cache:
         instance.content.delete()
     else:
@@ -333,50 +314,48 @@ class SymbolContentManager(models.Manager):
     # Note that this manager is applied to _every_ SymbolContent query (related or not)!
 
     def get_queryset(self):
-        # always select related definition
-        return super().get_queryset().select_related("definition")
+        # always select related symbol
+        return super().get_queryset().select_related("symbol")
 
 
 class SymbolContent(UUIDModel):
     """
-    The content of a symbol definition. This is the interface that SymbolDefinition.content points to.
-    Symbol definitions are mutable until committed.
+    The content of a symbol. This is the interface that Symbol.content points to.
+    Symbol symbols are mutable until the containing project is committed.
     """
 
-    # definition is a one to one field via SymbolDefinition
-    # (and set automatically when creating a SymbolDefinition)
+    # symbol is a one to one field via Symbol
+    # (and set automatically when creating a Symbol)
     @property
-    def definition(self) -> SymbolDefinition:  # noqa
+    def symbol(self) -> Symbol:  # noqa
         pass
 
     @property
-    def definition_str(self) -> str:
-        """Gets a definition str for logging that handles not yet defined symbol contents"""
-        # check if definition is in model cache
-        if "definition" in self._state.fields_cache:  # type: ignore
-            return str(self.definition)
+    def symbol_str(self) -> str:
+        """Gets a symbol str for logging that handles not yet defined symbol contents"""
+        # check if symbol is in model cache
+        if "symbol" in self._state.fields_cache:  # type: ignore
+            return str(self.symbol)
         else:
             return "<undefined>"
 
-    @gql.model_property(only=["definition"], select_related=["definition"])
+    @gql.model_property(only=["symbol"], select_related=["symbol"])
     def type(self) -> SymbolType:
-        return self.definition.type
+        return self.symbol.type
 
-    @gql.model_property(only=["definition"], select_related=["definition"])
+    @gql.model_property(only=["symbol"], select_related=["symbol"])
     def type_name_declaration(self) -> str:
-        return self.definition.type_name_declaration
+        return self.symbol.type_name_declaration
 
-    @gql.model_property(
-        only=["definition"], select_related=["definition", "definition__parameters"]
-    )
+    @gql.model_property(only=["symbol"], select_related=["symbol", "symbol__parameters"])
     def parameters(self) -> models.QuerySet[SymbolParameter]:
-        return self.definition.parameters
+        return self.symbol.parameters
 
-    @gql.model_property(only=["definition"], select_related=["definition", "definition__arguments"])
+    @gql.model_property(only=["symbol"], select_related=["symbol", "symbol__arguments"])
     def arguments(self) -> models.QuerySet[SymbolArgument]:
-        return self.definition.arguments
+        return self.symbol.arguments
 
-    def deepcopy(self, to: Any, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Any, refs: dict[UUID, Symbol | SymbolContent]):
         """
         Deep copy this symbol to another symbol, replacing all references.
         The other symbol must be of the same type and is assumed to be created using:
@@ -393,7 +372,7 @@ class SymbolContent(UUIDModel):
         if type(self) != type(to):
             raise ValueError(f"cannot copy {self} to {to}")
 
-        # replace all relations referencing symbol definitions or contents with copies
+        # replace all relations referencing symbols or contents with copies
         replace_refs(self, to, refs)
 
     objects: SymbolContentManager = SymbolContentManager()
@@ -401,7 +380,7 @@ class SymbolContent(UUIDModel):
     class Meta:
         default_manager_name = "objects"
         # set base manager so that _every_ query to SymbolContent goes through SymbolContentManager
-        # which ensures that we always select related definition
+        # which ensures that we always select related symbol
         base_manager_name = "objects"
         abstract = True
 
@@ -413,8 +392,8 @@ class SymbolParameterType(models.TextChoices):
     VALUE = "value"
 
     @staticmethod
-    def from_value(obj: Any | SymbolDefinition) -> SymbolParameterType:
-        if isinstance(obj, SymbolDefinition):
+    def from_value(obj: Any | Symbol) -> SymbolParameterType:
+        if isinstance(obj, Symbol):
             if obj.type == SymbolType.DATASET or obj.type == SymbolType.DATASET_VIEW:
                 return SymbolParameterType.DATA
             elif obj.type == SymbolType.MODEL:
@@ -431,15 +410,13 @@ class SymbolParameterType(models.TextChoices):
 
 class SymbolParameter(UUIDModel):
     """
-    A parameter is a named argument to a symbol definition.
+    A parameter is a named argument to a symbol.
     Parameters are typed using SchemaElements.
 
     All symbols can be parameterized, but not all symbols implement parameterization yet.
     """
 
-    symbol = models.ForeignKey(
-        SymbolDefinition, on_delete=models.CASCADE, related_name="parameters"
-    )
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE, related_name="parameters")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -447,7 +424,7 @@ class SymbolParameter(UUIDModel):
     schema = SchemaElementField(null=True, blank=True)  # models need not have a schema
 
     def __str__(self):
-        return f"{self.symbol}/parameters/{self.name}(type={self.type})"
+        return f"parameter {self.name}(type={self.type})"
 
     class Meta:
         constraints = [
@@ -466,18 +443,22 @@ class SymbolArgument(UUIDModel):
      doesn't seem perfect, but works for now.
     """
 
-    symbol = models.ForeignKey(SymbolDefinition, on_delete=models.CASCADE, related_name="arguments")
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE, related_name="arguments")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     type = models.CharField(max_length=64, choices=SymbolParameterType.choices)
-    reference = models.ForeignKey(
-        "SymbolDefinition", on_delete=models.CASCADE, null=True, blank=True
-    )
+    reference = models.ForeignKey("Symbol", on_delete=models.CASCADE, null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.symbol}/arguments/{self.name}(type={self.type})"
+        if self.value:
+            content_str = f"value={self.value}"
+        elif self.reference:
+            content_str = f"reference={self.reference}"
+        else:
+            content_str = "<undefined>"
+        return f"{self.name}(type={self.type}, {content_str})"
 
     class Meta:
         constraints = [
@@ -492,7 +473,7 @@ class SymbolArgument(UUIDModel):
 def replace_refs(
     obj: models.Model,
     to: models.Model,
-    refs: dict[UUID, SymbolDefinition | SymbolContent],
+    refs: dict[UUID, Symbol | SymbolContent],
     include_one_to_many: bool = True,
     include_many_to_many: bool = True,
 ):
@@ -500,7 +481,7 @@ def replace_refs(
     for field in obj._meta.get_fields():
         if field.related_model is None:
             continue
-        if not issubclass(field.related_model, (SymbolDefinition, SymbolContent)):
+        if not issubclass(field.related_model, (Symbol, SymbolContent)):
             continue
         # if many to one
         if include_one_to_many and field.many_to_one:
