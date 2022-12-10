@@ -1,8 +1,6 @@
 <script lang="ts" setup>
-import { graphql } from "@/gql";
+import { useActions } from "@/utils/actions";
 import { useEditorState, type FileHeader } from "@/utils/editor";
-import { useOperationsStore } from "@/utils/operations";
-import { useMutation } from "@vue/apollo-composable";
 import { onClickOutside, useMagicKeys, whenever } from "@vueuse/core";
 import { ref } from "vue";
 
@@ -28,20 +26,7 @@ function focus(file: FileHeader) {
   editor.focusElement(file);
 }
 
-const { mutate: renameFile } = useMutation(
-  graphql(/* GraphQL */ `
-    mutation renameFile($id: GlobalID!, $name: String!) {
-      renameFile(input: { id: $id, name: $name }) {
-        ... on File {
-          id
-          name
-        }
-      }
-    }
-  `)
-);
-
-const operations = useOperationsStore();
+const actions = useActions();
 
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
@@ -50,16 +35,7 @@ async function onNameEnter(event: Event) {
     const file = editor.focusedFile;
     if (!file) return;
 
-    const oldName = file.name;
-    await operations.perform({
-      type: "rename-file",
-      apply: async () => {
-        await renameFile({ id: file.id, name: newName });
-      },
-      undo: async () => {
-        await renameFile({ id: file.id, name: oldName });
-      },
-    });
+    await actions.file.rename(file.id, file.name, newName);
   }
 }
 </script>

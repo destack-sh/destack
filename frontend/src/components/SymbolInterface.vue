@@ -4,8 +4,9 @@ import DatasetInterface from "@/components/DatasetInterface.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { graphql, useFragment, type FragmentType } from "@/gql";
+import { useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type Symbol } from "@/gql/graphql";
+import { useActions } from "@/utils/actions";
 import {
   makeRunConfiguration,
   makeRunEditor,
@@ -14,9 +15,7 @@ import {
   type SymbolHeader,
 } from "@/utils/editor";
 import { SymbolContentType } from "@/utils/fragments";
-import { useOperationsStore } from "@/utils/operations";
 import { ArrowPathIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
-import { useMutation } from "@vue/apollo-composable";
 import { computed, type Component } from "vue";
 
 const props = defineProps<{ file: FileHeader; symbol: FragmentType<typeof SymbolContentType> }>();
@@ -25,11 +24,11 @@ const editorState = useEditorState();
 
 const { getTimeFromNowString } = useTimeFromNow();
 
-type DefinitionInterface = {
+type SymbolInterface = {
   component: Component;
 };
 
-const interfaces: Record<SymbolType, DefinitionInterface> = {
+const interfaces: Record<SymbolType, SymbolInterface> = {
   [SymbolType.Dataset]: {
     component: DatasetInterface,
   },
@@ -98,38 +97,13 @@ function getSymbolMetaActions(symbol: SymbolHeader & Pick<Symbol, "generated">):
 }
 
 const readonly = computed(() => editorState.readonly || symbol.value.generated);
-
-const { mutate: renameSymbol } = useMutation(
-  graphql(/* GraphQL */ `
-    mutation renameSymbol($id: GlobalID!, $name: String!) {
-      renameSymbol(input: { id: $id, name: $name }) {
-        ... on Symbol {
-          id
-          name
-          typeNameDeclaration
-        }
-      }
-    }
-  `)
-);
-
-const operations = useOperationsStore();
+const actions = useActions();
 
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
   if (newName.length > 0) {
     (event.target as HTMLElement)?.blur();
-
-    const oldName = symbol.value.name;
-    await operations.perform({
-      type: "rename-symbol",
-      apply: async () => {
-        await renameSymbol({ id: symbol.value.id, name: newName });
-      },
-      undo: async () => {
-        await renameSymbol({ id: symbol.value.id, name: oldName });
-      },
-    });
+    await actions.symbol.rename(symbol.value.id, symbol.value.name, newName);
   }
 }
 </script>

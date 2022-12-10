@@ -3,7 +3,7 @@ import { defineStore } from "pinia";
 type Operation = {
   type: string;
   apply(): Promise<void>;
-  undo(): Promise<void>;
+  undo?(): Promise<void>;
 };
 
 export const useOperationsStore = defineStore("operations", {
@@ -15,12 +15,14 @@ export const useOperationsStore = defineStore("operations", {
     async perform(operation: Operation): Promise<void> {
       console.log(`perform ${operation.type}`);
       await operation.apply();
-      this.undoStack.push(operation);
+      if (operation.undo != null) {
+        this.undoStack.push(operation);
+      }
       this.redoStack = [];
     },
     async undo(): Promise<void> {
       const operation = this.undoStack.pop();
-      if (operation == null) {
+      if (operation == null || operation.undo == null) {
         return;
       }
       console.log(`undo ${operation.type}`);

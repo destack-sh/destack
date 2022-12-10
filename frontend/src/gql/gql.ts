@@ -19,12 +19,8 @@ const documents = {
     types.ExecutionHeaderFragmentDoc,
   "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  ":
     types.RunDocument,
-  "\n    mutation renameSymbol($id: GlobalID!, $name: String!) {\n      renameSymbol(input: { id: $id, name: $name }) {\n        ... on Symbol {\n          id\n          name\n          typeNameDeclaration\n        }\n      }\n    }\n  ":
-    types.RenameSymbolDocument,
   "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n      statements {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    templateImplementation {\n      id\n      name\n      typeNameDeclaration\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.TaskContentFragmentDoc,
-  "\n    mutation renameFile($id: GlobalID!, $name: String!) {\n      renameFile(input: { id: $id, name: $name }) {\n        ... on File {\n          id\n          name\n        }\n      }\n    }\n  ":
-    types.RenameFileDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
   "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
@@ -33,10 +29,14 @@ const documents = {
     types.ProjectVersionContentFragmentDoc,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
-  "\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(input: { compilationId: $compilationId }) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n          targetTask {\n            ...TaskContent\n          }\n          targetCode {\n            ...CodeContent\n          }\n        }\n      }\n    }\n  ":
-    types.CompileTaskDocument,
-  "\n    mutation addCompilationTarget($input: AddCompilationInput!) {\n      addCompilationTarget(input: $input) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n        }\n      }\n    }\n  ":
-    types.AddCompilationTargetDocument,
+  "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    ":
+    types.AddCompilationDocument,
+  "\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    ":
+    types.CompileDocument,
+  "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n          }\n        }\n      }\n    ":
+    types.RenameFileDocument,
+  "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    ":
+    types.RenameSymbolDocument,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n":
@@ -76,14 +76,8 @@ export function graphql(
   source: "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "
 ): typeof documents["\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    mutation renameSymbol($id: GlobalID!, $name: String!) {\n      renameSymbol(input: { id: $id, name: $name }) {\n        ... on Symbol {\n          id\n          name\n          typeNameDeclaration\n        }\n      }\n    }\n  "
-): typeof documents["\n    mutation renameSymbol($id: GlobalID!, $name: String!) {\n      renameSymbol(input: { id: $id, name: $name }) {\n        ... on Symbol {\n          id\n          name\n          typeNameDeclaration\n        }\n      }\n    }\n  "];
-export function graphql(
   source: "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n      statements {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    templateImplementation {\n      id\n      name\n      typeNameDeclaration\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
 ): typeof documents["\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    expectations {\n      id\n      description\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n      statements {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    templateImplementation {\n      id\n      name\n      typeNameDeclaration\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
-export function graphql(
-  source: "\n    mutation renameFile($id: GlobalID!, $name: String!) {\n      renameFile(input: { id: $id, name: $name }) {\n        ... on File {\n          id\n          name\n        }\n      }\n    }\n  "
-): typeof documents["\n    mutation renameFile($id: GlobalID!, $name: String!) {\n      renameFile(input: { id: $id, name: $name }) {\n        ... on File {\n          id\n          name\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
@@ -97,11 +91,17 @@ export function graphql(
   source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(input: { compilationId: $compilationId }) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n          targetTask {\n            ...TaskContent\n          }\n          targetCode {\n            ...CodeContent\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    mutation compileTask($compilationId: GlobalID!) {\n      compile(input: { compilationId: $compilationId }) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n          targetTask {\n            ...TaskContent\n          }\n          targetCode {\n            ...CodeContent\n          }\n        }\n      }\n    }\n  "];
+  source: "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n    mutation addCompilationTarget($input: AddCompilationInput!) {\n      addCompilationTarget(input: $input) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n        }\n      }\n    }\n  "
-): typeof documents["\n    mutation addCompilationTarget($input: AddCompilationInput!) {\n      addCompilationTarget(input: $input) {\n        compilation {\n          id\n          name\n          createdAt\n          updatedAt\n        }\n      }\n    }\n  "];
+  source: "\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"];
