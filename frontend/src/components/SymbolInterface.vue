@@ -14,6 +14,7 @@ import {
   type SymbolHeader,
 } from "@/utils/editor";
 import { SymbolContentType } from "@/utils/fragments";
+import { useOperationsStore } from "@/utils/operations";
 import { ArrowPathIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { useMutation } from "@vue/apollo-composable";
 import { computed, type Component } from "vue";
@@ -112,12 +113,23 @@ const { mutate: updateName, loading: running } = useMutation(
   `)
 );
 
+const operations = useOperationsStore();
+
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
   if (newName.length > 0) {
-    console.log("update name to ", newName);
-    event.target?.blur();
-    await updateName({ id: symbol.value.id, name: newName });
+    (event.target as HTMLElement)?.blur();
+
+    const oldName = symbol.value.name;
+    await operations.perform({
+      type: "rename-symbol",
+      apply: async () => {
+        await updateName({ id: symbol.value.id, name: newName });
+      },
+      undo: async () => {
+        await updateName({ id: symbol.value.id, name: oldName });
+      },
+    });
   }
 }
 </script>
