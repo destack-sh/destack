@@ -4,6 +4,7 @@ import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
+import { useActions } from "@/utils/actions";
 import { getEditorPath, useEditorState } from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
@@ -110,31 +111,7 @@ const compilations = computed(
   () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
 );
 
-// mutations
-const { mutate: compileTask } = useMutation(
-  graphql(/* GraphQL */ `
-    mutation compileTask($compilationId: GlobalID!) {
-      compile(input: { compilationId: $compilationId }) {
-        compilation {
-          id
-          name
-          createdAt
-          updatedAt
-          targetTask {
-            ...TaskContent
-          }
-          targetCode {
-            ...CodeContent
-          }
-        }
-      }
-    }
-  `),
-  // TODO @Performance: don't refetch all file contents post compilation
-  //  just update the cache with new source mappings (and remove old ones)
-  //  This applies to all mutations, not just this one.
-  { refetchQueries: ["projectVersionContent", "fileContentById"] }
-);
+const actions = useActions();
 
 const isCompiling = ref(false);
 const canCompile = computed(() => !isCompiling.value && compilations.value?.length > 0);
@@ -143,38 +120,21 @@ const canRun = false;
 async function compileAll() {
   isCompiling.value = true;
   console.log("compiling", compilations.value);
-  const compilationMutations = compilations.value.map((c) => compileTask({ compilationId: c.id }));
+  const compilationMutations = compilations.value.map((c) => actions.compilation.compile(c.id));
   const compilationPayloads = await Promise.all(compilationMutations);
   console.log("compiled", compilationPayloads);
   isCompiling.value = false;
 }
 
-const { mutate: addCompilationTarget } = useMutation(
-  graphql(/* GraphQL */ `
-    mutation addCompilationTarget($input: AddCompilationInput!) {
-      addCompilationTarget(input: $input) {
-        compilation {
-          id
-          name
-          createdAt
-          updatedAt
-        }
-      }
-    }
-  `),
-  { refetchQueries: ["projectVersionContent"] }
-);
 async function createDefaultCompilation() {
   if (!content.value?.mainProgram) {
     throw new Error("no main program in current version");
   }
 
-  await addCompilationTarget({
-    input: {
-      taskSymbolId: content.value?.mainProgram?.id,
-      name: "default",
-      backends: ["openai/text-davinci-003"],
-    },
+  await actions.compilation.add({
+    taskSymbolId: content.value?.mainProgram?.id,
+    name: "default",
+    backends: ["openai/text-davinci-003"],
   });
 }
 
