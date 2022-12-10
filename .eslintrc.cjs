@@ -34,4 +34,16 @@ module.exports = {
       },
     },
   ],
+  // allow 'Symbol' to be used as a type
+  rules: {
+    "@typescript-eslint/ban-types": [
+      "error",
+      {
+        types: {
+          Symbol: false,
+        },
+        extendDefaults: true,
+      },
+    ],
+  },
 };
