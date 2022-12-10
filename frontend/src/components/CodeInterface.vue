@@ -17,20 +17,23 @@ const CodeContentFragment = graphql(/* GraphQL */ `
     outputSchema {
       ...SchemaElementContentDeep
     }
-    parameters {
-      name
-      type
-      schema {
-        ...SchemaElementContentDeep
+    definition {
+      parameters {
+        name
+        type
+        schema {
+          ...SchemaElementContentDeep
+        }
       }
-    }
-    arguments {
-      name
-      type
-      value
-      reference {
-        id
-        typeNameDeclaration
+      arguments {
+        name
+        type
+        value
+        reference {
+          id
+          name
+          typeNameDeclaration
+        }
       }
     }
   }
@@ -44,8 +47,8 @@ const props = defineProps<{
 const content = computed(() => useFragment(CodeContentFragment, props.content));
 const inputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.inputSchema));
 const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.outputSchema));
-const parameters = computed(() => content.value?.parameters ?? []);
-const arguments_ = computed(() => content.value?.arguments ?? []);
+const parameters = computed(() => content.value?.definition?.parameters ?? []);
+const arguments_ = computed(() => content.value?.definition?.arguments ?? []);
 
 function getArgument(name: string) {
   return arguments_.value?.find((a) => a.name === name);

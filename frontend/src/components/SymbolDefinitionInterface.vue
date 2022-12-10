@@ -134,7 +134,7 @@ async function onNameEnter(event: Event) {
           <span
             :contenteditable="!readonly"
             maxlength="100"
-            class="decoration-none ml-0.5 inline w-full select-all rounded-sm border border-transparent bg-transparent p-0.5 text-sm text-inherit placeholder-gray-400 outline-none selection:bg-yellow-200 hover:border-gray-300 focus:border-orange-500"
+            class="decoration-none ml-0.5 inline w-full select-all rounded-sm border border-transparent bg-transparent p-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:border-gray-300 focus:border-orange-500"
             @keydown.enter.prevent="onNameEnter"
           >
             {{ definition.name }}

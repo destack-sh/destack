@@ -58,8 +58,8 @@ const BENCH_THEME_COLORS = {
   // line numbers (when not focused, focused colors are set in style bellow)
   "editorLineNumber.foreground": "#fed7aa",
   "editorLineNumber.activeForeground": "#fdba74",
-  // set selection color
-  "editor.selectionBackground": "#fdba74",
+  // set selection color (sync with ::selection in App.vue)
+  "editor.selectionBackground": "#fef08a",
   // set cursor color
   "editorCursor.foreground": "#f97316",
   // hide line

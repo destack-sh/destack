@@ -10,37 +10,12 @@ type AddCompilationPayload {
 
 type Code implements SymbolContent & Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
+  definition: SymbolDefinition!
   inputSchema: SchemaElement!
   outputSchema: SchemaElement!
-  task: Task
+  task(pk: ID): Task
   builtinId: String
   code: String
-  parameters: [CodeParameter!]!
-  arguments: [CodeArgument!]!
-}
-
-type CodeArgument implements Node {
-  id: GlobalID!
-  code: Code!
-  codeFree: Code!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  type: String!
-  reference: SymbolDefinition
-  value: JSON
-}
-
-type CodeParameter implements Node {
-  id: GlobalID!
-  code: Code!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  type: SymbolParameterType!
-  schema: SchemaElement
 }
 
 type Compilation implements Node {
@@ -67,8 +42,7 @@ union CreateSymbolDefinitionPayload = SymbolDefinition | OperationInfo
 
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
+  definition: SymbolDefinition!
   schema: SchemaElement!
   length: Int!
   records: [DatasetRecord!]!
@@ -82,8 +56,7 @@ type DatasetRecord implements Node {
 
 type DatasetView implements SymbolContent & Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
+  definition: SymbolDefinition!
   dataset: Dataset!
 }
 
@@ -115,8 +88,7 @@ type Execution implements Node {
 
 type Expectation implements SymbolContent & Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
+  definition: SymbolDefinition!
   description: String!
   statements: [SymbolDefinition!]!
 }
@@ -146,8 +118,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type Model implements SymbolContent & Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
+  definition: SymbolDefinition!
   baseline: Model
   provider: String!
 }
@@ -405,10 +376,19 @@ type SourceMapping implements Node {
   targetPath: JSON!
 }
 
+type SymbolArgument implements Node {
+  id: GlobalID!
+  symbol: SymbolDefinition!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  type: String!
+  reference: SymbolDefinition
+  value: JSON
+}
+
 interface SymbolContent implements Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
 }
 
 type SymbolDefinition implements Node {
@@ -417,7 +397,6 @@ type SymbolDefinition implements Node {
   name: String!
   type: SymbolType!
   typeShortname: String!
-  nameDotType: String!
   typeNameDeclaration: String!
   file: File!
   parent: SymbolDefinition
@@ -427,6 +406,8 @@ type SymbolDefinition implements Node {
   updatedAt: DateTime!
   generated: Boolean!
   content(pk: ID): SymbolContent!
+  parameters: [SymbolParameter!]!
+  arguments: [SymbolArgument!]!
 }
 
 input SymbolDefinitionInput {
@@ -436,6 +417,16 @@ input SymbolDefinitionInput {
 input SymbolDefinitionInputPartial {
   id: GlobalID!
   name: String
+}
+
+type SymbolParameter implements Node {
+  id: GlobalID!
+  symbol: SymbolDefinition!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  type: SymbolParameterType!
+  schema: SchemaElement
 }
 
 """An enumeration."""
@@ -458,8 +449,7 @@ enum SymbolType {
 
 type Task implements SymbolContent & Node {
   id: GlobalID!
-  nameDotType: String!
-  typeNameDeclaration: String!
+  definition: SymbolDefinition!
   inputSchema: SchemaElement!
   outputSchema: SchemaElement!
   expectations: [Expectation!]!

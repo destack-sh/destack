@@ -6,8 +6,7 @@ from functools import cached_property, partial
 from uuid import UUID
 
 from bench.backend.provider import ModelHandle
-from bench.models import ModelInferenceSettings, SymbolType
-from bench.models.code import SymbolParameterType
+from bench.models import ModelInferenceSettings, SymbolParameterType, SymbolType
 from bench.utils.record import RecordBatch
 from bench.utils.schema import SchemaElement
 

@@ -15,16 +15,16 @@ from bench.backend.types import (
 )
 from bench.models import (
     Code,
-    CodeArgument,
     Dataset,
     DatasetView,
     Model,
     ModelInferenceSettings,
+    SymbolArgument,
     SymbolContent,
     SymbolDefinition,
+    SymbolParameterType,
     SymbolType,
 )
-from bench.models.code import SymbolParameterType
 from bench.utils.record import RecordList
 
 
@@ -92,7 +92,7 @@ class Resolver:
         return parameters
 
     async def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
-        bound_arguments: QuerySet[CodeArgument] = code.arguments.all().select_related(
+        bound_arguments: QuerySet[SymbolArgument] = code.arguments.all().select_related(
             "reference",
             "reference__model",
             "reference__model__default_settings",

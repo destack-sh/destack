@@ -19,7 +19,7 @@ class TaskManager(SymbolContentManager, models.Manager["Task"]):
 
 class Task(SymbolContent):
     """
-    A task describes the interface and desired behaviour of an code.
+    A task describes an interface and desired behaviour.
 
     A task may have sub-tasks, forming a task tree.
     Sub-tasks define smaller tasks which are composed or represented by the parent task.
@@ -29,7 +29,7 @@ class Task(SymbolContent):
     output_schema = SchemaElementField("output")
     expectations = models.ManyToManyField("Expectation", related_name="tasks")
     template_implementation = models.ForeignKey(
-        "Code", on_delete=models.CASCADE, null=True, related_name="templates"
+        "Code", on_delete=models.CASCADE, null=True, blank=True, related_name="templates"
     )
 
     # compilations via Compilation
@@ -75,10 +75,10 @@ class Compilation(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     backends = models.ManyToManyField("Model", related_name="compilations+")
     target_task = models.ForeignKey(
-        "Task", on_delete=models.SET_NULL, null=True, related_name="compilations+"
+        "Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="compilations+"
     )
     target_code = models.ForeignKey(
-        "Code", on_delete=models.SET_NULL, null=True, related_name="source_compilation+"
+        "Code", on_delete=models.SET_NULL, null=True, blank=True, related_name="source_compilation+"
     )
 
     # mappings via SourceMapping
@@ -123,12 +123,13 @@ class SourceMapping(UUIDModel):
     target_path = models.JSONField()
 
 
+class ExpectationManager(SymbolContentManager, models.Manager["Expectation"]):
+    pass
+
+
 class Expectation(SymbolContent):
     """
-    An expectation specifies a task's expected behavior.
-    It can instruct or explain the context and relations of expected behavior.
-
-    The main text of an expectation is its description and code & examples are statements.
+    An expectation specifies expected behavior in the form of statements.
     """
 
     description = models.TextField()
@@ -136,5 +137,11 @@ class Expectation(SymbolContent):
         "SymbolDefinition", related_name="references_in_expectations+"
     )
 
+    def deepcopy(self, to: Expectation, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+        super().deepcopy(to, refs)
+        # nothing custom to do yet (statements are just symbols for now)
+
     def __str__(self):
         return f"{self.definition_str}(description={self.description})"
+
+    objects = ExpectationManager()

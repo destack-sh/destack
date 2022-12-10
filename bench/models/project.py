@@ -218,6 +218,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         # 2.1 re-assign references and deep copy symbols
         for old_definition in source.definitions.all():
             new_definition = new_definitions[old_definition.id]
+            old_definition.deepcopy(to=new_definition, refs=refs)
             new_content = new_contents[old_definition.content_id]
             # copy content
             old_content = old_definition.content
@@ -331,9 +332,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         try:
             return self.get_symbol_definitions(name, type).get()
         except SymbolDefinition.MultipleObjectsReturned as e:
-            name_dot_type = f"{name} ({type})" if type else name
+            type_name_declr = f"{type} {name}" if type else name
             raise SymbolDefinition.MultipleObjectsReturned(
-                f"multiple definitions for symbol {name_dot_type} in {self}"
+                f"multiple definitions for symbol {type_name_declr} in {self}"
             ) from e
         except SymbolDefinition.DoesNotExist:
             return None

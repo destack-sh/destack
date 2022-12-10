@@ -89,7 +89,6 @@ class SymbolDefinition(gql.Node):
     name: auto
     type: auto
     type_shortname: auto
-    name_dot_type: auto
     type_name_declaration: auto
     file: File
     parent: Optional[SymbolDefinition]
@@ -99,19 +98,42 @@ class SymbolDefinition(gql.Node):
     updated_at: auto
     generated: auto
     content: SymbolContent
+    parameters: list[SymbolParameter]
+    arguments: list[SymbolArgument]
 
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    name_dot_type: auto
-    type_name_declaration: auto
     # TODO @Cleanup: fix definition in SymbolContent interface
     #  (should work since it's a 1:1 but doesn't)
     # definition: SymbolDefinition
+    pass
+
+
+@gql.django.type(models.SymbolParameter)
+class SymbolParameter(gql.Node):
+    symbol: SymbolDefinition
+    name: auto
+    created_at: auto
+    updated_at: auto
+    type: auto
+    schema: Optional[SchemaElement]
+
+
+@gql.django.type(models.SymbolArgument)
+class SymbolArgument(gql.Node):
+    symbol: SymbolDefinition
+    name: auto
+    created_at: auto
+    updated_at: auto
+    type: auto
+    reference: Optional[SymbolDefinition]
+    value: auto
 
 
 @gql.django.type(models.Task)
 class Task(SymbolContent):
+    definition: SymbolDefinition
     input_schema: SchemaElement
     output_schema: SchemaElement
     expectations: list[Expectation]
@@ -142,41 +164,19 @@ class SourceMapping(gql.Node):
 
 @gql.django.type(models.Expectation)
 class Expectation(SymbolContent):
+    definition: SymbolDefinition
     description: auto
     statements: list[SymbolDefinition]
 
 
 @gql.django.type(models.Code)
 class Code(SymbolContent):
+    definition: SymbolDefinition
     input_schema: SchemaElement
     output_schema: SchemaElement
     task: Optional[Task]
     builtin_id: auto
     code: auto
-    parameters: list[CodeParameter]
-    arguments: list[CodeArgument]
-
-
-@gql.django.type(models.CodeParameter)
-class CodeParameter(gql.Node):
-    code: Code
-    name: auto
-    created_at: auto
-    updated_at: auto
-    type: auto
-    schema: Optional[SchemaElement]
-
-
-@gql.django.type(models.CodeArgument)
-class CodeArgument(gql.Node):
-    code: Code
-    code_free: Code
-    name: auto
-    created_at: auto
-    updated_at: auto
-    type: auto
-    reference: Optional[SymbolDefinition]
-    value: auto
 
 
 @gql.django.type(models.Execution)
@@ -198,12 +198,14 @@ class Execution(gql.Node):
 
 @gql.django.type(models.Model)
 class Model(SymbolContent):
+    definition: SymbolDefinition
     baseline: Optional[Model]
     provider: auto
 
 
 @gql.django.type(models.Dataset)
 class Dataset(SymbolContent):
+    definition: SymbolDefinition
     schema: SchemaElement
     length: auto
     records: list[DatasetRecord]
@@ -217,4 +219,5 @@ class DatasetRecord(gql.Node):
 
 @gql.django.type(models.DatasetView)
 class DatasetView(SymbolContent):
+    definition: SymbolDefinition
     dataset: Dataset
