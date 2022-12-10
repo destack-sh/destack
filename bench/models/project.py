@@ -370,7 +370,9 @@ class File(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_folder = models.BooleanField(default=False)
-    parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
+    parent = models.ForeignKey(
+        "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
+    )
 
     files: models.QuerySet["File"]  # noqa via File.parent (if is_folder)
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol.file

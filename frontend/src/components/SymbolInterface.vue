@@ -45,7 +45,7 @@ const interfaces: Record<SymbolType, DefinitionInterface> = {
 };
 
 function isDefinitionFocused(symbol: Pick<Symbol, "id">) {
-  return editorState.focusedDefinition?.id == symbol.id;
+  return editorState.focusedElement?.id == symbol.id;
 }
 
 type MetaAction = {
@@ -99,9 +99,9 @@ function getSymbolMetaActions(symbol: SymbolHeader & Pick<Symbol, "generated">):
 
 const readonly = computed(() => editorState.readonly || symbol.value.generated);
 
-const { mutate: updateName, loading: running } = useMutation(
+const { mutate: renameSymbol } = useMutation(
   graphql(/* GraphQL */ `
-    mutation updateSymbolName($id: GlobalID!, $name: String!) {
+    mutation renameSymbol($id: GlobalID!, $name: String!) {
       renameSymbol(input: { id: $id, name: $name }) {
         ... on Symbol {
           id
@@ -124,10 +124,10 @@ async function onNameEnter(event: Event) {
     await operations.perform({
       type: "rename-symbol",
       apply: async () => {
-        await updateName({ id: symbol.value.id, name: newName });
+        await renameSymbol({ id: symbol.value.id, name: newName });
       },
       undo: async () => {
-        await updateName({ id: symbol.value.id, name: oldName });
+        await renameSymbol({ id: symbol.value.id, name: oldName });
       },
     });
   }

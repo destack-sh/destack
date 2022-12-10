@@ -4,7 +4,7 @@ import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
-import { useEditorState } from "@/utils/editor";
+import { getEditorPath, useEditorState } from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
@@ -171,7 +171,7 @@ async function createDefaultCompilation() {
 
   await addCompilationTarget({
     input: {
-      taskDefinitionId: content.value?.mainProgram?.id,
+      taskSymbolId: content.value?.mainProgram?.id,
       name: "default",
       backends: ["openai/text-davinci-003"],
     },
@@ -230,6 +230,8 @@ watch(
 
 // shortcuts
 // TODO @Cleanup: unbind shortcuts on unmount
+// TODO @Cleanup: centralize shortcuts (and make configurable)
+//  (maybe use VueUse's useMagicKeys instead of Mousetrap)
 // move editor to next group
 Mousetrap.bind("ctrl+shift+right", () => {
   if (state.focusedEditor) {
