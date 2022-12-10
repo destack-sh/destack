@@ -1,5 +1,6 @@
 import type { File, Project, ProjectVersion, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
+import { computed, type Ref } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -100,7 +101,7 @@ export const useEditorState = defineStore("editor", {
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
-      focusedDefinition: null as SymbolHeader | null,
+      focusedElement: null as SymbolHeader | FileHeader | null,
       readonly: false,
     };
   },
@@ -195,9 +196,12 @@ export const useEditorState = defineStore("editor", {
     },
 
     focusDefinition(file: FileHeader, symbol: SymbolHeader, group?: EditorGroup) {
-      // TODO @Feature: auto-focus the file that contains the symbol
       this.focusFile(file, group);
-      this.focusedDefinition = symbol;
+      this.focusElement(symbol);
+    },
+
+    focusElement(element: SymbolHeader | FileHeader) {
+      this.focusedElement = element;
     },
   },
 });

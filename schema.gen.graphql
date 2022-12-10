@@ -38,6 +38,8 @@ type CompilePayload {
   compilation: Compilation!
 }
 
+union CreateFilePayload = File | OperationInfo
+
 union CreateSymbolPayload = Symbol | OperationInfo
 
 type Dataset implements SymbolContent & Node {
@@ -104,6 +106,18 @@ type File implements Node {
   symbols: [Symbol!]!
 }
 
+input FileCreateInput {
+  projectVersion: NodeInput!
+  name: String!
+  isFolder: Boolean
+  parent: NodeInput
+}
+
+input FileRenameInput {
+  id: GlobalID!
+  name: String
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -124,6 +138,8 @@ type Model implements SymbolContent & Node {
 type Mutation {
   createSymbol(input: SymbolCreateInput!): CreateSymbolPayload!
   renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
+  createFile(input: FileCreateInput!): CreateFilePayload!
+  renameFile(input: FileRenameInput!): RenameFilePayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
   run(input: RunCodeInput!): RunCodePayload!
@@ -331,6 +347,8 @@ type Query {
     last: Int = null
   ): OrganizationConnection!
 }
+
+union RenameFilePayload = File | OperationInfo
 
 union RenameSymbolPayload = Symbol | OperationInfo
 

@@ -69,6 +69,8 @@ export type CompilePayload = {
   compilation: Compilation;
 };
 
+export type CreateFilePayload = File | OperationInfo;
+
 export type CreateSymbolPayload = OperationInfo | Symbol;
 
 export type Dataset = Node &
@@ -139,6 +141,18 @@ export type File = Node & {
   updatedAt: Scalars["DateTime"];
 };
 
+export type FileCreateInput = {
+  isFolder?: InputMaybe<Scalars["Boolean"]>;
+  name: Scalars["String"];
+  parent?: InputMaybe<NodeInput>;
+  projectVersion: NodeInput;
+};
+
+export type FileRenameInput = {
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+};
+
 export type Model = Node &
   SymbolContent & {
     __typename?: "Model";
@@ -152,7 +166,9 @@ export type Mutation = {
   __typename?: "Mutation";
   addCompilationTarget: AddCompilationPayload;
   compile: CompilePayload;
+  createFile: CreateFilePayload;
   createSymbol: CreateSymbolPayload;
+  renameFile: RenameFilePayload;
   renameSymbol: RenameSymbolPayload;
   run: RunCodePayload;
 };
@@ -165,8 +181,16 @@ export type MutationCompileArgs = {
   input: CompileInput;
 };
 
+export type MutationCreateFileArgs = {
+  input: FileCreateInput;
+};
+
 export type MutationCreateSymbolArgs = {
   input: SymbolCreateInput;
+};
+
+export type MutationRenameFileArgs = {
+  input: FileRenameInput;
 };
 
 export type MutationRenameSymbolArgs = {
@@ -377,6 +401,8 @@ export type QueryUsersArgs = {
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
+
+export type RenameFilePayload = File | OperationInfo;
 
 export type RenameSymbolPayload = OperationInfo | Symbol;
 
@@ -728,12 +754,12 @@ export type RunMutation = {
   };
 };
 
-export type UpdateSymbolNameMutationVariables = Exact<{
+export type RenameSymbolMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 }>;
 
-export type UpdateSymbolNameMutation = {
+export type RenameSymbolMutation = {
   __typename?: "Mutation";
   renameSymbol:
     | { __typename?: "OperationInfo" }
@@ -763,6 +789,16 @@ export type TaskContentFragment = {
     }
   >;
 } & { " $fragmentName"?: "TaskContentFragment" };
+
+export type RenameFileMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+}>;
+
+export type RenameFileMutation = {
+  __typename?: "Mutation";
+  renameFile: { __typename?: "File"; id: any; name: string } | { __typename?: "OperationInfo" };
+};
 
 export type ProjectVersionsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
@@ -1844,13 +1880,13 @@ export const RunDocument = {
     ...ExecutionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
-export const UpdateSymbolNameDocument = {
+export const RenameSymbolDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "updateSymbolName" },
+      name: { kind: "Name", value: "renameSymbol" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -1912,7 +1948,75 @@ export const UpdateSymbolNameDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<UpdateSymbolNameMutation, UpdateSymbolNameMutationVariables>;
+} as unknown as DocumentNode<RenameSymbolMutation, RenameSymbolMutationVariables>;
+export const RenameFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "renameFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "renameFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
