@@ -101,7 +101,7 @@ class ModelInference(UUIDTModel):
     A single output from a model inference for debugging and caching.
     """
 
-    model = models.ForeignKey("Model", on_delete=models.CASCADE, related_name="outputs+")
+    model = models.ForeignKey("Model", on_delete=models.CASCADE, related_name="inferences")
     operation = models.CharField(max_length=64, choices=ModelOperation.choices)
     settings_hash = models.CharField(max_length=64)
     input_hash = models.CharField(max_length=64)

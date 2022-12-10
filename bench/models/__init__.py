@@ -1,9 +1,16 @@
-from .code import Code, CodeArgument, CodeParameter, Execution, ExecutionStatus
+from .code import Code, Execution, ExecutionStatus
 from .dataset import Dataset, DatasetRecord, DatasetView
 from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
 from .project import File, Project, ProjectVersion
-from .symbol import SymbolContent, SymbolDefinition, SymbolType
+from .symbol import (
+    SymbolArgument,
+    SymbolContent,
+    SymbolDefinition,
+    SymbolParameter,
+    SymbolParameterType,
+    SymbolType,
+)
 from .tag import Tag, TaggableMixin, TaggedItem
 from .task import Compilation, Expectation, SourceMapping, Task
 from .user import User
@@ -17,8 +24,6 @@ __all__ = [
     "SourceMapping",
     "Expectation",
     "Code",
-    "CodeArgument",
-    "CodeParameter",
     "Execution",
     "ExecutionStatus",
     "Organization",
@@ -28,6 +33,9 @@ __all__ = [
     "SymbolType",
     "SymbolContent",
     "SymbolDefinition",
+    "SymbolArgument",
+    "SymbolParameter",
+    "SymbolParameterType",
     "User",
     "Dataset",
     "DatasetRecord",

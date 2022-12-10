@@ -34,4 +34,8 @@ useMeta({ title: "Bench" });
 ::-webkit-scrollbar-track {
   background-color: transparent;
 }
+
+::selection {
+  background-color: #fef08a;
+}
 </style>

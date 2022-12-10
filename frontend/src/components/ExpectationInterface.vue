@@ -9,7 +9,6 @@ const ExpectationContent = graphql(/* GraphQL */ `
       id
       name
       typeNameDeclaration
-      nameDotType
     }
   }
 `);

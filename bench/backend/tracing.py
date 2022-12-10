@@ -13,8 +13,7 @@ import structlog
 
 from bench.backend.provider import Completion, ModelHandle
 from bench.backend.types import LoadedCode, LoadedModel, ResolvedParameter
-from bench.models import Execution, ExecutionStatus
-from bench.models.code import SymbolParameterType
+from bench.models import Execution, ExecutionStatus, SymbolParameterType
 from bench.utils.record import RecordBatch
 from bench.utils.schema import SchemaElement, get_value_type
 
@@ -114,6 +113,7 @@ class ExecutionTracker:
             await self.process_one()
 
     async def process_until_empty(self):
+        # TODO @Performance: batch execution tracker updates
         while not self.pending_frames_queue.empty():
             await self.process_one()
 

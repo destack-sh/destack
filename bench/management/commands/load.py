@@ -25,10 +25,10 @@ from bench.models import (
     ProjectVersion,
     SymbolContent,
     SymbolDefinition,
+    SymbolParameterType,
     SymbolType,
     Task,
 )
-from bench.models.code import SymbolParameterType
 from bench.utils.schema import (
     SchemaElement,
     SchemaObjectSerializer,
@@ -255,20 +255,21 @@ def parse_code(
         output_schema=output_schema,
         code_function_name=function.__name__,
     )
-    consumed_lines = bind_code_parameters(segment, project_v, code)
-    if consumed_lines:
-        # remove consumed lines from segment
-        segment.lines = segment.lines[consumed_lines:]
-        code.code = segment.full_code
-        code.save()
-
     if "task" in segment.symbol_args:
         task_name = segment.symbol_args["task"]
         task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
-        code.task = task
+        code.tasks.add(task)
         task.template_implementation = code
 
-    return code
+    def on_defined(symbol_def: SymbolDefinition):
+        consumed_lines = bind_code_parameters(segment, project_v, code)
+        if consumed_lines:
+            # remove consumed lines from segment
+            segment.lines = segment.lines[consumed_lines:]
+            code.code = segment.full_code
+            code.save()
+
+    return code, on_defined
 
 
 def parse_data(
@@ -361,7 +362,7 @@ def bind_code_parameters(
         else:
             param_schema = SchemaElement(name=param_name, type=get_value_type(param_type))
             param_type = SymbolParameterType.VALUE
-        code.add_parameter(name=param_name, type=param_type, schema=param_schema)
+        code.definition.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
         # use alias if set
         if "@alias" in comment:
@@ -372,8 +373,8 @@ def bind_code_parameters(
         if param_type == SymbolParameterType.VALUE:
             raise NotImplementedError(f"json argument resolution not supported: {line}")
         symbol_def = project_v.symbol_definition(symbol_ref_name)
-        code.bind_argument(param_name, symbol_def)
+        code.definition.bind_argument(param_name, symbol_def)
     # parameters can also be defined in the schema extracted from the function signature
     for param in code.input_schema.elements:
-        code.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
+        code.definition.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
     return consumed_lines

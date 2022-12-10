@@ -24,9 +24,9 @@ from bench.models import (
     Project,
     ProjectVersion,
     SymbolDefinition,
+    SymbolParameterType,
     SymbolType,
 )
-from bench.models.code import SymbolParameterType
 from bench.models.symbol import SYMBOL_CONTENT_FIELDS
 from bench.models.task import Compilation, Expectation, Task
 from bench.utils.record import RecordBatch, RecordList

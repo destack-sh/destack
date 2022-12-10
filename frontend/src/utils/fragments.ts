@@ -41,19 +41,35 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     updatedAt
     task {
       id
-      nameDotType
+      definition {
+        id
+        name
+        typeNameDeclaration
+      }
     }
     backends {
       id
-      nameDotType
+      definition {
+        id
+        name
+        typeNameDeclaration
+      }
     }
     targetTask {
       id
-      nameDotType
+      definition {
+        id
+        name
+        typeNameDeclaration
+      }
     }
     targetCode {
       id
-      nameDotType
+      definition {
+        id
+        name
+        typeNameDeclaration
+      }
     }
   }
 `);
@@ -77,7 +93,6 @@ export const SymbolDefinitionContentType = graphql(/* GraphQL */ `
     name
     type
     typeShortname
-    nameDotType
     typeNameDeclaration
     createdAt
     updatedAt

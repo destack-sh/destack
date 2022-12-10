@@ -78,7 +78,6 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
       id
       name
       type
-      nameDotType
     }
     files {
       id
