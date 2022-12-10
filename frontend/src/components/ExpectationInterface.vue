@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { graphql, useFragment, type FragmentType } from "@/gql";
+import { computed } from "vue";
 
 const ExpectationContent = graphql(/* GraphQL */ `
   fragment ExpectationContent on Expectation {
@@ -14,7 +15,7 @@ const ExpectationContent = graphql(/* GraphQL */ `
 `);
 
 const props = defineProps<{ content: FragmentType<typeof ExpectationContent>; focused: boolean }>();
-const content = useFragment(ExpectationContent, props.content);
+const content = computed(() => useFragment(ExpectationContent, props.content));
 </script>
 <template>
   <div class="m-2 flex flex-col text-sm text-gray-900">

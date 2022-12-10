@@ -6,6 +6,7 @@ import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { useEditorState } from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
+import { useOperationsStore } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -242,6 +243,14 @@ Mousetrap.bind("ctrl+shift+left", () => {
     console.log("move focused editor to previous group");
     state.moveEditor(state.focusedEditor, state.left);
   }
+});
+const operations = useOperationsStore();
+// undo & redo
+Mousetrap.bind("ctrl+z", () => {
+  operations.undo();
+});
+Mousetrap.bind("ctrl+shift+z", () => {
+  operations.redo();
 });
 </script>
 
