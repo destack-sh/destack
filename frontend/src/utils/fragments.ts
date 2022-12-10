@@ -41,7 +41,7 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     updatedAt
     task {
       id
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -49,7 +49,7 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     }
     backends {
       id
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -57,7 +57,7 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     }
     targetTask {
       id
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -65,7 +65,7 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     }
     targetCode {
       id
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -87,8 +87,8 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
   }
 `);
 
-export const SymbolDefinitionContentType = graphql(/* GraphQL */ `
-  fragment SymbolDefinitionContent on SymbolDefinition {
+export const SymbolContentType = graphql(/* GraphQL */ `
+  fragment SymbolContent on Symbol {
     id
     name
     type

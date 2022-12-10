@@ -5,14 +5,13 @@ from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import pytz
-from asgiref.sync import sync_to_async
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.symbol import SymbolContent, SymbolDefinition, SymbolType
+from bench.models.symbol import Symbol, SymbolContent, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -65,7 +64,6 @@ class Project(TaggableMixin, UUIDModel):
     head = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
-    # branches via ProjectBranch
 
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
@@ -130,28 +128,6 @@ class Project(TaggableMixin, UUIDModel):
         ]
 
 
-class ProjectBranch(UUIDModel):
-    """
-    A branch of a project, like in Git. A branch is a pointer to a project version.
-    """
-
-    project: models.ForeignKey = models.ForeignKey(
-        "Project", on_delete=models.CASCADE, related_name="branches"
-    )
-    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
-    head: models.ForeignKey = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="branches+"
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_project_branch_project_name_ak",
-                fields=["project", "name"],
-            )
-        ]
-
-
 class ProjectVersion(TaggableMixin, UUIDModel):
     """
     A project version records the state of a project at a specific point in time.
@@ -169,16 +145,16 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     )
     libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
     main_program = models.ForeignKey(
-        "SymbolDefinition", related_name="+", null=True, on_delete=models.SET_NULL
+        "Symbol", related_name="+", null=True, on_delete=models.SET_NULL
     )
-    # files via ProjectFile
-    # definitions via SymbolDefinition
-    # compilations via Compilation
+    files: models.QuerySet["File"]  # noqa via File
+    symbols: models.QuerySet["Symbol"]  # noqa via Symbol
+    compilations: models.QuerySet["Compilation"]  # noqa via Compilation
 
     @staticmethod
     def copy_project_version(source: ProjectVersion, target: ProjectVersion):
         # TODO @Performance: copy project version on commit server-side in SQL
-        #  This is awfully sequential and slow, particularly deepcopy of symbol definitions.
+        #  This is awfully sequential and slow, particularly deepcopy of symbols.
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
@@ -194,65 +170,65 @@ class ProjectVersion(TaggableMixin, UUIDModel):
                 new_file = new_files[old_file.id]
                 new_file.parent = new_files[old_file.parent_id]
                 new_file.save()
-        # 2. copy symbol definitions and symbol contents
-        new_definitions: dict[UUID, SymbolDefinition] = {}
+        # 2. copy symbols and symbol contents
+        new_symbols: dict[UUID, Symbol] = {}
         new_contents: dict[UUID, SymbolContent] = {}
-        for definition in source.definitions.all():
-            old_content: SymbolContent = definition.content
+        for symbol in source.symbols.all():
+            old_content: SymbolContent = symbol.content
             # copy content
             old_id = old_content.id
             content = old_content
             content.pk = None
             content.save()
             new_contents[old_id] = content
-            # copy definition
-            old_id = definition.id
-            definition.pk = None
-            definition.parent = None
-            definition.set_content(content)
-            definition.file = new_files[definition.file_id]
-            definition.project_version = target
-            definition.save()
-            new_definitions[old_id] = definition
-        refs: dict[UUID, SymbolContent | SymbolDefinition] = {**new_definitions, **new_contents}
+            # copy symbol
+            old_id = symbol.id
+            symbol.pk = None
+            symbol.parent = None
+            symbol.set_content(content)
+            symbol.file = new_files[symbol.file_id]
+            symbol.project_version = target
+            symbol.save()
+            new_symbols[old_id] = symbol
+        refs: dict[UUID, SymbolContent | Symbol] = {**new_symbols, **new_contents}
         # 2.1 re-assign references and deep copy symbols
-        for old_definition in source.definitions.all():
-            new_definition = new_definitions[old_definition.id]
-            old_definition.deepcopy(to=new_definition, refs=refs)
-            new_content = new_contents[old_definition.content_id]
+        for old_symbol in source.symbols.all():
+            new_symbol = new_symbols[old_symbol.id]
+            old_symbol.deepcopy(to=new_symbol, refs=refs)
+            new_content = new_contents[old_symbol.content_id]
             # copy content
-            old_content = old_definition.content
+            old_content = old_symbol.content
             old_content.deepcopy(to=new_content, refs=refs)
             new_content.save()
-            # re-assign definition parent and content
-            if old_definition.parent_id is not None:
-                new_definition.parent = new_definitions[old_definition.parent_id]
-            new_definition.save()
+            # re-assign symbol parent and content
+            if old_symbol.parent_id is not None:
+                new_symbol.parent = new_symbols[old_symbol.parent_id]
+            new_symbol.save()
         if source.main_program:
-            target.main_program = new_definitions[source.main_program_id]
+            target.main_program = new_symbols[source.main_program_id]
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
 
-    def available_definitions(self, include_libraries: bool = True) -> QuerySet[SymbolDefinition]:
-        # get own and libraries definitions (non-recursive for now)
+    def available_symbols(self, include_libraries: bool = True) -> QuerySet[Symbol]:
+        # get own and libraries symbols (non-recursive for now)
         if include_libraries:
-            return SymbolDefinition.objects.filter(
+            return Symbol.objects.filter(
                 Q(project_version_id__in=(self.id, *self.libraries.values_list("id", flat=True)))
             )
         else:
-            return self.definitions.all()
+            return self.symbols.all()
 
     @transaction.atomic
     def create_file(
         self,
         name: str,
         parent: Optional[File] = None,
-        definitions: Optional[list[SymbolDefinition]] = None,
+        symbols: Optional[list[Symbol]] = None,
     ) -> "File":
         file = File.objects.create(project_version=self, parent=parent, name=name)
-        if definitions:
-            file.definitions.set(definitions)
+        if symbols:
+            file.symbols.set(symbols)
         return file
 
     @transaction.atomic
@@ -287,9 +263,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         name: str,
         content: SymbolContent,
         file: File,
-        parent: Optional[SymbolDefinition] = None,
+        parent: Optional[Symbol] = None,
         index: Optional[int] = None,
-    ) -> SymbolDefinition:
+    ) -> Symbol:
         """
         Define a symbol in this project version.
         A corresponding symbol is declared if it's not passed.
@@ -299,9 +275,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             if parent:
                 index = parent.children.count()
             else:
-                index = file.definitions.count()
+                index = file.symbols.count()
 
-        return SymbolDefinition.objects.create_definition(
+        return Symbol.objects.create_symbol(
             content=content,
             project_version=self,
             name=name,
@@ -310,52 +286,48 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             index=index,
         )
 
-    def get_symbol_definitions(
-        self, name: str, type: Optional[SymbolType] = None
-    ) -> QuerySet[SymbolDefinition]:
+    def get_symbols(self, name: str, type: Optional[SymbolType] = None) -> QuerySet[Symbol]:
         """
-        Gets the definitions of a symbol in this project version.
+        Gets the symbols of a symbol in this project version.
         """
         if type is not None:
-            return self.available_definitions().filter(name=name, type=type)
+            return self.available_symbols().filter(name=name, type=type)
         else:
-            return self.available_definitions().filter(name=name)
+            return self.available_symbols().filter(name=name)
 
-    def get_symbol_definition(
-        self, name: str, type: Optional[SymbolType] = None
-    ) -> Optional[SymbolDefinition]:
+    def get_symbol(self, name: str, type: Optional[SymbolType] = None) -> Optional[Symbol]:
         """
-        Gets the definition of a symbol in this project version.
+        Gets the symbol of a symbol in this project version.
 
-        Raises SymbolDefinition.MultipleObjectsReturned if there are multiple definitions.
+        Raises Symbol.MultipleObjectsReturned if there are multiple symbols.
         """
         try:
-            return self.get_symbol_definitions(name, type).get()
-        except SymbolDefinition.MultipleObjectsReturned as e:
+            return self.get_symbols(name, type).get()
+        except Symbol.MultipleObjectsReturned as e:
             type_name_declr = f"{type} {name}" if type else name
-            raise SymbolDefinition.MultipleObjectsReturned(
-                f"multiple definitions for symbol {type_name_declr} in {self}"
+            raise Symbol.MultipleObjectsReturned(
+                f"multiple symbols for symbol {type_name_declr} in {self}"
             ) from e
-        except SymbolDefinition.DoesNotExist:
+        except Symbol.DoesNotExist:
             return None
 
-    def symbol_definition(self, name: str, type: Optional[SymbolType] = None) -> SymbolDefinition:
+    def symbol(self, name: str, type: Optional[SymbolType] = None) -> Symbol:
         """
-        Gets the definition of a symbol in this project version.
-        If the definition doesn't exist, we error.
+        Gets the symbol of a symbol in this project version.
+        If the symbol doesn't exist, we error.
         """
-        definition = self.get_symbol_definition(name, type)
-        if definition is None:
+        symbol = self.get_symbol(name, type)
+        if symbol is None:
             available_symbols_str = self._get_available_symbols_debug_str()
             raise ValueError(
                 f"symbol {name}{'.' + type if type else ''} is not defined in {self}:\n{available_symbols_str}"
             )
         else:
-            return definition
+            return symbol
 
     def _get_available_symbols_debug_str(self, limit: int = 50) -> str:
-        available_symbols_count = self.available_definitions().count()
-        available_symbols_strs = (str(d) for d in self.available_definitions()[:limit])
+        available_symbols_count = self.available_symbols().count()
+        available_symbols_strs = (str(d) for d in self.available_symbols()[:limit])
         available_symbols_str = (
             f"({min(limit, available_symbols_count)} of {available_symbols_count}"
             f" available symbols: {', '.join(available_symbols_strs)})"
@@ -363,8 +335,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return available_symbols_str
 
     def reset(self):
-        # deletes all files and definitions (cascades to contents)
-        self.definitions.all().delete()
+        # deletes all files and symbols (cascades to contents)
+        self.symbols.all().delete()
         self.files.all().delete()
 
     @transaction.atomic
@@ -405,8 +377,8 @@ class File(UUIDModel):
     is_folder = models.BooleanField(default=False)
     parent = models.ForeignKey("File", on_delete=models.CASCADE, null=True, related_name="files")
 
-    # files via File (if in a folder)
-    # definitions via SymbolDefinition
+    files: models.QuerySet["File"]  # noqa via File.parent (if is_folder)
+    symbols: models.QuerySet["Symbol"]  # noqa via Symbol.file
 
     def __str__(self):
         if self.parent:
@@ -422,17 +394,17 @@ class File(UUIDModel):
     def is_root(self) -> bool:
         return self.parent is None
 
-    def add_definition(self, definition: SymbolDefinition):
-        definition.file = self
-        if definition.parent is None:
-            definition.index = self.definitions.count()
-        definition.save()
+    def add_symbol(self, symbol: Symbol):
+        symbol.file = self
+        if symbol.parent is None:
+            symbol.index = self.symbols.count()
+        symbol.save()
 
-    def create_definition(
-        self, name: str, content: SymbolContent, parent: Optional[SymbolDefinition] = None, **kwargs
-    ) -> SymbolDefinition:
-        index = self.definitions.count() if parent is None else parent.children.count()
-        definition = SymbolDefinition.objects.create_definition(
+    def create_symbol(
+        self, name: str, content: SymbolContent, parent: Optional[Symbol] = None, **kwargs
+    ) -> Symbol:
+        index = self.symbols.count() if parent is None else parent.children.count()
+        symbol = Symbol.objects.create_symbol(
             name=name,
             content=content,
             project_version=self.project_version,
@@ -441,15 +413,7 @@ class File(UUIDModel):
             index=index,
             **kwargs,
         )
-        return definition
-
-    async def acreate_definition(
-        self,
-        name: str,
-        content: SymbolContent,
-        parent: Optional[SymbolDefinition] = None,
-    ) -> SymbolDefinition:
-        return await sync_to_async(self.create_definition)(name, content, parent)
+        return symbol
 
     class Meta:
         ordering = ["name"]

@@ -23,7 +23,7 @@ from bench.models import (
     Organization,
     Project,
     ProjectVersion,
-    SymbolDefinition,
+    Symbol,
     SymbolParameterType,
     SymbolType,
 )
@@ -49,7 +49,7 @@ def get_stdlib_model(path: str) -> Model:
     owner_slug, model_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol_definition(model_name, SymbolType.MODEL).model_
+    return stdlib.head_.symbol(model_name, SymbolType.MODEL).model_
 
 
 def get_stdlib_code(path: str) -> Code:
@@ -59,7 +59,7 @@ def get_stdlib_code(path: str) -> Code:
     owner_slug, code_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol_definition(code_name, SymbolType.CODE).code_
+    return stdlib.head_.symbol(code_name, SymbolType.CODE).code_
 
 
 class ExpectationStatementType(enum.Enum):
@@ -75,11 +75,11 @@ class ExpectationStatementType(enum.Enum):
 @dataclass
 class StatementData:
     expectation: Expectation
-    definition: SymbolDefinition
+    symbol: Symbol
 
     @property
     def symbol_type(self):
-        return self.definition.type
+        return self.symbol.type
 
     @property
     def description(self):
@@ -89,13 +89,13 @@ class StatementData:
     def dataset(self) -> Dataset:
         if self.symbol_type != SymbolType.DATASET:
             raise ValueError(f"expectation statement is not a dataset: {self}")
-        return cast(Dataset, self.definition.content)
+        return cast(Dataset, self.symbol.content)
 
     @property
     def code(self) -> Code:
         if self.symbol_type != SymbolType.CODE:
             raise ValueError(f"expectation statement is not an code: {self}")
-        return cast(Code, self.definition.code)
+        return cast(Code, self.symbol.code)
 
     @cached_property
     def type(self) -> ExpectationStatementType:
@@ -128,8 +128,8 @@ class TaskData:
     task: Task
 
     @property
-    def definition(self) -> SymbolDefinition:
-        return self.task.definition
+    def symbol(self) -> Symbol:
+        return self.task.symbol
 
     def __str__(self):
         return f"TaskData({self.task})"
@@ -197,7 +197,7 @@ class TaskData:
             for statement_def in expectation.statements.all().select_related(
                 *SYMBOL_CONTENT_FIELDS
             ):
-                statement_data = StatementData(expectation=expectation, definition=statement_def)
+                statement_data = StatementData(expectation=expectation, symbol=statement_def)
                 statements[expectation.id].append(statement_data)
             expectations.append(expectation)
         examples = cls._collect_examples(chain(*statements.values()))
@@ -213,7 +213,7 @@ class TaskData:
             children={},
             task=task,
         )
-        for child in task.definition.children.all().select_related("task"):
+        for child in task.symbol.children.all().select_related("task"):
             if child.task is None:
                 continue
             self.children[child.id] = cls._from_task_rec(child.task, parent=self)
@@ -223,7 +223,7 @@ class TaskData:
     @classmethod
     def from_task(cls, task: Task) -> TaskData:
         """
-        Collects all the information needed to compile a task into a definition.
+        Collects all the information needed to compile a task into a symbol.
 
         As tasks can be nested, this method is recursive.
         """
@@ -232,7 +232,7 @@ class TaskData:
 
 class Compiler:
     """
-    Transforms and optimizes a task definition into a set of executable code (incl. arguments).
+    Transforms and optimizes a task symbol into a set of executable code (incl. arguments).
     """
 
     def __init__(self, executor: Executor):
@@ -275,7 +275,7 @@ class Compiler:
         3. Build parallel code tree (map tasks to code)
            Respect code templates where defined.
            - Replace task references with compiled code
-           - Build model code from task definitions without templates
+           - Build model code from task symbols without templates
            - Use default code for parent tasks
            - Copy code if explicitly defined (and requested)
         4. Optimize code tree for backends and options
@@ -309,7 +309,7 @@ class Compiler:
         self, project_v: ProjectVersion, compilation: Compilation, task_data: TaskData
     ) -> Code:
         """
-        Generates target code from a task definition.
+        Generates target code from a task symbol.
 
         Basic model code compilation:
         (ignoring subtasks and source code)
@@ -404,22 +404,22 @@ class Compiler:
         return compiled_examples
 
     def _get_clean_genfile(self, project_v: ProjectVersion, compilation: Compilation) -> File:
-        source_path = compilation.task.definition.file.path
+        source_path = compilation.task.symbol.file.path
         file = project_v.create_file_from_path(
             source_path + "." + compilation.name + ".gen", exists_ok=True
         )
-        file.definitions.all().delete()
+        file.symbols.all().delete()
         return file
 
     def _gen_llm_examples(
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
         dataset = Dataset.objects.from_list(compiled_examples, schema="derive")
-        genfile.create_definition("examples", dataset, generated=True)
+        genfile.create_symbol("examples", dataset, generated=True)
         task_schema_keys = {*task_data.input_schema.keys, *task_data.output_schema.keys}
         if set(dataset.schema.keys) != task_schema_keys:
             raise ValueError(
-                f"{task_data.definition} compiled examples {dataset.schema.keys} do not match "
+                f"{task_data.symbol} compiled examples {dataset.schema.keys} do not match "
                 f"input/output keys {task_data.input_schema.keys, task_data.output_schema.keys}"
             )
         return dataset
@@ -449,7 +449,7 @@ class Compiler:
         )
 
         if task_data.optimal_backend is None:
-            raise ValueError(f"task {task_data.definition} has no optimal backend set")
+            raise ValueError(f"task {task_data.symbol} has no optimal backend set")
         settings = task_data.optimal_backend.default_settings
         settings.pk = None
         settings.temperature = temperature
@@ -478,23 +478,23 @@ class Compiler:
             main_output_key = tuple(task_data.output_schema.keys)[0]
             prompt_input = prompt_input + f"{main_output_key}: "
 
-        llm_code = Code(
-            task=task_data.task,
+        llm_code = Code.objects.create(
             input_schema=task_data.input_schema,
             output_schema=task_data.output_schema,
             builtin_id="llm_fewshot",
         )
-        genfile.create_definition(task_data.definition.name, llm_code, generated=True)
-        llm_code.bind_arguments(
-            model=task_data.optimal_backend.definition,
+        llm_code.tasks.add(task_data.task)
+        genfile.create_symbol(task_data.symbol.name, llm_code, generated=True)
+        llm_code.symbol.bind_arguments(
+            model=task_data.optimal_backend.symbol,
             prompt_prefix=prompt_prefix,
             prompt_example=prompt_example,
             prompt_input=prompt_input,
             return_structured=True,
-            examples=task_examples.definition,
+            examples=task_examples.symbol,
             settings=settings.as_dict(omit_empty=True),
         )
         # add parameter for input keys
         for key in task_data.input_schema.keys:
-            llm_code.add_parameter(key, SymbolParameterType.VALUE)
+            llm_code.symbol.add_parameter(key, SymbolParameterType.VALUE)
         return llm_code

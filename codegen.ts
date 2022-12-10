@@ -15,7 +15,7 @@ const config: CodegenConfig = {
       },
       plugins: [],
     },
-    // below: alternative config if we want to put operations near their definitions
+    // below: alternative config if we want to put operations near their symbols
     // "frontend/src/gql/types.ts": {
     //   config: {
     //     useTypeImports: true,

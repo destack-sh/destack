@@ -17,7 +17,7 @@ const CodeContentRunType = graphql(/* GraphQL */ `
     outputSchema {
       ...SchemaElementContentDeep
     }
-    definition {
+    symbol {
       parameters {
         name
         type
@@ -69,8 +69,8 @@ const content = computed(() => {
 });
 const inputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.inputSchema));
 const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.outputSchema));
-const parameters = computed(() => content.value?.definition?.parameters ?? []);
-const arguments_ = computed(() => content.value?.definition?.arguments ?? []);
+const parameters = computed(() => content.value?.symbol?.parameters ?? []);
+const arguments_ = computed(() => content.value?.symbol?.arguments ?? []);
 
 function getArgument(name: string) {
   return arguments_.value?.find((a) => a.name === name);
@@ -106,7 +106,7 @@ const ExecutionHeaderType = graphql(/* GraphQL */ `
     durationMillis
     code {
       id
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -114,7 +114,7 @@ const ExecutionHeaderType = graphql(/* GraphQL */ `
     }
     model {
       id
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -246,15 +246,15 @@ async function runCode() {
       <!-- Trace content -->
       <div class="rounded-sm border bg-white py-2 px-2" v-if="content">
         <div class="m-2 flex flex-col gap-2 text-sm text-gray-900">
-          {{ lastRun?.execution.code.typeNameDeclaration }}
+          {{ lastRun?.execution.code.symbol.typeNameDeclaration }}
           {{ lastRun?.execution.status }} in {{ lastRun?.execution.durationMillis }}ms
           <div v-for="child in lastRun?.execution.children" :key="child.id" class="ml-3">
-            <span v-if="child.model">{{ child.model.typeNameDeclaration }}</span>
-            <span v-else>{{ child.code.typeNameDeclaration }}</span>
+            <span v-if="child.model">{{ child.model.symbol.typeNameDeclaration }}</span>
+            <span v-else>{{ child.code.symbol.typeNameDeclaration }}</span>
             {{ child.status }} in {{ child.durationMillis }}ms
             <div v-for="grandchild in child.children" :key="grandchild.id" class="ml-3">
-              <span v-if="grandchild.model">{{ grandchild.model.typeNameDeclaration }}</span>
-              <span v-else>{{ grandchild.code.typeNameDeclaration }}</span>
+              <span v-if="grandchild.model">{{ grandchild.model.symbol.typeNameDeclaration }}</span>
+              <span v-else>{{ grandchild.code.symbol.typeNameDeclaration }}</span>
               {{ grandchild.status }} in {{ grandchild.durationMillis }}ms
             </div>
           </div>

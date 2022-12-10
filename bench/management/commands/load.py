@@ -23,8 +23,8 @@ from bench.models import (
     Organization,
     Project,
     ProjectVersion,
+    Symbol,
     SymbolContent,
-    SymbolDefinition,
     SymbolParameterType,
     SymbolType,
     Task,
@@ -106,7 +106,7 @@ class Command(BaseCommand):
         load_symbols(project_v, path)
         if main:
             # (we likely won't have a single "main" going forward)
-            project_v.main_program = project_v.symbol_definition(main, SymbolType.TASK)
+            project_v.main_program = project_v.symbol(main, SymbolType.TASK)
             project_v.save()
             logger.info(f"Set {project_v.main_program} as main program in {project_v}")
 
@@ -118,7 +118,7 @@ class Command(BaseCommand):
 
 
 def load_symbols(project_v: ProjectVersion, path: str):
-    """Loads symbol definitions from a file into a project version"""
+    """Loads symbols from a file into a project version"""
 
     # read task file lines
     with open(path, "r") as f:
@@ -133,24 +133,24 @@ def load_symbols(project_v: ProjectVersion, path: str):
         project_v.libraries.add(library_v)
         logger.info(f"Import library {library_v}")
     executor = Executor(Resolver())
-    # convert segments to a single task definition tree
+    # convert segments to a single task symbol tree
     for segment in segments:
         if segment.header.startswith("ignore"):
             continue
 
-        definitions = async_to_sync(executor.run_text)(segment.full_code, {})
+        symbols = async_to_sync(executor.run_text)(segment.full_code, {})
 
-        def _get_definition(name: str | None = None, required: bool = True):
+        def _get_symbol(name: str | None = None, required: bool = True):
             if name is None:
-                return definitions
-            elif name not in definitions:
+                return symbols
+            elif name not in symbols:
                 if not required:
                     return None
                 else:
                     raise LookupError(
-                        f"definition '{name}' not found in segment '{segment.header}':\n{segment.full_code}"
+                        f"symbol '{name}' not found in segment '{segment.header}':\n{segment.full_code}"
                     )
-            return definitions[name]
+            return symbols[name]
 
         segment_parsers: dict[str, typing.Callable] = {
             SymbolType.TASK: parse_task,
@@ -162,9 +162,9 @@ def load_symbols(project_v: ProjectVersion, path: str):
         if segment_parser is None:
             raise ValueError(f"unexpected segment type: {segment.symbol_type}")
 
-        # create symbol, content and corresponding definition
-        # create symbol first so segment parser can use 'self' during definition
-        result = segment_parser(project_v=project_v, segment=segment, lookup_def=_get_definition)
+        # create symbol, content and corresponding symbol
+        # create symbol first so segment parser can use 'self' during symbol
+        result = segment_parser(project_v=project_v, segment=segment, lookup_def=_get_symbol)
         if isinstance(result, tuple):
             symbol_content, on_defined = result
         else:
@@ -172,12 +172,12 @@ def load_symbols(project_v: ProjectVersion, path: str):
             on_defined = None
 
         file = project_v.create_file_from_path(segment.virtual_path, exists_ok=True)
-        symbol_def = project_v.define_symbol(segment.symbol_name, content=symbol_content, file=file)
+        symbol = project_v.define_symbol(segment.symbol_name, content=symbol_content, file=file)
 
         if on_defined:
-            on_defined(symbol_def)
+            on_defined(symbol)
 
-        logger.info(f"Define {symbol_def} in {symbol_def.file}")
+        logger.info(f"Define {symbol} in {symbol.file}")
 
 
 def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[FileSegment]]:
@@ -225,17 +225,17 @@ def parse_task(
     project_v: ProjectVersion,
     segment: FileSegment,
     lookup_def: typing.Callable,
-) -> tuple[SymbolContent, typing.Callable[[SymbolDefinition], None]]:
+) -> tuple[SymbolContent, typing.Callable[[Symbol], None]]:
     input_schema = SchemaObjectSerializer.from_json("input", lookup_def("input_schema"))
     output_schema = SchemaObjectSerializer.from_json("output", lookup_def("output_schema"))
     task = Task.objects.create(input_schema=input_schema, output_schema=output_schema)
 
-    def on_defined(symbol_def: SymbolDefinition):
+    def on_defined(symbol: Symbol):
         if "parent" in segment.symbol_args:
             parent_name = segment.symbol_args["parent"]
-            parent = project_v.symbol_definition(parent_name, SymbolType.TASK)
-            symbol_def.parent = parent
-            symbol_def.index = parent.children.count()
+            parent = project_v.symbol(parent_name, SymbolType.TASK)
+            symbol.parent = parent
+            symbol.index = parent.children.count()
 
     return task, on_defined
 
@@ -257,12 +257,15 @@ def parse_code(
     )
     if "task" in segment.symbol_args:
         task_name = segment.symbol_args["task"]
-        task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
+        task = project_v.symbol(task_name, SymbolType.TASK).task_
         code.tasks.add(task)
         task.template_implementation = code
 
-    def on_defined(symbol_def: SymbolDefinition):
-        consumed_lines = bind_code_parameters(segment, project_v, code)
+    def on_defined(symbol: Symbol):
+        # parameters can also be defined in the schema extracted from the function signature
+        for param in code.input_schema.elements:
+            symbol.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
+        consumed_lines = bind_parameters(segment, project_v, symbol)
         if consumed_lines:
             # remove consumed lines from segment
             segment.lines = segment.lines[consumed_lines:]
@@ -307,7 +310,7 @@ def parse_expect(
         statement_name, statement_type_name = statement_path.split(".")
         statement_type = SymbolType(statement_type_name)
 
-        statement_def = project_v.symbol_definition(statement_name, statement_type)
+        statement_def = project_v.symbol(statement_name, statement_type)
         if statement_def.type in (
             SymbolType.CODE,
             SymbolType.DATASET,
@@ -320,18 +323,18 @@ def parse_expect(
             )
     if "task" in segment.symbol_args:
         task_name = segment.symbol_args["task"]
-        task = project_v.symbol_definition(task_name, SymbolType.TASK).task_
+        task = project_v.symbol(task_name, SymbolType.TASK).task_
         task.expectations.add(expectation)
 
     return expectation
 
 
-def bind_code_parameters(
+def bind_parameters(
     segment: FileSegment,
     project_v: ProjectVersion,
-    code: Code,
+    symbol: Symbol,
 ) -> int:
-    # parameters are defined as type only definition lines like:
+    # parameters are defined as type only symbol lines like:
     # name: Task|Code|Model|Dataset|DatasetView
     # name: <type>
     # Parameters are bound to their name or an @alias.
@@ -362,7 +365,7 @@ def bind_code_parameters(
         else:
             param_schema = SchemaElement(name=param_name, type=get_value_type(param_type))
             param_type = SymbolParameterType.VALUE
-        code.definition.add_parameter(name=param_name, type=param_type, schema=param_schema)
+        symbol.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
         # use alias if set
         if "@alias" in comment:
@@ -372,9 +375,6 @@ def bind_code_parameters(
 
         if param_type == SymbolParameterType.VALUE:
             raise NotImplementedError(f"json argument resolution not supported: {line}")
-        symbol_def = project_v.symbol_definition(symbol_ref_name)
-        code.definition.bind_argument(param_name, symbol_def)
-    # parameters can also be defined in the schema extracted from the function signature
-    for param in code.input_schema.elements:
-        code.definition.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
+        symbol_ref = project_v.symbol(symbol_ref_name)
+        symbol.bind_argument(param_name, symbol_ref)
     return consumed_lines

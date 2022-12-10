@@ -4,9 +4,9 @@ from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .symbol import (
+    Symbol,
     SymbolArgument,
     SymbolContent,
-    SymbolDefinition,
     SymbolParameter,
     SymbolParameterType,
     SymbolType,
@@ -32,7 +32,7 @@ __all__ = [
     "File",
     "SymbolType",
     "SymbolContent",
-    "SymbolDefinition",
+    "Symbol",
     "SymbolArgument",
     "SymbolParameter",
     "SymbolParameterType",

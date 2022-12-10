@@ -6,7 +6,7 @@ from uuid import UUID
 from django.db import models, transaction
 
 from bench.models.schema import SchemaElementField, SchemaField
-from bench.models.symbol import SymbolContent, SymbolContentManager, SymbolDefinition, replace_refs
+from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager, replace_refs
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
@@ -32,21 +32,21 @@ class Task(SymbolContent):
         "Code", on_delete=models.CASCADE, null=True, blank=True, related_name="templates"
     )
 
-    # compilations via Compilation
+    compilations: models.QuerySet["Compilation"]  # noqa via Compilation.task
 
-    def deepcopy(self, to: SymbolContent, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: SymbolContent, refs: dict[UUID, Symbol | SymbolContent]):
         super().deepcopy(to, refs)
         # deep copy compilations
         for compilation in self.compilations.all():
             compilation.pk = None
-            compilation.project_version = to.definition.project_version
+            compilation.project_version = to.symbol.project_version
             compilation.deepcopy(to=compilation, refs=refs)
             compilation.save()
 
     @transaction.atomic
     def add_compilation(self, name: str, backends: list[Model]) -> Compilation:
         compilation = Compilation.objects.create(
-            project_version=self.definition.project_version,
+            project_version=self.symbol.project_version,
             task=self,
             name=name,
         )
@@ -54,7 +54,7 @@ class Task(SymbolContent):
         return compilation
 
     def __str__(self):
-        return f"{self.definition_str}({self.input_schema}->{self.output_schema})"
+        return f"{self.symbol_str}({self.input_schema}->{self.output_schema})"
 
     objects = TaskManager()
 
@@ -75,15 +75,15 @@ class Compilation(UUIDModel):
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     backends = models.ManyToManyField("Model", related_name="compilations+")
     target_task = models.ForeignKey(
-        "Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="compilations+"
+        "Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="source_compilation+"
     )
     target_code = models.ForeignKey(
         "Code", on_delete=models.SET_NULL, null=True, blank=True, related_name="source_compilation+"
     )
 
-    # mappings via SourceMapping
+    mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
 
-    def deepcopy(self, to: Compilation, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Compilation, refs: dict[UUID, Symbol | SymbolContent]):
         replace_refs(self, to, refs, include_many_to_many=False)
         to.save()
         replace_refs(self, to, refs, include_one_to_many=False)
@@ -113,13 +113,9 @@ class SourceMapping(UUIDModel):
     compilation = models.ForeignKey(
         "Compilation", on_delete=models.CASCADE, related_name="mappings"
     )
-    source = models.ForeignKey(
-        "SymbolDefinition", on_delete=models.CASCADE, related_name="target_mappings"
-    )
+    source = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="target_mappings")
     source_path = models.JSONField()
-    target = models.ForeignKey(
-        "SymbolDefinition", on_delete=models.CASCADE, related_name="source_mappings"
-    )
+    target = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="source_mappings")
     target_path = models.JSONField()
 
 
@@ -133,15 +129,13 @@ class Expectation(SymbolContent):
     """
 
     description = models.TextField()
-    statements = models.ManyToManyField(
-        "SymbolDefinition", related_name="references_in_expectations+"
-    )
+    statements = models.ManyToManyField("Symbol", related_name="references_in_expectations+")
 
-    def deepcopy(self, to: Expectation, refs: dict[UUID, SymbolDefinition | SymbolContent]):
+    def deepcopy(self, to: Expectation, refs: dict[UUID, Symbol | SymbolContent]):
         super().deepcopy(to, refs)
         # nothing custom to do yet (statements are just symbols for now)
 
     def __str__(self):
-        return f"{self.definition_str}(description={self.description})"
+        return f"{self.symbol_str}(description={self.description})"
 
     objects = ExpectationManager()

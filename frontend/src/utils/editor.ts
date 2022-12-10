@@ -1,4 +1,4 @@
-import type { File, Project, ProjectVersion, SymbolDefinition } from "@/gql/graphql";
+import type { File, Project, ProjectVersion, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
@@ -7,14 +7,14 @@ export type ProjectVersionHeader = Pick<
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
 export type FileHeader = Pick<File, "id" | "name" | "path" | "createdAt" | "updatedAt">;
-export type SymbolDefinitionHeader = Pick<SymbolDefinition, "id" | "name" | "type" | "createdAt" | "updatedAt">;
+export type SymbolHeader = Pick<Symbol, "id" | "name" | "type" | "createdAt" | "updatedAt">;
 
 export type RunConfiguration = {
   name: string;
-  symbol: SymbolDefinitionHeader;
+  symbol: SymbolHeader;
 };
 
-export function makeRunConfiguration(file: FileHeader, symbol: SymbolDefinitionHeader): RunConfiguration {
+export function makeRunConfiguration(file: FileHeader, symbol: SymbolHeader): RunConfiguration {
   return {
     name: `Run: ${file.path}.${symbol.name}`,
     symbol: symbol,
@@ -35,7 +35,7 @@ export type FileEditor = Editor & {
 
 export type SymbolEditor = Editor & {
   type: "symbol";
-  symbol: SymbolDefinitionHeader;
+  symbol: SymbolHeader;
 };
 
 export type RunEditor = Editor & {
@@ -70,7 +70,7 @@ export function makeFileEditor(file: FileHeader): FileEditor {
   } as FileEditor;
 }
 
-export function makeSymbolEditor(symbol: SymbolDefinitionHeader): SymbolEditor {
+export function makeSymbolEditor(symbol: SymbolHeader): SymbolEditor {
   return {
     // append random string to enable multiple editors for the same symbol
     id: symbol.id + "-" + Math.random().toString(36),
@@ -100,7 +100,7 @@ export const useEditorState = defineStore("editor", {
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
-      focusedDefinition: null as SymbolDefinitionHeader | null,
+      focusedDefinition: null as SymbolHeader | null,
       readonly: false,
     };
   },
@@ -194,10 +194,10 @@ export const useEditorState = defineStore("editor", {
       return editor;
     },
 
-    focusDefinition(file: FileHeader, definition: SymbolDefinitionHeader, group?: EditorGroup) {
-      // TODO @Feature: auto-focus the file that contains the definition
+    focusDefinition(file: FileHeader, symbol: SymbolHeader, group?: EditorGroup) {
+      // TODO @Feature: auto-focus the file that contains the symbol
       this.focusFile(file, group);
-      this.focusedDefinition = definition;
+      this.focusedDefinition = symbol;
     },
   },
 });

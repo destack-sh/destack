@@ -17,7 +17,7 @@ const TaskContent = graphql(/* GraphQL */ `
     expectations {
       id
       description
-      definition {
+      symbol {
         id
         name
         typeNameDeclaration
@@ -70,7 +70,7 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
     <!-- Expectations -->
     <ul class="m-2 flex flex-col gap-2">
       <li class="relative flex flex-col" v-for="(expectation, index) in content.expectations" :key="expectation.id">
-        <span class="tracking-wide text-gray-500">{{ expectation.definition.typeNameDeclaration }}</span>
+        <span class="tracking-wide text-gray-500">{{ expectation.symbol.typeNameDeclaration }}</span>
         <span>{{ expectation.description }}</span>
         <!-- Imitate Monaco line numbers -->
         <span
