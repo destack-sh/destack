@@ -47,7 +47,6 @@ async function init() {
   // capture ctrl + s
   Mousetrap.bind(["ctrl+s", "meta+s"], function () {
     // ignore for now
-    console.log("save (doesn't do anything)");
     return false;
   });
 }

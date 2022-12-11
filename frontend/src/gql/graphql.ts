@@ -47,6 +47,19 @@ export type CodeTaskArgs = {
   pk?: InputMaybe<Scalars["ID"]>;
 };
 
+export type CommitInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  name: Scalars["String"];
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type CommitPayload = {
+  __typename?: "CommitPayload";
+  committedVersion: ProjectVersion;
+  newWorkingVersion: ProjectVersion;
+  project: Project;
+};
+
 export type Compilation = Node & {
   __typename?: "Compilation";
   backends: Array<Model>;
@@ -145,7 +158,7 @@ export type FileCreateInput = {
   isFolder?: InputMaybe<Scalars["Boolean"]>;
   name: Scalars["String"];
   parent?: InputMaybe<NodeInput>;
-  projectVersion: NodeInput;
+  projectVersionId: NodeInput;
 };
 
 export type FileRenameInput = {
@@ -165,6 +178,7 @@ export type Model = Node &
 export type Mutation = {
   __typename?: "Mutation";
   addCompilationTarget: AddCompilationPayload;
+  commit: CommitPayload;
   compile: CompilePayload;
   createFile: CreateFilePayload;
   createSymbol: CreateSymbolPayload;
@@ -175,6 +189,10 @@ export type Mutation = {
 
 export type MutationAddCompilationTargetArgs = {
   input: AddCompilationInput;
+};
+
+export type MutationCommitArgs = {
+  input: CommitInput;
 };
 
 export type MutationCompileArgs = {
@@ -893,6 +911,26 @@ export type RenameSymbolMutation = {
   renameSymbol:
     | { __typename?: "OperationInfo" }
     | { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
+};
+
+export type CommitMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  name: Scalars["String"];
+  description?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type CommitMutation = {
+  __typename?: "Mutation";
+  commit: {
+    __typename?: "CommitPayload";
+    project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
+    committedVersion: { __typename?: "ProjectVersion" } & {
+      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+    };
+    newWorkingVersion: { __typename?: "ProjectVersion" } & {
+      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+    };
+  };
 };
 
 export type ProjectVersionHeaderFragment = {
@@ -2291,3 +2329,96 @@ export const RenameSymbolDocument = {
     },
   ],
 } as unknown as DocumentNode<RenameSymbolMutation, RenameSymbolMutationVariables>;
+export const CommitDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "commit" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "commit" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "project" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "committedVersion" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "newWorkingVersion" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectHeaderFragmentDoc.definitions,
+    ...ProjectVersionHeaderFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CommitMutation, CommitMutationVariables>;

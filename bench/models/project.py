@@ -86,6 +86,7 @@ class Project(TaggableMixin, UUIDModel):
         parent: Optional[ProjectVersion] = None,
         auto_commit: bool = True,
         commit_name: Optional[str] = None,
+        commit_description: Optional[str] = None,
     ) -> "ProjectVersion":
         if parent is None:
             if self.head is None:
@@ -97,7 +98,7 @@ class Project(TaggableMixin, UUIDModel):
 
         if not assigned_parent.committed:
             if auto_commit:
-                assigned_parent.commit(commit_name)
+                assigned_parent.commit(commit_name, commit_description)
             else:
                 raise ValueError(f"parent version must be committed: {assigned_parent}")
 
