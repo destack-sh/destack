@@ -7,7 +7,7 @@ from bench.api import types
 
 @gql.django.input(models.File)
 class FileCreateInput:
-    project_version: auto
+    project_version_id: auto
     name: auto
     is_folder: auto
     parent: auto

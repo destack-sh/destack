@@ -1,13 +1,18 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
+import { useActions } from "@/utils/actions";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
-import { BookmarkIcon } from "@heroicons/vue/24/outline";
+import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed } from "vue";
+import { computed, type Component } from "vue";
 
-const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
+const props = defineProps<{
+  project: FragmentType<typeof ProjectHeaderType>;
+  currentVersion: FragmentType<typeof ProjectVersionHeaderType>;
+}>();
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
+const currentVersion = computed(() => useFragment(ProjectVersionHeaderType, props.currentVersion));
 const { getTimeFromNowString } = useTimeFromNow();
 
 const { result: versionsQuery, loading } = useQuery(
@@ -29,12 +34,43 @@ const versions = computed(
   () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
 );
 const commits = computed(() => versions.value.filter((x) => x.committed));
+
+type Action = {
+  icon: Component;
+  label: string;
+  action: (symbol: Symbol) => void;
+};
+
+const actions = useActions();
+const globalActions: Action[] = [
+  {
+    icon: PlusIcon,
+    label: "Commit",
+    action: async () => {
+      console.log("commit version" + currentVersion.value.id);
+      // TODO @Feature: dialog to add commit message
+      await actions.version.commit(currentVersion.value.id, "test");
+    },
+  },
+];
 </script>
 <template>
   <div>
     <!-- View header -->
-    <div class="flex flex-row justify-between border-b border-gray-200 px-3 py-4">
-      <span class="text-xs font-bold uppercase">Version History</span>
+    <div class="flex flex-row items-center justify-between border-b border-gray-200 px-3 py-4">
+      <span class="text-xs font-bold uppercase">History</span>
+      <!-- Version controls -->
+      <span class="inline-flex flex-row gap-1">
+        <button
+          v-for="action in globalActions"
+          :key="action.label"
+          class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
+          @click.prevent="action.action"
+        >
+          <component :is="action.icon" class="h-4 w-4" />
+          <span class="pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
+        </button>
+      </span>
     </div>
     <!-- View contents -->
     <div class="flex flex-1 flex-col" v-if="!loading">

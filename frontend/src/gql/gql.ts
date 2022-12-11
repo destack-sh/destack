@@ -37,6 +37,8 @@ const documents = {
     types.RenameFileDocument,
   "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    ":
     types.RenameSymbolDocument,
+  "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
+    types.CommitDocument,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n":
@@ -102,6 +104,9 @@ export function graphql(
 export function graphql(
   source: "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n  }\n"];

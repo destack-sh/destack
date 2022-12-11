@@ -15,6 +15,7 @@ from bench import models
 from bench.api import types
 from bench.api.file import FileMutation
 from bench.api.symbol import SymbolMutation
+from bench.api.version import ProjectVersionMutation
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.backend.tracing import ExecutionTrace
@@ -89,7 +90,7 @@ class RunCodePayload:
 
 
 @strawberry.type
-class Mutation(SymbolMutation, FileMutation):
+class Mutation(SymbolMutation, FileMutation, ProjectVersionMutation):
     @strawberry.mutation
     def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:
         task = models.Symbol.objects.get(id=input.task_symbol_id.node_id).task_

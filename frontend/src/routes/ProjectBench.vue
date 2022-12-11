@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import DummyBlock from "@/components/DummyBlock.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { useActions } from "@/utils/actions";
-import { getEditorPath, useEditorState } from "@/utils/editor";
+import { useEditorState } from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
@@ -18,8 +17,8 @@ import {
   QuestionMarkCircleIcon,
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
-import { useMutation, useQuery } from "@vue/apollo-composable";
-import Mousetrap from "mousetrap";
+import { useQuery } from "@vue/apollo-composable";
+import { useMagicKeys, whenever } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -189,18 +188,17 @@ watch(
 );
 
 // shortcuts
-// TODO @Cleanup: unbind shortcuts on unmount
+const keys = useMagicKeys();
 // TODO @Cleanup: centralize shortcuts (and make configurable)
-//  (maybe use VueUse's useMagicKeys instead of Mousetrap)
 // move editor to next group
-Mousetrap.bind("ctrl+shift+right", () => {
+whenever(keys["ctrl+shift+right"], () => {
   if (state.focusedEditor) {
     console.log("move focused editor to next group");
     state.moveEditor(state.focusedEditor, state.right);
   }
 });
 // move editor to previous group
-Mousetrap.bind("ctrl+shift+left", () => {
+whenever(keys["ctrl+shift+left"], () => {
   if (state.focusedEditor) {
     console.log("move focused editor to previous group");
     state.moveEditor(state.focusedEditor, state.left);
@@ -208,10 +206,10 @@ Mousetrap.bind("ctrl+shift+left", () => {
 });
 const operations = useOperationsStore();
 // undo & redo
-Mousetrap.bind("ctrl+z", () => {
+whenever(keys["ctrl+z"], () => {
   operations.undo();
 });
-Mousetrap.bind("ctrl+shift+z", () => {
+whenever(keys["ctrl+shift+z"], () => {
   operations.redo();
 });
 </script>
@@ -408,7 +406,11 @@ Mousetrap.bind("ctrl+shift+z", () => {
         </div>
         <div class="flex flex-1 flex-col">
           <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
-          <ViewVersionHistory v-else-if="activeView.id == 'version-history'" :project="projectHeader" />
+          <ViewVersionHistory
+            v-else-if="activeView.id == 'version-history'"
+            :project="projectHeader"
+            :current-version="projectHead"
+          />
         </div>
       </aside>
       <!-- Main editor area -->

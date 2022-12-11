@@ -24,7 +24,7 @@ watch(
 const focused = computed(() => editorState.focusedEditor?.group?.id == props.group.id);
 </script>
 <template>
-  <!-- Tabbed editors for that group -->
+  <!-- Tabbed editors for this group -->
   <div class="flex flex-col">
     <TabGroup :selected-index="selectedTab">
       <!-- Tabs -->

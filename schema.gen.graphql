@@ -18,6 +18,18 @@ type Code implements SymbolContent & Node {
   code: String
 }
 
+input CommitInput {
+  projectVersionId: GlobalID!
+  name: String!
+  description: String = null
+}
+
+type CommitPayload {
+  project: Project!
+  committedVersion: ProjectVersion!
+  newWorkingVersion: ProjectVersion!
+}
+
 type Compilation implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -107,7 +119,7 @@ type File implements Node {
 }
 
 input FileCreateInput {
-  projectVersion: NodeInput!
+  projectVersionId: NodeInput!
   name: String!
   isFolder: Boolean
   parent: NodeInput
@@ -140,6 +152,7 @@ type Mutation {
   renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
+  commit(input: CommitInput!): CommitPayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
   run(input: RunCodeInput!): RunCodePayload!
