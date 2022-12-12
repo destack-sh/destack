@@ -14,3 +14,14 @@ class Model(SymbolContent):
     symbol: Symbol
     baseline: Optional[Model]
     provider: auto
+
+
+@gql.django.type(models.ModelInference)
+class ModelInference(gql.Node):
+    model: Model
+    operation: auto
+    settings_hash: auto
+    input_hash: auto
+    input: auto
+    output: auto
+    duration_ms: auto
