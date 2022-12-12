@@ -16,7 +16,8 @@ export function useFileOps() {
           }
         }
       }
-    `)
+    `),
+    { refetchQueries: ["projectVersionContent"] }
   );
 
   async function rename(id: string, oldName: string, newName: string) {
