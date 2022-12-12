@@ -21,7 +21,7 @@ watch(
     }
   }
 );
-const focused = computed(() => editorState.focusedEditor?.group?.id == props.group.id);
+const focused = computed(() => editorState.focusedEditor?.groupId == props.group.id);
 </script>
 <template>
   <!-- Tabbed editors for this group -->
