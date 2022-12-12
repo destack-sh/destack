@@ -1,5 +1,17 @@
 import { graphql } from "@/gql";
 
+export const OperationInfoContentType = graphql(/* GraphQL */ `
+  fragment OperationInfoContent on OperationInfo {
+    ... on OperationInfo {
+      messages {
+        kind
+        message
+        field
+      }
+    }
+  }
+`);
+
 export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     id

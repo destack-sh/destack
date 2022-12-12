@@ -1,4 +1,5 @@
 import { useOperationsActions } from "@/utils/actions/editor";
+import { useFileActions } from "@/utils/actions/file";
 import { useEditorActions } from "@/utils/actions/operations";
 import { useVersionActions } from "@/utils/actions/version";
 import { defineStore } from "pinia";
@@ -97,9 +98,9 @@ export function provideAction(action: RegisteredAction, shared?: boolean): Ref<A
   }
   const resolvedAction: Ref<Action> = ref(toResolvedAction());
 
+  actionsStore.add(resolvedAction.value);
   onMounted(() => {
     mounted.value = true;
-    actionsStore.add(resolvedAction.value);
   });
   // keep action updated in store
   watchEffect(() => {
@@ -120,5 +121,6 @@ export function useActions() {
     editor: useEditorActions(),
     operations: useOperationsActions(),
     version: useVersionActions(),
+    file: useFileActions(),
   };
 }

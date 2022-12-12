@@ -77,6 +77,8 @@ type DatasetView implements SymbolContent & Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
+union DeleteFilePayload = File | OperationInfo
+
 type Execution implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -119,10 +121,14 @@ type File implements Node {
 }
 
 input FileCreateInput {
-  projectVersionId: NodeInput!
+  projectVersion: NodeInput!
   name: String!
   isFolder: Boolean
   parent: NodeInput
+}
+
+input FileDeleteInput {
+  id: GlobalID!
 }
 
 input FileRenameInput {
@@ -152,6 +158,7 @@ type Mutation {
   renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
+  deleteFile(input: FileDeleteInput!): DeleteFilePayload!
   commit(input: CommitInput!): CommitPayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!

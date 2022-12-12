@@ -1,8 +1,10 @@
 <script lang="ts" setup>
+import { useActions } from "@/utils/actions";
 import { useEditorState, type FileHeader } from "@/utils/editor";
 import { useOperations } from "@/utils/operations";
+import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useMagicKeys, whenever } from "@vueuse/core";
-import { ref } from "vue";
+import { ref, type Component } from "vue";
 
 const props = defineProps<{ files: FileHeader[] }>();
 
@@ -42,17 +44,44 @@ async function onNameEnter(event: Event) {
     await operations.file.rename(file.id, file.name, newName);
   }
 }
+
+type Action = {
+  icon: Component;
+  label: string;
+  action: (symbol: Symbol) => void;
+};
+
+const actions = useActions();
+const filesActions: Action[] = [
+  {
+    icon: DocumentPlusIcon,
+    label: "File",
+    action: () => actions.file.create.value.apply(),
+  },
+];
 </script>
 <template>
   <div ref="container">
     <!-- View header -->
-    <div class="flex flex-row justify-between border-b border-gray-200 px-3 py-4">
+    <div class="flex flex-row items-center justify-between border-b border-gray-200 px-3 py-4">
       <span class="text-xs font-bold uppercase">Explorer</span>
+      <!-- Files controls -->
+      <span class="inline-flex flex-row gap-1">
+        <button
+          v-for="action in filesActions"
+          :key="action.label"
+          class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
+          @click.prevent="action.action"
+        >
+          <component :is="action.icon" class="h-4 w-4 text-gray-600" />
+          <span class="pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
+        </button>
+      </span>
     </div>
     <!-- View contents -->
     <div class="flex flex-1 flex-col">
       <!-- View: explorer -->
-      <ul role="list" class="flex flex-col gap-1 text-sm">
+      <ul role="list" class="flex flex-col gap-1 py-1 text-sm">
         <li
           v-for="file in files"
           :key="file.id"

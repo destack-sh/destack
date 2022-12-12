@@ -25,7 +25,7 @@ export function useCompilationOps() {
   async function add(input: AddCompilationInput) {
     await operations.perform({
       type: "add-compilation",
-      apply: async () => {
+      do: async () => {
         await addCompilationMut({ input });
       },
     });
@@ -59,7 +59,7 @@ export function useCompilationOps() {
   async function compile(id: string) {
     await operations.perform({
       type: "compile",
-      apply: async () => {
+      do: async () => {
         await compileMut({ compilationId: id });
       },
     });

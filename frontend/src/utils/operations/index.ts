@@ -4,27 +4,19 @@ import { useCompilationOps } from "@/utils/operations/compilation";
 import { useProjectVersionOps } from "@/utils/operations/version";
 import { defineStore } from "pinia";
 
-type Operation = {
+type Operation<T> = {
   id?: string;
   type: string;
-  apply(): Promise<void>;
-  undo?(): Promise<void>;
+  do(): Promise<T>;
+  ret?: T;
+  undo?(ret: T): Promise<void>;
 };
-
-export function useOperations() {
-  return {
-    file: useFileOps(),
-    symbol: useSymbolOps(),
-    compilation: useCompilationOps(),
-    version: useProjectVersionOps(),
-  };
-}
 
 export const useOperationsStore = defineStore("operations", {
   state: () => ({
-    inflight: [] as Operation[],
-    undoStack: [] as Operation[],
-    redoStack: [] as Operation[],
+    inflight: [] as Operation<unknown>[],
+    undoStack: [] as Operation<unknown>[],
+    redoStack: [] as Operation<unknown>[],
   }),
   getters: {
     canUndo(state): boolean {
@@ -35,34 +27,49 @@ export const useOperationsStore = defineStore("operations", {
     },
   },
   actions: {
-    async perform(operation: Operation): Promise<void> {
+    async perform<T>(operation: Operation<T>): Promise<T> {
       operation = { ...operation, id: operation.id ?? Math.random().toString(16) };
       console.log(`perform ${operation.type} (id=${operation.id})`);
+
       this.inflight.push(operation);
-      await operation.apply();
+      const ret = await operation.do();
+      operation.ret = ret;
+
       this.inflight = this.inflight.filter((op) => op.id !== operation.id);
       if (operation.undo != null) {
         this.undoStack.push(operation);
       }
       this.redoStack = []; // reset redo stack
+      return ret;
     },
+
     async undo(): Promise<void> {
       const operation = this.undoStack.pop();
       if (operation == null || operation.undo == null) {
         return;
       }
-      console.log(`undo ${operation.type}`);
-      await operation.undo();
+      console.log(`undo ${operation.type} (id=${operation.id})`);
+      await operation.undo(operation.ret);
       this.redoStack.push(operation);
     },
+
     async redo(): Promise<void> {
       const operation = this.redoStack.pop();
       if (operation == null) {
         return;
       }
-      console.log(`redo ${operation.type}`);
-      await operation.apply();
+      console.log(`redo ${operation.type} (id=${operation.id})`);
+      await operation.do();
       this.undoStack.push(operation);
     },
   },
 });
+
+export function useOperations() {
+  return {
+    file: useFileOps(),
+    symbol: useSymbolOps(),
+    compilation: useCompilationOps(),
+    version: useProjectVersionOps(),
+  };
+}

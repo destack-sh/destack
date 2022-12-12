@@ -27,8 +27,8 @@ export function useProjectVersionOps() {
   async function commit(projectVersionId: string, name: string, description?: string) {
     await operations.perform({
       type: "commit",
-      apply: async () => {
-        await commitMut({ projectVersionId, name, description });
+      do: async () => {
+        return await commitMut({ projectVersionId, name, description });
       },
     });
   }

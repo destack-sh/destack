@@ -3,7 +3,6 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { useActions } from "@/utils/actions";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
-import { useOperations } from "@/utils/operations";
 import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component } from "vue";
@@ -13,7 +12,6 @@ const props = defineProps<{
   currentVersion: FragmentType<typeof ProjectVersionHeaderType>;
 }>();
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
-const currentVersion = computed(() => useFragment(ProjectVersionHeaderType, props.currentVersion));
 const { getTimeFromNowString } = useTimeFromNow();
 
 const { result: versionsQuery, loading } = useQuery(
@@ -64,7 +62,7 @@ const globalActions: Action[] = [
           class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
           @click.prevent="action.action"
         >
-          <component :is="action.icon" class="h-4 w-4" />
+          <component :is="action.icon" class="h-4 w-4 text-gray-600" />
           <span class="pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
         </button>
       </span>
