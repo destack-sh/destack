@@ -18,7 +18,8 @@ export type Editor = {
   type: "file" | "symbol" | "run";
   id: string;
   path: string;
-  group: EditorGroup | null;
+  // TODO @Feature: remember scroll position
+  groupId: string | null; // id instead of EditorGroup to avoid circular dependency
 };
 
 export type FileEditor = Editor & {
@@ -59,7 +60,7 @@ export function makeFileEditor(file: FileHeader): FileEditor {
     type: "file",
     fileId: file.id,
     path: file.path + ".instruct",
-    group: null,
+    groupId: null,
   } as FileEditor;
 }
 
@@ -76,7 +77,7 @@ export function makeRunEditor(config: RunConfiguration): RunEditor {
     type: "run",
     path: config.name,
     config: config,
-    group: null,
+    groupId: null,
   } as RunEditor;
 }
 
@@ -96,14 +97,22 @@ export const useEditorState = defineStore("editor", {
     editorGroups(state) {
       return [state.left, state.right];
     },
+    editorGroup(): (id: string) => EditorGroup {
+      return (id: string) => {
+        const group = this.editorGroups.find((g) => g.id == id);
+        if (group == null) throw new Error(`editor group ${id} not found`);
+        return group;
+      };
+    },
     editors(state) {
       return state.left.editors.concat(state.right.editors);
     },
     focusedFileId(state): string | null {
       return state.focusedEditor?.type == "file" ? (state.focusedEditor as FileEditor).fileId : null;
     },
-    focusedGroup(state) {
-      return state.focusedEditor?.group;
+    focusedGroup(): EditorGroup | undefined {
+      if (this.focusedEditor?.groupId == null) return undefined;
+      return this.editorGroup(this.focusedEditor?.groupId);
     },
   },
   actions: {
@@ -112,31 +121,36 @@ export const useEditorState = defineStore("editor", {
       this.currentProjectVersionId = version.id;
     },
 
+    _removeEditorFromGroup(editor: Editor): void {
+      if (editor.groupId == null) return;
+      const group = this.editorGroup(editor.groupId);
+      if (group == null) return;
+      group.editors = group.editors.filter((e) => e != editor);
+      if (group.activeEditor == editor) {
+        // if active editor was removed, set first editor as active
+        group.activeEditor = group.editors[0] || null;
+      }
+      editor.groupId = null;
+    },
+
     openEditor(editor: Editor, group?: EditorGroup): void {
       console.log(`open editor ${editor.path} in group ${group?.id}`);
       group = group || this.left;
       // change editor group if different
-      if (editor.group != group) {
-        if (editor.group != null) {
+      if (editor.groupId != group.id) {
+        if (editor.groupId != null) {
           // remove from old group
-          editor.group.editors = editor.group.editors.filter((e) => e != editor);
-          if (editor.group.activeEditor == editor) {
-            editor.group.activeEditor = editor.group.editors[0] || null;
-          }
+          this._removeEditorFromGroup(editor);
         }
-        editor.group = group;
+        editor.groupId = group.id;
         group.editors.push(editor);
       }
     },
 
     closeEditor(editor: Editor): void {
       console.log(`close editor ${editor.path}`);
-      if (editor.group != null) {
-        // remove from old group
-        editor.group.editors = editor.group.editors.filter((e) => e != editor);
-        if (editor.group.activeEditor == editor) {
-          editor.group.activeEditor = editor.group.editors[0] || null;
-        }
+      if (editor.groupId != null) {
+        this._removeEditorFromGroup(editor);
       }
     },
 
@@ -155,12 +169,12 @@ export const useEditorState = defineStore("editor", {
         editor = makeFileEditor(file);
       }
       // if group wasn't passed, just return the editor if it's already open
-      if (!group && editor.group) {
+      if (!group && editor.groupId) {
         return editor;
       } else {
         // otherwise open in the group or the fallback group
         group = group || this.focusedGroup || this.left; // use active group if available
-        if (editor.group != group) {
+        if (editor.groupId != group.id) {
           this.openEditor(editor, group);
         }
         return editor;
@@ -170,12 +184,12 @@ export const useEditorState = defineStore("editor", {
     focusEditor(editor: Editor): void {
       if (this.focusedEditor?.id == editor.id) return;
 
-      console.log(`focus editor ${editor.path} in group ${editor.group?.id}`);
-      if (!editor.group) {
+      console.log(`focus editor ${editor.path} in group ${editor.groupId}`);
+      if (!editor.groupId) {
         throw new Error("editor must be in a group: " + editor.path);
       }
       this.focusedEditor = editor;
-      editor.group.activeEditor = editor;
+      this.editorGroup(editor.groupId).activeEditor = editor;
     },
 
     focusFile(file: FileHeader, group?: EditorGroup): Editor {
