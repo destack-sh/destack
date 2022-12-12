@@ -855,84 +855,6 @@ export type ProjectVersionContentQuery = {
     | null;
 };
 
-export type AddCompilationMutationVariables = Exact<{
-  input: AddCompilationInput;
-}>;
-
-export type AddCompilationMutation = {
-  __typename?: "Mutation";
-  addCompilationTarget: {
-    __typename?: "AddCompilationPayload";
-    compilation: { __typename?: "Compilation"; id: any; name: string; createdAt: any; updatedAt: any };
-  };
-};
-
-export type CompileMutationVariables = Exact<{
-  compilationId: Scalars["GlobalID"];
-}>;
-
-export type CompileMutation = {
-  __typename?: "Mutation";
-  compile: {
-    __typename?: "CompilePayload";
-    compilation: {
-      __typename?: "Compilation";
-      id: any;
-      name: string;
-      createdAt: any;
-      updatedAt: any;
-      targetTask?:
-        | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
-        | null;
-      targetCode?:
-        | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
-        | null;
-    };
-  };
-};
-
-export type RenameFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-}>;
-
-export type RenameFileMutation = {
-  __typename?: "Mutation";
-  renameFile: { __typename?: "File"; id: any; name: string; path: string } | { __typename?: "OperationInfo" };
-};
-
-export type RenameSymbolMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-}>;
-
-export type RenameSymbolMutation = {
-  __typename?: "Mutation";
-  renameSymbol:
-    | { __typename?: "OperationInfo" }
-    | { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
-};
-
-export type CommitMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  name: Scalars["String"];
-  description?: InputMaybe<Scalars["String"]>;
-}>;
-
-export type CommitMutation = {
-  __typename?: "Mutation";
-  commit: {
-    __typename?: "CommitPayload";
-    project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
-    committedVersion: { __typename?: "ProjectVersion" } & {
-      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-    };
-    newWorkingVersion: { __typename?: "ProjectVersion" } & {
-      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-    };
-  };
-};
-
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
   id: any;
@@ -1024,6 +946,84 @@ export type SymbolContentFragment = {
     | { __typename?: "Model" }
     | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } });
 } & { " $fragmentName"?: "SymbolContentFragment" };
+
+export type AddCompilationMutationVariables = Exact<{
+  input: AddCompilationInput;
+}>;
+
+export type AddCompilationMutation = {
+  __typename?: "Mutation";
+  addCompilationTarget: {
+    __typename?: "AddCompilationPayload";
+    compilation: { __typename?: "Compilation"; id: any; name: string; createdAt: any; updatedAt: any };
+  };
+};
+
+export type CompileMutationVariables = Exact<{
+  compilationId: Scalars["GlobalID"];
+}>;
+
+export type CompileMutation = {
+  __typename?: "Mutation";
+  compile: {
+    __typename?: "CompilePayload";
+    compilation: {
+      __typename?: "Compilation";
+      id: any;
+      name: string;
+      createdAt: any;
+      updatedAt: any;
+      targetTask?:
+        | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+        | null;
+      targetCode?:
+        | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
+        | null;
+    };
+  };
+};
+
+export type RenameFileMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+}>;
+
+export type RenameFileMutation = {
+  __typename?: "Mutation";
+  renameFile: { __typename?: "File"; id: any; name: string; path: string } | { __typename?: "OperationInfo" };
+};
+
+export type RenameSymbolMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+}>;
+
+export type RenameSymbolMutation = {
+  __typename?: "Mutation";
+  renameSymbol:
+    | { __typename?: "OperationInfo" }
+    | { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
+};
+
+export type CommitMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  name: Scalars["String"];
+  description?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type CommitMutation = {
+  __typename?: "Mutation";
+  commit: {
+    __typename?: "CommitPayload";
+    project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
+    committedVersion: { __typename?: "ProjectVersion" } & {
+      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+    };
+    newWorkingVersion: { __typename?: "ProjectVersion" } & {
+      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+    };
+  };
+};
 
 export const SchemaElementContentDeepFragmentDoc = {
   kind: "Document",

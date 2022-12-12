@@ -3,6 +3,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { useActions } from "@/utils/actions";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
+import { useOperations } from "@/utils/operations";
 import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component } from "vue";
@@ -46,11 +47,7 @@ const globalActions: Action[] = [
   {
     icon: PlusIcon,
     label: "Commit",
-    action: async () => {
-      console.log("commit version" + currentVersion.value.id);
-      // TODO @Feature: dialog to add commit message
-      await actions.version.commit(currentVersion.value.id, "test");
-    },
+    action: () => actions.version.commit.value.apply(),
   },
 ];
 </script>

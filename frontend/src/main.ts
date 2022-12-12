@@ -10,6 +10,7 @@ import App from "./App.vue";
 import router from "./router";
 import Mousetrap from "mousetrap";
 import { createPinia } from "pinia";
+import { applyShortcuts } from "@/utils/shortcuts";
 
 async function init() {
   const apolloClient = new ApolloClient({
@@ -45,10 +46,7 @@ async function init() {
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
   // capture ctrl + s
-  Mousetrap.bind(["ctrl+s", "meta+s"], function () {
-    // ignore for now
-    return false;
-  });
+  applyShortcuts();
 }
 
 init();

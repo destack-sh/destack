@@ -6,7 +6,6 @@ import TaskInterface from "@/components/TaskInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useFragment, type FragmentType } from "@/gql";
 import { SymbolType, type Symbol } from "@/gql/graphql";
-import { useActions } from "@/utils/actions";
 import {
   makeRunConfiguration,
   makeRunEditor,
@@ -15,6 +14,7 @@ import {
   type SymbolHeader,
 } from "@/utils/editor";
 import { SymbolContentType } from "@/utils/fragments";
+import { useOperations } from "@/utils/operations";
 import { ArrowPathIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, type Component } from "vue";
 
@@ -100,13 +100,13 @@ function getSymbolMetaActions(symbol: SymbolHeader & Pick<Symbol, "generated">):
 }
 
 const readonly = computed(() => editorState.readonly || symbol.value.generated);
-const actions = useActions();
+const operations = useOperations();
 
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
   if (newName.length > 0) {
     (event.target as HTMLElement)?.blur();
-    await actions.symbol.rename(symbol.value.id, symbol.value.name, newName);
+    await operations.symbol.rename(symbol.value.id, symbol.value.name, newName);
   }
 }
 </script>
