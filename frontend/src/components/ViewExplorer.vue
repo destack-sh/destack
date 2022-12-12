@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { useActions } from "@/utils/actions";
 import { useEditorState, type FileHeader } from "@/utils/editor";
+import { useOperations } from "@/utils/operations";
 import { onClickOutside, useMagicKeys, whenever } from "@vueuse/core";
 import { ref } from "vue";
 
@@ -26,7 +26,7 @@ function focus(file: FileHeader) {
   editor.focusElement(file);
 }
 
-const actions = useActions();
+const operations = useOperations();
 
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
@@ -39,7 +39,7 @@ async function onNameEnter(event: Event) {
       return;
     }
 
-    await actions.file.rename(file.id, file.name, newName);
+    await operations.file.rename(file.id, file.name, newName);
   }
 }
 </script>

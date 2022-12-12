@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
-import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
+import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
-import { useActions } from "@/utils/actions";
+import { provideAction, useActions } from "@/utils/actions";
 import { useEditorState, type FileEditor } from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
-import { useOperationsStore } from "@/utils/operations";
+import { useOperations } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -18,7 +18,6 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useMagicKeys, whenever } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -104,33 +103,40 @@ const { result: contentQuery } = useQuery(
   () => ({ enabled: !!projectHead.value?.id })
 );
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
-
 const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
+
+// actions (ensure global actions are available)
+useActions();
+
+// compile
 const compilations = computed(
   () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
 );
-
-const actions = useActions();
-
 const isCompiling = ref(false);
 const canCompile = computed(() => !isCompiling.value && compilations.value?.length > 0);
-const canRun = false;
+
+const operations = useOperations();
 
 async function compileAll() {
   isCompiling.value = true;
-  console.log("compiling", compilations.value);
-  const compilationMutations = compilations.value.map((c) => actions.compilation.compile(c.id));
-  const compilationPayloads = await Promise.all(compilationMutations);
-  console.log("compiled", compilationPayloads);
+  await Promise.all(compilations.value.map((c) => operations.compilation.compile(c.id)));
   isCompiling.value = false;
 }
+
+provideAction({
+  id: "compilation.compileAll",
+  label: "Compile all",
+  shortcuts: [],
+  enabled: canCompile,
+  apply: () => compileAll,
+});
 
 async function createDefaultCompilation() {
   if (!content.value?.mainProgram) {
     throw new Error("no main program in current version");
   }
 
-  await actions.compilation.add({
+  await operations.compilation.add({
     taskSymbolId: content.value?.mainProgram?.id,
     name: "default",
     backends: ["openai/text-davinci-003"],
@@ -142,6 +148,9 @@ const compileNavigation = computed(() => [
   { name: "Compile optimized", action: compileAll, disabled: !canCompile.value },
   { name: "Add default target", action: createDefaultCompilation },
 ]);
+
+// run
+const canRun = false;
 
 // set up editor state
 const state = useEditorState();
@@ -181,52 +190,19 @@ watchEffect(() => {
   }
 });
 
-// open first file if none is open and there is no hash
-watchEffect(() => {
-  if (files.value && files.value.length >= 1 && state.focusedEditor == null && !router.currentRoute.value.hash) {
-    state.focusFile(files.value[0]);
-  }
-});
-
 // TODO @Feature: store and restore editor state per project
 // reset editor state for project if project changes
 watch(
   () => projectHeader.value,
   (projectHeader) => {
-    if (projectHeader && state.currentProjectId != projectHeader.id) {
+    if (projectHeader && state.currentProjectId != projectHeader.id && projectHead.value != null) {
       console.log(`reset editor state for project ${projectHeader.id}`);
       state.$reset();
-      state.setProject(projectHeader);
+      state.setProject(projectHeader, projectHead.value);
     }
   },
   { immediate: true }
 );
-
-// shortcuts
-const keys = useMagicKeys();
-// TODO @Cleanup: centralize shortcuts (and make configurable)
-// move editor to next group
-whenever(keys["ctrl+shift+right"], () => {
-  if (state.focusedEditor) {
-    console.log("move focused editor to next group");
-    state.moveEditor(state.focusedEditor, state.right);
-  }
-});
-// move editor to previous group
-whenever(keys["ctrl+shift+left"], () => {
-  if (state.focusedEditor) {
-    console.log("move focused editor to previous group");
-    state.moveEditor(state.focusedEditor, state.left);
-  }
-});
-const operations = useOperationsStore();
-// undo & redo
-whenever(keys["ctrl+z"], () => {
-  operations.undo();
-});
-whenever(keys["ctrl+shift+z"], () => {
-  operations.redo();
-});
 </script>
 
 <template>
@@ -421,7 +397,7 @@ whenever(keys["ctrl+shift+z"], () => {
         </div>
         <div class="flex flex-1 flex-col">
           <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
-          <ViewVersionHistory
+          <ViewHistory
             v-else-if="activeView.id == 'version-history'"
             :project="projectHeader"
             :current-version="projectHead"

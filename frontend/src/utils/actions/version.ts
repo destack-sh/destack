@@ -1,37 +1,23 @@
-import { graphql } from "@/gql";
-import { useOperationsStore } from "@/utils/operations";
-import { useMutation } from "@vue/apollo-composable";
+import { getRandomName } from "@/composables/useRandomName";
+import { provideSharedAction } from "@/utils/actions";
+import { useEditorState } from "@/utils/editor";
+import { useOperations } from "@/utils/operations";
+import { computed } from "vue";
 
-export function useProjectVersionOps() {
-  const operations = useOperationsStore();
+export function useVersionActions() {
+  const editor = useEditorState();
+  const ops = useOperations();
 
-  const { mutate: commitMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {
-        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {
-          project {
-            ...ProjectHeader
-          }
-          committedVersion {
-            ...ProjectVersionHeader
-          }
-          newWorkingVersion {
-            ...ProjectVersionHeader
-          }
-        }
-      }
-    `),
-    { refetchQueries: ["projectVersions"] }
-  );
-
-  async function commit(projectVersionId: string, name: string, description?: string) {
-    await operations.perform({
-      type: "commit",
-      apply: async () => {
-        await commitMut({ projectVersionId, name, description });
-      },
-    });
-  }
+  const commit = provideSharedAction({
+    id: "version.commit",
+    label: "Commit...",
+    shortcuts: ["ctrl+s", "meta+s"],
+    enabled: computed(() => editor.currentProjectVersionId != null),
+    apply: () => {
+      const randomName = getRandomName();
+      return ops.version.commit(editor.currentProjectVersionId as string, randomName);
+    },
+  });
 
   return { commit };
 }

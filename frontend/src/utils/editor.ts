@@ -55,7 +55,7 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
 export function makeFileEditor(file: FileHeader): FileEditor {
   return {
     // append random string to enable multiple editors for the same file
-    id: file.id + "-" + Math.random().toString(36),
+    id: file.id + "-" + Math.random().toString(16),
     type: "file",
     fileId: file.id,
     path: file.path + ".instruct",
@@ -72,7 +72,7 @@ export function makeRunConfiguration(symbol: SymbolHeader): RunConfiguration {
 
 export function makeRunEditor(config: RunConfiguration): RunEditor {
   return {
-    id: "run-" + config.symbolId + Math.random().toString(36),
+    id: "run-" + config.symbolId + Math.random().toString(16),
     type: "run",
     path: config.name,
     config: config,
@@ -84,6 +84,7 @@ export const useEditorState = defineStore("editor", {
   state: () => {
     return {
       currentProjectId: null as string | null,
+      currentProjectVersionId: null as string | null,
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
@@ -106,12 +107,13 @@ export const useEditorState = defineStore("editor", {
     },
   },
   actions: {
-    setProject(project: ProjectHeader): void {
+    setProject(project: ProjectHeader, version: ProjectVersionHeader): void {
       this.currentProjectId = project.id;
+      this.currentProjectVersionId = version.id;
     },
 
     openEditor(editor: Editor, group?: EditorGroup): void {
-      console.log(`open editor ${editor.path} in group ${group?.name}`);
+      console.log(`open editor ${editor.path} in group ${group?.id}`);
       group = group || this.left;
       // change editor group if different
       if (editor.group != group) {
@@ -148,7 +150,6 @@ export const useEditorState = defineStore("editor", {
 
     openFile(file: FileHeader, group?: EditorGroup): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
-      console.log(`open file ${file.id} ${file.path}`);
       if (!editor) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
         editor = makeFileEditor(file);
@@ -167,6 +168,8 @@ export const useEditorState = defineStore("editor", {
     },
 
     focusEditor(editor: Editor): void {
+      if (this.focusedEditor?.id == editor.id) return;
+
       console.log(`focus editor ${editor.path} in group ${editor.group?.id}`);
       if (!editor.group) {
         throw new Error("editor must be in a group: " + editor.path);
@@ -187,6 +190,8 @@ export const useEditorState = defineStore("editor", {
     },
 
     focusElement(element: SymbolHeader | FileHeader) {
+      if (this.focusedElementId == element.id) return;
+      console.log(`focus element ${element.name} ${element.id}`);
       this.focusedElementId = element.id;
     },
   },
