@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
@@ -41,10 +39,10 @@ class Execution(gql.Node):
     inputs: auto
     outputs: auto
     error: auto
-    parent: Optional[Execution]
-    children: list[Execution]
+    parent: Optional["Execution"]
+    children: list["Execution"]
     code: Code
-    model: Optional[Annotated["Model", lazy(".misc")]]
+    model: Optional[Annotated["Model", lazy(".model")]]
 
 
 @strawberry.input

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
@@ -9,6 +7,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.api.symbol import Symbol
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.compiler import Compiler, get_stdlib_model
@@ -16,7 +15,6 @@ from bench.compiler import Compiler, get_stdlib_model
 if TYPE_CHECKING:
     from bench.api.code import Code
     from bench.api.model import Model
-    from bench.api.symbol import Symbol
     from bench.api.task import Task
 
 
@@ -29,15 +27,15 @@ class Compilation(gql.Node):
     backends: list[Annotated["Model", lazy(".model")]]
     target_task: Optional[Annotated["Task", lazy(".task")]]
     target_code: Optional[Annotated["Code", lazy(".code")]]
-    mappings: list[SourceMapping]
+    mappings: list["SourceMapping"]
 
 
 @gql.django.type(models.SourceMapping)
 class SourceMapping(gql.Node):
     compilation: Compilation
-    source: Annotated["Symbol", lazy(".symbol")]
+    source: Symbol
     source_path: auto
-    target: Annotated["Symbol", lazy(".symbol")]
+    target: Symbol
     target_path: auto
 
 

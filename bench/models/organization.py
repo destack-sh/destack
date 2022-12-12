@@ -38,7 +38,7 @@ class Organization(UUIDModel):
 
 
 class OrganizationMembership(UUIDModel):
-    # kept in sync with OrganizationMembership.Level
+    # kept in sync with TeamMembership.Level
     class Level(models.IntegerChoices):
         Member = 1
         Author = 6

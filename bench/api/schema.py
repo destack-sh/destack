@@ -25,16 +25,16 @@ from bench.settings import DEBUG, TEST
 class Query:
     user: Optional[User] = gql.relay.node()
     users: gql.relay.Connection[User] = gql.relay.connection()
+    organization: Optional[Organization] = gql.relay.node()
+    organizationBySlug: Optional[Organization] = gql.django.field(
+        resolver=models.Organization.objects.get_by_slug
+    )
     project: Optional[Project] = gql.relay.node()
     projectBySlug: Optional[Project] = gql.django.field(resolver=models.Project.objects.get_by_slug)
     projects: gql.relay.Connection[Project] = gql.relay.connection()
     projectVersion: Optional[ProjectVersion] = gql.relay.node()
     file: Optional[File] = gql.relay.node()
     symbol: Optional[Symbol] = gql.relay.node()
-    organization: Optional[Organization] = gql.relay.node()
-    organizationBySlug: Optional[Organization] = gql.django.field(
-        resolver=models.Organization.objects.get_by_slug
-    )
 
 
 @strawberry.type
