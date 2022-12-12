@@ -383,7 +383,7 @@ watch(
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
-      <aside class="flex h-full w-64 flex-shrink-0 resize-x border-r border-gray-200 lg:w-72">
+      <aside class="flex h-full w-64 resize-x border-r border-gray-200 lg:w-72">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">
@@ -409,9 +409,15 @@ watch(
           </button>
         </div>
         <!-- View content -->
-        <div class="flex flex-1 flex-col">
-          <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
-          <ViewHistory v-else-if="activeView.id == 'history'" :project="projectHeader" :current-version="projectHead" />
+        <div class="relative flex-1 flex-col">
+          <div class="absolute left-0 top-0 h-full w-full overflow-y-hidden">
+            <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
+            <ViewHistory
+              v-else-if="activeView.id == 'history'"
+              :project="projectHeader"
+              :current-version="projectHead"
+            />
+          </div>
         </div>
       </aside>
       <!-- Main editor area -->
