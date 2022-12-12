@@ -1,6 +1,6 @@
-import { useOperationsActions } from "@/utils/actions/editor";
+import { useOperationsActions } from "@/utils/actions/operations";
 import { useFileActions } from "@/utils/actions/file";
-import { useEditorActions } from "@/utils/actions/operations";
+import { useEditorActions } from "@/utils/actions/editor";
 import { useVersionActions } from "@/utils/actions/version";
 import { defineStore } from "pinia";
 import { computed, onMounted, onUnmounted, ref, watchEffect, type Ref } from "vue";

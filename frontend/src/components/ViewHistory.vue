@@ -68,9 +68,9 @@ const globalActions: Action[] = [
       </span>
     </div>
     <!-- View contents -->
-    <div class="flex flex-1 flex-col" v-if="!loading">
+    <div class="relative flex-1 flex-col" v-if="!loading">
       <!-- View: versions -->
-      <ul role="list" class="m-3 -mb-8">
+      <ul role="absolute left-0 top-0 h-full w-full overflow-y-auto list" class="m-3 -mb-8">
         <li v-for="(version, versionIdx) in commits" :key="version.id">
           <div class="relative pb-4">
             <span

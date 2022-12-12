@@ -34,6 +34,8 @@ async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
   if (newName.length > 0) {
     (event.target as HTMLElement)?.blur();
+    renaming.value = false;
+
     const fileId = editor.focusedFileId;
     const file = props.files.find((f) => f.id == fileId);
     if (!file) {

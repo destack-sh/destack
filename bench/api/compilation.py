@@ -61,6 +61,7 @@ class AddCompilationPayload:
     compilation: Compilation
 
 
+@strawberry.type
 class CompilationMutation:
     @strawberry.mutation
     def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:

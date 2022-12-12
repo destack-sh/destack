@@ -1,3 +1,13 @@
+input AddCompilationInput {
+  taskSymbolId: GlobalID!
+  name: String!
+  backends: [String!]!
+}
+
+type AddCompilationPayload {
+  compilation: Compilation!
+}
+
 type Code implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
@@ -30,6 +40,14 @@ type Compilation implements Node {
   targetTask: Task
   targetCode: Code
   mappings: [SourceMapping!]!
+}
+
+input CompileInput {
+  compilationId: GlobalID!
+}
+
+type CompilePayload {
+  compilation: Compilation!
 }
 
 union CreateFilePayload = File | OperationInfo
@@ -142,6 +160,8 @@ type Mutation {
   renameFile(input: FileRenameInput!): RenameFilePayload!
   deleteFile(input: FileDeleteInput!): DeleteFilePayload!
   run(input: RunCodeInput!): RunCodePayload!
+  addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
+  compile(input: CompileInput!): CompilePayload!
   commit(input: CommitInput!): CommitPayload!
 }
 
