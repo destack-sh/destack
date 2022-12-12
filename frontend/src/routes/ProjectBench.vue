@@ -39,15 +39,28 @@ const userNavigation = [
 
 // views for the sidebar
 type View = {
-  id: "explorer" | "version-history";
+  id: "explorer" | "history";
   name: string;
   icon: Component;
 };
 const views: View[] = [
   { id: "explorer", name: "Explorer", icon: ClipboardDocumentIcon },
-  { id: "version-history", name: "Versions", icon: ClockIcon },
+  { id: "history", name: "History", icon: ClockIcon },
 ];
 const activeView: Ref<View> = ref(views[0]);
+
+provideAction({
+  id: "editor.view.explorer",
+  label: "View Explorer",
+  shortcuts: ["alt+1"],
+  apply: () => (activeView.value = views[0]),
+});
+provideAction({
+  id: "editor.view.history",
+  label: "View History",
+  shortcuts: ["alt+2"],
+  apply: () => (activeView.value = views[1]),
+});
 
 // real data
 const { result: projectHeaderQuery } = useQuery(
@@ -368,7 +381,7 @@ watch(
       </div>
     </header>
     <!-- Main content (sidebar + editor), spans horizontally -->
-    <div class="relative flex max-h-full flex-1 flex-row">
+    <div class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
       <aside class="flex h-full w-64 flex-shrink-0 resize-x border-r border-gray-200 lg:w-72">
         <!-- View selection -->
@@ -395,13 +408,10 @@ watch(
             <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />
           </button>
         </div>
+        <!-- View content -->
         <div class="flex flex-1 flex-col">
           <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
-          <ViewHistory
-            v-else-if="activeView.id == 'version-history'"
-            :project="projectHeader"
-            :current-version="projectHead"
-          />
+          <ViewHistory v-else-if="activeView.id == 'history'" :project="projectHeader" :current-version="projectHead" />
         </div>
       </aside>
       <!-- Main editor area -->

@@ -1,28 +1,25 @@
 import { provideSharedAction } from "@/utils/actions";
-import { useEditorState, type Editor } from "@/utils/editor";
-import { computed } from "vue";
+import { useOperationsStore } from "@/utils/operations";
+import { toRef } from "vue";
 
-export function useEditorActions() {
-  const editor = useEditorState();
+export function useOperationsActions() {
+  const operations = useOperationsStore();
 
-  // workbench actions
-  const moveEditorLeft = provideSharedAction({
-    id: "editor.moveEditorLeft",
-    label: "Move Editor Left",
-    shortcuts: ["ctrl+shift+left"],
-    enabled: computed(() => editor.focusedEditor != null),
-    apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.left),
+  // undo & redo
+  const undo = provideSharedAction({
+    id: "operations.undo",
+    label: "Undo",
+    shortcuts: ["ctrl+z"],
+    enabled: toRef(operations, "canUndo"),
+    apply: () => operations.undo(),
   });
-  const moveEditorRight = provideSharedAction({
-    id: "editor.moveEditorRight",
-    label: "Move Editor Right",
-    shortcuts: ["ctrl+shift+right"],
-    enabled: computed(() => editor.focusedEditor != null),
-    apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.right),
+  const redo = provideSharedAction({
+    id: "operations.redo",
+    label: "Redo",
+    shortcuts: ["ctrl+shift+z"],
+    enabled: toRef(operations, "canRedo"),
+    apply: () => operations.redo(),
   });
 
-  return {
-    moveEditorLeft,
-    moveEditorRight,
-  };
+  return { undo, redo };
 }

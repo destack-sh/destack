@@ -43,10 +43,6 @@ export type Code = Node &
     task?: Maybe<Task>;
   };
 
-export type CodeTaskArgs = {
-  pk?: InputMaybe<Scalars["ID"]>;
-};
-
 export type CommitInput = {
   description?: InputMaybe<Scalars["String"]>;
   name: Scalars["String"];
@@ -279,26 +275,6 @@ export type Organization = Node & {
   updatedAt: Scalars["DateTime"];
 };
 
-/** A connection to a list of items. */
-export type OrganizationConnection = {
-  __typename?: "OrganizationConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<OrganizationEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type OrganizationEdge = {
-  __typename?: "OrganizationEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: Organization;
-};
-
 /** Information to aid in pagination. */
 export type PageInfo = {
   __typename?: "PageInfo";
@@ -367,7 +343,6 @@ export type Query = {
   file?: Maybe<File>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
-  organizations: OrganizationConnection;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
@@ -387,13 +362,6 @@ export type QueryOrganizationArgs = {
 
 export type QueryOrganizationBySlugArgs = {
   organization: Scalars["String"];
-};
-
-export type QueryOrganizationsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type QueryProjectArgs = {

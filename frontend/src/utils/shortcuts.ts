@@ -24,7 +24,10 @@ export function applyShortcuts() {
 
     // add new shortcuts
     actions.available.forEach((action) => {
-      Mousetrap.bind(action.shortcuts, action.apply);
+      Mousetrap.bind(action.shortcuts, () => {
+        action.apply();
+        return false;
+      });
       boundShortcuts.push(...action.shortcuts);
     });
   });
