@@ -898,7 +898,7 @@ export type RenameFileMutationVariables = Exact<{
 
 export type RenameFileMutation = {
   __typename?: "Mutation";
-  renameFile: { __typename?: "File"; id: any; name: string } | { __typename?: "OperationInfo" };
+  renameFile: { __typename?: "File"; id: any; name: string; path: string } | { __typename?: "OperationInfo" };
 };
 
 export type RenameSymbolMutationVariables = Exact<{
@@ -2249,6 +2249,7 @@ export const RenameFileDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
                     ],
                   },
                 },

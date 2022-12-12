@@ -51,7 +51,7 @@ const focused = computed(() => editorState.focusedEditor?.group?.id == props.gro
       <TabPanels class="relative h-full w-full flex-1">
         <TabPanel v-for="(editor, index) in group.editors" :key="index">
           <div class="absolute left-0 top-0 h-full w-full overflow-auto">
-            <FileInterface v-if="editor.type == 'file'" :file="(editor as FileEditor).file" />
+            <FileInterface v-if="editor.type == 'file'" :fileId="(editor as FileEditor).fileId" />
             <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" />
             <div v-else class="h-full w-full text-center">
               <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>

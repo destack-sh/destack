@@ -1,6 +1,5 @@
 import type { File, Project, ProjectVersion, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
-import { computed, type Ref } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -12,15 +11,8 @@ export type SymbolHeader = Pick<Symbol, "id" | "name" | "type" | "createdAt" | "
 
 export type RunConfiguration = {
   name: string;
-  symbol: SymbolHeader;
+  symbolId: string;
 };
-
-export function makeRunConfiguration(file: FileHeader, symbol: SymbolHeader): RunConfiguration {
-  return {
-    name: `Run: ${file.path}.${symbol.name}`,
-    symbol: symbol,
-  } as RunConfiguration;
-}
 
 export type Editor = {
   type: "file" | "symbol" | "run";
@@ -31,12 +23,12 @@ export type Editor = {
 
 export type FileEditor = Editor & {
   type: "file";
-  file: FileHeader;
+  fileId: string;
 };
 
 export type SymbolEditor = Editor & {
   type: "symbol";
-  symbol: SymbolHeader;
+  symbolId: string;
 };
 
 export type RunEditor = Editor & {
@@ -65,25 +57,22 @@ export function makeFileEditor(file: FileHeader): FileEditor {
     // append random string to enable multiple editors for the same file
     id: file.id + "-" + Math.random().toString(36),
     type: "file",
-    file: file,
+    fileId: file.id,
     path: file.path + ".instruct",
     group: null,
   } as FileEditor;
 }
 
-export function makeSymbolEditor(symbol: SymbolHeader): SymbolEditor {
+export function makeRunConfiguration(symbol: SymbolHeader): RunConfiguration {
   return {
-    // append random string to enable multiple editors for the same symbol
-    id: symbol.id + "-" + Math.random().toString(36),
-    type: "symbol",
-    path: symbol.name,
-    group: null,
-  } as SymbolEditor;
+    name: `Run: ${symbol.name}`,
+    symbolId: symbol.id,
+  } as RunConfiguration;
 }
 
 export function makeRunEditor(config: RunConfiguration): RunEditor {
   return {
-    id: "run-" + config.symbol.id + Math.random().toString(36),
+    id: "run-" + config.symbolId + Math.random().toString(36),
     type: "run",
     path: config.name,
     config: config,
@@ -91,17 +80,14 @@ export function makeRunEditor(config: RunConfiguration): RunEditor {
   } as RunEditor;
 }
 
-// TODO @Architecture: should editor state be apollo local state?
 export const useEditorState = defineStore("editor", {
   state: () => {
     return {
-      // if feels especially wrong to have non-editor state from project here
-      // (it's also linked in the Editor states)
-      currentProject: null as ProjectHeader | null,
+      currentProjectId: null as string | null,
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
-      focusedElement: null as SymbolHeader | FileHeader | null,
+      focusedElementId: null as string | null,
       readonly: false,
     };
   },
@@ -112,8 +98,8 @@ export const useEditorState = defineStore("editor", {
     editors(state) {
       return state.left.editors.concat(state.right.editors);
     },
-    focusedFile(state) {
-      return state.focusedEditor?.type == "file" ? (state.focusedEditor as FileEditor).file : null;
+    focusedFileId(state): string | null {
+      return state.focusedEditor?.type == "file" ? (state.focusedEditor as FileEditor).fileId : null;
     },
     focusedGroup(state) {
       return state.focusedEditor?.group;
@@ -121,7 +107,7 @@ export const useEditorState = defineStore("editor", {
   },
   actions: {
     setProject(project: ProjectHeader): void {
-      this.currentProject = project;
+      this.currentProjectId = project.id;
     },
 
     openEditor(editor: Editor, group?: EditorGroup): void {
@@ -161,7 +147,7 @@ export const useEditorState = defineStore("editor", {
     },
 
     openFile(file: FileHeader, group?: EditorGroup): Editor {
-      let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).file?.id == file.id);
+      let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
       console.log(`open file ${file.id} ${file.path}`);
       if (!editor) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
@@ -201,7 +187,7 @@ export const useEditorState = defineStore("editor", {
     },
 
     focusElement(element: SymbolHeader | FileHeader) {
-      this.focusedElement = element;
+      this.focusedElementId = element.id;
     },
   },
 });

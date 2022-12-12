@@ -7,7 +7,6 @@ import { useMutation, useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{ config: RunConfiguration }>();
-const symbol = computed(() => props.config.symbol);
 
 const CodeContentRunType = graphql(/* GraphQL */ `
   fragment CodeContentToRun on Code {
@@ -56,16 +55,15 @@ const { result: resolvedSymbol } = useQuery(
       }
     }
   `),
-  {
-    id: symbol.value?.id,
-  }
+  () => ({
+    id: props.config.symbolId,
+  })
 );
 const content = computed(() => {
   if (resolvedSymbol.value?.symbol?.type != SymbolType.Code) {
     return null;
   }
-  const content = resolvedSymbol.value?.symbol?.content;
-  return useFragment(CodeContentRunType, content);
+  return useFragment(CodeContentRunType, resolvedSymbol.value?.symbol?.content);
 });
 const inputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.inputSchema));
 const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, content.value?.outputSchema));
@@ -173,7 +171,7 @@ async function runCode() {
       <div class="mx-1 my-1 flex flex-row items-center justify-between">
         <div>
           <span class="text-sm text-gray-900">Run: </span>
-          <span class="text-sm tracking-wide text-gray-900">{{ symbol.name }}</span>
+          <span class="text-sm tracking-wide text-gray-900">{{ resolvedSymbol?.symbol?.name }}</span>
         </div>
       </div>
       <!-- Run parameters/arguments -->

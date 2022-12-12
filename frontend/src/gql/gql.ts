@@ -33,7 +33,7 @@ const documents = {
     types.AddCompilationDocument,
   "\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    ":
     types.CompileDocument,
-  "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n          }\n        }\n      }\n    ":
+  "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            path\n          }\n        }\n      }\n    ":
     types.RenameFileDocument,
   "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    ":
     types.RenameSymbolDocument,
@@ -99,8 +99,8 @@ export function graphql(
   source: "\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n          }\n        }\n      }\n    "];
+  source: "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            path\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            path\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n        }\n      }\n    "];

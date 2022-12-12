@@ -12,6 +12,7 @@ export function useFileOps() {
           ... on File {
             id
             name
+            path
           }
         }
       }
