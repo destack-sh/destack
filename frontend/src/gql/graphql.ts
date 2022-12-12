@@ -111,6 +111,8 @@ export type DatasetView = Node &
     symbol: Symbol;
   };
 
+export type DeleteFilePayload = File | OperationInfo;
+
 export type Execution = Node & {
   __typename?: "Execution";
   children: Array<Execution>;
@@ -158,7 +160,11 @@ export type FileCreateInput = {
   isFolder?: InputMaybe<Scalars["Boolean"]>;
   name: Scalars["String"];
   parent?: InputMaybe<NodeInput>;
-  projectVersionId: NodeInput;
+  projectVersion: NodeInput;
+};
+
+export type FileDeleteInput = {
+  id: Scalars["GlobalID"];
 };
 
 export type FileRenameInput = {
@@ -182,6 +188,7 @@ export type Mutation = {
   compile: CompilePayload;
   createFile: CreateFilePayload;
   createSymbol: CreateSymbolPayload;
+  deleteFile: DeleteFilePayload;
   renameFile: RenameFilePayload;
   renameSymbol: RenameSymbolPayload;
   run: RunCodePayload;
@@ -205,6 +212,10 @@ export type MutationCreateFileArgs = {
 
 export type MutationCreateSymbolArgs = {
   input: SymbolCreateInput;
+};
+
+export type MutationDeleteFileArgs = {
+  input: FileDeleteInput;
 };
 
 export type MutationRenameFileArgs = {
@@ -855,6 +866,16 @@ export type ProjectVersionContentQuery = {
     | null;
 };
 
+export type OperationInfoContentFragment = {
+  __typename?: "OperationInfo";
+  messages: Array<{
+    __typename?: "OperationMessage";
+    kind: OperationMessageKind;
+    message: string;
+    field?: string | null;
+  }>;
+} & { " $fragmentName"?: "OperationInfoContentFragment" };
+
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
   id: any;
@@ -983,6 +1004,20 @@ export type CompileMutation = {
   };
 };
 
+export type CreateFileMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  name: Scalars["String"];
+}>;
+
+export type CreateFileMutation = {
+  __typename?: "Mutation";
+  createFile:
+    | { __typename?: "File"; id: any; name: string; path: string }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
 export type RenameFileMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   name: Scalars["String"];
@@ -990,7 +1025,24 @@ export type RenameFileMutationVariables = Exact<{
 
 export type RenameFileMutation = {
   __typename?: "Mutation";
-  renameFile: { __typename?: "File"; id: any; name: string; path: string } | { __typename?: "OperationInfo" };
+  renameFile:
+    | ({ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type DeleteFileMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type DeleteFileMutation = {
+  __typename?: "Mutation";
+  deleteFile:
+    | { __typename?: "File"; id: any }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
 export type RenameSymbolMutationVariables = Exact<{
@@ -1001,7 +1053,9 @@ export type RenameSymbolMutationVariables = Exact<{
 export type RenameSymbolMutation = {
   __typename?: "Mutation";
   renameSymbol:
-    | { __typename?: "OperationInfo" }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
     | { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
 };
 
@@ -1387,6 +1441,42 @@ export const ProjectVersionContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectVersionContentFragment, unknown>;
+export const OperationInfoContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<OperationInfoContentFragment, unknown>;
 export const ProjectVersionHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -2192,6 +2282,86 @@ export const CompileDocument = {
     ...CodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompileMutation, CompileMutationVariables>;
+export const CreateFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersion" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "id" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                          },
+                        ],
+                      },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateFileMutation, CreateFileMutationVariables>;
 export const RenameFileDocument = {
   kind: "Document",
   definitions: [
@@ -2248,19 +2418,78 @@ export const RenameFileDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "path" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
                     ],
                   },
                 },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
               ],
             },
           },
         ],
       },
     },
+    ...FileHeaderFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
+export const DeleteFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "deleteFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
 export const RenameSymbolDocument = {
   kind: "Document",
   definitions: [
@@ -2322,12 +2551,14 @@ export const RenameSymbolDocument = {
                     ],
                   },
                 },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
               ],
             },
           },
         ],
       },
     },
+    ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameSymbolMutation, RenameSymbolMutationVariables>;
 export const CommitDocument = {

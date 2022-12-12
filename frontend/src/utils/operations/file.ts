@@ -5,25 +5,71 @@ import { useMutation } from "@vue/apollo-composable";
 export function useFileOps() {
   const operations = useOperationsStore();
 
-  const { mutate: renameFileMut } = useMutation(
+  const { mutate: createFileMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation renameFile($id: GlobalID!, $name: String!) {
-        renameFile(input: { id: $id, name: $name }) {
+      mutation createFile($projectVersionId: GlobalID!, $name: String!) {
+        createFile(input: { projectVersion: { id: $projectVersionId }, name: $name }) {
           ... on File {
             id
             name
             path
           }
+          ...OperationInfoContent
         }
       }
     `),
     { refetchQueries: ["projectVersionContent"] }
   );
 
+  const { mutate: renameFileMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation renameFile($id: GlobalID!, $name: String!) {
+        renameFile(input: { id: $id, name: $name }) {
+          ... on File {
+            id
+            ...FileHeader
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    { refetchQueries: ["projectVersionContent"] }
+  );
+
+  const { mutate: deleteFileMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation deleteFile($id: GlobalID!) {
+        deleteFile(input: { id: $id }) {
+          ... on File {
+            id
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    { refetchQueries: ["projectVersionContent"] }
+  );
+
+  async function create(projectVersionId: string, name: string) {
+    return await operations.perform({
+      type: "create-file",
+      do: async () => {
+        const create = await createFileMut({ projectVersionId: projectVersionId, name });
+        if (create?.data?.createFile == null || create?.data?.createFile.__typename !== "File") {
+          throw new Error("invalid response");
+        }
+        return create.data.createFile;
+      },
+      undo: async (file) => {
+        await deleteFileMut({ id: file.id });
+      },
+    });
+  }
+
   async function rename(id: string, oldName: string, newName: string) {
-    await operations.perform({
+    return await operations.perform({
       type: "rename-file",
-      apply: async () => {
+      do: async () => {
         await renameFileMut({ id: id, name: newName });
       },
       undo: async () => {
@@ -32,5 +78,14 @@ export function useFileOps() {
     });
   }
 
-  return { rename };
+  async function delete_(id: string) {
+    return await operations.perform({
+      type: "delete-file",
+      do: async () => {
+        await deleteFileMut({ id: id });
+      },
+    });
+  }
+
+  return { create, rename, delete: delete_ };
 }

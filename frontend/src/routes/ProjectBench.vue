@@ -190,7 +190,7 @@ watchEffect(() => {
   }
 });
 
-// TODO @Feature: store and restore editor state per project
+// TODO @Feature: store and restore editor state per project/version
 // reset editor state for project if project changes
 watch(
   () => projectHeader.value,
