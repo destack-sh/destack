@@ -28,7 +28,7 @@ type SymbolInterface = {
   component: Component;
 };
 
-const interfaces: Record<SymbolType, SymbolInterface> = {
+const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Dataset]: {
     component: DatasetInterface,
   },
@@ -41,10 +41,13 @@ const interfaces: Record<SymbolType, SymbolInterface> = {
   [SymbolType.Task]: {
     component: TaskInterface,
   },
+  // not yet defined symbol interfaces
+  [SymbolType.Model]: undefined,
+  [SymbolType.DatasetView]: undefined,
 };
 
 function isDefinitionFocused(symbol: Pick<Symbol, "id">) {
-  return editorState.focusedElement?.id == symbol.id;
+  return editorState.focusedElementId == symbol.id;
 }
 
 type MetaAction = {
@@ -78,7 +81,7 @@ function getSymbolMetaActions(symbol: SymbolHeader & Pick<Symbol, "generated">):
       icon: PlayIcon,
       label: "Run",
       action: () => {
-        const runConfiguration = makeRunConfiguration(props.file, symbol);
+        const runConfiguration = makeRunConfiguration(symbol);
         const runEditor = makeRunEditor(runConfiguration);
         editorState.openEditor(runEditor);
         editorState.focusEditor(runEditor);
@@ -157,8 +160,8 @@ async function onNameEnter(event: Event) {
     >
       <!-- TODO @Cleanup: access symbol props via symbol only (like generated) -->
       <component
-        v-if="interfaces[symbol.type]"
-        :is="interfaces[symbol.type].component"
+        v-if="interfaces[symbol.type] != undefined"
+        :is="interfaces[symbol.type]?.component"
         :symbol="symbol"
         :content="symbol.content"
         :generated="symbol.generated"

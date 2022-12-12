@@ -4,7 +4,7 @@ import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewVersionHistory from "@/components/ViewVersionHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { useActions } from "@/utils/actions";
-import { useEditorState } from "@/utils/editor";
+import { useEditorState, type FileEditor } from "@/utils/editor";
 import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
@@ -144,9 +144,24 @@ const compileNavigation = computed(() => [
 ]);
 
 // set up editor state
-const router = useRouter();
 const state = useEditorState();
 
+// editors paths sync
+// TODO @Cleanup:
+watchEffect(() => {
+  if (!files.value) return;
+  state.editors.forEach((editor) => {
+    if (editor.type == "file") {
+      const fileEditor = editor as FileEditor;
+      const file = files.value.find((f) => f.id == fileEditor.fileId);
+      if (!file) return; // ignore
+      editor.path = file.path + ".instruct";
+    }
+  });
+});
+
+// router sync
+const router = useRouter();
 // focus file from url if hash changes and none is open
 watchEffect(() => {
   const hash = router.currentRoute.value.hash;
@@ -178,7 +193,7 @@ watchEffect(() => {
 watch(
   () => projectHeader.value,
   (projectHeader) => {
-    if (projectHeader && state.currentProject?.id != projectHeader.id) {
+    if (projectHeader && state.currentProjectId != projectHeader.id) {
       console.log(`reset editor state for project ${projectHeader.id}`);
       state.$reset();
       state.setProject(projectHeader);
