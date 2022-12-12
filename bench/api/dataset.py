@@ -1,0 +1,28 @@
+from __future__ import annotations
+
+from strawberry import auto
+from strawberry_django_plus import gql
+
+from bench import models
+from bench.api.misc import SchemaElement
+from bench.api.symbol import Symbol, SymbolContent
+
+
+@gql.django.type(models.Dataset)
+class Dataset(SymbolContent):
+    symbol: Symbol
+    schema: SchemaElement
+    length: auto
+    records: list[DatasetRecord]
+
+
+@gql.django.type(models.DatasetRecord)
+class DatasetRecord(gql.Node):
+    index: auto
+    data: auto
+
+
+@gql.django.type(models.DatasetView)
+class DatasetView(SymbolContent):
+    symbol: Symbol
+    dataset: Dataset

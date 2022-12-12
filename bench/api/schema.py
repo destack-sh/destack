@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Optional, Type, Union
 
 import strawberry
@@ -10,32 +8,33 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api import types
-from bench.api.code import CodeMutation
+from bench.api.code import Code, CodeMutation
 from bench.api.compilation import CompilationMutation
-from bench.api.file import FileMutation
-from bench.api.symbol import SymbolMutation
-from bench.api.version import ProjectVersionMutation
+from bench.api.dataset import Dataset, DatasetView
+from bench.api.expectation import Expectation
+from bench.api.model import Model
+from bench.api.organization import Organization
+from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
+from bench.api.symbol import Symbol, SymbolMutation
+from bench.api.task import Task
+from bench.api.user import User
 from bench.settings import DEBUG, TEST
 
 
 @strawberry.type
 class Query:
-    user: Optional[types.User] = gql.relay.node()
-    users: gql.relay.Connection[types.User] = gql.relay.connection()
-    project: Optional[types.Project] = gql.relay.node()
-    projectBySlug: Optional[types.Project] = gql.django.field(
-        resolver=models.Project.objects.get_by_slug
-    )
-    projects: gql.relay.Connection[types.Project] = gql.relay.connection()
-    projectVersion: Optional[types.ProjectVersion] = gql.relay.node()
-    file: Optional[types.File] = gql.relay.node()
-    symbol: Optional[types.Symbol] = gql.relay.node()
-    organization: Optional[types.Organization] = gql.relay.node()
-    organizationBySlug: Optional[types.Organization] = gql.django.field(
+    user: Optional[User] = gql.relay.node()
+    users: gql.relay.Connection[User] = gql.relay.connection()
+    project: Optional[Project] = gql.relay.node()
+    projectBySlug: Optional[Project] = gql.django.field(resolver=models.Project.objects.get_by_slug)
+    projects: gql.relay.Connection[Project] = gql.relay.connection()
+    projectVersion: Optional[ProjectVersion] = gql.relay.node()
+    file: Optional[File] = gql.relay.node()
+    symbol: Optional[Symbol] = gql.relay.node()
+    organization: Optional[Organization] = gql.relay.node()
+    organizationBySlug: Optional[Organization] = gql.django.field(
         resolver=models.Organization.objects.get_by_slug
     )
-    organizations: gql.relay.Connection[types.Organization] = gql.relay.connection()
 
 
 @strawberry.type
@@ -64,12 +63,5 @@ schema = strawberry.Schema(
     Mutation,
     extensions=extensions,
     # add interface implementation types explicitly
-    types=[
-        types.Task,
-        types.Expectation,
-        types.Code,
-        types.Model,
-        types.Dataset,
-        types.DatasetView,
-    ],
+    types=[Task, Expectation, Code, Model, Dataset, DatasetView],
 )

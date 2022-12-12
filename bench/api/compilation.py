@@ -1,12 +1,44 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Annotated, Optional
+
 import strawberry
 from asgiref.sync import async_to_sync
+from strawberry import auto, lazy
+from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api import types
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.compiler import Compiler, get_stdlib_model
+
+if TYPE_CHECKING:
+    from bench.api.code import Code
+    from bench.api.model import Model
+    from bench.api.symbol import Symbol
+    from bench.api.task import Task
+
+
+@gql.django.type(models.Compilation)
+class Compilation(gql.Node):
+    created_at: auto
+    updated_at: auto
+    task: Annotated["Task", lazy(".task")]
+    name: auto
+    backends: list[Annotated["Model", lazy(".model")]]
+    target_task: Optional[Annotated["Task", lazy(".task")]]
+    target_code: Optional[Annotated["Code", lazy(".code")]]
+    mappings: list[SourceMapping]
+
+
+@gql.django.type(models.SourceMapping)
+class SourceMapping(gql.Node):
+    compilation: Compilation
+    source: Annotated["Symbol", lazy(".symbol")]
+    source_path: auto
+    target: Annotated["Symbol", lazy(".symbol")]
+    target_path: auto
 
 
 @strawberry.input
@@ -16,7 +48,7 @@ class CompileInput:
 
 @strawberry.type
 class CompilePayload:
-    compilation: types.Compilation
+    compilation: Compilation
 
 
 @strawberry.input
@@ -28,7 +60,7 @@ class AddCompilationInput:
 
 @strawberry.type
 class AddCompilationPayload:
-    compilation: types.Compilation
+    compilation: Compilation
 
 
 class CompilationMutation:
