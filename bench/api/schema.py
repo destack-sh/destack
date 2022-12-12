@@ -3,23 +3,19 @@ from __future__ import annotations
 from typing import Optional, Type, Union
 
 import strawberry
-from asgiref.sync import async_to_sync
 from graphql import NoSchemaIntrospectionCustomRule
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
 from strawberry_django_plus import gql
 from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
-from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import types
+from bench.api.code import CodeMutation
+from bench.api.compilation import CompilationMutation
 from bench.api.file import FileMutation
 from bench.api.symbol import SymbolMutation
 from bench.api.version import ProjectVersionMutation
-from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
-from bench.backend.tracing import ExecutionTrace
-from bench.compiler import Compiler, get_stdlib_model
 from bench.settings import DEBUG, TEST
 
 
@@ -42,92 +38,11 @@ class Query:
     organizations: gql.relay.Connection[types.Organization] = gql.relay.connection()
 
 
-@strawberry.input
-class CompileInput:
-    compilation_id: GlobalID
-
-
 @strawberry.type
-class CompilePayload:
-    compilation: types.Compilation
-
-
-@strawberry.input
-class AddCompilationInput:
-    task_symbol_id: GlobalID
-    name: str
-    backends: list[str]
-
-
-@strawberry.type
-class AddCompilationPayload:
-    compilation: types.Compilation
-
-
-@strawberry.input
-class RunCodeValueArgumentInput:
-    name: str
-    value: str
-
-
-@strawberry.input
-class RunCodeInput:
-    code_id: GlobalID
-    arguments: list[RunCodeValueArgumentInput]
-
-
-@strawberry.type
-class RunCodeOutput:
-    name: str
-    value: str
-
-
-@strawberry.type
-class RunCodePayload:
-    code: types.Code
-    execution: types.Execution
-    outputs: Optional[list[RunCodeOutput]]
-
-
-@strawberry.type
-class Mutation(SymbolMutation, FileMutation, ProjectVersionMutation):
-    @strawberry.mutation
-    def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:
-        task = models.Symbol.objects.get(id=input.task_symbol_id.node_id).task_
-        backends = [get_stdlib_model(backend) for backend in input.backends]
-        compilation = task.add_compilation(input.name, backends)
-        return AddCompilationPayload(compilation=compilation)
-
-    @strawberry.mutation
-    def compile(self, input: CompileInput) -> CompilePayload:
-        compilation = (
-            models.Compilation.objects.all()
-            .select_related("project_version", "task", "target_task", "target_code")
-            .get(id=input.compilation_id.node_id)
-        )
-        executor = Executor(Resolver())
-        compiler = Compiler(executor)
-        async_to_sync(compiler.compile)(compilation)
-        return CompilePayload(compilation=compilation)
-
-    @strawberry.mutation
-    def run(self, input: RunCodeInput) -> RunCodePayload:
-        code = models.Code.objects.get(id=input.code_id.node_id)
-        # assumes only value arguments
-        arguments = {arg.name: arg.value for arg in input.arguments}
-        executor = Executor(Resolver())
-        execution_trace = ExecutionTrace(frames=[])
-        output = async_to_sync(executor.resolve_and_run)(code, arguments, [execution_trace])
-
-        if execution_trace.root is None:
-            raise RuntimeError(f"empty execution trace for {code}")
-
-        if isinstance(output, dict):
-            outputs = [RunCodeOutput(name=name, value=value) for name, value in output.items()]
-        else:
-            outputs = [RunCodeOutput(name="output", value=output)]
-        execution = models.Execution.objects.get(id=execution_trace.root.id)
-        return RunCodePayload(code=code, execution=execution, outputs=outputs)
+class Mutation(
+    SymbolMutation, FileMutation, CodeMutation, CompilationMutation, ProjectVersionMutation
+):
+    pass
 
 
 default_extensions: list[Union[Type[Extension], Extension]] = [

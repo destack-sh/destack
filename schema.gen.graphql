@@ -1,13 +1,3 @@
-input AddCompilationInput {
-  taskSymbolId: GlobalID!
-  name: String!
-  backends: [String!]!
-}
-
-type AddCompilationPayload {
-  compilation: Compilation!
-}
-
 type Code implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
@@ -40,14 +30,6 @@ type Compilation implements Node {
   targetTask: Task
   targetCode: Code
   mappings: [SourceMapping!]!
-}
-
-input CompileInput {
-  compilationId: GlobalID!
-}
-
-type CompilePayload {
-  compilation: Compilation!
 }
 
 union CreateFilePayload = File | OperationInfo
@@ -159,10 +141,8 @@ type Mutation {
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
   deleteFile(input: FileDeleteInput!): DeleteFilePayload!
-  commit(input: CommitInput!): CommitPayload!
-  addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
-  compile(input: CompileInput!): CompilePayload!
   run(input: RunCodeInput!): RunCodePayload!
+  commit(input: CommitInput!): CommitPayload!
 }
 
 """An object with a Globally Unique ID"""
