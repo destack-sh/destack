@@ -1,12 +1,19 @@
 import { useActionsStore } from "@/utils/actions";
 import Mousetrap from "mousetrap";
-import { onUnmounted, watchEffect } from "vue";
+import { watchEffect } from "vue";
 
 /**
  * Apply shortcuts for all available actions.
  * Should be called once in the root component.
  */
+let applyShortcutsCalled = false;
 export function applyShortcuts() {
+  // error if called multiple times
+  if (applyShortcutsCalled) {
+    throw new Error("applyShortcuts should only be called once");
+  }
+  applyShortcutsCalled = true;
+
   const actions = useActionsStore();
 
   const boundShortcuts = [] as string[];
@@ -20,10 +27,5 @@ export function applyShortcuts() {
       Mousetrap.bind(action.shortcuts, action.apply);
       boundShortcuts.push(...action.shortcuts);
     });
-  });
-
-  // clear when unmounted
-  onUnmounted(() => {
-    boundShortcuts.forEach((shortcut) => Mousetrap.unbind(shortcut));
   });
 }
