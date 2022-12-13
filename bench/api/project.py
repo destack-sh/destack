@@ -35,7 +35,6 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     libraries: list["ProjectVersion"]
-    main_program: Optional[Annotated["Symbol", lazy(".symbol")]]
     files: list["File"]
     compilations: list[Annotated["Compilation", lazy(".compilation")]]
     symbols: list[Annotated["Symbol", lazy(".symbol")]]

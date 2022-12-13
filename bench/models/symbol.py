@@ -120,7 +120,17 @@ class Statement(UUIDModel):
     text = models.TextField(null=True, blank=True)  # as markdown
 
     def deepcopy(self, to: Statement, refs: dict[UUID, SymbolContent | Symbol | Statement]):
-        raise NotImplementedError
+        # symbol is copied in the caller
+        to.reference = refs.get(self.reference_id)
+        # copy arguments
+        # (copied from Symbol.deepcopy)
+        for argument in self.arguments.all():
+            argument.id = None
+            argument.symbol = to
+            # replace ref (default to same ref if not in refs since library refs are not copied)
+            new_reference = refs.get(argument.reference_id, argument.reference)
+            argument.reference = cast(Symbol, new_reference)
+            argument.save()
 
     def add_child(self, type: StatementType, content: Symbol) -> Statement:
         index = self.children.count()

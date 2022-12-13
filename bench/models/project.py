@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypeVar
 from uuid import UUID
 
 import pytz
@@ -129,6 +130,22 @@ class Project(TaggableMixin, UUIDModel):
         ]
 
 
+T = TypeVar("T")
+
+
+def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
+    """
+    Walk all children of an object in breadth-first order.
+    """
+    queue: Deque["Symbol"] = deque(objects)
+    while queue:
+        obj = queue.popleft()
+        # copy children before yielding to avoid concurrent modification while copying
+        children = list(getattr(obj, child_attr).all())
+        yield obj
+        queue.extend(children)
+
+
 class ProjectVersion(TaggableMixin, UUIDModel):
     """
     A project version records the state of a project at a specific point in time.
@@ -145,6 +162,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
     libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
+    # TODO @Cleanup: remove ProjectVersion.main_program in favor of statement modifier 'main'
     main_program = models.ForeignKey(
         "Symbol", related_name="+", null=True, on_delete=models.SET_NULL
     )
@@ -160,26 +178,24 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
-        for file in source.files.all():
+        for file in walk_children_bfs(source.files.all(), "files"):
             old_id = file.id
             file.pk = None
             file.project_version = target
+            file.parent = new_files.get(file.parent_id)
             file.save()
             new_files[old_id] = file
-        # 1.1 re-assign project file parents
-        for old_file in source.files.all():
-            if old_file.parent_id is not None:
-                new_file = new_files[old_file.id]
-                new_file.parent = new_files[old_file.parent_id]
-                new_file.save()
         # 2. copy statements, symbols and symbol contents
         new_statements: dict[UUID, Statement] = {}
         new_symbols: dict[UUID, Symbol] = {}
         new_contents: dict[UUID, SymbolContent] = {}
-        for statement in source.statements.all():
+        for statement in walk_children_bfs(source.statements.filter(parent=None).all(), "children"):
             old_id = statement.id
             statement.pk = None
+            statement.file = new_files[statement.file_id]
             statement.project_version = target
+            statement.parent = new_statements.get(statement.parent_id)
+            statement.reference = None
             statement.save()
             new_statements[old_id] = statement
         for symbol in source.symbols.all():
@@ -195,15 +211,18 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             symbol.pk = None
             symbol.parent = None
             symbol.set_content(content)
-            symbol.file = new_files[symbol.file_id]
+            symbol.statement = new_statements[symbol.statement_id]
             symbol.project_version = target
             symbol.save()
             new_symbols[old_id] = symbol
-        refs: dict[UUID, SymbolContent | Symbol] = {**new_symbols, **new_contents}
+        refs: dict[UUID, SymbolContent | Symbol | Statement] = {
+            **new_symbols,
+            **new_contents,
+            **new_statements,
+        }
         # 2.1 re-assign references and deep copy other relations
         for old_statement in source.statements.all():
             new_statement = new_statements[old_statement.id]
-            new_statement.parent = refs.get(old_statement.parent_id)
             old_statement.deepcopy(new_statement, refs)
             new_statement.save()
         for old_symbol in source.symbols.all():
