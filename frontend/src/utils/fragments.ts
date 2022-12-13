@@ -48,6 +48,19 @@ export const FileHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
+export const SymbolHeaderType = graphql(/* GraphQL */ `
+  fragment SymbolHeader on Symbol {
+    id
+    name
+    file {
+      path
+    }
+    type
+    createdAt
+    updatedAt
+  }
+`);
+
 export const CompilationHeaderType = graphql(/* GraphQL */ `
   fragment CompilationHeader on Compilation {
     id

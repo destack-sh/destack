@@ -25,7 +25,7 @@ const documents = {
     types.ProjectVersionsDocument,
   "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
-  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
+  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    symbols {\n      id\n      ...SymbolHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.ProjectVersionContentFragmentDoc,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
@@ -37,6 +37,8 @@ const documents = {
     types.ProjectHeaderFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n":
     types.FileHeaderFragmentDoc,
+  "\n  fragment SymbolHeader on Symbol {\n    id\n    name\n    file {\n      path\n    }\n    type\n    createdAt\n    updatedAt\n  }\n":
+    types.SymbolHeaderFragmentDoc,
   "\n  fragment CompilationHeader on Compilation {\n    id\n    name\n    createdAt\n    updatedAt\n    task {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    backends {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    targetTask {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    targetCode {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n  }\n":
     types.CompilationHeaderFragmentDoc,
   "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n":
@@ -93,8 +95,8 @@ export function graphql(
   source: "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
 ): typeof documents["\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
 export function graphql(
-  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
+  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    symbols {\n      id\n      ...SymbolHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    mainProgram {\n      id\n      name\n      type\n    }\n    files {\n      id\n      ...FileHeader\n    }\n    symbols {\n      id\n      ...SymbolHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
@@ -110,6 +112,9 @@ export function graphql(
 export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n"];
+export function graphql(
+  source: "\n  fragment SymbolHeader on Symbol {\n    id\n    name\n    file {\n      path\n    }\n    type\n    createdAt\n    updatedAt\n  }\n"
+): typeof documents["\n  fragment SymbolHeader on Symbol {\n    id\n    name\n    file {\n      path\n    }\n    type\n    createdAt\n    updatedAt\n  }\n"];
 export function graphql(
   source: "\n  fragment CompilationHeader on Compilation {\n    id\n    name\n    createdAt\n    updatedAt\n    task {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    backends {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    targetTask {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    targetCode {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment CompilationHeader on Compilation {\n    id\n    name\n    createdAt\n    updatedAt\n    task {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    backends {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    targetTask {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n    targetCode {\n      id\n      symbol {\n        id\n        name\n        typeNameDeclaration\n      }\n    }\n  }\n"];

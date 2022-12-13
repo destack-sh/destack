@@ -1,5 +1,6 @@
 import type { File, Project, ProjectVersion, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
+import { onBeforeUnmount, watchEffect } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -18,7 +19,7 @@ export type Editor = {
   type: "file" | "symbol" | "run";
   id: string;
   path: string;
-  // TODO @Feature: remember scroll position
+  scroll?: { x: number; y: number };
   groupId: string | null; // id instead of EditorGroup to avoid circular dependency
 };
 
@@ -56,7 +57,7 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
 export function makeFileEditor(file: FileHeader): FileEditor {
   return {
     // append random string to enable multiple editors for the same file
-    id: file.id + "-" + Math.random().toString(16),
+    id: file.id + "-" + Math.random().toString(16).substring(2, 8),
     type: "file",
     fileId: file.id,
     path: file.path + ".instruct",
@@ -84,6 +85,7 @@ export function makeRunEditor(config: RunConfiguration): RunEditor {
 export const useEditorState = defineStore("editor", {
   state: () => {
     return {
+      // note that editor state should be JSON serializable
       currentProjectId: null as string | null,
       currentProjectVersionId: null as string | null,
       left: makeEditorGroup("left", "Left"),
@@ -119,6 +121,14 @@ export const useEditorState = defineStore("editor", {
     setProject(project: ProjectHeader, version: ProjectVersionHeader): void {
       this.currentProjectId = project.id;
       this.currentProjectVersionId = version.id;
+    },
+
+    migrateTo(version: ProjectVersionHeader): void {
+      this.currentProjectVersionId = version.id;
+    },
+
+    setEditorScroll(editor: Editor, scroll: { x: number; y: number }): void {
+      editor.scroll = scroll;
     },
 
     _removeEditorFromGroup(editor: Editor): void {
@@ -210,3 +220,33 @@ export const useEditorState = defineStore("editor", {
     },
   },
 });
+
+export function useEditorPersistence(intervalMs = 1000) {
+  const editor = useEditorState();
+
+  const save = () => {
+    // save editor state by project id
+    if (editor.currentProjectId == null) return;
+    localStorage.setItem(`editor-state-${editor.currentProjectId}`, JSON.stringify(editor.$state));
+  };
+
+  const load = () => {
+    // load editor state by project id
+    if (editor.currentProjectId == null) return;
+    const state = localStorage.getItem(`editor-state-${editor.currentProjectId}`);
+    if (state) {
+      try {
+        editor.$patch(JSON.parse(state));
+        console.log(`restored editor state for project ${editor.currentProjectId}`);
+      } catch (e) {
+        console.error(`failed to restore editor state for project ${editor.currentProjectId}`);
+      }
+    }
+  };
+
+  // save every interval
+  const interval = setInterval(save, intervalMs);
+  onBeforeUnmount(() => clearInterval(interval));
+
+  return { save, load };
+}

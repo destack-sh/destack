@@ -4,8 +4,14 @@ import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/utils/actions";
-import { useEditorState, type FileEditor } from "@/utils/editor";
-import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
+import { useEditorPersistence, useEditorState, type FileEditor } from "@/utils/editor";
+import {
+  CompilationHeaderType,
+  FileHeaderType,
+  ProjectHeaderType,
+  ProjectVersionHeaderType,
+  SymbolHeaderType,
+} from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -96,6 +102,10 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
       id
       ...FileHeader
     }
+    symbols {
+      id
+      ...SymbolHeader
+    }
     compilations {
       id
       ...CompilationHeader
@@ -117,18 +127,18 @@ const { result: contentQuery } = useQuery(
 );
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
 const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
-
-// actions (ensure global actions are available)
-useActions();
-
-// compile
+const symbols = computed(() => content.value?.symbols.map((s) => useFragment(SymbolHeaderType, s)) || []);
 const compilations = computed(
   () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
 );
+
+// actions (ensure global actions are available)
+const actions = useActions();
+const operations = useOperations();
+
+// compile
 const isCompiling = ref(false);
 const canCompile = computed(() => !isCompiling.value && compilations.value?.length > 0);
-
-const operations = useOperations();
 
 async function compileAll() {
   isCompiling.value = true;
@@ -203,7 +213,7 @@ watchEffect(() => {
   }
 });
 
-// TODO @Feature: store and restore editor state per project (and version)
+const { load } = useEditorPersistence();
 // reset editor state for project if project (head) changes
 watchEffect(() => {
   const loaded = projectHeader.value != null && projectHead.value != null;
@@ -215,12 +225,13 @@ watchEffect(() => {
     if (state.currentProjectId == projectHeader.value?.id) {
       // TODO @Feature: migrate editor state
       console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
-      state.$reset();
-      state.setProject(projectHeader.value, projectHead.value);
+      state.migrateTo(projectHead.value);
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);
       state.$reset();
       state.setProject(projectHeader.value, projectHead.value);
+      // try to load editor state
+      load();
     }
   }
 });

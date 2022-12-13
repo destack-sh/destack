@@ -1,7 +1,8 @@
 <script lang="ts" setup>
+import EditorInterface from "@/components/EditorInterface.vue";
 import FileInterface from "@/components/FileInterface.vue";
 import RunInterface from "@/components/RunInterface.vue";
-import { useEditorState, type EditorGroup, type FileEditor, type RunEditor } from "@/utils/editor";
+import { useEditorState, type Editor, type EditorGroup, type FileEditor, type RunEditor } from "@/utils/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { computed, ref, watch } from "vue";
 
@@ -22,6 +23,11 @@ watch(
   }
 );
 const focused = computed(() => editorState.focusedEditor?.groupId == props.group.id);
+
+function shouldUnmountPanel(editor: Editor): boolean {
+  // TODO @Performance: decide when to unmount panels in editor group
+  return false;
+}
 </script>
 <template>
   <!-- Tabbed editors for this group -->
@@ -49,14 +55,8 @@ const focused = computed(() => editorState.focusedEditor?.groupId == props.group
       </TabList>
       <!-- Contents -->
       <TabPanels class="relative h-full w-full flex-1">
-        <TabPanel v-for="(editor, index) in group.editors" :key="index">
-          <div class="absolute left-0 top-0 h-full w-full overflow-auto">
-            <FileInterface v-if="editor.type == 'file'" :fileId="(editor as FileEditor).fileId" />
-            <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" />
-            <div v-else class="h-full w-full text-center">
-              <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
-            </div>
-          </div>
+        <TabPanel v-for="(editor, index) in group.editors" :key="index" :unmount="shouldUnmountPanel(editor)">
+          <EditorInterface class="absolute left-0 top-0 h-full w-full overflow-auto" :editor="editor" />
         </TabPanel>
       </TabPanels>
     </TabGroup>
