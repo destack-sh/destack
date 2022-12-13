@@ -21,6 +21,15 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+class Statement(UUIDModel):
+    """
+    A statement in a file can import, define or reference a symbol.
+    Statements may be nested (which implies parent-child relationships).
+    """
+
+    pass
+
+
 class SymbolType(models.TextChoices):
     """
     The type of symbol to define in a project.

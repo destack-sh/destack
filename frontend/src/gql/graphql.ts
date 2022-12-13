@@ -814,6 +814,9 @@ export type ProjectVersionContentFragment = {
   committedAt?: any | null;
   mainProgram?: { __typename?: "Symbol"; id: any; name: string; type: SymbolType } | null;
   files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
+  symbols: Array<
+    { __typename?: "Symbol"; id: any } & { " $fragmentRefs"?: { SymbolHeaderFragment: SymbolHeaderFragment } }
+  >;
   compilations: Array<
     { __typename?: "Compilation"; id: any } & {
       " $fragmentRefs"?: { CompilationHeaderFragment: CompilationHeaderFragment };
@@ -874,6 +877,16 @@ export type FileHeaderFragment = {
   createdAt: any;
   updatedAt: any;
 } & { " $fragmentName"?: "FileHeaderFragment" };
+
+export type SymbolHeaderFragment = {
+  __typename?: "Symbol";
+  id: any;
+  name: string;
+  type: SymbolType;
+  createdAt: any;
+  updatedAt: any;
+  file: { __typename?: "File"; path: string };
+} & { " $fragmentName"?: "SymbolHeaderFragment" };
 
 export type CompilationHeaderFragment = {
   __typename?: "Compilation";
@@ -1248,6 +1261,34 @@ export const FileHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<FileHeaderFragment, unknown>;
+export const SymbolHeaderFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "SymbolHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Symbol" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "path" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<SymbolHeaderFragment, unknown>;
 export const CompilationHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1391,6 +1432,17 @@ export const ProjectVersionContentFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbols" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "SymbolHeader" } },
               ],
             },
           },
@@ -2122,6 +2174,7 @@ export const ProjectVersionContentDocument = {
     },
     ...ProjectVersionContentFragmentDoc.definitions,
     ...FileHeaderFragmentDoc.definitions,
+    ...SymbolHeaderFragmentDoc.definitions,
     ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
