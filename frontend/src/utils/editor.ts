@@ -119,11 +119,16 @@ export const useEditorState = defineStore("editor", {
   },
   actions: {
     setProject(project: ProjectHeader, version: ProjectVersionHeader): void {
+      this.$reset();
       this.currentProjectId = project.id;
       this.currentProjectVersionId = version.id;
     },
 
-    migrateTo(version: ProjectVersionHeader): void {
+    migrateTo(version: ProjectVersionHeader, files: FileHeader[], symbols: SymbolHeader[]): void {
+      // TODO @Feature: migrate editor state
+      const projectId = this.currentProjectId;
+      this.$reset();
+      this.currentProjectId = projectId;
       this.currentProjectVersionId = version.id;
     },
 

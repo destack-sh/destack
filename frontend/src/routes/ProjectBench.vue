@@ -216,19 +216,18 @@ watchEffect(() => {
 const { load } = useEditorPersistence();
 // reset editor state for project if project (head) changes
 watchEffect(() => {
-  const loaded = projectHeader.value != null && projectHead.value != null;
+  const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
   if (
     loaded &&
     (state.currentProjectId != projectHeader.value.id || state.currentProjectVersionId != projectHead.value.id)
   ) {
     // if same project different version -> try to migrate
     if (state.currentProjectId == projectHeader.value?.id) {
-      // TODO @Feature: migrate editor state
       console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
-      state.migrateTo(projectHead.value);
+      // migrate once files and symbols are loaded
+      state.migrateTo(projectHead.value, files.value, symbols.value);
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);
-      state.$reset();
       state.setProject(projectHeader.value, projectHead.value);
       // try to load editor state
       load();
