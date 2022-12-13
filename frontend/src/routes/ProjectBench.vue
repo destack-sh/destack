@@ -305,9 +305,13 @@ watchEffect(() => {
           </Menu>
           <!-- Status -->
           <div class="ml-2 flex items-center">
-            <span v-show="anyInflightOps" class="p-1 transition-opacity">
-              <!-- little svg circle fading in and out -->
-              <svg viewBox="0 0 100 100" class="h-1 w-1 animate-pulse text-gray-400">
+            <!-- Sync indicator -->
+            <span class="p-1 transition-all">
+              <svg
+                viewBox="0 0 100 100"
+                class="h-1 w-1"
+                :class="{ 'text-gray-400': anyInflightOps, 'text-orange-400': !anyInflightOps }"
+              >
                 <circle cx="50" cy="50" r="40" fill="currentColor" />
               </svg>
             </span>

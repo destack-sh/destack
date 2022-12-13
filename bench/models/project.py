@@ -11,7 +11,7 @@ from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.symbol import Statement, StatementType, Symbol, SymbolContent, SymbolType
+from bench.models.symbol import Statement, Symbol, SymbolContent, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -270,19 +270,20 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         file: File,
         parent: Optional[Statement] = None,
         index: Optional[int] = None,
+        **kwargs,
     ) -> Symbol:
         """
         Define a symbol in this project version in the given file.
         """
 
-        statement = Statement.objects.create_statement(
+        statement = Statement.objects.create_definition(
             content=content,
             project_version=self,
-            type=StatementType.DEFINITION,
             name=name,
             file=file,
             parent=parent,
             index=index,
+            **kwargs,
         )
         return statement.symbol_
 
@@ -398,10 +399,10 @@ class File(UUIDModel):
         return self.parent is None
 
     def define_symbol(
-        self, name: str, content: SymbolContent, parent: Optional[Statement] = None
+        self, name: str, content: SymbolContent, parent: Optional[Statement] = None, **kwargs
     ) -> Symbol:
         return self.project_version.define_symbol(
-            file=self, name=name, content=content, parent=parent
+            file=self, name=name, content=content, parent=parent, **kwargs
         )
 
     class Meta:

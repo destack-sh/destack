@@ -23,6 +23,7 @@ from bench.models import (
     Organization,
     Project,
     ProjectVersion,
+    StatementType,
     Symbol,
     SymbolContent,
     SymbolParameterType,
@@ -234,8 +235,7 @@ def parse_task(
         if "parent" in segment.symbol_args:
             parent_name = segment.symbol_args["parent"]
             parent = project_v.symbol(parent_name, SymbolType.TASK)
-            symbol.parent = parent
-            symbol.index = parent.children.count()
+            parent.statement.add_child(StatementType.REFERENCE, symbol)
 
     return task, on_defined
 
@@ -255,13 +255,15 @@ def parse_code(
         output_schema=output_schema,
         code_function_name=function.__name__,
     )
-    if "task" in segment.symbol_args:
-        task_name = segment.symbol_args["task"]
-        task = project_v.symbol(task_name, SymbolType.TASK).task_
-        code.tasks.add(task)
-        task.template_implementation = code
 
     def on_defined(symbol: Symbol):
+        # "implement" task by extending it
+        if "task" in segment.symbol_args:
+            task_name = segment.symbol_args["task"]
+            task = project_v.symbol(task_name, SymbolType.TASK).task_
+            code.symbol.extend(task.symbol)
+            task.template_implementation = code
+
         # parameters can also be defined in the schema extracted from the function signature
         for param in code.input_schema.elements:
             symbol.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
@@ -305,27 +307,25 @@ def parse_expect(
 
     expectation = Expectation.objects.create(description=description)
 
-    for statement_path in statements_names:
-        # statement path is <name>.<type>
-        statement_name, statement_type_name = statement_path.split(".")
-        statement_type = SymbolType(statement_type_name)
+    def on_defined(symbol: Symbol):
+        for statement_path in statements_names:
+            # statement path is <name>.<type>
+            statement_name, statement_type_name = statement_path.split(".")
+            statement_type = SymbolType(statement_type_name)
 
-        statement_def = project_v.symbol(statement_name, statement_type)
-        if statement_def.type in (
-            SymbolType.CODE,
-            SymbolType.DATASET,
-        ):
-            expectation.statements.add(statement_def)
-        else:
-            raise ValueError(
-                f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
-            )
-    if "task" in segment.symbol_args:
-        task_name = segment.symbol_args["task"]
-        task = project_v.symbol(task_name, SymbolType.TASK).task_
-        task.expectations.add(expectation)
+            statement_def = project_v.symbol(statement_name, statement_type)
+            if statement_def.type in (SymbolType.CODE, SymbolType.DATASET):
+                expectation.statement.add_child(StatementType.REFERENCE, statement_def)
+            else:
+                raise ValueError(
+                    f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
+                )
+        if "task" in segment.symbol_args:
+            task_name = segment.symbol_args["task"]
+            task = project_v.symbol(task_name, SymbolType.TASK).task_
+            task.statement.add_child(StatementType.REFERENCE, symbol)
 
-    return expectation
+    return expectation, on_defined
 
 
 def bind_parameters(

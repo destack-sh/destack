@@ -33,25 +33,22 @@ class StatementType(models.TextChoices):
 
 class StatementManager(models.Manager["Statement"]):
     @transaction.atomic
-    def create_statement(
+    def create_definition(
         self,
         project_version: ProjectVersion,
         file: File,
-        type: StatementType,
         parent: Optional[Statement],
         index: Optional[int],
         content: SymbolContent,
         name: str,
     ) -> Statement:
-        # auto set index if not passed
-        if index is None:
-            if parent:
-                index = parent.children.count()
-            else:
-                index = file.symbols.count()
-
+        index = self._get_index(file, parent, index)
         statement = self.create(
-            project_version=project_version, file=file, type=type, parent=parent, index=index
+            project_version=project_version,
+            file=file,
+            type=StatementType.DEFINITION,
+            parent=parent,
+            index=index,
         )
         statement.symbol = Symbol.objects.create_symbol(
             project_version=project_version,
@@ -61,6 +58,33 @@ class StatementManager(models.Manager["Statement"]):
             name=name,
         )
         return statement
+
+    def create_reference(
+        self,
+        project_version: ProjectVersion,
+        file: File,
+        parent: Optional[Statement],
+        index: Optional[int],
+        symbol: Symbol,
+    ) -> Statement:
+        index = self._get_index(file, parent, index)
+        return self.create(
+            project_version=project_version,
+            file=file,
+            type=StatementType.REFERENCE,
+            parent=parent,
+            index=index,
+            symbol=symbol,
+        )
+
+    def _get_index(self, file: File, parent: Optional[Statement], index: Optional[int]) -> int:
+        # auto set index if not passed
+        if index is None:
+            if parent:
+                index = parent.children.count()
+            else:
+                index = file.symbols.count()
+        return index
 
 
 class Statement(UUIDModel):
@@ -97,6 +121,21 @@ class Statement(UUIDModel):
 
     def deepcopy(self, to: Statement, refs: dict[UUID, SymbolContent | Symbol | Statement]):
         raise NotImplementedError
+
+    def add_child(self, type: StatementType, content: Symbol) -> Statement:
+        index = self.children.count()
+        kwargs = {"symbol": content} if type == StatementType.DEFINITION else {"reference": content}
+        return Statement.objects.create(
+            project_version=self.project_version,
+            file=self.file,
+            type=type,
+            parent=self,
+            index=index,
+            **kwargs,
+        )
+
+    def children_of_symbol_type(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
+        return self.children.filter(symbol__type=symbol_type)
 
     @property
     def symbol_(self) -> Symbol:
@@ -325,6 +364,9 @@ class Symbol(TaggableMixin, UUIDModel):
     def set_content(self, content: SymbolContent | None):
         setattr(self, self.type_to_field(self.type), content)
 
+    def extend(self, symbol: Symbol):
+        self.extends.add(symbol)
+
     @property
     def task_(self) -> Task:
         if TYPE_CHECKING:
@@ -442,6 +484,10 @@ class SymbolContent(UUIDModel):
     """
 
     symbol: Symbol  # noqa via Symbol.content
+
+    @property
+    def statement(self) -> Statement:
+        return self.symbol.statement
 
     @property
     def symbol_str(self) -> str:

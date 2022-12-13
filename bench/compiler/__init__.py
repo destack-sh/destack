@@ -123,7 +123,6 @@ class TaskData:
     examples: dict[UUID, RecordBatch]  # by dataset id
     parent: Optional[TaskData]
     children: dict[UUID, TaskData]  # by task id
-    template_implementation: Optional[Code]
     optimal_backend: Optional[Model]
     task: Task
 
@@ -205,13 +204,12 @@ class TaskData:
             expectations=expectations,
             statements=statements,
             examples=examples,
-            template_implementation=task.template_implementation,
             optimal_backend=None,
             parent=parent,
             children={},
             task=task,
         )
-        for child in task.symbol.children.all().select_related("task"):
+        for child in task.subtasks.all():
             if child.task is None:
                 continue
             self.children[child.id] = cls._from_task_rec(child.task, parent=self)
@@ -413,7 +411,7 @@ class Compiler:
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
         dataset = Dataset.objects.from_list(compiled_examples, schema="derive")
-        genfile.create_symbol("examples", dataset, generated=True)
+        genfile.define_symbol("examples", dataset, generated=True)
         task_schema_keys = {*task_data.input_schema.keys, *task_data.output_schema.keys}
         if set(dataset.schema.keys) != task_schema_keys:
             raise ValueError(
@@ -482,7 +480,7 @@ class Compiler:
             builtin_id="llm_fewshot",
         )
         llm_code.tasks.add(task_data.task)
-        genfile.create_symbol(task_data.symbol.name, llm_code, generated=True)
+        genfile.define_symbol(task_data.symbol.name, llm_code, generated=True)
         llm_code.symbol.bind_arguments(
             model=task_data.optimal_backend.symbol,
             prompt_prefix=prompt_prefix,

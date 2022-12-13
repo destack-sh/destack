@@ -30,6 +30,18 @@ class Task(SymbolContent):
 
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation.task
 
+    @property
+    def expectations(self) -> models.QuerySet["Expectation"]:
+        return self.symbol.statement.children_of_symbol_type("expectation").values_list(
+            "symbol", flat=True
+        )
+
+    @property
+    def subtasks(self) -> models.QuerySet["Task"]:
+        return self.symbol.statement.children_of_symbol_type("task").values_list(
+            "symbol", flat=True
+        )
+
     def deepcopy(self, to: SymbolContent, refs: dict[UUID, Symbol | SymbolContent]):
         super().deepcopy(to, refs)
         # deep copy compilations
