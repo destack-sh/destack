@@ -28,7 +28,7 @@ export const useOperationsStore = defineStore("operations", {
   },
   actions: {
     async perform<T>(operation: Operation<T>): Promise<T> {
-      operation = { ...operation, id: operation.id ?? Math.random().toString(16) };
+      operation = { ...operation, id: operation.id ?? Math.random().toString(16).substring(2, 8) };
       console.log(`perform ${operation.type} (id=${operation.id})`);
 
       this.inflight.push(operation);

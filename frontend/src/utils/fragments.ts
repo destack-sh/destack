@@ -20,6 +20,9 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
+    parents {
+      id
+    }
   }
 `);
 

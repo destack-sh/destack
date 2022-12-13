@@ -21,7 +21,7 @@ export function useProjectVersionOps() {
         }
       }
     `),
-    { refetchQueries: ["projectVersions"] }
+    { refetchQueries: ["projectVersions", "projectBySlug"] }
   );
 
   async function commit(projectVersionId: string, name: string, description?: string) {

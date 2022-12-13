@@ -852,6 +852,7 @@ export type ProjectVersionHeaderFragment = {
   createdAt: any;
   committed: boolean;
   committedAt?: any | null;
+  parents: Array<{ __typename?: "ProjectVersion"; id: any }>;
 } & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
 
 export type ProjectHeaderFragment = {
@@ -1461,6 +1462,14 @@ export const ProjectVersionHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "committed" } },
           { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
         ],
       },
     },
