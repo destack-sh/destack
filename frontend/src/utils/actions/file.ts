@@ -1,5 +1,5 @@
 import { getRandomName } from "@/composables/useRandomName";
-import { provideSharedAction } from "@/utils/actions";
+import { provideGlobalAction } from "@/utils/actions";
 import { useEditorState } from "@/utils/editor";
 import { useOperations } from "@/utils/operations";
 
@@ -7,7 +7,7 @@ export function useFileActions() {
   const editor = useEditorState();
   const operations = useOperations();
 
-  const create = provideSharedAction({
+  const create = provideGlobalAction({
     id: "file.new",
     label: "New file...",
     shortcuts: ["ctrl+n", "meta+n"],

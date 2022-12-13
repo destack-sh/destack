@@ -14,25 +14,6 @@ const TaskContent = graphql(/* GraphQL */ `
     outputSchema {
       ...SchemaElementContentDeep
     }
-    expectations {
-      id
-      description
-      symbol {
-        id
-        name
-        typeNameDeclaration
-      }
-      statements {
-        id
-        name
-        typeNameDeclaration
-      }
-    }
-    templateImplementation {
-      id
-      name
-      typeNameDeclaration
-    }
     compilations {
       id
       ...CompilationHeader
@@ -67,18 +48,5 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
         </div>
       </div>
     </div>
-    <!-- Expectations -->
-    <ul class="m-2 flex flex-col gap-2">
-      <li class="relative flex flex-col" v-for="(expectation, index) in content.expectations" :key="expectation.id">
-        <span class="tracking-wide text-gray-500">{{ expectation.symbol.typeNameDeclaration }}</span>
-        <span>{{ expectation.description }}</span>
-        <!-- Imitate Monaco line numbers -->
-        <span
-          class="absolute top-0.5 -left-12 w-6 select-none text-right font-mono text-sm"
-          :class="{ 'text-orange-200': !focused, 'text-orange-400': focused }"
-          >{{ index + 1 }}</span
-        >
-      </li>
-    </ul>
   </div>
 </template>

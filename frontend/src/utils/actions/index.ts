@@ -3,7 +3,7 @@ import { useFileActions } from "@/utils/actions/file";
 import { useEditorActions } from "@/utils/actions/editor";
 import { useVersionActions } from "@/utils/actions/version";
 import { defineStore } from "pinia";
-import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watchEffect, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch, watchEffect, type Ref } from "vue";
 
 export type Action = {
   id: string;
@@ -53,6 +53,14 @@ export const useActionsStore = defineStore("actions", {
       }
       this.actions[index] = action;
     },
+    upsert(action: Action): void {
+      const index = this.actions.findIndex((a) => a.id === action.id);
+      if (index === -1) {
+        this.actions.push(action);
+      } else {
+        this.actions[index] = action;
+      }
+    },
     remove(action: Action | string): void {
       if (typeof action === "string") {
         this.actions = this.actions.filter((a) => a.id !== action);
@@ -67,24 +75,25 @@ export type RegisteredAction = {
   id: string;
   label: string | Ref<string>;
   shortcuts: string[];
+  registered?: Ref<boolean>;
   enabled?: Ref<boolean>;
   apply: () => void;
 };
 
-export function provideSharedAction(action: RegisteredAction): Ref<Action> {
-  return provideAction(action, true);
+export function provideGlobalAction(action: RegisteredAction): Ref<Action> {
+  return provideAction(action, "global");
 }
 
-export function provideAction(action: RegisteredAction, shared?: boolean): Ref<Action> {
+export function provideAction(action: RegisteredAction, mode: "global" | "singleton" = "singleton"): Ref<Action> {
   const actionsStore = useActionsStore();
 
   // if this action can be reused just return a ref to the existing action
-  if (shared && actionsStore.has(action.id)) {
+  if (mode == "global" && actionsStore.has(action.id)) {
     // TODO @Cleanup: error if registered actions are different
     return computed(() => actionsStore.action(action.id));
   }
 
-  console.log(`provide action ${action.id}`);
+  console.log(`provide action ${action.id} (${mode})`);
   const mounted = ref(false);
 
   function toResolvedAction() {
@@ -98,16 +107,26 @@ export function provideAction(action: RegisteredAction, shared?: boolean): Ref<A
   }
   const resolvedAction: Ref<Action> = ref(toResolvedAction());
 
-  actionsStore.add(resolvedAction.value);
+  if (!action.registered || action.registered.value) {
+    actionsStore.add(resolvedAction.value);
+  }
   onMounted(() => {
     mounted.value = true;
   });
   // keep action updated in store
-  watchEffect(() => {
-    if (!mounted.value) return;
-    resolvedAction.value = toResolvedAction();
-    actionsStore.update(resolvedAction.value);
-  });
+  watch(
+    () => [mounted, action],
+    () => {
+      if (!mounted.value) return;
+      if (!action.registered || action.registered.value) {
+        resolvedAction.value = toResolvedAction();
+        actionsStore.upsert(resolvedAction.value);
+      } else {
+        actionsStore.remove(action.id);
+      }
+    },
+    { deep: true }
+  );
   onBeforeUnmount(() => {
     mounted.value = false;
     actionsStore.remove(action.id);

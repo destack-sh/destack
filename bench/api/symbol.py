@@ -16,6 +16,7 @@ class Statement(gql.relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
     type: auto
+    type_shortname: auto
     created_at: auto
     updated_at: auto
     commented: auto
@@ -24,6 +25,7 @@ class Statement(gql.relay.Node):
     children: list["Statement"]
     index: auto
     symbol: Optional["Symbol"]
+    reference: Optional["Symbol"]
     arguments: list["SymbolArgument"]
     text: auto
 
@@ -38,6 +40,7 @@ class Symbol(gql.Node):
     type_name_declaration: auto
     created_at: auto
     updated_at: auto
+    statement: "Statement"
     content: "SymbolContent"
     parameters: list["SymbolParameter"]
     arguments: list["SymbolArgument"]

@@ -1,5 +1,5 @@
 import { getRandomName } from "@/composables/useRandomName";
-import { provideSharedAction } from "@/utils/actions";
+import { provideGlobalAction } from "@/utils/actions";
 import { useEditorState } from "@/utils/editor";
 import { useOperations, useOperationsStore } from "@/utils/operations";
 import { computed } from "vue";
@@ -9,7 +9,7 @@ export function useVersionActions() {
   const ops = useOperations();
   const opsState = useOperationsStore();
 
-  const commit = provideSharedAction({
+  const commit = provideGlobalAction({
     id: "version.commit",
     label: "Commit...",
     shortcuts: ["ctrl+s", "meta+s"],

@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { useActions } from "@/utils/actions";
+import { provideAction, useActions } from "@/utils/actions";
 import { useEditorState, type FileHeader } from "@/utils/editor";
 import { useOperations } from "@/utils/operations";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
-import { onClickOutside, useMagicKeys, whenever } from "@vueuse/core";
-import { ref, type Component } from "vue";
+import { onClickOutside } from "@vueuse/core";
+import { computed, ref, type Component } from "vue";
 
 const props = defineProps<{ files: FileHeader[] }>();
 
@@ -12,10 +12,15 @@ const editor = useEditorState();
 
 const renaming = ref(false);
 const container = ref(null);
-// rename file with f2
-const keys = useMagicKeys();
-whenever(keys["f2"], () => {
-  renaming.value = true;
+
+provideAction({
+  id: "file.renameCurrent",
+  label: "Rename file",
+  shortcuts: ["f2", "shift+f6"],
+  enabled: computed(() => !renaming.value),
+  apply: async () => {
+    renaming.value = true;
+  },
 });
 onClickOutside(container, () => {
   renaming.value = false;

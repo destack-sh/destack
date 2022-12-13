@@ -52,8 +52,6 @@ type CompilePayload {
 
 union CreateFilePayload = File | OperationInfo
 
-union CreateSymbolPayload = Symbol | OperationInfo
-
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
@@ -66,12 +64,6 @@ type DatasetRecord implements Node {
   id: GlobalID!
   index: Int!
   data: JSON!
-}
-
-type DatasetView implements SymbolContent & Node {
-  id: GlobalID!
-  symbol: Symbol!
-  dataset: Dataset!
 }
 
 """Date with time (isoformat)"""
@@ -104,7 +96,6 @@ type Expectation implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
   description: String!
-  statements: [Symbol!]!
 }
 
 type File implements Node {
@@ -118,6 +109,7 @@ type File implements Node {
   parent: File
   files: [File!]!
   symbols: [Symbol!]!
+  statements: [Statement!]!
 }
 
 input FileCreateInput {
@@ -154,7 +146,6 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
-  createSymbol(input: SymbolCreateInput!): CreateSymbolPayload!
   renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
@@ -277,6 +268,7 @@ type ProjectVersion implements Node {
   files: [File!]!
   compilations: [Compilation!]!
   symbols: [Symbol!]!
+  statements: [Statement!]!
 }
 
 type Query {
@@ -376,20 +368,44 @@ type SourceMapping implements Node {
   targetPath: JSON!
 }
 
+type Statement implements Node {
+  id: GlobalID!
+  projectVersion: ProjectVersion!
+  file: File!
+  type: StatementType!
+  typeShortname: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  commented: Boolean!
+  generated: Boolean!
+  parent: Statement
+  children: [Statement!]!
+  index: Int
+  symbol: Symbol
+  reference: Symbol
+  arguments: [SymbolArgument!]!
+  text: String
+}
+
+"""The type of Bench statement."""
+enum StatementType {
+  IMPORT
+  DEFINITION
+  REFERENCE
+  COMMENT
+}
+
 type Symbol implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
+  file: File!
   name: String!
   type: SymbolType!
   typeShortname: String!
   typeNameDeclaration: String!
-  file: File!
-  parent: Symbol
-  children: [Symbol!]!
-  index: Int
   createdAt: DateTime!
   updatedAt: DateTime!
-  generated: Boolean!
+  statement: Statement!
   content(pk: ID): SymbolContent!
   parameters: [SymbolParameter!]!
   arguments: [SymbolArgument!]!
@@ -408,15 +424,6 @@ type SymbolArgument implements Node {
 
 interface SymbolContent implements Node {
   id: GlobalID!
-}
-
-input SymbolCreateInput {
-  projectVersion: NodeInput!
-  name: String!
-  type: SymbolType!
-  file: NodeInput!
-  parent: NodeInput
-  index: Int!
 }
 
 type SymbolParameter implements Node {
@@ -449,7 +456,6 @@ enum SymbolType {
   CODE
   MODEL
   DATASET
-  DATASET_VIEW
 }
 
 type Task implements SymbolContent & Node {
@@ -457,8 +463,6 @@ type Task implements SymbolContent & Node {
   symbol: Symbol!
   inputSchema: SchemaElement!
   outputSchema: SchemaElement!
-  expectations: [Expectation!]!
-  templateImplementation: Symbol
   compilations: [Compilation!]!
 }
 

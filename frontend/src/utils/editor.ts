@@ -1,4 +1,4 @@
-import type { File, Project, ProjectVersion, Symbol } from "@/gql/graphql";
+import type { File, Project, ProjectVersion, Statement, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
 import { onBeforeUnmount } from "vue";
 
@@ -8,6 +8,10 @@ export type ProjectVersionHeader = Pick<
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
 export type FileHeader = Pick<File, "id" | "name" | "path" | "createdAt" | "updatedAt">;
+export type StatementHeader = Pick<
+  Statement,
+  "id" | "type" | "createdAt" | "updatedAt" | "index" | "generated" | "commented"
+>;
 export type SymbolHeader = Pick<Symbol, "id" | "name" | "type" | "createdAt" | "updatedAt">;
 
 export type RunConfiguration = {
@@ -128,7 +132,7 @@ export const useEditorState = defineStore("editor", {
     },
 
     migrateTo(version: ProjectVersionHeader, files: FileHeader[], symbols: SymbolHeader[]): void {
-      // TODO @Feature: migrate editor state
+      // TODO @Feature: migrate editor state on version change
       const projectId = this.currentProjectId;
       this.$reset();
       this.currentProjectId = projectId;
@@ -220,14 +224,9 @@ export const useEditorState = defineStore("editor", {
       return editor;
     },
 
-    focusDefinition(file: FileHeader, symbol: SymbolHeader, group?: EditorGroup) {
-      this.focusFile(file, group);
-      this.focusElement(symbol);
-    },
-
-    focusElement(element: SymbolHeader | FileHeader) {
+    focusElement(element: StatementHeader | SymbolHeader | FileHeader) {
       if (this.focusedElementId == element.id) return;
-      console.log(`focus element ${element.name} ${element.id}`);
+      console.log(`focus element ${element.id}`);
       this.focusedElementId = element.id;
     },
 
