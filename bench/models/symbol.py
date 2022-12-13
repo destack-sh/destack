@@ -147,6 +147,10 @@ class Statement(UUIDModel):
     def children_of_symbol_type(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
         return self.children.filter(symbol__type=symbol_type)
 
+    @gql.model_property(only=["type"])
+    def type_shortname(self) -> str:
+        return self.type
+
     @property
     def symbol_(self) -> Symbol:
         if self.symbol is None:

@@ -1,4 +1,4 @@
-import { provideSharedAction } from "@/utils/actions";
+import { provideGlobalAction } from "@/utils/actions";
 import { useEditorState, type Editor } from "@/utils/editor";
 import { computed } from "vue";
 
@@ -6,14 +6,14 @@ export function useEditorActions() {
   const editor = useEditorState();
 
   // move editor
-  const moveEditorLeft = provideSharedAction({
+  const moveEditorLeft = provideGlobalAction({
     id: "editor.moveEditorLeft",
     label: "Move Editor Left",
     shortcuts: ["ctrl+shift+left"],
     enabled: computed(() => editor.focusedEditor != null),
     apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.left),
   });
-  const moveEditorRight = provideSharedAction({
+  const moveEditorRight = provideGlobalAction({
     id: "editor.moveEditorRight",
     label: "Move Editor Right",
     shortcuts: ["ctrl+shift+right"],
@@ -22,7 +22,7 @@ export function useEditorActions() {
   });
 
   // close editor
-  const closeEditor = provideSharedAction({
+  const closeEditor = provideGlobalAction({
     id: "editor.closeEditor",
     label: "Close Editor",
     shortcuts: ["alt+w"],

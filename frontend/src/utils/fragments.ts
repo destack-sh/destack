@@ -48,13 +48,19 @@ export const FileHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
+export const StatementHeaderType = graphql(/* GraphQL */ `
+  fragment StatementHeader on Statement {
+    id
+    file {
+      path
+    }
+  }
+`);
+
 export const SymbolHeaderType = graphql(/* GraphQL */ `
   fragment SymbolHeader on Symbol {
     id
     name
-    file {
-      path
-    }
     type
     createdAt
     updatedAt
@@ -115,6 +121,28 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
   }
 `);
 
+export const StatementContentType = graphql(/* GraphQL */ `
+  fragment StatementContent on Statement {
+    id
+    type
+    typeShortname
+    createdAt
+    updatedAt
+    commented
+    generated
+    parent {
+      id
+    }
+    symbol {
+      ...SymbolContent
+    }
+    reference {
+      ...SymbolContent
+    }
+    text
+  }
+`);
+
 export const SymbolContentType = graphql(/* GraphQL */ `
   fragment SymbolContent on Symbol {
     id
@@ -124,7 +152,9 @@ export const SymbolContentType = graphql(/* GraphQL */ `
     typeNameDeclaration
     createdAt
     updatedAt
-    generated
+    statement {
+      ...StatementHeader
+    }
     content {
       ...CodeContent
       ...DatasetContent

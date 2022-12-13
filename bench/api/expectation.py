@@ -9,4 +9,3 @@ from bench.api.symbol import Symbol, SymbolContent
 class Expectation(SymbolContent):
     symbol: Symbol
     description: auto
-    statements: list[Symbol]

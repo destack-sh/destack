@@ -10,7 +10,7 @@ from bench import models
 if TYPE_CHECKING:
     from bench.api.compilation import Compilation
     from bench.api.organization import Organization
-    from bench.api.symbol import Symbol
+    from bench.api.symbol import Statement, Symbol
 
 
 @gql.django.type(models.Project)
@@ -35,9 +35,11 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     libraries: list["ProjectVersion"]
+    main_program: Optional[Annotated["Symbol", lazy(".symbol")]]
     files: list["File"]
     compilations: list[Annotated["Compilation", lazy(".compilation")]]
     symbols: list[Annotated["Symbol", lazy(".symbol")]]
+    statements: list[Annotated["Statement", lazy(".symbol")]]
 
 
 @gql.django.type(models.File)
@@ -51,6 +53,7 @@ class File(gql.Node):
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
     symbols: list[Annotated["Symbol", lazy(".symbol")]]  # if file
+    statements: list[Annotated["Statement", lazy(".symbol")]]  # if file
 
 
 @gql.input
