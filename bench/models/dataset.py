@@ -165,15 +165,3 @@ class DatasetRecord(UUIDModel):
         indexes = [
             GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
         ]
-
-
-class DatasetView(SymbolContent):
-    """
-    A view of a Dataset.
-    For re-usability, the view does not belong to the dataset but is tied to a dataset symbol.
-    """
-
-    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
-
-    def __str__(self):
-        return f"{self.symbol_str}()"

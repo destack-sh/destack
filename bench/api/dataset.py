@@ -20,9 +20,3 @@ class Dataset(SymbolContent):
 class DatasetRecord(gql.Node):
     index: auto
     data: auto
-
-
-@gql.django.type(models.DatasetView)
-class DatasetView(SymbolContent):
-    symbol: Symbol
-    dataset: Dataset

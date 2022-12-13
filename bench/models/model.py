@@ -105,6 +105,7 @@ class ModelInference(UUIDTModel):
     model = models.ForeignKey("Model", on_delete=models.CASCADE, related_name="inferences")
     operation = models.CharField(max_length=64, choices=ModelOperation.choices)
     settings_hash = models.CharField(max_length=64)
+    settings = models.JSONField()
     input_hash = models.CharField(max_length=64)
     input = models.JSONField(null=True)
     output = models.JSONField()

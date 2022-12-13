@@ -27,7 +27,6 @@ class Code(SymbolContent):
     builtin_id = models.CharField(null=True, blank=True, max_length=256)
     code = models.TextField(null=True, blank=True)
     code_function_name = models.CharField(null=True, blank=True, max_length=256)
-    tasks = models.ManyToManyField("Task", related_name="implementations")
 
     def deepcopy(self, to: Code, refs: dict[UUID, Symbol | SymbolContent]):
         super().deepcopy(to, refs)

@@ -314,7 +314,6 @@ def parse_expect(
         if statement_def.type in (
             SymbolType.CODE,
             SymbolType.DATASET,
-            SymbolType.DATASET_VIEW,
         ):
             expectation.statements.add(statement_def)
         else:
@@ -335,7 +334,7 @@ def bind_parameters(
     symbol: Symbol,
 ) -> int:
     # parameters are defined as type only symbol lines like:
-    # name: Task|Code|Model|Dataset|DatasetView
+    # name: Task|Code|Model|Dataset|..
     # name: <type>
     # Parameters are bound to their name or an @alias.
     consumed_lines: int = 0

@@ -109,7 +109,7 @@ def create_model_providers():
                 default_settings=ModelInferenceSettings.objects.create(),
             )
             model_file = stdlib_v.create_file(name=model_id)
-            model_file.create_symbol(model_id, model)
+            model_file.define_symbol(name=model_id, content=model)
 
         # advance head
         stdlib_v.commit(version_id)

@@ -15,19 +15,135 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, is_jsonable
 from bench.utils.schema import SchemaElement
 
 if TYPE_CHECKING:
-    from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task
-    from bench.models.project import ProjectVersion
+    from bench.models import Code, Dataset, Expectation, File, Model, ProjectVersion, Task
 
 logger = structlog.get_logger(__name__)
 
 
-class Statement(UUIDModel):
+class StatementType(models.TextChoices):
     """
-    A statement in a file can import, define or reference a symbol.
-    Statements may be nested (which implies parent-child relationships).
+    The type of Bench statement.
     """
 
-    pass
+    IMPORT = "import"
+    DEFINITION = "define"
+    REFERENCE = "ref"
+    COMMENT = "comment"
+
+
+class StatementManager(models.Manager["Statement"]):
+    @transaction.atomic
+    def create_statement(
+        self,
+        project_version: ProjectVersion,
+        file: File,
+        type: StatementType,
+        parent: Optional[Statement],
+        index: Optional[int],
+        content: SymbolContent,
+        name: str,
+    ) -> Statement:
+        # auto set index if not passed
+        if index is None:
+            if parent:
+                index = parent.children.count()
+            else:
+                index = file.symbols.count()
+
+        statement = self.create(
+            project_version=project_version, file=file, type=type, parent=parent, index=index
+        )
+        statement.symbol = Symbol.objects.create_symbol(
+            project_version=project_version,
+            file=file,
+            statement=statement,
+            content=content,
+            name=name,
+        )
+        return statement
+
+
+class Statement(UUIDModel):
+    """
+    A statement in a file. Can import, define or reference a symbol.
+    Statements may be nested and have semantic meaning (parent-child relationships, comments, etc.).
+    """
+
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="statements"
+    )
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
+    type = TextChoicesField(choices_enum=StatementType)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    commented = models.BooleanField(default=False)
+    generated = models.BooleanField(default=False)
+    parent = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
+    )
+    children: models.QuerySet[Statement]  # noqa via Statement.parent
+    index = models.IntegerField(null=True)  # index into file or parent statement
+
+    symbol: Optional[Symbol]  # noqa via Symbol.statement
+    reference = models.ForeignKey(
+        "Symbol",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="referencing_statements",
+    )
+    arguments: models.QuerySet[SymbolArgument]  # noqa via SymbolArgument.statement
+    text = models.TextField(null=True, blank=True)  # as markdown
+
+    def deepcopy(self, to: Statement, refs: dict[UUID, SymbolContent | Symbol | Statement]):
+        raise NotImplementedError
+
+    @property
+    def symbol_(self) -> Symbol:
+        if self.symbol is None:
+            raise ValueError(f"{self} has no symbol")
+        return self.symbol
+
+    @property
+    def reference_(self) -> Symbol:
+        if self.reference is None:
+            raise ValueError(f"{self} has no reference")
+        return self.reference
+
+    @property
+    def absolute_index(self):
+        return self.index
+
+    def __str__(self):
+        path = self.file.path + ":" + str(self.absolute_index)
+        if self.type == StatementType.DEFINITION:
+            content_str = f"{self.type} {self.symbol}"
+        elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
+            content_str = f"{self.type} {self.reference}"
+        elif self.type == StatementType.COMMENT:
+            content_str = f"{self.type} {len(self.text)}"
+        else:
+            raise ValueError(f"unknown statement type {self.type}")
+        return f"{path} {content_str}"
+
+    objects: StatementManager = StatementManager()
+
+    class Meta:
+        ordering = ["index"]
+        default_manager_name = "objects"
+        constraints = [
+            # ensure unique index within file or parent
+            models.UniqueConstraint(
+                name="bench_statement_file_index_ak",
+                fields=["file", "index"],
+                condition=models.Q(parent__isnull=True),
+            ),
+            models.UniqueConstraint(
+                name="bench_statement_parent_index_ak",
+                fields=["parent", "index"],
+                condition=models.Q(parent__isnull=False),
+            ),
+        ]
 
 
 class SymbolType(models.TextChoices):
@@ -40,12 +156,11 @@ class SymbolType(models.TextChoices):
     CODE = "code", "Code"
     MODEL = "model", "Model"
     DATASET = "data", "Dataset"
-    DATASET_VIEW = "view", "DatasetView"
 
     @staticmethod
     def from_content(content: SymbolContent) -> SymbolType:
         # re-import for real to avoid circular import (above is only for type checking)
-        from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task  # noqa
+        from bench.models import Code, Dataset, Expectation, Model, Task  # noqa
 
         if isinstance(content, Task):
             return SymbolType.TASK
@@ -57,21 +172,27 @@ class SymbolType(models.TextChoices):
             return SymbolType.MODEL
         elif isinstance(content, Dataset):
             return SymbolType.DATASET
-        elif isinstance(content, DatasetView):
-            return SymbolType.DATASET_VIEW
         else:
             raise ValueError(f"invalid symbol content type {type(content)}")
 
 
 class SymbolManager(models.Manager["Symbol"]):
+    # Note that this manager is applied to _every_ SymbolContent query (related or not)!
+
+    def get_queryset(self):
+        # always select related symbol
+        return super().get_queryset().select_related("statement")
+
     def create_symbol(
         self,
         content: SymbolContent,
         project_version: ProjectVersion,
-        **kwargs,
+        file: File,
+        statement: Statement,
+        name: str,
     ):
         # re-import for real (not just for type checking) to avoid circular import
-        from bench.models import Code, Dataset, DatasetView, Expectation, Model, Task  # noqa: F401
+        from bench.models import Code, Dataset, Expectation, Model, Task  # noqa: F401
 
         # save content if it's not loaded from the db
         # (don't test via pk since we set that automatically)
@@ -79,8 +200,15 @@ class SymbolManager(models.Manager["Symbol"]):
             content.save()
 
         content_type = SymbolType.from_content(content)
-        kwargs = {**kwargs, Symbol.type_to_field(content_type): content}
-        return self.create(project_version=project_version, type=content_type, **kwargs)
+        kwargs = {Symbol.type_to_field(content_type): content}
+        return self.create(
+            project_version=project_version,
+            file=file,
+            statement=statement,
+            type=content_type,
+            name=name,
+            **kwargs,
+        )
 
 
 SYMBOL_TYPE_TO_FIELD = {
@@ -89,7 +217,6 @@ SYMBOL_TYPE_TO_FIELD = {
     SymbolType.CODE: "code",
     SymbolType.MODEL: "model",
     SymbolType.DATASET: "dataset",
-    SymbolType.DATASET_VIEW: "dataset_view",
 }
 SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
 
@@ -102,18 +229,17 @@ class Symbol(TaggableMixin, UUIDModel):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="symbols"
     )
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="symbols")
+    statement = models.OneToOneField("Statement", on_delete=models.CASCADE, related_name="symbol")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     type = TextChoicesField(choices_enum=SymbolType)
-    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="symbols")
-    parent = models.ForeignKey(
-        "Symbol", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
-    )
-    children: models.QuerySet["Symbol"]  # noqa via Symbol.parent
-    index = models.IntegerField(null=True)  # index into file or parent if nested
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    generated = models.BooleanField(default=False)
-    # source_mappings via SourceMapping
+
+    extends = models.ManyToManyField("Symbol", related_name="extended_by", blank=True)
+    parameters: models.QuerySet["SymbolParameter"]  # noqa via SymbolParameter.symbol
+    arguments: models.QuerySet["SymbolArgument"]  # noqa via SymbolArgument.symbol
+    source_mappings: models.QuerySet[SourceMapping]  # noqa via SourceMapping.symbol
 
     task = models.OneToOneField(
         "Task", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
@@ -129,9 +255,6 @@ class Symbol(TaggableMixin, UUIDModel):
     )
     dataset = models.OneToOneField(
         "Dataset", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
-    )
-    dataset_view = models.OneToOneField(
-        "DatasetView", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
 
     def deepcopy(self, to: Symbol, refs: dict[UUID, SymbolContent | Symbol]):
@@ -157,9 +280,6 @@ class Symbol(TaggableMixin, UUIDModel):
             new_reference = refs.get(argument.reference_id, argument.reference)
             argument.reference = cast(Symbol, new_reference)
             argument.save()
-
-    parameters: models.QuerySet["SymbolParameter"]  # noqa via SymbolParameter.symbol
-    arguments: models.QuerySet["SymbolArgument"]  # noqa via SymbolArgument.symbol
 
     def __str__(self):
         return f"{self.type_name_declaration}@{self.id.hex}"
@@ -191,11 +311,11 @@ class Symbol(TaggableMixin, UUIDModel):
         return self.type
 
     @gql.model_cached_property(
-        only=["type", "task", "expectation", "code", "model", "dataset", "dataset_view"],
-        select_related=["task", "expectation", "code", "model", "dataset", "dataset_view"],
+        only=["type", "task", "expectation", "code", "model", "dataset"],
+        select_related=["task", "expectation", "code", "model", "dataset"],
     )
-    def content(self) -> Union[Task, Expectation, Code, Model, Dataset, DatasetView]:
-        content: Union[Task, Expectation, Code, Model, Dataset, DatasetView, None] = getattr(
+    def content(self) -> Union[Task, Expectation, Code, Model, Dataset]:
+        content: Union[Task, Expectation, Code, Model, Dataset, None] = getattr(
             self, self.type_to_field(self.type)
         )
         if content is None:
@@ -237,13 +357,6 @@ class Symbol(TaggableMixin, UUIDModel):
     def dataset_(self) -> Dataset:
         if TYPE_CHECKING:
             return cast(Dataset, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def dataset_view_(self) -> DatasetView:
-        if TYPE_CHECKING:
-            return cast(DatasetView, self.content)
         else:
             return self.content  # noqa
 
@@ -298,20 +411,10 @@ class Symbol(TaggableMixin, UUIDModel):
 
     class Meta:
         default_manager_name = "objects"
-        ordering = ["index", "created_at"]
-        constraints = [
-            # ensure unique index within file or parent
-            models.UniqueConstraint(
-                name="bench_symbol_file_index_ak",
-                fields=["file", "index"],
-                condition=models.Q(parent__isnull=True),
-            ),
-            models.UniqueConstraint(
-                name="bench_symbol_parent_index_ak",
-                fields=["parent", "index"],
-                condition=models.Q(parent__isnull=False),
-            ),
-        ]
+        # set base manager so that _every_ query to Symbol goes through SymbolManager
+        # which ensures that we always select the related statement
+        base_manager_name = "objects"
+        ordering = ["name"]
 
 
 # auto delete symbol content if symbol is deleted
@@ -338,11 +441,7 @@ class SymbolContent(UUIDModel):
     Symbol symbols are mutable until the containing project is committed.
     """
 
-    # symbol is a one to one field via Symbol
-    # (and set automatically when creating a Symbol)
-    @property
-    def symbol(self) -> Symbol:  # noqa
-        pass
+    symbol: Symbol  # noqa via Symbol.content
 
     @property
     def symbol_str(self) -> str:
@@ -394,7 +493,7 @@ class SymbolContent(UUIDModel):
     class Meta:
         default_manager_name = "objects"
         # set base manager so that _every_ query to SymbolContent goes through SymbolContentManager
-        # which ensures that we always select related symbol
+        # which ensures that we always select the related symbol
         base_manager_name = "objects"
         abstract = True
 
@@ -408,7 +507,7 @@ class SymbolParameterType(models.TextChoices):
     @staticmethod
     def from_value(obj: Any | Symbol) -> SymbolParameterType:
         if isinstance(obj, Symbol):
-            if obj.type == SymbolType.DATASET or obj.type == SymbolType.DATASET_VIEW:
+            if obj.type == SymbolType.DATASET:
                 return SymbolParameterType.DATA
             elif obj.type == SymbolType.MODEL:
                 return SymbolParameterType.MODEL
@@ -452,12 +551,15 @@ class SymbolParameter(UUIDModel):
 class SymbolArgument(UUIDModel):
     """
     An argument is a bound value to some parameter, either as symbol reference to a symbol or a JSON value.
-
-    Note: if there is no corresponding parameter the argument is an anonymous import. This
-     doesn't seem perfect, but works for now.
+    Arguments can be bound directly to a symbol (for definitions) or to a statement (for references)
     """
 
-    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE, related_name="arguments")
+    symbol = models.ForeignKey(
+        Symbol, on_delete=models.CASCADE, null=True, blank=True, related_name="arguments"
+    )
+    statement = models.ForeignKey(
+        Statement, on_delete=models.CASCADE, null=True, blank=True, related_name="arguments"
+    )
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -476,10 +578,16 @@ class SymbolArgument(UUIDModel):
 
     class Meta:
         constraints = [
-            # ensure that only one name per symbol is set
+            # ensure that only one name is set (per symbol or statement)
             models.UniqueConstraint(
-                name="bench_symbol_argument_bound_name_ak",
+                name="bench_symbol_argument_symbol_name_ak",
                 fields=["symbol", "name"],
+                condition=models.Q(symbol__isnull=False),
+            ),
+            models.UniqueConstraint(
+                name="bench_symbol_argument_statement_name_ak",
+                fields=["statement", "name"],
+                condition=models.Q(statement__isnull=False),
             ),
         ]
 

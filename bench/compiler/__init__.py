@@ -180,8 +180,6 @@ class TaskData:
     ) -> dict[UUID, RecordBatch]:
         examples: dict[UUID, RecordBatch] = {}
         for statement in statements:
-            if statement.symbol_type == SymbolType.DATASET_VIEW:
-                raise NotImplementedError(f"dataset views are not yet supported: {statement}")
             if statement.symbol_type != SymbolType.DATASET:
                 continue
             examples_records = list(statement.dataset)

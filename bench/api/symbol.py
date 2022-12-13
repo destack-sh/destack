@@ -11,20 +11,33 @@ if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
 
 
+@gql.django.type(models.Statement)
+class Statement(gql.relay.Node):
+    project_version: Annotated["ProjectVersion", lazy(".project")]
+    file: Annotated["File", lazy(".project")]
+    type: auto
+    created_at: auto
+    updated_at: auto
+    commented: auto
+    generated: auto
+    parent: Optional["Statement"]
+    children: list["Statement"]
+    index: auto
+    symbol: Optional["Symbol"]
+    arguments: list["SymbolArgument"]
+    text: auto
+
+
 @gql.django.type(models.Symbol)
 class Symbol(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
+    file: Annotated["File", lazy(".project")]
     name: auto
     type: auto
     type_shortname: auto
     type_name_declaration: auto
-    file: Annotated["File", lazy(".project")]
-    parent: Optional["Symbol"]
-    children: list["Symbol"]
-    index: auto
     created_at: auto
     updated_at: auto
-    generated: auto
     content: "SymbolContent"
     parameters: list["SymbolParameter"]
     arguments: list["SymbolArgument"]
@@ -59,16 +72,6 @@ class SymbolArgument(gql.Node):
     value: auto
 
 
-@gql.django.input(models.Symbol)
-class SymbolCreateInput:
-    project_version: auto
-    name: auto
-    type: auto
-    file: auto
-    parent: auto
-    index: auto
-
-
 @gql.django.partial(models.Symbol)
 class SymbolRenameInput(gql.NodeInput):
     name: auto
@@ -76,5 +79,4 @@ class SymbolRenameInput(gql.NodeInput):
 
 @gql.type
 class SymbolMutation:
-    create_symbol: Symbol = gql.django.create_mutation(SymbolCreateInput)
     rename_symbol: Symbol = gql.django.update_mutation(SymbolRenameInput)
