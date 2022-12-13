@@ -11,7 +11,7 @@ from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.symbol import Symbol, SymbolContent, SymbolType
+from bench.models.symbol import Statement, StatementType, Symbol, SymbolContent, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -150,6 +150,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     )
     files: models.QuerySet["File"]  # noqa via File
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol
+    statements: models.QuerySet["Statement"]  # noqa via Statement
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation
 
     @staticmethod
@@ -171,9 +172,16 @@ class ProjectVersion(TaggableMixin, UUIDModel):
                 new_file = new_files[old_file.id]
                 new_file.parent = new_files[old_file.parent_id]
                 new_file.save()
-        # 2. copy symbols and symbol contents
+        # 2. copy statements, symbols and symbol contents
+        new_statements: dict[UUID, Statement] = {}
         new_symbols: dict[UUID, Symbol] = {}
         new_contents: dict[UUID, SymbolContent] = {}
+        for statement in source.statements.all():
+            old_id = statement.id
+            statement.pk = None
+            statement.project_version = target
+            statement.save()
+            new_statements[old_id] = statement
         for symbol in source.symbols.all():
             old_content: SymbolContent = symbol.content
             # copy content
@@ -192,13 +200,15 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             symbol.save()
             new_symbols[old_id] = symbol
         refs: dict[UUID, SymbolContent | Symbol] = {**new_symbols, **new_contents}
-        # 2.1 re-assign references and deep copy symbols
+        # 2.1 re-assign references and deep copy other relations
+        for old_statement in source.statements.all():
+            new_statement = new_statements[old_statement.id]
+            new_statement.parent = refs.get(old_statement.parent_id)
+            old_statement.deepcopy(new_statement, refs)
+            new_statement.save()
         for old_symbol in source.symbols.all():
             new_symbol = new_symbols[old_symbol.id]
             old_symbol.deepcopy(to=new_symbol, refs=refs)
-            # re-assign symbol parent and content
-            if old_symbol.parent_id is not None:
-                new_symbol.parent = new_symbols[old_symbol.parent_id]
             new_symbol.save()
         if source.main_program:
             target.main_program = new_symbols[source.main_program_id]
@@ -253,34 +263,28 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def create_folder_from_path(self, path: str, exists_ok: bool = False) -> "File":
         return self.create_path(path, is_folder=True, exists_ok=exists_ok)
 
-    @transaction.atomic
     def define_symbol(
         self,
         name: str,
         content: SymbolContent,
         file: File,
-        parent: Optional[Symbol] = None,
+        parent: Optional[Statement] = None,
         index: Optional[int] = None,
     ) -> Symbol:
         """
-        Define a symbol in this project version.
-        A corresponding symbol is declared if it's not passed.
+        Define a symbol in this project version in the given file.
         """
-        # auto set index if not passed
-        if index is None:
-            if parent:
-                index = parent.children.count()
-            else:
-                index = file.symbols.count()
 
-        return Symbol.objects.create_symbol(
+        statement = Statement.objects.create_statement(
             content=content,
             project_version=self,
+            type=StatementType.DEFINITION,
             name=name,
             file=file,
             parent=parent,
             index=index,
         )
+        return statement.symbol_
 
     def get_symbols(self, name: str, type: Optional[SymbolType] = None) -> QuerySet[Symbol]:
         """
@@ -376,6 +380,7 @@ class File(UUIDModel):
     )
 
     files: models.QuerySet["File"]  # noqa via File.parent (if is_folder)
+    statements: models.QuerySet["Statement"]  # noqa via Statement.file
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol.file
 
     def __str__(self):
@@ -392,26 +397,12 @@ class File(UUIDModel):
     def is_root(self) -> bool:
         return self.parent is None
 
-    def add_symbol(self, symbol: Symbol):
-        symbol.file = self
-        if symbol.parent is None:
-            symbol.index = self.symbols.count()
-        symbol.save()
-
-    def create_symbol(
-        self, name: str, content: SymbolContent, parent: Optional[Symbol] = None, **kwargs
+    def define_symbol(
+        self, name: str, content: SymbolContent, parent: Optional[Statement] = None
     ) -> Symbol:
-        index = self.symbols.count() if parent is None else parent.children.count()
-        symbol = Symbol.objects.create_symbol(
-            name=name,
-            content=content,
-            project_version=self.project_version,
-            parent=parent,
-            file=self,
-            index=index,
-            **kwargs,
+        return self.project_version.define_symbol(
+            file=self, name=name, content=content, parent=parent
         )
-        return symbol
 
     class Meta:
         ordering = ["name"]

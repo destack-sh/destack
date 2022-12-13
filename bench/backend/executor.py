@@ -131,6 +131,7 @@ class ModelProxy(ModelHandle):
                 model_id=self.model.content_id,
                 operation=ModelOperation.COMPLETE,
                 settings_hash=settings_hash,
+                settings=settings_merged,
                 input_hash=input_hash,
                 input=prompt,
                 output=completion,

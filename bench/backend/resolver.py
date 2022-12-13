@@ -16,7 +16,6 @@ from bench.backend.types import (
 from bench.models import (
     Code,
     Dataset,
-    DatasetView,
     Model,
     ModelInferenceSettings,
     Symbol,
@@ -47,11 +46,7 @@ class Resolver:
             external_name=model.external_name,
         )
 
-    async def resolve_dataset(
-        self, dataset: Dataset, view: typing.Optional[DatasetView]
-    ) -> ResolvedDataset:
-        if view is not None:
-            raise NotImplementedError("dataset views are not implemented yet")
+    async def resolve_dataset(self, dataset: Dataset) -> ResolvedDataset:
         # TODO @Performance: do not load all records when resolving dataset arguments
         #  All functions are executed async, but dataset access is neater if it's synchronous.
         #  So we pre-load everything and wrap it in a synchronous wrapper.

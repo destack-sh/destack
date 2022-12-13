@@ -1,9 +1,11 @@
 from .code import Code, Execution, ExecutionStatus
-from .dataset import Dataset, DatasetRecord, DatasetView
+from .dataset import Dataset, DatasetRecord
 from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .symbol import (
+    Statement,
+    StatementType,
     Symbol,
     SymbolArgument,
     SymbolContent,
@@ -30,6 +32,8 @@ __all__ = [
     "Project",
     "ProjectVersion",
     "File",
+    "Statement",
+    "StatementType",
     "SymbolType",
     "SymbolContent",
     "Symbol",
@@ -39,7 +43,6 @@ __all__ = [
     "User",
     "Dataset",
     "DatasetRecord",
-    "DatasetView",
     "Model",
     "ModelInferenceSettings",
     "ModelInference",

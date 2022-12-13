@@ -27,10 +27,6 @@ class Task(SymbolContent):
 
     input_schema = SchemaField("input")
     output_schema = SchemaElementField("output")
-    expectations = models.ManyToManyField("Expectation", related_name="tasks")
-    template_implementation = models.ForeignKey(
-        "Code", on_delete=models.CASCADE, null=True, blank=True, related_name="templates"
-    )
 
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation.task
 
@@ -129,7 +125,6 @@ class Expectation(SymbolContent):
     """
 
     description = models.TextField()
-    statements = models.ManyToManyField("Symbol", related_name="references_in_expectations+")
 
     def deepcopy(self, to: Expectation, refs: dict[UUID, Symbol | SymbolContent]):
         super().deepcopy(to, refs)
