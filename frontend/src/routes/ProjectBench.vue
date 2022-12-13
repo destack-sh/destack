@@ -203,19 +203,27 @@ watchEffect(() => {
   }
 });
 
-// TODO @Feature: store and restore editor state per project/version
-// reset editor state for project if project changes
-watch(
-  () => projectHeader.value,
-  (projectHeader) => {
-    if (projectHeader && state.currentProjectId != projectHeader.id && projectHead.value != null) {
-      console.log(`reset editor state for project ${projectHeader.id}`);
+// TODO @Feature: store and restore editor state per project (and version)
+// reset editor state for project if project (head) changes
+watchEffect(() => {
+  const loaded = projectHeader.value != null && projectHead.value != null;
+  if (
+    loaded &&
+    (state.currentProjectId != projectHeader.value.id || state.currentProjectVersionId != projectHead.value.id)
+  ) {
+    // if same project different version -> try to migrate
+    if (state.currentProjectId == projectHeader.value?.id) {
+      // TODO @Feature: migrate editor state
+      console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
       state.$reset();
-      state.setProject(projectHeader, projectHead.value);
+      state.setProject(projectHeader.value, projectHead.value);
+    } else {
+      console.log(`reset editor state for project ${projectHeader.value.id}`);
+      state.$reset();
+      state.setProject(projectHeader.value, projectHead.value);
     }
-  },
-  { immediate: true }
-);
+  }
+});
 </script>
 
 <template>

@@ -3,7 +3,7 @@ import { useFileActions } from "@/utils/actions/file";
 import { useEditorActions } from "@/utils/actions/editor";
 import { useVersionActions } from "@/utils/actions/version";
 import { defineStore } from "pinia";
-import { computed, onMounted, onUnmounted, ref, watchEffect, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watchEffect, type Ref } from "vue";
 
 export type Action = {
   id: string;
@@ -72,7 +72,6 @@ export type RegisteredAction = {
 };
 
 export function provideSharedAction(action: RegisteredAction): Ref<Action> {
-  console.log(`provide shared action ${action.id}`);
   return provideAction(action, true);
 }
 
@@ -85,6 +84,7 @@ export function provideAction(action: RegisteredAction, shared?: boolean): Ref<A
     return computed(() => actionsStore.action(action.id));
   }
 
+  console.log(`provide action ${action.id}`);
   const mounted = ref(false);
 
   function toResolvedAction() {
@@ -108,7 +108,7 @@ export function provideAction(action: RegisteredAction, shared?: boolean): Ref<A
     resolvedAction.value = toResolvedAction();
     actionsStore.update(resolvedAction.value);
   });
-  onUnmounted(() => {
+  onBeforeUnmount(() => {
     mounted.value = false;
     actionsStore.remove(action.id);
   });
