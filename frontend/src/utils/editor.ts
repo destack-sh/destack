@@ -1,6 +1,6 @@
 import type { File, Project, ProjectVersion, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
-import { onBeforeUnmount, watchEffect } from "vue";
+import { onBeforeUnmount } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -14,6 +14,8 @@ export type RunConfiguration = {
   name: string;
   symbolId: string;
 };
+
+export type ViewId = "explorer" | "history";
 
 export type Editor = {
   type: "file" | "symbol" | "run";
@@ -88,6 +90,7 @@ export const useEditorState = defineStore("editor", {
       // note that editor state should be JSON serializable
       currentProjectId: null as string | null,
       currentProjectVersionId: null as string | null,
+      activeViewId: "explorer" as ViewId,
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
@@ -130,6 +133,10 @@ export const useEditorState = defineStore("editor", {
       this.$reset();
       this.currentProjectId = projectId;
       this.currentProjectVersionId = version.id;
+    },
+
+    setActiveView(viewId: ViewId): void {
+      this.activeViewId = viewId;
     },
 
     setEditorScroll(editor: Editor, scroll: { x: number; y: number }): void {
@@ -222,6 +229,10 @@ export const useEditorState = defineStore("editor", {
       if (this.focusedElementId == element.id) return;
       console.log(`focus element ${element.name} ${element.id}`);
       this.focusedElementId = element.id;
+    },
+
+    defocusElement() {
+      this.focusedElementId = null;
     },
   },
 });

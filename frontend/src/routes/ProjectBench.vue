@@ -12,7 +12,7 @@ import {
   ProjectVersionHeaderType,
   SymbolHeaderType,
 } from "@/utils/fragments";
-import { useOperations } from "@/utils/operations";
+import { useOperations, useOperationsStore } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -24,7 +24,7 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, watch, watchEffect, type Component, type Ref } from "vue";
+import { computed, ref, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -53,19 +53,27 @@ const views: View[] = [
   { id: "explorer", name: "Explorer", icon: ClipboardDocumentIcon },
   { id: "history", name: "History", icon: ClockIcon },
 ];
-const activeView: Ref<View> = ref(views[0]);
+const activeView: ComputedRef<View> = computed(() => {
+  const view = views.find((v) => v.id == state.activeViewId);
+  if (!view) {
+    console.error("invalid view id: " + state.activeViewId);
+    state.setActiveView(views[0].id);
+    return views[0];
+  }
+  return view;
+});
 
 provideAction({
   id: "editor.view.explorer",
   label: "View Explorer",
   shortcuts: ["alt+1"],
-  apply: () => (activeView.value = views[0]),
+  apply: () => state.setActiveView("explorer"),
 });
 provideAction({
   id: "editor.view.history",
   label: "View History",
   shortcuts: ["alt+2"],
-  apply: () => (activeView.value = views[1]),
+  apply: () => state.setActiveView("history"),
 });
 
 // real data
@@ -134,16 +142,16 @@ const compilations = computed(
 
 // actions (ensure global actions are available)
 const actions = useActions();
+const operationsStore = useOperationsStore();
+const anyInflightOps = computed(() => operationsStore.hasInflight);
 const operations = useOperations();
 
 // compile
-const isCompiling = ref(false);
+const isCompiling = computed(() => operationsStore.hasInflightLike("compilation.compile"));
 const canCompile = computed(() => !isCompiling.value && compilations.value?.length > 0);
 
 async function compileAll() {
-  isCompiling.value = true;
   await Promise.all(compilations.value.map((c) => operations.compilation.compile(c.id)));
-  isCompiling.value = false;
 }
 
 provideAction({
@@ -242,7 +250,7 @@ watchEffect(() => {
     <!-- Header with controls and auth -->
     <header class="static mx-auto w-full flex-shrink-0 overflow-y-visible border-b border-gray-200 bg-white shadow-sm">
       <div class="relative flex justify-between gap-8">
-        <!-- Left side: organizational -->
+        <!-- Left side: organizational & status -->
         <div class="static flex items-center">
           <!-- Home -->
           <div class="flex flex-shrink-0 items-center px-4 py-2 hover:bg-gray-50">
@@ -295,6 +303,15 @@ watchEffect(() => {
               </MenuItems>
             </transition>
           </Menu>
+          <!-- Status -->
+          <div class="ml-2 flex items-center">
+            <span v-show="anyInflightOps" class="p-1 transition-opacity">
+              <!-- little svg circle fading in and out -->
+              <svg viewBox="0 0 100 100" class="h-1 w-1 animate-pulse text-gray-400">
+                <circle cx="50" cy="50" r="40" fill="currentColor" />
+              </svg>
+            </span>
+          </div>
         </div>
         <!-- Right side: controls (and profile) -->
         <div class="flex min-w-fit flex-shrink-0 items-center justify-end">
@@ -410,7 +427,7 @@ watchEffect(() => {
               :class="view.name == activeView.name ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
               v-for="view in views"
               :key="view.name"
-              @click="activeView = view"
+              @click="state.setActiveView(view.id)"
             >
               <span class="sr-only">{{ view.name }}</span>
               <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
@@ -429,9 +446,10 @@ watchEffect(() => {
         <!-- View content -->
         <div class="relative flex-1 flex-col">
           <div class="absolute left-0 top-0 h-full w-full overflow-y-hidden">
-            <ViewExplorer v-if="activeView.id == 'explorer'" :files="files" />
+            <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
             <ViewHistory
-              v-else-if="activeView.id == 'history'"
+              v-show="activeView.id == 'history'"
+              v-if="projectHeader && projectHead"
               :project="projectHeader"
               :current-version="projectHead"
             />

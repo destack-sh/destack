@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import EditorInterface from "@/components/EditorInterface.vue";
-import FileInterface from "@/components/FileInterface.vue";
-import RunInterface from "@/components/RunInterface.vue";
-import { useEditorState, type Editor, type EditorGroup, type FileEditor, type RunEditor } from "@/utils/editor";
+import { useEditorState, type Editor, type EditorGroup } from "@/utils/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { computed, ref, watch } from "vue";
 
@@ -24,6 +22,12 @@ watch(
 );
 const focused = computed(() => editorState.focusedEditor?.groupId == props.group.id);
 
+function focus(editor: Editor) {
+  editorState.focusEditor(editor);
+  // defocus any focused element when clicking on a tab
+  editorState.defocusElement();
+}
+
 function shouldUnmountPanel(editor: Editor): boolean {
   // TODO @Performance: decide when to unmount panels in editor group
   return false;
@@ -41,13 +45,13 @@ function shouldUnmountPanel(editor: Editor): boolean {
         <Tab as="template" v-for="editor in group.editors" :key="editor.path" v-slot="{ selected }">
           <button
             :class="{
-              'border-r border-b-2 border-r-gray-200 py-2 px-3 text-sm outline-none': true,
+              'whitespace-nowrap border-r border-b-2 border-r-gray-200 py-2 px-3 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-700 hover:text-orange-600': !selected,
               ' bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
             }"
             @click.middle="editorState.closeEditor(editor)"
-            @click.prevent="editorState.focusEditor(editor)"
+            @click.prevent="focus(editor)"
           >
             {{ editor.path }}
           </button>

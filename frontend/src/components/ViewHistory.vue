@@ -3,9 +3,10 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { useActions } from "@/utils/actions";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
+import { useOperationsStore } from "@/utils/operations";
 import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, type Component } from "vue";
+import { computed, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   project: FragmentType<typeof ProjectHeaderType>;
@@ -37,14 +38,17 @@ const commits = computed(() => versions.value.filter((x) => x.committed));
 type Action = {
   icon: Component;
   label: string;
-  action: (symbol: Symbol) => void;
+  enabled: Ref<boolean>;
+  action: () => void;
 };
 
 const actions = useActions();
+const opsStore = useOperationsStore();
 const globalActions: Action[] = [
   {
     icon: PlusIcon,
     label: "Commit",
+    enabled: computed(() => !opsStore.hasInflightLike("version.commit")),
     action: () => actions.version.commit.value.apply(),
   },
 ];
@@ -59,7 +63,12 @@ const globalActions: Action[] = [
         <button
           v-for="action in globalActions"
           :key="action.label"
-          class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
+          :disabled="!action.enabled.value"
+          class="inline-flex flex-row rounded-sm p-0.5"
+          :class="{
+            'text-gray-400 hover:bg-gray-50': !action.enabled.value,
+            'hover:bg-gray-100 hover:text-gray-700': action.enabled.value,
+          }"
           @click.prevent="action.action"
         >
           <component :is="action.icon" class="h-4 w-4 text-gray-600" />

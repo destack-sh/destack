@@ -22,7 +22,7 @@ export function useSymbolOps() {
 
   async function rename(id: string, oldName: string, newName: string) {
     await operations.perform({
-      type: "rename-symbol",
+      type: "symbol.rename",
       do: async () => {
         await renameSymbolMut({ id: id, name: newName });
       },
