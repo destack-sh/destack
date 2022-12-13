@@ -7,18 +7,36 @@ import { defineStore } from "pinia";
 type Operation<T> = {
   id?: string;
   type: string;
+  key?: string | Record<string, string>;
   do(): Promise<T>;
   ret?: T;
   undo?(ret: T): Promise<void>;
 };
 
+const COMPLETED_STACK_SIZE = 500;
 export const useOperationsStore = defineStore("operations", {
   state: () => ({
     inflight: [] as Operation<unknown>[],
+    completed: [] as Operation<unknown>[],
     undoStack: [] as Operation<unknown>[],
     redoStack: [] as Operation<unknown>[],
   }),
   getters: {
+    inflightLike(state): (type: string, key?: string) => Operation<unknown> | undefined {
+      return (type, key) => state.inflight.filter((op) => op.type === type && (!key || op.key === key))[0];
+    },
+    hasInflightLike(state): (type: string, key?: string) => boolean {
+      return (type, key) => state.inflight.some((op) => op.type === type && (!key || op.key === key));
+    },
+    hasInflight(state): boolean {
+      return state.inflight.length > 0;
+    },
+    completedLike(state): (type: string, key?: string) => Operation<unknown> {
+      return (type, key) => state.completed.filter((op) => op.type === type && (!key || op.key === key))[0];
+    },
+    hasCompletedLike(state): (type: string, key?: string) => boolean {
+      return (type, key) => state.completed.some((op) => op.type === type && (!key || op.key === key));
+    },
     canUndo(state): boolean {
       return state.undoStack.length > 0;
     },
@@ -27,15 +45,25 @@ export const useOperationsStore = defineStore("operations", {
     },
   },
   actions: {
+    async _do<T>(operation: Operation<T>): Promise<T> {
+      this.inflight.push(operation);
+      const ret = await operation.do();
+      operation.ret = ret;
+      this.inflight = this.inflight.filter((op) => op.id !== operation.id);
+      this.completed.push({ ...operation });
+      // trim completed stack
+      if (this.completed.length > COMPLETED_STACK_SIZE) {
+        this.completed = this.completed.slice(this.completed.length - COMPLETED_STACK_SIZE);
+      }
+
+      return ret;
+    },
+
     async perform<T>(operation: Operation<T>): Promise<T> {
       operation = { ...operation, id: operation.id ?? Math.random().toString(16).substring(2, 8) };
       console.log(`perform ${operation.type} (id=${operation.id})`);
 
-      this.inflight.push(operation);
-      const ret = await operation.do();
-      operation.ret = ret;
-
-      this.inflight = this.inflight.filter((op) => op.id !== operation.id);
+      const ret = await this._do(operation);
       if (operation.undo != null) {
         this.undoStack.push(operation);
       }
@@ -59,7 +87,7 @@ export const useOperationsStore = defineStore("operations", {
         return;
       }
       console.log(`redo ${operation.type} (id=${operation.id})`);
-      await operation.do();
+      await this._do(operation);
       this.undoStack.push(operation);
     },
   },

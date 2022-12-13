@@ -52,7 +52,7 @@ export function useFileOps() {
 
   async function create(projectVersionId: string, name: string) {
     return await operations.perform({
-      type: "create-file",
+      type: "file.create",
       do: async () => {
         const create = await createFileMut({ projectVersionId: projectVersionId, name });
         if (create?.data?.createFile == null || create?.data?.createFile.__typename !== "File") {
@@ -68,7 +68,7 @@ export function useFileOps() {
 
   async function rename(id: string, oldName: string, newName: string) {
     return await operations.perform({
-      type: "rename-file",
+      type: "file.rename",
       do: async () => {
         await renameFileMut({ id: id, name: newName });
       },
@@ -80,7 +80,7 @@ export function useFileOps() {
 
   async function delete_(id: string) {
     return await operations.perform({
-      type: "delete-file",
+      type: "file.delete",
       do: async () => {
         await deleteFileMut({ id: id });
       },

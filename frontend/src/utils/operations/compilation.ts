@@ -22,9 +22,9 @@ export function useCompilationOps() {
     { refetchQueries: ["projectVersionContent"] }
   );
 
-  async function add(input: AddCompilationInput) {
+  async function create(input: AddCompilationInput) {
     await operations.perform({
-      type: "add-compilation",
+      type: "compilation.create",
       do: async () => {
         await addCompilationMut({ input });
       },
@@ -58,12 +58,12 @@ export function useCompilationOps() {
 
   async function compile(id: string) {
     await operations.perform({
-      type: "compile",
+      type: "compilation.compile",
       do: async () => {
         await compileMut({ compilationId: id });
       },
     });
   }
 
-  return { add, compile };
+  return { create, compile };
 }
