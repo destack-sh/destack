@@ -30,6 +30,7 @@ from bench.models import (
     SymbolType,
     Task,
 )
+from bench.models.symbol import StatementModifier
 from bench.utils.schema import (
     SchemaElement,
     SchemaObjectSerializer,
@@ -108,6 +109,7 @@ class Command(BaseCommand):
         if main:
             # (we likely won't have a single "main" going forward)
             project_v.main_program = project_v.symbol(main, SymbolType.TASK)
+            project_v.main_program.statement.modifier = StatementModifier.MAIN
             project_v.save()
             logger.info(f"Set {project_v.main_program} as main program in {project_v}")
 
@@ -227,9 +229,12 @@ def parse_task(
     segment: FileSegment,
     lookup_def: typing.Callable,
 ) -> tuple[SymbolContent, typing.Callable[[Symbol], None]]:
+    description = lookup_def("task")
     input_schema = SchemaObjectSerializer.from_json("input", lookup_def("input_schema"))
     output_schema = SchemaObjectSerializer.from_json("output", lookup_def("output_schema"))
-    task = Task.objects.create(input_schema=input_schema, output_schema=output_schema)
+    task = Task.objects.create(
+        description=description, input_schema=input_schema, output_schema=output_schema
+    )
 
     def on_defined(symbol: Symbol):
         if "parent" in segment.symbol_args:
@@ -257,13 +262,6 @@ def parse_code(
     )
 
     def on_defined(symbol: Symbol):
-        # "implement" task by extending it
-        if "task" in segment.symbol_args:
-            task_name = segment.symbol_args["task"]
-            task = project_v.symbol(task_name, SymbolType.TASK).task_
-            code.symbol.extend(task.symbol)
-            task.template_implementation = code
-
         # parameters can also be defined in the schema extracted from the function signature
         for param in code.input_schema.elements:
             symbol.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
@@ -308,17 +306,30 @@ def parse_expect(
     expectation = Expectation.objects.create(description=description)
 
     def on_defined(symbol: Symbol):
-        for statement_path in statements_names:
-            # statement path is <name>.<type>
-            statement_name, statement_type_name = statement_path.split(".")
-            statement_type = SymbolType(statement_type_name)
+        for statement_def in statements_names:
+            # expectation statement e.g. ("like", "REFERENCE", "code respect_command_hints")
+            modifier, statement_type, symbol_declr = statement_def
+            modifier = StatementModifier(modifier)
+            statement_type = StatementType(statement_type)
+            symbol_type, symbol_name = symbol_declr.split(" ")
 
-            statement_def = project_v.symbol(statement_name, statement_type)
-            if statement_def.type in (SymbolType.CODE, SymbolType.DATASET):
-                expectation.statement.add_child(StatementType.REFERENCE, statement_def)
+            referenced_symbol = project_v.symbol(symbol_name, symbol_type)
+            if referenced_symbol.type in (SymbolType.CODE, SymbolType.DATASET):
+                if statement_type == StatementType.DEFINITION:
+                    # there are no forward references to symbols in files right now,
+                    # so if we want the definition to be a child statement we need to re-mount it
+                    referenced_symbol.statement.parent = symbol.statement
+                    referenced_symbol.statement.index = symbol.statement.children.count()
+                    referenced_symbol.statement.modifier = modifier
+                    referenced_symbol.statement.save()
+                    print(f"re-mounted {referenced_symbol.statement} to {symbol.statement}")
+                else:
+                    symbol.statement.add_child(
+                        type=statement_type, content=referenced_symbol, modifier=modifier
+                    )
             else:
                 raise ValueError(
-                    f"expectation statement symbol '{statement_path}' is not a valid statement type: {statement_def}"
+                    f"expectation statement symbol '{statement_def}' is not a valid statement type: {statement_def}"
                 )
         if "task" in segment.symbol_args:
             task_name = segment.symbol_args["task"]
