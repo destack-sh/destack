@@ -21,7 +21,14 @@ const DatasetContentType = graphql(/* GraphQL */ `
   }
 `);
 
-const props = defineProps<{ content: FragmentType<typeof DatasetContentType>; generated: boolean; focused: boolean }>();
+const props = defineProps<{
+  content: FragmentType<typeof DatasetContentType>;
+  generated: boolean;
+  commented: boolean;
+  focused: boolean;
+  lineNumberBase: number;
+  xOffset: number;
+}>();
 const content = computed(() => useFragment(DatasetContentType, props.content));
 const schema = computed(() => useFragment(SchemaElementContentDeepType, content.value.schema));
 const schemaElements = computed(() => schema.value?.elements || []);
@@ -65,17 +72,11 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
 
     <!-- Data view -->
     <MonacoEditor
-      v-if="viewMode.value == 'jsonl'"
-      class="-mx-12"
-      :model-value="contentAsJsonlText"
-      language="json"
-      :focused="focused"
-      :readonly="generated"
-    />
-    <MonacoEditor
-      v-else-if="viewMode.value == 'json'"
-      class="-mx-12"
-      :model-value="contentAsJsonText"
+      v-if="viewMode.value == 'jsonl' || viewMode.value == 'json'"
+      :line-number-offset="lineNumberBase + 1 /* for statement itself */"
+      :line-number-shift-px="xOffset + 20"
+      :style="{ marginLeft: -xOffset - 44 + 'px' }"
+      :model-value="viewMode.value == 'jsonl' ? contentAsJsonlText : contentAsJsonText"
       language="json"
       :focused="focused"
       :readonly="generated"
@@ -107,9 +108,10 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           </td>
           <!-- Imitate Monaco line numbers -->
           <span
-            class="absolute top-1 -left-10 w-6 select-none text-right font-mono text-sm"
+            class="absolute top-1 w-6 select-none text-right font-mono text-sm"
+            :style="{ left: -xOffset - 42 + 'px' }"
             :class="{ 'text-orange-200': !focused, 'text-orange-400': focused }"
-            >{{ record.index + 1 }}</span
+            >{{ lineNumberBase + 1 + record.index + 1 }}</span
           >
         </tr>
       </tbody>

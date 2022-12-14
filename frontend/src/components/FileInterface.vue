@@ -74,6 +74,7 @@ const rootStatements = computed(() => {
       :file="fileHeader"
       :statement="statement"
       :depth="0"
+      :lineNumberBase="0"
       class="mx-auto w-full max-w-[1000px]"
     />
   </div>

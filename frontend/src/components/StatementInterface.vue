@@ -10,11 +10,16 @@ import { provideAction } from "@/utils/actions";
 import { makeRunConfiguration, makeRunEditor, useEditorState, type FileHeader } from "@/utils/editor";
 import { StatementContentType, SymbolContentType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
-import { LinkIcon, PlayIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon } from "@heroicons/vue/24/outline";
 import { assert } from "ts-essentials";
 import { computed, type Component, type ComputedRef } from "vue";
 
-const props = defineProps<{ file: FileHeader; statement: FragmentType<typeof StatementContentType>; depth: number }>();
+const props = defineProps<{
+  file: FileHeader;
+  statement: FragmentType<typeof StatementContentType>;
+  depth: number;
+  lineNumberBase: number;
+}>();
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const symbol = computed(() => useFragment(SymbolContentType, statement.value?.symbol));
 const reference = computed(() => useFragment(SymbolContentType, statement.value?.reference));
@@ -47,6 +52,7 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
 const isDefinition = computed(() => statement.value?.type == StatementType.Definition);
 const isReference = computed(() => statement.value?.type == StatementType.Reference);
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
+const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
 function focus() {
   editorState.focusFile(props.file);
   editorState.focusElement(statement.value);
@@ -65,7 +71,7 @@ const run = provideAction({
   registered: isFocused,
   enabled: computed(() => statement.value?.type == StatementType.Definition),
   apply: async () => {
-    assert(symbol.value != null);
+    assert(symbol.value != null, "symbol is null");
     const runConfiguration = makeRunConfiguration(symbol.value);
     const runEditor = makeRunEditor(runConfiguration);
     editorState.openEditor(runEditor);
@@ -94,10 +100,10 @@ async function onNameEnter(event: Event) {
     (event.target as HTMLElement)?.blur();
 
     if (statement.value.type == StatementType.Definition) {
-      assert(symbol.value != null);
+      assert(symbol.value != null, "symbol is null");
       await operations.symbol.rename(statement.value.id, symbol.value.name, newName);
     } else if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Import) {
-      assert(reference.value != null);
+      assert(reference.value != null, "reference is null");
       await operations.symbol.rename(statement.value.id, reference.value.name, newName);
     }
   }
@@ -110,18 +116,34 @@ const modifierShortname = computed(() => {
   }
   throw new Error("statement has no modifier");
 });
+const depthOffsetX = computed(() => props.depth * 20);
 </script>
 <template>
-  <div class="relative" :class="depth == 0 ? 'rounded-sm border-b border-gray-200 bg-white' : ''">
+  <div class="relative" :class="depth == 0 ? 'rounded-sm border border-gray-200 bg-white pt-1 pb-2' : ''">
     <!-- Self -->
     <div
-      class="group relative border-x border-t border-b transition-all"
-      :class="{ 'border-y-orange-400': isFocused, 'border-gray-200 border-b-white': !isFocused }"
-      :style="{ paddingLeft: props.depth + 'rem' }"
+      class="group relative border-x border-white transition-all"
+      :class="{
+        'border-gray-200 border-b-white': !isFocused,
+        'border-l-orange-500': isAncestorFocused,
+        'hover:border-l-orange-300': !isFocused,
+      }"
+      :style="{ paddingLeft: depthOffsetX + 'px' }"
       @mousedown="focus"
     >
+      <!-- Imitate Monaco line numbers -->
+      <span
+        class="absolute top-[9px] w-6 select-none text-right font-mono text-sm"
+        :style="{ left: -30 + 'px' }"
+        :class="{
+          'text-orange-200': !isFocused,
+          'text-orange-400': isAncestorFocused,
+          'font-bold text-orange-600': isFocused,
+        }"
+        >{{ lineNumberBase + 1 }}</span
+      >
       <!-- Statement header & controls -->
-      <div class="mx-3 my-1 flex flex-row items-center justify-between">
+      <div class="mx-3 flex flex-row items-center justify-between pt-1.5">
         <div class="flex flex-row items-baseline" v-if="symbolOrReference">
           <!--  declaration -->
           <span class="decoration-none inline-flex items-baseline text-sm tracking-wider text-black">
@@ -135,7 +157,6 @@ const modifierShortname = computed(() => {
             >
               {{ symbolOrReference.name }}
             </span>
-            <LinkIcon v-if="isReference" class="inline h-3 w-3 text-gray-400" />
             <span v-if="isDefinition" class="-ml-0.5 text-orange-600">:</span>
           </span>
         </div>
@@ -148,7 +169,10 @@ const modifierShortname = computed(() => {
           }"
         >
           <!-- Statement meta info -->
-          <span class="inline-flex flex-row items-baseline gap-1 px-1 text-xs">
+          <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
+            <template v-if="statement.symbol?.type == SymbolType.Code">
+              <span class="text-xs font-bold">{{ statement.symbol?.content?.builtinId || "python" }}</span>
+            </template>
             <span> {{ getTimeFromNowString(statement.updatedAt) }} </span>
             <span v-if="statement.generated">generated</span>
           </span>
@@ -167,13 +191,16 @@ const modifierShortname = computed(() => {
         </span>
       </div>
       <!-- Symbol content (if statement defines a symbol) -->
-      <div v-if="symbol != null" class="mx-3 my-1.5" :class="{ 'border-orange-600': isFocused }">
+      <div v-if="symbol != null" class="mx-3" :class="{ 'border-orange-600': isFocused }">
         <component
           v-if="interfaces[symbol.type] != undefined"
           :is="interfaces[symbol.type]?.component"
           :symbol="symbol"
           :content="symbol.content"
+          :lineNumberBase="lineNumberBase"
+          :xOffset="depthOffsetX"
           :generated="statement.generated"
+          :commented="statement.commented"
           :focused="isFocused"
         />
         <span class="text-red-500" v-else> cannot render {{ symbol.type }} </span>
@@ -182,11 +209,12 @@ const modifierShortname = computed(() => {
     <!-- Children -->
     <div v-if="statement.children?.length > 0">
       <StatementInterface
-        v-for="child in statement.children"
+        v-for="(child, i) in statement.children"
         :key="child.id"
         :file="file"
         :statement="child"
         :depth="depth + 1"
+        :lineNumberBase="lineNumberBase + i + 1"
       />
     </div>
   </div>
