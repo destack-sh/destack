@@ -19,6 +19,19 @@ random: random.Random
 
 # @path main
 
+
+# @symbol schema: example
+example = [
+    {"name": "input", "type": "string"},
+    {"name": "command", "type": "string"},
+]  # hack, should be a real schema ref to input/output
+
+# @symbol schema parent_def=example: command_input
+command_input = [{"name": "input", "type": "string"}]
+
+# @symbol schema parent_def=example: command_output
+command_output = [{"name": "command", "type": "string"}]
+
 # @symbol task: generate_command
 task = "Translate a natural language command into a bash command."
 input_schema = [{"name": "input", "type": "string"}]
@@ -274,7 +287,7 @@ statements = [
 
 # @path composition
 
-# @symbol task parent=generate_command: break_down_task
+# @symbol task parent_ref=generate_command: break_down_task
 task = "Break down the task into subtasks as needed."
 input_schema = [{"name": "input", "type": "string"}]
 output_schema = [
@@ -344,7 +357,7 @@ statements = [("like", "def", "code generate_chain_examples")]
 # @path docs
 
 
-# @symbol task parent=generate_command: lookup_docs
+# @symbol task parent_ref=generate_command: lookup_docs
 task = "Look up documentation as needed."
 input_schema = [{"name": "input", "type": "string"}]
 output_schema = [{"name": "docs", "type": "string"}]

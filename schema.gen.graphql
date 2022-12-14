@@ -461,6 +461,7 @@ input SymbolRenameInput {
 
 """The type of symbol to define in a project."""
 enum SymbolType {
+  SCHEMA
   TASK
   EXPECTATION
   CODE

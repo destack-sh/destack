@@ -5,7 +5,7 @@ from uuid import UUID
 
 from django.db import models, transaction
 
-from bench.models.schema import SchemaElementField, SchemaField
+from bench.models.schema_field import Schemad
 from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager, replace_refs
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
@@ -17,16 +17,14 @@ class TaskManager(SymbolContentManager, models.Manager["Task"]):
     pass
 
 
-class Task(SymbolContent):
+class Task(Schemad, SymbolContent):
     """
-    A task describes an interface and desired behaviour.
+    A task describes an interface and its desired behaviour.
 
     A task may have sub-tasks, forming a task tree.
     Sub-tasks define smaller tasks which are composed or represented by the parent task.
     """
 
-    input_schema = SchemaField("input")
-    output_schema = SchemaElementField("output")
     description = models.TextField()
 
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation.task
@@ -63,7 +61,7 @@ class Task(SymbolContent):
         return compilation
 
     def __str__(self):
-        return f"{self.symbol_str}({self.input_schema}->{self.output_schema})"
+        return f"{self.symbol_str}({self.schema or '<no schema>'})"
 
     objects = TaskManager()
 
@@ -138,10 +136,6 @@ class Expectation(SymbolContent):
     """
 
     description = models.TextField()
-
-    def deepcopy(self, to: Expectation, refs: dict[UUID, Symbol | SymbolContent]):
-        super().deepcopy(to, refs)
-        # nothing custom to do yet (statements are just symbols for now)
 
     def __str__(self):
         return f"{self.symbol_str}(description={self.description})"

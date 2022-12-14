@@ -410,7 +410,7 @@ class Compiler:
     def _gen_llm_examples(
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
-        dataset = Dataset.objects.from_list(compiled_examples, schema="derive")
+        dataset = Dataset.objects.from_list(compiled_examples)
         genfile.define_symbol("examples", dataset, generated=True)
         task_schema_keys = {*task_data.input_schema.keys, *task_data.output_schema.keys}
         if set(dataset.schema.keys) != task_schema_keys:

@@ -23,6 +23,7 @@ from bench.models import (
     Organization,
     Project,
     ProjectVersion,
+    Schema,
     StatementType,
     Symbol,
     SymbolContent,
@@ -34,8 +35,8 @@ from bench.models.symbol import StatementModifier
 from bench.utils.schema import (
     SchemaElement,
     SchemaObjectSerializer,
+    ValueType,
     derive_schema_from_function,
-    derive_schema_from_records,
     get_value_type,
 )
 
@@ -156,6 +157,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
             return symbols[name]
 
         segment_parsers: dict[str, typing.Callable] = {
+            SymbolType.SCHEMA: parse_schema,
             SymbolType.TASK: parse_task,
             SymbolType.EXPECTATION: parse_expect,
             SymbolType.CODE: parse_code,
@@ -230,6 +232,15 @@ def parse_extra(
     symbol: Symbol,
     lookup_def: typing.Callable[[str | None], Symbol],
 ):
+    if "parent_ref" in segment.symbol_args:
+        parent_name = segment.symbol_args["parent_ref"]
+        parent = project_v.symbol(parent_name)
+        parent.statement.add_child(StatementType.REFERENCE, symbol)
+    if "parent_def" in segment.symbol_args:
+        parent_name = segment.symbol_args["parent_def"]
+        parent = project_v.symbol(parent_name)
+        parent.statement.add_child(StatementType.DEFINITION, symbol)
+
     extra_statements = lookup_def("add_statements", required=False)
     if extra_statements is None:
         return
@@ -265,23 +276,31 @@ def _mount_child_statement(
         raise ValueError(f"referenced symbol '{child_symbol}' is not a valid statement type")
 
 
+def parse_schema(
+    project_v: ProjectVersion,
+    segment: FileSegment,
+    lookup_def: typing.Callable,
+) -> tuple[SymbolContent, typing.Callable[[Symbol], None]]:
+    schema_element = SchemaObjectSerializer.from_json("input", lookup_def(segment.symbol_name))
+    schema = Schema.objects.create(element=schema_element)
+    return schema
+
+
 def parse_task(
     project_v: ProjectVersion,
     segment: FileSegment,
     lookup_def: typing.Callable,
 ) -> tuple[SymbolContent, typing.Callable[[Symbol], None]]:
     description = lookup_def("task")
-    input_schema = SchemaObjectSerializer.from_json("input", lookup_def("input_schema"))
-    output_schema = SchemaObjectSerializer.from_json("output", lookup_def("output_schema"))
-    task = Task.objects.create(
-        description=description, input_schema=input_schema, output_schema=output_schema
-    )
+    task = Task.objects.create(description=description)
 
     def on_defined(symbol: Symbol):
-        if "parent" in segment.symbol_args:
-            parent_name = segment.symbol_args["parent"]
-            parent = project_v.symbol(parent_name, SymbolType.TASK)
-            parent.statement.add_child(StatementType.REFERENCE, symbol)
+        input_schema = SchemaObjectSerializer.from_json("input", lookup_def("input_schema"))
+        output_schema = SchemaObjectSerializer.from_json("output", lookup_def("output_schema"))
+        schema_element = SchemaElement(
+            symbol.name + "_schema", type=ValueType.OBJECT, elements=[input_schema, output_schema]
+        )
+        task.set_schema_element(schema_element)
 
     return task, on_defined
 
@@ -294,17 +313,21 @@ def parse_code(
     function = lookup_def(segment.symbol_name)
     if not callable(function):
         raise ValueError(f"code symbol '{segment.symbol_name}' is not typing.Callable")
-    input_schema, output_schema = derive_schema_from_function(function)
     code = Code.objects.create(
         code=segment.full_code,
-        input_schema=input_schema,
-        output_schema=output_schema,
         code_function_name=function.__name__,
     )
 
     def on_defined(symbol: Symbol):
+        # add schema (requires symbol & statement to be defined)
+        input_schema, output_schema = derive_schema_from_function(function)
+        schema_element = SchemaElement(
+            symbol.name + "_schema", type=ValueType.OBJECT, elements=[input_schema, output_schema]
+        )
+        code.set_schema_element(schema_element)
+
         # parameters can also be defined in the schema extracted from the function signature
-        for param in code.input_schema.elements:
+        for param in input_schema.elements:
             symbol.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
         consumed_lines = bind_parameters(segment, project_v, symbol)
         if consumed_lines:
@@ -322,13 +345,13 @@ def parse_data(
     lookup_def: typing.Callable,
 ):
     records = lookup_def(segment.symbol_name)
-    try:
-        schema = SchemaObjectSerializer.from_json("record", lookup_def("schema"))
-    except LookupError:
-        schema = derive_schema_from_records(records)
     if not isinstance(records, list):
         raise ValueError(f"data symbol '{segment.symbol_name}' is not a list")
-    dataset = Dataset.objects.from_list(records, schema)
+    dataset = Dataset.objects.from_list(records)
+
+    def on_defined(symbol: Symbol):
+        dataset.derive_schema()
+
     return dataset
 
 

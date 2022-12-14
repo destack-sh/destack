@@ -5,10 +5,10 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 
 from bench import models
-from bench.api.misc import SchemaElement
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
+    from bench.api.schema import SchemaElement
 
 
 @gql.django.type(models.Statement)
@@ -62,7 +62,7 @@ class SymbolParameter(gql.Node):
     created_at: auto
     updated_at: auto
     type: auto
-    schema: Optional[SchemaElement]
+    schema: Optional[Annotated["SchemaElement", lazy(".schema")]]
 
 
 @gql.django.type(models.SymbolArgument)

@@ -1,34 +1,22 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import (
-    Any,
-    AsyncIterator,
-    Iterable,
-    Iterator,
-    Literal,
-    Optional,
-    Sequence,
-    cast,
-)
+from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Sequence, cast
 from uuid import UUID
 
-from asgiref.sync import sync_to_async
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
-from bench.models.schema import SchemaField
+from bench.models.schema_field import Schemad
 from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager
 from bench.models.utils import UUIDModel
-from bench.utils.schema import SchemaElement, derive_schema_from_records
+from bench.utils.schema import derive_schema_from_records
 
 
 class DatasetManager(SymbolContentManager, models.Manager["Dataset"]):
-    def from_list(self, records: list[dict], schema: SchemaElement | Literal["derive"]) -> Dataset:
-        if schema == "derive":
-            schema = derive_schema_from_records(records)
-        dataset = cast(Dataset, self.create(schema=schema))
+    def from_list(self, records: list[dict]) -> Dataset:
+        dataset = cast(Dataset, self.create())
         dataset.set(records)
         return dataset
 
@@ -38,13 +26,12 @@ class DatasetSearch:
     text_like: Optional[str] = None
 
 
-class Dataset(SymbolContent):
+class Dataset(Schemad, SymbolContent):
     """
     A dataset of JSON records.
     """
 
     records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
-    schema = SchemaField("record")
     length = models.IntegerField(default=0)
 
     objects: DatasetManager = DatasetManager()
@@ -55,7 +42,7 @@ class Dataset(SymbolContent):
         to.set(list(self))
 
     def __str__(self):
-        return f"{self.symbol_str}(schema={self.schema}, length={self.length})"
+        return f"{self.symbol_str}({self.length}*{self.schema or '<no schema>'})"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int
@@ -87,9 +74,6 @@ class Dataset(SymbolContent):
             self.save()
         return self.length
 
-    async def aappend(self, record: dict) -> int:
-        return await sync_to_async(self.append)(record)
-
     def extend(self, records: list[dict]) -> tuple[int, int]:
         start_length = self.length
         db_records = []
@@ -104,11 +88,16 @@ class Dataset(SymbolContent):
         return start_length, self.length
 
     @transaction.atomic
-    def set(self, records: list[dict], derive_schema: bool = False):
+    def set(self, records: list[dict]):
         self.clear()
-        if derive_schema:
-            self.schema = derive_schema_from_records(records)
         self.extend(records)
+
+    @transaction.atomic
+    def derive_schema(self):
+        """Derives and sets a new schema from the records."""
+        records = list(self)
+        new_schema_element = derive_schema_from_records(records)
+        self.set_schema_element(new_schema_element)
 
     def update(self, index: int, record: dict):
         with transaction.atomic():
@@ -121,6 +110,7 @@ class Dataset(SymbolContent):
             db_record = self.get(index)
             db_record.delete()
             # update the index of all records indices after the deleted one
+            # when we finally switch to fractional indices, this will be easier and faster
             with connection.cursor() as cursor:
                 cursor.execute(
                     "update bench_datasetrecord"
