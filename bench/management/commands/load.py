@@ -165,8 +165,6 @@ def load_symbols(project_v: ProjectVersion, path: str):
         if segment_parser is None:
             raise ValueError(f"unexpected segment type: {segment.symbol_type}")
 
-        # create symbol, content and corresponding symbol
-        # create symbol first so segment parser can use 'self' during symbol
         result = segment_parser(project_v=project_v, segment=segment, lookup_def=_get_symbol)
         if isinstance(result, tuple):
             symbol_content, on_defined = result
@@ -179,6 +177,8 @@ def load_symbols(project_v: ProjectVersion, path: str):
 
         if on_defined:
             on_defined(symbol)
+
+        parse_extra(project_v, segment, symbol, lookup_def=_get_symbol)
 
         logger.info(f"Define {symbol} in {symbol.file}")
 
@@ -222,6 +222,47 @@ def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[File
     print(f"segment {segment.header} with {len(segment.lines)} lines")
 
     return imports, segments
+
+
+def parse_extra(
+    project_v: ProjectVersion,
+    segment: FileSegment,
+    symbol: Symbol,
+    lookup_def: typing.Callable[[str | None], Symbol],
+):
+    extra_statements = lookup_def("add_statements", required=False)
+    if extra_statements is None:
+        return
+    for parent_declr, modifier, statement_type, child_declr in extra_statements:
+        parent_type, parent_name = parent_declr.split(" ")
+        parent_symbol = project_v.symbol(parent_name, SymbolType(parent_type))
+        _mount_child_statement(project_v, parent_symbol, modifier, statement_type, child_declr)
+
+
+def _mount_child_statement(
+    project_v: ProjectVersion,
+    parent: Symbol,
+    modifier: str,
+    statement_type: str,
+    child_symbol_declr: str,
+):
+    modifier = StatementModifier(modifier)
+    statement_type = StatementType(statement_type)
+    symbol_type, symbol_name = child_symbol_declr.split(" ")
+    child_symbol = project_v.symbol(symbol_name, symbol_type)
+    if child_symbol.type in (SymbolType.CODE, SymbolType.DATASET):
+        if statement_type == StatementType.DEFINITION:
+            # there are no forward references to symbols in files right now,
+            # so if we want the definition to be a child statement we need to re-mount it
+            child_symbol.statement.parent = parent.statement
+            child_symbol.statement.index = parent.statement.children.count()
+            child_symbol.statement.modifier = modifier
+            child_symbol.statement.save()
+            print(f"re-mounted {child_symbol.statement} to {parent.statement}")
+        else:
+            parent.statement.add_child(type=statement_type, content=child_symbol, modifier=modifier)
+    else:
+        raise ValueError(f"referenced symbol '{child_symbol}' is not a valid statement type")
 
 
 def parse_task(
@@ -309,28 +350,7 @@ def parse_expect(
         for statement_def in statements_names:
             # expectation statement e.g. ("like", "REFERENCE", "code respect_command_hints")
             modifier, statement_type, symbol_declr = statement_def
-            modifier = StatementModifier(modifier)
-            statement_type = StatementType(statement_type)
-            symbol_type, symbol_name = symbol_declr.split(" ")
-
-            referenced_symbol = project_v.symbol(symbol_name, symbol_type)
-            if referenced_symbol.type in (SymbolType.CODE, SymbolType.DATASET):
-                if statement_type == StatementType.DEFINITION:
-                    # there are no forward references to symbols in files right now,
-                    # so if we want the definition to be a child statement we need to re-mount it
-                    referenced_symbol.statement.parent = symbol.statement
-                    referenced_symbol.statement.index = symbol.statement.children.count()
-                    referenced_symbol.statement.modifier = modifier
-                    referenced_symbol.statement.save()
-                    print(f"re-mounted {referenced_symbol.statement} to {symbol.statement}")
-                else:
-                    symbol.statement.add_child(
-                        type=statement_type, content=referenced_symbol, modifier=modifier
-                    )
-            else:
-                raise ValueError(
-                    f"expectation statement symbol '{statement_def}' is not a valid statement type: {statement_def}"
-                )
+            _mount_child_statement(project_v, symbol, modifier, statement_type, symbol_declr)
         if "task" in segment.symbol_args:
             task_name = segment.symbol_args["task"]
             task = project_v.symbol(task_name, SymbolType.TASK).task_
