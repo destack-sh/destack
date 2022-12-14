@@ -9,23 +9,15 @@ const props = defineProps<{
   language: "json" | "python";
   focused: boolean;
   readonly?: boolean;
+  commented?: boolean;
+  lineNumberOffset: number;
+  lineNumberShiftPx?: number;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
 
 let editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
-
-// sync modelValue into editor
-watch(
-  () => props.modelValue,
-  (value) => {
-    if (editor.value && value !== editor.value.getValue()) {
-      console.log("update editor from model value");
-      editor.value.setValue(value);
-    }
-  }
-);
 
 function getEditorHeight(code: string) {
   const lines = code.split("\n").length;
@@ -109,6 +101,7 @@ function initMonaco(monaco: Monaco) {
   updateEditorHeight(editorContainer.value, props.modelValue);
 
   // create editor
+  const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
   editor.value = monaco.editor.create(editorContainer.value, {
     value: props.modelValue,
     language: props.language,
@@ -117,12 +110,12 @@ function initMonaco(monaco: Monaco) {
     },
     readOnly: props.readonly,
     scrollBeyondLastLine: false,
-    lineDecorationsWidth: 24,
+    lineDecorationsWidth: props.lineNumberShiftPx ?? 24,
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
     lineNumbersMinChars: 3,
-    lineNumbers: "on",
+    lineNumbers,
     renderLineHighlight: "none",
     // disable folding
     folding: false,
@@ -142,6 +135,36 @@ function initMonaco(monaco: Monaco) {
     }
   });
 }
+
+// sync modelValue into editor
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (editor.value && value !== editor.value.getValue()) {
+      console.log("update editor from model value");
+      editor.value.setValue(value);
+    }
+  }
+);
+// sync line number offset into editor
+watch(
+  () => props.lineNumberOffset,
+  () => {
+    if (editor.value) {
+      const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
+      editor.value.updateOptions({ lineNumbers });
+    }
+  }
+);
+// sync line number offset into editor (as line decorations witdh)
+watch(
+  () => props.lineNumberShiftPx,
+  () => {
+    if (editor.value) {
+      editor.value.updateOptions({ lineDecorationsWidth: props.lineNumberShiftPx ?? 24 });
+    }
+  }
+);
 
 // close monaco editor on unmount
 onBeforeUnmount(() => {

@@ -28,10 +28,11 @@ function focus(editor: Editor) {
   editorState.defocusElement();
 }
 
-function shouldUnmountPanel(editor: Editor): boolean {
-  // TODO @Performance: decide when to unmount panels in editor group
-  return false;
-}
+// load panels (i.e. disallow unmounting) after 2s to load active panel first
+const mountAllPanels = ref(false);
+setTimeout(() => {
+  mountAllPanels.value = true;
+}, 2000);
 </script>
 <template>
   <!-- Tabbed editors for this group -->
@@ -59,7 +60,7 @@ function shouldUnmountPanel(editor: Editor): boolean {
       </TabList>
       <!-- Contents -->
       <TabPanels class="relative h-full w-full flex-1">
-        <TabPanel v-for="(editor, index) in group.editors" :key="index" :unmount="shouldUnmountPanel(editor)">
+        <TabPanel v-for="(editor, index) in group.editors" :key="index" :unmount="!mountAllPanels">
           <EditorInterface class="absolute left-0 top-0 h-full w-full overflow-auto" :editor="editor" />
         </TabPanel>
       </TabPanels>
