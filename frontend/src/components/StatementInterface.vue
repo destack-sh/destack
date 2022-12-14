@@ -118,10 +118,10 @@ async function onNameEnter(event: Event) {
 
     if (statement.value.type == StatementType.Definition) {
       assert(symbol.value != null, "symbol is null");
-      await operations.symbol.rename(statement.value.id, symbol.value.name, newName);
+      await operations.symbol.rename(symbol.value.id, symbol.value.name, newName);
     } else if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Import) {
       assert(reference.value != null, "reference is null");
-      await operations.symbol.rename(statement.value.id, reference.value.name, newName);
+      await operations.symbol.rename(reference.value.id, reference.value.name, newName);
     }
   }
 }
