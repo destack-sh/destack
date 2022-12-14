@@ -1,27 +1,13 @@
 <script lang="ts" setup>
-import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import SchemaElement from "@/components/SchemaElement.vue";
-import { graphql, useFragment, type FragmentType } from "@/gql";
+import { useFragment, type FragmentType } from "@/gql";
 import type { DatasetContentFragment } from "@/gql/graphql";
-import { SchemaElementContentDeepType } from "@/utils/fragments";
-import { computed, ref, type Ref } from "vue";
-
-const DatasetContentType = graphql(/* GraphQL */ `
-  fragment DatasetContent on Dataset {
-    id
-    schema {
-      ...SchemaElementContentDeep
-    }
-    length
-    records {
-      data
-      index
-    }
-  }
-`);
+import { DatasetContentType, useDatasetInterfaceState } from "@/utils/dataset";
+import { SchemaElementContentDeepType, SymbolContentType } from "@/utils/fragments";
+import { computed } from "vue";
 
 const props = defineProps<{
+  symbol: FragmentType<typeof SymbolContentType>;
   content: FragmentType<typeof DatasetContentType>;
   generated: boolean;
   commented: boolean;
@@ -29,19 +15,11 @@ const props = defineProps<{
   lineNumberBase: number;
   xOffset: number;
 }>();
+
+const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
 const content = computed(() => useFragment(DatasetContentType, props.content));
 const schema = computed(() => useFragment(SchemaElementContentDeepType, content.value.schema));
 const schemaElements = computed(() => schema.value?.elements || []);
-
-type ViewMode = "table" | "json" | "jsonl";
-type View = { name: string; value: ViewMode };
-const viewOptions: View[] = [
-  { name: "table", value: "table" },
-  { name: "jsonl", value: "jsonl" },
-  { name: "json", value: "json" },
-];
-const viewMode: Ref<View> = ref(viewOptions[0]);
-const showTableHeader = ref(false);
 
 function datasetToJsonObj(content: DatasetContentFragment) {
   return content.records.map((r) => r.data);
@@ -50,43 +28,29 @@ function datasetToJsonObj(content: DatasetContentFragment) {
 const contentAsJsonObj = computed(() => datasetToJsonObj(content.value));
 const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, null, 2));
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
+
+// local interface state
+const state = useDatasetInterfaceState(symbol);
 </script>
 <template>
   <div class="flex h-full w-full flex-col">
-    <!-- Schema & controls -->
-    <!-- nocheckin move schema & controls to statement meta -->
-    <div v-show="false" class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
-      <!-- Controls & meta -->
-      <div class="flex flex-row items-baseline gap-2">
-        <span class="text-xs font-semibold text-gray-700">db</span>
-        <span class="text-xs text-gray-500"
-          ><span class="text-gray-700">{{ content.length }}</span> records</span
-        >
-        <ListboxSelect class="-mr-2 max-w-fit text-xs" v-model="viewMode" :options="viewOptions" />
-      </div>
-      <!-- Schema -->
-      <div class="flex flex-row gap-2">
-        <SchemaElement v-for="element in schemaElements" :key="element.name" :element="element" />
-      </div>
-    </div>
-
     <!-- Data view -->
     <MonacoEditor
-      v-if="viewMode.value == 'jsonl' || viewMode.value == 'json'"
+      v-if="state.view == 'jsonl' || state.view == 'json'"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       :line-number-shift-px="xOffset + 20"
       :style="{ marginLeft: -xOffset - 44 + 'px' }"
-      :model-value="viewMode.value == 'jsonl' ? contentAsJsonlText : contentAsJsonText"
+      :model-value="state.view == 'jsonl' ? contentAsJsonlText : contentAsJsonText"
       language="json"
       :focused="focused"
       :readonly="generated"
     />
     <table
-      v-else-if="viewMode.value == 'table'"
+      v-else-if="state.view == 'table'"
       class="h-full w-full rounded-sm"
-      :class="{ ' divide-y divide-gray-300': showTableHeader }"
+      :class="{ ' divide-y divide-gray-300': state.showTableHeader }"
     >
-      <thead class="bg-gray-50" v-show="showTableHeader">
+      <thead class="bg-gray-50" v-show="state.showTableHeader">
         <tr>
           <th
             v-for="element in schemaElements"

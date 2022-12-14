@@ -24,8 +24,8 @@ task = "Translate a natural language command into a bash command."
 input_schema = [{"name": "input", "type": "string"}]
 output_schema = [{"name": "command", "type": "string"}]
 
-# @symbol data: generate_command
-generate_command = [
+# @symbol data: basic_examples
+basic_examples = [
     {
         "input": "list files in the current directory",
         "command": "ls -l",
@@ -52,9 +52,9 @@ generate_command = [
     },
 ]
 
-# @symbol expect task=generate_command: generate_command
-expectation = "Translate a natural language comment or code into a safe bash command."
-statements = [("like", "ref", "data generate_command")]
+# @symbol expect task=basic_examples: generate_command
+expectation = "Translate a natural language comment or code into a useful bash command."
+statements = [("like", "ref", "data basic_examples")]
 
 # @path safety
 

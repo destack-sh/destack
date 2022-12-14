@@ -593,49 +593,6 @@ export enum ValueType {
   String = "STRING",
 }
 
-export type CodeContentFragment = {
-  __typename?: "Code";
-  id: any;
-  builtinId?: string | null;
-  code?: string | null;
-  inputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-  outputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-  symbol: {
-    __typename?: "Symbol";
-    parameters: Array<{
-      __typename?: "SymbolParameter";
-      name: string;
-      type: SymbolParameterType;
-      schema?:
-        | ({ __typename?: "SchemaElement" } & {
-            " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-          })
-        | null;
-    }>;
-    arguments: Array<{
-      __typename?: "SymbolArgument";
-      name: string;
-      type: string;
-      value?: any | null;
-      reference?: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string } | null;
-    }>;
-  };
-} & { " $fragmentName"?: "CodeContentFragment" };
-
-export type DatasetContentFragment = {
-  __typename?: "Dataset";
-  id: any;
-  length: number;
-  schema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-  records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }>;
-} & { " $fragmentName"?: "DatasetContentFragment" };
-
 export type ExpectationContentFragment = { __typename?: "Expectation"; id: any; description: string } & {
   " $fragmentName"?: "ExpectationContentFragment";
 };
@@ -837,6 +794,49 @@ export type ProjectVersionContentQuery = {
       })
     | null;
 };
+
+export type CodeContentFragment = {
+  __typename?: "Code";
+  id: any;
+  builtinId?: string | null;
+  code?: string | null;
+  inputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  outputSchema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  symbol: {
+    __typename?: "Symbol";
+    parameters: Array<{
+      __typename?: "SymbolParameter";
+      name: string;
+      type: SymbolParameterType;
+      schema?:
+        | ({ __typename?: "SchemaElement" } & {
+            " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+          })
+        | null;
+    }>;
+    arguments: Array<{
+      __typename?: "SymbolArgument";
+      name: string;
+      type: string;
+      value?: any | null;
+      reference?: { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string } | null;
+    }>;
+  };
+} & { " $fragmentName"?: "CodeContentFragment" };
+
+export type DatasetContentFragment = {
+  __typename?: "Dataset";
+  id: any;
+  length: number;
+  schema: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+  records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }>;
+} & { " $fragmentName"?: "DatasetContentFragment" };
 
 export type OperationInfoContentFragment = {
   __typename?: "OperationInfo";

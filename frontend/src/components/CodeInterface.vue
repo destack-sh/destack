@@ -1,50 +1,18 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import { graphql, useFragment, type FragmentType } from "@/gql";
+import { useFragment, type FragmentType } from "@/gql";
+import { CodeContentType } from "@/utils/code";
 import { computed } from "vue";
 
-const CodeContentFragment = graphql(/* GraphQL */ `
-  fragment CodeContent on Code {
-    id
-    builtinId
-    code
-    inputSchema {
-      ...SchemaElementContentDeep
-    }
-    outputSchema {
-      ...SchemaElementContentDeep
-    }
-    symbol {
-      parameters {
-        name
-        type
-        schema {
-          ...SchemaElementContentDeep
-        }
-      }
-      arguments {
-        name
-        type
-        value
-        reference {
-          id
-          name
-          typeNameDeclaration
-        }
-      }
-    }
-  }
-`);
-
 const props = defineProps<{
-  content: FragmentType<typeof CodeContentFragment>;
+  content: FragmentType<typeof CodeContentType>;
   generated: boolean;
   commented: boolean;
   focused: boolean;
   lineNumberBase: number;
   xOffset: number;
 }>();
-const content = computed(() => useFragment(CodeContentFragment, props.content));
+const content = computed(() => useFragment(CodeContentType, props.content));
 const parameters = computed(() => content.value?.symbol?.parameters ?? []);
 const arguments_ = computed(() => content.value?.symbol?.arguments ?? []);
 

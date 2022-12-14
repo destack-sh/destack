@@ -1,9 +1,16 @@
 <script lang="ts" setup>
 import FileInterface from "@/components/FileInterface.vue";
 import RunInterface from "@/components/RunInterface.vue";
-import { useEditorState, type Editor, type FileEditor, type RunEditor } from "@/utils/editor";
+import {
+  EDITOR_INTERFACE_STATE,
+  useEditorState,
+  type Editor,
+  type EditorInterfaceState,
+  type FileEditor,
+  type RunEditor,
+} from "@/utils/editor";
 import { useScroll, watchDebounced } from "@vueuse/core";
-import { onMounted, ref, watchEffect } from "vue";
+import { onMounted, provide, ref, watchEffect } from "vue";
 
 const editorState = useEditorState();
 const props = defineProps<{ editor: Editor }>();
@@ -18,7 +25,6 @@ watchEffect(() => {
     hasScrolledManually.value = true;
   }
 });
-
 // remember scroll position
 watchDebounced(
   () => ({ x: x.value, y: y.value }),
@@ -27,7 +33,6 @@ watchDebounced(
   },
   { debounce: 500, maxWait: 1000 }
 );
-
 // restore scroll position once after mount
 onMounted(() => {
   // wait a bit to make sure the container is rendered
@@ -41,10 +46,29 @@ onMounted(() => {
     }
   }, 1000);
 });
+
+// generic editor interface state
+const editorInterfaceState: EditorInterfaceState = {
+  get(key: string, default_?: unknown) {
+    if (props.editor.localState[key] === undefined && default_ !== undefined) {
+      this.set(key, default_);
+    }
+    return props.editor.localState[key];
+  },
+  set(key: string, state: unknown) {
+    editorState.setEditorState(props.editor, key, state);
+  },
+};
+provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
 </script>
 <template>
   <div ref="container">
-    <FileInterface v-if="editor.type == 'file'" :fileId="(editor as FileEditor).fileId" />
+    <FileInterface
+      v-if="editor.type == 'file'"
+      :fileId="(editor as FileEditor).fileId"
+      :state="editor.localState"
+      @update:state="Object.assign(editor.localState, $event)"
+    />
     <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" />
     <div v-else class="h-full w-full text-center">
       <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
