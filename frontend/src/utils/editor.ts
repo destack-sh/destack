@@ -26,7 +26,14 @@ export type Editor = {
   id: string;
   path: string;
   scroll?: { x: number; y: number };
+  localState: Record<string, unknown>; // opaque (JSONable) local state for each editor
   groupId: string | null; // id instead of EditorGroup to avoid circular dependency
+};
+
+export const EDITOR_INTERFACE_STATE = Symbol();
+export type EditorInterfaceState = {
+  get(key: string, default_?: unknown): unknown;
+  set(key: string, value: unknown): void;
 };
 
 export type FileEditor = Editor & {
@@ -67,6 +74,7 @@ export function makeFileEditor(file: FileHeader): FileEditor {
     type: "file",
     fileId: file.id,
     path: file.path + ".instruct",
+    localState: {},
     groupId: null,
   } as FileEditor;
 }
@@ -84,6 +92,7 @@ export function makeRunEditor(config: RunConfiguration): RunEditor {
     type: "run",
     path: config.name,
     config: config,
+    localState: {},
     groupId: null,
   } as RunEditor;
 }
@@ -145,6 +154,10 @@ export const useEditorState = defineStore("editor", {
 
     setEditorScroll(editor: Editor, scroll: { x: number; y: number }): void {
       editor.scroll = scroll;
+    },
+
+    setEditorState(editor: Editor, key: string, value: unknown): void {
+      editor.localState[key] = value;
     },
 
     _removeEditorFromGroup(editor: Editor): void {

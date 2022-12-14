@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import CodeInterface from "@/components/CodeInterface.vue";
+import CodeInterfaceMeta from "@/components/CodeInterfaceMeta.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
+import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
@@ -31,6 +33,9 @@ const { getTimeFromNowString } = useTimeFromNow();
 type SymbolInterface = {
   component: Component;
 };
+type MetaInterface = {
+  component: Component;
+};
 
 const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Dataset]: {
@@ -46,6 +51,18 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
     component: TaskInterface,
   },
   // not yet defined symbol interfaces
+  [SymbolType.Model]: undefined,
+};
+const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
+  [SymbolType.Dataset]: {
+    component: DatasetInterfaceMeta,
+  },
+  [SymbolType.Code]: {
+    component: CodeInterfaceMeta,
+  },
+  // not yet defined symbol interfaces
+  [SymbolType.Expectation]: undefined,
+  [SymbolType.Task]: undefined,
   [SymbolType.Model]: undefined,
 };
 
@@ -168,11 +185,16 @@ const depthOffsetX = computed(() => props.depth * 20);
             'text-gray-500': isFocused,
           }"
         >
+          <!-- Custom meta -->
+          <component
+            v-if="symbol != null && metaInterfaces[symbol.type] != null"
+            :is="metaInterfaces[symbol.type]?.component"
+            :symbol="symbol"
+            :content="symbol.content"
+            class="mr-1"
+          />
           <!-- Statement meta info -->
           <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
-            <template v-if="statement.symbol?.type == SymbolType.Code">
-              <span class="text-xs font-bold">{{ statement.symbol?.content?.builtinId || "python" }}</span>
-            </template>
             <span> {{ getTimeFromNowString(statement.updatedAt) }} </span>
             <span v-if="statement.generated">generated</span>
           </span>
