@@ -9,8 +9,8 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView
 from strawberry.django.views import GraphQLView
 
-from bench.api import schema
 from bench.api.rest import run_program
+from bench.api.root import schema
 from bench.settings import DEBUG
 
 urlpatterns = [

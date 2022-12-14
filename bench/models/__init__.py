@@ -3,6 +3,8 @@ from .dataset import Dataset, DatasetRecord
 from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
 from .project import File, Project, ProjectVersion
+from .schema import Schema
+from .schema_field import SchemaElementField, SchemaField
 from .symbol import (
     Statement,
     StatementType,
@@ -18,32 +20,35 @@ from .task import Compilation, Expectation, SourceMapping, Task
 from .user import User
 
 __all__ = [
-    "Tag",
-    "TaggedItem",
-    "TaggableMixin",
-    "Task",
-    "Compilation",
-    "SourceMapping",
-    "Expectation",
     "Code",
+    "Compilation",
+    "Dataset",
+    "DatasetRecord",
     "Execution",
     "ExecutionStatus",
+    "Expectation",
+    "File",
+    "Model",
+    "ModelInference",
+    "ModelInferenceSettings",
     "Organization",
     "Project",
     "ProjectVersion",
-    "File",
+    "Schema",
+    "SchemaElementField",
+    "SchemaField",
+    "SourceMapping",
     "Statement",
     "StatementType",
-    "SymbolType",
-    "SymbolContent",
     "Symbol",
     "SymbolArgument",
+    "SymbolContent",
     "SymbolParameter",
     "SymbolParameterType",
+    "SymbolType",
+    "Tag",
+    "TaggableMixin",
+    "TaggedItem",
+    "Task",
     "User",
-    "Dataset",
-    "DatasetRecord",
-    "Model",
-    "ModelInferenceSettings",
-    "ModelInference",
 ]

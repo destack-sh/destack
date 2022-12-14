@@ -7,7 +7,6 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.misc import SchemaElement
 from bench.api.symbol import Symbol, SymbolContent
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
@@ -21,8 +20,6 @@ if TYPE_CHECKING:
 @gql.django.type(models.Code)
 class Code(SymbolContent):
     symbol: Symbol
-    input_schema: SchemaElement
-    output_schema: SchemaElement
     task: Optional[Annotated["Task", lazy(".task")]]
     builtin_id: auto
     code: auto

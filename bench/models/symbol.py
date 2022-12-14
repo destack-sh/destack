@@ -9,13 +9,22 @@ from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.schema import SchemaElementField
+from bench.models.schema_field import SchemaElementField
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, is_jsonable
 from bench.utils.schema import SchemaElement
 
 if TYPE_CHECKING:
-    from bench.models import Code, Dataset, Expectation, File, Model, ProjectVersion, Task
+    from bench.models import (
+        Code,
+        Dataset,
+        Expectation,
+        File,
+        Model,
+        ProjectVersion,
+        Schema,
+        Task,
+    )
 
 logger = structlog.get_logger(__name__)
 
@@ -163,6 +172,9 @@ class Statement(UUIDModel):
     def children_of_symbol_type(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
         return self.children.filter(symbol__type=symbol_type)
 
+    def child_of_symbol_type(self, symbol_type: SymbolType) -> Optional[Statement]:
+        return self.children_of_symbol_type(symbol_type).first()
+
     @gql.model_property(only=["type"])
     def type_shortname(self) -> str:
         return self.type
@@ -221,6 +233,7 @@ class SymbolType(models.TextChoices):
     The type of symbol to define in a project.
     """
 
+    SCHEMA = "schema", "Schema"
     TASK = "task", "Task"
     EXPECTATION = "expect", "Expectation"
     CODE = "code", "Code"
@@ -230,9 +243,11 @@ class SymbolType(models.TextChoices):
     @staticmethod
     def from_content(content: SymbolContent) -> SymbolType:
         # re-import for real to avoid circular import (above is only for type checking)
-        from bench.models import Code, Dataset, Expectation, Model, Task  # noqa
+        from bench.models import Code, Dataset, Expectation, Model, Schema, Task  # noqa
 
-        if isinstance(content, Task):
+        if isinstance(content, Schema):
+            return SymbolType.SCHEMA
+        elif isinstance(content, Task):
             return SymbolType.TASK
         elif isinstance(content, Expectation):
             return SymbolType.EXPECTATION
@@ -282,6 +297,7 @@ class SymbolManager(models.Manager["Symbol"]):
 
 
 SYMBOL_TYPE_TO_FIELD = {
+    SymbolType.SCHEMA: "schema",
     SymbolType.TASK: "task",
     SymbolType.EXPECTATION: "expectation",
     SymbolType.CODE: "code",
@@ -311,6 +327,9 @@ class Symbol(TaggableMixin, UUIDModel):
     arguments: models.QuerySet["SymbolArgument"]  # noqa via SymbolArgument.symbol
     source_mappings: models.QuerySet[SourceMapping]  # noqa via SourceMapping.symbol
 
+    schema = models.OneToOneField(
+        "Schema", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
+    )
     task = models.OneToOneField(
         "Task", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"
     )
@@ -381,8 +400,8 @@ class Symbol(TaggableMixin, UUIDModel):
         return self.type
 
     @gql.model_cached_property(
-        only=["type", "task", "expectation", "code", "model", "dataset"],
-        select_related=["task", "expectation", "code", "model", "dataset"],
+        only=["type", "schema", "task", "expectation", "code", "model", "dataset"],
+        select_related=["schema", "task", "expectation", "code", "model", "dataset"],
     )
     def content(self) -> Union[Task, Expectation, Code, Model, Dataset]:
         content: Union[Task, Expectation, Code, Model, Dataset, None] = getattr(
@@ -404,6 +423,13 @@ class Symbol(TaggableMixin, UUIDModel):
             return cast(Task, self.content)
         else:
             return self.content  # noqa
+
+    @property
+    def schema_(self) -> Schema:
+        if TYPE_CHECKING:
+            return cast(Schema, self.content)
+        else:
+            return self.content
 
     @property
     def expectation_(self) -> Expectation:
@@ -600,10 +626,9 @@ class SymbolParameterType(models.TextChoices):
 
 class SymbolParameter(UUIDModel):
     """
-    A parameter is a named argument to a symbol.
-    Parameters are typed using SchemaElements.
+    A parameter is a named argument to a symbol typed with Schemas.
 
-    All symbols can be parameterized, but not all symbols implement parameterization yet.
+    All symbols can be parameterized, but not all symbols support every argument type.
     """
 
     symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE, related_name="parameters")

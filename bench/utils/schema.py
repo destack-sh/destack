@@ -13,6 +13,7 @@ class ValueType(Enum):
     STRING = "string"
     NUMBER = "number"
     BOOLEAN = "boolean"
+    SCHEMA = "schema"
     OBJECT = "object"
     ARRAY = "array"
     NULL = "null"
@@ -55,6 +56,7 @@ class SchemaElement:
     name: str
     type: ValueType
     required: bool = True
+    schema_id: Optional[str] = None
     choices: Optional[list[PyValueType]] = None
     elements: Optional[list["SchemaElement"]] = None
 
@@ -79,6 +81,35 @@ class SchemaElement:
                 return f"{self.name}={self.type.value}{required_str}"
             else:
                 return f"{self.name}={self.type.value}(enum){required_str}"
+
+    def resolve(self, schemas: dict[str, "SchemaElement"]) -> SchemaElement:
+        """Resolve this schema and all sub-schema references."""
+        if self.type == ValueType.SCHEMA:
+            if self.schema_id is None:
+                raise ValueError("schema_id is None")
+            if self.schema_id not in schemas:
+                raise ValueError(f"schema_id {self.schema_id} not found")
+            return schemas[self.schema_id].resolve(schemas)
+        elif self.type == ValueType.OBJECT:
+            if self.elements is None:
+                raise ValueError("elements is None")
+            return SchemaElement(
+                name=self.name,
+                type=self.type,
+                required=self.required,
+                elements=[e.resolve(schemas) for e in self.elements],
+            )
+        elif self.type == ValueType.ARRAY:
+            if self.elements is None:
+                raise ValueError("elements is None")
+            return SchemaElement(
+                name=self.name,
+                type=self.type,
+                required=self.required,
+                elements=[e.resolve(schemas) for e in self.elements],
+            )
+        else:
+            return self
 
 
 def derive_schema_from_records(records: list[dict], name: str | None = "record") -> SchemaElement:

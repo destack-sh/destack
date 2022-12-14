@@ -6,7 +6,7 @@ from uuid import UUID
 from django.db import models
 from strawberry_django_plus import gql
 
-from bench.models.schema import SchemaElementField, SchemaField
+from bench.models.schema_field import Schemad
 from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager
 from bench.models.utils import UUIDTModel
 
@@ -15,14 +15,12 @@ class CodeManager(SymbolContentManager, models.Manager["Code"]):
     pass
 
 
-class Code(SymbolContent):
+class Code(Schemad, SymbolContent):
     """
     Code specifies how to do something using datasets, models and other code.
     Code is just async Python code (either defined in-place or as a built-in).
     """
 
-    input_schema = SchemaField("input")
-    output_schema = SchemaElementField("output")
     # either set builtin id or set custom code
     builtin_id = models.CharField(null=True, blank=True, max_length=256)
     code = models.TextField(null=True, blank=True)
@@ -40,7 +38,7 @@ class Code(SymbolContent):
             content = f"length={len(self.code)}"
         else:
             raise ValueError(f"code has no content: {self}")
-        return f"{self.symbol_str}({content},{self.input_schema}->{self.output_schema})"
+        return f"{self.symbol_str}({content},{self.schema or '<no schema>'})"
 
     @property
     def anonymous(self) -> bool:

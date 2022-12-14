@@ -536,6 +536,7 @@ export enum SymbolType {
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Model = "MODEL",
+  Schema = "SCHEMA",
   Task = "TASK",
 }
 
