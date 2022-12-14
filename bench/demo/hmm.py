@@ -51,10 +51,7 @@ basic_examples = [
         "command": "pip install bs4",
     },
 ]
-
-# @symbol expect task=basic_examples: generate_command
-expectation = "Translate a natural language comment or code into a useful bash command."
-statements = [("like", "ref", "data basic_examples")]
+add_statements = [("task generate_command", "like", "ref", "data basic_examples")]
 
 # @path safety
 
@@ -92,7 +89,7 @@ async def verify_valid_bash_command(example: dict) -> bool:
         return False
 
 
-# @symbol expect task=generate_command: verify_valid_bash_command
+# @symbol expect task=generate_command: valid_bash_command
 expectation = "The command should be a valid bash command."
 statements = [("verify", "def", "code verify_valid_bash_command")]
 
