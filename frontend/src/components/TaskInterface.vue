@@ -8,6 +8,7 @@ import { computed } from "vue";
 const TaskContent = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
     id
+    description
     inputSchema {
       ...SchemaElementContentDeep
     }
@@ -29,7 +30,8 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
 <template>
   <div class="text-sm text-gray-900">
     <!-- Schema & controls -->
-    <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+    <!-- nocheckin move schema & controls to statement meta -->
+    <div v-show="false" class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
       <!-- Controls -->
       <div class="flex flex-row items-baseline gap-2">
         <span class="text-xs font-semibold text-gray-700">main</span>
@@ -48,5 +50,8 @@ const outputSchema = computed(() => useFragment(SchemaElementContentDeepType, co
         </div>
       </div>
     </div>
+  </div>
+  <div class="flex flex-col text-sm text-gray-900">
+    {{ content.description }}
   </div>
 </template>

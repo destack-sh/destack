@@ -67,12 +67,13 @@ const rootStatements = computed(() => {
 </script>
 
 <template>
-  <div class="mx-8 my-3 flex flex-col gap-6">
+  <div class="mx-8 my-3 flex h-full flex-col gap-6">
     <StatementInterface
       v-for="statement in rootStatements"
       :key="statement.id"
       :file="fileHeader"
       :statement="statement"
+      :depth="0"
       class="mx-auto w-full max-w-[1000px]"
     />
   </div>

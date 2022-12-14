@@ -47,7 +47,8 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
 <template>
   <div class="flex h-full w-full flex-col">
     <!-- Schema & controls -->
-    <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+    <!-- nocheckin move schema & controls to statement meta -->
+    <div v-show="false" class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
       <!-- Controls & meta -->
       <div class="flex flex-row items-baseline gap-2">
         <span class="text-xs font-semibold text-gray-700">db</span>
@@ -65,7 +66,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
     <!-- Data view -->
     <MonacoEditor
       v-if="viewMode.value == 'jsonl'"
-      class="-mx-10"
+      class="-mx-12"
       :model-value="contentAsJsonlText"
       language="json"
       :focused="focused"
@@ -73,7 +74,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
     />
     <MonacoEditor
       v-else-if="viewMode.value == 'json'"
-      class="-mx-10"
+      class="-mx-12"
       :model-value="contentAsJsonText"
       language="json"
       :focused="focused"
@@ -89,7 +90,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           <th
             v-for="element in schemaElements"
             :key="element.name"
-            class="px-2 py-1.5 text-left text-sm font-normal text-gray-900"
+            class="py-1.5 pr-2 text-left text-sm font-normal text-gray-900"
           >
             {{ element.name }}
           </th>
@@ -100,7 +101,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
           <td
             v-for="element in schemaElements"
             :key="element.name"
-            class="whitespace-pre-wrap px-2 py-1 align-top text-sm text-gray-900"
+            class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-gray-900"
           >
             {{ record.data[element.name] || "" }}
           </td>

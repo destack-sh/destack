@@ -51,6 +51,9 @@ export const FileHeaderType = graphql(/* GraphQL */ `
 export const StatementHeaderType = graphql(/* GraphQL */ `
   fragment StatementHeader on Statement {
     id
+    modifier
+    generated
+    commented
     file {
       path
     }
@@ -130,6 +133,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     updatedAt
     commented
     generated
+    modifier
     parent {
       id
     }

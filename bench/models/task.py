@@ -27,6 +27,7 @@ class Task(SymbolContent):
 
     input_schema = SchemaField("input")
     output_schema = SchemaElementField("output")
+    description = models.TextField()
 
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation.task
 

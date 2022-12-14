@@ -57,7 +57,8 @@ function getArgument(name: string) {
 <template>
   <div>
     <!-- Schema & controls -->
-    <div class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
+    <!-- nocheckin move schema/controls to statement meta -->
+    <div v-show="false" class="mx-2 mb-2 mt-1.5 flex flex-row items-baseline justify-between">
       <!-- Controls & meta -->
       <div class="flex flex-row items-baseline gap-2">
         <span class="text-xs font-semibold text-gray-700">{{ content.builtinId || "python" }}</span>
@@ -77,27 +78,28 @@ function getArgument(name: string) {
       </div>
     </div>
     <!-- Parameters (with argument if available) -->
-    <div class="m-2 flex flex-col gap-2">
-      <div class="grid grid-cols-4 gap-2" v-for="parameter in parameters" :key="parameter.name">
-        <div class="flex flex-row items-baseline gap-1 text-sm text-gray-900">
+    <div class="flex flex-row gap-4 pb-1.5">
+      <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
+        <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
           <span>{{ parameter.name }}</span>
-          <span class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
         </div>
-        <div class="col-span-3 text-sm text-gray-900">
+        <div class="text-sm text-gray-900">
           <!-- Show argument if it's bound -->
           <template v-if="getArgument(parameter.name)">
             <span v-if="getArgument(parameter.name)?.value != null">
               {{ getArgument(parameter.name)?.value }}
             </span>
-            <span class="tracking-wide" v-else-if="getArgument(parameter.name)?.reference != null">
+            <span class="tracking-wide text-black" v-else-if="getArgument(parameter.name)?.reference != null">
               {{ getArgument(parameter.name)?.reference?.typeNameDeclaration }}
             </span>
           </template>
+          <!-- Otherwise show parameter type -->
+          <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
         </div>
       </div>
     </div>
     <MonacoEditor
-      class="-mx-10"
+      class="-mx-12"
       v-if="content.code"
       :model-value="content.code"
       language="python"

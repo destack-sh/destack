@@ -16,6 +16,7 @@ class Statement(gql.relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
     type: auto
+    modifier: auto
     type_shortname: auto
     created_at: auto
     updated_at: auto

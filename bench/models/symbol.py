@@ -26,9 +26,21 @@ class StatementType(models.TextChoices):
     """
 
     IMPORT = "import"
-    DEFINITION = "define"
+    DEFINITION = "def"
     REFERENCE = "ref"
     COMMENT = "comment"
+
+
+class StatementModifier(models.TextChoices):
+    """
+    A modifier to a Bench statement.
+    """
+
+    MAIN = "main"
+    SUGGEST = "suggest"
+    LIKE = "like"
+    UNLIKE = "unlike"
+    VERIFY = "verify"
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -98,6 +110,7 @@ class Statement(UUIDModel):
     )
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
     type = TextChoicesField(choices_enum=StatementType)
+    modifier = TextChoicesField(choices_enum=StatementModifier, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     commented = models.BooleanField(default=False)
@@ -132,7 +145,9 @@ class Statement(UUIDModel):
             argument.reference = cast(Symbol, new_reference)
             argument.save()
 
-    def add_child(self, type: StatementType, content: Symbol) -> Statement:
+    def add_child(
+        self, type: StatementType, content: Symbol, modifier: Optional[StatementModifier] = None
+    ) -> Statement:
         index = self.children.count()
         kwargs = {"symbol": content} if type == StatementType.DEFINITION else {"reference": content}
         return Statement.objects.create(
@@ -141,6 +156,7 @@ class Statement(UUIDModel):
             type=type,
             parent=self,
             index=index,
+            modifier=modifier,
             **kwargs,
         )
 
@@ -170,14 +186,15 @@ class Statement(UUIDModel):
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)
         if self.type == StatementType.DEFINITION:
-            content_str = f"{self.type} {self.symbol}"
+            content_str = f"{self.symbol}"
         elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
-            content_str = f"{self.type} {self.reference}"
+            content_str = f"{self.reference}"
         elif self.type == StatementType.COMMENT:
-            content_str = f"{self.type} {len(self.text)}"
+            content_str = f"{len(self.text)}"
         else:
             raise ValueError(f"unknown statement type {self.type}")
-        return f"{path} {content_str}"
+        modifier_str = f" {self.modifier}" if self.modifier else ""
+        return f"{path}{modifier_str} {self.type} {content_str}"
 
     objects: StatementManager = StatementManager()
 

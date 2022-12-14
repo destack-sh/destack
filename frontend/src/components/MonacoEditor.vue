@@ -97,6 +97,7 @@ function initMonaco(monaco: Monaco) {
       { token: "constant.character", foreground: "#d97706" },
       { token: "constant.language", foreground: "#d97706" },
       { token: "constant.other", foreground: "#d97706" },
+      { token: "identifier.python", foreground: "#111827" },
       // TODO @UX: make builtin functions orange and bold
       // (the below doesn't work because the token type isn't defined yet)
       { token: "bench-builtin-function", foreground: "#d97706", fontStyle: "bold" },

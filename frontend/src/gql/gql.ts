@@ -19,7 +19,7 @@ const documents = {
     types.ExecutionHeaderFragmentDoc,
   "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  ":
     types.RunDocument,
-  "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
+  "\n  fragment TaskContent on Task {\n    id\n    description\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.TaskContentFragmentDoc,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
@@ -37,7 +37,7 @@ const documents = {
     types.ProjectHeaderFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n":
     types.FileHeaderFragmentDoc,
-  "\n  fragment StatementHeader on Statement {\n    id\n    file {\n      path\n    }\n  }\n":
+  "\n  fragment StatementHeader on Statement {\n    id\n    modifier\n    generated\n    commented\n    file {\n      path\n    }\n  }\n":
     types.StatementHeaderFragmentDoc,
   "\n  fragment SymbolHeader on Symbol {\n    id\n    name\n    type\n    createdAt\n    updatedAt\n  }\n":
     types.SymbolHeaderFragmentDoc,
@@ -45,7 +45,7 @@ const documents = {
     types.CompilationHeaderFragmentDoc,
   "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n":
     types.SchemaElementContentDeepFragmentDoc,
-  "\n  fragment StatementContent on Statement {\n    id\n    type\n    typeShortname\n    createdAt\n    updatedAt\n    commented\n    generated\n    parent {\n      id\n    }\n    symbol {\n      ...SymbolContent\n    }\n    reference {\n      ...SymbolContent\n    }\n    text\n  }\n":
+  "\n  fragment StatementContent on Statement {\n    id\n    type\n    typeShortname\n    createdAt\n    updatedAt\n    commented\n    generated\n    modifier\n    parent {\n      id\n    }\n    symbol {\n      ...SymbolContent\n    }\n    reference {\n      ...SymbolContent\n    }\n    text\n  }\n":
     types.StatementContentFragmentDoc,
   "\n  fragment SymbolContent on Symbol {\n    id\n    name\n    type\n    typeShortname\n    typeNameDeclaration\n    createdAt\n    updatedAt\n    statement {\n      ...StatementHeader\n    }\n    content {\n      ...CodeContent\n      ...DatasetContent\n      ...ExpectationContent\n      ...TaskContent\n    }\n  }\n":
     types.SymbolContentFragmentDoc,
@@ -90,8 +90,8 @@ export function graphql(
   source: "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "
 ): typeof documents["\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
-): typeof documents["\n  fragment TaskContent on Task {\n    id\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
+  source: "\n  fragment TaskContent on Task {\n    id\n    description\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
+): typeof documents["\n  fragment TaskContent on Task {\n    id\n    description\n    inputSchema {\n      ...SchemaElementContentDeep\n    }\n    outputSchema {\n      ...SchemaElementContentDeep\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
@@ -117,8 +117,8 @@ export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    name\n    path\n    createdAt\n    updatedAt\n  }\n"];
 export function graphql(
-  source: "\n  fragment StatementHeader on Statement {\n    id\n    file {\n      path\n    }\n  }\n"
-): typeof documents["\n  fragment StatementHeader on Statement {\n    id\n    file {\n      path\n    }\n  }\n"];
+  source: "\n  fragment StatementHeader on Statement {\n    id\n    modifier\n    generated\n    commented\n    file {\n      path\n    }\n  }\n"
+): typeof documents["\n  fragment StatementHeader on Statement {\n    id\n    modifier\n    generated\n    commented\n    file {\n      path\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment SymbolHeader on Symbol {\n    id\n    name\n    type\n    createdAt\n    updatedAt\n  }\n"
 ): typeof documents["\n  fragment SymbolHeader on Symbol {\n    id\n    name\n    type\n    createdAt\n    updatedAt\n  }\n"];
@@ -129,8 +129,8 @@ export function graphql(
   source: "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n"
 ): typeof documents["\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    choices\n    elements {\n      name\n      type\n      choices\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    typeShortname\n    createdAt\n    updatedAt\n    commented\n    generated\n    parent {\n      id\n    }\n    symbol {\n      ...SymbolContent\n    }\n    reference {\n      ...SymbolContent\n    }\n    text\n  }\n"
-): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    typeShortname\n    createdAt\n    updatedAt\n    commented\n    generated\n    parent {\n      id\n    }\n    symbol {\n      ...SymbolContent\n    }\n    reference {\n      ...SymbolContent\n    }\n    text\n  }\n"];
+  source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    typeShortname\n    createdAt\n    updatedAt\n    commented\n    generated\n    modifier\n    parent {\n      id\n    }\n    symbol {\n      ...SymbolContent\n    }\n    reference {\n      ...SymbolContent\n    }\n    text\n  }\n"
+): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    typeShortname\n    createdAt\n    updatedAt\n    commented\n    generated\n    modifier\n    parent {\n      id\n    }\n    symbol {\n      ...SymbolContent\n    }\n    reference {\n      ...SymbolContent\n    }\n    text\n  }\n"];
 export function graphql(
   source: "\n  fragment SymbolContent on Symbol {\n    id\n    name\n    type\n    typeShortname\n    typeNameDeclaration\n    createdAt\n    updatedAt\n    statement {\n      ...StatementHeader\n    }\n    content {\n      ...CodeContent\n      ...DatasetContent\n      ...ExpectationContent\n      ...TaskContent\n    }\n  }\n"
 ): typeof documents["\n  fragment SymbolContent on Symbol {\n    id\n    name\n    type\n    typeShortname\n    typeNameDeclaration\n    createdAt\n    updatedAt\n    statement {\n      ...StatementHeader\n    }\n    content {\n      ...CodeContent\n      ...DatasetContent\n      ...ExpectationContent\n      ...TaskContent\n    }\n  }\n"];

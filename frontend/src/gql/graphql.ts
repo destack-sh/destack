@@ -441,6 +441,7 @@ export type Statement = Node & {
   generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
   index?: Maybe<Scalars["Int"]>;
+  modifier?: Maybe<StatementModifier>;
   parent?: Maybe<Statement>;
   projectVersion: ProjectVersion;
   reference?: Maybe<Symbol>;
@@ -450,6 +451,15 @@ export type Statement = Node & {
   typeShortname: Scalars["String"];
   updatedAt: Scalars["DateTime"];
 };
+
+/** A modifier to a Bench statement. */
+export enum StatementModifier {
+  Like = "LIKE",
+  Main = "MAIN",
+  Suggest = "SUGGEST",
+  Unlike = "UNLIKE",
+  Verify = "VERIFY",
+}
 
 /** The type of Bench statement. */
 export enum StatementType {
@@ -533,6 +543,7 @@ export type Task = Node &
   SymbolContent & {
     __typename?: "Task";
     compilations: Array<Compilation>;
+    description: Scalars["String"];
     id: Scalars["GlobalID"];
     inputSchema: SchemaElement;
     outputSchema: SchemaElement;
@@ -751,6 +762,7 @@ export type RunMutation = {
 export type TaskContentFragment = {
   __typename?: "Task";
   id: any;
+  description: string;
   inputSchema: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
@@ -870,6 +882,9 @@ export type FileHeaderFragment = {
 export type StatementHeaderFragment = {
   __typename?: "Statement";
   id: any;
+  modifier?: StatementModifier | null;
+  generated: boolean;
+  commented: boolean;
   file: { __typename?: "File"; path: string };
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
@@ -932,6 +947,7 @@ export type StatementContentFragment = {
   updatedAt: any;
   commented: boolean;
   generated: boolean;
+  modifier?: StatementModifier | null;
   text?: string | null;
   parent?: { __typename?: "Statement"; id: any } | null;
   symbol?: ({ __typename?: "Symbol" } & { " $fragmentRefs"?: { SymbolContentFragment: SymbolContentFragment } }) | null;
@@ -1567,6 +1583,9 @@ export const StatementHeaderFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "modifier" } },
+          { kind: "Field", name: { kind: "Name", value: "generated" } },
+          { kind: "Field", name: { kind: "Name", value: "commented" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "file" },
@@ -1732,6 +1751,7 @@ export const TaskContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "inputSchema" },
@@ -1824,6 +1844,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "generated" } },
+          { kind: "Field", name: { kind: "Name", value: "modifier" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },

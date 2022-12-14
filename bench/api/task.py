@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated
 
-from strawberry import lazy
+from strawberry import auto, lazy
 from strawberry_django_plus import gql
 
 from bench import models
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 @gql.django.type(models.Task)
 class Task(SymbolContent):
     symbol: Symbol
+    description: auto
     input_schema: SchemaElement
     output_schema: SchemaElement
     compilations: list[Annotated["Compilation", lazy(".compilation")]]

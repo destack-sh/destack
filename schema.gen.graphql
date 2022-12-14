@@ -373,6 +373,7 @@ type Statement implements Node {
   projectVersion: ProjectVersion!
   file: File!
   type: StatementType!
+  modifier: StatementModifier
   typeShortname: String!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -385,6 +386,15 @@ type Statement implements Node {
   reference: Symbol
   arguments: [SymbolArgument!]!
   text: String
+}
+
+"""A modifier to a Bench statement."""
+enum StatementModifier {
+  MAIN
+  SUGGEST
+  LIKE
+  UNLIKE
+  VERIFY
 }
 
 """The type of Bench statement."""
@@ -461,6 +471,7 @@ enum SymbolType {
 type Task implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
+  description: String!
   inputSchema: SchemaElement!
   outputSchema: SchemaElement!
   compilations: [Compilation!]!
