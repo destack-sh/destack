@@ -13,7 +13,7 @@ const props = defineProps<{ content: FragmentType<typeof ExpectationContent>; fo
 const content = computed(() => useFragment(ExpectationContent, props.content));
 </script>
 <template>
-  <div class="flex flex-col text-sm text-gray-900">
+  <div class="flex flex-col text-sm text-black">
     {{ content.description }}
   </div>
 </template>

@@ -28,7 +28,7 @@ const state = useSchemaInterfaceState(symbol);
 </script>
 <template>
   <div class="flex h-full w-full flex-col gap-1 text-sm">
-    <span v-if="content.description">{{ content.description }}</span>
+    <span v-if="content.description" class="text-black">{{ content.description }}</span>
     <MonacoEditor
       v-if="state.view == 'json'"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
