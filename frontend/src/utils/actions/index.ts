@@ -1,6 +1,7 @@
 import { useEditorActions } from "@/utils/actions/editor";
 import { useFileActions } from "@/utils/actions/file";
 import { useOperationsActions } from "@/utils/actions/operations";
+import { useStatementActions } from "@/utils/actions/statement";
 import { useVersionActions } from "@/utils/actions/version";
 import { defineStore } from "pinia";
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
@@ -149,5 +150,6 @@ export function useActions() {
     operations: useOperationsActions(),
     version: useVersionActions(),
     file: useFileActions(),
+    statement: useStatementActions(),
   };
 }

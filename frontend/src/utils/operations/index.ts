@@ -3,6 +3,7 @@ import { useSymbolOps } from "@/utils/operations/symbol";
 import { useCompilationOps } from "@/utils/operations/compilation";
 import { useProjectVersionOps } from "@/utils/operations/version";
 import { defineStore } from "pinia";
+import { useStatementOps } from "@/utils/operations/statement";
 
 type Operation<T> = {
   id?: string;
@@ -97,6 +98,7 @@ export function useOperations() {
   return {
     file: useFileOps(),
     symbol: useSymbolOps(),
+    statement: useStatementOps(),
     compilation: useCompilationOps(),
     version: useProjectVersionOps(),
   };

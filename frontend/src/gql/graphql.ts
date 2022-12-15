@@ -170,6 +170,7 @@ export type Mutation = {
   compile: CompilePayload;
   createFile: CreateFilePayload;
   deleteFile: DeleteFilePayload;
+  moveStatement: StatementMovePayload;
   renameFile: RenameFilePayload;
   renameSymbol: RenameSymbolPayload;
   run: RunCodePayload;
@@ -193,6 +194,10 @@ export type MutationCreateFileArgs = {
 
 export type MutationDeleteFileArgs = {
   input: FileDeleteInput;
+};
+
+export type MutationMoveStatementArgs = {
+  input: StatementMoveInput;
 };
 
 export type MutationRenameFileArgs = {
@@ -466,6 +471,20 @@ export enum StatementModifier {
   Unlike = "UNLIKE",
   Verify = "VERIFY",
 }
+
+export type StatementMoveInput = {
+  fileId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"];
+  index: Scalars["Int"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+};
+
+export type StatementMovePayload = {
+  __typename?: "StatementMovePayload";
+  newFile: File;
+  oldFile: File;
+  statement: Statement;
+};
 
 /** The type of Bench statement. */
 export enum StatementType {
@@ -1106,6 +1125,39 @@ export type DeleteFileMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type MoveStatementMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  fileId: Scalars["GlobalID"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  index: Scalars["Int"];
+}>;
+
+export type MoveStatementMutation = {
+  __typename?: "Mutation";
+  moveStatement: {
+    __typename?: "StatementMovePayload";
+    statement: {
+      __typename?: "Statement";
+      id: any;
+      index?: number | null;
+      file: { __typename?: "File"; id: any; path: string };
+      parent?: { __typename?: "Statement"; id: any } | null;
+    };
+    oldFile: {
+      __typename?: "File";
+      id: any;
+      path: string;
+      statements: Array<{ __typename?: "Statement"; id: any; index?: number | null }>;
+    };
+    newFile: {
+      __typename?: "File";
+      id: any;
+      path: string;
+      statements: Array<{ __typename?: "Statement"; id: any; index?: number | null }>;
+    };
+  };
 };
 
 export type RenameSymbolMutationVariables = Exact<{
@@ -2803,6 +2855,157 @@ export const DeleteFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
+export const MoveStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "moveStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "index" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "moveStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "fileId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "parentId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "index" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "index" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "index" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "file" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "path" } },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "oldFile" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "index" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "newFile" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "index" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<MoveStatementMutation, MoveStatementMutationVariables>;
 export const RenameSymbolDocument = {
   kind: "Document",
   definitions: [
