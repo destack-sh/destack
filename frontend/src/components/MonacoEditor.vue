@@ -141,7 +141,6 @@ watch(
   () => props.modelValue,
   (value) => {
     if (editor.value && value !== editor.value.getValue()) {
-      console.log("update editor from model value");
       editor.value.setValue(value);
     }
   }
