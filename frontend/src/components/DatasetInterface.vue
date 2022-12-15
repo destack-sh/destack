@@ -58,7 +58,7 @@ const state = useDatasetInterfaceState(symbol);
           <th
             v-for="element in schemaElements"
             :key="element.name"
-            class="py-1.5 pr-2 text-left text-sm font-normal text-gray-900"
+            class="py-1.5 pr-2 text-left text-sm font-normal text-black"
           >
             {{ element.name }}
           </th>
@@ -69,7 +69,7 @@ const state = useDatasetInterfaceState(symbol);
           <td
             v-for="element in schemaElements"
             :key="element.name"
-            class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-gray-900"
+            class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-black"
           >
             {{ record.data[element.name] || "" }}
           </td>

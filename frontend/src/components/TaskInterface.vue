@@ -26,7 +26,7 @@ const props = defineProps<{
 const content = computed(() => useFragment(TaskContentType, props.content));
 </script>
 <template>
-  <div class="flex flex-col text-sm text-gray-900">
+  <div class="flex flex-col text-sm text-black">
     {{ content.description }}
   </div>
 </template>
