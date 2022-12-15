@@ -1,9 +1,12 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import { useFragment, type FragmentType } from "@/gql";
-import type { DatasetContentFragment } from "@/gql/graphql";
+import { graphql, useFragment, type FragmentType } from "@/gql";
+import { SymbolType, type DatasetContentFragment } from "@/gql/graphql";
 import { DatasetContentType, useDatasetInterfaceState } from "@/utils/dataset";
 import { SchemaElementContentDeepType, SymbolContentType } from "@/utils/fragments";
+import { SchemaContentType } from "@/utils/schema";
+import { useIntelliSense } from "@/utils/intellisense";
+import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -18,8 +21,6 @@ const props = defineProps<{
 
 const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
 const content = computed(() => useFragment(DatasetContentType, props.content));
-const schema = computed(() => useFragment(SchemaElementContentDeepType, content.value.schema));
-const schemaElements = computed(() => schema.value?.elements || []);
 
 function datasetToJsonObj(content: DatasetContentFragment) {
   return content.records.map((r) => r.data);
@@ -28,6 +29,33 @@ function datasetToJsonObj(content: DatasetContentFragment) {
 const contentAsJsonObj = computed(() => datasetToJsonObj(content.value));
 const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, null, 2));
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
+
+// sense derived state
+const sense = useIntelliSense();
+const schemaHeader = computed(() => {
+  return sense.childSymbol(symbol.value.id, SymbolType.Schema);
+});
+// get schema content from gql
+const { result: schemaQuery } = useQuery(
+  graphql(/* GraphQL */ `
+    query schemaContentById($symbolId: GlobalID!) {
+      symbol(id: $symbolId) {
+        id
+        content {
+          ...SchemaContent
+        }
+        statement {
+          id
+        }
+      }
+    }
+  `),
+  () => ({ symbolId: schemaHeader.value?.id }),
+  () => ({ enabled: !!schemaHeader.value })
+);
+const schema = computed(() => useFragment(SchemaContentType, schemaQuery.value?.symbol?.content));
+const schemaElement = computed(() => useFragment(SchemaElementContentDeepType, schema.value?.element));
+const schemaElements = computed(() => schemaElement.value?.elements || []);
 
 // local interface state
 const state = useDatasetInterfaceState(symbol);
@@ -46,7 +74,7 @@ const state = useDatasetInterfaceState(symbol);
       :readonly="generated"
     />
     <table
-      v-else-if="state.view == 'table'"
+      v-else-if="state.view == 'table' && schemaElements.length > 0"
       class="h-full w-full rounded-sm"
       :class="{ ' divide-y divide-gray-300': state.showTableHeader }"
     >

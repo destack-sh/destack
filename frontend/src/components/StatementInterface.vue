@@ -22,6 +22,7 @@ const props = defineProps<{
   file: FileHeader;
   statement: FragmentType<typeof StatementContentType>;
   depth: number;
+  isLastInRoot: boolean;
   lineNumberBase: number;
 }>();
 const statement = computed(() => useFragment(StatementContentType, props.statement));
@@ -150,122 +151,122 @@ const modifierShortname = computed(() => {
 const depthOffsetX = computed(() => props.depth * 20);
 </script>
 <template>
-  <div class="relative" :class="depth == 0 ? 'rounded-sm border border-gray-200 bg-white pt-1 pb-2' : ''">
-    <!-- Self -->
-    <div
-      class="group relative border-x border-white transition-all"
+  <div
+    class="group relative border-x border-gray-200 transition-all"
+    :class="{
+      'border-gray-200 ': !isFocused,
+      'border-l-orange-500': isAncestorFocused,
+      'hover:border-l-orange-300': !isFocused,
+      'rounded-t-sm border-t  border-gray-200': depth == 0, // group top
+      'rounded-b-sm border-b border-gray-200 pb-3': isLastInRoot, // group bottom
+    }"
+    :style="{ paddingLeft: depthOffsetX + 'px' }"
+    @mousedown="focus"
+  >
+    <!-- Imitate Monaco line numbers -->
+    <span
+      class="absolute top-[9px] w-6 select-none text-right font-mono text-sm"
+      :style="{ left: -30 + 'px' }"
       :class="{
-        'border-gray-200 border-b-white': !isFocused,
-        'border-l-orange-500': isAncestorFocused,
-        'hover:border-l-orange-300': !isFocused,
+        'text-orange-200': !isFocused,
+        'text-orange-400': isAncestorFocused,
+        'font-bold text-orange-600': isFocused,
       }"
-      :style="{ paddingLeft: depthOffsetX + 'px' }"
-      @mousedown="focus"
+      >{{ lineNumberBase + 1 }}</span
     >
-      <!-- Imitate Monaco line numbers -->
-      <span
-        class="absolute top-[9px] w-6 select-none text-right font-mono text-sm"
-        :style="{ left: -30 + 'px' }"
-        :class="{
-          'text-orange-200': !isFocused,
-          'text-orange-400': isAncestorFocused,
-          'font-bold text-orange-600': isFocused,
-        }"
-        >{{ lineNumberBase + 1 }}</span
-      >
-      <!-- Statement header & controls -->
-      <div class="mx-3 flex flex-row items-center justify-between pt-1.5">
-        <div class="flex flex-row items-baseline" v-if="symbolOrReference">
-          <!--  declaration -->
-          <span class="decoration-none inline-flex items-baseline text-sm text-black">
-            <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
-            <span class="text-orange-600">{{ symbolOrReference.typeShortname }}</span>
-            <span
-              :contenteditable="!readonly"
-              maxlength="100"
-              class="ml-0.5 inline w-full select-all rounded-sm border border-transparent bg-transparent py-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:border-gray-300 focus:border-orange-500"
-              @keydown.enter.prevent="onNameEnter"
-            >
-              {{ symbolOrReference.name }}
-            </span>
-            <span v-if="isDefinition" class="-ml-0.5 text-orange-600">:</span>
+    <!-- Statement header & controls -->
+    <div class="mx-3 flex flex-row items-center justify-between pt-1.5">
+      <div class="flex flex-row items-baseline" v-if="symbolOrReference">
+        <!--  declaration -->
+        <span class="decoration-none inline-flex items-baseline text-sm text-black">
+          <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
+          <span class="text-orange-600">{{ symbolOrReference.typeShortname }}</span>
+          <span
+            :contenteditable="!readonly"
+            maxlength="100"
+            class="ml-0.5 inline w-full select-all rounded-sm border border-transparent bg-transparent py-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:border-gray-300 focus:border-orange-500"
+            @keydown.enter.prevent="onNameEnter"
+          >
+            {{ symbolOrReference.name }}
           </span>
-        </div>
-        <span
-          class="inline-flex flex-row items-center"
-          :class="{
-            'opacity-0 group-hover:opacity-100': !isDefinition && !isFocused,
-            'text-gray-400': !isFocused,
-            'text-gray-500': isFocused,
-          }"
-        >
-          <!-- Custom meta -->
-          <component
-            v-if="symbol != null && metaInterfaces[symbol.type] != null"
-            :is="metaInterfaces[symbol.type]?.component"
-            :symbol="symbol"
-            :content="symbol.content"
-            class="mr-1"
-          />
-          <!-- Statement meta info -->
-          <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
-            <span> {{ getTimeFromNowString(statement.updatedAt) }} </span>
-            <span v-if="statement.generated">generated</span>
-          </span>
-          <!-- Symbol meta controls -->
-          <span class="inline-flex flex-row gap-1">
-            <button
-              v-for="action in metaActions"
-              :key="action.label"
-              class="rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
-              :class="isFocused ? 'text-gray-500' : 'text-gray-400'"
-              @click.prevent="action.action"
-            >
-              <component :is="action.icon" class="h-4 w-4" />
-            </button>
-          </span>
+          <span v-if="isDefinition" class="-ml-0.5 text-orange-600">:</span>
         </span>
       </div>
-      <!-- Symbol parameters & arguments -->
-      <!-- Parameters (with argument if available) -->
-      <div v-if="symbol" class="mx-3 flex flex-row gap-4 pb-1">
-        <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
-          <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
-            <span>{{ parameter.name }}</span>
-          </div>
-          <div class="text-sm text-gray-900">
-            <!-- Show argument if it's bound -->
-            <template v-if="getArgument(parameter.name)">
-              <span v-if="getArgument(parameter.name)?.value != null">
-                {{ getArgument(parameter.name)?.value }}
-              </span>
-              <span class="text-black" v-else-if="getArgument(parameter.name)?.reference != null">
-                {{ getArgument(parameter.name)?.reference?.name }}
-              </span>
-            </template>
-            <!-- Otherwise show parameter type -->
-            <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
-          </div>
-        </div>
-      </div>
-      <!-- Symbol content (if statement defines a symbol) -->
-      <div v-if="symbol != null" class="mx-3" :class="{ 'border-orange-600': isFocused }">
+      <span
+        class="inline-flex flex-row items-center"
+        :class="{
+          'opacity-0 group-hover:opacity-100': !isDefinition && !isFocused,
+          'text-gray-400': !isFocused,
+          'text-gray-500': isFocused,
+        }"
+      >
+        <!-- Custom meta -->
         <component
-          v-if="interfaces[symbol.type] != undefined"
-          :is="interfaces[symbol.type]?.component"
+          v-if="symbol != null && metaInterfaces[symbol.type] != null"
+          :is="metaInterfaces[symbol.type]?.component"
           :symbol="symbol"
           :content="symbol.content"
-          :lineNumberBase="lineNumberBase"
-          :xOffset="depthOffsetX"
-          :generated="statement.generated"
-          :commented="statement.commented"
-          :focused="isFocused"
+          class="mr-1"
         />
-        <span class="text-red-500" v-else> cannot render {{ symbol.type }} </span>
+        <!-- Statement meta info -->
+        <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
+          <span> {{ getTimeFromNowString(statement.updatedAt) }} </span>
+          <span v-if="statement.generated">generated</span>
+        </span>
+        <!-- Symbol meta controls -->
+        <span class="inline-flex flex-row gap-1">
+          <button
+            v-for="action in metaActions"
+            :key="action.label"
+            class="rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
+            :class="isFocused ? 'text-gray-500' : 'text-gray-400'"
+            @click.prevent="action.action"
+          >
+            <component :is="action.icon" class="h-4 w-4" />
+          </button>
+        </span>
+      </span>
+    </div>
+    <!-- Symbol parameters & arguments -->
+    <!-- Parameters (with argument if available) -->
+    <div v-if="symbol" class="mx-3 flex flex-row gap-4 pb-1">
+      <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
+        <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
+          <span>{{ parameter.name }}</span>
+        </div>
+        <div class="text-sm text-gray-900">
+          <!-- Show argument if it's bound -->
+          <template v-if="getArgument(parameter.name)">
+            <span v-if="getArgument(parameter.name)?.value != null">
+              {{ getArgument(parameter.name)?.value }}
+            </span>
+            <span class="text-black" v-else-if="getArgument(parameter.name)?.reference != null">
+              {{ getArgument(parameter.name)?.reference?.name }}
+            </span>
+          </template>
+          <!-- Otherwise show parameter type -->
+          <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
+        </div>
       </div>
     </div>
-    <!-- Children -->
-    <div v-if="statement.children?.length > 0">
+    <!-- Symbol content (if statement defines a symbol) -->
+    <div v-if="symbol != null" class="mx-3" :class="{ 'border-orange-600': isFocused }">
+      <component
+        v-if="interfaces[symbol.type] != undefined"
+        :is="interfaces[symbol.type]?.component"
+        :symbol="symbol"
+        :content="symbol.content"
+        :lineNumberBase="lineNumberBase"
+        :xOffset="depthOffsetX"
+        :generated="statement.generated"
+        :commented="statement.commented"
+        :focused="isFocused"
+      />
+      <span class="text-red-500" v-else> cannot render {{ symbol.type }} </span>
+    </div>
+  </div>
+  <!-- Children -->
+  <!-- <div v-if="statement.children?.length > 0">
       <StatementInterface
         v-for="(child, i) in statement.children"
         :key="child.id"
@@ -274,6 +275,5 @@ const depthOffsetX = computed(() => props.depth * 20);
         :depth="depth + 1"
         :lineNumberBase="lineNumberBase + i + 1"
       />
-    </div>
-  </div>
+    </div> -->
 </template>
