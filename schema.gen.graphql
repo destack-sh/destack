@@ -11,9 +11,6 @@ type AddCompilationPayload {
 type Code implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
-  inputSchema: SchemaElement!
-  outputSchema: SchemaElement!
-  task: Task
   builtinId: String
   code: String
 }
@@ -55,7 +52,6 @@ union CreateFilePayload = File | OperationInfo
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
-  schema: SchemaElement!
   length: Int!
   records: [DatasetRecord!]!
 }
@@ -351,10 +347,18 @@ input RunCodeValueArgumentInput {
   value: String!
 }
 
+type Schema implements SymbolContent & Node {
+  id: GlobalID!
+  symbol: Symbol!
+  description: String!
+  element: SchemaElement!
+}
+
 type SchemaElement {
   name: String!
   type: ValueType!
   required: Boolean!
+  schemaId: String
   choices: [String!]
   elements: [SchemaElement!]
 }
@@ -473,8 +477,6 @@ type Task implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
   description: String!
-  inputSchema: SchemaElement!
-  outputSchema: SchemaElement!
   compilations: [Compilation!]!
 }
 
@@ -517,6 +519,7 @@ enum ValueType {
   STRING
   NUMBER
   BOOLEAN
+  SCHEMA
   OBJECT
   ARRAY
   NULL

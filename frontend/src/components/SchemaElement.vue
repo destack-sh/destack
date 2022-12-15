@@ -13,16 +13,16 @@ const children = computed(
 );
 </script>
 <template>
-  <span class="text-xs text-gray-700">
-    {{ element.name }}
-    <span class="text-gray-500" v-if="element.type == ValueType.Object">
+  <span class="text-gray-700">
+    {{ element.name }}<template v-if="element.name">: </template>
+    <span class="inline-flex flex-row gap-1 text-gray-500" v-if="element.type == ValueType.Object">
       { <SchemaElement v-for="el in children" :element="el" :key="el.name" /> }
     </span>
     <span class="text-gray-500" v-else-if="element.type == ValueType.Array">
       [ <SchemaElement v-for="el in children" :element="el" :key="el.name" /> ]
     </span>
     <span class="text-gray-500" v-else>
-      {{ element.type.toLowerCase() }}
+      {{ element.type.toLowerCase() }}<template v-if="element.required">!</template>
     </span>
   </span>
 </template>

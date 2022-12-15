@@ -1,6 +1,6 @@
 import type { File, Project, ProjectVersion, Statement, Symbol } from "@/gql/graphql";
 import { defineStore } from "pinia";
-import { onBeforeUnmount } from "vue";
+import { computed, inject, onBeforeUnmount, type Ref } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -277,4 +277,19 @@ export function useEditorPersistence(intervalMs = 1000) {
   onBeforeUnmount(() => clearInterval(interval));
 
   return { save, load };
+}
+
+export function useSymbolInterfaceState<T>(symbol: Ref<SymbolHeader>, defaultState: T): Ref<T> {
+  const editorInterfaceState = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
+  // local state is stored by symbol id in the opaque editor interface state
+  const state = computed({
+    get() {
+      return editorInterfaceState?.get(symbol.value.id, defaultState) as T;
+    },
+    set(value: T) {
+      editorInterfaceState?.set(symbol.value.id, value);
+    },
+  });
+
+  return state;
 }

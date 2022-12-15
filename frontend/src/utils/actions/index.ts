@@ -1,14 +1,15 @@
-import { useOperationsActions } from "@/utils/actions/operations";
-import { useFileActions } from "@/utils/actions/file";
 import { useEditorActions } from "@/utils/actions/editor";
+import { useFileActions } from "@/utils/actions/file";
+import { useOperationsActions } from "@/utils/actions/operations";
 import { useVersionActions } from "@/utils/actions/version";
 import { defineStore } from "pinia";
-import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch, watchEffect, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
 
 export type Action = {
   id: string;
   label: string;
   shortcuts: string[];
+  registered: boolean;
   enabled: boolean;
   apply: () => void;
 };
@@ -44,6 +45,7 @@ export const useActionsStore = defineStore("actions", {
         throw new Error(`action with id ${action.id} already exists`);
       }
 
+      action.registered = true;
       this.actions.push(action);
     },
     update(action: Action): void {
@@ -63,9 +65,14 @@ export const useActionsStore = defineStore("actions", {
     },
     remove(action: Action | string): void {
       if (typeof action === "string") {
+        const actionObj = this.actions.find((a) => a.id === action);
         this.actions = this.actions.filter((a) => a.id !== action);
+        if (actionObj != null) {
+          actionObj.registered = false;
+        }
       } else {
         this.actions = this.actions.filter((a) => a !== action);
+        action.registered = false;
       }
     },
   },
@@ -93,7 +100,7 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
     return computed(() => actionsStore.action(action.id));
   }
 
-  console.log(`provide action ${action.id} (${mode})`);
+  console.log(`provide action ${action.id} (${mode}))`);
   const mounted = ref(false);
 
   function toResolvedAction() {
@@ -101,6 +108,7 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
       id: action.id,
       label: typeof action.label === "string" ? action.label : action.label.value,
       shortcuts: action.shortcuts,
+      registered: action.registered ? action.registered.value : true,
       enabled: action.enabled ? action.enabled.value : true,
       apply: action.apply,
     };

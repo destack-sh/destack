@@ -68,7 +68,7 @@ class SchemaElement:
             return [e.name for e in self.elements]
 
     def __str__(self):
-        required_str = "?" if not self.required else ""
+        required_str = "!" if self.required else ""
         elements_str = ", ".join(str(e) for e in self.elements) if self.elements else ""
         if self.type == ValueType.OBJECT:
             # output as name={elem1, elem2, ...}

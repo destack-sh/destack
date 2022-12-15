@@ -230,50 +230,52 @@ def parse_extra(
     project_v: ProjectVersion,
     segment: FileSegment,
     symbol: Symbol,
-    lookup_def: typing.Callable[[str | None], Symbol],
+    lookup_def: typing.Callable,
 ):
     if "parent_ref" in segment.symbol_args:
         parent_name = segment.symbol_args["parent_ref"]
         parent = project_v.symbol(parent_name)
-        parent.statement.add_child(StatementType.REFERENCE, symbol)
+        _mount_child_statement(parent, None, StatementType.REFERENCE, symbol)
     if "parent_def" in segment.symbol_args:
         parent_name = segment.symbol_args["parent_def"]
         parent = project_v.symbol(parent_name)
-        parent.statement.add_child(StatementType.DEFINITION, symbol)
+        _mount_child_statement(parent, None, StatementType.DEFINITION, symbol)
 
-    extra_statements = lookup_def("add_statements", required=False)
-    if extra_statements is None:
+    add_statements = lookup_def("add_statements", required=False)
+    if add_statements is None:
         return
-    for parent_declr, modifier, statement_type, child_declr in extra_statements:
+    for parent_declr, modifier, statement_type, child_declr in add_statements:
         parent_type, parent_name = parent_declr.split(" ")
         parent_symbol = project_v.symbol(parent_name, SymbolType(parent_type))
-        _mount_child_statement(project_v, parent_symbol, modifier, statement_type, child_declr)
+        _parse_child_statement(project_v, parent_symbol, modifier, statement_type, child_declr)
 
 
-def _mount_child_statement(
+def _parse_child_statement(
     project_v: ProjectVersion,
     parent: Symbol,
-    modifier: str,
+    modifier: Optional[str],
     statement_type: str,
     child_symbol_declr: str,
 ):
-    modifier = StatementModifier(modifier)
+    modifier = StatementModifier(modifier) if modifier else None
     statement_type = StatementType(statement_type)
     symbol_type, symbol_name = child_symbol_declr.split(" ")
     child_symbol = project_v.symbol(symbol_name, symbol_type)
-    if child_symbol.type in (SymbolType.CODE, SymbolType.DATASET):
-        if statement_type == StatementType.DEFINITION:
-            # there are no forward references to symbols in files right now,
-            # so if we want the definition to be a child statement we need to re-mount it
-            child_symbol.statement.parent = parent.statement
-            child_symbol.statement.index = parent.statement.children.count()
-            child_symbol.statement.modifier = modifier
-            child_symbol.statement.save()
-            print(f"re-mounted {child_symbol.statement} to {parent.statement}")
-        else:
-            parent.statement.add_child(type=statement_type, content=child_symbol, modifier=modifier)
+    _mount_child_statement(parent, modifier, statement_type, child_symbol)
+
+
+def _mount_child_statement(
+    parent: Symbol,
+    modifier: Optional[StatementModifier],
+    statement_type: StatementType,
+    child_symbol: Symbol,
+):
+    if statement_type == StatementType.DEFINITION:
+        child_symbol.statement.modifier = modifier
+        parent.statement.mount_child(child_symbol.statement)
+        print(f"re-mounted {child_symbol.statement} to {parent.statement}")
     else:
-        raise ValueError(f"referenced symbol '{child_symbol}' is not a valid statement type")
+        parent.statement.add_child(type=statement_type, content=child_symbol, modifier=modifier)
 
 
 def parse_schema(
@@ -281,8 +283,11 @@ def parse_schema(
     segment: FileSegment,
     lookup_def: typing.Callable,
 ) -> tuple[SymbolContent, typing.Callable[[Symbol], None]]:
-    schema_element = SchemaObjectSerializer.from_json("input", lookup_def(segment.symbol_name))
-    schema = Schema.objects.create(element=schema_element)
+    schema_element = SchemaObjectSerializer.from_json(
+        segment.symbol_name, lookup_def(segment.symbol_name)
+    )
+    description = lookup_def("description", required=False) or ""
+    schema = Schema.objects.create(description=description, element=schema_element)
     return schema
 
 
@@ -295,10 +300,13 @@ def parse_task(
     task = Task.objects.create(description=description)
 
     def on_defined(symbol: Symbol):
+        if not lookup_def("input_schema", required=False):
+            # schema may be set directly with add_statements
+            return
         input_schema = SchemaObjectSerializer.from_json("input", lookup_def("input_schema"))
         output_schema = SchemaObjectSerializer.from_json("output", lookup_def("output_schema"))
         schema_element = SchemaElement(
-            symbol.name + "_schema", type=ValueType.OBJECT, elements=[input_schema, output_schema]
+            "schema", type=ValueType.OBJECT, elements=[input_schema, output_schema]
         )
         task.set_schema_element(schema_element)
 
@@ -322,7 +330,7 @@ def parse_code(
         # add schema (requires symbol & statement to be defined)
         input_schema, output_schema = derive_schema_from_function(function)
         schema_element = SchemaElement(
-            symbol.name + "_schema", type=ValueType.OBJECT, elements=[input_schema, output_schema]
+            name="", type=ValueType.OBJECT, elements=[input_schema, output_schema]
         )
         code.set_schema_element(schema_element)
 
@@ -352,7 +360,7 @@ def parse_data(
     def on_defined(symbol: Symbol):
         dataset.derive_schema()
 
-    return dataset
+    return dataset, on_defined
 
 
 def parse_expect(
@@ -373,7 +381,7 @@ def parse_expect(
         for statement_def in statements_names:
             # expectation statement e.g. ("like", "REFERENCE", "code respect_command_hints")
             modifier, statement_type, symbol_declr = statement_def
-            _mount_child_statement(project_v, symbol, modifier, statement_type, symbol_declr)
+            _parse_child_statement(project_v, symbol, modifier, statement_type, symbol_declr)
         if "task" in segment.symbol_args:
             task_name = segment.symbol_args["task"]
             task = project_v.symbol(task_name, SymbolType.TASK).task_

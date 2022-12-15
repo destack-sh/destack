@@ -92,9 +92,7 @@ class Schemad:
             # auto define new schema if none exists
             from bench.models import Schema
 
-            schema = Schema(element=element)
-            self.statement.file.define_symbol(
-                name=self.symbol.name + "_schema", content=schema, parent=self.statement
-            )
+            schema = Schema(description="", element=element)
+            self.statement.file.define_symbol(name="schema", content=schema, parent=self.statement)
         else:
             self.schema.element = element

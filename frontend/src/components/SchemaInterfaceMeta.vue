@@ -1,18 +1,17 @@
 <script lang="ts" setup>
 import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { DatasetContentType, useDatasetInterfaceState, viewModes, type ViewMode } from "@/utils/dataset";
 import { SymbolContentType } from "@/utils/fragments";
+import { useSchemaInterfaceState, viewModes, type SchemaContentType, type ViewMode } from "@/utils/schema";
 import { computed } from "vue";
 
 const props = defineProps<{
   symbol: FragmentType<typeof SymbolContentType>;
-  content: FragmentType<typeof DatasetContentType>;
+  content: FragmentType<typeof SchemaContentType>;
 }>();
 
 const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
-const content = computed(() => useFragment(DatasetContentType, props.content));
-const state = useDatasetInterfaceState(symbol);
+const state = useSchemaInterfaceState(symbol);
 
 function viewToObject(view: string) {
   return {
@@ -25,11 +24,8 @@ const availableViews = computed(() => viewModes.map(viewToObject));
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">
-    <span class="">
-      <span class="text-gray-500">{{ content.length }}</span> records
-    </span>
     <ListboxSelect
-      class="-mr-1 max-w-fit"
+      class="-mr-1 max-w-fit text-xs"
       :model-value="viewAsObject"
       @update:model-value="state = { ...state, view: $event.value as ViewMode }"
       :options="availableViews"

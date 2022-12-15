@@ -23,5 +23,5 @@ class SchemaElement:
 @gql.django.type(models.Schema)
 class Schema(SymbolContent):
     symbol: Symbol
-    description: Optional[str]
+    description: str
     element: SchemaElement

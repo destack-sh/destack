@@ -169,6 +169,11 @@ class Statement(UUIDModel):
             **kwargs,
         )
 
+    def mount_child(self, child: Statement) -> None:
+        child.parent = self
+        child.index = self.children.count()
+        child.save()
+
     def children_of_symbol_type(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
         return self.children.filter(symbol__type=symbol_type)
 
@@ -403,8 +408,8 @@ class Symbol(TaggableMixin, UUIDModel):
         only=["type", "schema", "task", "expectation", "code", "model", "dataset"],
         select_related=["schema", "task", "expectation", "code", "model", "dataset"],
     )
-    def content(self) -> Union[Task, Expectation, Code, Model, Dataset]:
-        content: Union[Task, Expectation, Code, Model, Dataset, None] = getattr(
+    def content(self) -> Union[Schema, Task, Expectation, Code, Model, Dataset]:
+        content: Union[Schema, Task, Expectation, Code, Model, Dataset, None] = getattr(
             self, self.type_to_field(self.type)
         )
         if content is None:

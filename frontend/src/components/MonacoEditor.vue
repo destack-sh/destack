@@ -57,8 +57,8 @@ const BENCH_THEME_COLORS = {
   // hide line
   "editor.lineHighlightBackground": "#ffffff",
   // set color for matching brackets
-  "editorBracketMatch.background": "#ea580c",
-  "editorBracketMatch.border": "#ea580c",
+  "editorBracketMatch.background": "#fef08a",
+  "editorBracketMatch.border": "#fef08a",
 };
 
 function initMonaco(monaco: Monaco) {
