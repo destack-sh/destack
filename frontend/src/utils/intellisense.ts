@@ -1,9 +1,10 @@
 import { graphql, useFragment } from "@/gql";
-import type { SymbolType } from "@/gql/graphql";
+import { SymbolType } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader, type SymbolHeader } from "@/utils/editor";
-import { FileHeaderType, StatementHeaderType } from "@/utils/fragments";
+import { FileHeaderType, SchemaElementContentDeepType, StatementHeaderType } from "@/utils/fragments";
+import { SchemaContentType } from "@/utils/schema";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, reactive, type ComputedRef } from "vue";
+import { computed, reactive, type ComputedRef, type Ref } from "vue";
 
 const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
   fragment ProjectVersionContentSense on ProjectVersion {
@@ -35,6 +36,7 @@ type LocalStatementHeader = StatementHeader & {
   file: { id: string; path: string };
   parent?: { id: string };
   symbol?: { id: string };
+  reference?: { id: string };
 };
 type LocalSymbolHeader = SymbolHeader & {
   parent?: { id: string };
@@ -56,6 +58,7 @@ export type IntelliSense = {
 };
 
 export function useIntelliSense() {
+  // TODO @Performance: cache singleton intellisense instance
   const editorState = useEditorState();
   const { result: contentQuery } = useQuery(
     graphql(/* GraphQL */ `
@@ -130,9 +133,10 @@ export function useIntelliSense() {
       return [];
     }
     return statements
-      .filter((statement) => statement.symbol != null)
-      .map((statement) => statement.symbol as SymbolHeader)
-      .filter((symbol) => ofType == null || symbol.type === ofType);
+      .filter((statement) => statement.symbol != null || statement.reference != null)
+      .map((statement) => (statement.symbol ?? statement.reference).id)
+      .map((symbolId) => symbolsById.value[symbolId])
+      .filter((symbol) => symbol != null && (ofType == null || symbol.type === ofType));
   }
 
   function childSymbol(symbolId: string, ofType?: SymbolType): SymbolHeader | undefined {
@@ -151,4 +155,34 @@ export function useIntelliSense() {
     childSymbol,
   });
   return sense;
+}
+
+export function useSchemadSymbolSchema(symbol: Ref<SymbolHeader>) {
+  /* Get the current schema for a 'schemad' Symbol from context */
+  const sense = useIntelliSense();
+  const schemaHeader = computed(() => {
+    return sense.childSymbol(symbol.value.id, SymbolType.Schema);
+  });
+  // get schema content from gql
+  const { result: schemaQuery } = useQuery(
+    graphql(/* GraphQL */ `
+      query schemaContentById($symbolId: GlobalID!) {
+        symbol(id: $symbolId) {
+          id
+          content {
+            ...SchemaContent
+          }
+          statement {
+            id
+          }
+        }
+      }
+    `),
+    () => ({ symbolId: schemaHeader.value?.id }),
+    () => ({ enabled: !!schemaHeader.value })
+  );
+  const schema = computed(() => useFragment(SchemaContentType, schemaQuery.value?.symbol?.content));
+  const schemaElement = computed(() => useFragment(SchemaElementContentDeepType, schema.value?.element));
+
+  return { schemaHeader, schema, schemaElement };
 }

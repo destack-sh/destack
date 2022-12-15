@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { graphql, useFragment, type FragmentType } from "@/gql";
+import type { SymbolContentType } from "@/utils/fragments";
 import { computed } from "vue";
 
-const TaskContent = graphql(/* GraphQL */ `
+const TaskContentType = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
     id
     description
@@ -14,15 +15,15 @@ const TaskContent = graphql(/* GraphQL */ `
 `);
 
 const props = defineProps<{
-  symbol: unknown;
-  content: FragmentType<typeof TaskContent>;
+  symbol: FragmentType<typeof SymbolContentType>;
+  content: FragmentType<typeof TaskContentType>;
   generated: boolean;
   commented: boolean;
   focused: boolean;
   lineNumberBase: number;
   xOffset: number;
 }>();
-const content = computed(() => useFragment(TaskContent, props.content));
+const content = computed(() => useFragment(TaskContentType, props.content));
 </script>
 <template>
   <div class="flex flex-col text-sm text-gray-900">

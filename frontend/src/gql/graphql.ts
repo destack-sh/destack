@@ -599,26 +599,6 @@ export enum ValueType {
   String = "STRING",
 }
 
-export type SchemaContentByIdQueryVariables = Exact<{
-  symbolId: Scalars["GlobalID"];
-}>;
-
-export type SchemaContentByIdQuery = {
-  __typename?: "Query";
-  symbol?: {
-    __typename?: "Symbol";
-    id: any;
-    content:
-      | { __typename?: "Code" }
-      | { __typename?: "Dataset" }
-      | { __typename?: "Expectation" }
-      | { __typename?: "Model" }
-      | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
-      | { __typename?: "Task" };
-    statement: { __typename?: "Statement"; id: any };
-  } | null;
-};
-
 export type ExpectationContentFragment = { __typename?: "Expectation"; id: any; description: string } & {
   " $fragmentName"?: "ExpectationContentFragment";
 };
@@ -1029,6 +1009,26 @@ export type ProjectVersionContentSenseQuery = {
         " $fragmentRefs"?: { ProjectVersionContentSenseFragment: ProjectVersionContentSenseFragment };
       })
     | null;
+};
+
+export type SchemaContentByIdQueryVariables = Exact<{
+  symbolId: Scalars["GlobalID"];
+}>;
+
+export type SchemaContentByIdQuery = {
+  __typename?: "Query";
+  symbol?: {
+    __typename?: "Symbol";
+    id: any;
+    content:
+      | { __typename?: "Code" }
+      | { __typename?: "Dataset" }
+      | { __typename?: "Expectation" }
+      | { __typename?: "Model" }
+      | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
+      | { __typename?: "Task" };
+    statement: { __typename?: "Statement"; id: any };
+  } | null;
 };
 
 export type AddCompilationMutationVariables = Exact<{
@@ -2005,63 +2005,6 @@ export const ProjectVersionContentSenseFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectVersionContentSenseFragment, unknown>;
-export const SchemaContentByIdDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "schemaContentById" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "symbol" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "content" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "statement" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...SchemaContentFragmentDoc.definitions,
-    ...SchemaElementContentDeepFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<SchemaContentByIdQuery, SchemaContentByIdQueryVariables>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
@@ -2462,6 +2405,63 @@ export const ProjectVersionContentSenseDocument = {
     ...SymbolHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentSenseQuery, ProjectVersionContentSenseQueryVariables>;
+export const SchemaContentByIdDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "schemaContentById" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbol" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...SchemaContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SchemaContentByIdQuery, SchemaContentByIdQueryVariables>;
 export const AddCompilationDocument = {
   kind: "Document",
   definitions: [

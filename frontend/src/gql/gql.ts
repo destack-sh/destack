@@ -3,8 +3,6 @@ import * as types from "./graphql";
 import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 
 const documents = {
-  "\n    query schemaContentById($symbolId: GlobalID!) {\n      symbol(id: $symbolId) {\n        id\n        content {\n          ...SchemaContent\n        }\n        statement {\n          id\n        }\n      }\n    }\n  ":
-    types.SchemaContentByIdDocument,
   "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n  }\n":
     types.ExpectationContentFragmentDoc,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  ":
@@ -54,6 +52,8 @@ const documents = {
     types.ProjectVersionContentSenseFragmentDoc,
   "\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    ":
     types.ProjectVersionContentSenseDocument,
+  "\n      query schemaContentById($symbolId: GlobalID!) {\n        symbol(id: $symbolId) {\n          id\n          content {\n            ...SchemaContent\n          }\n          statement {\n            id\n          }\n        }\n      }\n    ":
+    types.SchemaContentByIdDocument,
   "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    ":
     types.AddCompilationDocument,
   "\n      mutation compile($compilationId: GlobalID!) {\n        compile(input: { compilationId: $compilationId }) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n            targetTask {\n              ...TaskContent\n            }\n            targetCode {\n              ...CodeContent\n            }\n          }\n        }\n      }\n    ":
@@ -72,9 +72,6 @@ const documents = {
     types.SchemaContentFragmentDoc,
 };
 
-export function graphql(
-  source: "\n    query schemaContentById($symbolId: GlobalID!) {\n      symbol(id: $symbolId) {\n        id\n        content {\n          ...SchemaContent\n        }\n        statement {\n          id\n        }\n      }\n    }\n  "
-): typeof documents["\n    query schemaContentById($symbolId: GlobalID!) {\n      symbol(id: $symbolId) {\n        id\n        content {\n          ...SchemaContent\n        }\n        statement {\n          id\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n  }\n"
 ): typeof documents["\n  fragment ExpectationContent on Expectation {\n    id\n    description\n  }\n"];
@@ -150,6 +147,9 @@ export function graphql(
 export function graphql(
   source: "\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    "
 ): typeof documents["\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      query schemaContentById($symbolId: GlobalID!) {\n        symbol(id: $symbolId) {\n          id\n          content {\n            ...SchemaContent\n          }\n          statement {\n            id\n          }\n        }\n      }\n    "
+): typeof documents["\n      query schemaContentById($symbolId: GlobalID!) {\n        symbol(id: $symbolId) {\n          id\n          content {\n            ...SchemaContent\n          }\n          statement {\n            id\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "];
