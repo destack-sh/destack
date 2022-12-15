@@ -31,6 +31,7 @@ const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON
 // sense derived state
 const { schemaElement } = useSchemadSymbolSchema(symbol);
 const schemaElements = computed(() => schemaElement.value?.elements ?? []);
+const schemaAvailable = computed(() => schemaElement.value != null);
 
 // local interface state
 const state = useDatasetInterfaceState(symbol);
@@ -49,11 +50,11 @@ const state = useDatasetInterfaceState(symbol);
       :readonly="generated"
     />
     <table
-      v-else-if="state.view == 'table' && schemaElements.length > 0"
+      v-else-if="state.view == 'table'"
       class="h-full w-full rounded-sm"
       :class="{ ' divide-y divide-gray-300': state.showTableHeader }"
     >
-      <thead class="bg-gray-50" v-show="state.showTableHeader">
+      <thead class="bg-gray-50" v-show="state.showTableHeader && schemaAvailable">
         <tr>
           <th
             v-for="element in schemaElements"
@@ -66,12 +67,21 @@ const state = useDatasetInterfaceState(symbol);
       </thead>
       <tbody class="divide-y divide-gray-200">
         <tr class="relative" v-for="record in content.records" :key="record.index">
+          <template v-if="schemaAvailable">
+            <td
+              v-for="element in schemaElements"
+              :key="element.name"
+              class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-black"
+            >
+              {{ record.data[element.name] || "" }}
+            </td>
+          </template>
           <td
-            v-for="element in schemaElements"
-            :key="element.name"
-            class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-black"
+            v-else
+            class="animate-pulse whitespace-pre-wrap rounded-sm bg-gray-50 py-1 pr-2 text-center align-top text-sm text-gray-50"
           >
-            {{ record.data[element.name] || "" }}
+            <!-- invisible placeholder if schema is invalid / loading  -->
+            ...
           </td>
           <!-- Imitate Monaco line numbers -->
           <span
