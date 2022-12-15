@@ -154,6 +154,32 @@ class Statement(UUIDModel):
             argument.reference = cast(Symbol, new_reference)
             argument.save()
 
+    @transaction.atomic
+    def move_to(self, file: File, parent: Optional[Statement], index: Optional[int]) -> None:
+        """Moves this statement to a new file and/or parent statement. Updates children at both the old and new locations."""
+        if index is None:
+            # if index not passed then insert at the end
+            index = parent.children.count() if parent else file.statements.count()
+
+        # update children at new location (to make space)
+        new_siblings = parent.children if parent else file.statements.filter(parent=None)
+        new_siblings.filter(index__gte=index).update(index=models.F("index") + 1)
+
+        old_index = self.index
+        old_parent = self.parent
+        old_file = self.file
+        # move statement
+        self.file = file
+        self.parent = parent
+        self.index = index
+        self.save()
+
+        # update siblings at old location (to fill space)
+        old_siblings = (
+            old_parent.children if old_parent else old_file.statements.filter(parent=None)
+        )
+        old_siblings.filter(index__gt=old_index).update(index=models.F("index") - 1)
+
     def add_child(
         self, type: StatementType, content: Symbol, modifier: Optional[StatementModifier] = None
     ) -> Statement:
@@ -218,19 +244,7 @@ class Statement(UUIDModel):
     class Meta:
         ordering = ["index"]
         default_manager_name = "objects"
-        constraints = [
-            # ensure unique index within file or parent
-            models.UniqueConstraint(
-                name="bench_statement_file_index_ak",
-                fields=["file", "index"],
-                condition=models.Q(parent__isnull=True),
-            ),
-            models.UniqueConstraint(
-                name="bench_statement_parent_index_ak",
-                fields=["parent", "index"],
-                condition=models.Q(parent__isnull=False),
-            ),
-        ]
+        # TODO @Robustness: constraints on index when we switch to fractional indexes
 
 
 class SymbolType(models.TextChoices):
@@ -647,6 +661,7 @@ class SymbolParameter(UUIDModel):
         return f"parameter {self.name}(type={self.type})"
 
     class Meta:
+        ordering = ["name"]
         constraints = [
             models.UniqueConstraint(
                 name="bench_symbol_parameter_name_ak",
@@ -684,6 +699,7 @@ class SymbolArgument(UUIDModel):
         return f"{self.name}(type={self.type}, {content_str})"
 
     class Meta:
+        ordering = ["name"]
         constraints = [
             # ensure that only one name is set (per symbol or statement)
             models.UniqueConstraint(

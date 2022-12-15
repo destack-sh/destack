@@ -69,6 +69,7 @@ export function useIntelliSense() {
         }
       }
     `),
+    // TODO @Robustness: somehow this query is fired on start when id is null
     () => ({ id: editorState.currentProjectVersionId }),
     () => ({ enabled: !!editorState.currentProjectVersionId })
   );

@@ -143,6 +143,7 @@ type Model implements SymbolContent & Node {
 
 type Mutation {
   renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
+  moveStatement(input: StatementMoveInput!): StatementMovePayload!
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
   deleteFile(input: FileDeleteInput!): DeleteFilePayload!
@@ -399,6 +400,19 @@ enum StatementModifier {
   LIKE
   UNLIKE
   VERIFY
+}
+
+input StatementMoveInput {
+  id: GlobalID!
+  fileId: GlobalID!
+  parentId: GlobalID
+  index: Int!
+}
+
+type StatementMovePayload {
+  statement: Statement!
+  oldFile: File!
+  newFile: File!
 }
 
 """The type of Bench statement."""
