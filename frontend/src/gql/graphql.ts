@@ -599,6 +599,26 @@ export enum ValueType {
   String = "STRING",
 }
 
+export type SchemaContentByIdQueryVariables = Exact<{
+  symbolId: Scalars["GlobalID"];
+}>;
+
+export type SchemaContentByIdQuery = {
+  __typename?: "Query";
+  symbol?: {
+    __typename?: "Symbol";
+    id: any;
+    content:
+      | { __typename?: "Code" }
+      | { __typename?: "Dataset" }
+      | { __typename?: "Expectation" }
+      | { __typename?: "Model" }
+      | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
+      | { __typename?: "Task" };
+    statement: { __typename?: "Statement"; id: any };
+  } | null;
+};
+
 export type ExpectationContentFragment = { __typename?: "Expectation"; id: any; description: string } & {
   " $fragmentName"?: "ExpectationContentFragment";
 };
@@ -614,7 +634,7 @@ export type FileContentByIdQuery = {
         __typename?: "File";
         id: any;
         statements: Array<
-          { __typename?: "Statement"; id: any } & {
+          { __typename?: "Statement"; id: any; parent?: { __typename?: "Statement"; id: any } | null } & {
             " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment };
           }
         >;
@@ -845,10 +865,17 @@ export type FileHeaderFragment = {
 export type StatementHeaderFragment = {
   __typename?: "Statement";
   id: any;
+  type: StatementType;
+  createdAt: any;
+  updatedAt: any;
   modifier?: StatementModifier | null;
   generated: boolean;
   commented: boolean;
-  file: { __typename?: "File"; path: string };
+  index?: number | null;
+  file: { __typename?: "File"; id: any; path: string };
+  parent?: { __typename?: "Statement"; id: any } | null;
+  symbol?: { __typename?: "Symbol"; id: any } | null;
+  reference?: { __typename?: "Symbol"; id: any } | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
 export type SymbolHeaderFragment = {
@@ -923,6 +950,7 @@ export type StatementContentFragment = {
   commented: boolean;
   generated: boolean;
   modifier?: StatementModifier | null;
+  index?: number | null;
   text?: string | null;
   parent?: { __typename?: "Statement"; id: any } | null;
   symbol?: ({ __typename?: "Symbol" } & { " $fragmentRefs"?: { SymbolContentFragment: SymbolContentFragment } }) | null;
@@ -968,6 +996,40 @@ export type SymbolContentFragment = {
     | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
     | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } });
 } & { " $fragmentName"?: "SymbolContentFragment" };
+
+export type ProjectVersionContentSenseFragment = {
+  __typename?: "ProjectVersion";
+  id: any;
+  name?: string | null;
+  description?: string | null;
+  createdAt: any;
+  committed: boolean;
+  committedAt?: any | null;
+  files: Array<{ __typename?: "File" } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
+  statements: Array<
+    {
+      __typename?: "Statement";
+      symbol?:
+        | ({ __typename?: "Symbol"; statement: { __typename?: "Statement"; id: any } } & {
+            " $fragmentRefs"?: { SymbolHeaderFragment: SymbolHeaderFragment };
+          })
+        | null;
+    } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } }
+  >;
+} & { " $fragmentName"?: "ProjectVersionContentSenseFragment" };
+
+export type ProjectVersionContentSenseQueryVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type ProjectVersionContentSenseQuery = {
+  __typename?: "Query";
+  projectVersion?:
+    | ({ __typename?: "ProjectVersion"; id: any } & {
+        " $fragmentRefs"?: { ProjectVersionContentSenseFragment: ProjectVersionContentSenseFragment };
+      })
+    | null;
+};
 
 export type AddCompilationMutationVariables = Exact<{
   input: AddCompilationInput;
@@ -1587,15 +1649,46 @@ export const StatementHeaderFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "generated" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
+          { kind: "Field", name: { kind: "Name", value: "index" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "file" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "path" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "path" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbol" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "reference" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
         ],
@@ -1824,6 +1917,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "generated" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
+          { kind: "Field", name: { kind: "Name", value: "index" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -1854,6 +1948,120 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
+export const ProjectVersionContentSenseFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionContentSense" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statements" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "symbol" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "SymbolHeader" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statement" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectVersionContentSenseFragment, unknown>;
+export const SchemaContentByIdDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "schemaContentById" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbol" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...SchemaContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SchemaContentByIdQuery, SchemaContentByIdQueryVariables>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
@@ -1894,6 +2102,14 @@ export const FileContentByIdDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                     ],
                   },
                 },
@@ -2202,6 +2418,50 @@ export const ProjectVersionContentDocument = {
     ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
+export const ProjectVersionContentSenseDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "projectVersionContentSense" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionContentSense" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectVersionContentSenseFragmentDoc.definitions,
+    ...FileHeaderFragmentDoc.definitions,
+    ...StatementHeaderFragmentDoc.definitions,
+    ...SymbolHeaderFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ProjectVersionContentSenseQuery, ProjectVersionContentSenseQueryVariables>;
 export const AddCompilationDocument = {
   kind: "Document",
   definitions: [
