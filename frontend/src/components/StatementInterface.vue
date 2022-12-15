@@ -17,6 +17,7 @@ import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { assert } from "ts-essentials";
 import { computed, type Component, type ComputedRef } from "vue";
+import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 
 const props = defineProps<{
   file: FileHeader;
@@ -75,9 +76,11 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Schema]: {
     component: SchemaInterfaceMeta,
   },
+  [SymbolType.Task]: {
+    component: TaskInterfaceMeta,
+  },
   // not yet defined symbol interfaces
   [SymbolType.Expectation]: undefined,
-  [SymbolType.Task]: undefined,
   [SymbolType.Model]: undefined,
 };
 
@@ -228,8 +231,7 @@ const depthOffsetX = computed(() => props.depth * 20);
       </span>
     </div>
     <!-- Symbol parameters & arguments -->
-    <!-- Parameters (with argument if available) -->
-    <div v-if="symbol" class="mx-3 flex flex-row gap-4 pb-1">
+    <div v-if="symbol && parameters.length > 0" class="mx-3 flex flex-row gap-4 pb-1">
       <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
         <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
           <span>{{ parameter.name }}</span>
@@ -265,15 +267,4 @@ const depthOffsetX = computed(() => props.depth * 20);
       <span class="text-red-500" v-else> cannot render {{ symbol.type }} </span>
     </div>
   </div>
-  <!-- Children -->
-  <!-- <div v-if="statement.children?.length > 0">
-      <StatementInterface
-        v-for="(child, i) in statement.children"
-        :key="child.id"
-        :file="file"
-        :statement="child"
-        :depth="depth + 1"
-        :lineNumberBase="lineNumberBase + i + 1"
-      />
-    </div> -->
 </template>

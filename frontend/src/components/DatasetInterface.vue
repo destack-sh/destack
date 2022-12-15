@@ -1,12 +1,10 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import { graphql, useFragment, type FragmentType } from "@/gql";
-import { SymbolType, type DatasetContentFragment } from "@/gql/graphql";
+import { useFragment, type FragmentType } from "@/gql";
+import type { DatasetContentFragment } from "@/gql/graphql";
 import { DatasetContentType, useDatasetInterfaceState } from "@/utils/dataset";
-import { SchemaElementContentDeepType, SymbolContentType } from "@/utils/fragments";
-import { SchemaContentType } from "@/utils/schema";
-import { useIntelliSense } from "@/utils/intellisense";
-import { useQuery } from "@vue/apollo-composable";
+import { SymbolContentType } from "@/utils/fragments";
+import { useSchemadSymbolSchema } from "@/utils/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -31,31 +29,8 @@ const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, 
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
 
 // sense derived state
-const sense = useIntelliSense();
-const schemaHeader = computed(() => {
-  return sense.childSymbol(symbol.value.id, SymbolType.Schema);
-});
-// get schema content from gql
-const { result: schemaQuery } = useQuery(
-  graphql(/* GraphQL */ `
-    query schemaContentById($symbolId: GlobalID!) {
-      symbol(id: $symbolId) {
-        id
-        content {
-          ...SchemaContent
-        }
-        statement {
-          id
-        }
-      }
-    }
-  `),
-  () => ({ symbolId: schemaHeader.value?.id }),
-  () => ({ enabled: !!schemaHeader.value })
-);
-const schema = computed(() => useFragment(SchemaContentType, schemaQuery.value?.symbol?.content));
-const schemaElement = computed(() => useFragment(SchemaElementContentDeepType, schema.value?.element));
-const schemaElements = computed(() => schemaElement.value?.elements || []);
+const { schemaElement } = useSchemadSymbolSchema(symbol);
+const schemaElements = computed(() => schemaElement.value?.elements ?? []);
 
 // local interface state
 const state = useDatasetInterfaceState(symbol);
