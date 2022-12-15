@@ -14,13 +14,11 @@ from bench.backend.tracing import ExecutionTrace
 
 if TYPE_CHECKING:
     from bench.api.model import Model
-    from bench.api.task import Task
 
 
 @gql.django.type(models.Code)
 class Code(SymbolContent):
     symbol: Symbol
-    task: Optional[Annotated["Task", lazy(".task")]]
     builtin_id: auto
     code: auto
 

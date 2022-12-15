@@ -12,13 +12,13 @@ defineEmits<{ (e: "update:modelValue", value: Option): void }>();
   <Listbox as="div" :model-value="modelValue" @update:model-value="(value) => $emit('update:modelValue', value)">
     <div class="relative">
       <ListboxButton
-        class="relative w-full cursor-default rounded-sm border border-white bg-white pr-6 text-left focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+        class="relative w-full cursor-default rounded-sm border border-white bg-white pr-4 text-left focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
       >
         <span class="block truncate" :class="modelValue == null ? 'text-gray-300' : 'text-gray-500'">
           {{ modelValue?.name || emptyText }}
         </span>
-        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
+        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1">
+          <ChevronUpDownIcon class="h-3 w-3 text-gray-400" aria-hidden="true" />
         </span>
       </ListboxButton>
 

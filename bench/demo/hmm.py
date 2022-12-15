@@ -19,7 +19,6 @@ random: random.Random
 
 # @path main
 
-
 # @symbol schema: example
 example = [
     {"name": "input", "type": "string"},
@@ -34,8 +33,7 @@ command_output = [{"name": "command", "type": "string"}]
 
 # @symbol task: generate_command
 task = "Translate a natural language command into a bash command."
-input_schema = [{"name": "input", "type": "string"}]
-output_schema = [{"name": "command", "type": "string"}]
+add_statements = [("task generate_command", None, "ref", "schema example")]
 
 # @symbol data: basic_examples
 basic_examples = [

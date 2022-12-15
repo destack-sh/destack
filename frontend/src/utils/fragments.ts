@@ -115,11 +115,22 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
   fragment SchemaElementContentDeep on SchemaElement {
     name
     type
+    required
+    schemaId
     choices
     elements {
       name
       type
+      required
+      schemaId
       choices
+      elements {
+        name
+        type
+        required
+        schemaId
+        choices
+      }
     }
   }
 `);
@@ -164,6 +175,7 @@ export const SymbolContentType = graphql(/* GraphQL */ `
       ...DatasetContent
       ...ExpectationContent
       ...TaskContent
+      ...SchemaContent
     }
   }
 `);

@@ -13,7 +13,10 @@ class Schema(SymbolContent):
     A schema defines the structure of a JSON object, potentially in relation to other schemas.
     """
 
-    description = models.TextField(null=True, blank=True)
+    description = models.TextField()
     element = SchemaElementField()
+
+    def __str__(self):
+        return f"{self.symbol_str}({self.element})"
 
     objects = SchemaManager()

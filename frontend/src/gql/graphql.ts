@@ -37,10 +37,7 @@ export type Code = Node &
     builtinId?: Maybe<Scalars["String"]>;
     code?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
-    inputSchema: SchemaElement;
-    outputSchema: SchemaElement;
     symbol: Symbol;
-    task?: Maybe<Task>;
   };
 
 export type CommitInput = {
@@ -86,7 +83,6 @@ export type Dataset = Node &
     id: Scalars["GlobalID"];
     length: Scalars["Int"];
     records: Array<DatasetRecord>;
-    schema: SchemaElement;
     symbol: Symbol;
   };
 
@@ -412,12 +408,22 @@ export type RunCodeValueArgumentInput = {
   value: Scalars["String"];
 };
 
+export type Schema = Node &
+  SymbolContent & {
+    __typename?: "Schema";
+    description: Scalars["String"];
+    element: SchemaElement;
+    id: Scalars["GlobalID"];
+    symbol: Symbol;
+  };
+
 export type SchemaElement = {
   __typename?: "SchemaElement";
   choices?: Maybe<Array<Scalars["String"]>>;
   elements?: Maybe<Array<SchemaElement>>;
   name: Scalars["String"];
   required: Scalars["Boolean"];
+  schemaId?: Maybe<Scalars["String"]>;
   type: ValueType;
 };
 
@@ -546,8 +552,6 @@ export type Task = Node &
     compilations: Array<Compilation>;
     description: Scalars["String"];
     id: Scalars["GlobalID"];
-    inputSchema: SchemaElement;
-    outputSchema: SchemaElement;
     symbol: Symbol;
   };
 
@@ -591,6 +595,7 @@ export enum ValueType {
   Null = "NULL",
   Number = "NUMBER",
   Object = "OBJECT",
+  Schema = "SCHEMA",
   String = "STRING",
 }
 
@@ -619,12 +624,6 @@ export type FileContentByIdQuery = {
 
 export type CodeContentToRunFragment = {
   __typename?: "Code";
-  inputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-  outputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
   symbol: {
     __typename?: "Symbol";
     parameters: Array<{
@@ -666,6 +665,7 @@ export type CodeToRunQuery = {
       | { __typename?: "Dataset"; id: any }
       | { __typename?: "Expectation"; id: any }
       | { __typename?: "Model"; id: any }
+      | { __typename?: "Schema"; id: any }
       | { __typename?: "Task"; id: any };
   } | null;
 };
@@ -721,12 +721,6 @@ export type TaskContentFragment = {
   __typename?: "Task";
   id: any;
   description: string;
-  inputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-  outputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
   compilations: Array<
     { __typename?: "Compilation"; id: any } & {
       " $fragmentRefs"?: { CompilationHeaderFragment: CompilationHeaderFragment };
@@ -801,12 +795,6 @@ export type CodeContentFragment = {
   id: any;
   builtinId?: string | null;
   code?: string | null;
-  inputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-  outputSchema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
   symbol: {
     __typename?: "Symbol";
     parameters: Array<{
@@ -833,9 +821,6 @@ export type DatasetContentFragment = {
   __typename?: "Dataset";
   id: any;
   length: number;
-  schema: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
   records: Array<{ __typename?: "DatasetRecord"; data: any; index: number }>;
 } & { " $fragmentName"?: "DatasetContentFragment" };
 
@@ -930,12 +915,24 @@ export type SchemaElementContentDeepFragment = {
   __typename?: "SchemaElement";
   name: string;
   type: ValueType;
+  required: boolean;
+  schemaId?: string | null;
   choices?: Array<string> | null;
   elements?: Array<{
     __typename?: "SchemaElement";
     name: string;
     type: ValueType;
+    required: boolean;
+    schemaId?: string | null;
     choices?: Array<string> | null;
+    elements?: Array<{
+      __typename?: "SchemaElement";
+      name: string;
+      type: ValueType;
+      required: boolean;
+      schemaId?: string | null;
+      choices?: Array<string> | null;
+    }> | null;
   }> | null;
 } & { " $fragmentName"?: "SchemaElementContentDeepFragment" };
 
@@ -974,6 +971,7 @@ export type SymbolContentFragment = {
         " $fragmentRefs"?: { ExpectationContentFragment: ExpectationContentFragment };
       })
     | { __typename?: "Model" }
+    | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
     | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } });
 } & { " $fragmentName"?: "SymbolContentFragment" };
 
@@ -1088,6 +1086,15 @@ export type CommitMutation = {
   };
 };
 
+export type SchemaContentFragment = {
+  __typename?: "Schema";
+  id: any;
+  description: string;
+  element: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+} & { " $fragmentName"?: "SchemaContentFragment" };
+
 export const SchemaElementContentDeepFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1100,6 +1107,8 @@ export const SchemaElementContentDeepFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "required" } },
+          { kind: "Field", name: { kind: "Name", value: "schemaId" } },
           { kind: "Field", name: { kind: "Name", value: "choices" } },
           {
             kind: "Field",
@@ -1109,7 +1118,23 @@ export const SchemaElementContentDeepFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "name" } },
                 { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "required" } },
+                { kind: "Field", name: { kind: "Name", value: "schemaId" } },
                 { kind: "Field", name: { kind: "Name", value: "choices" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "elements" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "required" } },
+                      { kind: "Field", name: { kind: "Name", value: "schemaId" } },
+                      { kind: "Field", name: { kind: "Name", value: "choices" } },
+                    ],
+                  },
+                },
               ],
             },
           },
@@ -1128,22 +1153,6 @@ export const CodeContentToRunFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "inputSchema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "outputSchema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
           {
             kind: "Field",
             name: { kind: "Name", value: "symbol" },
@@ -1615,22 +1624,6 @@ export const CodeContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "code" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "inputSchema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "outputSchema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
-          {
-            kind: "Field",
             name: { kind: "Name", value: "symbol" },
             selectionSet: {
               kind: "SelectionSet",
@@ -1699,14 +1692,6 @@ export const DatasetContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "schema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "length" } },
           {
             kind: "Field",
@@ -1755,22 +1740,6 @@ export const TaskContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "description" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "inputSchema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "outputSchema" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
-            },
-          },
-          {
-            kind: "Field",
             name: { kind: "Name", value: "compilations" },
             selectionSet: {
               kind: "SelectionSet",
@@ -1785,6 +1754,31 @@ export const TaskContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<TaskContentFragment, unknown>;
+export const SchemaContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "SchemaContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Schema" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "element" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<SchemaContentFragment, unknown>;
 export const SymbolContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1820,6 +1814,7 @@ export const SymbolContentFragmentDoc = {
                 { kind: "FragmentSpread", name: { kind: "Name", value: "DatasetContent" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "ExpectationContent" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } },
               ],
             },
           },
@@ -1935,6 +1930,7 @@ export const FileContentByIdDocument = {
     ...ExpectationContentFragmentDoc.definitions,
     ...TaskContentFragmentDoc.definitions,
     ...CompilationHeaderFragmentDoc.definitions,
+    ...SchemaContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const CodeToRunDocument = {
@@ -2352,9 +2348,9 @@ export const CompileDocument = {
       },
     },
     ...TaskContentFragmentDoc.definitions,
-    ...SchemaElementContentDeepFragmentDoc.definitions,
     ...CompilationHeaderFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompileMutation, CompileMutationVariables>;
 export const CreateFileDocument = {

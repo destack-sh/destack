@@ -6,12 +6,6 @@ const TaskContent = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
     id
     description
-    inputSchema {
-      ...SchemaElementContentDeep
-    }
-    outputSchema {
-      ...SchemaElementContentDeep
-    }
     compilations {
       id
       ...CompilationHeader

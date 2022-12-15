@@ -5,6 +5,8 @@ import DatasetInterface from "@/components/DatasetInterface.vue";
 import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
+import SchemaInterface from "@/components/SchemaInterface.vue";
+import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
@@ -47,6 +49,9 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Expectation]: {
     component: ExpectationInterface,
   },
+  [SymbolType.Schema]: {
+    component: SchemaInterface,
+  },
   [SymbolType.Task]: {
     component: TaskInterface,
   },
@@ -60,6 +65,9 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Code]: {
     component: CodeInterfaceMeta,
   },
+  [SymbolType.Schema]: {
+    component: SchemaInterfaceMeta,
+  },
   // not yet defined symbol interfaces
   [SymbolType.Expectation]: undefined,
   [SymbolType.Task]: undefined,
@@ -68,6 +76,7 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
 
 const isDefinition = computed(() => statement.value?.type == StatementType.Definition);
 const isReference = computed(() => statement.value?.type == StatementType.Reference);
+const isRunnable = computed(() => symbol.value?.type == SymbolType.Code || symbol.value?.type == SymbolType.Task);
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
 function focus() {
@@ -85,8 +94,7 @@ const run = provideAction({
   id: "symbol.run",
   label: "Run",
   shortcuts: ["ctrl+enter"],
-  registered: isFocused,
-  enabled: computed(() => statement.value?.type == StatementType.Definition),
+  registered: computed(() => isRunnable.value && isFocused.value),
   apply: async () => {
     assert(symbol.value != null, "symbol is null");
     const runConfiguration = makeRunConfiguration(symbol.value);
@@ -98,7 +106,7 @@ const run = provideAction({
 
 const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   const metaActions = [];
-  if (symbolOrReference.value != null) {
+  if (symbolOrReference.value != null && isRunnable.value) {
     metaActions.push({
       icon: PlayIcon,
       label: run.value.label,
@@ -163,7 +171,7 @@ const depthOffsetX = computed(() => props.depth * 20);
       <div class="mx-3 flex flex-row items-center justify-between pt-1.5">
         <div class="flex flex-row items-baseline" v-if="symbolOrReference">
           <!--  declaration -->
-          <span class="decoration-none inline-flex items-baseline text-sm tracking-wider text-black">
+          <span class="decoration-none inline-flex items-baseline text-sm text-black">
             <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
             <span class="text-orange-600">{{ symbolOrReference.typeShortname }}</span>
             <span

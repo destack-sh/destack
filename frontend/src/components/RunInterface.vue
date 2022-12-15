@@ -10,12 +10,6 @@ const props = defineProps<{ config: RunConfiguration }>();
 
 const CodeContentRunType = graphql(/* GraphQL */ `
   fragment CodeContentToRun on Code {
-    inputSchema {
-      ...SchemaElementContentDeep
-    }
-    outputSchema {
-      ...SchemaElementContentDeep
-    }
     symbol {
       parameters {
         name
@@ -171,7 +165,7 @@ async function runCode() {
       <div class="mx-1 my-1 flex flex-row items-center justify-between">
         <div>
           <span class="text-sm text-gray-900">Run: </span>
-          <span class="text-sm tracking-wide text-gray-900">{{ resolvedSymbol?.symbol?.name }}</span>
+          <span class="text-sm text-gray-900">{{ resolvedSymbol?.symbol?.name }}</span>
         </div>
       </div>
       <!-- Run parameters/arguments -->
@@ -189,7 +183,7 @@ async function runCode() {
                 <span v-if="getArgument(parameter.name)?.value != null">
                   {{ getArgument(parameter.name)?.value }}
                 </span>
-                <span class="tracking-wide" v-else-if="getArgument(parameter.name)?.reference != null">
+                <span class="" v-else-if="getArgument(parameter.name)?.reference != null">
                   {{ getArgument(parameter.name)?.reference?.typeNameDeclaration }}
                 </span>
               </template>
@@ -215,7 +209,7 @@ async function runCode() {
       <div class="mx-1 my-1.5 flex flex-row items-center justify-between">
         <div>
           <span class="text-sm text-gray-900">Output: </span>
-          <span class="text-sm tracking-wide text-gray-900">{{ outputSchema?.name }}</span>
+          <span class="text-sm text-gray-900">{{ outputSchema?.name }}</span>
         </div>
       </div>
       <!-- Output content -->

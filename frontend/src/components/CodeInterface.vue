@@ -34,7 +34,7 @@ function getArgument(name: string) {
             <span v-if="getArgument(parameter.name)?.value != null">
               {{ getArgument(parameter.name)?.value }}
             </span>
-            <span class="tracking-wide text-black" v-else-if="getArgument(parameter.name)?.reference != null">
+            <span class="text-black" v-else-if="getArgument(parameter.name)?.reference != null">
               {{ getArgument(parameter.name)?.reference?.typeNameDeclaration }}
             </span>
           </template>
