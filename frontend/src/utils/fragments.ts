@@ -170,6 +170,23 @@ export const SymbolContentType = graphql(/* GraphQL */ `
     statement {
       ...StatementHeader
     }
+    parameters {
+      name
+      type
+      schema {
+        ...SchemaElementContentDeep
+      }
+    }
+    arguments {
+      name
+      type
+      value
+      reference {
+        id
+        name
+        typeNameDeclaration
+      }
+    }
     content {
       ...CodeContent
       ...DatasetContent

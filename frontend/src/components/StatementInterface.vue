@@ -28,7 +28,13 @@ const statement = computed(() => useFragment(StatementContentType, props.stateme
 const symbol = computed(() => useFragment(SymbolContentType, statement.value?.symbol));
 const reference = computed(() => useFragment(SymbolContentType, statement.value?.reference));
 const symbolOrReference = computed(() => symbol.value || reference.value);
+const parameters = computed(() => symbolOrReference.value?.parameters ?? []);
+const arguments_ = computed(() => symbol.value?.arguments ?? []);
 const editorState = useEditorState();
+
+function getArgument(name: string) {
+  return arguments_.value?.find((a) => a.name === name);
+}
 
 const { getTimeFromNowString } = useTimeFromNow();
 
@@ -219,6 +225,28 @@ const depthOffsetX = computed(() => props.depth * 20);
             </button>
           </span>
         </span>
+      </div>
+      <!-- Symbol parameters & arguments -->
+      <!-- Parameters (with argument if available) -->
+      <div v-if="symbol" class="mx-3 flex flex-row gap-4 pb-1">
+        <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
+          <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
+            <span>{{ parameter.name }}</span>
+          </div>
+          <div class="text-sm text-gray-900">
+            <!-- Show argument if it's bound -->
+            <template v-if="getArgument(parameter.name)">
+              <span v-if="getArgument(parameter.name)?.value != null">
+                {{ getArgument(parameter.name)?.value }}
+              </span>
+              <span class="text-black" v-else-if="getArgument(parameter.name)?.reference != null">
+                {{ getArgument(parameter.name)?.reference?.name }}
+              </span>
+            </template>
+            <!-- Otherwise show parameter type -->
+            <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
+          </div>
+        </div>
       </div>
       <!-- Symbol content (if statement defines a symbol) -->
       <div v-if="symbol != null" class="mx-3" :class="{ 'border-orange-600': isFocused }">

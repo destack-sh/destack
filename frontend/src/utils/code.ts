@@ -5,24 +5,5 @@ export const CodeContentType = graphql(/* GraphQL */ `
     id
     builtinId
     code
-    symbol {
-      parameters {
-        name
-        type
-        schema {
-          ...SchemaElementContentDeep
-        }
-      }
-      arguments {
-        name
-        type
-        value
-        reference {
-          id
-          name
-          typeNameDeclaration
-        }
-      }
-    }
   }
 `);
