@@ -12,7 +12,7 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { provideAction } from "@/utils/actions";
 import { makeRunConfiguration, makeRunEditor, useEditorState, type FileHeader } from "@/utils/editor";
-import { StatementContentType, SymbolContentType } from "@/utils/fragments";
+import { StatementContentType, SymbolContentType, SymbolHeaderType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { assert } from "ts-essentials";
@@ -28,7 +28,7 @@ const props = defineProps<{
 }>();
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const symbol = computed(() => useFragment(SymbolContentType, statement.value?.symbol));
-const reference = computed(() => useFragment(SymbolContentType, statement.value?.reference));
+const reference = computed(() => useFragment(SymbolHeaderType, statement.value?.reference));
 const symbolOrReference = computed(() => symbol.value || reference.value);
 const parameters = computed(() => symbolOrReference.value?.parameters ?? []);
 const arguments_ = computed(() => symbol.value?.arguments ?? []);
@@ -155,7 +155,7 @@ const depthOffsetX = computed(() => props.depth * 20);
 </script>
 <template>
   <div
-    class="group relative border-x border-gray-200 transition-all"
+    class="group relative border-x border-gray-200 transition-colors"
     :class="{
       'border-gray-200 ': !isFocused,
       'border-l-orange-500': isAncestorFocused,
@@ -166,6 +166,9 @@ const depthOffsetX = computed(() => props.depth * 20);
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @mousedown="focus"
   >
+    <span v-if="editorState.debug" class="absolute top-0 right-0 z-20 text-sm">
+      i:{{ statement.index }} d:{{ depth }}
+    </span>
     <!-- Imitate Monaco line numbers -->
     <span
       class="absolute top-[9px] w-6 select-none text-right font-mono text-sm"

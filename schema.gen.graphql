@@ -405,8 +405,8 @@ enum StatementModifier {
 input StatementMoveInput {
   id: GlobalID!
   fileId: GlobalID!
-  parentId: GlobalID
-  index: Int!
+  parentId: GlobalID = null
+  index: Int = null
 }
 
 type StatementMovePayload {

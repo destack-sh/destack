@@ -63,7 +63,9 @@ class StatementManager(models.Manager["Statement"]):
         content: SymbolContent,
         name: str,
     ) -> Statement:
-        index = self._get_index(file, parent, index)
+        # auto set index if not passed
+        if index is None:
+            index = parent.children.count() if parent else file.root_statements.count()
         statement = self.create(
             project_version=project_version,
             file=file,
@@ -79,33 +81,6 @@ class StatementManager(models.Manager["Statement"]):
             name=name,
         )
         return statement
-
-    def create_reference(
-        self,
-        project_version: ProjectVersion,
-        file: File,
-        parent: Optional[Statement],
-        index: Optional[int],
-        symbol: Symbol,
-    ) -> Statement:
-        index = self._get_index(file, parent, index)
-        return self.create(
-            project_version=project_version,
-            file=file,
-            type=StatementType.REFERENCE,
-            parent=parent,
-            index=index,
-            symbol=symbol,
-        )
-
-    def _get_index(self, file: File, parent: Optional[Statement], index: Optional[int]) -> int:
-        # auto set index if not passed
-        if index is None:
-            if parent:
-                index = parent.children.count()
-            else:
-                index = file.symbols.count()
-        return index
 
 
 class Statement(UUIDModel):
@@ -154,31 +129,42 @@ class Statement(UUIDModel):
             argument.reference = cast(Symbol, new_reference)
             argument.save()
 
+    @property
+    def siblings(self) -> models.QuerySet[Statement]:
+        return self.parent.children if self.parent else self.file.root_statements
+
     @transaction.atomic
-    def move_to(self, file: File, parent: Optional[Statement], index: Optional[int]) -> None:
+    def move_to(self, file: File, parent: Optional[Statement], index: Optional[int] = None) -> None:
         """Moves this statement to a new file and/or parent statement. Updates children at both the old and new locations."""
+        # reload self to get the latest location within transaction
+        self.refresh_from_db(fields=["file", "parent", "index"])
+
+        old_siblings = self.siblings
+        siblings = parent.children if parent else file.root_statements
         if index is None:
             # if index not passed then insert at the end
-            index = parent.children.count() if parent else file.statements.count()
+            index = siblings.count()
 
-        # update children at new location (to make space)
-        new_siblings = parent.children if parent else file.statements.filter(parent=None)
-        new_siblings.filter(index__gte=index).update(index=models.F("index") + 1)
-
-        old_index = self.index
-        old_parent = self.parent
-        old_file = self.file
-        # move statement
-        self.file = file
-        self.parent = parent
-        self.index = index
-        self.save()
-
-        # update siblings at old location (to fill space)
-        old_siblings = (
-            old_parent.children if old_parent else old_file.statements.filter(parent=None)
-        )
-        old_siblings.filter(index__gt=old_index).update(index=models.F("index") - 1)
+        if self.file == file and self.parent == parent:
+            # if file and parent are the same just swap
+            if self.index == index:
+                # if index is the same then do nothing
+                return
+            other_statement = siblings.get(index=index)
+            self.index, other_statement.index = other_statement.index, self.index
+            self.save()
+            other_statement.save()
+            print(f"swap {self} with {other_statement}")
+        else:  # remove from old location and insert at new location
+            # make space at new location
+            siblings.filter(index__gte=index).update(index=models.F("index") + 1)
+            # fill space at old location
+            old_siblings.filter(index__gt=self.index).update(index=models.F("index") - 1)
+            # update self
+            self.file = file
+            self.parent = parent
+            self.index = index
+            self.save()
 
     def add_child(
         self, type: StatementType, content: Symbol, modifier: Optional[StatementModifier] = None
@@ -194,11 +180,6 @@ class Statement(UUIDModel):
             modifier=modifier,
             **kwargs,
         )
-
-    def mount_child(self, child: Statement) -> None:
-        child.parent = self
-        child.index = self.children.count()
-        child.save()
 
     def children_of_symbol_type(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
         return self.children.filter(symbol__type=symbol_type)
@@ -223,8 +204,10 @@ class Statement(UUIDModel):
         return self.reference
 
     @property
-    def absolute_index(self):
-        return self.index
+    def absolute_index(self) -> str:
+        if self.parent:
+            return f"{self.parent.absolute_index}.{self.index}"
+        return str(self.index)
 
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)

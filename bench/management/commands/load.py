@@ -182,7 +182,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
 
         parse_extra(project_v, segment, symbol, lookup_def=_get_symbol)
 
-        logger.info(f"Define {symbol} in {symbol.file}")
+        logger.info(f"{symbol.statement}")
 
 
 def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[FileSegment]]:
@@ -272,8 +272,9 @@ def _mount_child_statement(
 ):
     if statement_type == StatementType.DEFINITION:
         child_symbol.statement.modifier = modifier
-        parent.statement.mount_child(child_symbol.statement)
+        child_symbol.statement.move_to(parent.statement.file, parent.statement)
         print(f"re-mounted {child_symbol.statement} to {parent.statement}")
+        print(child_symbol.file.statements.filter(parent=None).all())
     else:
         parent.statement.add_child(type=statement_type, content=child_symbol, modifier=modifier)
 

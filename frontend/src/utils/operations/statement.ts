@@ -7,7 +7,7 @@ export function useStatementOps() {
 
   const { mutate: moveStatementMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int!) {
+      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {
         moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index }) {
           statement {
             id
@@ -43,8 +43,8 @@ export function useStatementOps() {
 
   async function move(
     id: string,
-    oldLoc: { fileId: string; parentId?: string; index: number },
-    newLoc: { fileId: string; parentId?: string; index: number }
+    oldLoc: { fileId: string; parentId?: string; index?: number },
+    newLoc: { fileId: string; parentId?: string; index?: number }
   ) {
     await operations.perform({
       type: "statement.move",
