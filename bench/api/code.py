@@ -40,6 +40,24 @@ class Execution(gql.Node):
     model: Optional[Annotated["Model", lazy(".model")]]
 
 
+@gql.input
+class CodeUpdateContentCode:
+    symbol_id: GlobalID
+    builtin_id: Optional[str] = None
+    code: Optional[str] = None
+
+
+@gql.type
+class CodeMutation:
+    @gql.mutation
+    def update_code_content(self, input: CodeUpdateContentCode) -> Symbol:
+        symbol: models.Symbol = models.Symbol.objects.get(id=input.symbol_id.node_id)
+        symbol.code_.builtin_id = input.builtin_id
+        symbol.code_.code = input.code
+        symbol.code_.save()
+        return symbol
+
+
 @strawberry.input
 class RunCodeValueArgumentInput:
     name: str
@@ -66,7 +84,7 @@ class RunCodePayload:
 
 
 @strawberry.type
-class CodeMutation:
+class CodeRunMutation:
     @strawberry.mutation
     def run(self, input: RunCodeInput) -> RunCodePayload:
         code = models.Code.objects.get(id=input.code_id.node_id)

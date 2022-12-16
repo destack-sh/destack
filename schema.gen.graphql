@@ -15,6 +15,12 @@ type Code implements SymbolContent & Node {
   code: String
 }
 
+input CodeUpdateContentCode {
+  symbolId: GlobalID!
+  builtinId: String = null
+  code: String = null
+}
+
 input CommitInput {
   projectVersionId: GlobalID!
   name: String!
@@ -94,6 +100,11 @@ type Expectation implements SymbolContent & Node {
   description: String!
 }
 
+input ExpectationUpdateContentDescription {
+  symbolId: GlobalID!
+  description: String!
+}
+
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
@@ -147,6 +158,9 @@ type Mutation {
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
   deleteFile(input: FileDeleteInput!): DeleteFilePayload!
+  updateTaskContent(input: TaskUpdateContentDescription!): Symbol!
+  updateExpectationContent(input: ExpectationUpdateContentDescription!): Symbol!
+  updateCodeContent(input: CodeUpdateContentCode!): Symbol!
   run(input: RunCodeInput!): RunCodePayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
@@ -492,6 +506,11 @@ type Task implements SymbolContent & Node {
   symbol: Symbol!
   description: String!
   compilations: [Compilation!]!
+}
+
+input TaskUpdateContentDescription {
+  symbolId: GlobalID!
+  description: String!
 }
 
 type User implements Node {

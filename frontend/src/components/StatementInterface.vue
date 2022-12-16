@@ -4,21 +4,21 @@ import CodeInterfaceMeta from "@/components/CodeInterfaceMeta.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
-import TaskInterface from "@/components/TaskInterface.vue";
 import SchemaInterface from "@/components/SchemaInterface.vue";
 import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
+import TaskInterface from "@/components/TaskInterface.vue";
+import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
-import { provideAction } from "@/utils/actions";
+import { provideAction, useActions } from "@/utils/actions";
 import { makeRunConfiguration, makeRunEditor, useEditorState, type FileHeader } from "@/utils/editor";
 import { StatementContentType, SymbolContentType, SymbolHeaderType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
+import { useFocus, useFocusWithin } from "@vueuse/core";
 import { assert } from "ts-essentials";
 import { computed, ref, watch, type Component, type ComputedRef } from "vue";
-import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
-import { useElementVisibility } from "@vueuse/core";
 
 const props = defineProps<{
   file: FileHeader;
@@ -34,13 +34,23 @@ const symbolOrReference = computed(() => symbol.value || reference.value);
 const parameters = computed(() => symbolOrReference.value?.parameters ?? []);
 const arguments_ = computed(() => symbol.value?.arguments ?? []);
 const editorState = useEditorState();
+const modifierShortname = computed(() => {
+  // map modifier to lower case
+  if (statement.value?.modifier) {
+    return statement.value.modifier.toLowerCase();
+  }
+  throw new Error("statement has no modifier");
+});
+const depthOffsetX = computed(() => props.depth * 20);
 
 function getArgument(name: string) {
   return arguments_.value?.find((a) => a.name === name);
 }
 
-const { getTimeFromNowString } = useTimeFromNow();
-
+type FocusableComponent = Component & {
+  focus: () => void;
+  defocus: () => void;
+};
 type SymbolInterface = {
   component: Component;
 };
@@ -91,15 +101,7 @@ const isRunnable = computed(() => symbol.value?.type == SymbolType.Code || symbo
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
-
-function focus() {
-  editorState.focusFile(props.file);
-  editorState.focusElement(statement.value);
-}
-
-function stopEditing() {
-  editorState.cancelEditingElement();
-}
+const readonly = computed(() => editorState.readonly || statement.value?.generated);
 
 type MetaAction = {
   icon: Component;
@@ -108,7 +110,7 @@ type MetaAction = {
 };
 
 const run = provideAction({
-  id: "symbol.run",
+  id: "statement.run",
   label: "Run",
   shortcuts: ["ctrl+enter"],
   registered: computed(() => isRunnable.value && isFocused.value),
@@ -133,14 +135,12 @@ const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   return metaActions;
 });
 
-const readonly = computed(() => editorState.readonly || statement.value?.generated);
+const actions = useActions();
 const operations = useOperations();
 
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
-  if (newName.length > 0) {
-    (event.target as HTMLElement)?.blur();
-
+  if (newName.length > 0 && newName != symbolOrReference.value?.name) {
     if (statement.value.type == StatementType.Definition) {
       assert(symbol.value != null, "symbol is null");
       await operations.symbol.rename(symbol.value.id, symbol.value.name, newName);
@@ -151,26 +151,87 @@ async function onNameEnter(event: Event) {
   }
 }
 
-const modifierShortname = computed(() => {
-  // map modifier to lower case
-  if (statement.value?.modifier) {
-    return statement.value.modifier.toLowerCase();
-  }
-  throw new Error("statement has no modifier");
-});
-const depthOffsetX = computed(() => props.depth * 20);
+// manage focus and navigation
 
-// auto scroll into focus once the element is focused if outside of viewport
 const container = ref<HTMLElement | null>(null);
-const containerIsVisible = useElementVisibility(container);
+const declaration = ref<HTMLElement | null>(null);
+const content = ref<Component | null>(null);
+
+const { focused: containerFocused } = useFocusWithin(container);
+const { focused: declarationFocused } = useFocus(declaration);
+
+function focus() {
+  editorState.focusFile(props.file);
+  editorState.focusElement(statement.value);
+}
+
+// this isn't great because it always scrolls and doesn't consider the container size
+// auto scroll into focus once the element is focused if outside of viewport
 watch(
   () => isFocused.value,
   (isFocused) => {
-    if (isFocused && container.value != null && !containerIsVisible.value) {
-      container.value.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (isFocused && container.value) {
+      container.value.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }
 );
+
+// if anything inside the container is focused, enable editing mode
+watch(
+  () => containerFocused.value,
+  (containerFocused) => {
+    if (containerFocused) {
+      focus();
+      startEditing();
+    } else {
+      stopEditing();
+    }
+  }
+);
+
+// react to isEditing
+watch(
+  () => isEditing.value,
+  (isEditing) => {
+    // if focused and editing started without any inner focus, focus end of declaration
+    if (isFocused.value && !containerFocused.value && isEditing && declaration.value) {
+      declarationFocused.value = true;
+    }
+    // if focused and editing stopped, defocus
+    if (!isEditing && declaration.value) {
+      declarationFocused.value = false;
+      (content.value as FocusableComponent).defocus?.();
+    }
+  }
+);
+
+function startEditing() {
+  editorState.editElement(statement.value);
+}
+function stopEditing() {
+  editorState.stopEditingElement();
+}
+
+function navigateUp() {
+  if (declarationFocused.value) {
+    // declaration is focused, go to previous statement
+    declarationFocused.value = false;
+    actions.statement.moveFocusUp.value.apply();
+  } else if (containerFocused.value) {
+    // content is focused, go to declaration
+    declarationFocused.value = true;
+  }
+}
+
+function navigateDown() {
+  if (declarationFocused.value && content.value) {
+    // declaration is focused, go to content
+    (content.value as FocusableComponent).focus?.();
+  } else if (containerFocused.value) {
+    // content is focused already or not available, go to next statement
+    actions.statement.moveFocusDown.value.apply();
+  }
+}
 </script>
 <template>
   <div
@@ -180,18 +241,20 @@ watch(
       'border-gray-200 ': !isFocused,
       'border-l-orange-500': isAncestorFocused,
       'hover:border-l-orange-300': !isFocused,
-      'rounded-t-sm border-t  border-gray-200': depth == 0, // group top
-      'rounded-b-sm border-b border-gray-200 pb-3': isLastInRoot, // group bottom
+      'rounded-t-sm border-t border-gray-200': depth == 0, // group top
+      'pb-1': depth > 0, // inside group
+      'rounded-b-sm border-b border-gray-200 pb-2.5': isLastInRoot, // group bottom
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
-    @mousedown="focus"
+    @click="focus"
   >
+    <!-- Debug info -->
     <span v-if="editorState.debug" class="absolute top-0 right-0 z-20 text-sm">
       i:{{ statement.index }} d:{{ depth }}
     </span>
     <!-- Imitate Monaco line numbers -->
     <span
-      class="absolute top-[9px] w-6 select-none text-right font-mono text-sm"
+      class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
       :style="{ left: -30 + 'px' }"
       :class="{
         'text-orange-200': !isFocused,
@@ -200,22 +263,35 @@ watch(
       }"
       >{{ lineNumberBase + 1 }}</span
     >
+    <!-- Statement focus indicator (left side if not editing) -->
+    <div
+      class="absolute top-0 left-0 h-full w-1"
+      :class="isFocused && !isEditing ? 'bg-orange-100' : 'bg-transparent'"
+    />
+    <!-- Statement focus indicator (top and bottom if editing) -->
+    <div class="absolute top-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
+    <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <!-- Statement header & controls -->
-    <div class="mx-3 flex flex-row items-center justify-between pt-1.5">
+    <div class="mx-3 flex flex-row items-center justify-between pt-1">
       <div class="flex flex-row items-baseline" v-if="symbolOrReference">
         <!--  declaration -->
         <span class="decoration-none inline-flex items-baseline text-sm text-black">
           <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
           <span class="text-orange-600">{{ symbolOrReference.typeShortname }}</span>
           <span
+            ref="declaration"
             :contenteditable="!readonly"
             maxlength="100"
-            class="ml-0.5 inline w-full select-all rounded-sm border border-transparent bg-transparent py-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:border-gray-300 focus:border-orange-500"
+            class="ml-0.5 inline w-full select-all rounded-sm bg-transparent p-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:bg-yellow-50 focus:bg-yellow-100"
             @keydown.enter.prevent="onNameEnter"
+            @keydown.up.prevent="navigateUp"
+            @keydown.down.prevent="navigateDown"
+            @keydown.escape.prevent="stopEditing"
+            @click="startEditing"
           >
             {{ symbolOrReference.name }}
           </span>
-          <span v-if="isDefinition" class="-ml-0.5 text-orange-600">:</span>
+          <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
         </span>
       </div>
       <span
@@ -275,8 +351,9 @@ watch(
       </div>
     </div>
     <!-- Symbol content (if statement defines a symbol) -->
-    <div v-if="symbol != null" class="mx-3" :class="{ 'border-orange-600': isFocused }">
+    <div v-if="symbol != null" class="mx-3">
       <component
+        ref="content"
         v-if="interfaces[symbol.type] != undefined"
         :is="interfaces[symbol.type]?.component"
         :symbol="symbol"
@@ -286,6 +363,9 @@ watch(
         :generated="statement.generated"
         :commented="statement.commented"
         :focused="isFocused"
+        @navigateUp="navigateUp"
+        @navigateDown="navigateDown"
+        @escape="stopEditing"
       />
       <span class="text-red-500" v-else> cannot render {{ symbol.type }} </span>
     </div>

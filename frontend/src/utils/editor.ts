@@ -249,13 +249,16 @@ export const useEditorState = defineStore("editor", {
     editElement(element: StatementHeader | SymbolHeader | FileHeader) {
       this.focusElement(element);
       this.editingElement = true;
+      console.log(`edit element ${element.id}`);
     },
 
-    cancelEditingElement() {
+    stopEditingElement() {
+      console.log("stop editing element");
       this.editingElement = false;
     },
 
     defocusElement() {
+      console.log("defocus element");
       this.focusedElementId = null;
       this.editingElement = false;
     },
