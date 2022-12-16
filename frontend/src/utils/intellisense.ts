@@ -71,7 +71,7 @@ export function useIntelliSense() {
     `),
     // TODO @Robustness: somehow this query is fired on start when id is null
     () => ({ id: editorState.currentProjectVersionId }),
-    () => ({ enabled: !!editorState.currentProjectVersionId })
+    () => ({ enabled: editorState.currentProjectVersionId != null })
   );
   const content = computed(() => useFragment(ProjectVersionContentSenseType, contentQuery.value?.projectVersion));
   const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);

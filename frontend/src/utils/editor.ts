@@ -109,6 +109,7 @@ export const useEditorState = defineStore("editor", {
       focusedEditor: null as Editor | null,
       focusedElementId: null as string | null,
       readonly: false,
+      debug: false,
     };
   },
   getters: {

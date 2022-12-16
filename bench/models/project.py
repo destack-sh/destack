@@ -417,6 +417,10 @@ class File(UUIDModel):
     def is_root(self) -> bool:
         return self.parent is None
 
+    @property
+    def root_statements(self) -> models.QuerySet["Statement"]:
+        return self.statements.filter(parent=None)
+
     def define_symbol(
         self, name: str, content: SymbolContent, parent: Optional[Statement] = None, **kwargs
     ) -> Symbol:

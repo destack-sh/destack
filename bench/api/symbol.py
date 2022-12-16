@@ -85,9 +85,9 @@ class SymbolRenameInput(gql.NodeInput):
 @gql.input
 class StatementMoveInput:
     id: GlobalID
-    fileId: GlobalID
-    parentId: Optional[GlobalID]
-    index: int
+    file_id: GlobalID
+    parent_id: Optional[GlobalID] = None
+    index: Optional[int] = None
 
 
 @gql.type
@@ -104,8 +104,10 @@ class SymbolMutation:
     @gql.mutation
     def move_statement(self, input: StatementMoveInput) -> StatementMovePayload:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        file = models.File.objects.get(id=input.fileId.node_id)
-        parent = models.Statement.objects.get(id=input.parentId.node_id) if input.parentId else None
+        file = models.File.objects.get(id=input.file_id.node_id)
+        parent = (
+            models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
+        )
         old_file = statement.file
         statement.move_to(file, parent, input.index)
         return StatementMovePayload(statement=statement, old_file=old_file, new_file=file)

@@ -79,6 +79,8 @@ export const SymbolHeaderType = graphql(/* GraphQL */ `
     id
     name
     type
+    typeShortname
+    typeNameDeclaration
     createdAt
     updatedAt
   }
@@ -167,7 +169,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ...SymbolContent
     }
     reference {
-      ...SymbolContent
+      ...SymbolHeader
     }
     text
   }
@@ -182,9 +184,6 @@ export const SymbolContentType = graphql(/* GraphQL */ `
     typeNameDeclaration
     createdAt
     updatedAt
-    statement {
-      ...StatementHeader
-    }
     parameters {
       name
       type
