@@ -64,13 +64,13 @@ const activeView: ComputedRef<View> = computed(() => {
 });
 
 provideAction({
-  id: "editor.view.explorer",
+  id: "editor.view.openExplorer",
   label: "View Explorer",
   shortcuts: ["alt+1"],
   apply: () => state.setActiveView("explorer"),
 });
 provideAction({
-  id: "editor.view.history",
+  id: "editor.view.openHistory",
   label: "View History",
   shortcuts: ["alt+2"],
   apply: () => state.setActiveView("history"),
@@ -229,16 +229,17 @@ watchEffect(() => {
     loaded &&
     (state.currentProjectId != projectHeader.value.id || state.currentProjectVersionId != projectHead.value.id)
   ) {
-    // if same project different version -> try to migrate
+    // try to load editor state
+    state.setProject(projectHeader.value, projectHead.value);
+    load();
+    console.log(`loaded editor state for project ${projectHeader.value.id} version ${projectHead.value.id}`);
     if (state.currentProjectId == projectHeader.value?.id) {
-      console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
-      // migrate once files and symbols are loaded
-      state.migrateTo(projectHead.value, files.value, symbols.value);
+      if (state.currentProjectVersionId != projectHead.value?.id) {
+        console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
+        state.migrateTo(projectHead.value, files.value, symbols.value);
+      } // otherwise no migration needed
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);
-      state.setProject(projectHeader.value, projectHead.value);
-      // try to load editor state
-      load();
     }
   }
 });
