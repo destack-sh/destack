@@ -34,7 +34,7 @@ export function useStatementActions() {
     label: "Move statement in",
     shortcuts: ["tab"],
     // we can only indent if there is a sibling above
-    enabled: computed(() => !!statement.value && index.value > 0),
+    enabled: computed(() => !editor.editingElement && !!statement.value && index.value > 0),
     apply: async () => {
       // insert at end of previous sibling children (leave index undefined)
       const previousSibling = siblings.value[index.value - 1];
@@ -51,7 +51,7 @@ export function useStatementActions() {
     label: "Move statement out",
     shortcuts: ["shift+tab"],
     // we can only outdent if there is a parent
-    enabled: computed(() => !!statement.value && !!statement.value.parent),
+    enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
     apply: async () => {
       // insert after parent (leave index undefined)
       await operations.statement.move(statement.value.id, currentLocation.value, {
@@ -154,6 +154,26 @@ export function useStatementActions() {
     },
   });
 
+  // start / stop editing current statement
+  const editCurrent = provideGlobalAction({
+    id: "statement.editCurrent",
+    label: "Edit current statement",
+    shortcuts: ["enter"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: () => {
+      editor.editElement(statement.value);
+    },
+  });
+  const stopEditingCurrent = provideGlobalAction({
+    id: "statement.stopEditingCurrent",
+    label: "Stop editing current statement",
+    shortcuts: ["escape"],
+    enabled: computed(() => !!statement.value && editor.editingElement),
+    apply: () => {
+      editor.stopEditingElement();
+    },
+  });
+
   return {
     moveCurrentIn,
     moveCurrentOut,
@@ -163,5 +183,7 @@ export function useStatementActions() {
     moveFocusDown,
     moveFocusIn,
     moveFocusOut,
+    editCurrent,
+    stopEditingCurrent,
   };
 }

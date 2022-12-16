@@ -4,6 +4,7 @@ import { useEditorState, type FileHeader, type StatementHeader, type SymbolHeade
 import { FileHeaderType, SchemaElementContentDeepType, StatementHeaderType } from "@/utils/fragments";
 import { SchemaContentType } from "@/utils/schema";
 import { useQuery } from "@vue/apollo-composable";
+import { createSharedComposable } from "@vueuse/core";
 import { computed, reactive, type ComputedRef, type Ref } from "vue";
 
 const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
@@ -57,8 +58,7 @@ export type IntelliSense = {
   childSymbol(symbolId: string, ofType?: SymbolType): SymbolHeader | undefined;
 };
 
-export function useIntelliSense() {
-  // TODO @Performance: cache singleton intellisense instance
+function _useIntelliSense() {
   const editorState = useEditorState();
   const { result: contentQuery } = useQuery(
     graphql(/* GraphQL */ `
@@ -157,6 +157,9 @@ export function useIntelliSense() {
   });
   return sense;
 }
+
+// share intellicense as a singleton instance across components
+export const useIntelliSense = createSharedComposable(_useIntelliSense);
 
 export function useSchemadSymbolSchema(symbol: Ref<SymbolHeader>) {
   /* Get the current schema for a 'schemad' Symbol from context */

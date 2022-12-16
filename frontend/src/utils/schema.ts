@@ -1,5 +1,6 @@
 import { graphql } from "@/gql";
 import { useSymbolInterfaceState, type SymbolHeader } from "@/utils/editor";
+import type { Ref } from "vue";
 
 export const SchemaContentType = graphql(/* GraphQL */ `
   fragment SchemaContent on Schema {

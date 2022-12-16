@@ -8,16 +8,16 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.code import Code, CodeMutation
+from bench.api.code import Code, CodeMutation, CodeRunMutation
 from bench.api.compilation import CompilationMutation
 from bench.api.dataset import Dataset
-from bench.api.expectation import Expectation
+from bench.api.expectation import Expectation, ExpectationMutation
 from bench.api.model import Model
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.schema import Schema
 from bench.api.symbol import Symbol, SymbolMutation
-from bench.api.task import Task
+from bench.api.task import Task, TaskMutation
 from bench.api.user import User
 from bench.settings import DEBUG, TEST
 
@@ -40,7 +40,14 @@ class Query:
 
 @strawberry.type
 class Mutation(
-    SymbolMutation, FileMutation, CodeMutation, CompilationMutation, ProjectVersionMutation
+    SymbolMutation,
+    FileMutation,
+    TaskMutation,
+    ExpectationMutation,
+    CodeMutation,
+    CodeRunMutation,
+    CompilationMutation,
+    ProjectVersionMutation,
 ):
     pass
 

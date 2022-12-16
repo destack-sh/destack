@@ -40,6 +40,12 @@ export type Code = Node &
     symbol: Symbol;
   };
 
+export type CodeUpdateContentCode = {
+  builtinId?: InputMaybe<Scalars["String"]>;
+  code?: InputMaybe<Scalars["String"]>;
+  symbolId: Scalars["GlobalID"];
+};
+
 export type CommitInput = {
   description?: InputMaybe<Scalars["String"]>;
   name: Scalars["String"];
@@ -123,6 +129,11 @@ export type Expectation = Node &
     symbol: Symbol;
   };
 
+export type ExpectationUpdateContentDescription = {
+  description: Scalars["String"];
+  symbolId: Scalars["GlobalID"];
+};
+
 export type File = Node & {
   __typename?: "File";
   createdAt: Scalars["DateTime"];
@@ -174,6 +185,9 @@ export type Mutation = {
   renameFile: RenameFilePayload;
   renameSymbol: RenameSymbolPayload;
   run: RunCodePayload;
+  updateCodeContent: Symbol;
+  updateExpectationContent: Symbol;
+  updateTaskContent: Symbol;
 };
 
 export type MutationAddCompilationTargetArgs = {
@@ -210,6 +224,18 @@ export type MutationRenameSymbolArgs = {
 
 export type MutationRunArgs = {
   input: RunCodeInput;
+};
+
+export type MutationUpdateCodeContentArgs = {
+  input: CodeUpdateContentCode;
+};
+
+export type MutationUpdateExpectationContentArgs = {
+  input: ExpectationUpdateContentDescription;
+};
+
+export type MutationUpdateTaskContentArgs = {
+  input: TaskUpdateContentDescription;
 };
 
 /** An object with a Globally Unique ID */
@@ -574,6 +600,11 @@ export type Task = Node &
     symbol: Symbol;
   };
 
+export type TaskUpdateContentDescription = {
+  description: Scalars["String"];
+  symbolId: Scalars["GlobalID"];
+};
+
 export type User = Node & {
   __typename?: "User";
   createdAt: Scalars["DateTime"];
@@ -736,16 +767,9 @@ export type RunMutation = {
   };
 };
 
-export type TaskContentFragment = {
-  __typename?: "Task";
-  id: any;
-  description: string;
-  compilations: Array<
-    { __typename?: "Compilation"; id: any } & {
-      " $fragmentRefs"?: { CompilationHeaderFragment: CompilationHeaderFragment };
-    }
-  >;
-} & { " $fragmentName"?: "TaskContentFragment" };
+export type TaskContentFragment = { __typename?: "Task"; id: any; description: string } & {
+  " $fragmentName"?: "TaskContentFragment";
+};
 
 export type ProjectVersionsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
@@ -1173,6 +1197,67 @@ export type RenameSymbolMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Symbol"; id: any; name: string; typeNameDeclaration: string };
+};
+
+export type UpdateTaskContentMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  description: Scalars["String"];
+}>;
+
+export type UpdateTaskContentMutation = {
+  __typename?: "Mutation";
+  updateTaskContent: {
+    __typename?: "Symbol";
+    id: any;
+    content:
+      | { __typename?: "Code"; id: any }
+      | { __typename?: "Dataset"; id: any }
+      | { __typename?: "Expectation"; id: any }
+      | { __typename?: "Model"; id: any }
+      | { __typename?: "Schema"; id: any }
+      | { __typename?: "Task"; description: string; id: any };
+  };
+};
+
+export type UpdateExpectationContentMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  description: Scalars["String"];
+}>;
+
+export type UpdateExpectationContentMutation = {
+  __typename?: "Mutation";
+  updateExpectationContent: {
+    __typename?: "Symbol";
+    id: any;
+    content:
+      | { __typename?: "Code"; id: any }
+      | { __typename?: "Dataset"; id: any }
+      | { __typename?: "Expectation"; description: string; id: any }
+      | { __typename?: "Model"; id: any }
+      | { __typename?: "Schema"; id: any }
+      | { __typename?: "Task"; id: any };
+  };
+};
+
+export type UpdateCodeContentMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  code?: InputMaybe<Scalars["String"]>;
+  builtinId?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type UpdateCodeContentMutation = {
+  __typename?: "Mutation";
+  updateCodeContent: {
+    __typename?: "Symbol";
+    id: any;
+    content:
+      | { __typename?: "Code"; builtinId?: string | null; code?: string | null; id: any }
+      | { __typename?: "Dataset"; id: any }
+      | { __typename?: "Expectation"; id: any }
+      | { __typename?: "Model"; id: any }
+      | { __typename?: "Schema"; id: any }
+      | { __typename?: "Task"; id: any };
+  };
 };
 
 export type CommitMutationVariables = Exact<{
@@ -1768,17 +1853,6 @@ export const TaskContentFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "compilations" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "CompilationHeader" } },
-              ],
-            },
-          },
         ],
       },
     },
@@ -2117,7 +2191,6 @@ export const FileContentByIdDocument = {
     ...DatasetContentFragmentDoc.definitions,
     ...ExpectationContentFragmentDoc.definitions,
     ...TaskContentFragmentDoc.definitions,
-    ...CompilationHeaderFragmentDoc.definitions,
     ...SchemaContentFragmentDoc.definitions,
     ...SymbolHeaderFragmentDoc.definitions,
   ],
@@ -2638,7 +2711,6 @@ export const CompileDocument = {
       },
     },
     ...TaskContentFragmentDoc.definitions,
-    ...CompilationHeaderFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompileMutation, CompileMutationVariables>;
@@ -3072,6 +3144,247 @@ export const RenameSymbolDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameSymbolMutation, RenameSymbolMutationVariables>;
+export const UpdateTaskContentDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateTaskContent" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateTaskContent" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "symbolId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "InlineFragment",
+                        typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<UpdateTaskContentMutation, UpdateTaskContentMutationVariables>;
+export const UpdateExpectationContentDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateExpectationContent" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateExpectationContent" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "symbolId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "InlineFragment",
+                        typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Expectation" } },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<UpdateExpectationContentMutation, UpdateExpectationContentMutationVariables>;
+export const UpdateCodeContentDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateCodeContent" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "builtinId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateCodeContent" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "symbolId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "code" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "code" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "builtinId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "builtinId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "InlineFragment",
+                        typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Code" } },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "builtinId" } },
+                            { kind: "Field", name: { kind: "Name", value: "code" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<UpdateCodeContentMutation, UpdateCodeContentMutationVariables>;
 export const CommitDocument = {
   kind: "Document",
   definitions: [

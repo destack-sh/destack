@@ -50,9 +50,6 @@ class Symbol(gql.Node):
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
-    # TODO @Cleanup: add symbol in SymbolContent interface
-    #  (should work since it's a 1:1 but strawberry claims it's undefined)
-    # symbol: Symbol
     pass
 
 

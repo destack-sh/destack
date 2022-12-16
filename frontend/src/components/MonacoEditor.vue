@@ -140,6 +140,7 @@ function initMonaco(monaco: Monaco) {
 watch(
   () => props.modelValue,
   (value) => {
+    console.log("sync modelValue into editor", value);
     if (editor.value && value !== editor.value.getValue()) {
       editor.value.setValue(value);
     }
@@ -172,6 +173,15 @@ onBeforeUnmount(() => {
     nextTick(() => editor.value?.dispose());
   }
 });
+
+function focus() {
+  editor.value?.focus();
+}
+function defocus() {
+  // no op?
+}
+
+defineExpose({ focus, defocus });
 </script>
 
 <template>

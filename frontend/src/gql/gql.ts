@@ -15,8 +15,7 @@ const documents = {
     types.ExecutionHeaderFragmentDoc,
   "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  ":
     types.RunDocument,
-  "\n  fragment TaskContent on Task {\n    id\n    description\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
-    types.TaskContentFragmentDoc,
+  "\n  fragment TaskContent on Task {\n    id\n    description\n  }\n": types.TaskContentFragmentDoc,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
   "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
@@ -68,6 +67,12 @@ const documents = {
     types.MoveStatementDocument,
   "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RenameSymbolDocument,
+  "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    ":
+    types.UpdateTaskContentDocument,
+  "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    ":
+    types.UpdateExpectationContentDocument,
+  "\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { symbolId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            id\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    ":
+    types.UpdateCodeContentDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
     types.CommitDocument,
   "\n  fragment SchemaContent on Schema {\n    id\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n  }\n":
@@ -93,8 +98,8 @@ export function graphql(
   source: "\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "
 ): typeof documents["\n    mutation run($input: RunCodeInput!) {\n      run(input: $input) {\n        execution {\n          id\n          ...ExecutionHeader\n          children {\n            id\n            ...ExecutionHeader\n            children {\n              id\n              ...ExecutionHeader\n            }\n          }\n        }\n        outputs {\n          name\n          value\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n  fragment TaskContent on Task {\n    id\n    description\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
-): typeof documents["\n  fragment TaskContent on Task {\n    id\n    description\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
+  source: "\n  fragment TaskContent on Task {\n    id\n    description\n  }\n"
+): typeof documents["\n  fragment TaskContent on Task {\n    id\n    description\n  }\n"];
 export function graphql(
   source: "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
@@ -173,6 +178,15 @@ export function graphql(
 export function graphql(
   source: "\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameSymbol($id: GlobalID!, $name: String!) {\n        renameSymbol(input: { id: $id, name: $name }) {\n          ... on Symbol {\n            id\n            name\n            typeNameDeclaration\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { symbolId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            id\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { symbolId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            id\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];

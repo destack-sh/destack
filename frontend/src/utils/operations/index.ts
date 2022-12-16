@@ -1,5 +1,5 @@
 import { useFileOps } from "@/utils/operations/file";
-import { useSymbolOps } from "@/utils/operations/symbol";
+import { useSymbolContentOps, useSymbolOps } from "@/utils/operations/symbol";
 import { useCompilationOps } from "@/utils/operations/compilation";
 import { useProjectVersionOps } from "@/utils/operations/version";
 import { defineStore } from "pinia";
@@ -98,6 +98,7 @@ export function useOperations() {
   return {
     file: useFileOps(),
     symbol: useSymbolOps(),
+    content: useSymbolContentOps(),
     statement: useStatementOps(),
     compilation: useCompilationOps(),
     version: useProjectVersionOps(),
