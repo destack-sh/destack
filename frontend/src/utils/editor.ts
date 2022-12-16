@@ -108,6 +108,7 @@ export const useEditorState = defineStore("editor", {
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
       focusedElementId: null as string | null,
+      editingElement: false,
       readonly: false,
       debug: false,
     };
@@ -242,10 +243,21 @@ export const useEditorState = defineStore("editor", {
       if (this.focusedElementId == element.id) return;
       console.log(`focus element ${element.id}`);
       this.focusedElementId = element.id;
+      this.editingElement = false;
+    },
+
+    editElement(element: StatementHeader | SymbolHeader | FileHeader) {
+      this.focusElement(element);
+      this.editingElement = true;
+    },
+
+    cancelEditingElement() {
+      this.editingElement = false;
     },
 
     defocusElement() {
       this.focusedElementId = null;
+      this.editingElement = false;
     },
   },
 });

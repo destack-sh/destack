@@ -16,5 +16,6 @@ const { schema } = useSchemadSymbolSchema(symbol);
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">
     <SchemaElement :element="schema.element" class="text-xs opacity-50 group-hover:opacity-100" v-if="schema" />
+    <span v-else class="italic text-yellow-500">no schema</span>
   </div>
 </template>
