@@ -29,10 +29,9 @@ const { schema } = useSchemadSymbolSchema(symbol);
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">
-    <span class="">
-      <span class="text-gray-500">{{ content.length }}</span> records
-    </span>
     <SchemaElement :element="schema.element" class="text-xs opacity-50 group-hover:opacity-100" v-if="schema" />
+    <span v-else class="italic text-yellow-500">no schema</span>
+    <span class="text-gray-500">{{ content.length }}</span>
     <ListboxSelect
       class="-mr-1 max-w-fit"
       :model-value="viewAsObject"

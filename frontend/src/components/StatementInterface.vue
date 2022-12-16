@@ -16,8 +16,9 @@ import { StatementContentType, SymbolContentType, SymbolHeaderType } from "@/uti
 import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { assert } from "ts-essentials";
-import { computed, type Component, type ComputedRef } from "vue";
+import { computed, ref, watch, type Component, type ComputedRef } from "vue";
 import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
+import { useElementVisibility } from "@vueuse/core";
 
 const props = defineProps<{
   file: FileHeader;
@@ -89,9 +90,15 @@ const isReference = computed(() => statement.value?.type == StatementType.Refere
 const isRunnable = computed(() => symbol.value?.type == SymbolType.Code || symbol.value?.type == SymbolType.Task);
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
+const isEditing = computed(() => isFocused.value && editorState.editingElement);
+
 function focus() {
   editorState.focusFile(props.file);
   editorState.focusElement(statement.value);
+}
+
+function stopEditing() {
+  editorState.cancelEditingElement();
 }
 
 type MetaAction = {
@@ -152,9 +159,22 @@ const modifierShortname = computed(() => {
   throw new Error("statement has no modifier");
 });
 const depthOffsetX = computed(() => props.depth * 20);
+
+// auto scroll into focus once the element is focused if outside of viewport
+const container = ref<HTMLElement | null>(null);
+const containerIsVisible = useElementVisibility(container);
+watch(
+  () => isFocused.value,
+  (isFocused) => {
+    if (isFocused && container.value != null && !containerIsVisible.value) {
+      container.value.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+);
 </script>
 <template>
   <div
+    ref="container"
     class="group relative border-x border-gray-200 transition-colors"
     :class="{
       'border-gray-200 ': !isFocused,
@@ -216,7 +236,7 @@ const depthOffsetX = computed(() => props.depth * 20);
         />
         <!-- Statement meta info -->
         <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
-          <span> {{ getTimeFromNowString(statement.updatedAt) }} </span>
+          <!-- <span> {{ getTimeFromNowString(statement.updatedAt) }} </span> -->
           <span v-if="statement.generated">generated</span>
         </span>
         <!-- Symbol meta controls -->
