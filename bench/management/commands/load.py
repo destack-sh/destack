@@ -21,17 +21,17 @@ from bench.models import (
     Dataset,
     Expectation,
     Organization,
+    ParameterType,
     Project,
     ProjectVersion,
     Schema,
     StatementType,
     Symbol,
     SymbolContent,
-    SymbolParameterType,
     SymbolType,
     Task,
 )
-from bench.models.symbol import StatementModifier
+from bench.models.symbol import Statement, StatementModifier
 from bench.utils.schema import (
     SchemaElement,
     SchemaObjectSerializer,
@@ -44,7 +44,7 @@ logger = structlog.get_logger(__name__)
 
 
 @dataclass
-class LibraryImport:
+class LibraryDependency:
     library: str
 
 
@@ -86,13 +86,9 @@ class Command(BaseCommand):
         parser.add_argument("organization_project", type=str)
         # symbol file path (must exist and end in .py)
         parser.add_argument("path", type=str)
-        # the task to make the new main program
-        parser.add_argument("--main", type=str, required=False)
 
     @transaction.atomic
-    def handle(
-        self, organization_project: str, path: str, main: Optional[str] = None, *args, **options
-    ):
+    def handle(self, organization_project: str, path: str, *args, **options):
         organization_slug, project_slug = organization_project.split("/")
         organization = Organization.objects.get(slug=organization_slug)
         project = Project.objects.filter(slug=project_slug, organization=organization).first()
@@ -107,12 +103,6 @@ class Command(BaseCommand):
         project_v = project.create_version(name=version_id)
         project_v.reset()
         load_symbols(project_v, path)
-        if main:
-            # (we likely won't have a single "main" going forward)
-            project_v.main_program = project_v.symbol(main, SymbolType.TASK)
-            project_v.main_program.statement.modifier = StatementModifier.MAIN
-            project_v.save()
-            logger.info(f"Set {project_v.main_program} as main program in {project_v}")
 
         # advance head to new version
         project.head = project_v
@@ -127,14 +117,14 @@ def load_symbols(project_v: ProjectVersion, path: str):
     # read task file lines
     with open(path, "r") as f:
         lines = f.readlines()
-    imports, segments = parse_file_segment(lines)
-    for library_import in imports:
-        library_org, library_slug = library_import.library.split("/")
+    dependencies, segments = parse_file_segment(lines)
+    for library_dependency in dependencies:
+        library_org, library_slug = library_dependency.library.split("/")
         library = Project.objects.get_by_slug(library_org, library_slug)
         if library is None:
-            raise ValueError(f"library {library_import.library} not found")
+            raise ValueError(f"library {library_dependency.library} not found")
         library_v = library.head  # just use head
-        project_v.libraries.add(library_v)
+        project_v.dependencies.add(library_v)
         logger.info(f"Import library {library_v}")
     executor = Executor(Resolver())
     # convert segments to a single task symbol tree
@@ -182,15 +172,15 @@ def load_symbols(project_v: ProjectVersion, path: str):
 
         parse_extra(project_v, segment, symbol, lookup_def=_get_symbol)
 
-        logger.info(f"{symbol.statement}")
+        logger.info(f"{symbol.definition}")
 
 
-def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[FileSegment]]:
+def parse_file_segment(lines: list[str]) -> tuple[list[LibraryDependency], list[FileSegment]]:
     segments: list[FileSegment] = []
-    imports: list[LibraryImport] = []
+    dependencies: list[LibraryDependency] = []
 
     # segments are controlled via @ switches in comments
-    switches = {"@path", "@symbol", "@ignore", "@import"}
+    switches = {"@path", "@symbol", "@ignore", "@library"}
 
     segment: Optional[FileSegment] = None
     virtual_path = "main"  # default to main
@@ -200,11 +190,11 @@ def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[File
             segments.append(segment)
             print(f"segment {segment.header} with {len(segment.lines)} lines")
             segment = None
-        if "@import" in line:
+        if "@library" in line:
             # library import
-            library = line.split("@import")[1].strip()
-            imports.append(LibraryImport(library=library))
-            print(f"import {library}")
+            library = line.split("@library")[1].strip()
+            dependencies.append(LibraryDependency(library=library))
+            print(f"library {library}")
         elif "@path" in line:
             # change path
             # parse path like # @path <path>
@@ -223,7 +213,7 @@ def parse_file_segment(lines: list[str]) -> tuple[list[LibraryImport], list[File
     segments.append(segment)
     print(f"segment {segment.header} with {len(segment.lines)} lines")
 
-    return imports, segments
+    return dependencies, segments
 
 
 def parse_extra(
@@ -234,11 +224,11 @@ def parse_extra(
 ):
     if "parent_ref" in segment.symbol_args:
         parent_name = segment.symbol_args["parent_ref"]
-        parent = project_v.symbol(parent_name)
+        parent = project_v.statement(file=None, name=parent_name)
         _mount_child_statement(parent, None, StatementType.REFERENCE, symbol)
     if "parent_def" in segment.symbol_args:
         parent_name = segment.symbol_args["parent_def"]
-        parent = project_v.symbol(parent_name)
+        parent = project_v.statement(file=None, name=parent_name)
         _mount_child_statement(parent, None, StatementType.DEFINITION, symbol)
 
     add_statements = lookup_def("add_statements", required=False)
@@ -246,13 +236,13 @@ def parse_extra(
         return
     for parent_declr, modifier, statement_type, child_declr in add_statements:
         parent_type, parent_name = parent_declr.split(" ")
-        parent_symbol = project_v.symbol(parent_name, SymbolType(parent_type))
-        _parse_child_statement(project_v, parent_symbol, modifier, statement_type, child_declr)
+        parent = project_v.statement(file=None, name=parent_name, type=SymbolType(parent_type))
+        _parse_child_statement(project_v, parent, modifier, statement_type, child_declr)
 
 
 def _parse_child_statement(
     project_v: ProjectVersion,
-    parent: Symbol,
+    parent: Statement,
     modifier: Optional[str],
     statement_type: str,
     child_symbol_declr: str,
@@ -260,23 +250,21 @@ def _parse_child_statement(
     modifier = StatementModifier(modifier) if modifier else None
     statement_type = StatementType(statement_type)
     symbol_type, symbol_name = child_symbol_declr.split(" ")
-    child_symbol = project_v.symbol(symbol_name, symbol_type)
+    child_symbol = project_v.statement(file=None, name=symbol_name, type=symbol_type).symbol_
     _mount_child_statement(parent, modifier, statement_type, child_symbol)
 
 
 def _mount_child_statement(
-    parent: Symbol,
+    parent: Statement,
     modifier: Optional[StatementModifier],
     statement_type: StatementType,
     child_symbol: Symbol,
 ):
     if statement_type == StatementType.DEFINITION:
-        child_symbol.statement.modifier = modifier
-        child_symbol.statement.move_to(parent.statement.file, parent.statement)
-        print(f"re-mounted {child_symbol.statement} to {parent.statement}")
-        print(child_symbol.file.statements.filter(parent=None).all())
+        child_symbol.definition.modifier = modifier
+        child_symbol.definition.move_to(parent.file, parent)
     else:
-        parent.statement.add_child(type=statement_type, content=child_symbol, modifier=modifier)
+        parent.add_child(type=statement_type, content=child_symbol, modifier=modifier)
 
 
 def parse_schema(
@@ -337,8 +325,8 @@ def parse_code(
 
         # parameters can also be defined in the schema extracted from the function signature
         for param in input_schema.elements:
-            symbol.add_parameter(name=param.name, type=SymbolParameterType.VALUE, schema=param)
-        consumed_lines = bind_parameters(segment, project_v, symbol)
+            symbol.definition.add_parameter(name=param.name, type=ParameterType.VALUE, schema=param)
+        consumed_lines = bind_parameters(segment, project_v, symbol.definition)
         if consumed_lines:
             # remove consumed lines from segment
             segment.lines = segment.lines[consumed_lines:]
@@ -382,11 +370,13 @@ def parse_expect(
         for statement_def in statements_names:
             # expectation statement e.g. ("like", "REFERENCE", "code respect_command_hints")
             modifier, statement_type, symbol_declr = statement_def
-            _parse_child_statement(project_v, symbol, modifier, statement_type, symbol_declr)
+            _parse_child_statement(
+                project_v, symbol.definition, modifier, statement_type, symbol_declr
+            )
         if "task" in segment.symbol_args:
             task_name = segment.symbol_args["task"]
-            task = project_v.symbol(task_name, SymbolType.TASK).task_
-            task.statement.add_child(StatementType.REFERENCE, symbol)
+            task = project_v.statement(file=None, name=task_name).symbol_.task_
+            task.definition.add_child(StatementType.REFERENCE, symbol)
 
     return expectation, on_defined
 
@@ -394,7 +384,7 @@ def parse_expect(
 def bind_parameters(
     segment: FileSegment,
     project_v: ProjectVersion,
-    symbol: Symbol,
+    statement: Statement,
 ) -> int:
     # parameters are defined as type only symbol lines like:
     # name: Task|Code|Model|Dataset|..
@@ -419,15 +409,15 @@ def bind_parameters(
 
         param_schema = None
         if param_type == "Dataset":
-            param_type = SymbolParameterType.DATA
+            param_type = ParameterType.DATA
         elif param_type == "Model":
-            param_type = SymbolParameterType.MODEL
+            param_type = ParameterType.MODEL
         elif param_type == "Code":
-            param_type = SymbolParameterType.CODE
+            param_type = ParameterType.CODE
         else:
             param_schema = SchemaElement(name=param_name, type=get_value_type(param_type))
-            param_type = SymbolParameterType.VALUE
-        symbol.add_parameter(name=param_name, type=param_type, schema=param_schema)
+            param_type = ParameterType.VALUE
+        statement.add_parameter(name=param_name, type=param_type, schema=param_schema)
 
         # use alias if set
         if "@alias" in comment:
@@ -435,8 +425,8 @@ def bind_parameters(
         else:
             symbol_ref_name = param_name
 
-        if param_type == SymbolParameterType.VALUE:
+        if param_type == ParameterType.VALUE:
             raise NotImplementedError(f"json argument resolution not supported: {line}")
-        symbol_ref = project_v.symbol(symbol_ref_name)
-        symbol.bind_argument(param_name, symbol_ref)
+        symbol_ref = project_v.statement(file=None, name=symbol_ref_name)
+        statement.bind_argument(param_name, symbol_ref)
     return consumed_lines

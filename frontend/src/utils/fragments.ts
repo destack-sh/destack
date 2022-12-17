@@ -41,10 +41,12 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
 export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
+    type
     name
     path
     createdAt
     updatedAt
+    deletedAt
   }
 `);
 
@@ -54,8 +56,10 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     type
     createdAt
     updatedAt
+    deletedAt
     modifier
-    generated
+    name
+    compiled
     commented
     index
     file {
@@ -77,10 +81,8 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
 export const SymbolHeaderType = graphql(/* GraphQL */ `
   fragment SymbolHeader on Symbol {
     id
-    name
     type
     typeShortname
-    typeNameDeclaration
     createdAt
     updatedAt
   }
@@ -92,38 +94,6 @@ export const CompilationHeaderType = graphql(/* GraphQL */ `
     name
     createdAt
     updatedAt
-    task {
-      id
-      symbol {
-        id
-        name
-        typeNameDeclaration
-      }
-    }
-    backends {
-      id
-      symbol {
-        id
-        name
-        typeNameDeclaration
-      }
-    }
-    targetTask {
-      id
-      symbol {
-        id
-        name
-        typeNameDeclaration
-      }
-    }
-    targetCode {
-      id
-      symbol {
-        id
-        name
-        typeNameDeclaration
-      }
-    }
   }
 `);
 
@@ -158,8 +128,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
     typeShortname
     createdAt
     updatedAt
+    name
     commented
-    generated
+    compiled
     modifier
     index
     parent {
@@ -169,21 +140,11 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ...SymbolContent
     }
     reference {
+      ...StatementHeader
+    }
+    sourceSymbol {
       ...SymbolHeader
     }
-    text
-  }
-`);
-
-export const SymbolContentType = graphql(/* GraphQL */ `
-  fragment SymbolContent on Symbol {
-    id
-    name
-    type
-    typeShortname
-    typeNameDeclaration
-    createdAt
-    updatedAt
     parameters {
       name
       type
@@ -193,14 +154,22 @@ export const SymbolContentType = graphql(/* GraphQL */ `
     }
     arguments {
       name
-      type
       value
       reference {
-        id
-        name
-        typeNameDeclaration
+        ...StatementHeader
       }
     }
+    text
+  }
+`);
+
+export const SymbolContentType = graphql(/* GraphQL */ `
+  fragment SymbolContent on Symbol {
+    id
+    type
+    typeShortname
+    createdAt
+    updatedAt
     content {
       ...CodeContent
       ...DatasetContent

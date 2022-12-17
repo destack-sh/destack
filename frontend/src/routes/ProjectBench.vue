@@ -24,7 +24,7 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
+import { computed, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -101,18 +101,9 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
-    mainProgram {
-      id
-      name
-      type
-    }
     files {
       id
       ...FileHeader
-    }
-    symbols {
-      id
-      ...SymbolHeader
     }
     compilations {
       id
@@ -135,7 +126,6 @@ const { result: contentQuery } = useQuery(
 );
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
 const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
-const symbols = computed(() => content.value?.symbols.map((s) => useFragment(SymbolHeaderType, s)) || []);
 const compilations = computed(
   () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
 );
@@ -163,15 +153,7 @@ provideAction({
 });
 
 async function createDefaultCompilation() {
-  if (!content.value?.mainProgram) {
-    throw new Error("no main program in current version");
-  }
-
-  await operations.compilation.add({
-    taskSymbolId: content.value?.mainProgram?.id,
-    name: "default",
-    backends: ["openai/text-davinci-003"],
-  });
+  throw new Error("not implemented");
 }
 
 const compileNavigation = computed(() => [
@@ -195,7 +177,7 @@ watchEffect(() => {
       const fileEditor = editor as FileEditor;
       const file = files.value.find((f) => f.id == fileEditor.fileId);
       if (!file) return; // ignore
-      editor.path = file.path + ".instruct";
+      editor.path = file.path;
     }
   });
 });
@@ -223,7 +205,7 @@ watchEffect(() => {
 
 const { load } = useEditorPersistence();
 // reset editor state for project if project (head) changes
-watchEffect(() => {
+watchEffect(async () => {
   const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
   if (
     loaded &&
@@ -236,7 +218,7 @@ watchEffect(() => {
     if (state.currentProjectId == projectHeader.value?.id) {
       if (state.currentProjectVersionId != projectHead.value?.id) {
         console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
-        state.migrateTo(projectHead.value, files.value, symbols.value);
+        await state.migrateTo(projectHead.value);
       } // otherwise no migration needed
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);

@@ -8,6 +8,16 @@ type AddCompilationPayload {
   compilation: Compilation!
 }
 
+type Argument implements Node {
+  id: GlobalID!
+  symbol(pk: ID): Symbol!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  reference: Statement
+  value: JSON
+}
+
 type Code implements SymbolContent & Node {
   id: GlobalID!
   symbol: Symbol!
@@ -71,8 +81,6 @@ type DatasetRecord implements Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
-union DeleteFilePayload = File | OperationInfo
-
 type Execution implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -108,31 +116,44 @@ input ExpectationUpdateContentDescription {
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
+  type: FileType!
   name: String!
   path: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  deletedAt: DateTime
   isFolder: Boolean!
   parent: File
   files: [File!]!
-  symbols: [Symbol!]!
   statements: [Statement!]!
 }
 
 input FileCreateInput {
   projectVersion: NodeInput!
+  type: FileType
   name: String!
   isFolder: Boolean
   parent: NodeInput
 }
 
-input FileDeleteInput {
-  id: GlobalID!
-}
-
 input FileRenameInput {
   id: GlobalID!
   name: String
+}
+
+input FileRestoreInput {
+  id: GlobalID!
+}
+
+input FileSoftDeleteInput {
+  id: GlobalID!
+}
+
+"""The type of file determines the type of statements it can contain."""
+enum FileType {
+  INSTRUCT
+  COMPILE
+  PROJECT
 }
 
 """
@@ -153,11 +174,15 @@ type Model implements SymbolContent & Node {
 }
 
 type Mutation {
-  renameSymbol(input: SymbolRenameInput!): RenameSymbolPayload!
+  renameStatement(input: StatementRenameInput!): RenameStatementPayload!
+  commentStatement(input: StatementCommentedInput!): StatementCommentedPayload!
   moveStatement(input: StatementMoveInput!): StatementMovePayload!
+  softDeleteStatement(input: StatementSoftDeleteInput!): StatementSoftDeletePayload!
+  restoreStatement(input: StatementRestoreInput!): StatementRestorePayload!
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
-  deleteFile(input: FileDeleteInput!): DeleteFilePayload!
+  softDeleteFile(input: FileSoftDeleteInput!): File!
+  restoreFile(input: FileRestoreInput!): File!
   updateTaskContent(input: TaskUpdateContentDescription!): Symbol!
   updateExpectationContent(input: ExpectationUpdateContentDescription!): Symbol!
   updateCodeContent(input: CodeUpdateContentCode!): Symbol!
@@ -232,6 +257,24 @@ type PageInfo {
   endCursor: String
 }
 
+type Parameter implements Node {
+  id: GlobalID!
+  symbol(pk: ID): Symbol!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  type: ParameterType!
+  schema: SchemaElement
+}
+
+"""An enumeration."""
+enum ParameterType {
+  DATA
+  MODEL
+  CODE
+  VALUE
+}
+
 type Project implements Node {
   id: GlobalID!
   name: String!
@@ -274,8 +317,8 @@ type ProjectVersion implements Node {
   createdAt: DateTime!
   committed: Boolean!
   committedAt: DateTime
-  libraries: [ProjectVersion!]!
-  mainProgram: Symbol
+  dependencies: [ProjectVersion!]!
+  mainProgram: Statement
   files: [File!]!
   compilations: [Compilation!]!
   symbols: [Symbol!]!
@@ -339,7 +382,7 @@ type Query {
 
 union RenameFilePayload = File | OperationInfo
 
-union RenameSymbolPayload = Symbol | OperationInfo
+union RenameStatementPayload = Statement | OperationInfo
 
 input RunCodeInput {
   codeId: GlobalID!
@@ -381,9 +424,9 @@ type SchemaElement {
 type SourceMapping implements Node {
   id: GlobalID!
   compilation: Compilation!
-  source: Symbol!
+  source: Statement!
   sourcePath: JSON!
-  target: Symbol!
+  target: Statement!
   targetPath: JSON!
 }
 
@@ -392,19 +435,36 @@ type Statement implements Node {
   projectVersion: ProjectVersion!
   file: File!
   type: StatementType!
-  modifier: StatementModifier
   typeShortname: String!
+  modifier: StatementModifier
+  name: String
   createdAt: DateTime!
   updatedAt: DateTime!
+  deletedAt: DateTime
   commented: Boolean!
-  generated: Boolean!
+  compiled: Boolean!
   parent: Statement
   children: [Statement!]!
   index: Int
   symbol: Symbol
-  reference: Symbol
-  arguments: [SymbolArgument!]!
+
+  """
+  Traverses references to get the underlying symbol (at the definition statement).
+  """
+  sourceSymbol(pk: ID): Symbol
+  reference: Statement
+  parameters: [Parameter!]!
+  arguments: [Argument!]!
   text: String
+}
+
+input StatementCommentedInput {
+  id: GlobalID!
+  commented: Boolean!
+}
+
+type StatementCommentedPayload {
+  statement: Statement!
 }
 
 """A modifier to a Bench statement."""
@@ -429,6 +489,27 @@ type StatementMovePayload {
   newFile: File!
 }
 
+input StatementRenameInput {
+  id: GlobalID!
+  name: String
+}
+
+input StatementRestoreInput {
+  id: GlobalID!
+}
+
+type StatementRestorePayload {
+  statement: Statement!
+}
+
+input StatementSoftDeleteInput {
+  id: GlobalID!
+}
+
+type StatementSoftDeletePayload {
+  statement: Statement!
+}
+
 """The type of Bench statement."""
 enum StatementType {
   IMPORT
@@ -441,54 +522,16 @@ type Symbol implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
   file: File!
-  name: String!
   type: SymbolType!
   typeShortname: String!
-  typeNameDeclaration: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  statement: Statement!
+  statement(pk: ID): Statement!
   content(pk: ID): SymbolContent!
-  parameters: [SymbolParameter!]!
-  arguments: [SymbolArgument!]!
-}
-
-type SymbolArgument implements Node {
-  id: GlobalID!
-  symbol: Symbol!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  type: String!
-  reference: Symbol
-  value: JSON
 }
 
 interface SymbolContent implements Node {
   id: GlobalID!
-}
-
-type SymbolParameter implements Node {
-  id: GlobalID!
-  symbol: Symbol!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  type: SymbolParameterType!
-  schema: SchemaElement
-}
-
-"""An enumeration."""
-enum SymbolParameterType {
-  DATA
-  MODEL
-  CODE
-  VALUE
-}
-
-input SymbolRenameInput {
-  id: GlobalID!
-  name: String
 }
 
 """The type of symbol to define in a project."""

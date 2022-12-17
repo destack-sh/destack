@@ -1,4 +1,5 @@
-import { graphql } from "@/gql";
+import { graphql, useFragment } from "@/gql";
+import { FileHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -11,8 +12,7 @@ export function useFileOps() {
         createFile(input: { projectVersion: { id: $projectVersionId }, name: $name }) {
           ... on File {
             id
-            name
-            path
+            ...FileHeader
           }
           ...OperationInfoContent
         }
@@ -39,11 +39,9 @@ export function useFileOps() {
   const { mutate: deleteFileMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation deleteFile($id: GlobalID!) {
-        deleteFile(input: { id: $id }) {
-          ... on File {
-            id
-          }
-          ...OperationInfoContent
+        softDeleteFile(input: { id: $id }) {
+          id
+          ...FileHeader
         }
       }
     `),
@@ -58,7 +56,7 @@ export function useFileOps() {
         if (create?.data?.createFile == null || create?.data?.createFile.__typename !== "File") {
           throw new Error("invalid response");
         }
-        return create.data.createFile;
+        return useFragment(FileHeaderType, create.data.createFile);
       },
       undo: async (file) => {
         await deleteFileMut({ id: file.id });

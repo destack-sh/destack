@@ -6,7 +6,7 @@ from functools import cached_property, partial
 from uuid import UUID
 
 from bench.backend.provider import ModelHandle
-from bench.models import ModelInferenceSettings, SymbolParameterType, SymbolType
+from bench.models import ModelInferenceSettings, ParameterType, SymbolType
 from bench.utils.record import RecordBatch
 from bench.utils.schema import SchemaElement
 
@@ -64,7 +64,7 @@ class LoadedModel(ResolvedModel):
 @dataclass()
 class ResolvedParameter:
     name: str
-    type: SymbolParameterType
+    type: ParameterType
 
 
 @dataclass(repr=False)

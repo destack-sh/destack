@@ -1,4 +1,12 @@
-import type { File, Project, ProjectVersion, Statement, Symbol } from "@/gql/graphql";
+import {
+  FileType,
+  SymbolType,
+  type File,
+  type Project,
+  type ProjectVersion,
+  type Statement,
+  type Symbol,
+} from "@/gql/graphql";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, type Ref } from "vue";
 
@@ -10,9 +18,24 @@ export type ProjectVersionHeader = Pick<
 export type FileHeader = Pick<File, "id" | "name" | "path" | "createdAt" | "updatedAt">;
 export type StatementHeader = Pick<
   Statement,
-  "id" | "type" | "createdAt" | "updatedAt" | "index" | "generated" | "commented"
+  "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "index" | "compiled" | "commented"
 >;
-export type SymbolHeader = Pick<Symbol, "id" | "name" | "type" | "createdAt" | "updatedAt">;
+export type SymbolHeader = Pick<Symbol, "id" | "type" | "createdAt" | "updatedAt">;
+
+export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
+  [FileType.Instruct]: "instruct",
+  [FileType.Compile]: "compile",
+  [FileType.Project]: "project",
+};
+
+export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
+  [SymbolType.Schema]: "schema",
+  [SymbolType.Code]: "code",
+  [SymbolType.Dataset]: "data",
+  [SymbolType.Model]: "model",
+  [SymbolType.Expectation]: "expect",
+  [SymbolType.Task]: "task",
+};
 
 export type RunConfiguration = {
   name: string;
@@ -73,16 +96,16 @@ export function makeFileEditor(file: FileHeader): FileEditor {
     id: file.id + "-" + Math.random().toString(16).substring(2, 8),
     type: "file",
     fileId: file.id,
-    path: file.path + ".instruct",
+    path: file.path,
     localState: {},
     groupId: null,
   } as FileEditor;
 }
 
-export function makeRunConfiguration(symbol: SymbolHeader): RunConfiguration {
+export function makeRunConfiguration(statement: StatementHeader): RunConfiguration {
   return {
-    name: `Run: ${symbol.name}`,
-    symbolId: symbol.id,
+    name: `Run: ${statement.name}`,
+    symbolId: statement.id,
   } as RunConfiguration;
 }
 
@@ -142,7 +165,7 @@ export const useEditorState = defineStore("editor", {
       this.currentProjectVersionId = version.id;
     },
 
-    migrateTo(version: ProjectVersionHeader, files: FileHeader[], symbols: SymbolHeader[]): void {
+    async migrateTo(version: ProjectVersionHeader): Promise<void> {
       // TODO @Feature: migrate editor state on version change
       const projectId = this.currentProjectId;
       this.$reset();

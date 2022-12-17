@@ -1,13 +1,11 @@
 <script lang="ts" setup>
 import FileInterface from "@/components/FileInterface.vue";
-import RunInterface from "@/components/RunInterface.vue";
 import {
   EDITOR_INTERFACE_STATE,
   useEditorState,
   type Editor,
   type EditorInterfaceState,
   type FileEditor,
-  type RunEditor,
 } from "@/utils/editor";
 import { useScroll, watchDebounced } from "@vueuse/core";
 import { onMounted, provide, ref, watchEffect } from "vue";
@@ -69,7 +67,7 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
       :state="editor.localState"
       @update:state="Object.assign(editor.localState, $event)"
     />
-    <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" />
+    <!-- <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" /> -->
     <div v-else class="h-full w-full text-center">
       <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
     </div>

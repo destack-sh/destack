@@ -9,7 +9,7 @@ import { computed } from "vue";
 const props = defineProps<{
   symbol: FragmentType<typeof SymbolContentType>;
   content: FragmentType<typeof SchemaContentType>;
-  generated: boolean;
+  compiled: boolean;
   commented: boolean;
   focused: boolean;
   lineNumberBase: number;
@@ -37,7 +37,7 @@ const state = useSchemaInterfaceState(symbol);
       :model-value="elementAsJsonText"
       language="json"
       :focused="focused"
-      :readonly="generated"
+      :readonly="compiled"
     />
     <SchemaElement v-else-if="state.view == 'pretty'" :element="content.element" />
   </div>

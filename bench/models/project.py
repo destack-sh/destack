@@ -12,7 +12,7 @@ from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.symbol import Statement, Symbol, SymbolContent, SymbolType
+from bench.models.symbol import Statement, StatementType, Symbol, SymbolContent, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -161,11 +161,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     parents = models.ManyToManyField(
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
-    libraries = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
-    # TODO @Cleanup: remove ProjectVersion.main_program in favor of statement modifier 'main'
-    main_program = models.ForeignKey(
-        "Symbol", related_name="+", null=True, on_delete=models.SET_NULL
-    )
+    dependencies = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
     files: models.QuerySet["File"]  # noqa via File
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol
     statements: models.QuerySet["Statement"]  # noqa via Statement
@@ -178,7 +174,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
-        for file in walk_children_bfs(source.files.all(), "files"):
+        for file in walk_children_bfs(source.files.filter(deleted_at=None), "files"):
             old_id = file.id
             file.pk = None
             file.project_version = target
@@ -189,7 +185,11 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         new_statements: dict[UUID, Statement] = {}
         new_symbols: dict[UUID, Symbol] = {}
         new_contents: dict[UUID, SymbolContent] = {}
-        for statement in walk_children_bfs(source.statements.filter(parent=None).all(), "children"):
+        for statement in walk_children_bfs(
+            source.statements.filter(deleted_at=None, parent=None), "children"
+        ):
+            symbol = statement.symbol if statement.type == StatementType.DEFINITION else None
+            # copy statement
             old_id = statement.id
             statement.pk = None
             statement.file = new_files[statement.file_id]
@@ -198,7 +198,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             statement.reference = None
             statement.save()
             new_statements[old_id] = statement
-        for symbol in source.symbols.all():
+            # if symbol definition, copy symbol and symbol content
+            if symbol is None:
+                continue
             old_content: SymbolContent = symbol.content
             # copy content
             old_id = old_content.id
@@ -211,7 +213,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             symbol.pk = None
             symbol.parent = None
             symbol.set_content(content)
-            symbol.statement = new_statements[symbol.statement_id]
+            symbol.definition = new_statements[symbol.definition_id]
             symbol.project_version = target
             symbol.save()
             new_symbols[old_id] = symbol
@@ -220,29 +222,14 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             **new_contents,
             **new_statements,
         }
-        # 2.1 re-assign references and deep copy other relations
-        for old_statement in source.statements.all():
+        # 3 re-assign references and deep copy other relations
+        for old_statement in source.statements.filter(deleted_at=None):
             new_statement = new_statements[old_statement.id]
             old_statement.deepcopy(new_statement, refs)
             new_statement.save()
-        for old_symbol in source.symbols.all():
-            new_symbol = new_symbols[old_symbol.id]
-            old_symbol.deepcopy(to=new_symbol, refs=refs)
-            new_symbol.save()
-        if source.main_program:
-            target.main_program = new_symbols[source.main_program_id]
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
-
-    def available_symbols(self, include_libraries: bool = True) -> QuerySet[Symbol]:
-        # get own and libraries symbols (non-recursive for now)
-        if include_libraries:
-            return Symbol.objects.filter(
-                Q(project_version_id__in=(self.id, *self.libraries.values_list("id", flat=True)))
-            )
-        else:
-            return self.symbols.all()
 
     @transaction.atomic
     def create_file(
@@ -282,6 +269,15 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def create_folder_from_path(self, path: str, exists_ok: bool = False) -> "File":
         return self.create_path(path, is_folder=True, exists_ok=exists_ok)
 
+    def available_statements(self, include_dependencies: bool = True) -> QuerySet[Statement]:
+        # get own and dependencies symbols (non-recursive for now)
+        if include_dependencies:
+            return Statement.objects.filter(
+                Q(project_version_id__in=(self.id, *self.dependencies.values_list("id", flat=True)))
+            )
+        else:
+            return self.statements.all()
+
     def define_symbol(
         self,
         name: str,
@@ -291,10 +287,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         index: Optional[int] = None,
         **kwargs,
     ) -> Symbol:
-        """
-        Define a symbol in this project version in the given file.
-        """
-
+        """Define a symbol in this project version in the given file."""
         statement = Statement.objects.create_definition(
             content=content,
             project_version=self,
@@ -306,57 +299,52 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         )
         return statement.symbol_
 
-    def get_symbols(self, name: str, type: Optional[SymbolType] = None) -> QuerySet[Symbol]:
-        """
-        Gets the symbols of a symbol in this project version.
-        """
+    def get_statements(
+        self, file: Optional[File], name: str, type: Optional[SymbolType] = None
+    ) -> QuerySet[Statement]:
+        qs = self.available_statements().filter(name=name)
         if type is not None:
-            return self.available_symbols().filter(name=name, type=type)
-        else:
-            return self.available_symbols().filter(name=name)
+            qs = qs.filter(Q(symbol__type=type) | Q(reference__symbol__type=type))
+        if file is not None:
+            qs = qs.filter(file=file)
+        return qs
 
-    def get_symbol(self, name: str, type: Optional[SymbolType] = None) -> Optional[Symbol]:
-        """
-        Gets the symbol of a symbol in this project version.
-
-        Raises Symbol.MultipleObjectsReturned if there are multiple symbols.
-        """
+    def get_statement(
+        self, file: Optional[File], name: str, type: Optional[SymbolType] = None
+    ) -> Optional[Statement]:
         try:
-            return self.get_symbols(name, type).get()
-        except Symbol.MultipleObjectsReturned as e:
+            return self.get_statements(file, name, type).get()
+        except Statement.MultipleObjectsReturned as e:
             type_name_declr = f"{type} {name}" if type else name
-            raise Symbol.MultipleObjectsReturned(
-                f"multiple symbols for symbol {type_name_declr} in {self}"
+            raise Statement.MultipleObjectsReturned(
+                f"multiple statements like {type_name_declr} in {self}"
             ) from e
-        except Symbol.DoesNotExist:
+        except Statement.DoesNotExist:
             return None
 
-    def symbol(self, name: str, type: Optional[SymbolType] = None) -> Symbol:
-        """
-        Gets the symbol of a symbol in this project version.
-        If the symbol doesn't exist, we error.
-        """
-        symbol = self.get_symbol(name, type)
-        if symbol is None:
-            available_symbols_str = self._get_available_symbols_debug_str()
+    def statement(
+        self, file: Optional[File], name: str, type: Optional[SymbolType] = None
+    ) -> Statement:
+        statement = self.get_statement(file, name, type)
+        if statement is None:
+            available_symbols_str = self._get_available_symbols_str()
             raise ValueError(
                 f"symbol {name}{'.' + type if type else ''} is not defined in {self}:\n{available_symbols_str}"
             )
         else:
-            return symbol
+            return statement
 
-    def _get_available_symbols_debug_str(self, limit: int = 50) -> str:
-        available_symbols_count = self.available_symbols().count()
-        available_symbols_strs = (str(d) for d in self.available_symbols()[:limit])
+    def _get_available_symbols_str(self, limit: int = 50) -> str:
+        available_symbols_count = self.available_statements().count()
+        available_symbols_strs = (str(d) for d in self.available_statements()[:limit])
         available_symbols_str = (
             f"({min(limit, available_symbols_count)} of {available_symbols_count}"
-            f" available symbols: {', '.join(available_symbols_strs)})"
+            f" available statements: {', '.join(available_symbols_strs)})"
         )
         return available_symbols_str
 
     def reset(self):
-        # deletes all files and symbols (cascades to contents)
-        self.symbols.all().delete()
+        """Hard deletes all files (cascades to statements and their symbols)"""
         self.files.all().delete()
 
     @transaction.atomic
@@ -383,17 +371,36 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         ordering = ["-created_at"]
 
 
+class FileType(models.TextChoices):
+    """The type of file determines the type of statements it can contain."""
+
+    INSTRUCT = "instruct", "Instructions"
+    # non-instruct files are "virtual" until we figure out how they should work (no actual statements)
+    COMPILE = "compile", "Compilations"  # how instructions are compiled
+    PROJECT = "project", "Project metadata"  # dependencies, etc.
+
+
+class FileManager(models.Manager):
+    def get_queryset(self) -> models.QuerySet[Statement]:
+        # soft-deleted statements are not returned by default
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
 class File(UUIDModel):
     """
-    A file defining symbols for a project version, potentially containing other files if it's a folder.
+    A file containing statements, potentially containing other files if it's a folder.
+    A file - and the statements it contains - may be soft-deleted.
+    Nothing is actually deleted, but soft deleted objects are not visible and not copied on commit.
     """
 
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
+    type = TextChoicesField(FileType, default=FileType.INSTRUCT)  # irrelevant if is_folder
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     is_folder = models.BooleanField(default=False)
     parent = models.ForeignKey(
         "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
@@ -405,13 +412,13 @@ class File(UUIDModel):
 
     def __str__(self):
         if self.parent:
-            return f"{self.parent}/{self.name}"
+            return f"{self.parent}/{self.name}.{self.type}"
         else:
-            return f"{self.project_version}/{self.name}"
+            return f"{self.project_version}/{self.name}.{self.type}"
 
     @gql.model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
-        return f"{self.parent.path}/{self.name}" if self.parent else self.name
+        return f"{self.parent.path}/{self.name}.{self.type}" if self.parent else self.name
 
     @property
     def is_root(self) -> bool:
@@ -427,6 +434,20 @@ class File(UUIDModel):
         return self.project_version.define_symbol(
             file=self, name=name, content=content, parent=parent, **kwargs
         )
+
+    @transaction.atomic
+    def soft_delete(self):
+        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.statements.update(deleted_at=self.deleted_at)
+        self.save()
+
+    @transaction.atomic
+    def restore(self):
+        self.deleted_at = None
+        self.statements.update(deleted_at=None)
+        self.save()
+
+    objects = FileManager()
 
     class Meta:
         ordering = ["name"]

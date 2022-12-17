@@ -14,14 +14,14 @@ from bench.backend.types import (
     Value,
 )
 from bench.models import (
+    Argument,
     Code,
     Dataset,
     Model,
     ModelInferenceSettings,
+    ParameterType,
     Symbol,
-    SymbolArgument,
     SymbolContent,
-    SymbolParameterType,
     SymbolType,
 )
 from bench.utils.record import RecordList
@@ -38,7 +38,7 @@ class Resolver:
         return ResolvedModel(
             symbol_id=model.symbol.id,
             content_id=model.id,
-            name=model.symbol.name,
+            name=model.symbol.definition.name,
             type=SymbolType.MODEL,
             settings=settings,
             default_settings=model.default_settings,
@@ -57,9 +57,9 @@ class Resolver:
         return ResolvedDataset(
             symbol_id=dataset.symbol.id,
             content_id=dataset.id,
-            name=dataset.symbol.name,
+            name=dataset.symbol.definition.name,
             type=SymbolType.DATASET,
-            schema=dataset.schema,
+            schema=dataset.schema_,
             records=batch,
         )
 
@@ -69,7 +69,7 @@ class Resolver:
         return ResolvedCode(
             symbol_id=code.symbol.id,
             content_id=code.id,
-            name=code.symbol.name,
+            name=code.symbol.definition.name,
             type=SymbolType.CODE,
             input_schema=code.input_schema,
             output_schema=code.output_schema,
@@ -87,7 +87,7 @@ class Resolver:
         return parameters
 
     async def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
-        bound_arguments: QuerySet[SymbolArgument] = code.arguments.all().select_related(
+        bound_arguments: QuerySet[Argument] = code.arguments.all().select_related(
             "reference",
             "reference__model",
             "reference__model__default_settings",
@@ -96,7 +96,7 @@ class Resolver:
         )
         bound_arguments_resolved: dict[str, Any] = {}
         async for argument in bound_arguments:
-            if argument.type == SymbolParameterType.VALUE:
+            if argument.type == ParameterType.VALUE:
                 bound_arguments_resolved[argument.name] = argument.value
                 continue
             if argument.reference is None:

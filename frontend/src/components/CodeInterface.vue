@@ -11,7 +11,7 @@ import { computed, ref } from "vue";
 const props = defineProps<{
   symbol: FragmentType<typeof SymbolContentType>;
   content: FragmentType<typeof CodeContentType>;
-  generated: boolean;
+  compiled: boolean;
   commented: boolean;
   focused: boolean;
   lineNumberBase: number;
@@ -21,7 +21,7 @@ const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
 const content = computed(() => useFragment(CodeContentType, props.content));
 
 const editor = useEditorState();
-const readonly = computed(() => editor.readonly || props.generated);
+const readonly = computed(() => editor.readonly || props.compiled);
 const operations = useOperations();
 
 function onCodeEnter(code: string) {

@@ -147,11 +147,7 @@ class DatasetRecord(UUIDModel):
     class Meta:
         # order by index ascending by default
         ordering = ["index"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["dataset", "index"], name="bench_record_dataset_index_ak"
-            ),
-        ]
+        # TODO @Robustness: unique constraint on index when we switch to fractional indexes
         indexes = [
             GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
         ]

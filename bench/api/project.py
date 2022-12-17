@@ -34,8 +34,8 @@ class ProjectVersion(gql.Node):
     created_at: auto
     committed: auto
     committed_at: auto
-    libraries: list["ProjectVersion"]
-    main_program: Optional[Annotated["Symbol", lazy(".symbol")]]
+    dependencies: list["ProjectVersion"]
+    main_program: Optional[Annotated["Statement", lazy(".symbol")]]
     files: list["File"]
     compilations: list[Annotated["Compilation", lazy(".compilation")]]
     symbols: list[Annotated["Symbol", lazy(".symbol")]]
@@ -45,14 +45,15 @@ class ProjectVersion(gql.Node):
 @gql.django.type(models.File)
 class File(gql.Node):
     project_version: ProjectVersion
+    type: auto
     name: auto
     path: auto
     created_at: auto
     updated_at: auto
+    deleted_at: auto
     is_folder: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
-    symbols: list[Annotated["Symbol", lazy(".symbol")]]  # if file
     statements: list[Annotated["Statement", lazy(".symbol")]]  # if file
 
 
@@ -97,6 +98,7 @@ class ProjectVersionMutation:
 @gql.django.input(models.File)
 class FileCreateInput:
     project_version: auto
+    type: auto
     name: auto
     is_folder: auto
     parent: auto
@@ -107,13 +109,39 @@ class FileRenameInput(gql.NodeInput):
     name: auto
 
 
-@gql.django.partial(models.File)
-class FileDeleteInput(gql.NodeInput):
+@gql.input
+class FileSoftDeleteInput(gql.NodeInput):
     pass
+
+
+@gql.type
+class FileSoftDeletePayload:
+    file: File
+
+
+@gql.input
+class FileRestoreInput(gql.NodeInput):
+    pass
+
+
+@gql.type
+class FileRestorePayload:
+    file: File
 
 
 @gql.type
 class FileMutation:
     create_file: File = gql.django.create_mutation(FileCreateInput)
     rename_file: File = gql.django.update_mutation(FileRenameInput)
-    delete_file: File = gql.django.delete_mutation(FileDeleteInput)
+
+    @gql.mutation
+    def soft_delete_file(self, input: FileSoftDeleteInput) -> File:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.soft_delete()
+        return file
+
+    @gql.mutation
+    def restore_file(self, input: FileRestoreInput) -> File:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.restore()
+        return file
