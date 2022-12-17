@@ -1,6 +1,7 @@
 <script lang="ts" setup>
+import type { FileType } from "@/gql/graphql";
 import { provideAction, useActions } from "@/utils/actions";
-import { useEditorState, type FileHeader } from "@/utils/editor";
+import { FILE_TYPE_SHORTNAME, useEditorState, type FileHeader } from "@/utils/editor";
 import { useOperations } from "@/utils/operations";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside } from "@vueuse/core";
@@ -66,6 +67,10 @@ const filesActions: Action[] = [
     action: () => actions.file.create.value.apply(),
   },
 ];
+
+function getFileTypeShortname(file: FileHeader) {
+  return FILE_TYPE_SHORTNAME[file.type as FileType];
+}
 </script>
 <template>
   <div ref="container">
@@ -94,7 +99,7 @@ const filesActions: Action[] = [
           :key="file.id"
           class="relative border border-transparent px-3 hover:cursor-pointer"
           :class="{
-            'bg-orange-100 font-bold text-orange-600': file.id == editor?.focusedFileId,
+            'bg-orange-100 text-orange-600': file.id == editor?.focusedFileId,
             'text-gray-700 hover:text-orange-600': file.id != editor?.focusedFileId,
             'border-orange-600': file.id == editor?.focusedElementId,
           }"
@@ -109,9 +114,9 @@ const filesActions: Action[] = [
             }"
             @keydown.enter.prevent="onNameEnter"
           >
-            {{ file.path }}</span
-          >
-          <span class="font-normal">.instruct</span>
+            {{ file.name }}
+          </span>
+          <span>.{{ getFileTypeShortname(file) }}</span>
         </li>
       </ul>
     </div>

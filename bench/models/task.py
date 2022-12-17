@@ -31,13 +31,13 @@ class Task(Schemad, SymbolContent):
 
     @property
     def expectations(self) -> models.QuerySet["Expectation"]:
-        return self.symbol.statement.children_of_symbol_type("expectation").values_list(
+        return self.symbol.definition.children_of_symbol_type("expectation").values_list(
             "symbol", flat=True
         )
 
     @property
     def subtasks(self) -> models.QuerySet["Task"]:
-        return self.symbol.statement.children_of_symbol_type("task").values_list(
+        return self.symbol.definition.children_of_symbol_type("task").values_list(
             "symbol", flat=True
         )
 
@@ -81,12 +81,6 @@ class Compilation(UUIDModel):
     task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="compilations")
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     backends = models.ManyToManyField("Model", related_name="compilations+")
-    target_task = models.ForeignKey(
-        "Task", on_delete=models.SET_NULL, null=True, blank=True, related_name="source_compilation+"
-    )
-    target_code = models.ForeignKey(
-        "Code", on_delete=models.SET_NULL, null=True, blank=True, related_name="source_compilation+"
-    )
 
     mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
 
@@ -120,9 +114,13 @@ class SourceMapping(UUIDModel):
     compilation = models.ForeignKey(
         "Compilation", on_delete=models.CASCADE, related_name="mappings"
     )
-    source = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="target_mappings")
+    source = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="target_mappings"
+    )
     source_path = models.JSONField()
-    target = models.ForeignKey("Symbol", on_delete=models.CASCADE, related_name="source_mappings")
+    target = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="source_mappings"
+    )
     target_path = models.JSONField()
 
 

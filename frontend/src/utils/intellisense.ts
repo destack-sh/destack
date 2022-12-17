@@ -22,9 +22,6 @@ const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
       ...StatementHeader
       symbol {
         ...SymbolHeader
-        statement {
-          id
-        }
       }
     }
   }

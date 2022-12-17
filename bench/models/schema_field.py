@@ -78,7 +78,7 @@ class Schemad:
     def schema(self: SymbolContent) -> Optional["Schema"]:
         from bench.models import SymbolType
 
-        child_statement = self.statement.child_of_symbol_type(SymbolType.SCHEMA)
+        child_statement = self.definition.child_of_symbol_type(SymbolType.SCHEMA)
         return child_statement.symbol.schema_ if child_statement else None
 
     @property
@@ -93,6 +93,8 @@ class Schemad:
             from bench.models import Schema
 
             schema = Schema(description="", element=element)
-            self.statement.file.define_symbol(name="schema", content=schema, parent=self.statement)
+            self.definition.file.define_symbol(
+                name="schema", content=schema, parent=self.definition
+            )
         else:
             self.schema.element = element

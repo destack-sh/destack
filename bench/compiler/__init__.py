@@ -21,10 +21,10 @@ from bench.models import (
     Model,
     ModelInferenceSettings,
     Organization,
+    ParameterType,
     Project,
     ProjectVersion,
     Symbol,
-    SymbolParameterType,
     SymbolType,
 )
 from bench.models.symbol import SYMBOL_CONTENT_FIELDS
@@ -49,7 +49,7 @@ def get_stdlib_model(path: str) -> Model:
     owner_slug, model_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol(model_name, SymbolType.MODEL).model_
+    return stdlib.head_.symbol(SymbolType.MODEL, model_name).model_
 
 
 def get_stdlib_code(path: str) -> Code:
@@ -59,7 +59,7 @@ def get_stdlib_code(path: str) -> Code:
     owner_slug, code_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol(code_name, SymbolType.CODE).code_
+    return stdlib.head_.symbol(SymbolType.CODE, code_name).code_
 
 
 class ExpectationStatementType(enum.Enum):
@@ -353,7 +353,7 @@ class Compiler:
         """
         Compiles examples for the given task.
 
-        Examples are generated using code and examples from expectation statements.
+        Examples are compiled using code and examples from expectation statements.
         """
 
         # 2.1 collect static examples
@@ -388,7 +388,7 @@ class Compiler:
                     statement.code, arguments={"n_samples": n_samples}
                 )
                 if isinstance(examples, list):
-                    # (naive implementation: use all generated examples)
+                    # (naive implementation: use all compiled examples)
                     dynamic_examples.extend(examples)
                 # ignore other types of results
             elif statement.type == ExpectationStatementType.VERIFY:
@@ -411,7 +411,7 @@ class Compiler:
         self, genfile: File, compiled_examples: list[dict], task_data: TaskData
     ) -> Dataset:
         dataset = Dataset.objects.from_list(compiled_examples)
-        genfile.define_symbol("examples", dataset, generated=True)
+        genfile.define_symbol("examples", dataset, compiled=True)
         task_schema_keys = {*task_data.input_schema.keys, *task_data.output_schema.keys}
         if set(dataset.schema.keys) != task_schema_keys:
             raise ValueError(
@@ -480,7 +480,7 @@ class Compiler:
             builtin_id="llm_fewshot",
         )
         llm_code.tasks.add(task_data.task)
-        genfile.define_symbol(task_data.symbol.name, llm_code, generated=True)
+        genfile.define_symbol(task_data.symbol.name, llm_code, compiled=True)
         llm_code.symbol.bind_arguments(
             model=task_data.optimal_backend.symbol,
             prompt_prefix=prompt_prefix,
@@ -492,5 +492,5 @@ class Compiler:
         )
         # add parameter for input keys
         for key in task_data.input_schema.keys:
-            llm_code.symbol.add_parameter(key, SymbolParameterType.VALUE)
+            llm_code.symbol.add_parameter(key, ParameterType.VALUE)
         return llm_code

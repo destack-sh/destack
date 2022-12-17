@@ -6,13 +6,13 @@ from .project import File, Project, ProjectVersion
 from .schema import Schema
 from .schema_field import SchemaElementField, SchemaField
 from .symbol import (
+    Argument,
+    Parameter,
+    ParameterType,
     Statement,
     StatementType,
     Symbol,
-    SymbolArgument,
     SymbolContent,
-    SymbolParameter,
-    SymbolParameterType,
     SymbolType,
 )
 from .tag import Tag, TaggableMixin, TaggedItem
@@ -41,10 +41,10 @@ __all__ = [
     "Statement",
     "StatementType",
     "Symbol",
-    "SymbolArgument",
+    "Argument",
     "SymbolContent",
-    "SymbolParameter",
-    "SymbolParameterType",
+    "Parameter",
+    "ParameterType",
     "SymbolType",
     "Tag",
     "TaggableMixin",

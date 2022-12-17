@@ -8,12 +8,11 @@ import SchemaInterface from "@/components/SchemaInterface.vue";
 import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
 import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
-import { useTimeFromNow } from "@/composables/useNow";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { provideAction, useActions } from "@/utils/actions";
 import { makeRunConfiguration, makeRunEditor, useEditorState, type FileHeader } from "@/utils/editor";
-import { StatementContentType, SymbolContentType, SymbolHeaderType } from "@/utils/fragments";
+import { StatementContentType, StatementHeaderType, SymbolContentType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { useFocus, useFocusWithin } from "@vueuse/core";
@@ -29,10 +28,12 @@ const props = defineProps<{
 }>();
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const symbol = computed(() => useFragment(SymbolContentType, statement.value?.symbol));
-const reference = computed(() => useFragment(SymbolHeaderType, statement.value?.reference));
-const symbolOrReference = computed(() => symbol.value || reference.value);
-const parameters = computed(() => symbolOrReference.value?.parameters ?? []);
-const arguments_ = computed(() => symbol.value?.arguments ?? []);
+const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
+const sourceSymbol = computed(() => useFragment(SymbolContentType, statement.value?.sourceSymbol));
+const parameters = computed(() => statement.value?.parameters ?? []);
+const arguments_ = computed(() => statement.value?.arguments ?? []);
+const name = computed(() => statement.value?.name ?? reference.value?.name ?? sourceSymbol.value?.name ?? "");
+
 const editorState = useEditorState();
 const modifierShortname = computed(() => {
   // map modifier to lower case
@@ -41,6 +42,7 @@ const modifierShortname = computed(() => {
   }
   throw new Error("statement has no modifier");
 });
+
 const depthOffsetX = computed(() => props.depth * 20);
 
 function getArgument(name: string) {
@@ -97,11 +99,13 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
 
 const isDefinition = computed(() => statement.value?.type == StatementType.Definition);
 const isReference = computed(() => statement.value?.type == StatementType.Reference);
-const isRunnable = computed(() => symbol.value?.type == SymbolType.Code || symbol.value?.type == SymbolType.Task);
+const isRunnable = computed(
+  () => sourceSymbol.value?.type == SymbolType.Code || sourceSymbol.value?.type == SymbolType.Task
+);
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
-const readonly = computed(() => editorState.readonly || statement.value?.generated);
+const readonly = computed(() => editorState.readonly || statement.value?.compiled);
 
 type MetaAction = {
   icon: Component;
@@ -116,7 +120,7 @@ const run = provideAction({
   registered: computed(() => isRunnable.value && isFocused.value),
   apply: async () => {
     assert(symbol.value != null, "symbol is null");
-    const runConfiguration = makeRunConfiguration(symbol.value);
+    const runConfiguration = makeRunConfiguration(statement.value);
     const runEditor = makeRunEditor(runConfiguration);
     editorState.openEditor(runEditor);
     editorState.focusEditor(runEditor);
@@ -125,7 +129,7 @@ const run = provideAction({
 
 const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   const metaActions = [];
-  if (symbolOrReference.value != null && isRunnable.value) {
+  if (isRunnable.value) {
     metaActions.push({
       icon: PlayIcon,
       label: run.value.label,
@@ -140,14 +144,8 @@ const operations = useOperations();
 
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
-  if (newName.length > 0 && newName != symbolOrReference.value?.name) {
-    if (statement.value.type == StatementType.Definition) {
-      assert(symbol.value != null, "symbol is null");
-      await operations.symbol.rename(symbol.value.id, symbol.value.name, newName);
-    } else if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Import) {
-      assert(reference.value != null, "reference is null");
-      await operations.symbol.rename(reference.value.id, reference.value.name, newName);
-    }
+  if (newName.length > 0 && newName != statement.value.name) {
+    await operations.symbol.rename(statement.value.id, statement.value.name ?? "", newName);
   }
 }
 
@@ -156,7 +154,6 @@ async function onNameEnter(event: Event) {
 const container = ref<HTMLElement | null>(null);
 const declaration = ref<HTMLElement | null>(null);
 const content = ref<Component | null>(null);
-
 const { focused: containerFocused } = useFocusWithin(container);
 const { focused: declarationFocused } = useFocus(declaration);
 
@@ -193,14 +190,14 @@ watch(
 watch(
   () => isEditing.value,
   (isEditing) => {
-    // if focused and editing started without any inner focus, focus end of declaration
+    // if focused and editing started without any inner focus, focus declaration
     if (isFocused.value && !containerFocused.value && isEditing && declaration.value) {
       declarationFocused.value = true;
     }
     // if focused and editing stopped, defocus
     if (!isEditing && declaration.value) {
       declarationFocused.value = false;
-      (content.value as FocusableComponent).defocus?.();
+      (content.value as FocusableComponent)?.defocus?.();
     }
   }
 );
@@ -273,11 +270,11 @@ function navigateDown() {
     <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <!-- Statement header & controls -->
     <div class="mx-3 flex flex-row items-center justify-between pt-1">
-      <div class="flex flex-row items-baseline" v-if="symbolOrReference">
-        <!--  declaration -->
+      <!--  Declaration -->
+      <div class="flex flex-row items-baseline" v-if="sourceSymbol">
         <span class="decoration-none inline-flex items-baseline text-sm text-black">
           <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
-          <span class="text-orange-600">{{ symbolOrReference.typeShortname }}</span>
+          <span class="text-orange-600">{{ sourceSymbol.typeShortname }}</span>
           <span
             ref="declaration"
             :contenteditable="!readonly"
@@ -289,11 +286,12 @@ function navigateDown() {
             @keydown.escape.prevent="stopEditing"
             @click="startEditing"
           >
-            {{ symbolOrReference.name }}
+            {{ name }}
           </span>
           <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
         </span>
       </div>
+      <!-- Meta & controls (top right) -->
       <span
         class="inline-flex flex-row items-center"
         :class="{
@@ -313,7 +311,7 @@ function navigateDown() {
         <!-- Statement meta info -->
         <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
           <!-- <span> {{ getTimeFromNowString(statement.updatedAt) }} </span> -->
-          <span v-if="statement.generated">generated</span>
+          <span v-if="statement.compiled">compiled</span>
         </span>
         <!-- Symbol meta controls -->
         <span class="inline-flex flex-row gap-1">
@@ -360,7 +358,7 @@ function navigateDown() {
         :content="symbol.content"
         :lineNumberBase="lineNumberBase"
         :xOffset="depthOffsetX"
-        :generated="statement.generated"
+        :compiled="statement.compiled"
         :commented="statement.commented"
         :focused="isFocused"
         @navigateUp="navigateUp"

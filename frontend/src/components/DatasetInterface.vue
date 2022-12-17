@@ -10,7 +10,7 @@ import { computed } from "vue";
 const props = defineProps<{
   symbol: FragmentType<typeof SymbolContentType>;
   content: FragmentType<typeof DatasetContentType>;
-  generated: boolean;
+  compiled: boolean;
   commented: boolean;
   focused: boolean;
   lineNumberBase: number;
@@ -47,7 +47,7 @@ const state = useDatasetInterfaceState(symbol);
       :model-value="state.view == 'jsonl' ? contentAsJsonlText : contentAsJsonText"
       language="json"
       :focused="focused"
-      :readonly="generated"
+      :readonly="compiled"
     />
     <table
       v-else-if="state.view == 'table'"

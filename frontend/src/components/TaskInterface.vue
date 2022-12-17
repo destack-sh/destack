@@ -16,7 +16,7 @@ const TaskContentType = graphql(/* GraphQL */ `
 const props = defineProps<{
   symbol: FragmentType<typeof SymbolContentType>;
   content: FragmentType<typeof TaskContentType>;
-  generated: boolean;
+  compiled: boolean;
   commented: boolean;
   focused: boolean;
   lineNumberBase: number;
@@ -32,7 +32,7 @@ const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
 const content = computed(() => useFragment(TaskContentType, props.content));
 
 const editor = useEditorState();
-const readonly = computed(() => editor.readonly || props.generated);
+const readonly = computed(() => editor.readonly || props.compiled);
 const operations = useOperations();
 
 const description: Ref<HTMLInputElement | null> = ref(null);

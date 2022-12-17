@@ -5,14 +5,13 @@ import { useMutation } from "@vue/apollo-composable";
 export function useSymbolOps() {
   const operations = useOperationsStore();
 
-  const { mutate: renameSymbolMut } = useMutation(
+  const { mutate: renameStatementMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation renameSymbol($id: GlobalID!, $name: String!) {
-        renameSymbol(input: { id: $id, name: $name }) {
-          ... on Symbol {
+      mutation renameStatement($id: GlobalID!, $name: String!) {
+        renameStatement(input: { id: $id, name: $name }) {
+          ... on Statement {
             id
             name
-            typeNameDeclaration
           }
           ...OperationInfoContent
         }
@@ -24,10 +23,10 @@ export function useSymbolOps() {
     await operations.perform({
       type: "symbol.rename",
       do: async () => {
-        await renameSymbolMut({ id: id, name: newName });
+        await renameStatementMut({ id: id, name: newName });
       },
       undo: async () => {
-        await renameSymbolMut({ id: id, name: oldName });
+        await renameStatementMut({ id: id, name: oldName });
       },
     });
   }
