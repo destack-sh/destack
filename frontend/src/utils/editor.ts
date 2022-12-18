@@ -15,7 +15,7 @@ export type ProjectVersionHeader = Pick<
   ProjectVersion,
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
-export type FileHeader = Pick<File, "id" | "name" | "path" | "createdAt" | "updatedAt">;
+export type FileHeader = Pick<File, "id" | "type" | "name" | "path" | "createdAt" | "updatedAt">;
 export type StatementHeader = Pick<
   Statement,
   "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "index" | "compiled" | "commented"

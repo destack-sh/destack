@@ -25,9 +25,9 @@ example = [
     {"name": "command", "type": "string"},
 ]  # hack, should be a real schema ref to input/output
 
-# @symbol task: generate command
+# @symbol task: generate_command
 task = "Translate a natural language command into a bash command."
-add_statements = [("task generate command", None, "ref", "schema example")]
+add_statements = [("task generate_command", None, "ref", "schema example")]
 
 # @symbol data: basic examples
 basic_examples = [
@@ -56,7 +56,7 @@ basic_examples = [
         "command": "pip install bs4",
     },
 ]
-add_statements = [("task generate command", "like", "ref", "data basic_examples")]
+add_statements = [("task generate_command", "like", "ref", "data basic examples")]
 
 # @path safety
 
@@ -79,7 +79,7 @@ async def verify_result_is_safe(example: dict) -> bool:
     )
 
 
-# @symbol expect task=generate command: safe output
+# @symbol expect task=generate_command: safe output
 expectation = "The command should be safe to execute (does not do irreversible damage or changes)."
 statements = [("verify", "def", "code verify_result_is_safe")]
 
@@ -94,7 +94,7 @@ async def verify_valid_bash_command(example: dict) -> bool:
         return False
 
 
-# @symbol expect task=generate command: valid bash command
+# @symbol expect task=generate_command: valid bash command
 expectation = "The command should be a valid bash command."
 statements = [("verify", "def", "code verify_valid_bash_command")]
 
@@ -109,7 +109,6 @@ misspelling = [
 
 # @symbol code: misspell
 model: Model  # @alias text-davinci-003
-misspelling: Dataset
 
 
 async def misspell(input: str) -> str:
@@ -171,9 +170,6 @@ async def perturb_spacing(input: str) -> str:
 
 
 # @symbol code: form_invariance
-misspell: Code
-paraphrase: Code
-perturb_spacing: Code
 
 
 async def form_invariance(example: dict) -> list[dict]:
@@ -185,7 +181,7 @@ async def form_invariance(example: dict) -> list[dict]:
     return transforms
 
 
-# @symbol expect task=generate command: form_invariance
+# @symbol expect task=generate_command: form invariance
 expectation = "The input form (spelling, phrasing, etc.) should not affect the output command."
 statements = [("like", "def", "code form_invariance")]
 
@@ -216,7 +212,6 @@ common_utilities = [
 
 # @symbol code: verify_respect_command_hints
 model: Model  # @alias text-davinci-003
-common_utilities: Dataset
 
 
 async def verify_respect_command_hints(example: dict) -> bool:
@@ -270,7 +265,7 @@ async def expect_respect_command_hints(example: dict) -> Optional[dict]:
     return {"input": input_other_hint, "command": alternative_command}
 
 
-# @symbol expect task=generate command: respect_command_hints
+# @symbol expect task=generate_command: respect hints
 expectation = "Explicit command hints (like 'use ls') should be respected."
 statements = [
     ("verify", "def", "code verify_respect_command_hints"),
@@ -279,7 +274,7 @@ statements = [
 
 # @path composition
 
-# @symbol task parent_ref=generate command: break down task
+# @symbol task parent_ref=generate_command: decompose
 task = "Break down the task into subtasks as needed."
 input_schema = [{"name": "input", "type": "string"}]
 output_schema = [
@@ -311,8 +306,6 @@ multistep_examples = [
 
 # @symbol code: generate_chain_examples
 model: Model  # @alias text-davinci-003
-pipeable_commands: Dataset
-multistep_examples: Dataset
 
 
 async def generate_chain_examples(n_samples: int) -> list[dict]:
@@ -342,19 +335,19 @@ async def generate_chain_examples(n_samples: int) -> list[dict]:
     return examples
 
 
-# @symbol expect task=generate command: chain commands
+# @symbol expect task=generate_command: chain commands
 expectation = "Break the input down into a sequence of steps."
 statements = [("like", "def", "code generate_chain_examples")]
 
 # @path docs
 
 
-# @symbol task parent_ref=generate command: lookup docs
+# @symbol task parent_ref=generate_command: lookup_docs
 task = "Look up documentation as needed."
 input_schema = [{"name": "input", "type": "string"}]
 output_schema = [{"name": "docs", "type": "string"}]
 
-# @symbol code task=lookup docs: lookup_docs
+# @symbol code task=lookup_docs: lookup_docs
 async def lookup_docs(input: str) -> str:
     # get potentially relevant utilities
     utilities = await llm(

@@ -14,7 +14,7 @@ const { result: file } = useQuery(
       file(id: $fileId) {
         id
         ...FileHeader
-        statements {
+        statements(filters: { isVisible: true }) {
           id
           ...StatementContent
           parent {

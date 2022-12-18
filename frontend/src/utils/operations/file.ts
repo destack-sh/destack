@@ -48,6 +48,18 @@ export function useFileOps() {
     { refetchQueries: ["projectVersionContent"] }
   );
 
+  const { mutate: restoreFileMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restoreFile($id: GlobalID!) {
+        restoreFile(input: { id: $id }) {
+          id
+          ...FileHeader
+        }
+      }
+    `),
+    { refetchQueries: ["projectVersionContent"] }
+  );
+
   async function create(projectVersionId: string, name: string) {
     return await operations.perform({
       type: "file.create",
@@ -81,6 +93,9 @@ export function useFileOps() {
       type: "file.delete",
       do: async () => {
         await deleteFileMut({ id: id });
+      },
+      undo: async () => {
+        await restoreFileMut({ id: id });
       },
     });
   }

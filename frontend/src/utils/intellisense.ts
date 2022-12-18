@@ -5,7 +5,7 @@ import { FileHeaderType, SchemaElementContentDeepType, StatementHeaderType } fro
 import { SchemaContentType } from "@/utils/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, reactive, type ComputedRef, type Ref } from "vue";
+import { computed, reactive, ref, type ComputedRef, type Ref } from "vue";
 
 const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
   fragment ProjectVersionContentSense on ProjectVersion {
@@ -158,32 +158,28 @@ function _useIntelliSense() {
 // share intellicense as a singleton instance across components
 export const useIntelliSense = createSharedComposable(_useIntelliSense);
 
-export function useSchemadSymbolSchema(symbol: Ref<SymbolHeader>) {
+export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<StatementHeader>) {
   /* Get the current schema for a 'schemad' Symbol from context */
   const sense = useIntelliSense();
-  const schemaHeader = computed(() => {
-    return sense.childSymbol(symbol.value.id, SymbolType.Schema);
-  });
+  // const schemaHeader = computed(() => {
+  //   return sense.childSymbol(statement.value.id, SymbolType.Schema);
+  // });
   // get schema content from gql
   const { result: schemaQuery } = useQuery(
     graphql(/* GraphQL */ `
-      query schemaContentById($symbolId: GlobalID!) {
-        symbol(id: $symbolId) {
-          id
-          content {
-            ...SchemaContent
-          }
-          statement {
+      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {
+        file(id: $fileId) {
+          statements(filters: { id: $statementId }) {
             id
           }
         }
       }
     `),
-    () => ({ symbolId: schemaHeader.value?.id }),
-    () => ({ enabled: !!schemaHeader.value })
+    () => ({ fileId: file.value.id, statementId: null /* nocheckin */ }),
+    () => ({ enabled: false /* nocheckin */ })
   );
   const schema = computed(() => useFragment(SchemaContentType, schemaQuery.value?.symbol?.content));
   const schemaElement = computed(() => useFragment(SchemaElementContentDeepType, schema.value?.element));
 
-  return { schemaHeader, schema, schemaElement };
+  return { schemaHeader: ref(null), schema, schemaElement };
 }

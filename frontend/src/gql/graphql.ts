@@ -163,12 +163,20 @@ export type File = Node & {
   updatedAt: Scalars["DateTime"];
 };
 
+export type FileStatementsArgs = {
+  filters?: InputMaybe<StatementFilter>;
+};
+
 export type FileCreateInput = {
   isFolder?: InputMaybe<Scalars["Boolean"]>;
   name: Scalars["String"];
   parent?: InputMaybe<NodeInput>;
   projectVersion: NodeInput;
   type?: InputMaybe<FileType>;
+};
+
+export type FileFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
 export type FileRenameInput = {
@@ -417,7 +425,14 @@ export type ProjectVersion = Node & {
   parents: Array<ProjectVersion>;
   project: Project;
   statements: Array<Statement>;
-  symbols: Array<Symbol>;
+};
+
+export type ProjectVersionFilesArgs = {
+  filters?: InputMaybe<FileFilter>;
+};
+
+export type ProjectVersionStatementsArgs = {
+  filters?: InputMaybe<StatementFilter>;
 };
 
 export type Query = {
@@ -429,7 +444,6 @@ export type Query = {
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
-  symbol?: Maybe<Symbol>;
   user?: Maybe<User>;
   users: UserConnection;
 };
@@ -464,10 +478,6 @@ export type QueryProjectsArgs = {
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
-};
-
-export type QuerySymbolArgs = {
-  id: Scalars["GlobalID"];
 };
 
 export type QueryUserArgs = {
@@ -575,6 +585,11 @@ export type StatementCommentedInput = {
 export type StatementCommentedPayload = {
   __typename?: "StatementCommentedPayload";
   statement: Statement;
+};
+
+export type StatementFilter = {
+  id?: InputMaybe<Scalars["GlobalID"]>;
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
 /** A modifier to a Bench statement. */
@@ -1015,23 +1030,13 @@ export type ProjectVersionContentSenseQuery = {
 };
 
 export type SchemaContentByIdQueryVariables = Exact<{
-  symbolId: Scalars["GlobalID"];
+  fileId: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
 }>;
 
 export type SchemaContentByIdQuery = {
   __typename?: "Query";
-  symbol?: {
-    __typename?: "Symbol";
-    id: any;
-    content:
-      | { __typename?: "Code" }
-      | { __typename?: "Dataset" }
-      | { __typename?: "Expectation" }
-      | { __typename?: "Model" }
-      | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
-      | { __typename?: "Task" };
-    statement: { __typename?: "Statement"; id: any };
-  } | null;
+  file?: { __typename?: "File"; statements: Array<{ __typename?: "Statement"; id: any }> } | null;
 };
 
 export type AddCompilationMutationVariables = Exact<{
@@ -1107,6 +1112,15 @@ export type DeleteFileMutation = {
   softDeleteFile: { __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
 };
 
+export type RestoreFileMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RestoreFileMutation = {
+  __typename?: "Mutation";
+  restoreFile: { __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+};
+
 export type MoveStatementMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   fileId: Scalars["GlobalID"];
@@ -1152,6 +1166,30 @@ export type RenameStatementMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Statement"; id: any; name?: string | null };
+};
+
+export type DeleteStatementMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type DeleteStatementMutation = {
+  __typename?: "Mutation";
+  softDeleteStatement: {
+    __typename?: "StatementSoftDeletePayload";
+    statement: { __typename?: "Statement"; id: any; deletedAt?: any | null };
+  };
+};
+
+export type RestoreStatementMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RestoreStatementMutation = {
+  __typename?: "Mutation";
+  restoreStatement: {
+    __typename?: "StatementRestorePayload";
+    statement: { __typename?: "Statement"; id: any; deletedAt?: any | null };
+  };
 };
 
 export type UpdateTaskContentMutationVariables = Exact<{
@@ -1304,6 +1342,22 @@ export const ProjectVersionContentFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "files" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -1865,6 +1919,22 @@ export const FileContentByIdDocument = {
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "statements" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isVisible" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -2094,7 +2164,12 @@ export const SchemaContentByIdDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
       ],
@@ -2103,29 +2178,36 @@ export const SchemaContentByIdDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "symbol" },
+            name: { kind: "Name", value: "file" },
             arguments: [
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "symbolId" } },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
               },
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "content" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "statement" },
+                  name: { kind: "Name", value: "statements" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "id" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+                          },
+                        ],
+                      },
+                    },
+                  ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
@@ -2137,8 +2219,6 @@ export const SchemaContentByIdDocument = {
         ],
       },
     },
-    ...SchemaContentFragmentDoc.definitions,
-    ...SchemaElementContentDeepFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SchemaContentByIdQuery, SchemaContentByIdQueryVariables>;
 export const AddCompilationDocument = {
@@ -2474,6 +2554,56 @@ export const DeleteFileDocument = {
     ...FileHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
+export const RestoreFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restoreFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restoreFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...FileHeaderFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestoreFileMutation, RestoreFileMutationVariables>;
 export const MoveStatementDocument = {
   kind: "Document",
   definitions: [
@@ -2695,6 +2825,122 @@ export const RenameStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameStatementMutation, RenameStatementMutationVariables>;
+export const DeleteStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "deleteStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<DeleteStatementMutation, DeleteStatementMutationVariables>;
+export const RestoreStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restoreStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restoreStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RestoreStatementMutation, RestoreStatementMutationVariables>;
 export const UpdateTaskContentDocument = {
   kind: "Document",
   definitions: [

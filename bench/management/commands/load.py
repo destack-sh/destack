@@ -135,6 +135,8 @@ def load_symbols(project_v: ProjectVersion, path: str):
         symbols = async_to_sync(executor.run_text)(segment.full_code, {})
 
         def _get_symbol(name: str | None = None, required: bool = True):
+            # replace non-white space characters with underscores
+            name = name.replace(" ", "_") if name else None
             if name is None:
                 return symbols
             elif name not in symbols:
@@ -235,7 +237,7 @@ def parse_extra(
     if add_statements is None:
         return
     for parent_declr, modifier, statement_type, child_declr in add_statements:
-        parent_type, parent_name = parent_declr.split(" ")
+        parent_type, parent_name = parent_declr.split(" ", maxsplit=1)
         parent = project_v.statement(file=None, name=parent_name, type=SymbolType(parent_type))
         _parse_child_statement(project_v, parent, modifier, statement_type, child_declr)
 
@@ -249,7 +251,7 @@ def _parse_child_statement(
 ):
     modifier = StatementModifier(modifier) if modifier else None
     statement_type = StatementType(statement_type)
-    symbol_type, symbol_name = child_symbol_declr.split(" ")
+    symbol_type, symbol_name = child_symbol_declr.split(" ", maxsplit=1)
     child_symbol = project_v.statement(file=None, name=symbol_name, type=symbol_type).symbol_
     _mount_child_statement(parent, modifier, statement_type, child_symbol)
 
@@ -323,10 +325,10 @@ def parse_code(
         )
         code.set_schema_element(schema_element)
 
-        # parameters can also be defined in the schema extracted from the function signature
+        # parameters are defined in the schema extracted from the function signature
         for param in input_schema.elements:
             symbol.definition.add_parameter(name=param.name, type=ParameterType.VALUE, schema=param)
-        consumed_lines = bind_parameters(segment, project_v, symbol.definition)
+        consumed_lines = bind_references(segment, project_v, symbol.definition)
         if consumed_lines:
             # remove consumed lines from segment
             segment.lines = segment.lines[consumed_lines:]
@@ -381,15 +383,15 @@ def parse_expect(
     return expectation, on_defined
 
 
-def bind_parameters(
+def bind_references(
     segment: FileSegment,
     project_v: ProjectVersion,
     statement: Statement,
 ) -> int:
-    # parameters are defined as type only symbol lines like:
+    # references are defined as type only lines like:
     # name: Task|Code|Model|Dataset|..
     # name: <type>
-    # Parameters are bound to their name or an @alias.
+    # Parameters are resolved to their name or an @alias.
     consumed_lines: int = 0
     for line in segment.lines:
         # assume all parameters are declared up front
