@@ -457,7 +457,7 @@ SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
 
 class Symbol(TaggableMixin, UUIDModel):
     """
-    A symbol defining a primitive element in a specific project version and file.
+    A symbol defining a Bench primitive.
     """
 
     project_version = models.ForeignKey(
@@ -470,7 +470,6 @@ class Symbol(TaggableMixin, UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     extends = models.ManyToManyField("Symbol", related_name="extended_by", blank=True)
-    source_mappings: models.QuerySet[SourceMapping]  # noqa via SourceMapping.symbol
 
     schema = models.OneToOneField(
         "Schema", on_delete=models.RESTRICT, null=True, blank=True, related_name="symbol"

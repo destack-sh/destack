@@ -128,6 +128,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     typeShortname
     createdAt
     updatedAt
+    deletedAt
     name
     commented
     compiled

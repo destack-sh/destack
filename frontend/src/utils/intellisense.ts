@@ -1,5 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import { SymbolType } from "@/gql/graphql";
+import type { SymbolType } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader, type SymbolHeader } from "@/utils/editor";
 import { FileHeaderType, SchemaElementContentDeepType, StatementHeaderType } from "@/utils/fragments";
 import { SchemaContentType } from "@/utils/schema";
@@ -18,7 +18,7 @@ const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
     files {
       ...FileHeader
     }
-    statements {
+    statements(filters: { isVisible: true }) {
       ...StatementHeader
       symbol {
         ...SymbolHeader
@@ -71,8 +71,13 @@ function _useIntelliSense() {
     () => ({ enabled: editorState.currentProjectVersionId != null })
   );
   const content = computed(() => useFragment(ProjectVersionContentSenseType, contentQuery.value?.projectVersion));
-  const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
-  const statements = computed(() => content.value?.statements.map((s) => useFragment(StatementHeaderType, s)) || []);
+  const files = computed(
+    () => content.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
+  );
+  const statements = computed(
+    () =>
+      content.value?.statements.map((s) => useFragment(StatementHeaderType, s)).filter((s) => s.deletedAt == null) || []
+  );
 
   const filesById: ComputedRef<Record<string, LocalFileHeader>> = computed(
     () =>

@@ -119,7 +119,9 @@ const { result: contentQuery } = useQuery(
   () => ({ enabled: !!projectHead.value?.id })
 );
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
-const files = computed(() => content.value?.files.map((f) => useFragment(FileHeaderType, f)) || []);
+const files = computed(
+  () => content.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
+); // filter deletedAt to increase responsiveness
 const compilations = computed(
   () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
 );
