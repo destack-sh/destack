@@ -671,7 +671,7 @@ export type SymbolContent = {
   id: Scalars["GlobalID"];
 };
 
-/** The type of symbol to define in a project. */
+/** The type of symbol content. */
 export enum SymbolType {
   Code = "CODE",
   Dataset = "DATASET",

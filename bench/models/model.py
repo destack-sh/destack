@@ -6,7 +6,7 @@ from uuid import UUID
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager
+from bench.models.symbol import Statement, SymbolContent, SymbolContentManager
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDModel, UUIDTModel
 
 
@@ -40,9 +40,9 @@ class Model(SymbolContent):
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.symbol_str}(provider={self.provider}/{self.external_name})"
+        return f"(provider={self.provider}/{self.external_name})"
 
-    def deepcopy(self, to: Model, refs: dict[UUID, Symbol | SymbolContent]):
+    def deepcopy(self, to: Model, refs: dict[UUID, Statement | SymbolContent]):
         super().deepcopy(to, refs)
         # copy default settings
         to.default_settings = self.default_settings

@@ -7,7 +7,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.symbol import Symbol, SymbolContent
+from bench.api.symbol import Statement, SymbolContent
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.backend.tracing import ExecutionTrace
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 @gql.django.type(models.Code)
 class Code(SymbolContent):
-    symbol: Symbol
+    definition: Statement
     builtin_id: auto
     code: auto
 
@@ -42,7 +42,7 @@ class Execution(gql.Node):
 
 @gql.input
 class CodeUpdateContentCode:
-    symbol_id: GlobalID
+    statement_id: GlobalID
     builtin_id: Optional[str] = None
     code: Optional[str] = None
 
@@ -50,12 +50,12 @@ class CodeUpdateContentCode:
 @gql.type
 class CodeMutation:
     @gql.mutation
-    def update_code_content(self, input: CodeUpdateContentCode) -> Symbol:
-        symbol: models.Symbol = models.Symbol.objects.get(id=input.symbol_id.node_id)
-        symbol.code_.builtin_id = input.builtin_id
-        symbol.code_.code = input.code
-        symbol.code_.save()
-        return symbol
+    def update_code_content(self, input: CodeUpdateContentCode) -> Statement:
+        statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        statement.code_.builtin_id = input.builtin_id
+        statement.code_.code = input.code
+        statement.code_.save()
+        return statement
 
 
 @strawberry.input

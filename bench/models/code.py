@@ -7,7 +7,7 @@ from django.db import models
 from strawberry_django_plus import gql
 
 from bench.models.schema_field import Schemad
-from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager
+from bench.models.symbol import Statement, SymbolContent, SymbolContentManager
 from bench.models.utils import UUIDTModel
 
 
@@ -26,7 +26,7 @@ class Code(Schemad, SymbolContent):
     code = models.TextField(null=True, blank=True)
     code_function_name = models.CharField(null=True, blank=True, max_length=256)
 
-    def deepcopy(self, to: Code, refs: dict[UUID, Symbol | SymbolContent]):
+    def deepcopy(self, to: Code, refs: dict[UUID, Statement | SymbolContent]):
         super().deepcopy(to, refs)
 
     def __str__(self):
@@ -38,7 +38,7 @@ class Code(Schemad, SymbolContent):
             content = f"length={len(self.code)}"
         else:
             raise ValueError(f"code has no content: {self}")
-        return f"{self.symbol_str}({content},{self.schema or '<no schema>'})"
+        return f"({content},{self.schema or '<no schema>'})"
 
     @property
     def anonymous(self) -> bool:

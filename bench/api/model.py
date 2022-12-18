@@ -6,12 +6,12 @@ from strawberry import auto
 from strawberry_django_plus import gql
 
 from bench import models
-from bench.api.symbol import Symbol, SymbolContent
+from bench.api.symbol import Statement, SymbolContent
 
 
 @gql.django.type(models.Model)
 class Model(SymbolContent):
-    symbol: Symbol
+    definition: Statement
     baseline: Optional[Model]
     provider: auto
 

@@ -12,7 +12,7 @@ from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.symbol import Statement, StatementType, Symbol, SymbolContent, SymbolType
+from bench.models.symbol import Statement, StatementType, SymbolContent, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -137,7 +137,7 @@ def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
     """
     Walk all children of an object in breadth-first order.
     """
-    queue: Deque["Symbol"] = deque(objects)
+    queue: Deque[T] = deque(objects)
     while queue:
         obj = queue.popleft()
         # copy children before yielding to avoid concurrent modification while copying
@@ -170,7 +170,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     @staticmethod
     def copy_project_version(source: ProjectVersion, target: ProjectVersion):
         # TODO @Performance: copy project version on commit server-side in SQL
-        #  This is awfully sequential and slow, particularly deepcopy of symbols.
+        #  This is awfully sequential and slow, particularly deepcopy of symbol contents.
+        #  For one, we can likely just bulk save if we defer parent/child relations to a second pass.
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
@@ -181,44 +182,31 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             file.parent = new_files.get(file.parent_id)
             file.save()
             new_files[old_id] = file
-        # 2. copy statements, symbols and symbol contents
+        # 2. copy statements and their contents
         new_statements: dict[UUID, Statement] = {}
-        new_symbols: dict[UUID, Symbol] = {}
         new_contents: dict[UUID, SymbolContent] = {}
         for statement in walk_children_bfs(
             source.statements.filter(deleted_at=None, parent=None), "children"
         ):
-            symbol = statement.symbol if statement.type == StatementType.DEFINITION else None
+            old_content = statement.content if statement.type == StatementType.DEFINITION else None
             # copy statement
             old_id = statement.id
             statement.pk = None
             statement.file = new_files[statement.file_id]
             statement.project_version = target
+            statement.set_content(None)
             statement.parent = new_statements.get(statement.parent_id)
-            statement.reference = None
-            statement.save()
             new_statements[old_id] = statement
-            # if symbol definition, copy symbol and symbol content
-            if symbol is None:
-                continue
-            old_content: SymbolContent = symbol.content
-            # copy content
-            old_id = old_content.id
-            content = old_content
-            content.pk = None
-            content.save()
-            new_contents[old_id] = content
-            # copy symbol
-            old_id = symbol.id
-            symbol.pk = None
-            symbol.parent = None
-            symbol.set_content(content)
-            symbol.definition = new_statements[symbol.definition_id]
-            symbol.project_version = target
-            symbol.save()
-            new_symbols[old_id] = symbol
-        refs: dict[UUID, SymbolContent | Symbol | Statement] = {
-            **new_symbols,
+            # if statement is a definition, copy symbol content
+            if old_content is not None:
+                old_id = old_content.id
+                content = old_content
+                content.pk = None
+                content.save()
+                statement.set_content(content)
+                new_contents[old_id] = content
+            statement.save()
+        refs: dict[UUID, SymbolContent | Statement] = {
             **new_contents,
             **new_statements,
         }
@@ -231,16 +219,19 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
 
+    def dependency(self, organization_slug: str, project_slug: str) -> ProjectVersion:
+        return self.dependencies.filter(
+            project__organization__slug=organization_slug, project__slug=project_slug
+        ).get()
+
     @transaction.atomic
     def create_file(
         self,
         name: str,
+        type: FileType,
         parent: Optional[File] = None,
-        symbols: Optional[list[Symbol]] = None,
     ) -> "File":
-        file = File.objects.create(project_version=self, parent=parent, name=name)
-        if symbols:
-            file.symbols.set(symbols)
+        file = File.objects.create(project_version=self, parent=parent, name=name, type=type)
         return file
 
     @transaction.atomic
@@ -269,6 +260,17 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def create_folder_from_path(self, path: str, exists_ok: bool = False) -> "File":
         return self.create_path(path, is_folder=True, exists_ok=exists_ok)
 
+    def get_file(self, path: str) -> "File":
+        try:
+            file_parts = path.split("/")
+            parent = None
+            for folder in file_parts[:-1]:
+                parent = File.objects.get(project_version=self, parent=parent, name=folder)
+            file = File.objects.get(project_version=self, parent=parent, name=file_parts[-1])
+            return file
+        except File.DoesNotExist:
+            raise ValueError(f"project {self} does not contain {path}")
+
     def available_statements(self, include_dependencies: bool = True) -> QuerySet[Statement]:
         # get own and dependencies symbols (non-recursive for now)
         if include_dependencies:
@@ -286,7 +288,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         parent: Optional[Statement] = None,
         index: Optional[int] = None,
         **kwargs,
-    ) -> Symbol:
+    ) -> Statement:
         """Define a symbol in this project version in the given file."""
         definition = Statement.objects.create_definition(
             content=content,
@@ -297,7 +299,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             index=index,
             **kwargs,
         )
-        return definition.symbol_
+        return definition
 
     def import_statement(
         self,
@@ -314,32 +316,59 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             raise ValueError("cannot import an import statement")
 
         import_statement = Statement.objects.create_import(
+            statement=statement,
             project_version=self,
             file=file,
-            type=StatementType.IMPORT,
-            name=alias,
+            name=alias or statement.name,
             parent=parent,
-            index=index,
+            index=index or 0,  # imports are always at the top by default
         )
         return import_statement
 
+    def get_import_of(self, file: File, statement: Statement) -> Optional[Statement]:
+        return self.statements.filter(
+            file=file, type=StatementType.IMPORT, reference=statement
+        ).first()
+
+    def reference_statement(
+        self,
+        statement: Statement,
+        alias: Optional[str],
+        file: File,
+        parent: Optional[Statement] = None,
+        index: Optional[int] = None,
+    ) -> Statement:
+        """References a statement from another file."""
+        if statement.file != file:
+            raise ValueError(f"cannot reference statement {statement} from {file}")
+
+        reference_statement = Statement.objects.create_reference(
+            statement=statement,
+            project_version=self,
+            file=file,
+            name=alias or statement.name,
+            parent=parent,
+            index=index,
+        )
+        return reference_statement
+
     def get_statements(
-        self, file: Optional[File], name: str, type: Optional[SymbolType] = None
+        self, file: Optional[File], name: str, symbol_type: Optional[SymbolType] = None
     ) -> QuerySet[Statement]:
         qs = self.available_statements().filter(name=name)
-        if type is not None:
-            qs = qs.filter(Q(symbol__type=type) | Q(reference__symbol__type=type))
+        if symbol_type is not None:
+            qs = qs.filter(symbol_type=symbol_type)
         if file is not None:
             qs = qs.filter(file=file)
         return qs
 
     def get_statement(
-        self, file: Optional[File], name: str, type: Optional[SymbolType] = None
+        self, file: Optional[File], name: str, symbol_type: Optional[SymbolType] = None
     ) -> Optional[Statement]:
         try:
-            return self.get_statements(file, name, type).get()
+            return self.get_statements(file, name, symbol_type).get()
         except Statement.MultipleObjectsReturned as e:
-            type_name_declr = f"{type} {name}" if type else name
+            type_name_declr = f"{symbol_type} {name}" if symbol_type else name
             raise Statement.MultipleObjectsReturned(
                 f"multiple statements like {type_name_declr} in {self}"
             ) from e
@@ -347,13 +376,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             return None
 
     def statement(
-        self, file: Optional[File], name: str, type: Optional[SymbolType] = None
+        self, file: Optional[File], name: str, symbol_type: Optional[SymbolType] = None
     ) -> Statement:
-        statement = self.get_statement(file, name, type)
+        statement = self.get_statement(file, name, symbol_type)
         if statement is None:
             available_symbols_str = self._get_available_symbols_str()
             raise ValueError(
-                f"symbol {name}{'.' + type if type else ''} is not defined in {self}:\n{available_symbols_str}"
+                f"symbol {name}{'.' + symbol_type if symbol_type else ''} is not defined in {self}:\n{available_symbols_str}"
             )
         else:
             return statement
@@ -368,7 +397,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return available_symbols_str
 
     def reset(self):
-        """Hard deletes all files (cascades to statements and their symbols)"""
+        """Hard deletes all files (cascades to statements and their contents)."""
         self.files.all().delete()
 
     @transaction.atomic
@@ -458,7 +487,7 @@ class File(UUIDModel):
 
     def define_symbol(
         self, name: str, content: SymbolContent, parent: Optional[Statement] = None, **kwargs
-    ) -> Symbol:
+    ) -> Statement:
         return self.project_version.define_symbol(
             file=self, name=name, content=content, parent=parent, **kwargs
         )

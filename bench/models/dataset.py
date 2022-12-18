@@ -9,7 +9,7 @@ from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 
 from bench.models.schema_field import Schemad
-from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager
+from bench.models.symbol import Statement, SymbolContent, SymbolContentManager
 from bench.models.utils import UUIDModel
 from bench.utils.schema import derive_schema_from_records
 
@@ -36,13 +36,13 @@ class Dataset(Schemad, SymbolContent):
 
     objects: DatasetManager = DatasetManager()
 
-    def deepcopy(self, to: Dataset, refs: dict[UUID, Symbol | SymbolContent]):
+    def deepcopy(self, to: Dataset, refs: dict[UUID, Statement | SymbolContent]):
         super().deepcopy(to, refs)
         # copy nested non-symbol relations
         to.set(list(self))
 
     def __str__(self):
-        return f"{self.symbol_str}({self.length}*{self.schema or '<no schema>'})"
+        return f"({self.length}*{self.schema or '<no schema>'})"
 
     def search_records(
         self, search: DatasetSearch, limit: int, offset: int

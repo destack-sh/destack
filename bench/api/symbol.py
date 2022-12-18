@@ -28,24 +28,13 @@ class Statement(gql.relay.Node):
     parent: Optional["Statement"]
     children: list["Statement"]
     index: auto
-    symbol: Optional["Symbol"]
-    source_symbol: Optional["Symbol"]
+    symbol_type: auto
+    text: auto
+    source_definition: Optional["Statement"]
     reference: Optional["Statement"]
     parameters: list["Parameter"]
     arguments: list["Argument"]
-    text: auto
-
-
-@gql.django.type(models.Symbol)
-class Symbol(gql.Node):
-    project_version: Annotated["ProjectVersion", lazy(".project")]
-    file: Annotated["File", lazy(".project")]
-    type: auto
-    type_shortname: auto
-    created_at: auto
-    updated_at: auto
-    statement: "Statement"
-    content: "SymbolContent"
+    content: Optional["SymbolContent"]
 
 
 @gql.django.interface(models.SymbolContent)
@@ -55,7 +44,7 @@ class SymbolContent(gql.Node):
 
 @gql.django.type(models.Parameter)
 class Parameter(gql.Node):
-    symbol: Symbol
+    statement: Statement
     name: auto
     created_at: auto
     updated_at: auto
@@ -65,7 +54,7 @@ class Parameter(gql.Node):
 
 @gql.django.type(models.Argument)
 class Argument(gql.Node):
-    symbol: Symbol
+    statement: Statement
     name: auto
     created_at: auto
     updated_at: auto

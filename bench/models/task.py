@@ -6,7 +6,13 @@ from uuid import UUID
 from django.db import models, transaction
 
 from bench.models.schema_field import Schemad
-from bench.models.symbol import Symbol, SymbolContent, SymbolContentManager, replace_refs
+from bench.models.symbol import (
+    Statement,
+    SymbolContent,
+    SymbolContentManager,
+    SymbolType,
+    replace_refs,
+)
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
@@ -31,29 +37,29 @@ class Task(Schemad, SymbolContent):
 
     @property
     def expectations(self) -> models.QuerySet["Expectation"]:
-        return self.symbol.definition.children_of_symbol_type("expectation").values_list(
+        return self.definition.children_of_symbol_type(SymbolType.EXPECTATION).values_list(
             "symbol", flat=True
         )
 
     @property
     def subtasks(self) -> models.QuerySet["Task"]:
-        return self.symbol.definition.children_of_symbol_type("task").values_list(
+        return self.definition.children_of_symbol_type(SymbolType.TASK).values_list(
             "symbol", flat=True
         )
 
-    def deepcopy(self, to: SymbolContent, refs: dict[UUID, Symbol | SymbolContent]):
+    def deepcopy(self, to: SymbolContent, refs: dict[UUID, Statement | SymbolContent]):
         super().deepcopy(to, refs)
         # deep copy compilations
         for compilation in self.compilations.all():
             compilation.pk = None
-            compilation.project_version = to.symbol.project_version
+            compilation.project_version = to.definition.project_version
             compilation.deepcopy(to=compilation, refs=refs)
             compilation.save()
 
     @transaction.atomic
     def add_compilation(self, name: str, backends: list[Model]) -> Compilation:
         compilation = Compilation.objects.create(
-            project_version=self.symbol.project_version,
+            project_version=self.definition.project_version,
             task=self,
             name=name,
         )
@@ -61,7 +67,7 @@ class Task(Schemad, SymbolContent):
         return compilation
 
     def __str__(self):
-        return f"{self.symbol_str}({self.schema or '<no schema>'})"
+        return f"({self.schema or '<no schema>'})"
 
     objects = TaskManager()
 
@@ -84,7 +90,7 @@ class Compilation(UUIDModel):
 
     mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
 
-    def deepcopy(self, to: Compilation, refs: dict[UUID, Symbol | SymbolContent]):
+    def deepcopy(self, to: Compilation, refs: dict[UUID, Statement | SymbolContent]):
         replace_refs(self, to, refs, include_many_to_many=False)
         to.save()
         replace_refs(self, to, refs, include_one_to_many=False)
@@ -136,6 +142,6 @@ class Expectation(SymbolContent):
     description = models.TextField()
 
     def __str__(self):
-        return f"{self.symbol_str}(description={self.description})"
+        return f"(description={self.description})"
 
     objects = ExpectationManager()

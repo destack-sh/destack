@@ -16,13 +16,13 @@ Value = typing.Any
 
 @dataclass(repr=False)
 class ResolvedSymbol:
-    symbol_id: UUID
+    statement_id: UUID
     content_id: UUID
     name: str
     type: SymbolType
 
     def __str__(self):
-        return f"{self.type} {self.name}@{self.symbol_id}({self.__content_str__()})"
+        return f"{self.type} {self.name}@{self.statement_id}({self.__content_str__()})"
 
     def __repr__(self):
         return f"<{self.__class__.__name__}: {str(self)}>"

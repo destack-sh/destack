@@ -1,5 +1,5 @@
-# @import openai/stdlib
-# @symbol ignore
+# @library openai/stdlib
+# @define ignore
 import random
 from typing import Callable
 
@@ -14,9 +14,10 @@ llm_fewshot: Callable
 llm_classify: Callable
 random: random.Random
 
-# @path main
+# @path temperature
+# @import text-davinci-003 as model from openai.stdlib.text
 
-# @symbol data: temperature_examples
+# @define data: temperature_examples
 temperature_examples = [
     {"text": "Write a poem about a space cat.", "temperature": "high"},
     {"text": "Repeat the following back to me: I am", "temperature": "low"},
@@ -36,8 +37,7 @@ temperature_examples = [
     },
 ]
 
-# @symbol code: get_temperature
-temperature_examples: Dataset
+# @define code: get_temperature
 
 
 async def get_temperature(model: Model, description: str, examples: Dataset) -> float:
