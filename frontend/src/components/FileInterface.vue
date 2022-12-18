@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import StatementInterface from "@/components/StatementInterface.vue";
+import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import type { StatementContentFragment } from "@/gql/graphql";
 import { FileHeaderType, StatementContentType } from "@/utils/fragments";
+import { useOperations } from "@/utils/operations";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
@@ -29,9 +31,20 @@ const { result: file } = useQuery(
   })
 );
 const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file));
+const isDeleted = computed(() => fileHeader.value?.deletedAt != null);
+const { getTimeFromNowString } = useTimeFromNow(fileHeader.value?.deletedAt);
 const statements = computed(() => {
-  return file.value?.file?.statements.map((statement) => useFragment(StatementContentType, statement)) || [];
+  return (
+    file.value?.file?.statements
+      .map((statement) => useFragment(StatementContentType, statement))
+      .filter((statement) => statement.deletedAt == null) || []
+  );
 });
+
+const operations = useOperations();
+function restore() {
+  operations.file.restore(fileHeader.value?.id);
+}
 
 /* Statements are hierarchical but laid out linearly (in one column) */
 type PositionedStatement = {
@@ -65,7 +78,7 @@ const positionedStatements = computed(() => {
 </script>
 
 <template>
-  <div class="mx-8 my-3 flex h-full flex-col" v-if="fileHeader">
+  <div class="mx-8 my-3 flex h-full flex-col" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
     <StatementInterface
       v-for="positioned in positionedStatements"
       :key="positioned.statement.id"
@@ -77,5 +90,15 @@ const positionedStatements = computed(() => {
       class="mx-auto w-full max-w-[1000px] bg-white"
       :class="positioned.depth == 0 ? 'mt-6' : ''"
     />
+    <!-- Deleted overlay with restore button -->
+    <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">
+      <div class="flex flex-col items-center gap-2">
+        <div class="text-2xl font-bold text-red-700">Deleted</div>
+        <div class="text-center text-sm">
+          {{ fileHeader.path }} was deleted ({{ getTimeFromNowString(fileHeader.deletedAt) }}).
+        </div>
+        <button class="" @click="restore">Restore</button>
+      </div>
+    </div>
   </div>
 </template>

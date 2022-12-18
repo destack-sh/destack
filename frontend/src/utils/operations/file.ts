@@ -42,6 +42,9 @@ export function useFileOps() {
         softDeleteFile(input: { id: $id }) {
           id
           ...FileHeader
+          statements {
+            ...StatementHeader
+          }
         }
       }
     `),
@@ -54,6 +57,9 @@ export function useFileOps() {
         restoreFile(input: { id: $id }) {
           id
           ...FileHeader
+          statements {
+            ...StatementHeader
+          }
         }
       }
     `),
@@ -100,5 +106,17 @@ export function useFileOps() {
     });
   }
 
-  return { create, rename, delete: delete_ };
+  async function restore(id: string) {
+    return await operations.perform({
+      type: "file.restore",
+      do: async () => {
+        await restoreFileMut({ id: id });
+      },
+      undo: async () => {
+        await deleteFileMut({ id: id });
+      },
+    });
+  }
+
+  return { create, rename, delete: delete_, restore };
 }

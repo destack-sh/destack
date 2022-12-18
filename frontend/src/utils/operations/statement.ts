@@ -93,7 +93,8 @@ export function useStatementOps() {
       }
     `),
     {
-      refetchQueries: ["fileContentById"],
+      // refetchQueries: ["fileContentById"],
+      awaitRefetchQueries: false,
     }
   );
 
@@ -109,7 +110,8 @@ export function useStatementOps() {
       }
     `),
     {
-      refetchQueries: ["fileContentById"],
+      // refetchQueries: ["fileContentById"],
+      awaitRefetchQueries: false,
     }
   );
 

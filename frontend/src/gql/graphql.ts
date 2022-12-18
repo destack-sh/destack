@@ -945,6 +945,7 @@ export type StatementContentFragment = {
   typeShortname: string;
   createdAt: any;
   updatedAt: any;
+  deletedAt?: any | null;
   name?: string | null;
   commented: boolean;
   compiled: boolean;
@@ -1109,7 +1110,13 @@ export type DeleteFileMutationVariables = Exact<{
 
 export type DeleteFileMutation = {
   __typename?: "Mutation";
-  softDeleteFile: { __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+  softDeleteFile: {
+    __typename?: "File";
+    id: any;
+    statements: Array<
+      { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } }
+    >;
+  } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
 };
 
 export type RestoreFileMutationVariables = Exact<{
@@ -1118,7 +1125,13 @@ export type RestoreFileMutationVariables = Exact<{
 
 export type RestoreFileMutation = {
   __typename?: "Mutation";
-  restoreFile: { __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+  restoreFile: {
+    __typename?: "File";
+    id: any;
+    statements: Array<
+      { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } }
+    >;
+  } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
 };
 
 export type MoveStatementMutationVariables = Exact<{
@@ -1756,6 +1769,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "typeShortname" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "compiled" } },
@@ -1864,6 +1878,22 @@ export const ProjectVersionContentSenseFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "statements" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -2545,6 +2575,14 @@ export const DeleteFileDocument = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statements" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
+                  },
+                },
               ],
             },
           },
@@ -2552,6 +2590,7 @@ export const DeleteFileDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...StatementHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
 export const RestoreFileDocument = {
@@ -2595,6 +2634,14 @@ export const RestoreFileDocument = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statements" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
+                  },
+                },
               ],
             },
           },
@@ -2602,6 +2649,7 @@ export const RestoreFileDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...StatementHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreFileMutation, RestoreFileMutationVariables>;
 export const MoveStatementDocument = {
