@@ -1,9 +1,9 @@
-import { useFileOps } from "@/utils/operations/file";
-import { useSymbolContentOps, useSymbolOps } from "@/utils/operations/symbol";
 import { useCompilationOps } from "@/utils/operations/compilation";
+import { useFileOps } from "@/utils/operations/file";
+import { useStatementOps } from "@/utils/operations/statement";
+import { useSymbolContentOps } from "@/utils/operations/symbol";
 import { useProjectVersionOps } from "@/utils/operations/version";
 import { defineStore } from "pinia";
-import { useStatementOps } from "@/utils/operations/statement";
 
 type Operation<T> = {
   id?: string;
@@ -97,7 +97,6 @@ export const useOperationsStore = defineStore("operations", {
 export function useOperations() {
   return {
     file: useFileOps(),
-    symbol: useSymbolOps(),
     content: useSymbolContentOps(),
     statement: useStatementOps(),
     compilation: useCompilationOps(),

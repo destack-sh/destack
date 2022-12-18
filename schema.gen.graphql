@@ -125,7 +125,7 @@ type File implements Node {
   isFolder: Boolean!
   parent: File
   files: [File!]!
-  statements: [Statement!]!
+  statements(filters: StatementFilter): [Statement!]!
 }
 
 input FileCreateInput {
@@ -134,6 +134,10 @@ input FileCreateInput {
   name: String!
   isFolder: Boolean
   parent: NodeInput
+}
+
+input FileFilter {
+  isVisible: Boolean = true
 }
 
 input FileRenameInput {
@@ -319,10 +323,9 @@ type ProjectVersion implements Node {
   committedAt: DateTime
   dependencies: [ProjectVersion!]!
   mainProgram: Statement
-  files: [File!]!
+  files(filters: FileFilter): [File!]!
+  statements(filters: StatementFilter): [Statement!]!
   compilations: [Compilation!]!
-  symbols: [Symbol!]!
-  statements: [Statement!]!
 }
 
 type Query {
@@ -374,10 +377,6 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
-  symbol(
-    """The ID of the object."""
-    id: GlobalID!
-  ): Symbol
 }
 
 union RenameFilePayload = File | OperationInfo
@@ -465,6 +464,11 @@ input StatementCommentedInput {
 
 type StatementCommentedPayload {
   statement: Statement!
+}
+
+input StatementFilter {
+  isVisible: Boolean = true
+  id: GlobalID
 }
 
 """A modifier to a Bench statement."""

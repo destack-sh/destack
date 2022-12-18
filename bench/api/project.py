@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from strawberry import lazy
+from strawberry import UNSET, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
@@ -10,7 +10,7 @@ from bench import models
 if TYPE_CHECKING:
     from bench.api.compilation import Compilation
     from bench.api.organization import Organization
-    from bench.api.symbol import Statement, Symbol
+    from bench.api.symbol import Statement
 
 
 @gql.django.type(models.Project)
@@ -22,6 +22,35 @@ class Project(gql.Node):
     updated_at: auto
     head: "ProjectVersion"
     versions: list["ProjectVersion"]  # TODO @Cleanup: use relay connections
+
+
+@gql.django.filter(models.Statement)
+class StatementFilter:
+    is_visible: Optional[bool] = True
+    id: Optional[GlobalID]
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            if self.is_visible:
+                queryset = queryset.filter(deleted_at__isnull=True)
+            else:
+                queryset = queryset.filter(deleted_at__isnull=False)
+        if self.id is not UNSET and self.id is not None:
+            queryset = queryset.filter(id=self.id.node_id)
+        return queryset
+
+
+@gql.django.filter(models.File)
+class FileFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is None:
+            return queryset
+        elif self.is_visible:
+            return queryset.filter(deleted_at__isnull=True)
+        else:
+            return queryset.filter(deleted_at__isnull=False)
 
 
 @gql.django.type(models.ProjectVersion)
@@ -36,10 +65,11 @@ class ProjectVersion(gql.Node):
     committed_at: auto
     dependencies: list["ProjectVersion"]
     main_program: Optional[Annotated["Statement", lazy(".symbol")]]
-    files: list["File"]
+    files: list["File", FileFilter] = gql.django.field(filters=FileFilter)
+    statements: list[Annotated["Statement", lazy(".symbol")]] = gql.django.field(
+        filters=StatementFilter
+    )
     compilations: list[Annotated["Compilation", lazy(".compilation")]]
-    symbols: list[Annotated["Symbol", lazy(".symbol")]]
-    statements: list[Annotated["Statement", lazy(".symbol")]]
 
 
 @gql.django.type(models.File)
@@ -54,7 +84,9 @@ class File(gql.Node):
     is_folder: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
-    statements: list[Annotated["Statement", lazy(".symbol")]]  # if file
+    statements: list[Annotated["Statement", lazy(".symbol")]] = gql.django.field(
+        filters=StatementFilter
+    )
 
 
 @gql.input
@@ -142,6 +174,6 @@ class FileMutation:
 
     @gql.mutation
     def restore_file(self, input: FileRestoreInput) -> File:
-        file = models.File.objects.get(id=input.id.node_id)
+        file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()
         return file

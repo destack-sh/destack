@@ -2,38 +2,6 @@ import { graphql } from "@/gql";
 import { useOperationsStore } from "@/utils/operations";
 import { useMutation } from "@vue/apollo-composable";
 
-export function useSymbolOps() {
-  const operations = useOperationsStore();
-
-  const { mutate: renameStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation renameStatement($id: GlobalID!, $name: String!) {
-        renameStatement(input: { id: $id, name: $name }) {
-          ... on Statement {
-            id
-            name
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  async function rename(id: string, oldName: string, newName: string) {
-    await operations.perform({
-      type: "symbol.rename",
-      do: async () => {
-        await renameStatementMut({ id: id, name: newName });
-      },
-      undo: async () => {
-        await renameStatementMut({ id: id, name: oldName });
-      },
-    });
-  }
-
-  return { rename };
-}
-
 export function useSymbolContentOps() {
   const operations = useOperationsStore();
 

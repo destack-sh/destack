@@ -59,6 +59,18 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
+    def _prep_insert_index(
+        self, file: File, parent: Optional[Statement], index: Optional[int]
+    ) -> int:
+        if index is None:
+            index = parent.children.count() if parent else file.root_statements.count()
+        else:
+            # make space
+            self.filter(file=file, parent=parent, index__gte=index).update(
+                index=models.F("index") + 1
+            )
+        return index
+
     @transaction.atomic
     def create_definition(
         self,
@@ -70,8 +82,7 @@ class StatementManager(models.Manager["Statement"]):
         name: str,
     ) -> Statement:
         # auto set index if not passed
-        if index is None:
-            index = parent.children.count() if parent else file.root_statements.count()
+        index = self._prep_insert_index(file, parent, index)
         statement = self.create(
             project_version=project_version,
             file=file,
@@ -80,10 +91,32 @@ class StatementManager(models.Manager["Statement"]):
             index=index,
             name=name,
         )
-        statement.definition = Symbol.objects.create_symbol(
+        statement.symbol = Symbol.objects.create_symbol(
             project_version=project_version, file=file, definition=statement, content=content
         )
         return statement
+
+    @transaction.atomic
+    def create_import(
+        self,
+        project_version: ProjectVersion,
+        file: File,
+        parent: Optional[Statement],
+        index: Optional[int],
+        name: str,
+        statement: Statement,
+    ) -> Statement:
+        # auto set index if not passed
+        index = self._prep_insert_index(file, parent, index)
+        return self.create(
+            project_version=project_version,
+            file=file,
+            type=StatementType.IMPORT,
+            parent=parent,
+            index=index,
+            name=name,
+            reference=statement,
+        )
 
 
 class Statement(UUIDModel):
@@ -151,8 +184,15 @@ class Statement(UUIDModel):
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:
-        """Gets all descendants (children of children of children..) of this statement."""
         return Statement.objects.filter(parent__in=self.children.all())
+
+    @property
+    def active_children(self) -> models.QuerySet[Statement]:
+        return self.children.filter(deleted_at__isnull=True, commented=False)
+
+    @property
+    def active_descendants(self) -> models.QuerySet[Statement]:
+        return self.descendants.filter(deleted_at__isnull=True, commented=False)
 
     @gql.model_property(only=["type"])
     def type_shortname(self) -> str:
@@ -291,6 +331,9 @@ class Statement(UUIDModel):
     ) -> tuple[Parameter, Argument]:
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
+        if isinstance(value, Statement) and value.file_id != self.file_id:
+            raise ValueError(f"cannot bind {self} argument {name} to {value} in different file")
+
         # get/create parameter and corresponding argument
         argument_type = ParameterType.from_value(value)
         if argument_type == ParameterType.VALUE:

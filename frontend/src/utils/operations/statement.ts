@@ -67,5 +67,75 @@ export function useStatementOps() {
     });
   }
 
-  return { move };
+  const { mutate: renameStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation renameStatement($id: GlobalID!, $name: String!) {
+        renameStatement(input: { id: $id, name: $name }) {
+          ... on Statement {
+            id
+            name
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  const { mutate: deleteStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation deleteStatement($id: GlobalID!) {
+        softDeleteStatement(input: { id: $id }) {
+          statement {
+            id
+            deletedAt
+          }
+        }
+      }
+    `),
+    {
+      refetchQueries: ["fileContentById"],
+    }
+  );
+
+  const { mutate: restoreStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restoreStatement($id: GlobalID!) {
+        restoreStatement(input: { id: $id }) {
+          statement {
+            id
+            deletedAt
+          }
+        }
+      }
+    `),
+    {
+      refetchQueries: ["fileContentById"],
+    }
+  );
+
+  async function rename(id: string, oldName: string, newName: string) {
+    await operations.perform({
+      type: "statement.rename",
+      do: async () => {
+        await renameStatementMut({ id: id, name: newName });
+      },
+      undo: async () => {
+        await renameStatementMut({ id: id, name: oldName });
+      },
+    });
+  }
+
+  async function delete_(id: string) {
+    await operations.perform({
+      type: "statement.delete",
+      do: async () => {
+        await deleteStatementMut({ id: id });
+      },
+      undo: async () => {
+        await restoreStatementMut({ id: id });
+      },
+    });
+  }
+
+  return { move, rename, delete: delete_ };
 }

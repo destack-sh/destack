@@ -174,6 +174,17 @@ export function useStatementActions() {
     },
   });
 
+  // delete statement
+  const deleteCurrent = provideGlobalAction({
+    id: "statement.deleteCurrent",
+    label: "Delete current statement",
+    shortcuts: ["backspace", "delete"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: async () => {
+      await operations.statement.delete(statement.value.id);
+    },
+  });
+
   return {
     moveCurrentIn,
     moveCurrentOut,
@@ -185,5 +196,6 @@ export function useStatementActions() {
     moveFocusOut,
     editCurrent,
     stopEditingCurrent,
+    deleteCurrent,
   };
 }

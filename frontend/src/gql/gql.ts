@@ -5,14 +5,14 @@ import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-
 const documents = {
   "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n  }\n":
     types.ExpectationContentFragmentDoc,
-  "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  ":
+  "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
   "\n  fragment TaskContent on Task {\n    id\n    description\n  }\n": types.TaskContentFragmentDoc,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
   "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
-  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
+  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n":
     types.ProjectVersionContentFragmentDoc,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
@@ -43,7 +43,7 @@ const documents = {
     types.ProjectVersionContentSenseFragmentDoc,
   "\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    ":
     types.ProjectVersionContentSenseDocument,
-  "\n      query schemaContentById($symbolId: GlobalID!) {\n        symbol(id: $symbolId) {\n          id\n          content {\n            ...SchemaContent\n          }\n          statement {\n            id\n          }\n        }\n      }\n    ":
+  "\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n          }\n        }\n      }\n    ":
     types.SchemaContentByIdDocument,
   "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    ":
     types.AddCompilationDocument,
@@ -55,10 +55,16 @@ const documents = {
     types.RenameFileDocument,
   "\n      mutation deleteFile($id: GlobalID!) {\n        softDeleteFile(input: { id: $id }) {\n          id\n          ...FileHeader\n        }\n      }\n    ":
     types.DeleteFileDocument,
+  "\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          id\n          ...FileHeader\n        }\n      }\n    ":
+    types.RestoreFileDocument,
   "\n      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {\n        moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index }) {\n          statement {\n            id\n            index\n            file {\n              id\n              path\n            }\n            parent {\n              id\n            }\n          }\n          oldFile {\n            id\n            path\n            statements {\n              id\n              index\n            }\n          }\n          newFile {\n            id\n            path\n            statements {\n              id\n              index\n            }\n          }\n        }\n      }\n    ":
     types.MoveStatementDocument,
   "\n      mutation renameStatement($id: GlobalID!, $name: String!) {\n        renameStatement(input: { id: $id, name: $name }) {\n          ... on Statement {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RenameStatementDocument,
+  "\n      mutation deleteStatement($id: GlobalID!) {\n        softDeleteStatement(input: { id: $id }) {\n          statement {\n            id\n            deletedAt\n          }\n        }\n      }\n    ":
+    types.DeleteStatementDocument,
+  "\n      mutation restoreStatement($id: GlobalID!) {\n        restoreStatement(input: { id: $id }) {\n          statement {\n            id\n            deletedAt\n          }\n        }\n      }\n    ":
+    types.RestoreStatementDocument,
   "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    ":
     types.UpdateTaskContentDocument,
   "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    ":
@@ -75,8 +81,8 @@ export function graphql(
   source: "\n  fragment ExpectationContent on Expectation {\n    id\n    description\n  }\n"
 ): typeof documents["\n  fragment ExpectationContent on Expectation {\n    id\n    description\n  }\n"];
 export function graphql(
-  source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          id\n          ...StatementContent\n          parent {\n            id\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n  fragment TaskContent on Task {\n    id\n    description\n  }\n"
 ): typeof documents["\n  fragment TaskContent on Task {\n    id\n    description\n  }\n"];
@@ -87,8 +93,8 @@ export function graphql(
   source: "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
 ): typeof documents["\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
 export function graphql(
-  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
+  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n    compilations {\n      id\n      ...CompilationHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
@@ -135,8 +141,8 @@ export function graphql(
   source: "\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    "
 ): typeof documents["\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    "];
 export function graphql(
-  source: "\n      query schemaContentById($symbolId: GlobalID!) {\n        symbol(id: $symbolId) {\n          id\n          content {\n            ...SchemaContent\n          }\n          statement {\n            id\n          }\n        }\n      }\n    "
-): typeof documents["\n      query schemaContentById($symbolId: GlobalID!) {\n        symbol(id: $symbolId) {\n          id\n          content {\n            ...SchemaContent\n          }\n          statement {\n            id\n          }\n        }\n      }\n    "];
+  source: "\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n          }\n        }\n      }\n    "
+): typeof documents["\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "];
@@ -153,11 +159,20 @@ export function graphql(
   source: "\n      mutation deleteFile($id: GlobalID!) {\n        softDeleteFile(input: { id: $id }) {\n          id\n          ...FileHeader\n        }\n      }\n    "
 ): typeof documents["\n      mutation deleteFile($id: GlobalID!) {\n        softDeleteFile(input: { id: $id }) {\n          id\n          ...FileHeader\n        }\n      }\n    "];
 export function graphql(
+  source: "\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          id\n          ...FileHeader\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          id\n          ...FileHeader\n        }\n      }\n    "];
+export function graphql(
   source: "\n      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {\n        moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index }) {\n          statement {\n            id\n            index\n            file {\n              id\n              path\n            }\n            parent {\n              id\n            }\n          }\n          oldFile {\n            id\n            path\n            statements {\n              id\n              index\n            }\n          }\n          newFile {\n            id\n            path\n            statements {\n              id\n              index\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {\n        moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index }) {\n          statement {\n            id\n            index\n            file {\n              id\n              path\n            }\n            parent {\n              id\n            }\n          }\n          oldFile {\n            id\n            path\n            statements {\n              id\n              index\n            }\n          }\n          newFile {\n            id\n            path\n            statements {\n              id\n              index\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation renameStatement($id: GlobalID!, $name: String!) {\n        renameStatement(input: { id: $id, name: $name }) {\n          ... on Statement {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameStatement($id: GlobalID!, $name: String!) {\n        renameStatement(input: { id: $id, name: $name }) {\n          ... on Statement {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation deleteStatement($id: GlobalID!) {\n        softDeleteStatement(input: { id: $id }) {\n          statement {\n            id\n            deletedAt\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation deleteStatement($id: GlobalID!) {\n        softDeleteStatement(input: { id: $id }) {\n          statement {\n            id\n            deletedAt\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation restoreStatement($id: GlobalID!) {\n        restoreStatement(input: { id: $id }) {\n          statement {\n            id\n            deletedAt\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreStatement($id: GlobalID!) {\n        restoreStatement(input: { id: $id }) {\n          statement {\n            id\n            deletedAt\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { symbolId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "];

@@ -5,13 +5,7 @@ import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/utils/actions";
 import { useEditorPersistence, useEditorState, type FileEditor } from "@/utils/editor";
-import {
-  CompilationHeaderType,
-  FileHeaderType,
-  ProjectHeaderType,
-  ProjectVersionHeaderType,
-  SymbolHeaderType,
-} from "@/utils/fragments";
+import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
 import { useOperations, useOperationsStore } from "@/utils/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -101,7 +95,7 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
-    files {
+    files(filters: { isVisible: true }) {
       id
       ...FileHeader
     }

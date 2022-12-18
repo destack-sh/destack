@@ -288,7 +288,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         **kwargs,
     ) -> Symbol:
         """Define a symbol in this project version in the given file."""
-        statement = Statement.objects.create_definition(
+        definition = Statement.objects.create_definition(
             content=content,
             project_version=self,
             name=name,
@@ -297,7 +297,31 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             index=index,
             **kwargs,
         )
-        return statement.symbol_
+        return definition.symbol_
+
+    def import_statement(
+        self,
+        statement: Statement,
+        alias: Optional[str],
+        file: File,
+        parent: Optional[Statement] = None,
+        index: Optional[int] = None,
+    ) -> Statement:
+        """Imports a statement from another file."""
+        if statement.file == self:
+            raise ValueError("cannot import statement from same file")
+        if statement.type == StatementType.IMPORT:
+            raise ValueError("cannot import an import statement")
+
+        import_statement = Statement.objects.create_import(
+            project_version=self,
+            file=file,
+            type=StatementType.IMPORT,
+            name=alias,
+            parent=parent,
+            index=index,
+        )
+        return import_statement
 
     def get_statements(
         self, file: Optional[File], name: str, type: Optional[SymbolType] = None
@@ -418,7 +442,11 @@ class File(UUIDModel):
 
     @gql.model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
-        return f"{self.parent.path}/{self.name}.{self.type}" if self.parent else self.name
+        return (
+            f"{self.parent.path}/{self.name}.{self.type}"
+            if self.parent
+            else f"{self.name}.{self.type}"
+        )
 
     @property
     def is_root(self) -> bool:

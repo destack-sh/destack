@@ -129,7 +129,7 @@ class StatementCommentedPayload:
 
 
 @gql.type
-class SymbolMutation:
+class StatementMutation:
     rename_statement: Statement = gql.django.update_mutation(StatementRenameInput)
 
     @gql.mutation
@@ -157,6 +157,6 @@ class SymbolMutation:
 
     @gql.mutation
     def restore_statement(self, input: StatementRestoreInput) -> StatementRestorePayload:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
         return StatementRestorePayload(statement=statement)

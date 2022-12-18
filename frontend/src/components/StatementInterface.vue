@@ -304,6 +304,8 @@ function navigateDown() {
         <component
           v-if="symbol != null && metaInterfaces[symbol.type] != null"
           :is="metaInterfaces[symbol.type]?.component"
+          :file="file"
+          :statement="statement"
           :symbol="symbol"
           :content="symbol.content"
           class="mr-1"
@@ -328,32 +330,35 @@ function navigateDown() {
       </span>
     </div>
     <!-- Symbol parameters & arguments -->
-    <div v-if="symbol && parameters.length > 0" class="mx-3 flex flex-row gap-4 pb-1">
+    <!-- TODO @Feature: edit symbol parameters & arguments -->
+    <!-- <div v-if="symbol && parameters.length > 0" class="mx-3 flex flex-row gap-4 pb-1">
       <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
         <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
           <span>{{ parameter.name }}</span>
         </div>
-        <div class="text-sm text-gray-900">
-          <!-- Show argument if it's bound -->
-          <template v-if="getArgument(parameter.name)">
+        <div class="text-sm text-gray-900"> -->
+    <!-- Show argument if it's bound -->
+    <!-- <template v-if="getArgument(parameter.name)">
             <span v-if="getArgument(parameter.name)?.value != null">
               {{ getArgument(parameter.name)?.value }}
             </span>
             <span class="text-black" v-else-if="getArgument(parameter.name)?.reference != null">
               {{ getArgument(parameter.name)?.reference?.name }}
             </span>
-          </template>
-          <!-- Otherwise show parameter type -->
-          <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
+          </template> -->
+    <!-- Otherwise show parameter type -->
+    <!-- <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
         </div>
       </div>
-    </div>
+    </div> -->
     <!-- Symbol content (if statement defines a symbol) -->
     <div v-if="symbol != null" class="mx-3">
       <component
         ref="content"
         v-if="interfaces[symbol.type] != undefined"
         :is="interfaces[symbol.type]?.component"
+        :file="file"
+        :statement="statement"
         :symbol="symbol"
         :content="symbol.content"
         :lineNumberBase="lineNumberBase"
