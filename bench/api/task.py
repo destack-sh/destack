@@ -5,7 +5,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.symbol import Symbol, SymbolContent
+from bench.api.symbol import Statement, SymbolContent
 
 if TYPE_CHECKING:
     from bench.api.compilation import Compilation
@@ -13,22 +13,22 @@ if TYPE_CHECKING:
 
 @gql.django.type(models.Task)
 class Task(SymbolContent):
-    symbol: Symbol
+    definition: Statement
     description: auto
     compilations: list[Annotated["Compilation", lazy(".compilation")]]
 
 
 @gql.input
 class TaskUpdateContentDescription:
-    symbol_id: GlobalID
+    statement_id: GlobalID
     description: str
 
 
 @gql.type
 class TaskMutation:
     @gql.mutation
-    def update_task_content(self, input: TaskUpdateContentDescription) -> Symbol:
-        symbol: models.Symbol = models.Symbol.objects.get(id=input.symbol_id.node_id)
-        symbol.task_.description = input.description
-        symbol.task_.save()
-        return symbol
+    def update_task_content(self, input: TaskUpdateContentDescription) -> Statement:
+        statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        statement.task_.description = input.description
+        statement.task_.save()
+        return statement

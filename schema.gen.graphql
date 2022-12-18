@@ -538,7 +538,7 @@ interface SymbolContent implements Node {
   id: GlobalID!
 }
 
-"""The type of symbol to define in a project."""
+"""The type of symbol content."""
 enum SymbolType {
   SCHEMA
   TASK

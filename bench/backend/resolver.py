@@ -20,7 +20,7 @@ from bench.models import (
     Model,
     ModelInferenceSettings,
     ParameterType,
-    Symbol,
+    Statement,
     SymbolContent,
     SymbolType,
 )
@@ -36,9 +36,9 @@ class Resolver:
         self, model: Model, settings: typing.Optional[ModelInferenceSettings]
     ) -> ResolvedModel:
         return ResolvedModel(
-            symbol_id=model.symbol.id,
+            statement_id=model.definition.id,
             content_id=model.id,
-            name=model.symbol.definition.name,
+            name=model.definition.name,
             type=SymbolType.MODEL,
             settings=settings,
             default_settings=model.default_settings,
@@ -55,9 +55,9 @@ class Resolver:
             records.append(record)
         batch = RecordList(records)
         return ResolvedDataset(
-            symbol_id=dataset.symbol.id,
+            statement_id=dataset.definition.id,
             content_id=dataset.id,
-            name=dataset.symbol.definition.name,
+            name=dataset.definition.name,
             type=SymbolType.DATASET,
             schema=dataset.schema_,
             records=batch,
@@ -67,9 +67,9 @@ class Resolver:
         parameters = await self._get_code_parameters(code)
         arguments = await self.resolve_arguments(code)
         return ResolvedCode(
-            symbol_id=code.symbol.id,
+            statement_id=code.definition.id,
             content_id=code.id,
-            name=code.symbol.definition.name,
+            name=code.definition.name,
             type=SymbolType.CODE,
             input_schema=code.input_schema,
             output_schema=code.output_schema,
@@ -100,23 +100,23 @@ class Resolver:
                 bound_arguments_resolved[argument.name] = argument.value
                 continue
             if argument.reference is None:
-                raise ValueError(f"argument {argument} has no symbol reference")
-            # resolve symbol reference
+                raise ValueError(f"argument {argument} has no statement reference")
+            # resolve statement reference
             bound_arguments_resolved[argument.name] = await self.resolve_argument(
                 argument.reference
             )
         return bound_arguments_resolved
 
     async def resolve_argument(
-        self, value: Value | Symbol | SymbolContent
+        self, value: Value | Statement | SymbolContent
     ) -> ResolvedSymbol | Value:
         if isinstance(value, SymbolContent):
-            value = value.symbol
-        if isinstance(value, Symbol):
+            value = value.definition
+        if isinstance(value, Statement):
             if value.type == SymbolType.MODEL:
                 return await self.resolve_model(value.model_, settings=None)
             elif value.type == SymbolType.DATASET:
-                return await self.resolve_dataset(value.dataset_, view=None)
+                return await self.resolve_dataset(value.dataset_)
             elif value.type == SymbolType.CODE:
                 return await self.resolve_code(value.code_)
             else:

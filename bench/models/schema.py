@@ -17,6 +17,6 @@ class Schema(SymbolContent):
     element = SchemaElementField()
 
     def __str__(self):
-        return f"{self.symbol_str}({self.element})"
+        return f"({self.element})"
 
     objects = SchemaManager()

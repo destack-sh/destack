@@ -24,10 +24,9 @@ from bench.models import (
     ParameterType,
     Project,
     ProjectVersion,
-    Symbol,
     SymbolType,
 )
-from bench.models.symbol import SYMBOL_CONTENT_FIELDS
+from bench.models.symbol import SYMBOL_CONTENT_FIELDS, Statement
 from bench.models.task import Compilation, Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
 from bench.utils.schema import SchemaElement
@@ -49,7 +48,7 @@ def get_stdlib_model(path: str) -> Model:
     owner_slug, model_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol(SymbolType.MODEL, model_name).model_
+    return stdlib.head_.statement(file=None, name=model_name, type=SymbolType.MODEL).model_
 
 
 def get_stdlib_code(path: str) -> Code:
@@ -59,7 +58,7 @@ def get_stdlib_code(path: str) -> Code:
     owner_slug, code_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.symbol(SymbolType.CODE, code_name).code_
+    return stdlib.head_.statement(file=None, name=code_name, type=SymbolType.CODE).code_
 
 
 class ExpectationStatementType(enum.Enum):
@@ -75,7 +74,7 @@ class ExpectationStatementType(enum.Enum):
 @dataclass
 class StatementData:
     expectation: Expectation
-    symbol: Symbol
+    symbol: Statement
 
     @property
     def symbol_type(self):
@@ -127,8 +126,8 @@ class TaskData:
     task: Task
 
     @property
-    def symbol(self) -> Symbol:
-        return self.task.symbol
+    def definition(self) -> Statement:
+        return self.task.definition
 
     def __str__(self):
         return f"TaskData({self.task})"
@@ -400,7 +399,7 @@ class Compiler:
         return compiled_examples
 
     def _get_clean_genfile(self, project_v: ProjectVersion, compilation: Compilation) -> File:
-        source_path = compilation.task.symbol.file.path
+        source_path = compilation.task.definition.file.path
         file = project_v.create_file_from_path(
             source_path + "." + compilation.name + ".gen", exists_ok=True
         )
@@ -445,7 +444,7 @@ class Compiler:
         )
 
         if task_data.optimal_backend is None:
-            raise ValueError(f"task {task_data.symbol} has no optimal backend set")
+            raise ValueError(f"task {task_data.definition} has no optimal backend set")
         settings = task_data.optimal_backend.default_settings
         settings.pk = None
         settings.temperature = temperature
@@ -480,17 +479,17 @@ class Compiler:
             builtin_id="llm_fewshot",
         )
         llm_code.tasks.add(task_data.task)
-        genfile.define_symbol(task_data.symbol.name, llm_code, compiled=True)
-        llm_code.symbol.bind_arguments(
-            model=task_data.optimal_backend.symbol,
+        genfile.define_symbol(task_data.definition.name, llm_code, compiled=True)
+        llm_code.definition.bind_arguments(
+            model=task_data.optimal_backend.definition,
             prompt_prefix=prompt_prefix,
             prompt_example=prompt_example,
             prompt_input=prompt_input,
             return_structured=True,
-            examples=task_examples.symbol,
+            examples=task_examples.definition,
             settings=settings.as_dict(omit_empty=True),
         )
         # add parameter for input keys
         for key in task_data.input_schema.keys:
-            llm_code.symbol.add_parameter(key, ParameterType.VALUE)
+            llm_code.definition.add_parameter(key, ParameterType.VALUE)
         return llm_code

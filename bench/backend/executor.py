@@ -37,7 +37,7 @@ from bench.backend.types import (
     ResolvedSymbol,
     Value,
 )
-from bench.models import Dataset, Model, Symbol, SymbolContent
+from bench.models import Dataset, Model, Statement, SymbolContent
 from bench.models.code import Code
 from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
@@ -350,7 +350,7 @@ class Executor:
     async def resolve_and_run(
         self,
         code: Code,
-        arguments: dict[str, Value | Symbol | SymbolContent],
+        arguments: dict[str, Value | Statement | SymbolContent],
         traces: list[Trace] | None = None,
     ):
         resolved_arguments = {

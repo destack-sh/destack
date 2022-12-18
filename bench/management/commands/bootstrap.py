@@ -9,7 +9,7 @@ from django.db import transaction
 from bench.management.commands.load import load_symbols
 from bench.models import Model, ModelInferenceSettings, Organization, Project
 from bench.models.model import ProviderKey
-from bench.models.project import ProjectType, ProjectVersion
+from bench.models.project import FileType, ProjectType, ProjectVersion
 
 logger = structlog.get_logger(__name__)
 
@@ -101,6 +101,7 @@ def create_model_providers():
         stdlib_v.reset()
 
         # add models to library
+        models_file = stdlib_v.create_file(name="text", type=FileType.INSTRUCT)
         for model_id in provider.models:
             provider_key = ProviderKey[provider.slug.upper()]
             model = Model.objects.create(
@@ -108,8 +109,7 @@ def create_model_providers():
                 provider=provider_key,
                 default_settings=ModelInferenceSettings.objects.create(),
             )
-            model_file = stdlib_v.create_file(name=model_id)
-            model_file.define_symbol(name=model_id, content=model)
+            models_file.define_symbol(name=model_id, content=model)
 
         # advance head
         stdlib_v.commit(version_id)

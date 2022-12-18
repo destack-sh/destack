@@ -3,7 +3,7 @@ from typing import Optional
 from strawberry_django_plus import gql
 
 from bench import models
-from bench.api.symbol import Symbol, SymbolContent
+from bench.api.symbol import Statement, SymbolContent
 from bench.utils import schema
 
 ValueType = gql.enum(schema.ValueType)
@@ -22,6 +22,6 @@ class SchemaElement:
 
 @gql.django.type(models.Schema)
 class Schema(SymbolContent):
-    symbol: Symbol
+    definition: Statement
     description: str
     element: SchemaElement

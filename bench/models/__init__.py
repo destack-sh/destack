@@ -11,7 +11,6 @@ from .symbol import (
     ParameterType,
     Statement,
     StatementType,
-    Symbol,
     SymbolContent,
     SymbolType,
 )
@@ -40,7 +39,6 @@ __all__ = [
     "SourceMapping",
     "Statement",
     "StatementType",
-    "Symbol",
     "Argument",
     "SymbolContent",
     "Parameter",
