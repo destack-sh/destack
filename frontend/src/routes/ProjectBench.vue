@@ -218,6 +218,7 @@ watchEffect(async () => {
       } // otherwise no migration needed
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);
+      // (happens in state.setProject)
     }
   }
 });

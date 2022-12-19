@@ -73,6 +73,10 @@ class Project(TaggableMixin, UUIDModel):
     def __str__(self):
         return f"{self.organization.slug}/{self.slug}"
 
+    @gql.model_property(only=["organization", "slug"], select_related=["organization"])
+    def path(self) -> str:
+        return f"{self.organization.slug}.{self.slug}"
+
     @property
     def head_(self) -> ProjectVersion:
         if self.head is None:
@@ -310,10 +314,10 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         index: Optional[int] = None,
     ) -> Statement:
         """Imports a statement from another file."""
-        if statement.file == self:
-            raise ValueError("cannot import statement from same file")
+        if statement.file == file:
+            raise ValueError(f"cannot import {statement} in same file {file}")
         if statement.type == StatementType.IMPORT:
-            raise ValueError("cannot import an import statement")
+            raise ValueError(f"cannot import an import statement {statement}")
 
         import_statement = Statement.objects.create_import(
             statement=statement,
@@ -353,9 +357,15 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return reference_statement
 
     def get_statements(
-        self, file: Optional[File], name: str, symbol_type: Optional[SymbolType] = None
+        self,
+        file: Optional[File],
+        name: str,
+        type: Optional[StatementType],
+        symbol_type: Optional[SymbolType] = None,
     ) -> QuerySet[Statement]:
         qs = self.available_statements().filter(name=name)
+        if type is not None:
+            qs = qs.filter(type=type)
         if symbol_type is not None:
             qs = qs.filter(symbol_type=symbol_type)
         if file is not None:
@@ -363,26 +373,33 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return qs
 
     def get_statement(
-        self, file: Optional[File], name: str, symbol_type: Optional[SymbolType] = None
+        self,
+        file: Optional[File],
+        name: str,
+        type: Optional[StatementType] = None,
+        symbol_type: Optional[SymbolType] = None,
     ) -> Optional[Statement]:
         try:
-            return self.get_statements(file, name, symbol_type).get()
+            return self.get_statements(file, name, type, symbol_type).get()
         except Statement.MultipleObjectsReturned as e:
-            type_name_declr = f"{symbol_type} {name}" if symbol_type else name
             raise Statement.MultipleObjectsReturned(
-                f"multiple statements like {type_name_declr} in {self}"
+                f"multiple statements with file={file} name={name} type={type} symbol_type={symbol_type} in {self}"
             ) from e
         except Statement.DoesNotExist:
             return None
 
     def statement(
-        self, file: Optional[File], name: str, symbol_type: Optional[SymbolType] = None
+        self,
+        file: Optional[File],
+        name: str,
+        type: Optional[StatementType] = None,
+        symbol_type: Optional[SymbolType] = None,
     ) -> Statement:
-        statement = self.get_statement(file, name, symbol_type)
+        statement = self.get_statement(file, name, type, symbol_type)
         if statement is None:
             available_symbols_str = self._get_available_symbols_str()
             raise ValueError(
-                f"symbol {name}{'.' + symbol_type if symbol_type else ''} is not defined in {self}:\n{available_symbols_str}"
+                f"symbol file={file} name={name} type={type} symbol_type={symbol_type} is not defined {self}:\n{available_symbols_str}"
             )
         else:
             return statement
@@ -476,6 +493,10 @@ class File(UUIDModel):
             if self.parent
             else f"{self.name}.{self.type}"
         )
+
+    @gql.model_property(only=["name", "parent"], select_related=["parent"])
+    def path_without_extension(self) -> str:
+        return f"{self.parent.path_without_extension}/{self.name}" if self.parent else self.name
 
     @property
     def is_root(self) -> bool:

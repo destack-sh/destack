@@ -1,17 +1,17 @@
 <script lang="ts" setup>
 import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { SymbolContentType } from "@/utils/fragments";
+import { StatementContentType } from "@/utils/fragments";
 import { useSchemaInterfaceState, viewModes, type SchemaContentType, type ViewMode } from "@/utils/schema";
 import { computed } from "vue";
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof SchemaContentType>;
 }>();
 
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
-const state = useSchemaInterfaceState(symbol);
+const statement = computed(() => useFragment(StatementContentType, props.statement));
+const state = useSchemaInterfaceState(statement);
 
 function viewToObject(view: string) {
   return {

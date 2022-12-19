@@ -3,13 +3,13 @@ import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { CodeContentType } from "@/utils/code";
 import { useEditorState } from "@/utils/editor";
-import { SymbolContentType } from "@/utils/fragments";
+import { StatementHeaderType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  statement: FragmentType<typeof StatementHeaderType>;
   content: FragmentType<typeof CodeContentType>;
   compiled: boolean;
   commented: boolean;
@@ -17,7 +17,7 @@ const props = defineProps<{
   lineNumberBase: number;
   xOffset: number;
 }>();
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
+const statement = computed(() => useFragment(StatementHeaderType, props.statement));
 const content = computed(() => useFragment(CodeContentType, props.content));
 
 const editor = useEditorState();
@@ -27,7 +27,7 @@ const operations = useOperations();
 function onCodeEnter(code: string) {
   const oldCode = content.value.code ?? "";
   if (oldCode !== code) {
-    operations.content.updateCodeContent(symbol.value.id, { code: oldCode }, { code });
+    operations.content.updateCodeContent(statement.value.id, { code: oldCode }, { code });
   }
 }
 

@@ -90,6 +90,8 @@ function initMonaco(monaco: Monaco) {
       { token: "constant.language", foreground: "#d97706" },
       { token: "constant.other", foreground: "#d97706" },
       { token: "identifier.python", foreground: "#111827" },
+      // make comments italic
+      { token: "comment", fontStyle: "italic" },
       // TODO @UX: make builtin functions orange and bold
       // (the below doesn't work because the token type isn't defined yet)
       { token: "bench-builtin-function", foreground: "#d97706", fontStyle: "bold" },
@@ -115,6 +117,9 @@ function initMonaco(monaco: Monaco) {
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
     lineNumbersMinChars: 3,
+    // set font to same mono from tailwind config
+    fontSize: 14,
+    fontFamily: "Druid Sans Mono, monospace",
     lineNumbers,
     renderLineHighlight: "none",
     // disable folding
@@ -191,6 +196,10 @@ defineExpose({ focus, defocus });
 </template>
 
 <style>
+.line-numbers {
+  user-select: none;
+}
+
 .focused .line-numbers {
   color: #fdba74 !important;
 }

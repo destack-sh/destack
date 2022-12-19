@@ -7,6 +7,7 @@ from uuid import UUID
 import pytz
 import structlog
 from django.db import models, transaction
+from django.db.models import Q
 from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
@@ -294,7 +295,10 @@ class Statement(UUIDModel):
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:
-        return Statement.objects.filter(parent__in=self.children.all())
+        # TODO @Broken: get all descendants, not just children of children (recursive)
+        return Statement._base_manager.filter(
+            Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
+        )
 
     @property
     def active_children(self) -> models.QuerySet[Statement]:
@@ -304,10 +308,6 @@ class Statement(UUIDModel):
     def active_descendants(self) -> models.QuerySet[Statement]:
         return self.descendants.filter(deleted_at__isnull=True, commented=False)
 
-    @gql.model_property(only=["type"])
-    def type_shortname(self) -> str:
-        return self.type
-
     @staticmethod
     def symbol_type_to_field(type: SymbolType) -> str:
         return SYMBOL_TYPE_TO_FIELD[type]
@@ -316,10 +316,14 @@ class Statement(UUIDModel):
         only=["symbol_type", "schema", "task", "expectation", "code", "model", "dataset"],
         select_related=["schema", "task", "expectation", "code", "model", "dataset"],
     )
-    def content(self) -> Union[Schema, Task, Expectation, Code, Model, Dataset]:
+    def content(self) -> Union[None, Schema, Task, Expectation, Code, Model, Dataset]:
         content: Union[Schema, Task, Expectation, Code, Model, Dataset, None] = getattr(
             self, self.symbol_type_to_field(self.symbol_type)
         )
+        return content
+
+    def content_(self) -> Union[Schema, Task, Expectation, Code, Model, Dataset]:
+        content = self.content
         if content is None:
             raise ValueError(f"{self} has no content for {self.symbol_type}")
         return content

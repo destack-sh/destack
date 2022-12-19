@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { useSymbolInterfaceState, type SymbolHeader } from "@/utils/editor";
+import { useSymbolInterfaceState, type StatementHeader } from "@/utils/editor";
 import type { Ref } from "vue";
 
 export const SchemaContentType = graphql(/* GraphQL */ `
@@ -21,6 +21,6 @@ export const DEFAULT_STATE = {
   view: "pretty",
 } as SchemaInterfaceState;
 
-export function useSchemaInterfaceState(symbol: Ref<SymbolHeader>): Ref<SchemaInterfaceState> {
-  return useSymbolInterfaceState<SchemaInterfaceState>(symbol, DEFAULT_STATE);
+export function useSchemaInterfaceState(statement: Ref<StatementHeader>): Ref<SchemaInterfaceState> {
+  return useSymbolInterfaceState<SchemaInterfaceState>(statement, DEFAULT_STATE);
 }

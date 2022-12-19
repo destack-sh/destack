@@ -10,7 +10,7 @@ type AddCompilationPayload {
 
 type Argument implements Node {
   id: GlobalID!
-  symbol(pk: ID): Symbol!
+  statement: Statement!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -20,13 +20,14 @@ type Argument implements Node {
 
 type Code implements SymbolContent & Node {
   id: GlobalID!
-  symbol: Symbol!
+  definition: Statement!
   builtinId: String
   code: String
+  length: Int!
 }
 
 input CodeUpdateContentCode {
-  symbolId: GlobalID!
+  statementId: GlobalID!
   builtinId: String = null
   code: String = null
 }
@@ -67,7 +68,7 @@ union CreateFilePayload = File | OperationInfo
 
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
-  symbol: Symbol!
+  definition: Statement!
   length: Int!
   records: [DatasetRecord!]!
 }
@@ -104,12 +105,12 @@ type Execution implements Node {
 
 type Expectation implements SymbolContent & Node {
   id: GlobalID!
-  symbol: Symbol!
+  definition: Statement!
   description: String!
 }
 
 input ExpectationUpdateContentDescription {
-  symbolId: GlobalID!
+  statementId: GlobalID!
   description: String!
 }
 
@@ -119,6 +120,7 @@ type File implements Node {
   type: FileType!
   name: String!
   path: String!
+  pathWithoutExtension: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
@@ -172,7 +174,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type Model implements SymbolContent & Node {
   id: GlobalID!
-  symbol: Symbol!
+  definition: Statement!
   baseline: Model
   provider: String!
 }
@@ -187,9 +189,9 @@ type Mutation {
   renameFile(input: FileRenameInput!): RenameFilePayload!
   softDeleteFile(input: FileSoftDeleteInput!): File!
   restoreFile(input: FileRestoreInput!): File!
-  updateTaskContent(input: TaskUpdateContentDescription!): Symbol!
-  updateExpectationContent(input: ExpectationUpdateContentDescription!): Symbol!
-  updateCodeContent(input: CodeUpdateContentCode!): Symbol!
+  updateTaskContent(input: TaskUpdateContentDescription!): Statement!
+  updateExpectationContent(input: ExpectationUpdateContentDescription!): Statement!
+  updateCodeContent(input: CodeUpdateContentCode!): Statement!
   run(input: RunCodeInput!): RunCodePayload!
   addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
@@ -263,7 +265,7 @@ type PageInfo {
 
 type Parameter implements Node {
   id: GlobalID!
-  symbol(pk: ID): Symbol!
+  statement: Statement!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -283,6 +285,7 @@ type Project implements Node {
   id: GlobalID!
   name: String!
   slug: String!
+  path: String!
   organization: Organization!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -406,7 +409,7 @@ input RunCodeValueArgumentInput {
 
 type Schema implements SymbolContent & Node {
   id: GlobalID!
-  symbol: Symbol!
+  definition: Statement!
   description: String!
   element: SchemaElement!
 }
@@ -434,7 +437,6 @@ type Statement implements Node {
   projectVersion: ProjectVersion!
   file: File!
   type: StatementType!
-  typeShortname: String!
   modifier: StatementModifier
   name: String
   createdAt: DateTime!
@@ -444,17 +446,18 @@ type Statement implements Node {
   compiled: Boolean!
   parent: Statement
   children: [Statement!]!
+  descendants: [Statement!]!
   index: Int
-  symbol: Symbol
+  symbolType: SymbolType
+  text: String
 
-  """
-  Traverses references to get the underlying symbol (at the definition statement).
-  """
-  sourceSymbol(pk: ID): Symbol
+  """Traverses references to get the source definition."""
+  sourceDefinition(pk: ID): Statement
   reference: Statement
+  referencedBy: [Statement!]!
   parameters: [Parameter!]!
   arguments: [Argument!]!
-  text: String
+  content(pk: ID): SymbolContent
 }
 
 input StatementCommentedInput {
@@ -468,6 +471,7 @@ type StatementCommentedPayload {
 
 input StatementFilter {
   isVisible: Boolean = true
+  type: StatementType = null
   id: GlobalID
 }
 
@@ -522,18 +526,6 @@ enum StatementType {
   COMMENT
 }
 
-type Symbol implements Node {
-  id: GlobalID!
-  projectVersion: ProjectVersion!
-  file: File!
-  type: SymbolType!
-  typeShortname: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  statement(pk: ID): Statement!
-  content(pk: ID): SymbolContent!
-}
-
 interface SymbolContent implements Node {
   id: GlobalID!
 }
@@ -550,13 +542,13 @@ enum SymbolType {
 
 type Task implements SymbolContent & Node {
   id: GlobalID!
-  symbol: Symbol!
+  definition: Statement!
   description: String!
   compilations: [Compilation!]!
 }
 
 input TaskUpdateContentDescription {
-  symbolId: GlobalID!
+  statementId: GlobalID!
   description: String!
 }
 

@@ -22,7 +22,7 @@ random: random.Random
 # @define schema: example
 example = [
     {"name": "input", "type": "string"},
-    {"name": "command", "type": "string"},
+    {"name": "output", "type": "string"},
 ]  # hack, should be a real schema ref to input/output
 
 # @define task: generate_command
@@ -33,27 +33,27 @@ add_statements = [("task generate_command", None, "ref", "schema example")]
 basic_examples = [
     {
         "input": "list files in the current directory",
-        "command": "ls -l",
+        "output": "ls -l",
     },
     {
         "input": "revert commit",
-        "command": "git revert",
+        "output": "git revert",
     },
     {
         "input": "find listening to port 5432",
-        "command": "netstat -tulpen | grep 5432",
+        "output": "netstat -tulpen | grep 5432",
     },
     {
         "input": "build docker image",
-        "command": "docker build",
+        "output": "docker build",
     },
     {
         "input": "new python env",
-        "command": "python -m venv venv",
+        "output": "python -m venv venv",
     },
     {
         "input": "install bs4",
-        "command": "pip install bs4",
+        "output": "pip install bs4",
     },
 ]
 add_statements = [("task generate_command", "like", "ref", "data basic examples")]
@@ -78,7 +78,7 @@ async def verify_result_is_safe(example: dict) -> bool:
     )
 
 
-# @define expect task=generate_command: safe output
+# @define expect parent_ref=generate_command: safe output
 expectation = "The command should be safe to execute (does not do irreversible damage or changes)."
 statements = [("verify", "def", "code verify_result_is_safe")]
 
@@ -93,7 +93,7 @@ async def verify_valid_bash_command(example: dict) -> bool:
         return False
 
 
-# @define expect task=generate_command: valid bash command
+# @define expect parent_ref=generate_command: valid bash command
 expectation = "The command should be a valid bash command."
 statements = [("verify", "def", "code verify_valid_bash_command")]
 
@@ -173,7 +173,7 @@ async def form_invariance(example: dict) -> list[dict]:
     return transforms
 
 
-# @define expect task=generate_command: form invariance
+# @define expect parent_ref=generate_command: form invariance
 expectation = "The input form (spelling, phrasing, etc.) should not affect the output command."
 statements = [("like", "def", "code form_invariance")]
 
@@ -252,7 +252,7 @@ async def expect_respect_command_hints(example: dict) -> Optional[dict]:
     return {"input": input_other_hint, "command": alternative_command}
 
 
-# @define expect task=generate_command: respect hints
+# @define expect parent_ref=generate_command: respect hints
 expectation = "Explicit command hints (like 'use ls') should be respected."
 statements = [
     ("verify", "def", "code verify_respect_command_hints"),
@@ -320,7 +320,7 @@ async def generate_chain_examples(n_samples: int) -> list[dict]:
     return examples
 
 
-# @define expect task=generate_command: chain commands
+# @define expect parent_ref=generate_command: chain commands
 expectation = "Break the input down into a sequence of steps."
 statements = [("like", "def", "code generate_chain_examples")]
 
@@ -333,8 +333,8 @@ task = "Look up documentation as needed."
 input_schema = [{"name": "input", "type": "string"}]
 output_schema = [{"name": "docs", "type": "string"}]
 
-# @define code task=lookup_docs: lookup_docs
-async def lookup_docs(input: str) -> str:
+# @define code parent_ref=lookup_docs: get_docs
+async def get_docs(input: str) -> str:
     # get potentially relevant utilities
     utilities = await llm(
         model=model,

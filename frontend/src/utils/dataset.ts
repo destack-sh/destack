@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { useSymbolInterfaceState, type SymbolHeader } from "@/utils/editor";
+import { useSymbolInterfaceState, type StatementHeader } from "@/utils/editor";
 import type { Ref } from "vue";
 
 export const DatasetContentType = graphql(/* GraphQL */ `
@@ -24,6 +24,6 @@ export const DEFAULT_STATE = {
   showTableHeader: false,
 } as DatasetInterfaceState;
 
-export function useDatasetInterfaceState(symbol: Ref<SymbolHeader>): Ref<DatasetInterfaceState> {
-  return useSymbolInterfaceState<DatasetInterfaceState>(symbol, DEFAULT_STATE);
+export function useDatasetInterfaceState(statement: Ref<StatementHeader>): Ref<DatasetInterfaceState> {
+  return useSymbolInterfaceState<DatasetInterfaceState>(statement, DEFAULT_STATE);
 }

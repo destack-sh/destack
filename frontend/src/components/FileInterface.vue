@@ -2,7 +2,7 @@
 import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import type { StatementContentFragment } from "@/gql/graphql";
+import { StatementType, type StatementContentFragment } from "@/gql/graphql";
 import { FileHeaderType, StatementContentType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { useQuery } from "@vue/apollo-composable";
@@ -17,11 +17,7 @@ const { result: file } = useQuery(
         id
         ...FileHeader
         statements(filters: { isVisible: true }) {
-          id
           ...StatementContent
-          parent {
-            id
-          }
         }
       }
     }
@@ -47,10 +43,12 @@ function restore() {
 }
 
 /* Statements are hierarchical but laid out linearly (in one column) */
+/* Certain statements may be grouped outside the hierarchy */
 type PositionedStatement = {
   depth: number;
   lineNumberBase: number;
-  isLastInRoot: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
   statement: StatementContentFragment;
 };
 const positionedStatements = computed(() => {
@@ -60,9 +58,12 @@ const positionedStatements = computed(() => {
   // depth first traversal
   function walkDfs(statement: StatementContentFragment, depth: number, isLast: boolean) {
     const children = statements.value.filter((child) => child.parent?.id == statement.id);
+
+    const isFirstInGroup = depth == 0;
     const isLastInRoot = isLast && children.length == 0;
-    positionedStatements.push({ depth, lineNumberBase, statement, isLastInRoot });
-    lineNumberBase += 1; // should be statement.content.length but that's not implemented yet
+
+    positionedStatements.push({ depth, lineNumberBase, statement, isFirstInGroup, isLastInGroup: isLastInRoot });
+    lineNumberBase += 1 + ((statement.content as { length?: number })?.length || 0);
 
     // sort by index
     children.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -73,6 +74,18 @@ const positionedStatements = computed(() => {
   const roots = statements.value.filter((statement) => statement.parent == undefined);
   roots.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
   roots.forEach((root) => walkDfs(root, 0, true));
+
+  // group sibling import statements at root
+  for (const [i, positioned] of positionedStatements.entries()) {
+    if (positioned.statement.type == StatementType.Import || positioned.statement.type == StatementType.Comment) {
+      const next = positionedStatements[i + 1];
+      if (next && next.depth == 0 && next.statement.type == positioned.statement.type) {
+        positioned.isLastInGroup = false;
+        next.isFirstInGroup = false;
+      }
+    }
+  }
+
   return positionedStatements;
 });
 </script>
@@ -85,10 +98,11 @@ const positionedStatements = computed(() => {
       :file="fileHeader"
       :statement="positioned.statement"
       :depth="positioned.depth"
-      :isLastInRoot="positioned.isLastInRoot"
+      :isFirstInGroup="positioned.isFirstInGroup"
+      :isLastInGroup="positioned.isLastInGroup"
       :lineNumberBase="positioned.lineNumberBase"
       class="mx-auto w-full max-w-[1000px] bg-white"
-      :class="positioned.depth == 0 ? 'mt-6' : ''"
+      :class="positioned.isFirstInGroup ? 'mt-6' : ''"
     />
     <!-- Deleted overlay with restore button -->
     <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">

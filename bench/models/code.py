@@ -25,6 +25,7 @@ class Code(Schemad, SymbolContent):
     builtin_id = models.CharField(null=True, blank=True, max_length=256)
     code = models.TextField(null=True, blank=True)
     code_function_name = models.CharField(null=True, blank=True, max_length=256)
+    length = models.IntegerField(default=0)
 
     def deepcopy(self, to: Code, refs: dict[UUID, Statement | SymbolContent]):
         super().deepcopy(to, refs)
@@ -39,6 +40,11 @@ class Code(Schemad, SymbolContent):
         else:
             raise ValueError(f"code has no content: {self}")
         return f"({content},{self.schema or '<no schema>'})"
+
+    def save(self, *args, **kwargs):
+        # update length using line count
+        self.length = len(self.code.splitlines()) if self.code else 0
+        super().save(*args, **kwargs)
 
     @property
     def anonymous(self) -> bool:

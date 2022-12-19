@@ -178,10 +178,41 @@ export function useStatementActions() {
   const deleteCurrent = provideGlobalAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
-    shortcuts: ["backspace", "delete"],
+    shortcuts: ["d", "backspace", "delete"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
       await operations.statement.delete(statement.value.id);
+    },
+  });
+
+  // insert statement (as a sibling)
+  const insertBeforeCurrent = provideGlobalAction({
+    id: "statement.insertBeforeCurrent",
+    label: "Insert statement before current",
+    shortcuts: ["b"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: async () => {
+      console.log("insert statement before current");
+    },
+  });
+  const insertAfterCurrent = provideGlobalAction({
+    id: "statement.insertStatement",
+    label: "Insert statement",
+    shortcuts: ["i", "a", "shift+enter", "plus"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: async () => {
+      console.log("insert statement after current");
+    },
+  });
+
+  // toggle comment statement
+  const toggleCommentCurrent = provideGlobalAction({
+    id: "statement.toggleCommentCurrent",
+    label: "Comment current statement",
+    shortcuts: ["c", "shift+t"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: async () => {
+      await operations.statement.comment(statement.value.id, !statement.value.commented);
     },
   });
 
@@ -197,5 +228,8 @@ export function useStatementActions() {
     editCurrent,
     stopEditingCurrent,
     deleteCurrent,
+    insertBeforeCurrent,
+    insertAfterCurrent,
+    toggleCommentCurrent,
   };
 }

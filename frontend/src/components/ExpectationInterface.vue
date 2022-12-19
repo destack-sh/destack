@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { useEditorState } from "@/utils/editor";
-import { SymbolContentType } from "@/utils/fragments";
+import { StatementContentType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, type Ref } from "vue";
@@ -14,7 +14,7 @@ const ExpectationContentType = graphql(/* GraphQL */ `
 `);
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof ExpectationContentType>;
   compiled: boolean;
   commented: boolean;
@@ -28,7 +28,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
 }>();
 
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
+const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(ExpectationContentType, props.content));
 
 const editor = useEditorState();
@@ -39,7 +39,7 @@ const description: Ref<HTMLInputElement | null> = ref(null);
 async function onDescriptionEnter() {
   const newDescription = (description.value as HTMLInputElement).innerText;
   if (newDescription.length > 0 && newDescription != content.value.description) {
-    await operations.content.updateExpectationContent(symbol.value.id, content.value.description, newDescription);
+    await operations.content.updateExpectationContent(statement.value.id, content.value.description, newDescription);
   }
 }
 

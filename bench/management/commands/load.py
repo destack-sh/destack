@@ -280,11 +280,11 @@ def parse_extra(
 ):
     if "parent_ref" in segment.symbol_args:
         parent_name = segment.symbol_args["parent_ref"]
-        parent = project_v.statement(file=None, name=parent_name)
+        parent = project_v.statement(file=None, name=parent_name, type=StatementType.DEFINITION)
         _mount_child_statement(project_v, parent, None, StatementType.REFERENCE, statement)
     if "parent_def" in segment.symbol_args:
         parent_name = segment.symbol_args["parent_def"]
-        parent = project_v.statement(file=None, name=parent_name)
+        parent = project_v.statement(file=None, name=parent_name, type=StatementType.DEFINITION)
         _mount_child_statement(project_v, parent, None, StatementType.DEFINITION, statement)
 
     add_statements = lookup_def("add_statements", required=False)
@@ -292,7 +292,7 @@ def parse_extra(
         return
     for parent_declr, modifier, statement_type, child_declr in add_statements:
         parent_type, parent_name = parent_declr.split(" ", maxsplit=1)
-        parent = project_v.statement(None, parent_name, SymbolType(parent_type))
+        parent = project_v.statement(None, parent_name, symbol_type=SymbolType(parent_type))
         _parse_child_statement(project_v, parent, modifier, statement_type, child_declr)
 
 
@@ -323,12 +323,15 @@ def _mount_child_statement(
         child.move_to(parent.file, parent)
     elif statement_type == StatementType.REFERENCE:
         # reference child in parent (via import if necessary)
-        import_statement = project_v.get_import_of(parent.file, child)
-        if import_statement is None:
-            import_statement = project_v.import_statement(child, alias=None, file=parent.file)
+        if child.file != parent.file:
+            imported = project_v.get_import_of(parent.file, child)
+            if imported is None:
+                imported = project_v.import_statement(child, alias=None, file=parent.file)
+        else:
+            imported = child
         # create reference statement to child
         reference = project_v.reference_statement(
-            import_statement, alias=None, file=parent.file, parent=parent
+            imported, alias=None, file=parent.file, parent=parent
         )
         reference.modifier = modifier
         reference.save()
@@ -440,10 +443,6 @@ def parse_expect(
             # expectation statement e.g. ("like", "REFERENCE", "code respect_command_hints")
             modifier, statement_type, symbol_declr = statement_def
             _parse_child_statement(project_v, statement, modifier, statement_type, symbol_declr)
-        if "task" in segment.symbol_args:
-            task_name = segment.symbol_args["task"]
-            task_statement = project_v.statement(file=None, name=task_name)
-            statement.move_to(file=task_statement.file, parent=task_statement)
 
     return expectation, on_defined
 
