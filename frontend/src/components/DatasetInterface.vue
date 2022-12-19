@@ -3,12 +3,13 @@ import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import type { DatasetContentFragment } from "@/gql/graphql";
 import { DatasetContentType, useDatasetInterfaceState } from "@/utils/dataset";
-import { SymbolContentType } from "@/utils/fragments";
+import { FileHeaderType, StatementContentType } from "@/utils/fragments";
 import { useSchemadSymbolSchema } from "@/utils/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  file: FragmentType<typeof FileHeaderType>;
+  statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof DatasetContentType>;
   compiled: boolean;
   commented: boolean;
@@ -17,7 +18,8 @@ const props = defineProps<{
   xOffset: number;
 }>();
 
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
+const file = computed(() => useFragment(FileHeaderType, props.file));
+const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(DatasetContentType, props.content));
 
 function datasetToJsonObj(content: DatasetContentFragment) {
@@ -29,12 +31,12 @@ const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, 
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
 
 // sense derived state
-const { schemaElement } = useSchemadSymbolSchema(symbol);
+const { schemaElement } = useSchemadSymbolSchema(file, statement);
 const schemaElements = computed(() => schemaElement.value?.elements ?? []);
 const schemaAvailable = computed(() => schemaElement.value != null);
 
 // local interface state
-const state = useDatasetInterfaceState(symbol);
+const state = useDatasetInterfaceState(statement);
 </script>
 <template>
   <div class="flex h-full w-full flex-col">

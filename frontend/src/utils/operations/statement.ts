@@ -41,6 +41,75 @@ export function useStatementOps() {
     `)
   );
 
+  const { mutate: renameStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation renameStatement($id: GlobalID!, $name: String!) {
+        renameStatement(input: { id: $id, name: $name }) {
+          ... on Statement {
+            id
+            name
+            referencedBy {
+              id
+              name
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  const { mutate: deleteStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation deleteStatement($id: GlobalID!) {
+        softDeleteStatement(input: { id: $id }) {
+          statement {
+            id
+            deletedAt
+            descendants {
+              id
+              deletedAt
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  const { mutate: commentStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
+        commentStatement(input: { id: $id, commented: $commented }) {
+          statement {
+            id
+            commented
+            descendants {
+              id
+              commented
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  const { mutate: restoreStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restoreStatement($id: GlobalID!) {
+        restoreStatement(input: { id: $id }) {
+          statement {
+            id
+            deletedAt
+            descendants {
+              id
+              deletedAt
+            }
+          }
+        }
+      }
+    `)
+  );
+
   async function move(
     id: string,
     oldLoc: { fileId: string; parentId?: string; index?: number },
@@ -67,53 +136,17 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: renameStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation renameStatement($id: GlobalID!, $name: String!) {
-        renameStatement(input: { id: $id, name: $name }) {
-          ... on Statement {
-            id
-            name
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: deleteStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation deleteStatement($id: GlobalID!) {
-        softDeleteStatement(input: { id: $id }) {
-          statement {
-            id
-            deletedAt
-          }
-        }
-      }
-    `),
-    {
-      // refetchQueries: ["fileContentById"],
-      awaitRefetchQueries: false,
-    }
-  );
-
-  const { mutate: restoreStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation restoreStatement($id: GlobalID!) {
-        restoreStatement(input: { id: $id }) {
-          statement {
-            id
-            deletedAt
-          }
-        }
-      }
-    `),
-    {
-      // refetchQueries: ["fileContentById"],
-      awaitRefetchQueries: false,
-    }
-  );
+  async function comment(id: string, commented: boolean) {
+    await operations.perform({
+      type: "statement.comment",
+      do: async () => {
+        await commentStatementMut({ id: id, commented: commented });
+      },
+      undo: async () => {
+        await commentStatementMut({ id: id, commented: !commented });
+      },
+    });
+  }
 
   async function rename(id: string, oldName: string, newName: string) {
     await operations.perform({
@@ -139,5 +172,5 @@ export function useStatementOps() {
     });
   }
 
-  return { move, rename, delete: delete_ };
+  return { move, comment, rename, delete: delete_ };
 }

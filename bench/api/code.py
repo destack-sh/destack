@@ -21,6 +21,7 @@ class Code(SymbolContent):
     definition: Statement
     builtin_id: auto
     code: auto
+    length: auto
 
 
 @gql.django.type(models.Execution)

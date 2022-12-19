@@ -38,15 +38,38 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
+export const DependencyHeaderType = graphql(/* GraphQL */ `
+  fragment DependencyHeader on ProjectVersion {
+    createdAt
+    committedAt
+    name
+    project {
+      id
+      name
+      slug
+      path
+      organization {
+        id
+        name
+        slug
+      }
+    }
+  }
+`);
+
 export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
     type
     name
     path
+    pathWithoutExtension
     createdAt
     updatedAt
     deletedAt
+    projectVersion {
+      id
+    }
   }
 `);
 
@@ -65,26 +88,17 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     file {
       id
       path
+      pathWithoutExtension
+      projectVersion {
+        id
+      }
     }
     parent {
-      id
-    }
-    symbol {
       id
     }
     reference {
       id
     }
-  }
-`);
-
-export const SymbolHeaderType = graphql(/* GraphQL */ `
-  fragment SymbolHeader on Symbol {
-    id
-    type
-    typeShortname
-    createdAt
-    updatedAt
   }
 `);
 
@@ -125,7 +139,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
   fragment StatementContent on Statement {
     id
     type
-    typeShortname
+    symbolType
     createdAt
     updatedAt
     deletedAt
@@ -137,21 +151,29 @@ export const StatementContentType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    symbol {
-      ...SymbolContent
+    content {
+      ... on Code {
+        ...CodeContent
+      }
+      ... on Dataset {
+        ...DatasetContent
+      }
+      ... on Expectation {
+        ...ExpectationContent
+      }
+      ... on Task {
+        ...TaskContent
+      }
+      ... on Schema {
+        ...SchemaContent
+      }
     }
     reference {
       ...StatementHeader
     }
-    sourceSymbol {
-      ...SymbolHeader
-    }
     parameters {
       name
       type
-      schema {
-        ...SchemaElementContentDeep
-      }
     }
     arguments {
       name
@@ -161,22 +183,5 @@ export const StatementContentType = graphql(/* GraphQL */ `
       }
     }
     text
-  }
-`);
-
-export const SymbolContentType = graphql(/* GraphQL */ `
-  fragment SymbolContent on Symbol {
-    id
-    type
-    typeShortname
-    createdAt
-    updatedAt
-    content {
-      ...CodeContent
-      ...DatasetContent
-      ...ExpectationContent
-      ...TaskContent
-      ...SchemaContent
-    }
   }
 `);

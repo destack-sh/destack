@@ -10,7 +10,7 @@ export function useSymbolContentOps() {
   const { mutate: updateTaskContentMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation updateTaskContent($id: GlobalID!, $description: String!) {
-        updateTaskContent(input: { symbolId: $id, description: $description }) {
+        updateTaskContent(input: { statementId: $id, description: $description }) {
           id
           content {
             id
@@ -40,7 +40,7 @@ export function useSymbolContentOps() {
   const { mutate: updateExpectationContentMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation updateExpectationContent($id: GlobalID!, $description: String!) {
-        updateExpectationContent(input: { symbolId: $id, description: $description }) {
+        updateExpectationContent(input: { statementId: $id, description: $description }) {
           id
           content {
             id
@@ -70,7 +70,7 @@ export function useSymbolContentOps() {
   const { mutate: updateCodeContentMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {
-        updateCodeContent(input: { symbolId: $id, code: $code, builtinId: $builtinId }) {
+        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {
           id
           content {
             id

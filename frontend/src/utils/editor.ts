@@ -1,11 +1,11 @@
 import {
   FileType,
+  StatementModifier,
   SymbolType,
   type File,
   type Project,
   type ProjectVersion,
   type Statement,
-  type Symbol,
 } from "@/gql/graphql";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, type Ref } from "vue";
@@ -20,7 +20,6 @@ export type StatementHeader = Pick<
   Statement,
   "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "index" | "compiled" | "commented"
 >;
-export type SymbolHeader = Pick<Symbol, "id" | "type" | "createdAt" | "updatedAt">;
 
 export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
   [FileType.Instruct]: "instruct",
@@ -35,6 +34,13 @@ export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
   [SymbolType.Model]: "model",
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
+};
+export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
+  [StatementModifier.Like]: "like",
+  [StatementModifier.Unlike]: "dislike",
+  [StatementModifier.Verify]: "verify",
+  [StatementModifier.Main]: "main",
+  [StatementModifier.Suggest]: "suggset",
 };
 
 export type RunConfiguration = {
@@ -262,14 +268,14 @@ export const useEditorState = defineStore("editor", {
       return editor;
     },
 
-    focusElement(element: StatementHeader | SymbolHeader | FileHeader) {
+    focusElement(element: StatementHeader | FileHeader) {
       if (this.focusedElementId == element.id) return;
       console.log(`focus element ${element.id}`);
       this.focusedElementId = element.id;
       this.editingElement = false;
     },
 
-    editElement(element: StatementHeader | SymbolHeader | FileHeader) {
+    editElement(element: StatementHeader | FileHeader) {
       this.focusElement(element);
       this.editingElement = true;
       console.log(`edit element ${element.id}`);
@@ -318,15 +324,15 @@ export function useEditorPersistence(intervalMs = 1000) {
   return { save, load };
 }
 
-export function useSymbolInterfaceState<T>(symbol: Ref<SymbolHeader>, defaultState: T): Ref<T> {
+export function useSymbolInterfaceState<T>(statement: Ref<StatementHeader>, defaultState: T): Ref<T> {
   const editorInterfaceState = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
-  // local state is stored by symbol id in the opaque editor interface state
+  // local state is stored by statement id in the opaque editor interface state
   const state = computed({
     get() {
-      return editorInterfaceState?.get(symbol.value.id, defaultState) as T;
+      return editorInterfaceState?.get(statement.value.id, defaultState) as T;
     },
     set(value: T) {
-      editorInterfaceState?.set(symbol.value.id, value);
+      editorInterfaceState?.set(statement.value.id, value);
     },
   });
 

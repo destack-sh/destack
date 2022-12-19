@@ -6,6 +6,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.models import StatementType
 
 if TYPE_CHECKING:
     from bench.api.compilation import Compilation
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 class Project(gql.Node):
     name: auto
     slug: auto
+    path: auto
     organization: Annotated["Organization", lazy(".organization")]
     created_at: auto
     updated_at: auto
@@ -27,6 +29,7 @@ class Project(gql.Node):
 @gql.django.filter(models.Statement)
 class StatementFilter:
     is_visible: Optional[bool] = True
+    type: Optional[StatementType] = None
     id: Optional[GlobalID]
 
     def filter(self, queryset):
@@ -35,6 +38,8 @@ class StatementFilter:
                 queryset = queryset.filter(deleted_at__isnull=True)
             else:
                 queryset = queryset.filter(deleted_at__isnull=False)
+        if self.type is not UNSET and self.type is not None:
+            queryset = queryset.filter(type=self.type)
         if self.id is not UNSET and self.id is not None:
             queryset = queryset.filter(id=self.id.node_id)
         return queryset
@@ -78,6 +83,7 @@ class File(gql.Node):
     type: auto
     name: auto
     path: auto
+    path_without_extension: auto
     created_at: auto
     updated_at: auto
     deleted_at: auto

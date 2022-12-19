@@ -1,17 +1,19 @@
 <script lang="ts" setup>
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { SymbolContentType } from "@/utils/fragments";
+import { FileHeaderType, StatementContentType } from "@/utils/fragments";
 import { useSchemadSymbolSchema } from "@/utils/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  file: FragmentType<typeof FileHeaderType>;
+  statement: FragmentType<typeof StatementContentType>;
   content: unknown;
 }>();
 
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
-const { schema } = useSchemadSymbolSchema(symbol);
+const file = computed(() => useFragment(FileHeaderType, props.file));
+const statement = computed(() => useFragment(StatementContentType, props.statement));
+const { schema } = useSchemadSymbolSchema(file, statement);
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">

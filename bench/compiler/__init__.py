@@ -48,7 +48,7 @@ def get_stdlib_model(path: str) -> Model:
     owner_slug, model_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.statement(file=None, name=model_name, type=SymbolType.MODEL).model_
+    return stdlib.head_.statement(file=None, name=model_name, symbol_type=SymbolType.MODEL).model_
 
 
 def get_stdlib_code(path: str) -> Code:
@@ -58,7 +58,7 @@ def get_stdlib_code(path: str) -> Code:
     owner_slug, code_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
-    return stdlib.head_.statement(file=None, name=code_name, type=SymbolType.CODE).code_
+    return stdlib.head_.statement(file=None, name=code_name, symbol_type=SymbolType.CODE).code_
 
 
 class ExpectationStatementType(enum.Enum):

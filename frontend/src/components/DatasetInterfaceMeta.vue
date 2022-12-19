@@ -3,18 +3,20 @@ import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { DatasetContentType, useDatasetInterfaceState, viewModes, type ViewMode } from "@/utils/dataset";
-import { SymbolContentType } from "@/utils/fragments";
+import { FileHeaderType, StatementContentType } from "@/utils/fragments";
 import { useSchemadSymbolSchema } from "@/utils/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  file: FragmentType<typeof FileHeaderType>;
+  statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof DatasetContentType>;
 }>();
 
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
+const file = computed(() => useFragment(FileHeaderType, props.file));
+const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(DatasetContentType, props.content));
-const state = useDatasetInterfaceState(symbol);
+const state = useDatasetInterfaceState(statement);
 
 function viewToObject(view: string) {
   return {
@@ -25,7 +27,7 @@ function viewToObject(view: string) {
 const viewAsObject = computed(() => viewToObject(state.value.view));
 const availableViews = computed(() => viewModes.map(viewToObject));
 
-const { schema } = useSchemadSymbolSchema(symbol);
+const { schema } = useSchemadSymbolSchema(file, statement);
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">

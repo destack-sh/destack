@@ -2,20 +2,18 @@
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { CodeContentType } from "@/utils/code";
-import { FileHeaderType, StatementContentType, SymbolContentType } from "@/utils/fragments";
+import { FileHeaderType, StatementContentType } from "@/utils/fragments";
 import { useSchemadSymbolSchema } from "@/utils/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
-  symbol: FragmentType<typeof SymbolContentType>;
   content: FragmentType<typeof CodeContentType>;
 }>();
 
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
 const content = computed(() => useFragment(CodeContentType, props.content));
 
 const { schema } = useSchemadSymbolSchema(file, statement);

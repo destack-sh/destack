@@ -2,12 +2,12 @@
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { SymbolContentType } from "@/utils/fragments";
+import { StatementContentType } from "@/utils/fragments";
 import { SchemaContentType, useSchemaInterfaceState } from "@/utils/schema";
 import { computed } from "vue";
 
 const props = defineProps<{
-  symbol: FragmentType<typeof SymbolContentType>;
+  statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof SchemaContentType>;
   compiled: boolean;
   commented: boolean;
@@ -15,7 +15,7 @@ const props = defineProps<{
   lineNumberBase: number;
   xOffset: number;
 }>();
-const symbol = computed(() => useFragment(SymbolContentType, props.symbol));
+const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(SchemaContentType, props.content));
 
 const elementAsJsonObj = computed(() => content.value?.element || {});
@@ -24,7 +24,7 @@ const elementAsJsonText = computed(() =>
 );
 
 // local interface state
-const state = useSchemaInterfaceState(symbol);
+const state = useSchemaInterfaceState(statement);
 </script>
 <template>
   <div class="flex h-full w-full flex-col gap-1 text-sm">
@@ -39,6 +39,10 @@ const state = useSchemaInterfaceState(symbol);
       :focused="focused"
       :readonly="compiled"
     />
-    <SchemaElement v-else-if="state.view == 'pretty'" :element="content.element" />
+    <SchemaElement
+      v-else-if="state.view == 'pretty'"
+      :element="content.element"
+      :omit-name="content.element.name == statement.name"
+    />
   </div>
 </template>

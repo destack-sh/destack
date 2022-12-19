@@ -11,8 +11,15 @@ import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { provideAction, useActions } from "@/utils/actions";
-import { makeRunConfiguration, makeRunEditor, useEditorState, type FileHeader } from "@/utils/editor";
-import { StatementContentType, StatementHeaderType, SymbolContentType } from "@/utils/fragments";
+import {
+  makeRunConfiguration,
+  makeRunEditor,
+  MODIFIER_SHORTNAME,
+  SYMBOL_TYPE_SHORTNAME,
+  useEditorState,
+} from "@/utils/editor";
+import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
+import { useIntelliSense } from "@/utils/intellisense";
 import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { useFocus, useFocusWithin } from "@vueuse/core";
@@ -20,34 +27,27 @@ import { assert } from "ts-essentials";
 import { computed, ref, watch, type Component, type ComputedRef } from "vue";
 
 const props = defineProps<{
-  file: FileHeader;
+  file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
   depth: number;
-  isLastInRoot: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
   lineNumberBase: number;
 }>();
+const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const symbol = computed(() => useFragment(SymbolContentType, statement.value?.symbol));
+const content = computed(() => statement.value.content);
 const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
-const sourceSymbol = computed(() => useFragment(SymbolContentType, statement.value?.sourceSymbol));
 const parameters = computed(() => statement.value?.parameters ?? []);
 const arguments_ = computed(() => statement.value?.arguments ?? []);
-const name = computed(() => statement.value?.name ?? reference.value?.name ?? sourceSymbol.value?.name ?? "");
 
-const editorState = useEditorState();
-const modifierShortname = computed(() => {
-  // map modifier to lower case
-  if (statement.value?.modifier) {
-    return statement.value.modifier.toLowerCase();
-  }
-  throw new Error("statement has no modifier");
-});
-
+const symbolTypeShortname = computed(() =>
+  statement.value.symbolType ? SYMBOL_TYPE_SHORTNAME[statement.value.symbolType] : null
+);
+const modifierShortname = computed(() =>
+  statement.value.modifier ? MODIFIER_SHORTNAME[statement.value.modifier] : null
+);
 const depthOffsetX = computed(() => props.depth * 20);
-
-function getArgument(name: string) {
-  return arguments_.value?.find((a) => a.name === name);
-}
 
 type FocusableComponent = Component & {
   focus: () => void;
@@ -97,15 +97,41 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Model]: undefined,
 };
 
+const editorState = useEditorState();
+const actions = useActions();
+const operations = useOperations();
+const sense = useIntelliSense();
+
 const isDefinition = computed(() => statement.value?.type == StatementType.Definition);
 const isReference = computed(() => statement.value?.type == StatementType.Reference);
+const isImport = computed(() => statement.value?.type == StatementType.Import);
+const isComment = computed(() => statement.value?.type == StatementType.Comment);
+const isCommented = computed(() => statement.value?.commented);
 const isRunnable = computed(
-  () => sourceSymbol.value?.type == SymbolType.Code || sourceSymbol.value?.type == SymbolType.Task
+  () =>
+    !isImport.value &&
+    (statement.value?.symbolType == SymbolType.Code || statement.value?.symbolType == SymbolType.Task)
 );
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value?.compiled);
+const isAlias = computed(() => (isReference.value || isImport.value) && reference.value?.name != statement.value.name);
+const importPath = computed(() => {
+  assert(isImport.value, "statement is import");
+  if (reference.value?.file.projectVersion.id != file.value.projectVersion.id) {
+    // absolute import to dependency
+    const dependency = sense.dependenciesById[reference.value?.file.projectVersion.id];
+    if (!dependency) {
+      return null;
+    } else {
+      return dependency.project.path + "." + reference.value?.file.pathWithoutExtension;
+    }
+  } else {
+    // relative import
+    return "." + reference.value?.file.pathWithoutExtension;
+  }
+});
 
 type MetaAction = {
   icon: Component;
@@ -119,7 +145,7 @@ const run = provideAction({
   shortcuts: ["ctrl+enter"],
   registered: computed(() => isRunnable.value && isFocused.value),
   apply: async () => {
-    assert(symbol.value != null, "symbol is null");
+    assert(isRunnable.value, "statement is runnable");
     const runConfiguration = makeRunConfiguration(statement.value);
     const runEditor = makeRunEditor(runConfiguration);
     editorState.openEditor(runEditor);
@@ -139,26 +165,23 @@ const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   return metaActions;
 });
 
-const actions = useActions();
-const operations = useOperations();
-
 async function onNameEnter(event: Event) {
   const newName = (event.target as HTMLInputElement).innerText;
   if (newName.length > 0 && newName != statement.value.name) {
-    await operations.symbol.rename(statement.value.id, statement.value.name ?? "", newName);
+    await operations.statement.rename(statement.value.id, statement.value.name ?? "", newName);
   }
 }
 
 // manage focus and navigation
 
-const container = ref<HTMLElement | null>(null);
-const declaration = ref<HTMLElement | null>(null);
-const content = ref<Component | null>(null);
-const { focused: containerFocused } = useFocusWithin(container);
-const { focused: declarationFocused } = useFocus(declaration);
+const containerRef = ref<HTMLElement | null>(null);
+const declarationRef = ref<HTMLElement | null>(null);
+const contentRef = ref<Component | null>(null);
+const { focused: containerFocused } = useFocusWithin(containerRef);
+const { focused: declarationFocused } = useFocus(declarationRef);
 
 function focus() {
-  editorState.focusFile(props.file);
+  editorState.focusFile(file.value);
   editorState.focusElement(statement.value);
 }
 
@@ -167,8 +190,8 @@ function focus() {
 watch(
   () => isFocused.value,
   (isFocused) => {
-    if (isFocused && container.value) {
-      container.value.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (isFocused && containerRef.value) {
+      containerRef.value.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }
 );
@@ -191,13 +214,13 @@ watch(
   () => isEditing.value,
   (isEditing) => {
     // if focused and editing started without any inner focus, focus declaration
-    if (isFocused.value && !containerFocused.value && isEditing && declaration.value) {
+    if (isFocused.value && !containerFocused.value && isEditing && declarationRef.value) {
       declarationFocused.value = true;
     }
     // if focused and editing stopped, defocus
-    if (!isEditing && declaration.value) {
+    if (!isEditing && declarationRef.value) {
       declarationFocused.value = false;
-      (content.value as FocusableComponent)?.defocus?.();
+      (contentRef.value as FocusableComponent)?.defocus?.();
     }
   }
 );
@@ -223,7 +246,7 @@ function navigateUp() {
 function navigateDown() {
   if (declarationFocused.value && content.value) {
     // declaration is focused, go to content
-    (content.value as FocusableComponent).focus?.();
+    (contentRef.value as FocusableComponent).focus?.();
   } else if (containerFocused.value) {
     // content is focused already or not available, go to next statement
     actions.statement.moveFocusDown.value.apply();
@@ -232,15 +255,19 @@ function navigateDown() {
 </script>
 <template>
   <div
-    ref="container"
-    class="group relative border-x border-gray-200 transition-colors"
+    ref="containerRef"
+    class="group relative border-x border-gray-200 tracking-tight transition-colors"
     :class="{
       'border-gray-200 ': !isFocused,
       'border-l-orange-500': isAncestorFocused,
       'hover:border-l-orange-300': !isFocused,
-      'rounded-t-sm border-t border-gray-200': depth == 0, // group top
+      'rounded-t-sm border-t border-gray-200': isFirstInGroup, // group top
       'pb-1': depth > 0, // inside group
-      'rounded-b-sm border-b border-gray-200 pb-2.5': isLastInRoot, // group bottom
+      'rounded-b-sm border-b border-gray-200': isLastInGroup, // group bottom
+      'pb-2.5': isLastInGroup && !isFirstInGroup, // group bottom with other top
+      'pb-1.5': isLastInGroup && isFirstInGroup, // group top and bottom
+      'font-mono': !isComment, // not sure if everything should be mono, but it's more consistent..
+      italic: isCommented,
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @click="focus"
@@ -248,7 +275,12 @@ function navigateDown() {
     <!-- Debug info -->
     <span v-if="editorState.debug" class="absolute top-0 right-0 z-20 text-sm">
       i:{{ statement.index }} d:{{ depth }}
+      <template v-if="isFirstInGroup">gs</template>
+      <template v-if="isLastInGroup">ge</template>
+      <template v-if="isCommented">c</template>
     </span>
+    <!-- Commented overlay -->
+    <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Imitate Monaco line numbers -->
     <span
       class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
@@ -271,29 +303,34 @@ function navigateDown() {
     <!-- Statement header & controls -->
     <div class="mx-3 flex flex-row items-center justify-between pt-1">
       <!--  Declaration -->
-      <div class="flex flex-row items-baseline" v-if="sourceSymbol">
-        <span class="decoration-none inline-flex items-baseline text-sm text-black">
+      <div class="flex flex-row items-baseline" v-if="statement.symbolType != null">
+        <span class="decoration-none text-nowrap inline-flex items-baseline text-sm text-black">
+          <span class="mr-1 text-orange-600" v-if="isImport">import</span>
           <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
-          <span class="text-orange-600">{{ sourceSymbol.typeShortname }}</span>
+          <span class="mr-1 text-orange-600">{{ symbolTypeShortname }}</span>
+          <span v-if="isAlias" class="text-nowrap flex-shrink-0 text-black">{{ reference?.name }}</span>
+          <span v-if="isAlias" class="mx-1 text-orange-600">as</span>
           <span
-            ref="declaration"
+            ref="declarationRef"
             :contenteditable="!readonly"
             maxlength="100"
-            class="ml-0.5 inline w-full select-all rounded-sm bg-transparent p-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:bg-yellow-50 focus:bg-yellow-100"
+            class="inline w-full select-all rounded-sm bg-transparent p-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:bg-yellow-50 focus:bg-yellow-100"
             @keydown.enter.prevent="onNameEnter"
             @keydown.up.prevent="navigateUp"
             @keydown.down.prevent="navigateDown"
             @keydown.escape.prevent="stopEditing"
             @click="startEditing"
           >
-            {{ name }}
+            {{ statement.name }}
           </span>
           <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
+          <span v-if="isImport" class="mx-1 text-orange-600">from</span>
+          <span v-if="isImport">{{ importPath }}</span>
         </span>
       </div>
       <!-- Meta & controls (top right) -->
       <span
-        class="inline-flex flex-row items-center"
+        class="inline-flex flex-row items-center font-sans"
         :class="{
           'opacity-0 group-hover:opacity-100': !isDefinition && !isFocused,
           'text-gray-400': !isFocused,
@@ -302,12 +339,11 @@ function navigateDown() {
       >
         <!-- Custom meta -->
         <component
-          v-if="symbol != null && metaInterfaces[symbol.type] != null"
-          :is="metaInterfaces[symbol.type]?.component"
+          v-if="content != null && statement.symbolType != null && metaInterfaces[statement.symbolType] != null"
+          :is="metaInterfaces[statement.symbolType]?.component"
           :file="file"
           :statement="statement"
-          :symbol="symbol"
-          :content="symbol.content"
+          :content="content"
           class="mr-1"
         />
         <!-- Statement meta info -->
@@ -352,15 +388,14 @@ function navigateDown() {
       </div>
     </div> -->
     <!-- Symbol content (if statement defines a symbol) -->
-    <div v-if="symbol != null" class="mx-3">
+    <div v-if="content != null && statement.symbolType != null" class="mx-3">
       <component
-        ref="content"
-        v-if="interfaces[symbol.type] != undefined"
-        :is="interfaces[symbol.type]?.component"
+        ref="contentRef"
+        v-if="interfaces[statement.symbolType] != undefined"
+        :is="interfaces[statement.symbolType]?.component"
         :file="file"
         :statement="statement"
-        :symbol="symbol"
-        :content="symbol.content"
+        :content="content"
         :lineNumberBase="lineNumberBase"
         :xOffset="depthOffsetX"
         :compiled="statement.compiled"
@@ -370,7 +405,7 @@ function navigateDown() {
         @navigateDown="navigateDown"
         @escape="stopEditing"
       />
-      <span class="text-red-500" v-else> cannot render {{ symbol.type }} </span>
+      <span class="text-red-500" v-else> cannot render {{ statement.symbolType }} </span>
     </div>
   </div>
 </template>
