@@ -95,6 +95,19 @@ export type CompilePayload = {
 
 export type CreateFilePayload = File | OperationInfo;
 
+export type CreateStatementInput = {
+  fileId: Scalars["GlobalID"];
+  index?: InputMaybe<Scalars["Int"]>;
+  name?: InputMaybe<Scalars["String"]>;
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  type: StatementType;
+};
+
+export type CreateStatementPayload = {
+  __typename?: "CreateStatementPayload";
+  statement: Statement;
+};
+
 export type Dataset = Node &
   SymbolContent & {
     __typename?: "Dataset";
@@ -206,6 +219,17 @@ export type Model = Node &
     provider: Scalars["String"];
   };
 
+export type MorphStatementInput = {
+  statementId: Scalars["GlobalID"];
+  symbolType?: InputMaybe<SymbolType>;
+  type: StatementType;
+};
+
+export type MorphStatementPayload = {
+  __typename?: "MorphStatementPayload";
+  statement: Statement;
+};
+
 export type Mutation = {
   __typename?: "Mutation";
   addCompilationTarget: AddCompilationPayload;
@@ -213,6 +237,8 @@ export type Mutation = {
   commit: CommitPayload;
   compile: CompilePayload;
   createFile: CreateFilePayload;
+  createStatement: CreateStatementPayload;
+  morphStatement: MorphStatementPayload;
   moveStatement: StatementMovePayload;
   renameFile: RenameFilePayload;
   renameStatement: RenameStatementPayload;
@@ -244,6 +270,14 @@ export type MutationCompileArgs = {
 
 export type MutationCreateFileArgs = {
   input: FileCreateInput;
+};
+
+export type MutationCreateStatementArgs = {
+  input: CreateStatementInput;
+};
+
+export type MutationMorphStatementArgs = {
+  input: MorphStatementInput;
 };
 
 export type MutationMoveStatementArgs = {
@@ -642,6 +676,7 @@ export type StatementSoftDeletePayload = {
 
 /** The type of Bench statement. */
 export enum StatementType {
+  Blank = "BLANK",
   Comment = "COMMENT",
   Definition = "DEFINITION",
   Import = "IMPORT",
@@ -1103,6 +1138,65 @@ export type RestoreFileMutation = {
       { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } }
     >;
   } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+};
+
+export type CreateStatementMutationVariables = Exact<{
+  fileId: Scalars["GlobalID"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  index?: InputMaybe<Scalars["Int"]>;
+  type: StatementType;
+  name?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type CreateStatementMutation = {
+  __typename?: "Mutation";
+  createStatement: {
+    __typename?: "CreateStatementPayload";
+    statement: {
+      __typename?: "Statement";
+      id: any;
+      index?: number | null;
+      name?: string | null;
+      text?: string | null;
+      file: {
+        __typename?: "File";
+        id: any;
+        path: string;
+        statements: Array<{ __typename?: "Statement"; id: any; index?: number | null }>;
+      };
+      parent?: { __typename?: "Statement"; id: any } | null;
+    };
+  };
+};
+
+export type MorphStatementMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  type: StatementType;
+  symbolType?: InputMaybe<SymbolType>;
+}>;
+
+export type MorphStatementMutation = {
+  __typename?: "Mutation";
+  morphStatement: {
+    __typename?: "MorphStatementPayload";
+    statement: {
+      __typename?: "Statement";
+      id: any;
+      type: StatementType;
+      symbolType?: SymbolType | null;
+      text?: string | null;
+      content?:
+        | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
+        | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
+        | ({ __typename?: "Expectation" } & {
+            " $fragmentRefs"?: { ExpectationContentFragment: ExpectationContentFragment };
+          })
+        | { __typename?: "Model" }
+        | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
+        | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+        | null;
+    };
+  };
 };
 
 export type MoveStatementMutationVariables = Exact<{
@@ -2671,6 +2765,277 @@ export const RestoreFileDocument = {
     ...StatementHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreFileMutation, RestoreFileMutationVariables>;
+export const CreateStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "index" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "fileId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "parentId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "index" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "index" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "index" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "text" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "file" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "path" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "statements" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "index" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<CreateStatementMutation, CreateStatementMutationVariables>;
+export const MorphStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "morphStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SymbolType" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "morphStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "symbolType" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "Field", name: { kind: "Name", value: "text" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "content" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Code" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "CodeContent" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Dataset" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "DatasetContent" } },
+                                ],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Expectation" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ExpectationContent" } },
+                                ],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Schema" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...CodeContentFragmentDoc.definitions,
+    ...DatasetContentFragmentDoc.definitions,
+    ...ExpectationContentFragmentDoc.definitions,
+    ...TaskContentFragmentDoc.definitions,
+    ...SchemaContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<MorphStatementMutation, MorphStatementMutationVariables>;
 export const MoveStatementDocument = {
   kind: "Document",
   definitions: [

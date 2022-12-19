@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Type, Union, cast
 from uuid import UUID
 
 import pytz
@@ -40,6 +40,7 @@ class StatementType(models.TextChoices):
     DEFINITION = "def"
     REFERENCE = "ref"
     COMMENT = "comment"
+    BLANK = "blank"  # used while creating a new statement
 
 
 class StatementModifier(models.TextChoices):
@@ -67,24 +68,40 @@ class SymbolType(models.TextChoices):
     DATASET = "data", "Dataset"
 
     @staticmethod
-    def from_content(content: SymbolContent) -> SymbolType:
+    def type_to_content_type_map():
         # re-import for real to avoid circular import (above is only for type checking)
         from bench.models import Code, Dataset, Expectation, Model, Schema, Task  # noqa
 
-        if isinstance(content, Schema):
-            return SymbolType.SCHEMA
-        elif isinstance(content, Task):
-            return SymbolType.TASK
-        elif isinstance(content, Expectation):
-            return SymbolType.EXPECTATION
-        elif isinstance(content, Code):
-            return SymbolType.CODE
-        elif isinstance(content, Model):
-            return SymbolType.MODEL
-        elif isinstance(content, Dataset):
-            return SymbolType.DATASET
-        else:
-            raise ValueError(f"invalid symbol content type {type(content)}")
+        return {
+            SymbolType.SCHEMA: Schema,
+            SymbolType.TASK: Task,
+            SymbolType.EXPECTATION: Expectation,
+            SymbolType.CODE: Code,
+            SymbolType.MODEL: Model,
+            SymbolType.DATASET: Dataset,
+        }
+
+    @staticmethod
+    def type_to_content_type(type: SymbolType) -> Type[SymbolContent]:
+        content_type = SymbolType.type_to_content_type_map()[type]
+        if content_type is None:
+            raise ValueError(f"unexpected symbol type {type}")
+        return content_type
+
+    @staticmethod
+    def content_type_to_type(content_type: Type[SymbolContent]) -> SymbolType:
+        content_type_type_map = {k: v for v, k in SymbolType.type_to_content_type_map().items()}
+        if content_type not in content_type_type_map:
+            raise ValueError(f"unexpected symbol content type {content_type}")
+        return content_type_type_map[content_type]
+
+    @staticmethod
+    def from_content(content: SymbolContent) -> SymbolType:
+        return SymbolType.content_type_to_type(type(content))
+
+    def default_content(self) -> SymbolContent:
+        cls = self.type_to_content_type(self)
+        return cls()
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -415,7 +432,6 @@ class Statement(UUIDModel):
             self.index, other_statement.index = other_statement.index, self.index
             self.save()
             other_statement.save()
-            print(f"swap {self} with {other_statement}")
         else:  # remove from old location and insert at new location
             # make space at new location
             siblings.filter(index__gte=index).update(index=models.F("index") + 1)
@@ -426,6 +442,30 @@ class Statement(UUIDModel):
             self.parent = parent
             self.index = index
             self.save()
+
+    @transaction.atomic
+    def morph_to(
+        self,
+        type: StatementType,
+        symbol: SymbolType | SymbolContent | None,
+    ):
+        """Changes the type of the statement. Only works if it doesn't have any content."""
+        if self.type == StatementType.DEFINITION and self.content is not None:
+            # we can't morph existing content because that would make it impossible to undo this operation
+            # instead, we delete the content and create a new statement in its place on the frontend
+            raise ValueError(f"{self} has content and cannot be morphed")
+        self.type = type
+        # delete existing content
+        if self.content is not None:
+            self.content.delete()
+        # set new content
+        if symbol is not None:
+            if isinstance(symbol, SymbolType):
+                # create default content for the given type
+                symbol = symbol.default_content()
+            self.set_content(symbol)
+            self.text = None  # clear text
+        self.save()
 
     @transaction.atomic
     def soft_delete(self):

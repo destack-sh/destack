@@ -11,12 +11,15 @@ if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
     from bench.api.schema import SchemaElement
 
+StatementType = gql.enum(models.StatementType)
+SymbolType = gql.enum(models.SymbolType)
+
 
 @gql.django.type(models.Statement)
 class Statement(gql.relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
-    type: auto
+    type: StatementType
     modifier: auto
     name: auto
     created_at: auto
@@ -28,7 +31,7 @@ class Statement(gql.relay.Node):
     children: list["Statement"]
     descendants: list["Statement"]
     index: auto
-    symbol_type: auto
+    symbol_type: Optional[SymbolType]
     text: auto
     source_definition: Optional["Statement"]
     reference: Optional["Statement"]
@@ -61,6 +64,32 @@ class Argument(gql.Node):
     updated_at: auto
     reference: Optional[Statement]
     value: auto
+
+
+@gql.input
+class CreateStatementInput:
+    fileId: GlobalID
+    type: StatementType
+    name: Optional[str]
+    parent_id: Optional[GlobalID]
+    index: Optional[int]
+
+
+@gql.type
+class CreateStatementPayload:
+    statement: Statement
+
+
+@gql.input
+class MorphStatementInput:
+    statementId: GlobalID
+    type: StatementType
+    symbol_type: Optional[SymbolType]
+
+
+@gql.type
+class MorphStatementPayload:
+    statement: Statement
 
 
 @gql.django.partial(models.Statement)
@@ -121,6 +150,29 @@ class StatementCommentedPayload:
 @gql.type
 class StatementMutation:
     rename_statement: Statement = gql.django.update_mutation(StatementRenameInput)
+
+    @gql.mutation
+    def create_statement(self, input: CreateStatementInput) -> CreateStatementPayload:
+        file = models.File.objects.get(id=input.fileId.node_id)
+        project_version = file.project_version
+        parent = (
+            models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
+        )
+        statement = models.Statement.objects.create(
+            project_version=project_version,
+            file=file,
+            type=input.type,
+            name=input.name,
+            parent=parent,
+            index=input.index,
+        )
+        return CreateStatementPayload(statement=statement)
+
+    @gql.mutation
+    def morph_statement(self, input: MorphStatementInput) -> MorphStatementPayload:
+        statement = models.Statement.objects.get(id=input.statementId.node_id)
+        statement.morph_to(input.type, input.symbol_type)
+        return MorphStatementPayload(statement=statement)
 
     @gql.mutation
     def comment_statement(self, input: StatementCommentedInput) -> StatementCommentedPayload:
