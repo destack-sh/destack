@@ -1,9 +1,75 @@
 import { graphql } from "@/gql";
+import type { StatementType, SymbolType } from "@/gql/graphql";
 import { useOperationsStore } from "@/utils/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useStatementOps() {
   const operations = useOperationsStore();
+
+  const { mutate: createStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation createStatement(
+        $fileId: GlobalID!
+        $parentId: GlobalID
+        $index: Int
+        $type: StatementType!
+        $name: String
+      ) {
+        createStatement(input: { fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }) {
+          statement {
+            id
+            index
+            name
+            text
+            file {
+              id
+              path
+              statements {
+                id
+                index
+              }
+            }
+            parent {
+              id
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  const { mutate: morphStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation morphStatement($id: GlobalID!, $type: StatementType!, $symbolType: SymbolType) {
+        morphStatement(input: { statementId: $id, type: $type, symbolType: $symbolType }) {
+          statement {
+            id
+            type
+            symbolType
+            text
+            content {
+              # not re-using symbol content fragment because that led to weird apollo errors
+              ... on Code {
+                ...CodeContent
+              }
+              ... on Dataset {
+                ...DatasetContent
+              }
+              ... on Expectation {
+                ...ExpectationContent
+              }
+              ... on Task {
+                ...TaskContent
+              }
+              ... on Schema {
+                ...SchemaContent
+              }
+            }
+          }
+        }
+      }
+    `)
+  );
 
   const { mutate: moveStatementMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -136,6 +202,53 @@ export function useStatementOps() {
     });
   }
 
+  async function create(fileId: string, parentId: string | null, index: number, type: StatementType, name?: string) {
+    await operations.perform({
+      type: "statement.create",
+      do: async () => {
+        const create = await createStatementMut({
+          fileId: fileId,
+          parentId: parentId,
+          index: index,
+          type: type,
+          name: name,
+        });
+        const statement = create?.data?.createStatement.statement;
+        if (statement == null) {
+          throw new Error("invalid response");
+        }
+        return statement;
+      },
+      undo: async (statement) => {
+        await deleteStatementMut({ id: statement.id });
+      },
+    });
+  }
+
+  async function morph(
+    id: string,
+    oldStatement: { type: StatementType; symbolType?: SymbolType },
+    newStatement: { type: StatementType; symbolType?: SymbolType }
+  ) {
+    await operations.perform({
+      type: "statement.morph",
+      do: async () => {
+        await morphStatementMut({
+          id: id,
+          type: newStatement.type,
+          symbolType: newStatement.symbolType,
+        });
+      },
+      undo: async () => {
+        await morphStatementMut({
+          id: id,
+          type: oldStatement.type,
+          symbolType: oldStatement.symbolType,
+        });
+      },
+    });
+  }
+
   async function comment(id: string, commented: boolean) {
     await operations.perform({
       type: "statement.comment",
@@ -172,5 +285,5 @@ export function useStatementOps() {
     });
   }
 
-  return { move, comment, rename, delete: delete_ };
+  return { create, morph, move, comment, rename, delete: delete_ };
 }

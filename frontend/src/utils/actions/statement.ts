@@ -209,7 +209,7 @@ export function useStatementActions() {
   const toggleCommentCurrent = provideGlobalAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
-    shortcuts: ["c", "shift+t"],
+    shortcuts: ["t", "shift+t"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
       await operations.statement.comment(statement.value.id, !statement.value.commented);

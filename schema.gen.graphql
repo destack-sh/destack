@@ -66,6 +66,18 @@ type CompilePayload {
 
 union CreateFilePayload = File | OperationInfo
 
+input CreateStatementInput {
+  fileId: GlobalID!
+  type: StatementType!
+  name: String
+  parentId: GlobalID
+  index: Int
+}
+
+type CreateStatementPayload {
+  statement: Statement!
+}
+
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   definition: Statement!
@@ -179,8 +191,20 @@ type Model implements SymbolContent & Node {
   provider: String!
 }
 
+input MorphStatementInput {
+  statementId: GlobalID!
+  type: StatementType!
+  symbolType: SymbolType
+}
+
+type MorphStatementPayload {
+  statement: Statement!
+}
+
 type Mutation {
   renameStatement(input: StatementRenameInput!): RenameStatementPayload!
+  createStatement(input: CreateStatementInput!): CreateStatementPayload!
+  morphStatement(input: MorphStatementInput!): MorphStatementPayload!
   commentStatement(input: StatementCommentedInput!): StatementCommentedPayload!
   moveStatement(input: StatementMoveInput!): StatementMovePayload!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementSoftDeletePayload!
@@ -524,6 +548,7 @@ enum StatementType {
   DEFINITION
   REFERENCE
   COMMENT
+  BLANK
 }
 
 interface SymbolContent implements Node {
