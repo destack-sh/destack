@@ -3,7 +3,9 @@ import CodeInterface from "@/components/CodeInterface.vue";
 import CodeInterfaceMeta from "@/components/CodeInterfaceMeta.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
+import EditableSpan from "@/components/EditableSpan.vue";
 import ExpectationInterface from "@/components/ExpectationInterface.vue";
+import MonacoEditor from "@/components/MonacoEditor.vue";
 import SchemaInterface from "@/components/SchemaInterface.vue";
 import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
@@ -15,6 +17,7 @@ import {
   makeRunConfiguration,
   makeRunEditor,
   MODIFIER_SHORTNAME,
+  SYMBOL_TYPE_BY_SHORTNAME,
   SYMBOL_TYPE_SHORTNAME,
   useEditorState,
 } from "@/utils/editor";
@@ -165,8 +168,7 @@ const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   return metaActions;
 });
 
-async function onNameEnter(event: Event) {
-  const newName = (event.target as HTMLInputElement).innerText;
+async function onNameEnter(newName: string) {
   if (newName.length > 0 && newName != statement.value.name) {
     await operations.statement.rename(statement.value.id, statement.value.name ?? "", newName);
   }
@@ -176,9 +178,10 @@ async function onNameEnter(event: Event) {
 
 const containerRef = ref<HTMLElement | null>(null);
 const declarationRef = ref<HTMLElement | null>(null);
-const contentRef = ref<Component | null>(null);
+const contentRef = ref<Component | HTMLElement | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
 const { focused: declarationFocused } = useFocus(declarationRef);
+const { focused: contentFocused } = useFocus(contentRef);
 
 function focus() {
   editorState.focusFile(file.value);
@@ -252,6 +255,48 @@ function navigateDown() {
     actions.statement.moveFocusDown.value.apply();
   }
 }
+
+const blankRef = ref<HTMLElement | null>(null);
+const blankContent = ref("");
+
+watch(
+  () => blankContent.value,
+  async (input) => {
+    console.log("input", input, typeof input);
+    // check if input starts with # and a space
+    if (input == "#") {
+      await morphToComment();
+    } else if (input == "import") {
+      await morphToImport();
+    } else if (input != "model" && SYMBOL_TYPE_BY_SHORTNAME[input] != null) {
+      console.log("morph to ref/def of symbol", input);
+    }
+  }
+);
+
+async function morphToComment() {
+  console.log("morph to comment");
+  await operations.statement.morph(statement.value.id, { type: StatementType.Blank }, { type: StatementType.Comment });
+  contentRef.value?.focus?.();
+}
+
+async function morphToImport() {
+  console.log("morph to import");
+  await operations.statement.morph(statement.value.id, { type: StatementType.Blank }, { type: StatementType.Import });
+}
+
+async function morphToBlank() {
+  console.log("morph to blank");
+  if (statement.value.type == StatementType.Comment) {
+    await operations.statement.morph(
+      statement.value.id,
+      { type: StatementType.Comment },
+      { type: StatementType.Blank }
+    );
+    blankContent.value = "";
+    blankRef.value?.focus?.();
+  }
+}
 </script>
 <template>
   <div
@@ -281,7 +326,7 @@ function navigateDown() {
     </span>
     <!-- Commented overlay -->
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
-    <!-- Imitate Monaco line numbers -->
+    <!-- Monaco-like line numbers on the left margin -->
     <span
       class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
       :style="{ left: -30 + 'px' }"
@@ -308,25 +353,39 @@ function navigateDown() {
           <span class="mr-1 text-orange-600" v-if="isImport">import</span>
           <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
           <span class="mr-1 text-orange-600">{{ symbolTypeShortname }}</span>
-          <span v-if="isAlias" class="text-nowrap flex-shrink-0 text-black">{{ reference?.name }}</span>
-          <span v-if="isAlias" class="mx-1 text-orange-600">as</span>
-          <span
+          <!-- <span v-if="isAlias" class="text-nowrap flex-shrink-0 text-black">{{ reference?.name }}</span> -->
+          <!-- <span v-if="isAlias" class="mx-1 text-orange-600">as</span> -->
+          <EditableSpan
             ref="declarationRef"
-            :contenteditable="!readonly"
+            class="select-all rounded-sm p-0.5 text-sm text-inherit outline-none hover:bg-yellow-50 focus:bg-yellow-100"
             maxlength="100"
-            class="inline w-full select-all rounded-sm bg-transparent p-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:bg-yellow-50 focus:bg-yellow-100"
-            @keydown.enter.prevent="onNameEnter"
-            @keydown.up.prevent="navigateUp"
-            @keydown.down.prevent="navigateDown"
-            @keydown.escape.prevent="stopEditing"
+            :readonly="readonly"
+            :modelValue="statement.name"
+            @enter="onNameEnter"
+            @navigateUp="navigateUp"
+            @navigateDown="navigateDown"
+            @escape="stopEditing"
             @click="startEditing"
-          >
-            {{ statement.name }}
-          </span>
+          />
           <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
           <span v-if="isImport" class="mx-1 text-orange-600">from</span>
           <span v-if="isImport">{{ importPath }}</span>
         </span>
+      </div>
+      <div
+        class="relative my-1 flex w-full flex-row items-baseline text-sm"
+        v-else-if="statement.type == StatementType.Blank"
+      >
+        <EditableSpan
+          ref="blankRef"
+          maxlength="100"
+          class="w-full text-inherit outline-none hover:bg-yellow-50 focus:bg-yellow-100"
+          :readonly="readonly"
+          v-model="blankContent"
+        />
+        <span v-if="blankContent.length == 0" class="absolute text-gray-500 opacity-20 group-hover:opacity-100"
+          >...</span
+        >
       </div>
       <!-- Meta & controls (top right) -->
       <span
@@ -365,28 +424,6 @@ function navigateDown() {
         </span>
       </span>
     </div>
-    <!-- Symbol parameters & arguments -->
-    <!-- TODO @Feature: edit symbol parameters & arguments -->
-    <!-- <div v-if="symbol && parameters.length > 0" class="mx-3 flex flex-row gap-4 pb-1">
-      <div class="flex flex-col" v-for="parameter in parameters" :key="parameter.name">
-        <div class="-mb-0.5 flex flex-row items-baseline text-xs text-gray-700">
-          <span>{{ parameter.name }}</span>
-        </div>
-        <div class="text-sm text-gray-900"> -->
-    <!-- Show argument if it's bound -->
-    <!-- <template v-if="getArgument(parameter.name)">
-            <span v-if="getArgument(parameter.name)?.value != null">
-              {{ getArgument(parameter.name)?.value }}
-            </span>
-            <span class="text-black" v-else-if="getArgument(parameter.name)?.reference != null">
-              {{ getArgument(parameter.name)?.reference?.name }}
-            </span>
-          </template> -->
-    <!-- Otherwise show parameter type -->
-    <!-- <span v-else class="text-gray-500">{{ parameter.type.toLowerCase() }}</span>
-        </div>
-      </div>
-    </div> -->
     <!-- Symbol content (if statement defines a symbol) -->
     <div v-if="content != null && statement.symbolType != null" class="mx-3">
       <component
@@ -406,6 +443,24 @@ function navigateDown() {
         @escape="stopEditing"
       />
       <span class="text-red-500" v-else> cannot render {{ statement.symbolType }} </span>
+    </div>
+    <!-- Comment content -->
+    <div v-else-if="isComment" class="mx-3 my-1 py-[0.5px]">
+      <MonacoEditor
+        ref="contentRef"
+        :modelValue="statement.text || ''"
+        language="markdown"
+        @deleteIfEmpty="morphToBlank"
+        @navigateUp="navigateUp"
+        @navigateDown="navigateDown"
+        @escape="stopEditing"
+        hide-line-numbers
+        :focused="isFocused"
+        :readonly="readonly"
+        :lineNumberOffset="0"
+        class="italic opacity-60"
+        :style="{ marginLeft: -24 + 'px' }"
+      />
     </div>
   </div>
 </template>

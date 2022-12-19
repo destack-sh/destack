@@ -15,6 +15,11 @@ const props = defineProps<{
   lineNumberBase: number;
   xOffset: number;
 }>();
+const emit = defineEmits<{
+  (e: "navigateUp", position?: number): void;
+  (e: "navigateDown", position?: number): void;
+  (e: "escape"): void;
+}>();
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(SchemaContentType, props.content));
 
@@ -38,6 +43,9 @@ const state = useSchemaInterfaceState(statement);
       language="json"
       :focused="focused"
       :readonly="compiled"
+      @navigateUp="emit('navigateUp')"
+      @navigateDown="emit('navigateDown')"
+      @escape="emit('escape')"
     />
     <SchemaElement
       v-else-if="state.view == 'pretty'"

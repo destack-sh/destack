@@ -334,6 +334,8 @@ class Statement(UUIDModel):
         select_related=["schema", "task", "expectation", "code", "model", "dataset"],
     )
     def content(self) -> Union[None, Schema, Task, Expectation, Code, Model, Dataset]:
+        if self.symbol_type is None:
+            return None
         content: Union[Schema, Task, Expectation, Code, Model, Dataset, None] = getattr(
             self, self.symbol_type_to_field(self.symbol_type)
         )
@@ -557,18 +559,22 @@ class Statement(UUIDModel):
         constraints = [
             # symbol statements must have a symbol type
             models.CheckConstraint(
-                check=models.Q(symbol_type__isnull=False) | models.Q(type=StatementType.COMMENT),
+                check=models.Q(symbol_type__isnull=False)
+                | models.Q(type__in=[StatementType.COMMENT, StatementType.BLANK]),
                 name="bench_statement_symbol_type_not_null",
             ),
             # symbol statements must have a name
             models.CheckConstraint(
-                check=models.Q(name__isnull=False) | models.Q(type=StatementType.COMMENT),
+                check=models.Q(name__isnull=False)
+                | models.Q(type__in=[StatementType.COMMENT, StatementType.BLANK]),
                 name="bench_statement_name_not_null",
             ),
             # reference and import statements must have a reference
             models.CheckConstraint(
                 check=models.Q(reference__isnull=False)
-                | models.Q(type__in=[StatementType.COMMENT, StatementType.DEFINITION]),
+                | models.Q(
+                    type__in=[StatementType.COMMENT, StatementType.BLANK, StatementType.DEFINITION]
+                ),
                 name="bench_statement_reference_not_null",
             ),
         ]

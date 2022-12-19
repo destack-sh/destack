@@ -26,7 +26,6 @@ export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
   [FileType.Compile]: "compile",
   [FileType.Project]: "project",
 };
-
 export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
   [SymbolType.Schema]: "schema",
   [SymbolType.Code]: "code",
@@ -34,6 +33,14 @@ export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
   [SymbolType.Model]: "model",
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
+};
+export const SYMBOL_TYPE_BY_SHORTNAME: Record<string, SymbolType> = {
+  schema: SymbolType.Schema,
+  code: SymbolType.Code,
+  data: SymbolType.Dataset,
+  model: SymbolType.Model,
+  expect: SymbolType.Expectation,
+  task: SymbolType.Task,
 };
 export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",

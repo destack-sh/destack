@@ -17,6 +17,11 @@ const props = defineProps<{
   lineNumberBase: number;
   xOffset: number;
 }>();
+const emit = defineEmits<{
+  (e: "navigateUp", position?: number): void;
+  (e: "navigateDown", position?: number): void;
+  (e: "escape"): void;
+}>();
 
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
@@ -50,6 +55,9 @@ const state = useDatasetInterfaceState(statement);
       language="json"
       :focused="focused"
       :readonly="compiled"
+      @navigateUp="emit('navigateUp')"
+      @navigateDown="emit('navigateDown')"
+      @escape="emit('escape')"
     />
     <table
       v-else-if="state.view == 'table'"

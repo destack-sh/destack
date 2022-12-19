@@ -1,5 +1,6 @@
-import { graphql } from "@/gql";
+import { graphql, useFragment } from "@/gql";
 import type { StatementType, SymbolType } from "@/gql/graphql";
+import { StatementHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -18,8 +19,7 @@ export function useStatementOps() {
         createStatement(input: { fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }) {
           statement {
             id
-            index
-            name
+            ...StatementHeader
             text
             file {
               id
@@ -35,7 +35,8 @@ export function useStatementOps() {
           }
         }
       }
-    `)
+    `),
+    { refetchQueries: ["fileContentById"] }
   );
 
   const { mutate: morphStatementMut } = useMutation(
@@ -44,8 +45,7 @@ export function useStatementOps() {
         morphStatement(input: { statementId: $id, type: $type, symbolType: $symbolType }) {
           statement {
             id
-            type
-            symbolType
+            ...StatementHeader
             text
             content {
               # not re-using symbol content fragment because that led to weird apollo errors
@@ -203,7 +203,7 @@ export function useStatementOps() {
   }
 
   async function create(fileId: string, parentId: string | null, index: number, type: StatementType, name?: string) {
-    await operations.perform({
+    return await operations.perform({
       type: "statement.create",
       do: async () => {
         const create = await createStatementMut({
@@ -217,7 +217,7 @@ export function useStatementOps() {
         if (statement == null) {
           throw new Error("invalid response");
         }
-        return statement;
+        return useFragment(StatementHeaderType, statement);
       },
       undo: async (statement) => {
         await deleteStatementMut({ id: statement.id });
