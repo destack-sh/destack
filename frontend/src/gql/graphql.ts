@@ -1155,8 +1155,6 @@ export type CreateStatementMutation = {
     statement: {
       __typename?: "Statement";
       id: any;
-      index?: number | null;
-      name?: string | null;
       text?: string | null;
       file: {
         __typename?: "File";
@@ -1165,7 +1163,7 @@ export type CreateStatementMutation = {
         statements: Array<{ __typename?: "Statement"; id: any; index?: number | null }>;
       };
       parent?: { __typename?: "Statement"; id: any } | null;
-    };
+    } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } };
   };
 };
 
@@ -1182,8 +1180,6 @@ export type MorphStatementMutation = {
     statement: {
       __typename?: "Statement";
       id: any;
-      type: StatementType;
-      symbolType?: SymbolType | null;
       text?: string | null;
       content?:
         | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
@@ -1195,7 +1191,7 @@ export type MorphStatementMutation = {
         | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
         | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
         | null;
-    };
+    } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } };
   };
 };
 
@@ -2851,8 +2847,7 @@ export const CreateStatementDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "index" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       {
                         kind: "Field",
@@ -2893,6 +2888,7 @@ export const CreateStatementDocument = {
         ],
       },
     },
+    ...StatementHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateStatementMutation, CreateStatementMutationVariables>;
 export const MorphStatementDocument = {
@@ -2961,8 +2957,7 @@ export const MorphStatementDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       {
                         kind: "Field",
@@ -3028,6 +3023,7 @@ export const MorphStatementDocument = {
         ],
       },
     },
+    ...StatementHeaderFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
     ...ExpectationContentFragmentDoc.definitions,

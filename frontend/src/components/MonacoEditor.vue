@@ -6,15 +6,20 @@ import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref 
 
 const props = defineProps<{
   modelValue: string;
-  language: "json" | "python";
+  language: "json" | "python" | "markdown";
   focused: boolean;
   readonly?: boolean;
   commented?: boolean;
   lineNumberOffset: number;
   lineNumberShiftPx?: number;
+  hideLineNumbers?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
+  (e: "deleteIfEmpty"): void;
+  (e: "navigateUp"): void;
+  (e: "navigateDown"): void;
+  (e: "escape"): void;
 }>();
 
 let editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
@@ -120,7 +125,7 @@ function initMonaco(monaco: Monaco) {
     // set font to same mono from tailwind config
     fontSize: 14,
     fontFamily: "Druid Sans Mono, monospace",
-    lineNumbers,
+    lineNumbers: props.hideLineNumbers ? "off" : lineNumbers,
     renderLineHighlight: "none",
     // disable folding
     folding: false,
@@ -139,6 +144,27 @@ function initMonaco(monaco: Monaco) {
       emit("update:modelValue", value);
     }
   });
+
+  // handle key events (delete if empty, navigate up/down if top/bottom)
+  editor.value.onKeyDown((e) => {
+    if (e.keyCode === monaco.KeyCode.Backspace) {
+      if (editor.value?.getValue() === "") {
+        emit("deleteIfEmpty");
+      }
+    } else if (e.keyCode === monaco.KeyCode.UpArrow) {
+      if (editor.value?.getPosition()?.lineNumber === 1) {
+        emit("navigateUp");
+      }
+    } else if (e.keyCode === monaco.KeyCode.DownArrow) {
+      if (editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()) {
+        emit("navigateDown");
+      }
+    } else if (e.keyCode === monaco.KeyCode.Escape) {
+      emit("escape");
+      // defocus editor
+      document.activeElement?.blur();
+    }
+  });
 }
 
 // sync modelValue into editor
@@ -155,7 +181,7 @@ watch(
 watch(
   () => props.lineNumberOffset,
   () => {
-    if (editor.value) {
+    if (editor.value && !props.hideLineNumbers) {
       const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
       editor.value.updateOptions({ lineNumbers });
     }

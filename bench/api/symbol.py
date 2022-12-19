@@ -53,7 +53,7 @@ class Parameter(gql.Node):
     created_at: auto
     updated_at: auto
     type: auto
-    schema: Optional[Annotated["SchemaElement", lazy(".schema")]]
+    schema: Optional[Annotated["SchemaElement", lazy(".schema")]] = None
 
 
 @gql.django.type(models.Argument)
@@ -62,7 +62,7 @@ class Argument(gql.Node):
     name: auto
     created_at: auto
     updated_at: auto
-    reference: Optional[Statement]
+    reference: Optional[Statement] = None
     value: auto
 
 
@@ -70,9 +70,9 @@ class Argument(gql.Node):
 class CreateStatementInput:
     fileId: GlobalID
     type: StatementType
-    name: Optional[str]
-    parent_id: Optional[GlobalID]
-    index: Optional[int]
+    name: Optional[str] = None
+    parent_id: Optional[GlobalID] = None
+    index: Optional[int] = None
 
 
 @gql.type
@@ -84,7 +84,7 @@ class CreateStatementPayload:
 class MorphStatementInput:
     statementId: GlobalID
     type: StatementType
-    symbol_type: Optional[SymbolType]
+    symbol_type: Optional[SymbolType] = None
 
 
 @gql.type

@@ -17,6 +17,11 @@ const props = defineProps<{
   lineNumberBase: number;
   xOffset: number;
 }>();
+const emit = defineEmits<{
+  (e: "navigateUp", position?: number): void;
+  (e: "navigateDown", position?: number): void;
+  (e: "escape"): void;
+}>();
 const statement = computed(() => useFragment(StatementHeaderType, props.statement));
 const content = computed(() => useFragment(CodeContentType, props.content));
 
@@ -54,6 +59,9 @@ defineExpose({ focus, defocus });
     :style="{ marginLeft: -xOffset - 44 + 'px' }"
     :model-value="content.code"
     @update:model-value="onCodeEnterDebounced"
+    @navigateUp="emit('navigateUp')"
+    @navigateDown="emit('navigateDown')"
+    @escape="emit('escape')"
     language="python"
     :focused="focused"
     :readonly="readonly"

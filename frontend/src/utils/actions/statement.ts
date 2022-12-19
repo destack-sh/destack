@@ -1,3 +1,4 @@
+import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/utils/actions";
 import { useEditorState } from "@/utils/editor";
 import { useIntelliSense } from "@/utils/intellisense";
@@ -192,7 +193,14 @@ export function useStatementActions() {
     shortcuts: ["b"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
-      console.log("insert statement before current");
+      const current = statement.value;
+      const newStatement = await operations.statement.create(
+        current.file.id,
+        current.parent?.id ?? null,
+        current.index ?? 0,
+        StatementType.Blank
+      );
+      editor.editElement(newStatement);
     },
   });
   const insertAfterCurrent = provideGlobalAction({
@@ -201,16 +209,29 @@ export function useStatementActions() {
     shortcuts: ["i", "a", "shift+enter", "plus"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
-      console.log("insert statement after current");
+      const current = statement.value;
+      const newStatement = await operations.statement.create(
+        current.file.id,
+        current.parent?.id ?? null,
+        (current.index ?? 0) + 1,
+        StatementType.Blank
+      );
+      editor.editElement(newStatement);
     },
   });
 
   // toggle comment statement
-  const toggleCommentCurrent = provideGlobalAction({
+  const toggleCommentedCurrent = provideGlobalAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
     shortcuts: ["t", "shift+t"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
+    enabled: computed(
+      () =>
+        !!statement.value &&
+        !editor.editingElement &&
+        statement.value.type != StatementType.Blank &&
+        statement.value.type != StatementType.Comment
+    ),
     apply: async () => {
       await operations.statement.comment(statement.value.id, !statement.value.commented);
     },
@@ -230,6 +251,6 @@ export function useStatementActions() {
     deleteCurrent,
     insertBeforeCurrent,
     insertAfterCurrent,
-    toggleCommentCurrent,
+    toggleCommentCurrent: toggleCommentedCurrent,
   };
 }

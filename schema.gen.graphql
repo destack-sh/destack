@@ -69,9 +69,9 @@ union CreateFilePayload = File | OperationInfo
 input CreateStatementInput {
   fileId: GlobalID!
   type: StatementType!
-  name: String
-  parentId: GlobalID
-  index: Int
+  name: String = null
+  parentId: GlobalID = null
+  index: Int = null
 }
 
 type CreateStatementPayload {
@@ -194,7 +194,7 @@ type Model implements SymbolContent & Node {
 input MorphStatementInput {
   statementId: GlobalID!
   type: StatementType!
-  symbolType: SymbolType
+  symbolType: SymbolType = null
 }
 
 type MorphStatementPayload {
