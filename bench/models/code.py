@@ -23,7 +23,7 @@ class Code(Schemad, SymbolContent):
 
     # either set builtin id or set custom code
     builtin_id = models.CharField(null=True, blank=True, max_length=256)
-    code = models.TextField(null=True, blank=True)
+    code = models.TextField(null=True, blank=True, default="")
     code_function_name = models.CharField(null=True, blank=True, max_length=256)
     length = models.IntegerField(default=0)
 

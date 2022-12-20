@@ -53,7 +53,7 @@ defineExpose({ focus, defocus });
 <template>
   <MonacoEditor
     ref="monacoEditor"
-    v-if="content.code"
+    v-if="content.code != null"
     :line-number-offset="lineNumberBase + 1 /* for statement itself */"
     :line-number-shift-px="xOffset + 20"
     :style="{ marginLeft: -xOffset - 44 + 'px' }"

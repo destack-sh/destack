@@ -67,7 +67,7 @@ class Argument(gql.Node):
 
 
 @gql.input
-class CreateStatementInput:
+class StatementCreateInput:
     fileId: GlobalID
     type: StatementType
     name: Optional[str] = None
@@ -76,15 +76,20 @@ class CreateStatementInput:
 
 
 @gql.type
-class CreateStatementPayload:
+class StatementCreatePayload:
     statement: Statement
 
 
 @gql.input
-class MorphStatementInput:
+class StatementMorphInput:
     statementId: GlobalID
     type: StatementType
     symbol_type: Optional[SymbolType] = None
+
+
+@gql.django.partial(models.Statement)
+class StatementSetModifierInput(gql.NodeInput):
+    modifier: auto
 
 
 @gql.type
@@ -150,15 +155,16 @@ class StatementCommentedPayload:
 @gql.type
 class StatementMutation:
     rename_statement: Statement = gql.django.update_mutation(StatementRenameInput)
+    set_modifier_statement: Statement = gql.django.update_mutation(StatementSetModifierInput)
 
     @gql.mutation
-    def create_statement(self, input: CreateStatementInput) -> CreateStatementPayload:
+    def create_statement(self, input: StatementCreateInput) -> StatementCreatePayload:
         file = models.File.objects.get(id=input.fileId.node_id)
         project_version = file.project_version
         parent = (
             models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
         )
-        statement = models.Statement.objects.create(
+        statement = models.Statement.objects.create_statement(
             project_version=project_version,
             file=file,
             type=input.type,
@@ -166,10 +172,10 @@ class StatementMutation:
             parent=parent,
             index=input.index,
         )
-        return CreateStatementPayload(statement=statement)
+        return StatementCreatePayload(statement=statement)
 
     @gql.mutation
-    def morph_statement(self, input: MorphStatementInput) -> MorphStatementPayload:
+    def morph_statement(self, input: StatementMorphInput) -> MorphStatementPayload:
         statement = models.Statement.objects.get(id=input.statementId.node_id)
         statement.morph_to(input.type, input.symbol_type)
         return MorphStatementPayload(statement=statement)
@@ -199,6 +205,7 @@ class StatementMutation:
 
     @gql.mutation
     def restore_statement(self, input: StatementRestoreInput) -> StatementRestorePayload:
+        # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
         return StatementRestorePayload(statement=statement)

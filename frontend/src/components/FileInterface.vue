@@ -75,7 +75,7 @@ const positionedStatements = computed(() => {
   roots.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
   roots.forEach((root) => walkDfs(root, 0, true));
 
-  // group sibling import statements at root
+  // group sibling import & comment statements at root
   for (const [i, positioned] of positionedStatements.entries()) {
     if (positioned.statement.type == StatementType.Import || positioned.statement.type == StatementType.Comment) {
       const next = positionedStatements[i + 1];

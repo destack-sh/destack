@@ -97,21 +97,41 @@ export function useStatementActions() {
     },
   });
 
+  const statementAbove = computed(() => {
+    // if index is > 0, move up within siblings
+    if (index.value > 0) {
+      return siblings.value[index.value - 1];
+    } else if (parent.value) {
+      // if index is 0, move to parent
+      return parent.value;
+    }
+    return null;
+  });
+  const statementBelow = computed(() => {
+    // if index is not last of its siblings, move down within parent
+    if (index.value < siblings.value.length - 1) {
+      return siblings.value[index.value + 1];
+    } else if (parent.value) {
+      // if index is last, move to next sibling of parent
+      const parentSiblings = parent.value.parent
+        ? sense.statementsByParentId[parent.value.parent.id]
+        : sense.rootStatements(statement.value.file.id);
+      if (parentSiblings != null && parentIndex.value != null && parentIndex.value < parentSiblings.length - 1) {
+        return parentSiblings[parentIndex.value + 1];
+      }
+    }
+    return null;
+  });
+
   // move focus (if not editing element)
   const moveFocusUp = provideGlobalAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
-    enabled: computed(
-      () => !editor.editingElement && !!statement.value && (statement.value.parent != null || index.value > 0)
-    ),
+    enabled: computed(() => !editor.editingElement && statementAbove.value != null),
     apply: () => {
-      // if index is > 0, move up within siblings
-      if (index.value > 0) {
-        editor.focusElement(siblings.value[index.value - 1]);
-      } else if (parent.value) {
-        // if index is 0, move to parent
-        editor.focusElement(parent.value);
+      if (statementAbove.value != null) {
+        editor.focusElement(statementAbove.value);
       }
     },
   });
@@ -119,19 +139,10 @@ export function useStatementActions() {
     id: "statement.moveFocusDown",
     label: "Move focus down",
     shortcuts: ["down"],
-    enabled: computed(() => !editor.editingElement && !!statement.value),
+    enabled: computed(() => !editor.editingElement && statementBelow.value != null),
     apply: () => {
-      // if index is not last of its siblings, move down within parent
-      if (index.value < siblings.value.length - 1) {
-        editor.focusElement(siblings.value[index.value + 1]);
-      } else if (parent.value) {
-        // if index is last, move to next sibling of parent
-        const parentSiblings = parent.value.parent
-          ? sense.statementsByParentId[parent.value.parent.id]
-          : sense.rootStatements(statement.value.file.id);
-        if (parentSiblings != null && parentIndex.value != null && parentIndex.value < parentSiblings.length - 1) {
-          editor.focusElement(parentSiblings[parentIndex.value + 1]);
-        }
+      if (statementBelow.value != null) {
+        editor.focusElement(statementBelow.value);
       }
     },
   });
@@ -182,15 +193,19 @@ export function useStatementActions() {
     shortcuts: ["d", "backspace", "delete"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
+      const below = statementBelow.value;
       await operations.statement.delete(statement.value.id);
+      if (below) {
+        editor.focusElement(below);
+      }
     },
   });
 
   // insert statement (as a sibling)
   const insertBeforeCurrent = provideGlobalAction({
     id: "statement.insertBeforeCurrent",
-    label: "Insert statement before current",
-    shortcuts: ["b"],
+    label: "Insert statement above current",
+    shortcuts: ["a"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
       const current = statement.value;
@@ -205,8 +220,8 @@ export function useStatementActions() {
   });
   const insertAfterCurrent = provideGlobalAction({
     id: "statement.insertStatement",
-    label: "Insert statement",
-    shortcuts: ["i", "a", "shift+enter", "plus"],
+    label: "Insert statement below current",
+    shortcuts: ["i", "b", "shift+enter", "plus"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: async () => {
       const current = statement.value;

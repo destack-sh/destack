@@ -60,7 +60,7 @@ defineExpose({ focus, defocus });
       ref="description"
       :contenteditable="!readonly"
       maxlength="200"
-      class="inline w-full rounded-sm bg-transparent py-0.5 text-sm text-inherit placeholder-gray-400 outline-none hover:bg-yellow-50 focus:bg-yellow-100"
+      class="inline w-full rounded-sm bg-transparent py-0.5 text-sm text-inherit placeholder-gray-400 outline-none"
       @keydown.enter.prevent="onDescriptionEnter"
       @keydown.up.prevent="emit('navigateUp', description?.selectionStart as number)"
       @keydown.down.prevent="emit('navigateDown', description?.selectionStart as number)"

@@ -25,7 +25,8 @@ const emit = defineEmits<{
 let editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
 
 function getEditorHeight(code: string) {
-  const lines = code.split("\n").length;
+  let lines = code.split("\n").length;
+  if (lines == 0) lines = 1;
   return lines * 19;
 }
 
@@ -171,7 +172,6 @@ function initMonaco(monaco: Monaco) {
 watch(
   () => props.modelValue,
   (value) => {
-    console.log("sync modelValue into editor", value);
     if (editor.value && value !== editor.value.getValue()) {
       editor.value.setValue(value);
     }
@@ -179,11 +179,15 @@ watch(
 );
 // sync line number offset into editor
 watch(
-  () => props.lineNumberOffset,
+  () => [props.lineNumberOffset, props.hideLineNumbers],
   () => {
-    if (editor.value && !props.hideLineNumbers) {
-      const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
-      editor.value.updateOptions({ lineNumbers });
+    if (editor.value) {
+      if (!props.hideLineNumbers) {
+        const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
+        editor.value.updateOptions({ lineNumbers });
+      } else {
+        editor.value.updateOptions({ lineNumbers: "off" });
+      }
     }
   }
 );
