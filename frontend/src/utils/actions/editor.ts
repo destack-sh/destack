@@ -30,9 +30,19 @@ export function useEditorActions() {
     apply: () => editor.closeEditor(editor.focusedEditor as Editor),
   });
 
+  // toggle debug mode
+  const toggleDebugMode = provideGlobalAction({
+    id: "editor.toggleDebugMode",
+    label: "Toggle Debug Mode",
+    shortcuts: ["shift+d shift+d"],
+    enabled: computed(() => true),
+    apply: () => (editor.debug = !editor.debug),
+  });
+
   return {
     moveEditorLeft,
     moveEditorRight,
     closeEditor,
+    toggleDebugMode,
   };
 }

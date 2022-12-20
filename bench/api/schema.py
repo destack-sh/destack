@@ -14,10 +14,10 @@ class SchemaElement:
     name: str
     type: ValueType
     required: bool
-    schema_id: Optional[str]
+    schema_id: Optional[str] = None
     # TODO @Cleanup: schema element choices should be unions
-    choices: Optional[list[str]]
-    elements: Optional[list["SchemaElement"]]
+    choices: Optional[list[str]] = None
+    elements: Optional[list["SchemaElement"]] = None
 
 
 @gql.django.type(models.Schema)

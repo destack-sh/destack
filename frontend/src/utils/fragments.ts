@@ -77,6 +77,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   fragment StatementHeader on Statement {
     id
     type
+    symbolType
     createdAt
     updatedAt
     deletedAt

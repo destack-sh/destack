@@ -44,10 +44,17 @@ export const SYMBOL_TYPE_BY_SHORTNAME: Record<string, SymbolType> = {
 };
 export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",
-  [StatementModifier.Unlike]: "dislike",
+  [StatementModifier.Unlike]: "unlike",
   [StatementModifier.Verify]: "verify",
   [StatementModifier.Main]: "main",
   [StatementModifier.Suggest]: "suggset",
+};
+export const MODIFIER_BY_SHORTNAME: Record<string, StatementModifier> = {
+  like: StatementModifier.Like,
+  unlike: StatementModifier.Unlike,
+  verify: StatementModifier.Verify,
+  main: StatementModifier.Main,
+  suggest: StatementModifier.Suggest,
 };
 
 export type RunConfiguration = {
@@ -288,9 +295,11 @@ export const useEditorState = defineStore("editor", {
       console.log(`edit element ${element.id}`);
     },
 
-    stopEditingElement() {
-      console.log("stop editing element");
-      this.editingElement = false;
+    stopEditingElement(element?: StatementHeader | FileHeader) {
+      if (!element || element.id == this.focusedElementId) {
+        this.editingElement = false;
+      }
+      console.log(`stop editing element ${element?.id}`);
     },
 
     defocusElement() {

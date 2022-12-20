@@ -37,8 +37,8 @@ const state = useSchemaInterfaceState(statement);
     <MonacoEditor
       v-if="state.view == 'json'"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
-      :line-number-shift-px="xOffset + 20"
-      :style="{ marginLeft: -xOffset - 44 + 'px' }"
+      hide-line-numbers
+      :style="{ marginLeft: -24 + 'px' }"
       :model-value="elementAsJsonText"
       language="json"
       :focused="focused"

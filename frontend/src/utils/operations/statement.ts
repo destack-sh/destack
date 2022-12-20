@@ -1,5 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import type { StatementType, SymbolType } from "@/gql/graphql";
+import type { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { StatementHeaderType } from "@/utils/fragments";
 import { useOperationsStore } from "@/utils/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -71,6 +71,19 @@ export function useStatementOps() {
     `)
   );
 
+  const { mutate: setModifierStatement } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation setModifierStatement($id: GlobalID!, $modifier: StatementModifier) {
+        setModifierStatement(input: { id: $id, modifier: $modifier }) {
+          ... on Statement {
+            id
+            modifier
+          }
+        }
+      }
+    `)
+  );
+
   const { mutate: moveStatementMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {
@@ -109,7 +122,7 @@ export function useStatementOps() {
 
   const { mutate: renameStatementMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation renameStatement($id: GlobalID!, $name: String!) {
+      mutation renameStatement($id: GlobalID!, $name: String) {
         renameStatement(input: { id: $id, name: $name }) {
           ... on Statement {
             id
@@ -136,6 +149,39 @@ export function useStatementOps() {
               id
               deletedAt
             }
+            # update all indices of statements in the same file
+            file {
+              id
+              statements(filters: { isVisible: true }) {
+                id
+                index
+              }
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  const { mutate: restoreStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restoreStatement($id: GlobalID!) {
+        restoreStatement(input: { id: $id }) {
+          statement {
+            id
+            deletedAt
+            descendants {
+              id
+              deletedAt
+            }
+            # update all indices of statements in the same file
+            file {
+              id
+              statements(filters: { isVisible: true }) {
+                id
+                index
+              }
+            }
           }
         }
       }
@@ -158,49 +204,6 @@ export function useStatementOps() {
       }
     `)
   );
-
-  const { mutate: restoreStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation restoreStatement($id: GlobalID!) {
-        restoreStatement(input: { id: $id }) {
-          statement {
-            id
-            deletedAt
-            descendants {
-              id
-              deletedAt
-            }
-          }
-        }
-      }
-    `)
-  );
-
-  async function move(
-    id: string,
-    oldLoc: { fileId: string; parentId?: string; index?: number },
-    newLoc: { fileId: string; parentId?: string; index?: number }
-  ) {
-    await operations.perform({
-      type: "statement.move",
-      do: async () => {
-        await moveStatementMut({
-          id: id,
-          fileId: newLoc.fileId,
-          parentId: newLoc.parentId,
-          index: newLoc.index,
-        });
-      },
-      undo: async () => {
-        await moveStatementMut({
-          id: id,
-          fileId: oldLoc.fileId,
-          parentId: oldLoc.parentId,
-          index: oldLoc.index,
-        });
-      },
-    });
-  }
 
   async function create(fileId: string, parentId: string | null, index: number, type: StatementType, name?: string) {
     return await operations.perform({
@@ -249,6 +252,44 @@ export function useStatementOps() {
     });
   }
 
+  async function modify(id: string, oldModifier: StatementModifier | null, newModifier: StatementModifier | null) {
+    await operations.perform({
+      type: "statement.modify",
+      do: async () => {
+        await setModifierStatement({ id: id, modifier: newModifier });
+      },
+      undo: async () => {
+        await setModifierStatement({ id: id, modifier: oldModifier });
+      },
+    });
+  }
+
+  async function move(
+    id: string,
+    oldLoc: { fileId: string; parentId?: string; index?: number },
+    newLoc: { fileId: string; parentId?: string; index?: number }
+  ) {
+    await operations.perform({
+      type: "statement.move",
+      do: async () => {
+        await moveStatementMut({
+          id: id,
+          fileId: newLoc.fileId,
+          parentId: newLoc.parentId,
+          index: newLoc.index,
+        });
+      },
+      undo: async () => {
+        await moveStatementMut({
+          id: id,
+          fileId: oldLoc.fileId,
+          parentId: oldLoc.parentId,
+          index: oldLoc.index,
+        });
+      },
+    });
+  }
+
   async function comment(id: string, commented: boolean) {
     await operations.perform({
       type: "statement.comment",
@@ -261,7 +302,7 @@ export function useStatementOps() {
     });
   }
 
-  async function rename(id: string, oldName: string, newName: string) {
+  async function rename(id: string, oldName: string | null, newName: string | null) {
     await operations.perform({
       type: "statement.rename",
       do: async () => {
@@ -285,5 +326,5 @@ export function useStatementOps() {
     });
   }
 
-  return { create, morph, move, comment, rename, delete: delete_ };
+  return { create, morph, modify, move, comment, rename, delete: delete_ };
 }

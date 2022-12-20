@@ -109,9 +109,18 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
-    def _prep_insert_index(
-        self, file: File, parent: Optional[Statement], index: Optional[int]
-    ) -> int:
+    @transaction.atomic
+    def create_statement(
+        self,
+        project_version: ProjectVersion,
+        file: File,
+        parent: Optional[Statement],
+        index: Optional[int],
+        type: StatementType,
+        name: str,
+        **kwargs,
+    ) -> Statement:
+        # auto set index if not passed
         if index is None:
             index = parent.children.count() if parent else file.root_statements.count()
         else:
@@ -119,9 +128,16 @@ class StatementManager(models.Manager["Statement"]):
             self.filter(file=file, parent=parent, index__gte=index).update(
                 index=models.F("index") + 1
             )
-        return index
+        return self.create(
+            project_version=project_version,
+            file=file,
+            parent=parent,
+            index=index,
+            type=type,
+            name=name,
+            **kwargs,
+        )
 
-    @transaction.atomic
     def create_definition(
         self,
         project_version: ProjectVersion,
@@ -131,14 +147,12 @@ class StatementManager(models.Manager["Statement"]):
         content: SymbolContent,
         name: str,
     ) -> Statement:
-        # auto set index if not passed
-        index = self._prep_insert_index(file, parent, index)
         # save content if it's not loaded from the db
         # (don't test via pk since we set that automatically)
         if content._state.adding:
             content.save()
         symbol_type = SymbolType.from_content(content)
-        statement = self.create(
+        return self.create_statement(
             project_version=project_version,
             file=file,
             type=StatementType.DEFINITION,
@@ -148,9 +162,7 @@ class StatementManager(models.Manager["Statement"]):
             symbol_type=symbol_type,
             **{SYMBOL_TYPE_TO_FIELD[symbol_type]: content},
         )
-        return statement
 
-    @transaction.atomic
     def create_import(
         self,
         project_version: ProjectVersion,
@@ -160,20 +172,17 @@ class StatementManager(models.Manager["Statement"]):
         name: str,
         statement: Statement,
     ) -> Statement:
-        # auto set index if not passed
-        index = self._prep_insert_index(file, parent, index)
-        return self.create(
+        return self.create_statement(
             project_version=project_version,
             file=file,
-            type=StatementType.IMPORT,
-            symbol_type=statement.symbol_type,
             parent=parent,
             index=index,
+            content=None,
+            type=StatementType.IMPORT,
             name=name,
-            reference=statement,
+            statement=statement,
         )
 
-    @transaction.atomic
     def create_reference(
         self,
         project_version: ProjectVersion,
@@ -183,9 +192,7 @@ class StatementManager(models.Manager["Statement"]):
         name: str,
         statement: Statement,
     ) -> Statement:
-        # auto set index if not passed
-        index = self._prep_insert_index(file, parent, index)
-        return self.create(
+        return self.create_statement(
             project_version=project_version,
             file=file,
             type=StatementType.REFERENCE,
@@ -235,7 +242,7 @@ class Statement(UUIDModel):
     index = models.IntegerField(null=True)  # index into file or parent statement
     reference = models.ForeignKey(
         "Statement",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="referenced_by",
@@ -329,7 +336,7 @@ class Statement(UUIDModel):
     def symbol_type_to_field(type: SymbolType) -> str:
         return SYMBOL_TYPE_TO_FIELD[type]
 
-    @gql.model_cached_property(
+    @gql.model_property(
         only=["symbol_type", "schema", "task", "expectation", "code", "model", "dataset"],
         select_related=["schema", "task", "expectation", "code", "model", "dataset"],
     )
@@ -348,7 +355,11 @@ class Statement(UUIDModel):
         return content
 
     def set_content(self, content: SymbolContent | None):
-        setattr(self, self.symbol_type_to_field(self.symbol_type), content)
+        if content is None:
+            self.symbol_type = None
+        else:
+            self.symbol_type = SymbolType.from_content(content)
+            setattr(self, self.symbol_type_to_field(self.symbol_type), content)
 
     @property
     def task_(self) -> Task:
@@ -459,14 +470,24 @@ class Statement(UUIDModel):
         self.type = type
         # delete existing content
         if self.content is not None:
-            self.content.delete()
+            content = self.content
+            self.set_content(None)
+            content.delete()
         # set new content
         if symbol is not None:
-            if isinstance(symbol, SymbolType):
-                # create default content for the given type
-                symbol = symbol.default_content()
-            self.set_content(symbol)
+            if self.type == StatementType.DEFINITION:
+                if isinstance(symbol, SymbolType):
+                    # create default content for the given type
+                    symbol = symbol.default_content()
+                    symbol.save()
+                self.set_content(symbol)
+            else:
+                if isinstance(symbol, SymbolContent):
+                    raise ValueError("can't set content for a reference")
+                self.symbol_type = symbol
             self.text = None  # clear text
+        else:
+            self.symbol_type = None
         self.save()
 
     @transaction.atomic
@@ -556,28 +577,9 @@ class Statement(UUIDModel):
         ordering = ["index"]
         default_manager_name = "objects"
         # TODO @Robustness: unique constraint on index when we switch to fractional indexes
-        constraints = [
-            # symbol statements must have a symbol type
-            models.CheckConstraint(
-                check=models.Q(symbol_type__isnull=False)
-                | models.Q(type__in=[StatementType.COMMENT, StatementType.BLANK]),
-                name="bench_statement_symbol_type_not_null",
-            ),
-            # symbol statements must have a name
-            models.CheckConstraint(
-                check=models.Q(name__isnull=False)
-                | models.Q(type__in=[StatementType.COMMENT, StatementType.BLANK]),
-                name="bench_statement_name_not_null",
-            ),
-            # reference and import statements must have a reference
-            models.CheckConstraint(
-                check=models.Q(reference__isnull=False)
-                | models.Q(
-                    type__in=[StatementType.COMMENT, StatementType.BLANK, StatementType.DEFINITION]
-                ),
-                name="bench_statement_reference_not_null",
-            ),
-        ]
+        # no constraint on contents since statements may be partially defined
+        #  (during creation, editing and after reference deletion)
+        constraints = []
 
 
 # auto delete symbol content if statement is deleted

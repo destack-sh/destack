@@ -11,11 +11,12 @@ import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
 import TaskInterface from "@/components/TaskInterface.vue";
 import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementType, SymbolType } from "@/gql/graphql";
+import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { provideAction, useActions } from "@/utils/actions";
 import {
   makeRunConfiguration,
   makeRunEditor,
+  MODIFIER_BY_SHORTNAME,
   MODIFIER_SHORTNAME,
   SYMBOL_TYPE_BY_SHORTNAME,
   SYMBOL_TYPE_SHORTNAME,
@@ -25,9 +26,9 @@ import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/uti
 import { useIntelliSense } from "@/utils/intellisense";
 import { useOperations } from "@/utils/operations";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { useFocus, useFocusWithin } from "@vueuse/core";
+import { onClickOutside, useFocus, useFocusWithin } from "@vueuse/core";
 import { assert } from "ts-essentials";
-import { computed, ref, watch, type Component, type ComputedRef } from "vue";
+import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -119,14 +120,17 @@ const isFocused = computed(() => editorState.focusedElementId == statement.value
 const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value?.compiled);
-const isAlias = computed(() => (isReference.value || isImport.value) && reference.value?.name != statement.value.name);
+const isAlias = computed(
+  () =>
+    (isReference.value || isImport.value) && reference.value != null && reference.value?.name != statement.value.name
+);
 const importPath = computed(() => {
   assert(isImport.value, "statement is import");
   if (reference.value?.file.projectVersion.id != file.value.projectVersion.id) {
     // absolute import to dependency
     const dependency = sense.dependenciesById[reference.value?.file.projectVersion.id];
     if (!dependency) {
-      return null;
+      return null; // dependency not registered or not yet loaded
     } else {
       return dependency.project.path + "." + reference.value?.file.pathWithoutExtension;
     }
@@ -168,24 +172,27 @@ const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   return metaActions;
 });
 
-async function onNameEnter(newName: string) {
-  if (newName.length > 0 && newName != statement.value.name) {
-    await operations.statement.rename(statement.value.id, statement.value.name ?? "", newName);
-  }
-}
-
-// manage focus and navigation
+// manage focus, declaration and navigation
 
 const containerRef = ref<HTMLElement | null>(null);
 const declarationRef = ref<HTMLElement | null>(null);
-const contentRef = ref<Component | HTMLElement | null>(null);
+const contentRef = ref<Component | typeof MonacoEditor | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
 const { focused: declarationFocused } = useFocus(declarationRef);
-const { focused: contentFocused } = useFocus(contentRef);
+const { focused: contentFocused } = useFocusWithin(contentRef);
 
 function focus() {
   editorState.focusFile(file.value);
   editorState.focusElement(statement.value);
+}
+
+function onClickContainer() {
+  // focus on first click, edit on second click
+  if (!isFocused.value) {
+    focus();
+  } else {
+    startEditing();
+  }
 }
 
 // this isn't great because it always scrolls and doesn't consider the container size
@@ -204,24 +211,41 @@ watch(
   () => containerFocused.value,
   (containerFocused) => {
     if (containerFocused) {
-      focus();
-      startEditing();
-    } else {
-      stopEditing();
+      if (!isEditing.value) {
+        focus();
+        startEditing();
+      }
+    } else if (isEditing.value) {
+      // console.log("defocus because container lost focus");
+      // stopEditing();
     }
   }
 );
+onClickOutside(containerRef, () => {
+  if (isEditing.value) {
+    console.log("defocus because clicked outside");
+    stopEditing();
+  }
+});
 
 // react to isEditing
 watch(
-  () => isEditing.value,
-  (isEditing) => {
-    // if focused and editing started without any inner focus, focus declaration
-    if (isFocused.value && !containerFocused.value && isEditing && declarationRef.value) {
-      declarationFocused.value = true;
+  () => [isEditing.value, declarationRef.value, containerFocused.value],
+  ([isEditing, declarationRef, containerFocused]) => {
+    // if focused and editing started without any inner focus
+    if (isFocused.value && !containerFocused && isEditing) {
+      if (declarationRef) {
+        // focus declaration if exists
+        console.log("auto-focus declaration");
+        declarationFocused.value = true;
+      } else {
+        // otherwise focus content (e.g. for comments)
+        console.log("auto-focus content");
+        (contentRef.value as FocusableComponent)?.focus?.();
+      }
     }
     // if focused and editing stopped, defocus
-    if (!isEditing && declarationRef.value) {
+    if (!isEditing) {
       declarationFocused.value = false;
       (contentRef.value as FocusableComponent)?.defocus?.();
     }
@@ -232,7 +256,7 @@ function startEditing() {
   editorState.editElement(statement.value);
 }
 function stopEditing() {
-  editorState.stopEditingElement();
+  editorState.stopEditingElement(statement.value);
 }
 
 function navigateUp() {
@@ -256,45 +280,167 @@ function navigateDown() {
   }
 }
 
-const blankRef = ref<HTMLElement | null>(null);
-const blankContent = ref("");
+// manage declaration and alias
 
+const aliasRef = ref<HTMLElement | null>(null);
+const declarationContent = ref("");
+const aliasContent = ref("");
+const canCreateRef = computed(() => isImport.value || statement.value.parent?.id != null);
+
+// react to declaration content input
 watch(
-  () => blankContent.value,
+  () => declarationContent.value,
   async (input) => {
-    console.log("input", input, typeof input);
-    // check if input starts with # and a space
-    if (input == "#") {
-      await morphToComment();
-    } else if (input == "import") {
-      await morphToImport();
-    } else if (input != "model" && SYMBOL_TYPE_BY_SHORTNAME[input] != null) {
-      console.log("morph to ref/def of symbol", input);
+    if (statement.value.type == StatementType.Blank) {
+      if (input == "#") {
+        await morphToComment();
+      }
+      if (input == "import") {
+        await morphToImport();
+      }
+      if (MODIFIER_BY_SHORTNAME[input] != null) {
+        await setModifier(MODIFIER_BY_SHORTNAME[input]);
+        declarationContent.value = "";
+      }
+    }
+    if (statement.value.symbolType == null) {
+      if (input != "model" && SYMBOL_TYPE_BY_SHORTNAME[input] != null) {
+        await morphTo(StatementType.Reference, SYMBOL_TYPE_BY_SHORTNAME[input]);
+      }
     }
   }
 );
+// set declaration and alias content on statement change
+watchEffect(() => {
+  if (isEditing.value && containerFocused.value) {
+    return;
+  }
+  // reset/init declaration content
+  if (statement.value.type == StatementType.Definition) {
+    declarationContent.value = statement.value.name ?? "";
+  } else if (statement.value.type == StatementType.Import || statement.value.type == StatementType.Reference) {
+    if (reference.value != null) {
+      if (statement.value.name != reference.value.name) {
+        // we have an alias
+        declarationContent.value = reference.value.name ?? "";
+        aliasContent.value = statement.value.name ?? "";
+      } else {
+        // no alias
+        declarationContent.value = statement.value.name ?? "";
+        aliasContent.value = "";
+      }
+    }
+  }
+});
+
+async function onDeclarationKeydown(event: KeyboardEvent) {
+  // catch special chars
+  // create definition if ':' is pressed
+  if (event.key == ":") {
+    event.preventDefault();
+    if (statement.value.type != StatementType.Definition && declarationContent.value != "") {
+      // apply name and morph to definition
+      if (statement.value.name != declarationContent.value) {
+        await operations.statement.rename(statement.value.id, statement.value.name ?? null, declarationContent.value);
+      }
+      await morphTo(StatementType.Definition, statement.value.symbolType ?? undefined);
+      declarationContent.value = statement.value.name ?? "";
+      // focus content
+      (contentRef.value as FocusableComponent)?.focus?.();
+    }
+  }
+}
+
+async function onDeclarationEnter() {
+  if (declarationContent.value.length == 0) {
+    return;
+  }
+
+  if (statement.value.type == StatementType.Definition) {
+    // rename and focus content
+    await operations.statement.rename(statement.value.id, statement.value.name ?? "", declarationContent.value);
+    (contentRef.value as FocusableComponent)?.focus?.();
+  }
+}
+
+async function resetAlias() {
+  if (reference.value != null) {
+    await operations.statement.rename(statement.value.id, statement.value.name ?? "", reference.value.name ?? "");
+  }
+}
+
+function deleteLeftOnMain() {
+  console.log("delete left on main");
+  // remove statement prefix (import, type, modifier)
+  if (statement.value.type == StatementType.Import) {
+    morphToBlank();
+  } else if (statement.value.symbolType != null) {
+    morphToBlank();
+  } else if (statement.value.modifier != null) {
+    setModifier(null);
+  }
+}
+
+function deleteRightOnMain() {
+  console.log("delete right on main");
+  // remove define/redefine/arguments
+  if (statement.value.type == StatementType.Definition) {
+    morphTo(StatementType.Reference);
+  }
+}
+
+function deleteLeftOnAlias() {
+  // reset alias to reference name
+  resetAlias();
+}
+
+async function setModifier(modifier: StatementModifier | null) {
+  console.log("set modifier", modifier);
+  await operations.statement.modify(statement.value.id, statement.value.modifier ?? null, modifier);
+}
 
 async function morphToComment() {
   console.log("morph to comment");
-  await operations.statement.morph(statement.value.id, { type: StatementType.Blank }, { type: StatementType.Comment });
-  contentRef.value?.focus?.();
+  await operations.statement.morph(
+    statement.value.id,
+    { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+    { type: StatementType.Comment }
+  );
+  declarationContent.value = "";
+  (contentRef.value as FocusableComponent)?.focus?.();
 }
 
 async function morphToImport() {
   console.log("morph to import");
-  await operations.statement.morph(statement.value.id, { type: StatementType.Blank }, { type: StatementType.Import });
+  if (statement.value.modifier != null) {
+    await setModifier(null);
+  }
+  await operations.statement.morph(statement.value.id, { type: statement.value.type }, { type: StatementType.Import });
+  declarationContent.value = "";
+}
+
+async function morphTo(type: StatementType, symbolType?: SymbolType) {
+  console.log("morph to", type, symbolType);
+  await operations.statement.morph(
+    statement.value.id,
+    { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+    { type, symbolType }
+  );
+  declarationContent.value = "";
+  (contentRef.value as FocusableComponent)?.focus?.();
 }
 
 async function morphToBlank() {
-  console.log("morph to blank");
-  if (statement.value.type == StatementType.Comment) {
+  if (statement.value.type != StatementType.Definition) {
     await operations.statement.morph(
       statement.value.id,
       { type: StatementType.Comment },
       { type: StatementType.Blank }
     );
-    blankContent.value = "";
-    blankRef.value?.focus?.();
+    declarationContent.value = "";
+    declarationFocused.value = true;
+  } else {
+    throw new Error("cannot morph definition to blank");
   }
 }
 </script>
@@ -315,14 +461,23 @@ async function morphToBlank() {
       italic: isCommented,
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
-    @click="focus"
+    @click="onClickContainer"
   >
     <!-- Debug info -->
-    <span v-if="editorState.debug" class="absolute top-0 right-0 z-20 text-sm">
+    <span
+      v-if="editorState.debug"
+      class="absolute -top-1 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm lowercase"
+    >
+      <template v-if="isFocused">f({{ declarationFocused ? "d" : "" }}{{ contentFocused ? "c" : "" }}) </template>
+      <template v-if="isEditing">e</template>
+      <template v-if="isFirstInGroup">[</template>
+      <template v-if="isLastInGroup">]</template>
+      <template v-if="isCommented">#</template>
+      {{ statement.modifier }}
+      {{ statement.type }}
+      <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
+      <template v-if="statement.name != null">{{ statement.name }}</template>
       i:{{ statement.index }} d:{{ depth }}
-      <template v-if="isFirstInGroup">gs</template>
-      <template v-if="isLastInGroup">ge</template>
-      <template v-if="isCommented">c</template>
     </span>
     <!-- Commented overlay -->
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
@@ -331,9 +486,12 @@ async function morphToBlank() {
       class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
       :style="{ left: -30 + 'px' }"
       :class="{
-        'text-orange-200': !isFocused,
-        'text-orange-400': isAncestorFocused,
-        'font-bold text-orange-600': isFocused,
+        'text-orange-200': !isFocused && !isComment,
+        'text-gray-200': !isFocused && isComment,
+        'text-orange-400': isAncestorFocused && !isComment,
+        'text-gray-300': isAncestorFocused && isComment,
+        'font-bold text-orange-600': isFocused && !isComment,
+        'font-bold text-gray-400': isFocused && isComment,
       }"
       >{{ lineNumberBase + 1 }}</span
     >
@@ -348,42 +506,64 @@ async function morphToBlank() {
     <!-- Statement header & controls -->
     <div class="mx-3 flex flex-row items-center justify-between pt-1">
       <!--  Declaration -->
-      <div class="flex flex-row items-baseline" v-if="statement.symbolType != null">
-        <span class="decoration-none text-nowrap inline-flex items-baseline text-sm text-black">
-          <span class="mr-1 text-orange-600" v-if="isImport">import</span>
-          <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
-          <span class="mr-1 text-orange-600">{{ symbolTypeShortname }}</span>
-          <!-- <span v-if="isAlias" class="text-nowrap flex-shrink-0 text-black">{{ reference?.name }}</span> -->
-          <!-- <span v-if="isAlias" class="mx-1 text-orange-600">as</span> -->
-          <EditableSpan
-            ref="declarationRef"
-            class="select-all rounded-sm p-0.5 text-sm text-inherit outline-none hover:bg-yellow-50 focus:bg-yellow-100"
-            maxlength="100"
-            :readonly="readonly"
-            :modelValue="statement.name"
-            @enter="onNameEnter"
-            @navigateUp="navigateUp"
-            @navigateDown="navigateDown"
-            @escape="stopEditing"
-            @click="startEditing"
-          />
-          <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
-          <span v-if="isImport" class="mx-1 text-orange-600">from</span>
-          <span v-if="isImport">{{ importPath }}</span>
-        </span>
-      </div>
       <div
-        class="relative my-1 flex w-full flex-row items-baseline text-sm"
-        v-else-if="statement.type == StatementType.Blank"
+        v-if="!isComment"
+        class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
       >
+        <!-- Blank statement dots -->
+        <span
+          v-if="
+            statement.type == StatementType.Blank &&
+            statement.modifier == null &&
+            statement.symbolType == null &&
+            declarationContent.length == 0
+          "
+          class="absolute text-gray-500"
+          :class="{ 'opacity-100': isFocused, 'opacity-20 group-hover:opacity-100': !isFocused }"
+        >
+          ...
+        </span>
+        <!-- Statement prefixxes (types & modifiers) -->
+        <span class="mr-1 text-orange-600" v-if="isImport">import</span>
+        <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
+        <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
+        <!-- Editable statement main part -->
         <EditableSpan
-          ref="blankRef"
+          ref="declarationRef"
           maxlength="100"
-          class="w-full text-inherit outline-none hover:bg-yellow-50 focus:bg-yellow-100"
+          class="text-nowrap whitespace-nowrap text-inherit outline-none"
           :readonly="readonly"
-          v-model="blankContent"
+          v-model="declarationContent"
+          @deleteLeft="deleteLeftOnMain"
+          @deleteRight="deleteRightOnMain"
+          @navigateUp="navigateUp"
+          @navigateDown="navigateDown"
+          @escape="stopEditing"
+          @click="startEditing"
+          @enter="onDeclarationEnter"
+          @keydown="onDeclarationKeydown"
         />
-        <span v-if="blankContent.length == 0" class="absolute text-gray-500 opacity-20 group-hover:opacity-100"
+        <!-- Statement postfixes (alias & import location) -->
+        <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
+        <span v-if="isAlias" class="mx-1 text-orange-600">as</span>
+        <!-- Editable alias -->
+        <EditableSpan
+          v-if="isAlias"
+          ref="aliasRef"
+          maxlength="100"
+          class="text-inherit outline-none"
+          :readonly="readonly"
+          v-model="aliasContent"
+          @deleteLeft="deleteLeftOnAlias"
+          @escape="stopEditing"
+          @click="startEditing"
+        />
+        <!-- Import postfix (not editable since derived from selected main) -->
+        <span v-if="isImport" class="mx-1 text-orange-600">from</span>
+        <span v-if="isImport && reference != null && importPath != null">{{ importPath }}</span>
+        <span
+          v-if="isImport && (reference == null || importPath == null)"
+          class="text-gray-400 group-focus:animate-pulse"
           >...</span
         >
       </div>
@@ -445,6 +625,8 @@ async function morphToBlank() {
       <span class="text-red-500" v-else> cannot render {{ statement.symbolType }} </span>
     </div>
     <!-- Comment content -->
+    <!-- TODO @Cleanup: comment content should probably be just another component -->
+    <!-- TODO @Cleanup: use proper comment styling instead of opacity -->
     <div v-else-if="isComment" class="mx-3 my-1 py-[0.5px]">
       <MonacoEditor
         ref="contentRef"

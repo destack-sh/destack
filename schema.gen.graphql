@@ -66,18 +66,6 @@ type CompilePayload {
 
 union CreateFilePayload = File | OperationInfo
 
-input CreateStatementInput {
-  fileId: GlobalID!
-  type: StatementType!
-  name: String = null
-  parentId: GlobalID = null
-  index: Int = null
-}
-
-type CreateStatementPayload {
-  statement: Statement!
-}
-
 type Dataset implements SymbolContent & Node {
   id: GlobalID!
   definition: Statement!
@@ -191,20 +179,15 @@ type Model implements SymbolContent & Node {
   provider: String!
 }
 
-input MorphStatementInput {
-  statementId: GlobalID!
-  type: StatementType!
-  symbolType: SymbolType = null
-}
-
 type MorphStatementPayload {
   statement: Statement!
 }
 
 type Mutation {
   renameStatement(input: StatementRenameInput!): RenameStatementPayload!
-  createStatement(input: CreateStatementInput!): CreateStatementPayload!
-  morphStatement(input: MorphStatementInput!): MorphStatementPayload!
+  setModifierStatement(input: StatementSetModifierInput!): SetModifierStatementPayload!
+  createStatement(input: StatementCreateInput!): StatementCreatePayload!
+  morphStatement(input: StatementMorphInput!): MorphStatementPayload!
   commentStatement(input: StatementCommentedInput!): StatementCommentedPayload!
   moveStatement(input: StatementMoveInput!): StatementMovePayload!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementSoftDeletePayload!
@@ -447,6 +430,8 @@ type SchemaElement {
   elements: [SchemaElement!]
 }
 
+union SetModifierStatementPayload = Statement | OperationInfo
+
 type SourceMapping implements Node {
   id: GlobalID!
   compilation: Compilation!
@@ -493,6 +478,18 @@ type StatementCommentedPayload {
   statement: Statement!
 }
 
+input StatementCreateInput {
+  fileId: GlobalID!
+  type: StatementType!
+  name: String = null
+  parentId: GlobalID = null
+  index: Int = null
+}
+
+type StatementCreatePayload {
+  statement: Statement!
+}
+
 input StatementFilter {
   isVisible: Boolean = true
   type: StatementType = null
@@ -506,6 +503,12 @@ enum StatementModifier {
   LIKE
   UNLIKE
   VERIFY
+}
+
+input StatementMorphInput {
+  statementId: GlobalID!
+  type: StatementType!
+  symbolType: SymbolType = null
 }
 
 input StatementMoveInput {
@@ -532,6 +535,11 @@ input StatementRestoreInput {
 
 type StatementRestorePayload {
   statement: Statement!
+}
+
+input StatementSetModifierInput {
+  id: GlobalID!
+  modifier: StatementModifier
 }
 
 input StatementSoftDeleteInput {

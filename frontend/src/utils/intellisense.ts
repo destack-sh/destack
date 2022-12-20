@@ -19,11 +19,12 @@ const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
-    files {
+    files(filters: { isVisible: true }) {
       ...FileHeader
-    }
-    statements(filters: { isVisible: true }) {
-      ...StatementHeader
+      # exact same query as fileContentById to get immediate updates
+      statements(filters: { isVisible: true }) {
+        ...StatementHeader
+      }
     }
     dependencies {
       id
@@ -77,8 +78,12 @@ function _useIntelliSense() {
   );
   const statements = computed(
     () =>
-      content.value?.statements.map((s) => useFragment(StatementHeaderType, s)).filter((s) => s.deletedAt == null) || []
+      content.value?.files
+        .flatMap((f) => f.statements)
+        .map((s) => useFragment(StatementHeaderType, s))
+        .filter((s) => s.deletedAt == null) || []
   );
+  const activeStatements = computed(() => statements.value.filter((s) => s.commented === false));
   const dependencies = computed(
     () => content.value?.dependencies.map((d) => useFragment(DependencyHeaderType, d)) || []
   );
@@ -125,7 +130,7 @@ function _useIntelliSense() {
   );
 
   function rootStatements(fileId: string): StatementHeader[] {
-    return statementsByFileId.value[fileId].filter((statement) => statement.parent == null);
+    return statementsByFileId.value[fileId]?.filter((statement) => statement.parent == null) || [];
   }
 
   const sense: IntelliSense = reactive({
