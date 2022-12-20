@@ -1,5 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import type { DependencyHeaderFragment } from "@/gql/graphql";
+import { type DependencyHeaderFragment, StatementType } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/utils/editor";
 import {
   DependencyHeaderType,
@@ -9,7 +9,7 @@ import {
 } from "@/utils/fragments";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, reactive, ref, type ComputedRef, type Ref } from "vue";
+import { computed, reactive, ref, toRef, type ComputedRef, type Ref } from "vue";
 
 const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
   fragment ProjectVersionContentSense on ProjectVersion {
@@ -33,31 +33,35 @@ const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
   }
 `);
 
-type LocalFileHeader = FileHeader & {
+export type LocalFileHeader = FileHeader & {
   parent?: { id: string };
 };
-type LocalStatementHeader = StatementHeader & {
-  file: { id: string; path: string };
+export type LocalStatementHeader = StatementHeader & {
+  file: { id: string; path: string; pathWithoutExtension: string };
   parent?: { id: string };
   content?: { id: string };
   reference?: { id: string };
 };
 
-/* IntelliSense is fully declarative and computed from the project version content. */
-export type IntelliSense = {
+export type IntelliSenseRegistry = {
   filesById: Readonly<Record<string, LocalFileHeader>>;
   statementsById: Readonly<Record<string, LocalStatementHeader>>;
   statementsByFileId: Readonly<Record<string, LocalStatementHeader[]>>;
   // statements and files can be nested but we get them flat, so build a tree
   statementsByParentId: Readonly<Record<string, LocalStatementHeader[]>>;
   dependenciesById: Readonly<Record<string, DependencyHeaderFragment>>;
-
-  rootStatements(fileId: string): StatementHeader[];
 };
 
-function _useIntelliSense() {
-  const editorState = useEditorState();
+/* IntelliSense is fully declarative and computed from the project version content. */
+export type IntelliSense = {
+  registry: IntelliSenseRegistry;
 
+  rootStatements(fileId: string): LocalStatementHeader[];
+  availableSymbols(fileId: string, statementId?: string): LocalStatementHeader[];
+  allSymbols(): LocalStatementHeader[];
+};
+
+function _useIntelliSenseRegistry(projectVersionId: Ref<string | null>): IntelliSenseRegistry {
   const { result: contentQuery } = useQuery(
     graphql(/* GraphQL */ `
       query projectVersionContentSense($id: GlobalID!) {
@@ -67,10 +71,11 @@ function _useIntelliSense() {
         }
       }
     `),
-    // TODO @Robustness: somehow this query is fired on start when id is null
-    () => ({ id: editorState.currentProjectVersionId }),
-    // only needed within the editor; delay/debounce to ensure open files load first
-    () => ({ enabled: editorState.currentProjectVersionId != null, debounce: 500 })
+    () => ({ id: projectVersionId.value }),
+    // TODO @Robustness: project version query is fired even when id is null due to a vuejs/apollo bug (https://github.com/vuejs/apollo/pull/1428)
+    //  Ideally, we want to delay fetching this query to prioritise other queries,
+    //  but enable debounce halts the debugger on error, which is very annoying.
+    () => ({ enabled: !!projectVersionId.value })
   );
   const content = computed(() => useFragment(ProjectVersionContentSenseType, contentQuery.value?.projectVersion));
   const files = computed(
@@ -83,7 +88,6 @@ function _useIntelliSense() {
         .map((s) => useFragment(StatementHeaderType, s))
         .filter((s) => s.deletedAt == null) || []
   );
-  const activeStatements = computed(() => statements.value.filter((s) => s.commented === false));
   const dependencies = computed(
     () => content.value?.dependencies.map((d) => useFragment(DependencyHeaderType, d)) || []
   );
@@ -129,17 +133,56 @@ function _useIntelliSense() {
     Object.fromEntries(dependencies.value.map((dependency) => [dependency.id, dependency]))
   );
 
-  function rootStatements(fileId: string): StatementHeader[] {
-    return statementsByFileId.value[fileId]?.filter((statement) => statement.parent == null) || [];
+  return reactive({
+    filesById,
+    statementsById,
+    statementsByFileId,
+    statementsByParentId,
+    dependenciesById,
+  });
+}
+
+function _useIntelliSense() {
+  const editor = useEditorState();
+  const registry = _useIntelliSenseRegistry(toRef(editor, "currentProjectVersionId"));
+
+  function rootStatements(fileId: string): LocalStatementHeader[] {
+    return registry.statementsByFileId[fileId]?.filter((statement) => statement.parent == null) || [];
+  }
+
+  function availableSymbols(fileId: string, statementId?: string): LocalStatementHeader[] {
+    // available symbols are all imported or defined symbols in the file
+    let symbols =
+      registry.statementsByFileId[fileId]?.filter(
+        (statement) =>
+          statement.deletedAt == null &&
+          !statement.commented &&
+          statement.type !== StatementType.Comment &&
+          statement.type !== StatementType.Reference
+      ) || [];
+    if (statementId != null) {
+      // filter to root statements and children
+      symbols = symbols.filter((statement) => statement.parent == null || statement.parent.id === statementId);
+    }
+    return symbols;
+  }
+
+  function allSymbols(): LocalStatementHeader[] {
+    return Object.values(registry.statementsById)
+      .filter((statement) => statement.deletedAt == null && !statement.commented)
+      .filter((statement) => statement.parent == null)
+      .filter((statement) => statement.type != StatementType.Comment && statement.type != StatementType.Import);
+  }
+
+  function resolveSymbol(name: string, fileId: string, statementId?: string): LocalStatementHeader | undefined {
+    return availableSymbols(fileId, statementId).find((statement) => statement.name === name);
   }
 
   const sense: IntelliSense = reactive({
-    filesById,
-    statementsById,
-    dependenciesById,
-    statementsByFileId,
-    statementsByParentId,
+    registry,
     rootStatements,
+    availableSymbols,
+    allSymbols,
   });
   return sense;
 }
@@ -149,6 +192,7 @@ export const useIntelliSense = createSharedComposable(_useIntelliSense);
 
 export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<StatementHeader>) {
   /* Get the current schema for a 'schemad' Symbol from context */
+  // TODO @Broken: implement useSchemaSymbolSchema with new statements
   const sense = useIntelliSense();
   // const schemaHeader = computed(() => {
   //   return sense.childSymbol(statement.value.id, SymbolType.Schema);
@@ -164,8 +208,8 @@ export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<Sta
         }
       }
     `),
-    () => ({ fileId: file.value.id, statementId: null /* nocheckin */ }),
-    () => ({ enabled: false /* nocheckin */ })
+    () => ({ fileId: file.value.id, statementId: null }),
+    () => ({ enabled: false })
   );
   const schema = computed(() => null);
   const schemaElement = computed(() => useFragment(SchemaElementContentDeepType, schema.value?.element));

@@ -187,6 +187,7 @@ type Mutation {
   renameStatement(input: StatementRenameInput!): RenameStatementPayload!
   setModifierStatement(input: StatementSetModifierInput!): SetModifierStatementPayload!
   createStatement(input: StatementCreateInput!): StatementCreatePayload!
+  setReferenceStatement(input: StatementSetReferenceInput!): StatementSetReferencePayload!
   morphStatement(input: StatementMorphInput!): MorphStatementPayload!
   commentStatement(input: StatementCommentedInput!): StatementCommentedPayload!
   moveStatement(input: StatementMoveInput!): StatementMovePayload!
@@ -540,6 +541,15 @@ type StatementRestorePayload {
 input StatementSetModifierInput {
   id: GlobalID!
   modifier: StatementModifier
+}
+
+input StatementSetReferenceInput {
+  statementId: GlobalID!
+  referenceId: GlobalID = null
+}
+
+type StatementSetReferencePayload {
+  statement: Statement!
 }
 
 input StatementSoftDeleteInput {

@@ -82,7 +82,7 @@ class StatementCreatePayload:
 
 @gql.input
 class StatementMorphInput:
-    statementId: GlobalID
+    statement_id: GlobalID
     type: StatementType
     symbol_type: Optional[SymbolType] = None
 
@@ -90,6 +90,17 @@ class StatementMorphInput:
 @gql.django.partial(models.Statement)
 class StatementSetModifierInput(gql.NodeInput):
     modifier: auto
+
+
+@gql.input
+class StatementSetReferenceInput:
+    statement_id: GlobalID
+    reference_id: Optional[GlobalID] = None
+
+
+@gql.type
+class StatementSetReferencePayload:
+    statement: Statement
 
 
 @gql.type
@@ -175,8 +186,22 @@ class StatementMutation:
         return StatementCreatePayload(statement=statement)
 
     @gql.mutation
+    def set_reference_statement(
+        self, input: StatementSetReferenceInput
+    ) -> StatementSetReferencePayload:
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        reference = (
+            models.Statement.objects.get(id=input.reference_id.node_id)
+            if input.reference_id
+            else None
+        )
+        statement.reference = reference
+        statement.save()
+        return StatementSetReferencePayload(statement=statement)
+
+    @gql.mutation
     def morph_statement(self, input: StatementMorphInput) -> MorphStatementPayload:
-        statement = models.Statement.objects.get(id=input.statementId.node_id)
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
         statement.morph_to(input.type, input.symbol_type)
         return MorphStatementPayload(statement=statement)
 

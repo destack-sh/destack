@@ -25,7 +25,7 @@ const documents = {
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
-  "\n  fragment DependencyHeader on ProjectVersion {\n    createdAt\n    committedAt\n    name\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n":
+  "\n  fragment DependencyHeader on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n":
     types.DependencyHeaderFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    type\n    name\n    path\n    pathWithoutExtension\n    createdAt\n    updatedAt\n    deletedAt\n    projectVersion {\n      id\n    }\n  }\n":
     types.FileHeaderFragmentDoc,
@@ -71,6 +71,8 @@ const documents = {
     types.RestoreStatementDocument,
   "\n      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {\n        commentStatement(input: { id: $id, commented: $commented }) {\n          statement {\n            id\n            commented\n            descendants {\n              id\n              commented\n            }\n          }\n        }\n      }\n    ":
     types.CommentStatementDocument,
+  "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {\n          statement {\n            id\n            reference {\n              ...StatementHeader\n            }\n          }\n        }\n      }\n    ":
+    types.SetReferenceDocument,
   "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    ":
     types.UpdateTaskContentDocument,
   "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    ":
@@ -120,8 +122,8 @@ export function graphql(
   source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment DependencyHeader on ProjectVersion {\n    createdAt\n    committedAt\n    name\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment DependencyHeader on ProjectVersion {\n    createdAt\n    committedAt\n    name\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"];
+  source: "\n  fragment DependencyHeader on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment DependencyHeader on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    type\n    name\n    path\n    pathWithoutExtension\n    createdAt\n    updatedAt\n    deletedAt\n    projectVersion {\n      id\n    }\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    type\n    name\n    path\n    pathWithoutExtension\n    createdAt\n    updatedAt\n    deletedAt\n    projectVersion {\n      id\n    }\n  }\n"];
@@ -188,6 +190,9 @@ export function graphql(
 export function graphql(
   source: "\n      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {\n        commentStatement(input: { id: $id, commented: $commented }) {\n          statement {\n            id\n            commented\n            descendants {\n              id\n              commented\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {\n        commentStatement(input: { id: $id, commented: $commented }) {\n          statement {\n            id\n            commented\n            descendants {\n              id\n              commented\n            }\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {\n          statement {\n            id\n            reference {\n              ...StatementHeader\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {\n          statement {\n            id\n            reference {\n              ...StatementHeader\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "];

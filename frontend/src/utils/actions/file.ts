@@ -24,7 +24,7 @@ export function useFileActions() {
   });
 
   // actions for currently focused file (as element)
-  const file = computed(() => sense.filesById[editor.focusedElementId as string]);
+  const file = computed(() => sense.registry.filesById[editor.focusedElementId as string]);
 
   // delete
   const delete_ = provideGlobalAction({
