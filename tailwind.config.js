@@ -23,5 +23,6 @@ module.exports = {
     require("@tailwindcss/forms"),
     require("@tailwindcss/line-clamp"),
     require("@tailwindcss/aspect-ratio"),
+    require("@headlessui/tailwindcss"),
   ],
 };

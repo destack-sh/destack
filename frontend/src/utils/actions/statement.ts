@@ -12,17 +12,17 @@ export function useStatementActions() {
 
   // actions for currently focused statement
   // maybe these actions should be provided by FileInterface? (which has the relevant state)
-  const statement = computed(() => sense.statementsById[editor.focusedElementId as string]);
+  const statement = computed(() => sense.registry.statementsById[editor.focusedElementId as string]);
   const index = computed(() => statement.value?.index ?? -1);
   const siblings = computed(
     () =>
-      sense.statementsByParentId[statement.value?.parent?.id ?? ""] ||
+      sense.registry.statementsByParentId[statement.value?.parent?.id ?? ""] ||
       sense.rootStatements(statement.value?.file.id ?? "")
   );
-  const children = computed(() => sense.statementsByParentId[statement.value.id] ?? []);
-  const parent = computed(() => sense.statementsById[statement.value?.parent?.id ?? ""]);
+  const children = computed(() => sense.registry.statementsByParentId[statement.value.id] ?? []);
+  const parent = computed(() => sense.registry.statementsById[statement.value?.parent?.id ?? ""]);
   const parentIndex = computed(() => parent.value?.index);
-  const grandparent = computed(() => sense.statementsById[statement.value?.parent?.id ?? ""]?.parent);
+  const grandparent = computed(() => sense.registry.statementsById[statement.value?.parent?.id ?? ""]?.parent);
   const currentLocation = computed(() => ({
     fileId: statement.value.file.id,
     parentId: statement.value.parent?.id,
@@ -114,7 +114,7 @@ export function useStatementActions() {
     } else if (parent.value) {
       // if index is last, move to next sibling of parent
       const parentSiblings = parent.value.parent
-        ? sense.statementsByParentId[parent.value.parent.id]
+        ? sense.registry.statementsByParentId[parent.value.parent.id]
         : sense.rootStatements(statement.value.file.id);
       if (parentSiblings != null && parentIndex.value != null && parentIndex.value < parentSiblings.length - 1) {
         return parentSiblings[parentIndex.value + 1];

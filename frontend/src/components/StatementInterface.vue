@@ -21,12 +21,14 @@ import {
   SYMBOL_TYPE_BY_SHORTNAME,
   SYMBOL_TYPE_SHORTNAME,
   useEditorState,
+  type StatementHeader,
 } from "@/utils/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
-import { useIntelliSense } from "@/utils/intellisense";
+import { useIntelliSense, type LocalStatementHeader } from "@/utils/intellisense";
 import { useOperations } from "@/utils/operations";
+import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { onClickOutside, useFocus, useFocusWithin } from "@vueuse/core";
+import { onClickOutside, useFocus, useFocusWithin, useTextSelection } from "@vueuse/core";
 import { assert } from "ts-essentials";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 
@@ -128,7 +130,7 @@ const importPath = computed(() => {
   assert(isImport.value, "statement is import");
   if (reference.value?.file.projectVersion.id != file.value.projectVersion.id) {
     // absolute import to dependency
-    const dependency = sense.dependenciesById[reference.value?.file.projectVersion.id];
+    const dependency = sense.registry.dependenciesById[reference.value?.file.projectVersion.id];
     if (!dependency) {
       return null; // dependency not registered or not yet loaded
     } else {
@@ -188,7 +190,9 @@ function focus() {
 
 function onClickContainer() {
   // focus on first click, edit on second click
-  if (!isFocused.value) {
+  if (selectingReference.value) {
+    return;
+  } else if (!isFocused.value) {
     focus();
   } else {
     startEditing();
@@ -222,7 +226,7 @@ watch(
   }
 );
 onClickOutside(containerRef, () => {
-  if (isEditing.value) {
+  if (isEditing.value && !selectingReference.value) {
     console.log("defocus because clicked outside");
     stopEditing();
   }
@@ -233,7 +237,7 @@ watch(
   () => [isEditing.value, declarationRef.value, containerFocused.value],
   ([isEditing, declarationRef, containerFocused]) => {
     // if focused and editing started without any inner focus
-    if (isFocused.value && !containerFocused && isEditing) {
+    if (isFocused.value && !containerFocused && isEditing && !selectingReference.value) {
       if (declarationRef) {
         // focus declaration if exists
         console.log("auto-focus declaration");
@@ -256,7 +260,13 @@ function startEditing() {
   editorState.editElement(statement.value);
 }
 function stopEditing() {
-  editorState.stopEditingElement(statement.value);
+  if (selectingReference.value) {
+    // TODO @Cleanup: stopEditing should just stop editing, not depend on selectingReference
+    // (used here as a quick hack to get escape to kill the reference selection)
+    selectingReference.value = false;
+  } else {
+    editorState.stopEditingElement(statement.value);
+  }
 }
 
 function navigateUp() {
@@ -285,7 +295,55 @@ function navigateDown() {
 const aliasRef = ref<HTMLElement | null>(null);
 const declarationContent = ref("");
 const aliasContent = ref("");
-const canCreateRef = computed(() => isImport.value || statement.value.parent?.id != null);
+const canCreateRef = computed(
+  () => statement.value.type != StatementType.Blank && (isImport.value || statement.value.parent?.id != null)
+);
+const selectingReference = ref(false);
+const declarationSelection = useTextSelection();
+
+// open selecting reference when declaration is focused
+watch(
+  () => declarationFocused.value,
+  (declarationFocused) => {
+    if (declarationFocused) {
+      selectingReference.value = true;
+    }
+  }
+);
+
+// possible reference targets & filters
+const availableSymbols = computed(() => {
+  if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Definition) {
+    return sense.availableSymbols(file.value.id, statement.value.id).filter((s) => s.name != null);
+  } else if (statement.value.type == StatementType.Import) {
+    return sense.allSymbols().filter((s) => s.file.id != file.value.id && s.name != null);
+  } else {
+    return [];
+  }
+});
+const filteredSymbols = computed(() => {
+  if (!selectingReference.value) return []; // only compute when selecting reference
+
+  const symbols = availableSymbols.value;
+  // filter up to cursor position in declaration
+  const cursorPosition = declarationSelection.selection.value?.focusOffset ?? declarationContent.value.length;
+  const filter = declarationContent.value.slice(0, cursorPosition).toLowerCase();
+  let filtered = symbols.filter((symbol) => symbol.name.toLowerCase().includes(filter));
+
+  // filter by symbol type if set
+  if (statement.value.symbolType != null) {
+    filtered = filtered.filter((symbol) => symbol.symbolType == statement.value.symbolType);
+  }
+  return filtered;
+});
+function getImportSource(statement: LocalStatementHeader): LocalStatementHeader | undefined {
+  return sense.registry.statementsById[statement.reference?.id ?? ""];
+}
+
+function setReference(reference: LocalStatementHeader) {
+  selectingReference.value = false;
+  console.log("set reference", reference);
+}
 
 // react to declaration content input
 watch(
@@ -339,14 +397,7 @@ async function onDeclarationKeydown(event: KeyboardEvent) {
   if (event.key == ":") {
     event.preventDefault();
     if (statement.value.type != StatementType.Definition && declarationContent.value != "") {
-      // apply name and morph to definition
-      if (statement.value.name != declarationContent.value) {
-        await operations.statement.rename(statement.value.id, statement.value.name ?? null, declarationContent.value);
-      }
-      await morphTo(StatementType.Definition, statement.value.symbolType ?? undefined);
-      declarationContent.value = statement.value.name ?? "";
-      // focus content
-      (contentRef.value as FocusableComponent)?.focus?.();
+      await morphToDefinition();
     }
   }
 }
@@ -417,6 +468,17 @@ async function morphToImport() {
   }
   await operations.statement.morph(statement.value.id, { type: statement.value.type }, { type: StatementType.Import });
   declarationContent.value = "";
+}
+
+async function morphToDefinition() {
+  // apply name and morph to definition
+  if (statement.value.name != declarationContent.value) {
+    await operations.statement.rename(statement.value.id, statement.value.name ?? null, declarationContent.value);
+  }
+  await morphTo(StatementType.Definition, statement.value.symbolType ?? undefined);
+  declarationContent.value = statement.value.name ?? "";
+  // focus content
+  (contentRef.value as FocusableComponent)?.focus?.();
 }
 
 async function morphTo(type: StatementType, symbolType?: SymbolType) {
@@ -506,6 +568,7 @@ async function morphToBlank() {
     <!-- Statement header & controls -->
     <div class="mx-3 flex flex-row items-center justify-between pt-1">
       <!--  Declaration -->
+      <!-- TODO @Cleanup: factor out statement declaration component (the mess is above) -->
       <div
         v-if="!isComment"
         class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
@@ -528,21 +591,77 @@ async function morphToBlank() {
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
         <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
         <!-- Editable statement main part -->
-        <EditableSpan
-          ref="declarationRef"
-          maxlength="100"
-          class="text-nowrap whitespace-nowrap text-inherit outline-none"
-          :readonly="readonly"
-          v-model="declarationContent"
-          @deleteLeft="deleteLeftOnMain"
-          @deleteRight="deleteRightOnMain"
-          @navigateUp="navigateUp"
-          @navigateDown="navigateDown"
-          @escape="stopEditing"
-          @click="startEditing"
-          @enter="onDeclarationEnter"
-          @keydown="onDeclarationKeydown"
-        />
+        <div class="relative inline-flex">
+          <EditableSpan
+            ref="declarationRef"
+            maxlength="100"
+            class="text-nowrap whitespace-nowrap !border-none p-0 text-sm !shadow-none !outline-none !ring-0"
+            :readonly="readonly"
+            v-model="declarationContent"
+            @deleteLeft="deleteLeftOnMain"
+            @deleteRight="deleteRightOnMain"
+            @navigateUp="navigateUp"
+            @navigateDown="navigateDown"
+            @escape="stopEditing"
+            @click="startEditing"
+            @enter="onDeclarationEnter"
+            @keydown="onDeclarationKeydown"
+          />
+          <!-- Doubles as a combobox to look up symbols -->
+          <Combobox
+            ref="declarationComboboxRef"
+            :modelValue="reference ?? undefined"
+            @update:modelValue="setReference"
+            by="id"
+            nullable
+            v-if="(canCreateRef || reference != null) && isEditing"
+          >
+            <ComboboxOptions
+              static
+              as="ul"
+              class="absolute top-4 z-10 mt-1 max-h-60 w-96 overflow-auto border border-orange-400 bg-white text-sm shadow-md"
+              v-show="selectingReference"
+            >
+              <ComboboxOption
+                v-for="symbol in filteredSymbols"
+                as="template"
+                :key="symbol.id"
+                :value="symbol"
+                v-slot="{ active, selected }"
+              >
+                <li
+                  class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
+                  :class="{ 'bg-orange-100': selected }"
+                >
+                  <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
+                    {{ symbol.name }}
+                  </span>
+                  <span class="truncate text-gray-500">
+                    {{ getImportSource(symbol)?.file?.pathWithoutExtension || file.pathWithoutExtension || "..." }}
+                  </span>
+                </li>
+              </ComboboxOption>
+              <ComboboxOption
+                key=":define"
+                value=":define"
+                as="template"
+                v-if="statement.type != StatementType.Import && declarationContent.length > 0"
+                v-slot="{ active }"
+              >
+                <li
+                  class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
+                  :class="{ 'bg-orange-100': statement.type == StatementType.Definition }"
+                  @click.prevent="morphToDefinition"
+                >
+                  <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
+                    {{ declarationContent }}:
+                  </span>
+                  <span class="text-gray-500"> (define) </span>
+                </li>
+              </ComboboxOption>
+            </ComboboxOptions>
+          </Combobox>
+        </div>
         <!-- Statement postfixes (alias & import location) -->
         <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
         <span v-if="isAlias" class="mx-1 text-orange-600">as</span>

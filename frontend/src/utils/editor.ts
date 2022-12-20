@@ -15,10 +15,23 @@ export type ProjectVersionHeader = Pick<
   ProjectVersion,
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
-export type FileHeader = Pick<File, "id" | "type" | "name" | "path" | "createdAt" | "updatedAt">;
+export type FileHeader = Pick<
+  File,
+  "id" | "type" | "name" | "path" | "pathWithoutExtension" | "createdAt" | "updatedAt"
+>;
 export type StatementHeader = Pick<
   Statement,
-  "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "index" | "compiled" | "commented"
+  | "id"
+  | "modifier"
+  | "type"
+  | "symbolType"
+  | "name"
+  | "createdAt"
+  | "updatedAt"
+  | "deletedAt"
+  | "index"
+  | "compiled"
+  | "commented"
 >;
 
 export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
@@ -290,9 +303,11 @@ export const useEditorState = defineStore("editor", {
     },
 
     editElement(element: StatementHeader | FileHeader) {
-      this.focusElement(element);
-      this.editingElement = true;
-      console.log(`edit element ${element.id}`);
+      if (this.focusedElementId != element.id || !this.editingElement) {
+        this.focusElement(element);
+        this.editingElement = true;
+        console.log(`edit element ${element.id}`);
+      }
     },
 
     stopEditingElement(element?: StatementHeader | FileHeader) {

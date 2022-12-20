@@ -40,9 +40,13 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
 
 export const DependencyHeaderType = graphql(/* GraphQL */ `
   fragment DependencyHeader on ProjectVersion {
+    id
     createdAt
     committedAt
     name
+    files {
+      ...FileHeader
+    }
     project {
       id
       name

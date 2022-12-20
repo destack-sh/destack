@@ -205,6 +205,21 @@ export function useStatementOps() {
     `)
   );
 
+  const { mutate: setReferenceMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {
+        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {
+          statement {
+            id
+            reference {
+              ...StatementHeader
+            }
+          }
+        }
+      }
+    `)
+  );
+
   async function create(fileId: string, parentId: string | null, index: number, type: StatementType, name?: string) {
     return await operations.perform({
       type: "statement.create",
@@ -260,6 +275,18 @@ export function useStatementOps() {
       },
       undo: async () => {
         await setModifierStatement({ id: id, modifier: oldModifier });
+      },
+    });
+  }
+
+  async function setReference(id: string, oldReferenceId: string | null, newReferenceId: string | null) {
+    await operations.perform({
+      type: "statement.setReference",
+      do: async () => {
+        await setReferenceMut({ id: id, referenceId: newReferenceId });
+      },
+      undo: async () => {
+        await setReferenceMut({ id: id, referenceId: oldReferenceId });
       },
     });
   }
@@ -326,5 +353,5 @@ export function useStatementOps() {
     });
   }
 
-  return { create, morph, modify, move, comment, rename, delete: delete_ };
+  return { create, morph, modify, setReference, move, comment, rename, delete: delete_ };
 }

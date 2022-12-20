@@ -227,6 +227,7 @@ export type Mutation = {
   restoreStatement: StatementRestorePayload;
   run: RunCodePayload;
   setModifierStatement: SetModifierStatementPayload;
+  setReferenceStatement: StatementSetReferencePayload;
   softDeleteFile: File;
   softDeleteStatement: StatementSoftDeletePayload;
   updateCodeContent: Statement;
@@ -288,6 +289,10 @@ export type MutationRunArgs = {
 
 export type MutationSetModifierStatementArgs = {
   input: StatementSetModifierInput;
+};
+
+export type MutationSetReferenceStatementArgs = {
+  input: StatementSetReferenceInput;
 };
 
 export type MutationSoftDeleteFileArgs = {
@@ -677,6 +682,16 @@ export type StatementSetModifierInput = {
   modifier?: InputMaybe<StatementModifier>;
 };
 
+export type StatementSetReferenceInput = {
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId: Scalars["GlobalID"];
+};
+
+export type StatementSetReferencePayload = {
+  __typename?: "StatementSetReferencePayload";
+  statement: Statement;
+};
+
 export type StatementSoftDeleteInput = {
   id: Scalars["GlobalID"];
 };
@@ -895,9 +910,11 @@ export type ProjectHeaderFragment = {
 
 export type DependencyHeaderFragment = {
   __typename?: "ProjectVersion";
+  id: any;
   createdAt: any;
   committedAt?: any | null;
   name?: string | null;
+  files: Array<{ __typename?: "File" } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
   project: {
     __typename?: "Project";
     id: any;
@@ -1334,6 +1351,25 @@ export type CommentStatementMutation = {
       id: any;
       commented: boolean;
       descendants: Array<{ __typename?: "Statement"; id: any; commented: boolean }>;
+    };
+  };
+};
+
+export type SetReferenceMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type SetReferenceMutation = {
+  __typename?: "Mutation";
+  setReferenceStatement: {
+    __typename?: "StatementSetReferencePayload";
+    statement: {
+      __typename?: "Statement";
+      id: any;
+      reference?:
+        | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
+        | null;
     };
   };
 };
@@ -1979,9 +2015,18 @@ export const DependencyHeaderFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "committedAt" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "project" },
@@ -3681,6 +3726,82 @@ export const CommentStatementDocument = {
     },
   ],
 } as unknown as DocumentNode<CommentStatementMutation, CommentStatementMutationVariables>;
+export const SetReferenceDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "setReference" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "setReferenceStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...StatementHeaderFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SetReferenceMutation, SetReferenceMutationVariables>;
 export const UpdateTaskContentDocument = {
   kind: "Document",
   definitions: [
