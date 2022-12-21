@@ -180,6 +180,7 @@ class StatementManager(models.Manager["Statement"]):
             type=StatementType.IMPORT,
             name=name,
             reference=statement,
+            symbol_type=statement.symbol_type,
         )
 
     def create_reference(
@@ -580,7 +581,18 @@ class Statement(UUIDModel):
         # TODO @Robustness: unique constraint on index when we switch to fractional indexes
         # no constraint on contents since statements may be partially defined
         #  (during creation, editing and after reference deletion)
-        constraints = []
+        constraints = [
+            # if reference is set symbol type must also be set
+            models.CheckConstraint(
+                check=models.Q(reference__isnull=True) | models.Q(symbol_type__isnull=False),
+                name="bench_statement_reference_symbol_type_set",
+            ),
+            # if reference is set name must also be set
+            models.CheckConstraint(
+                check=models.Q(reference__isnull=True) | models.Q(name__isnull=False),
+                name="bench_statement_reference_name_set",
+            ),
+        ]
 
 
 # auto delete symbol content if statement is deleted
