@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import StatementDivider from "@/components/StatementDivider.vue";
 import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
@@ -36,6 +37,7 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 });
+const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
 
 const operations = useOperations();
 function restore() {
@@ -71,7 +73,7 @@ const positionedStatements = computed(() => {
   }
 
   // start with roots sorted by index
-  const roots = statements.value.filter((statement) => statement.parent == undefined);
+  const roots = rootStatements.value;
   roots.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
   roots.forEach((root) => walkDfs(root, 0, true));
 
@@ -91,19 +93,25 @@ const positionedStatements = computed(() => {
 </script>
 
 <template>
-  <div class="mx-8 my-3 flex h-full flex-col" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
-    <StatementInterface
-      v-for="positioned in positionedStatements"
-      :key="positioned.statement.id"
-      :file="fileHeader"
-      :statement="positioned.statement"
-      :depth="positioned.depth"
-      :isFirstInGroup="positioned.isFirstInGroup"
-      :isLastInGroup="positioned.isLastInGroup"
-      :lineNumberBase="positioned.lineNumberBase"
-      class="mx-auto w-full max-w-[1000px] bg-white"
-      :class="positioned.isFirstInGroup ? 'mt-6' : ''"
-    />
+  <div class="my-3 mx-7 flex h-full flex-col" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+    <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
+      <StatementDivider
+        class="mx-auto max-w-[1050px] px-2"
+        :file="fileHeader"
+        :index="positioned.statement.index ?? 0"
+        v-if="positioned.isFirstInGroup"
+      />
+      <StatementInterface
+        :file="fileHeader"
+        :statement="positioned.statement"
+        :depth="positioned.depth"
+        :isFirstInGroup="positioned.isFirstInGroup"
+        :isLastInGroup="positioned.isLastInGroup"
+        :lineNumberBase="positioned.lineNumberBase"
+        class="mx-auto w-full max-w-[1000px] bg-white"
+      />
+    </template>
+    <StatementDivider class="mx-auto max-w-[1050px] px-2" :file="fileHeader" :index="rootStatements.length" />
     <!-- Deleted overlay with restore button -->
     <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">
       <div class="flex flex-col items-center gap-2">
