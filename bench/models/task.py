@@ -36,16 +36,12 @@ class Task(Schemad, SymbolContent):
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation.task
 
     @property
-    def expectations(self) -> models.QuerySet["Expectation"]:
-        return self.definition.children_of_symbol_type(SymbolType.EXPECTATION).values_list(
-            "symbol", flat=True
-        )
+    def expectations(self) -> models.QuerySet["Statement"]:
+        return self.definition.active_children_like(SymbolType.EXPECTATION)
 
     @property
     def subtasks(self) -> models.QuerySet["Task"]:
-        return self.definition.children_of_symbol_type(SymbolType.TASK).values_list(
-            "symbol", flat=True
-        )
+        return self.definition.active_children_like(SymbolType.TASK)
 
     def deepcopy(self, to: SymbolContent, refs: dict[UUID, Statement | SymbolContent]):
         super().deepcopy(to, refs)

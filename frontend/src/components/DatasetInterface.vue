@@ -36,9 +36,9 @@ const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, 
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
 
 // sense derived state
-const { schemaElement } = useSchemadSymbolSchema(file, statement);
-const schemaElements = computed(() => schemaElement.value?.elements ?? []);
-const schemaAvailable = computed(() => schemaElement.value != null);
+const { schemaContent } = useSchemadSymbolSchema(file, statement);
+const schemaElements = computed(() => schemaContent.value?.element?.elements ?? []);
+const schemaAvailable = computed(() => schemaElements.value.length > 0);
 
 // local interface state
 const state = useDatasetInterfaceState(statement);

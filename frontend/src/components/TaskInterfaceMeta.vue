@@ -13,11 +13,15 @@ const props = defineProps<{
 
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const { schema } = useSchemadSymbolSchema(file, statement);
+const { schemaContent } = useSchemadSymbolSchema(file, statement);
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">
-    <SchemaElement :element="schema.element" class="text-xs opacity-50 group-hover:opacity-100" v-if="schema" />
+    <SchemaElement
+      :element="schemaContent?.element"
+      class="text-xs opacity-50 group-hover:opacity-100"
+      v-if="schemaContent"
+    />
     <span v-else class="italic text-yellow-500">no schema</span>
   </div>
 </template>

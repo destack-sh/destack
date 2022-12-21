@@ -1,12 +1,14 @@
 import { graphql, useFragment } from "@/gql";
-import { type DependencyHeaderFragment, StatementType } from "@/gql/graphql";
+import { type DependencyHeaderFragment, StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/utils/editor";
 import {
   DependencyHeaderType,
   FileHeaderType,
   SchemaElementContentDeepType,
+  StatementContentType,
   StatementHeaderType,
 } from "@/utils/fragments";
+import { SchemaContentType } from "@/utils/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, reactive, ref, toRef, type ComputedRef, type Ref } from "vue";
@@ -59,6 +61,10 @@ export type IntelliSense = {
   rootStatements(fileId: string): LocalStatementHeader[];
   availableSymbols(fileId: string, statementId?: string): LocalStatementHeader[];
   allSymbols(): LocalStatementHeader[];
+  activeChildrenLike(
+    statementId: string,
+    filter: { type?: StatementType; symbolType?: SymbolType }
+  ): LocalStatementHeader[];
 };
 
 function _useIntelliSenseRegistry(projectVersionId: Ref<string | null>): IntelliSenseRegistry {
@@ -174,8 +180,19 @@ function _useIntelliSense() {
       .filter((statement) => statement.type != StatementType.Comment && statement.type != StatementType.Import);
   }
 
-  function resolveSymbol(name: string, fileId: string, statementId?: string): LocalStatementHeader | undefined {
-    return availableSymbols(fileId, statementId).find((statement) => statement.name === name);
+  function activeChildrenLike(
+    statementId: string,
+    filter: { type?: StatementType; symbolType?: SymbolType }
+  ): LocalStatementHeader[] {
+    const children = registry.statementsByParentId[statementId] || [];
+    let relevantChildren = children.filter((child) => child.deletedAt == null && !child.commented);
+    if (filter.type != null) {
+      relevantChildren = relevantChildren.filter((child) => child.type === filter.type);
+    }
+    if (filter.symbolType != null) {
+      relevantChildren = relevantChildren.filter((child) => child.symbolType === filter.symbolType);
+    }
+    return relevantChildren;
   }
 
   const sense: IntelliSense = reactive({
@@ -183,6 +200,7 @@ function _useIntelliSense() {
     rootStatements,
     availableSymbols,
     allSymbols,
+    activeChildrenLike,
   });
   return sense;
 }
@@ -192,11 +210,17 @@ export const useIntelliSense = createSharedComposable(_useIntelliSense);
 
 export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<StatementHeader>) {
   /* Get the current schema for a 'schemad' Symbol from context */
-  // TODO @Broken: implement useSchemaSymbolSchema with new statements
   const sense = useIntelliSense();
-  // const schemaHeader = computed(() => {
-  //   return sense.childSymbol(statement.value.id, SymbolType.Schema);
-  // });
+  const schemaHeader: Ref<LocalStatementHeader | null> = computed(() => {
+    const childSchema = sense.activeChildrenLike(statement.value.id, { symbolType: SymbolType.Schema })[0];
+    if (childSchema?.reference != null) {
+      // use source definition (only works for single-level references)
+      return sense.registry.statementsById[childSchema.reference.id];
+    } else {
+      return childSchema;
+    }
+  });
+
   // get schema content from gql
   const { result: schemaQuery } = useQuery(
     graphql(/* GraphQL */ `
@@ -204,15 +228,16 @@ export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<Sta
         file(id: $fileId) {
           statements(filters: { id: $statementId }) {
             id
+            ...StatementContent
           }
         }
       }
     `),
-    () => ({ fileId: file.value.id, statementId: null }),
-    () => ({ enabled: false })
+    () => ({ fileId: schemaHeader.value?.file.id, statementId: schemaHeader.value?.id }),
+    () => ({ enabled: !!schemaHeader.value })
   );
-  const schema = computed(() => null);
-  const schemaElement = computed(() => useFragment(SchemaElementContentDeepType, schema.value?.element));
+  const schema = computed(() => useFragment(StatementContentType, schemaQuery.value?.file?.statements[0]));
+  const schemaContent = computed(() => useFragment(SchemaContentType, schema.value?.content));
 
-  return { schemaHeader: ref(null), schema: ref(null), schemaElement: ref(null) };
+  return { schemaHeader, schema, schemaContent };
 }

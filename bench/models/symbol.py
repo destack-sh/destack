@@ -332,6 +332,12 @@ class Statement(UUIDModel):
     def active_descendants(self) -> models.QuerySet[Statement]:
         return self.descendants.filter(deleted_at__isnull=True, commented=False)
 
+    def active_children_like(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
+        return self.children.filter(deleted_at=None, commented=False, symbol_type=symbol_type)
+
+    def active_child_like(self, symbol_type: SymbolType) -> Optional[Statement]:
+        return self.active_children_like(symbol_type=symbol_type).first()
+
     @staticmethod
     def symbol_type_to_field(type: SymbolType) -> str:
         return SYMBOL_TYPE_TO_FIELD[type]
@@ -518,12 +524,6 @@ class Statement(UUIDModel):
         self.commented = commented
         self.descendants.update(commented=commented)
         self.save()
-
-    def children_of_symbol_type(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
-        return self.children.filter(symbol_type=symbol_type)
-
-    def child_of_symbol_type(self, symbol_type: SymbolType) -> Optional[Statement]:
-        return self.children_of_symbol_type(symbol_type).first()
 
     def add_parameter(
         self,

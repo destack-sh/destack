@@ -506,6 +506,10 @@ class File(UUIDModel):
     def root_statements(self) -> models.QuerySet["Statement"]:
         return self.statements.filter(parent=None)
 
+    @property
+    def active_root_statements(self):
+        return self.root_statements.filter(deleted_at__isnull=True, commented=False)
+
     def define_symbol(
         self, name: str, content: SymbolContent, parent: Optional[Statement] = None, **kwargs
     ) -> Statement:

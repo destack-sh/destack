@@ -1077,7 +1077,14 @@ export type SchemaContentByIdQueryVariables = Exact<{
 
 export type SchemaContentByIdQuery = {
   __typename?: "Query";
-  file?: { __typename?: "File"; statements: Array<{ __typename?: "Statement"; id: any }> } | null;
+  file?: {
+    __typename?: "File";
+    statements: Array<
+      { __typename?: "Statement"; id: any } & {
+        " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment };
+      }
+    >;
+  } | null;
 };
 
 export type AddCompilationMutationVariables = Exact<{
@@ -2452,7 +2459,10 @@ export const SchemaContentByIdDocument = {
                   ],
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
+                    ],
                   },
                 },
               ],
@@ -2461,6 +2471,14 @@ export const SchemaContentByIdDocument = {
         ],
       },
     },
+    ...StatementContentFragmentDoc.definitions,
+    ...CodeContentFragmentDoc.definitions,
+    ...DatasetContentFragmentDoc.definitions,
+    ...ExpectationContentFragmentDoc.definitions,
+    ...TaskContentFragmentDoc.definitions,
+    ...SchemaContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+    ...StatementHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SchemaContentByIdQuery, SchemaContentByIdQueryVariables>;
 export const AddCompilationDocument = {
