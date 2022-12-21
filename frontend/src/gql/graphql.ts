@@ -465,6 +465,7 @@ export type Query = {
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   projects: ProjectConnection;
+  statement?: Maybe<Statement>;
   user?: Maybe<User>;
   users: UserConnection;
 };
@@ -499,6 +500,10 @@ export type QueryProjectsArgs = {
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type QueryStatementArgs = {
+  id: Scalars["GlobalID"];
 };
 
 export type QueryUserArgs = {
@@ -1078,20 +1083,16 @@ export type ProjectVersionContentSenseQuery = {
 };
 
 export type SchemaContentByIdQueryVariables = Exact<{
-  fileId: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
 }>;
 
 export type SchemaContentByIdQuery = {
   __typename?: "Query";
-  file?: {
-    __typename?: "File";
-    statements: Array<
-      { __typename?: "Statement"; id: any } & {
+  statement?:
+    | ({ __typename?: "Statement"; id: any } & {
         " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment };
-      }
-    >;
-  } | null;
+      })
+    | null;
 };
 
 export type AddCompilationMutationVariables = Exact<{
@@ -2420,11 +2421,6 @@ export const SchemaContentByIdDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -2434,44 +2430,19 @@ export const SchemaContentByIdDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "file" },
+            name: { kind: "Name", value: "statement" },
             arguments: [
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
               },
             ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "statements" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "id" },
-                            value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
-                    ],
-                  },
-                },
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
               ],
             },
           },
@@ -2988,6 +2959,22 @@ export const CreateStatementDocument = {
                             {
                               kind: "Field",
                               name: { kind: "Name", value: "statements" },
+                              arguments: [
+                                {
+                                  kind: "Argument",
+                                  name: { kind: "Name", value: "filters" },
+                                  value: {
+                                    kind: "ObjectValue",
+                                    fields: [
+                                      {
+                                        kind: "ObjectField",
+                                        name: { kind: "Name", value: "isVisible" },
+                                        value: { kind: "BooleanValue", value: true },
+                                      },
+                                    ],
+                                  },
+                                },
+                              ],
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [

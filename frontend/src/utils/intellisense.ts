@@ -1,17 +1,11 @@
 import { graphql, useFragment } from "@/gql";
-import { type DependencyHeaderFragment, StatementType, SymbolType } from "@/gql/graphql";
+import { StatementType, SymbolType, type DependencyHeaderFragment } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/utils/editor";
-import {
-  DependencyHeaderType,
-  FileHeaderType,
-  SchemaElementContentDeepType,
-  StatementContentType,
-  StatementHeaderType,
-} from "@/utils/fragments";
+import { DependencyHeaderType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
 import { SchemaContentType } from "@/utils/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, reactive, ref, toRef, type ComputedRef, type Ref } from "vue";
+import { computed, reactive, toRef, type ComputedRef, type Ref } from "vue";
 
 const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
   fragment ProjectVersionContentSense on ProjectVersion {
@@ -246,19 +240,17 @@ export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<Sta
   // get schema content from gql
   const { result: schemaQuery } = useQuery(
     graphql(/* GraphQL */ `
-      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {
-        file(id: $fileId) {
-          statements(filters: { id: $statementId }) {
-            id
-            ...StatementContent
-          }
+      query schemaContentById($statementId: GlobalID!) {
+        statement(id: $statementId) {
+          id
+          ...StatementContent
         }
       }
     `),
-    () => ({ fileId: schemaHeader.value?.file.id, statementId: schemaHeader.value?.id }),
+    () => ({ statementId: schemaHeader.value?.id }),
     () => ({ enabled: !!schemaHeader.value })
   );
-  const schema = computed(() => useFragment(StatementContentType, schemaQuery.value?.file?.statements[0]));
+  const schema = computed(() => useFragment(StatementContentType, schemaQuery.value?.statement));
   const schemaContent = computed(() => useFragment(SchemaContentType, schema.value?.content));
 
   return { schemaHeader, schema, schemaContent };

@@ -24,7 +24,8 @@ export function useStatementOps() {
             file {
               id
               path
-              statements {
+              # should match FileInterface query
+              statements(filters: { isVisible: true }) {
                 id
                 index
               }
@@ -35,8 +36,7 @@ export function useStatementOps() {
           }
         }
       }
-    `),
-    { refetchQueries: ["fileContentById"] }
+    `)
   );
 
   const { mutate: morphStatementMut } = useMutation(

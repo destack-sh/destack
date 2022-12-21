@@ -16,7 +16,7 @@ from bench.api.model import Model
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.schema import Schema
-from bench.api.symbol import StatementMutation
+from bench.api.symbol import Statement, StatementMutation
 from bench.api.task import Task, TaskMutation
 from bench.api.user import User
 from bench.settings import DEBUG, TEST
@@ -35,6 +35,7 @@ class Query:
     projects: gql.relay.Connection[Project] = gql.relay.connection()
     projectVersion: Optional[ProjectVersion] = gql.relay.node()
     file: Optional[File] = gql.relay.node()
+    statement: Optional[Statement] = gql.relay.node()
 
 
 @strawberry.type
