@@ -5,6 +5,7 @@ import {
   type File,
   type Project,
   type ProjectVersion,
+  type RefMapping,
   type Statement,
 } from "@/gql/graphql";
 import { defineStore } from "pinia";
@@ -198,10 +199,36 @@ export const useEditorState = defineStore("editor", {
       this.currentProjectVersionId = version.id;
     },
 
-    async migrateTo(version: ProjectVersionHeader): Promise<void> {
-      // TODO @Feature: migrate editor state on version change
+    async migrateTo(version: ProjectVersionHeader, intermediateRefs?: RefMapping[][]): Promise<void> {
       const projectId = this.currentProjectId;
-      this.$reset();
+
+      if (intermediateRefs != null) {
+        // migrate by serializing state and replacing refs
+        let stateJson = JSON.stringify(this.$state);
+        for (const refs of intermediateRefs) {
+          for (const ref of refs) {
+            // replace all matches of ref.source with ref.target
+            // (need to use regex to replace *all* matches)
+            const re = new RegExp(`"${ref.source}"`, "g");
+            stateJson = stateJson.replace(re, `"${ref.target}"`);
+          }
+        }
+        this.$reset();
+        this.$patch(JSON.parse(stateJson));
+
+        // remove editors with refs we don't have anymore
+        const latestRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
+        for (const editor of this.editors) {
+          if (editor.type == "file" && !latestRefs.includes((editor as FileEditor).fileId)) {
+            console.log(`removing outdated editor for file ${(editor as FileEditor).fileId}`);
+            this.closeEditor(editor);
+          }
+        }
+      } else {
+        // just reset if we don't have any intermediate refs
+        this.$reset();
+      }
+
       this.currentProjectId = projectId;
       this.currentProjectVersionId = version.id;
     },

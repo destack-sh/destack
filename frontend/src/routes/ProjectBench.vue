@@ -17,8 +17,8 @@ import {
   QuestionMarkCircleIcon,
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
-import { useQuery } from "@vue/apollo-composable";
-import { computed, watchEffect, type Component, type ComputedRef } from "vue";
+import { useLazyQuery, useQuery } from "@vue/apollo-composable";
+import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -200,6 +200,59 @@ watchEffect(() => {
 });
 
 const { load } = useEditorPersistence();
+const migrating = ref(false);
+const {
+  load: getProjectMigrationRefs,
+  loading: projectMigrationLoading,
+  error: projectMigrationError,
+  result: projectMigrationRefs,
+} = useLazyQuery(
+  graphql(/* GraphQL */ `
+    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {
+      project(id: $projectId) {
+        versions(filters: { afterId: $afterId }) {
+          id
+          name
+          createdAt
+          parentsRefs {
+            source
+            target
+          }
+        }
+      }
+    }
+  `)
+);
+
+// the second half of applying a migration (since we can't await lazy queries directly)
+watch(
+  () => [projectMigrationRefs, projectMigrationLoading, projectMigrationError],
+  async () => {
+    if (!migrating.value) return;
+    if (!projectHead.value) {
+      // shouldn't happen but cancel migration if it does
+      migrating.value = false;
+      return;
+    }
+    if (projectMigrationLoading.value) return;
+
+    if (projectMigrationError.value != null) {
+      console.error("unable to migrate, error getting intermediate refs", projectMigrationError.value);
+      await state.migrateTo(projectHead.value, undefined);
+      migrating.value = false;
+    } else if (projectMigrationRefs.value) {
+      const intermediateVersions = projectMigrationRefs.value?.project?.versions;
+      const intermediateRefs = intermediateVersions
+        ?.sort((a, b) => a.createdAt - b.createdAt)
+        .map((v) => v.parentsRefs);
+      await state.migrateTo(projectHead.value, intermediateRefs);
+      console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
+      migrating.value = false;
+    }
+  },
+  { deep: true }
+);
+
 // reset editor state for project if project (head) changes
 watchEffect(async () => {
   const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
@@ -212,10 +265,21 @@ watchEffect(async () => {
     load();
     console.log(`loaded editor state for project ${projectHeader.value.id} version ${projectHead.value.id}`);
     if (state.currentProjectId == projectHeader.value?.id) {
+      // migrate if there is a new version
       if (state.currentProjectVersionId != projectHead.value?.id) {
         console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
-        await state.migrateTo(projectHead.value);
-      } // otherwise no migration needed
+        migrating.value = true;
+        // get all ref mappings
+        getProjectMigrationRefs(
+          undefined,
+          {
+            projectId: projectHeader.value.id,
+            afterId: state.currentProjectVersionId,
+          },
+          { fetchPolicy: "network-only" }
+        );
+        // migrating flag triggers migration completion above
+      }
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);
       // (happens in state.setProject)

@@ -203,7 +203,7 @@ export function useStatementActions() {
 
   // insert statement (as a sibling)
   const insertBeforeCurrent = provideGlobalAction({
-    id: "statement.insertBeforeCurrent",
+    id: "statement.insertAboveCurrent",
     label: "Insert statement above current",
     shortcuts: ["a"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
@@ -219,7 +219,7 @@ export function useStatementActions() {
     },
   });
   const insertAfterCurrent = provideGlobalAction({
-    id: "statement.insertStatement",
+    id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
