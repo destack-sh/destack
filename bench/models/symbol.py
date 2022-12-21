@@ -432,7 +432,11 @@ class Statement(UUIDModel):
     def move_to(self, file: File, parent: Optional[Statement], index: Optional[int] = None) -> None:
         """Moves this statement to a new file and/or parent statement. Updates children at both the old and new locations."""
         # check that we're keeping import semantics: can only refer to statements in the same file
-        if self.type == StatementType.REFERENCE and self.reference.file != file:
+        if (
+            self.type == StatementType.REFERENCE
+            and self.reference is not None
+            and self.reference.file != file
+        ):
             raise ValueError(f"can't move reference {self} to file {file}")
 
         # reload self to get the latest location within transaction
