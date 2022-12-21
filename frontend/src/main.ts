@@ -3,19 +3,19 @@
 import { createApp, h, provide } from "vue";
 import { version } from "../../package.json";
 
+import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, InMemoryCache } from "@apollo/client/core";
 import { DefaultApolloClient } from "@vue/apollo-composable";
+import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
-import Mousetrap from "mousetrap";
-import { createPinia } from "pinia";
-import { applyShortcuts } from "@/utils/shortcuts";
+import { TYPE_POLICIES } from "@/utils/policies";
 
 async function init() {
   const apolloClient = new ApolloClient({
     uri: "http://localhost:8000/graphql",
-    cache: new InMemoryCache(),
+    cache: new InMemoryCache({ typePolicies: TYPE_POLICIES }),
   });
   const pinia = createPinia();
 

@@ -176,9 +176,11 @@ const metaActions: ComputedRef<MetaAction[]> = computed(() => {
 
 const containerRef = ref<HTMLElement | null>(null);
 const declarationRef = ref<HTMLElement | null>(null);
+const aliasRef = ref<HTMLElement | null>(null);
 const contentRef = ref<Component | InstanceType<typeof MonacoEditor> | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
 const { focused: declarationFocused } = useFocus(declarationRef);
+const { focused: aliasFocused } = useFocus(aliasRef);
 const { focused: contentFocused } = useFocusWithin(contentRef);
 
 function focus() {
@@ -244,6 +246,7 @@ watch(
     // if focused and editing stopped, defocus
     if (!isEditing) {
       declarationFocused.value = false;
+      aliasFocused.value = false;
       (contentRef.value as FocusableComponent)?.defocus?.();
     }
   }
@@ -285,7 +288,6 @@ function navigateDown() {
 
 // manage declaration and alias
 
-const aliasRef = ref<HTMLElement | null>(null);
 const declarationContent = ref("");
 const declarationComboboxRef = ref<InstanceType<typeof Combobox> | null>(null);
 const declarationComboboxOptionsRef = ref<HTMLElement | null>(null);

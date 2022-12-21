@@ -389,6 +389,10 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
+  statement(
+    """The ID of the object."""
+    id: GlobalID!
+  ): Statement
 }
 
 type RefMapping {

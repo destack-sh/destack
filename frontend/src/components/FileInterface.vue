@@ -36,7 +36,8 @@ const statements = computed(() => {
       .map((statement) => useFragment(StatementContentType, statement))
       .filter((statement) => statement.deletedAt == null) || []
   );
-});
+}, {});
+
 const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
 
 const operations = useOperations();
@@ -96,7 +97,7 @@ const positionedStatements = computed(() => {
   <div class="my-3 mx-7 flex h-full flex-col" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
     <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
       <StatementDivider
-        class="mx-auto max-w-[1050px] px-2"
+        class="mx-auto max-w-[1030px]"
         :file="fileHeader"
         :index="positioned.statement.index ?? 0"
         v-if="positioned.isFirstInGroup"
