@@ -41,7 +41,7 @@ const documents = {
     types.ProjectVersionContentSenseFragmentDoc,
   "\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    ":
     types.ProjectVersionContentSenseDocument,
-  "\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n          }\n        }\n      }\n    ":
+  "\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n            ...StatementContent\n          }\n        }\n      }\n    ":
     types.SchemaContentByIdDocument,
   "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    ":
     types.AddCompilationDocument,
@@ -146,8 +146,8 @@ export function graphql(
   source: "\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    "
 ): typeof documents["\n      query projectVersionContentSense($id: GlobalID!) {\n        projectVersion(id: $id) {\n          id\n          ...ProjectVersionContentSense\n        }\n      }\n    "];
 export function graphql(
-  source: "\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n          }\n        }\n      }\n    "
-): typeof documents["\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n          }\n        }\n      }\n    "];
+  source: "\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n            ...StatementContent\n          }\n        }\n      }\n    "
+): typeof documents["\n      query schemaContentById($fileId: GlobalID!, $statementId: GlobalID!) {\n        file(id: $fileId) {\n          statements(filters: { id: $statementId }) {\n            id\n            ...StatementContent\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation addCompilation($input: AddCompilationInput!) {\n        addCompilationTarget(input: $input) {\n          compilation {\n            id\n            name\n            createdAt\n            updatedAt\n          }\n        }\n      }\n    "];

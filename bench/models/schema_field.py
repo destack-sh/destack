@@ -78,7 +78,7 @@ class Schemad:
     def schema(self: SymbolContent) -> Optional["Schema"]:
         from bench.models import SymbolType
 
-        child = self.definition.child_of_symbol_type(SymbolType.SCHEMA)
+        child = self.definition.active_child_like(SymbolType.SCHEMA)
         return child.source_definition.schema_ if child else None
 
     @property
