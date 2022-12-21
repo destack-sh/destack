@@ -318,6 +318,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             raise ValueError(f"cannot import {statement} in same file {file}")
         if statement.type == StatementType.IMPORT:
             raise ValueError(f"cannot import an import statement {statement}")
+        if (
+            statement.file.project_version != self
+            and statement.file.project_version not in self.dependencies.all()
+        ):
+            raise ValueError(
+                f"cannot import {statement} from {statement.file.project_version} (not a dependency)"
+            )
 
         import_statement = Statement.objects.create_import(
             statement=statement,

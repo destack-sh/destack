@@ -177,10 +177,9 @@ class StatementManager(models.Manager["Statement"]):
             file=file,
             parent=parent,
             index=index,
-            content=None,
             type=StatementType.IMPORT,
             name=name,
-            statement=statement,
+            reference=statement,
         )
 
     def create_reference(
