@@ -504,9 +504,9 @@ class Statement(UUIDModel):
         self.refresh_from_db(fields=["deleted_at", "file"])
         if self.file.deleted_at:
             raise ValueError(f"cannot restore {self} because containing {self.file} is deleted")
+        # restore descendants (that were deleted at the same time)
+        self.descendants.filter(deleted_at=self.deleted_at).update(deleted_at=None)
         self.deleted_at = None
-        # restore descendants
-        self.descendants.update(deleted_at=None)
         # move siblings down
         # TODO @Robustness: statement restore assumes siblings were not changed - correct?
         self.siblings.filter(index__gte=self.index).update(index=models.F("index") + 1)
