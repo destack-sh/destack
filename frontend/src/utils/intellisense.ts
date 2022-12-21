@@ -58,6 +58,7 @@ export type IntelliSenseRegistry = {
 export type IntelliSense = {
   registry: IntelliSenseRegistry;
 
+  family(statementId: string): LocalStatementHeader[];
   rootStatements(fileId: string): LocalStatementHeader[];
   availableSymbols(fileId: string, statementId?: string): LocalStatementHeader[];
   allSymbols(): LocalStatementHeader[];
@@ -152,6 +153,26 @@ function _useIntelliSense() {
   const editor = useEditorState();
   const registry = _useIntelliSenseRegistry(toRef(editor, "currentProjectVersionId"));
 
+  function family(statementId: string): LocalStatementHeader[] {
+    // the sum of ancestors and descendants
+    const family: LocalStatementHeader[] = [];
+    let rootParent = registry.statementsById[statementId];
+    while (rootParent?.parent != null) {
+      rootParent = registry.statementsById[rootParent.parent.id];
+    }
+    // now get all descendants dfs
+    const queue = [rootParent];
+    while (queue.length > 0) {
+      const statement = queue.shift();
+      if (statement == null) {
+        continue;
+      }
+      family.push(statement);
+      queue.push(...(registry.statementsByParentId[statement.id] || []));
+    }
+    return family;
+  }
+
   function rootStatements(fileId: string): LocalStatementHeader[] {
     return registry.statementsByFileId[fileId]?.filter((statement) => statement.parent == null) || [];
   }
@@ -197,6 +218,7 @@ function _useIntelliSense() {
 
   const sense: IntelliSense = reactive({
     registry,
+    family,
     rootStatements,
     availableSymbols,
     allSymbols,

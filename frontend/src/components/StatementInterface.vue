@@ -116,7 +116,9 @@ const isRunnable = computed(
     (statement.value?.symbolType == SymbolType.Code || statement.value?.symbolType == SymbolType.Task)
 );
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
-const isAncestorFocused = computed(() => isFocused.value || editorState.focusedElementId == statement.value.parent?.id);
+const isFamilyFocused = computed(
+  () => isFocused.value || sense.family(statement.value.id).find((s) => s.id == editorState.focusedElementId) != null
+);
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value?.compiled);
 const isAlias = computed(
@@ -556,7 +558,7 @@ async function morphToBlank() {
     class="group relative border-x border-gray-200 tracking-tight transition-colors"
     :class="{
       'border-gray-200 ': !isFocused,
-      'border-l-orange-500': isAncestorFocused,
+      'border-l-orange-500': isFamilyFocused,
       'hover:border-l-orange-300': !isFocused,
       'rounded-t-sm border-t border-gray-200': isFirstInGroup, // group top
       'pb-1': depth > 0, // inside group
@@ -594,8 +596,8 @@ async function morphToBlank() {
       :class="{
         'text-orange-200': !isFocused && !isComment,
         'text-gray-200': !isFocused && isComment,
-        'text-orange-400': isAncestorFocused && !isComment,
-        'text-gray-300': isAncestorFocused && isComment,
+        'text-orange-400': isFamilyFocused && !isComment,
+        'text-gray-300': isFamilyFocused && isComment,
         'font-bold text-orange-600': isFocused && !isComment,
         'font-bold text-gray-400': isFocused && isComment,
       }"
