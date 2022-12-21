@@ -493,8 +493,8 @@ class Statement(UUIDModel):
     @transaction.atomic
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        # soft delete descendants
-        self.descendants.update(deleted_at=self.deleted_at)
+        # soft delete descendants (that aren't yet deleted)
+        self.descendants.filter(deleted_at=None).update(deleted_at=self.deleted_at)
         # move siblings up
         self.siblings.filter(index__gt=self.index).update(index=models.F("index") - 1)
         self.save()
