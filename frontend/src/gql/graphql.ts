@@ -443,6 +443,7 @@ export type ProjectVersion = Node & {
   mainProgram?: Maybe<Statement>;
   name?: Maybe<Scalars["String"]>;
   parents: Array<ProjectVersion>;
+  parentsRefs: Array<RefMapping>;
   project: Project;
   statements: Array<Statement>;
 };
@@ -509,6 +510,12 @@ export type QueryUsersArgs = {
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type RefMapping = {
+  __typename?: "RefMapping";
+  source: Scalars["GlobalID"];
+  target: Scalars["GlobalID"];
 };
 
 export type RenameFilePayload = File | OperationInfo;
