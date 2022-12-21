@@ -94,7 +94,7 @@ class Schemad:
 
             schema = Schema(description="", element=element)
             self.definition.file.define_symbol(
-                name="schema", content=schema, parent=self.definition
+                name="schema", content=schema, parent=self.definition, index=0
             )
         else:
             self.schema.element = element

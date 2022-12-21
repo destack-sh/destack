@@ -40,7 +40,7 @@ temperature_examples = [
 # @define code: get_temperature
 
 
-async def get_temperature(model: Model, description: str, examples: Dataset) -> float:
+async def get_temperature(description: str) -> float:
     # ignore task examples for now
     temperature_map = {
         "high": 0.9,
