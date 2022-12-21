@@ -38,7 +38,7 @@ const state = useSchemaInterfaceState(statement);
       v-if="state.view == 'json'"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       hide-line-numbers
-      :style="{ marginLeft: -24 + 'px' }"
+      :style="{ marginLeft: -23 + 'px' }"
       :model-value="elementAsJsonText"
       language="json"
       :focused="focused"

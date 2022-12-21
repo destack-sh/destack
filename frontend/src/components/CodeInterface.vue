@@ -56,7 +56,7 @@ defineExpose({ focus, defocus });
     v-if="content.code != null"
     :line-number-offset="lineNumberBase + 1 /* for statement itself */"
     :line-number-shift-px="xOffset + 20"
-    :style="{ marginLeft: -xOffset - 44 + 'px' }"
+    :style="{ marginLeft: -xOffset - 43 + 'px' }"
     :model-value="content.code"
     @update:model-value="onCodeEnterDebounced"
     @navigateUp="emit('navigateUp')"

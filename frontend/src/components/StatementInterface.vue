@@ -21,14 +21,13 @@ import {
   SYMBOL_TYPE_BY_SHORTNAME,
   SYMBOL_TYPE_SHORTNAME,
   useEditorState,
-  type StatementHeader,
 } from "@/utils/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
 import { useIntelliSense, type LocalStatementHeader } from "@/utils/intellisense";
 import { useOperations } from "@/utils/operations";
-import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { onClickOutside, useFocus, useFocusWithin, useTextSelection } from "@vueuse/core";
+import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
 import { assert } from "ts-essentials";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 
@@ -44,8 +43,6 @@ const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => statement.value.content);
 const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
-const parameters = computed(() => statement.value?.parameters ?? []);
-const arguments_ = computed(() => statement.value?.arguments ?? []);
 
 const symbolTypeShortname = computed(() =>
   statement.value.symbolType ? SYMBOL_TYPE_SHORTNAME[statement.value.symbolType] : null
@@ -123,8 +120,7 @@ const isAncestorFocused = computed(() => isFocused.value || editorState.focusedE
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value?.compiled);
 const isAlias = computed(
-  () =>
-    (isReference.value || isImport.value) && reference.value != null && reference.value?.name != statement.value.name
+  () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
 );
 const importPath = computed(() => {
   assert(isImport.value, "statement is import");
@@ -191,7 +187,7 @@ function focus() {
 function onClickContainer() {
   // focus on first click, edit on second click
   if (selectingReference.value) {
-    return;
+    // ignore click while selecting reference
   } else if (!isFocused.value) {
     focus();
   } else {
@@ -199,8 +195,8 @@ function onClickContainer() {
   }
 }
 
-// this isn't great because it always scrolls and doesn't consider the container size
 // auto scroll into focus once the element is focused if outside of viewport
+// (this isn't great because it always scrolls and doesn't consider the container size)
 watch(
   () => isFocused.value,
   (isFocused) => {
@@ -214,21 +210,16 @@ watch(
 watch(
   () => containerFocused.value,
   (containerFocused) => {
-    if (containerFocused) {
-      if (!isEditing.value) {
-        focus();
-        startEditing();
-      }
-    } else if (isEditing.value) {
-      // console.log("defocus because container lost focus");
-      // stopEditing();
+    if (containerFocused && !isEditing.value) {
+      focus();
+      startEditing();
     }
   }
 );
 onClickOutside(containerRef, () => {
-  if (isEditing.value && !selectingReference.value) {
+  if (isEditing.value) {
     console.log("defocus because clicked outside");
-    stopEditing();
+    cancelCurrentEditing();
   }
 });
 
@@ -259,10 +250,8 @@ watch(
 function startEditing() {
   editorState.editElement(statement.value);
 }
-function stopEditing() {
+function cancelCurrentEditing() {
   if (selectingReference.value) {
-    // TODO @Cleanup: stopEditing should just stop editing, not depend on selectingReference
-    // (used here as a quick hack to get escape to kill the reference selection)
     selectingReference.value = false;
   } else {
     editorState.stopEditingElement(statement.value);
@@ -281,7 +270,9 @@ function navigateUp() {
 }
 
 function navigateDown() {
-  if (declarationFocused.value && content.value) {
+  if (selectingReference.value) {
+    // ignore
+  } else if (declarationFocused.value && content.value) {
     // declaration is focused, go to content
     (contentRef.value as FocusableComponent).focus?.();
   } else if (containerFocused.value) {
@@ -294,6 +285,8 @@ function navigateDown() {
 
 const aliasRef = ref<HTMLElement | null>(null);
 const declarationContent = ref("");
+const declarationComboboxRef = ref<InstanceType<typeof Combobox> | null>(null);
+const declarationComboboxOptionsRef = ref<HTMLElement | null>(null);
 const aliasContent = ref("");
 const canCreateRef = computed(
   () => statement.value.type != StatementType.Blank && (isImport.value || statement.value.parent?.id != null)
@@ -301,12 +294,35 @@ const canCreateRef = computed(
 const selectingReference = ref(false);
 const declarationSelection = useTextSelection();
 
-// open selecting reference when declaration is focused
+// open selecting reference on ctrl+space
+const keys = useMagicKeys();
+whenever(keys["ctrl+space"], () => {
+  if (isFocused.value && canCreateRef.value) {
+    selectingReference.value = true;
+    // select first option
+    // TODO @Feature: select option in reference selection (open combo box)
+    declarationComboboxOptionsRef.value?.focus?.(); // (this doesn't work)
+  }
+});
+
+// apply selected reference and close selection
+function onSelectReference(referenceId: string | ":define") {
+  if (referenceId == ":define") {
+    morphToDefinition();
+  } else {
+    const reference = filteredSymbols.value.find((r) => r.id == referenceId);
+    if (reference == null) throw new Error("reference not found: " + referenceId);
+    morphSetReference(reference);
+  }
+  selectingReference.value = false;
+}
+
+// stop selecting if editing is cancelled
 watch(
-  () => declarationFocused.value,
-  (declarationFocused) => {
-    if (declarationFocused) {
-      selectingReference.value = true;
+  () => isEditing.value,
+  (isEditing) => {
+    if (!isEditing) {
+      selectingReference.value = false;
     }
   }
 );
@@ -321,28 +337,29 @@ const availableSymbols = computed(() => {
     return [];
   }
 });
+const filterText = ref("");
+// filter up to cursor position in declaration (if cursor is in declaration)
+// store in a variable to retain last cursor position when out of focus (e.g. when selecting reference)
+watchEffect(() => {
+  if (declarationFocused.value) {
+    let cursorPosition = declarationFocused.value ? declarationSelection.selection.value?.focusOffset ?? 0 : 0;
+    filterText.value = declarationContent.value.slice(0, cursorPosition).toLowerCase();
+  }
+});
+
 const filteredSymbols = computed(() => {
   if (!selectingReference.value) return []; // only compute when selecting reference
-
-  const symbols = availableSymbols.value;
-  // filter up to cursor position in declaration
-  const cursorPosition = declarationSelection.selection.value?.focusOffset ?? declarationContent.value.length;
-  const filter = declarationContent.value.slice(0, cursorPosition).toLowerCase();
-  let filtered = symbols.filter((symbol) => symbol.name.toLowerCase().includes(filter));
-
-  // filter by symbol type if set
-  if (statement.value.symbolType != null) {
-    filtered = filtered.filter((symbol) => symbol.symbolType == statement.value.symbolType);
+  let symbols = availableSymbols.value;
+  if (filterText.value) {
+    symbols = symbols.filter((symbol) => symbol.name?.toLowerCase().includes(filterText.value));
   }
-  return filtered;
+  if (statement.value.symbolType != null) {
+    symbols = symbols.filter((symbol) => symbol.symbolType == statement.value.symbolType);
+  }
+  return symbols;
 });
 function getImportSource(statement: LocalStatementHeader): LocalStatementHeader | undefined {
   return sense.registry.statementsById[statement.reference?.id ?? ""];
-}
-
-function setReference(reference: LocalStatementHeader) {
-  selectingReference.value = false;
-  console.log("set reference", reference);
 }
 
 // react to declaration content input
@@ -361,8 +378,11 @@ watch(
         declarationContent.value = "";
       }
     }
-    if (statement.value.symbolType == null) {
-      if (input != "model" && SYMBOL_TYPE_BY_SHORTNAME[input] != null) {
+    if (statement.value.symbolType == null && SYMBOL_TYPE_BY_SHORTNAME[input] != null) {
+      // if it's an import, keep it an import
+      if (statement.value.type == StatementType.Import) {
+        await morphTo(StatementType.Import, SYMBOL_TYPE_BY_SHORTNAME[input]);
+      } else {
         await morphTo(StatementType.Reference, SYMBOL_TYPE_BY_SHORTNAME[input]);
       }
     }
@@ -417,6 +437,7 @@ async function onDeclarationEnter() {
 async function resetAlias() {
   if (reference.value != null) {
     await operations.statement.rename(statement.value.id, statement.value.name ?? "", reference.value.name ?? "");
+    declarationContent.value = reference.value.name ?? "";
   }
 }
 
@@ -424,7 +445,11 @@ function deleteLeftOnMain() {
   console.log("delete left on main");
   // remove statement prefix (import, type, modifier)
   if (statement.value.type == StatementType.Import) {
-    morphToBlank();
+    if (statement.value.symbolType != null) {
+      morp < hTo(statement.value.type, undefined);
+    } else {
+      morphToBlank();
+    }
   } else if (statement.value.symbolType != null) {
     morphToBlank();
   } else if (statement.value.modifier != null) {
@@ -451,7 +476,6 @@ async function setModifier(modifier: StatementModifier | null) {
 }
 
 async function morphToComment() {
-  console.log("morph to comment");
   await operations.statement.morph(
     statement.value.id,
     { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
@@ -462,7 +486,6 @@ async function morphToComment() {
 }
 
 async function morphToImport() {
-  console.log("morph to import");
   if (statement.value.modifier != null) {
     await setModifier(null);
   }
@@ -471,6 +494,9 @@ async function morphToImport() {
 }
 
 async function morphToDefinition() {
+  if (statement.value.type == StatementType.Definition) {
+    return;
+  }
   // apply name and morph to definition
   if (statement.value.name != declarationContent.value) {
     await operations.statement.rename(statement.value.id, statement.value.name ?? null, declarationContent.value);
@@ -481,8 +507,26 @@ async function morphToDefinition() {
   (contentRef.value as FocusableComponent)?.focus?.();
 }
 
+async function morphSetReference(to: LocalStatementHeader) {
+  let targetType = statement.value.type == StatementType.Definition ? StatementType.Reference : statement.value.type;
+  // TODO @Robustness: should morphs be atomic (rename + setReference + morph type)
+  if (statement.value.type != targetType || to.symbolType != statement.value.symbolType) {
+    await operations.statement.morph(
+      statement.value.id,
+      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+      { type: targetType, symbolType: to.symbolType ?? undefined }
+    );
+  }
+  if (to.name != statement.value.name) {
+    await operations.statement.rename(statement.value.id, statement.value.name ?? null, to.name ?? null);
+    declarationContent.value = to.name ?? "";
+  }
+  if (to.id != reference.value?.id) {
+    await operations.statement.setReference(statement.value.id, reference.value?.id, to.id);
+  }
+}
+
 async function morphTo(type: StatementType, symbolType?: SymbolType) {
-  console.log("morph to", type, symbolType);
   await operations.statement.morph(
     statement.value.id,
     { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
@@ -602,7 +646,7 @@ async function morphToBlank() {
             @deleteRight="deleteRightOnMain"
             @navigateUp="navigateUp"
             @navigateDown="navigateDown"
-            @escape="stopEditing"
+            @escape="cancelCurrentEditing"
             @click="startEditing"
             @enter="onDeclarationEnter"
             @keydown="onDeclarationKeydown"
@@ -610,23 +654,24 @@ async function morphToBlank() {
           <!-- Doubles as a combobox to look up symbols -->
           <Combobox
             ref="declarationComboboxRef"
-            :modelValue="reference ?? undefined"
-            @update:modelValue="setReference"
-            by="id"
+            :modelValue="reference?.id || ':define'"
+            @update:modelValue="onSelectReference"
             nullable
             v-if="(canCreateRef || reference != null) && isEditing"
           >
             <ComboboxOptions
+              ref="declarationComboboxOptionsRef"
               static
               as="ul"
               class="absolute top-4 z-10 mt-1 max-h-60 w-96 overflow-auto border border-orange-400 bg-white text-sm shadow-md"
               v-show="selectingReference"
             >
+              <!-- References to select -->
               <ComboboxOption
                 v-for="symbol in filteredSymbols"
                 as="template"
                 :key="symbol.id"
-                :value="symbol"
+                :value="symbol.id"
                 v-slot="{ active, selected }"
               >
                 <li
@@ -634,24 +679,34 @@ async function morphToBlank() {
                   :class="{ 'bg-orange-100': selected }"
                 >
                   <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
+                    <template v-if="statement.symbolType == null && symbol.symbolType != null">
+                      <!-- specify type of reference if we haven't narrowed down yet -->
+                      {{ SYMBOL_TYPE_SHORTNAME[symbol.symbolType] }}
+                    </template>
                     {{ symbol.name }}
                   </span>
                   <span class="truncate text-gray-500">
-                    {{ getImportSource(symbol)?.file?.pathWithoutExtension || file.pathWithoutExtension || "..." }}
+                    {{ getImportSource(symbol)?.file?.pathWithoutExtension || symbol.file.pathWithoutExtension }}
                   </span>
                 </li>
               </ComboboxOption>
+              <!-- Nothing found -->
+              <ComboboxOption key=":none" value=":none" as="template" v-if="filteredSymbols.length == 0" disabled>
+                <li class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer">
+                  <span class="group-hover/li:text-orange-600 text-gray-500">{{ declarationContent }} not found</span>
+                </li>
+              </ComboboxOption>
+              <!-- Define locally (if not an import) -->
               <ComboboxOption
                 key=":define"
                 value=":define"
                 as="template"
                 v-if="statement.type != StatementType.Import && declarationContent.length > 0"
-                v-slot="{ active }"
+                v-slot="{ active, selected }"
               >
                 <li
                   class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
-                  :class="{ 'bg-orange-100': statement.type == StatementType.Definition }"
-                  @click.prevent="morphToDefinition"
+                  :class="{ 'bg-orange-100': selected }"
                 >
                   <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
                     {{ declarationContent }}:
@@ -674,7 +729,7 @@ async function morphToBlank() {
           :readonly="readonly"
           v-model="aliasContent"
           @deleteLeft="deleteLeftOnAlias"
-          @escape="stopEditing"
+          @escape="cancelCurrentEditing"
           @click="startEditing"
         />
         <!-- Import postfix (not editable since derived from selected main) -->
@@ -739,7 +794,7 @@ async function morphToBlank() {
         :focused="isFocused"
         @navigateUp="navigateUp"
         @navigateDown="navigateDown"
-        @escape="stopEditing"
+        @escape="cancelCurrentEditing"
       />
       <span class="text-red-500" v-else> cannot render {{ statement.symbolType }} </span>
     </div>
@@ -754,7 +809,7 @@ async function morphToBlank() {
         @deleteIfEmpty="morphToBlank"
         @navigateUp="navigateUp"
         @navigateDown="navigateDown"
-        @escape="stopEditing"
+        @escape="cancelCurrentEditing"
         hide-line-numbers
         :focused="isFocused"
         :readonly="readonly"
