@@ -487,6 +487,8 @@ class Statement(UUIDModel):
                     symbol = symbol.default_content()
                     symbol.save()
                 self.set_content(symbol)
+                # not sure about setting reference on morph, should be another atomic operation?
+                self.reference = None
             else:
                 if isinstance(symbol, SymbolContent):
                     raise ValueError("can't set content for a reference")

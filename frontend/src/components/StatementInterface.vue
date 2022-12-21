@@ -174,7 +174,7 @@ const metaActions: ComputedRef<MetaAction[]> = computed(() => {
 
 const containerRef = ref<HTMLElement | null>(null);
 const declarationRef = ref<HTMLElement | null>(null);
-const contentRef = ref<Component | typeof MonacoEditor | null>(null);
+const contentRef = ref<Component | InstanceType<typeof MonacoEditor> | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
 const { focused: declarationFocused } = useFocus(declarationRef);
 const { focused: contentFocused } = useFocusWithin(contentRef);
@@ -301,7 +301,7 @@ whenever(keys["ctrl+space"], () => {
     selectingReference.value = true;
     // select first option
     // TODO @Feature: select option in reference selection (open combo box)
-    declarationComboboxOptionsRef.value?.focus?.(); // (this doesn't work)
+    declarationComboboxOptionsRef.value?.focus?.(); // (this doesn')
   }
 });
 
@@ -446,7 +446,7 @@ function deleteLeftOnMain() {
   // remove statement prefix (import, type, modifier)
   if (statement.value.type == StatementType.Import) {
     if (statement.value.symbolType != null) {
-      morp < hTo(statement.value.type, undefined);
+      morphTo(statement.value.type, undefined);
     } else {
       morphToBlank();
     }
