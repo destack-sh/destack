@@ -409,6 +409,10 @@ export type Project = Node & {
   versions: Array<ProjectVersion>;
 };
 
+export type ProjectVersionsArgs = {
+  filters?: InputMaybe<ProjectVersionFilter>;
+};
+
 /** A connection to a list of items. */
 export type ProjectConnection = {
   __typename?: "ProjectConnection";
@@ -454,6 +458,10 @@ export type ProjectVersionFilesArgs = {
 
 export type ProjectVersionStatementsArgs = {
   filters?: InputMaybe<StatementFilter>;
+};
+
+export type ProjectVersionFilter = {
+  afterId: Scalars["GlobalID"];
 };
 
 export type Query = {
@@ -875,6 +883,25 @@ export type ProjectVersionContentQuery = {
         " $fragmentRefs"?: { ProjectVersionContentFragment: ProjectVersionContentFragment };
       })
     | null;
+};
+
+export type ProjectMigrationRefsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  afterId: Scalars["GlobalID"];
+}>;
+
+export type ProjectMigrationRefsQuery = {
+  __typename?: "Query";
+  project?: {
+    __typename?: "Project";
+    versions: Array<{
+      __typename?: "ProjectVersion";
+      id: any;
+      name?: string | null;
+      createdAt: any;
+      parentsRefs: Array<{ __typename?: "RefMapping"; source: any; target: any }>;
+    }>;
+  } | null;
 };
 
 export type CodeContentFragment = { __typename?: "Code"; id: any; builtinId?: string | null; code?: string | null } & {
@@ -2367,6 +2394,88 @@ export const ProjectVersionContentDocument = {
     ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
+export const ProjectMigrationRefsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "projectMigrationRefs" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "afterId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "versions" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "afterId" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "afterId" } },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parentsRefs" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "source" } },
+                            { kind: "Field", name: { kind: "Name", value: "target" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectMigrationRefsQuery, ProjectMigrationRefsQueryVariables>;
 export const ProjectVersionContentSenseDocument = {
   kind: "Document",
   definitions: [

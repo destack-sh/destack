@@ -298,7 +298,7 @@ type Project implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   head: ProjectVersion!
-  versions: [ProjectVersion!]!
+  versions(filters: ProjectVersionFilter): [ProjectVersion!]!
 }
 
 """A connection to a list of items."""
@@ -338,6 +338,10 @@ type ProjectVersion implements Node {
   statements(filters: StatementFilter): [Statement!]!
   compilations: [Compilation!]!
   parentsRefs: [RefMapping!]!
+}
+
+input ProjectVersionFilter {
+  afterId: GlobalID!
 }
 
 type Query {

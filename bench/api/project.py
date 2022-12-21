@@ -15,6 +15,15 @@ if TYPE_CHECKING:
     from bench.api.symbol import Statement
 
 
+@gql.django.filter(models.ProjectVersion)
+class ProjectVersionFilter:
+    after_id: GlobalID = UNSET
+
+    def filter_after_id(self, queryset):
+        version = models.ProjectVersion.objects.get(id=self.after_id.node_id)
+        return queryset.filter(created_at__gt=version.committed_at)
+
+
 @gql.django.type(models.Project)
 class Project(gql.Node):
     name: auto
@@ -24,7 +33,8 @@ class Project(gql.Node):
     created_at: auto
     updated_at: auto
     head: "ProjectVersion"
-    versions: list["ProjectVersion"]  # TODO @Cleanup: use relay connections
+    # TODO @Cleanup: use relay connections for (large?) relations
+    versions: list["ProjectVersion"] = gql.django.field(filters=ProjectVersionFilter)
 
 
 @gql.django.filter(models.Statement)
