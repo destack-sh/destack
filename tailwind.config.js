@@ -12,6 +12,7 @@ module.exports = {
         sky: colors.sky,
         teal: colors.teal,
         rose: colors.rose,
+        gray: colors.zinc,
       },
       boxShadow: {
         outline: "4 4 3 3px rgba(0 0 0 / 0.05)",
