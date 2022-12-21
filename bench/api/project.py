@@ -7,6 +7,7 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.models import StatementType
+from bench.models.project import RefDict
 
 if TYPE_CHECKING:
     from bench.api.compilation import Compilation
@@ -58,6 +59,12 @@ class FileFilter:
             return queryset.filter(deleted_at__isnull=False)
 
 
+@gql.type
+class RefMapping:
+    source: GlobalID
+    target: GlobalID
+
+
 @gql.django.type(models.ProjectVersion)
 class ProjectVersion(gql.Node):
     project: Project
@@ -75,6 +82,18 @@ class ProjectVersion(gql.Node):
         filters=StatementFilter
     )
     compilations: list[Annotated["Compilation", lazy(".compilation")]]
+
+    @gql.field
+    def parents_refs(self) -> list[RefMapping]:
+        refs: list[RefDict] = self.parents_refs
+        ref_mappings = [
+            RefMapping(
+                source=GlobalID(ref["type"], ref["source"]),
+                target=GlobalID(ref["type"], ref["target"]),
+            )
+            for ref in refs
+        ]
+        return ref_mappings
 
 
 @gql.django.type(models.File)

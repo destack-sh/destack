@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypeVar
+from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypedDict, TypeVar
 from uuid import UUID
 
 import pytz
@@ -41,6 +41,9 @@ class ProjectManager(models.Manager["Project"]):
 
     def get_by_slug(self, organization: str, project: str):
         return self.get(organization__slug=organization, slug=project)
+
+
+RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
 class Project(TaggableMixin, UUIDModel):
@@ -113,7 +116,11 @@ class Project(TaggableMixin, UUIDModel):
         new_version.parents.add(assigned_parent)
 
         # copy project content from parent
-        ProjectVersion.copy_project_version(assigned_parent, new_version)
+        refs = ProjectVersion.copy_project_version(assigned_parent, new_version)
+        new_version.parents_refs = [
+            RefDict(source=str(k), target=str(v.id), type=type(v).__name__) for k, v in refs.items()
+        ]
+        new_version.save()
 
         # head has advanced to new version
         if assigned_parent == self.head:
@@ -165,6 +172,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     parents = models.ManyToManyField(
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
+    parents_refs = models.JSONField(default=dict)
     dependencies = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
     files: models.QuerySet["File"]  # noqa via File
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol
@@ -172,7 +180,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     compilations: models.QuerySet["Compilation"]  # noqa via Compilation
 
     @staticmethod
-    def copy_project_version(source: ProjectVersion, target: ProjectVersion):
+    def copy_project_version(
+        source: ProjectVersion, target: ProjectVersion
+    ) -> dict[UUID, File | Statement | SymbolContent]:
         # TODO @Performance: copy project version on commit server-side in SQL
         #  This is awfully sequential and slow, particularly deepcopy of symbol contents.
         #  For one, we can likely just bulk save if we defer parent/child relations to a second pass.
@@ -199,6 +209,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             statement.file = new_files[statement.file_id]
             statement.project_version = target
             statement.set_content(None)
+            statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
             new_statements[old_id] = statement
             # if statement is a definition, copy symbol content
@@ -210,15 +221,18 @@ class ProjectVersion(TaggableMixin, UUIDModel):
                 statement.set_content(content)
                 new_contents[old_id] = content
             statement.save()
-        refs: dict[UUID, SymbolContent | Statement] = {
+        refs: dict[UUID, File | SymbolContent | Statement] = {
             **new_contents,
             **new_statements,
+            **new_files,
         }
         # 3 re-assign references and deep copy other relations
         for old_statement in source.statements.filter(deleted_at=None):
             new_statement = new_statements[old_statement.id]
             old_statement.deepcopy(new_statement, refs)
             new_statement.save()
+
+        return refs
 
     def __str__(self) -> str:
         return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
@@ -291,7 +305,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         file: File,
         parent: Optional[Statement] = None,
         index: Optional[int] = None,
-        **kwargs,
     ) -> Statement:
         """Define a symbol in this project version in the given file."""
         definition = Statement.objects.create_definition(
@@ -301,7 +314,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             file=file,
             parent=parent,
             index=index,
-            **kwargs,
         )
         return definition
 

@@ -278,6 +278,8 @@ class Statement(UUIDModel):
             new_content = refs[self.content_id]
             self.content.deepcopy(to=new_content, refs=refs)
             new_content.save()
+        # reset symbol type since set_content nulls it
+        to.symbol_type = self.symbol_type
         # replace ref (default to same ref if not in refs since library refs are not copied)
         to.reference = refs.get(self.reference_id, self.reference)
         # copy parameters

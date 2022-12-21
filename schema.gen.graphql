@@ -337,6 +337,7 @@ type ProjectVersion implements Node {
   files(filters: FileFilter): [File!]!
   statements(filters: StatementFilter): [Statement!]!
   compilations: [Compilation!]!
+  parentsRefs: [RefMapping!]!
 }
 
 type Query {
@@ -388,6 +389,11 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
+}
+
+type RefMapping {
+  source: GlobalID!
+  target: GlobalID!
 }
 
 union RenameFilePayload = File | OperationInfo
