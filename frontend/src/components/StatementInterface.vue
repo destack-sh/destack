@@ -23,13 +23,13 @@ import {
   useEditorState,
 } from "@/utils/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
-import { useIntelliSense, type LocalStatementHeader } from "@/utils/intellisense";
+import { useIntelliSense, useStatementMetadata, type LocalStatementHeader } from "@/utils/intellisense";
 import { useOperations } from "@/utils/operations";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
 import { assert } from "ts-essentials";
-import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -105,40 +105,14 @@ const actions = useActions();
 const operations = useOperations();
 const sense = useIntelliSense();
 
-const isDefinition = computed(() => statement.value?.type == StatementType.Definition);
-const isReference = computed(() => statement.value?.type == StatementType.Reference);
-const isImport = computed(() => statement.value?.type == StatementType.Import);
-const isComment = computed(() => statement.value?.type == StatementType.Comment);
-const isCommented = computed(() => statement.value?.commented);
-const isRunnable = computed(
-  () =>
-    !isImport.value &&
-    (statement.value?.symbolType == SymbolType.Code || statement.value?.symbolType == SymbolType.Task)
-);
+const meta = useStatementMetadata(toRef(props, "file"), toRef(props, "statement"));
+
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isFamilyFocused = computed(
   () => isFocused.value || sense.family(statement.value.id).find((s) => s.id == editorState.focusedElementId) != null
 );
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value?.compiled);
-const isAlias = computed(
-  () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
-);
-const importPath = computed(() => {
-  assert(isImport.value, "statement is import");
-  if (reference.value?.file.projectVersion.id != file.value.projectVersion.id) {
-    // absolute import to dependency
-    const dependency = sense.registry.dependenciesById[reference.value?.file.projectVersion.id];
-    if (!dependency) {
-      return null; // dependency not registered or not yet loaded
-    } else {
-      return dependency.project.path + "." + reference.value?.file.pathWithoutExtension;
-    }
-  } else {
-    // relative import
-    return "." + reference.value?.file.pathWithoutExtension;
-  }
-});
 
 type MetaAction = {
   icon: Component;
@@ -148,7 +122,7 @@ type MetaAction = {
 
 const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   const metaActions = [];
-  if (isRunnable.value) {
+  if (meta.isRunnable) {
     metaActions.push({
       icon: PlayIcon,
       label: "Run",
@@ -279,7 +253,10 @@ const declarationComboboxRef = ref<InstanceType<typeof Combobox> | null>(null);
 const declarationComboboxOptionsRef = ref<HTMLElement | null>(null);
 const aliasContent = ref("");
 const canCreateRef = computed(
-  () => statement.value.type != StatementType.Blank && (isImport.value || statement.value.parent?.id != null)
+  () =>
+    statement.value.type != StatementType.Blank &&
+    !meta.isArgument &&
+    (meta.isImport || statement.value.parent?.id != null)
 );
 const selectingReference = ref(false);
 const declarationSelection = useTextSelection();
@@ -553,8 +530,8 @@ async function morphToBlank() {
       'rounded-b-sm border-b border-gray-200': isLastInGroup, // group bottom
       'pb-2.5': isLastInGroup && !isFirstInGroup, // group bottom with other top
       'pb-1.5': isLastInGroup && isFirstInGroup, // group top and bottom
-      'font-mono': !isComment, // not sure if everything should be mono, but it's more consistent..
-      italic: isCommented,
+      'font-mono': !meta.isComment, // not sure if everything should be mono, but it's more consistent..
+      italic: meta.isCommented,
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @click="onClickContainer"
@@ -568,7 +545,7 @@ async function morphToBlank() {
       <template v-if="isEditing">e</template>
       <template v-if="isFirstInGroup">[</template>
       <template v-if="isLastInGroup">]</template>
-      <template v-if="isCommented">#</template>
+      <template v-if="meta.isCommented">#</template>
       {{ statement.modifier }}
       {{ statement.type }}
       <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
@@ -576,18 +553,18 @@ async function morphToBlank() {
       i:{{ statement.index }} d:{{ depth }}
     </span>
     <!-- Commented overlay -->
-    <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
+    <div v-if="meta.isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
       class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
       :style="{ left: -30 + 'px' }"
       :class="{
-        'text-orange-200': !isFocused && !isComment,
-        'text-gray-200': !isFocused && isComment,
-        'text-orange-400': isFamilyFocused && !isComment,
-        'text-gray-300': isFamilyFocused && isComment,
-        'font-bold text-orange-600': isFocused && !isComment,
-        'font-bold text-gray-400': isFocused && isComment,
+        'text-orange-200': !isFocused && !meta.isComment,
+        'text-gray-200': !isFocused && meta.isComment,
+        'text-orange-400': isFamilyFocused && !meta.isComment,
+        'text-gray-300': isFamilyFocused && meta.isComment,
+        'font-bold text-orange-600': isFocused && !meta.isComment,
+        'font-bold text-gray-400': isFocused && meta.isComment,
       }"
       >{{ lineNumberBase + 1 }}</span
     >
@@ -604,7 +581,7 @@ async function morphToBlank() {
       <!--  Declaration -->
       <!-- TODO @Cleanup: factor out statement declaration component (the mess is above) -->
       <div
-        v-if="!isComment"
+        v-if="!meta.isComment"
         class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
       >
         <!-- Blank statement dots -->
@@ -621,7 +598,7 @@ async function morphToBlank() {
           ...
         </span>
         <!-- Statement prefixxes (types & modifiers) -->
-        <span class="mr-1 text-orange-600" v-if="isImport">import</span>
+        <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
         <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
         <!-- Editable statement main part -->
@@ -708,11 +685,11 @@ async function morphToBlank() {
           </Combobox>
         </div>
         <!-- Statement postfixes (alias & import location) -->
-        <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
-        <span v-if="isAlias" class="mx-1 text-orange-600">as</span>
+        <span v-if="meta.isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
+        <span v-if="meta.isAlias" class="mx-1 text-orange-600">as</span>
         <!-- Editable alias -->
         <EditableSpan
-          v-if="isAlias"
+          v-if="meta.isAlias"
           ref="aliasRef"
           maxlength="100"
           class="text-inherit outline-none"
@@ -723,10 +700,10 @@ async function morphToBlank() {
           @click="startEditing"
         />
         <!-- Import postfix (not editable since derived from selected main) -->
-        <span v-if="isImport" class="mx-1 text-orange-600">from</span>
-        <span v-if="isImport && reference != null && importPath != null">{{ importPath }}</span>
+        <span v-if="meta.isImport" class="mx-1 text-orange-600">from</span>
+        <span v-if="meta.isImport && reference != null && meta.importPath != null">{{ meta.importPath }}</span>
         <span
-          v-if="isImport && (reference == null || importPath == null)"
+          v-if="meta.isImport && (reference == null || meta.importPath == null)"
           class="text-gray-400 group-focus:animate-pulse"
           >...</span
         >
@@ -735,7 +712,7 @@ async function morphToBlank() {
       <span
         class="inline-flex flex-row items-center font-sans"
         :class="{
-          'opacity-0 group-hover:opacity-100': !isDefinition && !isFocused,
+          'opacity-0 group-hover:opacity-100': !meta.isDefinition && !isFocused,
           'text-gray-400': !isFocused,
           'text-gray-500': isFocused,
         }"
@@ -791,7 +768,7 @@ async function morphToBlank() {
     <!-- Comment content -->
     <!-- TODO @Cleanup: comment content should probably be just another component -->
     <!-- TODO @Cleanup: use proper comment styling instead of opacity -->
-    <div v-else-if="isComment" class="mx-3 my-1 py-[0.5px]">
+    <div v-else-if="meta.isComment" class="mx-3 my-1 py-[0.5px]">
       <MonacoEditor
         ref="contentRef"
         :modelValue="statement.text || ''"
