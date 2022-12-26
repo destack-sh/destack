@@ -59,7 +59,7 @@ export type IntelliSense = {
   allSymbols(): LocalStatementHeader[];
   activeChildrenLike(
     statementId: string,
-    filter: { type?: StatementType; symbolType?: SymbolType }
+    filter: { type?: StatementType; symbolType?: SymbolType; modifier?: StatementModifier }
   ): LocalStatementHeader[];
 };
 
@@ -198,7 +198,7 @@ function _useIntelliSense() {
 
   function activeChildrenLike(
     statementId: string,
-    filter: { type?: StatementType; symbolType?: SymbolType }
+    filter: { type?: StatementType; symbolType?: SymbolType; modifier?: StatementModifier }
   ): LocalStatementHeader[] {
     const children = registry.statementsByParentId[statementId] || [];
     let relevantChildren = children.filter((child) => child.deletedAt == null && !child.commented);
@@ -207,6 +207,9 @@ function _useIntelliSense() {
     }
     if (filter.symbolType != null) {
       relevantChildren = relevantChildren.filter((child) => child.symbolType === filter.symbolType);
+    }
+    if (filter.modifier != null) {
+      relevantChildren = relevantChildren.filter((child) => child.modifier === filter.modifier);
     }
     return relevantChildren;
   }
@@ -225,38 +228,6 @@ function _useIntelliSense() {
 // share intellicense as a singleton instance across components
 export const useIntelliSense = createSharedComposable(_useIntelliSense);
 
-export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<StatementHeader>) {
-  /* Get the current schema for a 'schemad' Symbol from context */
-  const sense = useIntelliSense();
-  const schemaHeader: Ref<LocalStatementHeader | null> = computed(() => {
-    const childSchema = sense.activeChildrenLike(statement.value.id, { symbolType: SymbolType.Schema })[0];
-    if (childSchema?.reference != null) {
-      // use source definition (only works for single-level references)
-      return sense.registry.statementsById[childSchema.reference.id];
-    } else {
-      return childSchema;
-    }
-  });
-
-  // get schema content from gql
-  const { result: schemaQuery } = useQuery(
-    graphql(/* GraphQL */ `
-      query schemaContentById($statementId: GlobalID!) {
-        statement(id: $statementId) {
-          id
-          ...StatementContent
-        }
-      }
-    `),
-    () => ({ statementId: schemaHeader.value?.id }),
-    () => ({ enabled: !!schemaHeader.value })
-  );
-  const schema = computed(() => useFragment(StatementContentType, schemaQuery.value?.statement));
-  const schemaContent = computed(() => useFragment(SchemaContentType, schema.value?.content));
-
-  return { schemaHeader, schema, schemaContent };
-}
-
 export type StatementMetadata = {
   isRedefinition: boolean;
   isDefinition: boolean;
@@ -269,7 +240,9 @@ export type StatementMetadata = {
   isDeleted: boolean;
   isRunnable: boolean;
   isAlias: boolean;
-  importPath: string | null | undefined;
+  importPath?: string | null;
+  parameters?: LocalStatementHeader[];
+  arguments?: LocalStatementHeader[];
 };
 
 export function useStatementMetadata(
@@ -316,6 +289,20 @@ export function useStatementMetadata(
     }
   });
 
+  const parameters = computed(() =>
+    sense.activeChildrenLike(statement.value.id, {
+      type: StatementType.Reference,
+      modifier: StatementModifier.With,
+    })
+  );
+  const arguments_ = computed(() =>
+    sense
+      .activeChildrenLike(statement.value.id, {
+        modifier: StatementModifier.With,
+      })
+      .filter((statement) => statement.type == StatementType.Definition || statement.type == StatementType.Redefinition)
+  );
+
   return reactive({
     isRedefinition,
     isDefinition,
@@ -329,5 +316,39 @@ export function useStatementMetadata(
     isRunnable,
     isAlias,
     importPath,
+    parameters,
+    arguments: arguments_,
   });
+}
+
+export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<StatementHeader>) {
+  /* Get the current schema for a 'schemad' Symbol from context */
+  const sense = useIntelliSense();
+  const schemaHeader: Ref<LocalStatementHeader | null> = computed(() => {
+    const childSchema = sense.activeChildrenLike(statement.value.id, { symbolType: SymbolType.Schema })[0];
+    if (childSchema?.reference != null) {
+      // use source definition (only works for single-level references)
+      return sense.registry.statementsById[childSchema.reference.id];
+    } else {
+      return childSchema;
+    }
+  });
+
+  // get schema content from gql
+  const { result: schemaQuery } = useQuery(
+    graphql(/* GraphQL */ `
+      query schemaContentById($statementId: GlobalID!) {
+        statement(id: $statementId) {
+          id
+          ...StatementContent
+        }
+      }
+    `),
+    () => ({ statementId: schemaHeader.value?.id }),
+    () => ({ enabled: !!schemaHeader.value })
+  );
+  const schema = computed(() => useFragment(StatementContentType, schemaQuery.value?.statement));
+  const schemaContent = computed(() => useFragment(SchemaContentType, schema.value?.content));
+
+  return { schemaHeader, schema, schemaContent };
 }

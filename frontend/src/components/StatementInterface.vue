@@ -358,7 +358,7 @@ watchEffect(() => {
     return;
   }
   // reset/init declaration content
-  if (statement.value.type == StatementType.Definition) {
+  if (statement.value.type == StatementType.Definition || meta.isParameter) {
     declarationContent.value = statement.value.name ?? "";
   } else if (statement.value.type == StatementType.Import || statement.value.type == StatementType.Reference) {
     if (reference.value != null) {
@@ -391,7 +391,7 @@ async function onDeclarationEnter() {
     return;
   }
 
-  if (statement.value.type == StatementType.Definition) {
+  if (statement.value.type == StatementType.Definition || meta.isParameter) {
     // rename and focus content
     await operations.statement.rename(statement.value.id, statement.value.name ?? "", declarationContent.value);
     (contentRef.value as FocusableComponent)?.focus?.();
@@ -727,6 +727,14 @@ async function morphToBlank() {
         <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
           <!-- <span> {{ getTimeFromNowString(statement.updatedAt) }} </span> -->
           <span v-if="statement.compiled">compiled</span>
+          <!-- Basic parameters info -->
+          <span v-if="meta.parameters?.length ?? 0 > 0">
+            (
+            <span v-for="param in meta.parameters" :key="param.id">
+              {{ param.name }}
+            </span>
+            )
+          </span>
         </span>
         <!-- Symbol meta controls -->
         <span class="inline-flex flex-row gap-1">
