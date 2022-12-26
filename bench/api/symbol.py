@@ -9,7 +9,6 @@ from bench import models
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
-    from bench.api.schema import SchemaElement
 
 StatementType = gql.enum(models.StatementType)
 SymbolType = gql.enum(models.SymbolType)
@@ -36,34 +35,12 @@ class Statement(gql.relay.Node):
     source_definition: Optional["Statement"]
     reference: Optional["Statement"]
     referenced_by: list["Statement"]
-    parameters: list["Parameter"]
-    arguments: list["Argument"]
     content: Optional["SymbolContent"]
 
 
 @gql.django.interface(models.SymbolContent)
 class SymbolContent(gql.Node):
     pass
-
-
-@gql.django.type(models.Parameter)
-class Parameter(gql.Node):
-    statement: Statement
-    name: auto
-    created_at: auto
-    updated_at: auto
-    type: auto
-    schema: Optional[Annotated["SchemaElement", lazy(".schema")]] = None
-
-
-@gql.django.type(models.Argument)
-class Argument(gql.Node):
-    statement: Statement
-    name: auto
-    created_at: auto
-    updated_at: auto
-    reference: Optional[Statement] = None
-    value: auto
 
 
 @gql.input

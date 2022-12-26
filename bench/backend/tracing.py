@@ -13,7 +13,7 @@ import structlog
 
 from bench.backend.provider import Completion, ModelHandle
 from bench.backend.types import LoadedCode, LoadedModel, ResolvedParameter
-from bench.models import Execution, ExecutionStatus, ParameterType
+from bench.models import Execution, ExecutionStatus, SymbolType
 from bench.utils.record import RecordBatch
 from bench.utils.schema import SchemaElement, get_value_type
 
@@ -273,17 +273,17 @@ class ValidationTracer(Tracer):
             raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
 
     def _check_argument(self, code: LoadedCode, value: Any, parameter: ResolvedParameter):
-        # TODO @Typing: check that the argument has the correct schema
-        if parameter.type == ParameterType.CODE:
+        # TODO @Typing: check that the argument has a compatible schema
+        if parameter.symbol_type == SymbolType.CODE:
             if not callable(value):
                 raise ValidationError(f"argument {parameter.name} to {code} is not a callable")
-        elif parameter.type == ParameterType.MODEL:
+        elif parameter.symbol_type == SymbolType.MODEL:
             if not isinstance(value, ModelHandle):
                 raise ValidationError(f"argument {parameter.name} to {code} is not a model handler")
-        elif parameter.type == ParameterType.DATA:
+        elif parameter.symbol_type == SymbolType.DATASET:
             if not isinstance(value, RecordBatch):
                 raise ValidationError(f"argument {parameter.name} tp {code} is not a dataset")
-        elif parameter.type == ParameterType.VALUE:
+        elif parameter.symbol_type == ParameterType.VALUE:
             # check that the argument is a JSON object or primitive
             if not isinstance(value, (dict, list, str, int, float, bool, type(None))):
                 raise ValueError(

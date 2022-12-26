@@ -14,12 +14,10 @@ from bench.backend.types import (
     Value,
 )
 from bench.models import (
-    Argument,
     Code,
     Dataset,
     Model,
     ModelInferenceSettings,
-    ParameterType,
     Statement,
     SymbolContent,
     SymbolType,
@@ -87,7 +85,7 @@ class Resolver:
         return parameters
 
     async def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
-        bound_arguments: QuerySet[Argument] = code.arguments.all().select_related(
+        bound_arguments: QuerySet[Statement] = code.arguments.all().select_related(
             "reference",
             "reference__model",
             "reference__model__default_settings",
@@ -96,9 +94,6 @@ class Resolver:
         )
         bound_arguments_resolved: dict[str, Any] = {}
         async for argument in bound_arguments:
-            if argument.type == ParameterType.VALUE:
-                bound_arguments_resolved[argument.name] = argument.value
-                continue
             if argument.reference is None:
                 raise ValueError(f"argument {argument} has no statement reference")
             # resolve statement reference

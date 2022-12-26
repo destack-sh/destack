@@ -21,7 +21,6 @@ from bench.models import (
     Model,
     ModelInferenceSettings,
     Organization,
-    ParameterType,
     Project,
     ProjectVersion,
     SymbolType,

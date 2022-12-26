@@ -87,14 +87,14 @@ class Schemad:
             raise ValueError(f"{self} doesn't have a schema")
         return self.schema
 
-    def set_schema_element(self: Any, element: SchemaElement):
+    def set_schema_element(self: Any, element: SchemaElement, name: str = "schema"):
         if self.schema is None:
             # auto define new schema if none exists
             from bench.models import Schema
 
             schema = Schema(description="", element=element)
             self.definition.file.define_symbol(
-                name="schema", content=schema, parent=self.definition, index=0
+                name=name, content=schema, parent=self.definition, index=0
             )
         else:
             self.schema.element = element

@@ -12,9 +12,7 @@ from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.schema_field import SchemaElementField
-from bench.models.utils import MAX_NAME_LENGTH, UUIDModel, is_jsonable
-from bench.utils.schema import SchemaElement
+from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
     from bench.models import (
@@ -36,10 +34,11 @@ class StatementType(models.TextChoices):
     The type of Bench statement.
     """
 
-    IMPORT = "import"
-    DEFINITION = "def"
-    REFERENCE = "ref"
-    COMMENT = "comment"
+    IMPORT = "import"  # import
+    DEFINITION = "def"  # :
+    REFERENCE = "ref"  #
+    REDEFINITION = "redef"  # =
+    COMMENT = "comment"  # //
     BLANK = "blank"  # used while creating a new statement
 
 
@@ -50,6 +49,7 @@ class StatementModifier(models.TextChoices):
 
     MAIN = "main"
     SUGGEST = "suggest"
+    WITH = "with"
     LIKE = "like"
     UNLIKE = "unlike"
     VERIFY = "verify"
@@ -248,8 +248,6 @@ class Statement(UUIDModel):
         related_name="referenced_by",
     )
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
-    parameters: models.QuerySet[Parameter]  # noqa via Parameter.symbol
-    arguments: models.QuerySet[Argument]  # noqa via Argument.statement
 
     text = models.TextField(null=True, blank=True)  # as markdown
     symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
@@ -282,19 +280,6 @@ class Statement(UUIDModel):
         to.symbol_type = self.symbol_type
         # replace ref (default to same ref if not in refs since library refs are not copied)
         to.reference = refs.get(self.reference_id, self.reference)
-        # copy parameters
-        for parameter in self.parameters.all():
-            parameter.id = None
-            parameter.statement = to
-            parameter.save()
-        # copy arguments
-        for argument in self.arguments.all():
-            argument.id = None
-            argument.statement = to
-            # replace ref (default to same ref if not in refs since library refs are not copied)
-            new_reference = refs.get(argument.reference_id, argument.reference)
-            argument.reference = cast(Statement, new_reference)
-            argument.save()
 
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)
@@ -533,49 +518,39 @@ class Statement(UUIDModel):
         self.descendants.update(commented=commented)
         self.save()
 
+    @property
+    def parameters(self) -> models.QuerySet[Statement]:
+        return self.active_children.filter(
+            modifier=StatementModifier.WITH, type=StatementType.REFERENCE
+        )
+
+    @property
+    def arguments(self) -> models.QuerySet[Statement]:
+        return self.active_children.filter(
+            modifier=StatementModifier.WITH,
+            type__in=(StatementType.REDEFINITION, StatementType.DEFINITION),
+        )
+
     def add_parameter(
         self,
         name: str,
-        type: ParameterType,
+        symbol_type: SymbolType,
         exists_ok: bool = False,
-        schema: Optional[SchemaElement] = None,
-    ) -> Parameter:
-        if exists_ok:
-            parameter, _ = Parameter.objects.update_or_create(
-                statement=self, name=name, defaults={"type": type, "schema": schema}
-            )
-            return parameter
-        else:
-            return Parameter.objects.create(statement=self, name=name, type=type, schema=schema)
+    ) -> Statement:
+        raise NotImplementedError
 
     @transaction.atomic
     def bind_argument(
-        self, name: str, value: Any | Statement, exists_ok: bool = False
-    ) -> tuple[Parameter, Argument]:
+        self, name: str, value: Statement, exists_ok: bool = False
+    ) -> tuple[Statement, Statement]:
         if value is None:
             raise ValueError(f"cannot bind {self} argument {name} to None")
         if isinstance(value, Statement) and value.file_id != self.file_id:
             raise ValueError(f"cannot bind {self} argument {name} to {value} in different file")
 
-        # get/create parameter and corresponding argument
-        argument_type = ParameterType.from_value(value)
-        if argument_type == ParameterType.VALUE:
-            value, reference = value, None
-        else:
-            value, reference = None, value
+        raise NotImplementedError
 
-        parameter = self.add_parameter(name, argument_type, exists_ok=True)
-        argument, created = Argument.objects.update_or_create(
-            statement=self,
-            name=name,
-            defaults=dict(value=value, reference=reference),
-        )
-        if not created and not exists_ok:
-            # (transaction will be rolled back)
-            raise RuntimeError(f"{self} argument {argument} already exists")
-        return parameter, argument
-
-    def bind_arguments(self, exists_ok: bool = False, **arguments: Any | Statement):
+    def bind_arguments(self, exists_ok: bool = False, **arguments: Statement):
         for name, value in arguments.items():
             self.bind_argument(name, value, exists_ok)
 
@@ -632,11 +607,11 @@ class SymbolContent(UUIDModel):
         return SymbolType.from_content(self)
 
     @property
-    def parameters(self) -> models.QuerySet[Parameter]:
+    def parameters(self) -> models.QuerySet[Statement]:
         return self.definition.parameters
 
     @property
-    def arguments(self) -> models.QuerySet[Argument]:
+    def arguments(self) -> models.QuerySet[Statement]:
         return self.definition.arguments
 
     def deepcopy(self, to: Any, refs: dict[UUID, Statement | SymbolContent]):
@@ -653,88 +628,6 @@ class SymbolContent(UUIDModel):
         # which ensures that we always select the related symbol
         base_manager_name = "objects"
         abstract = True
-
-
-class ParameterType(models.TextChoices):
-    DATA = "dataset"
-    MODEL = "model"
-    CODE = "code"
-    VALUE = "value"
-
-    @staticmethod
-    def from_value(obj: Any | Statement) -> ParameterType:
-        if isinstance(obj, Statement):
-            if obj.symbol_type == SymbolType.DATASET:
-                return ParameterType.DATA
-            elif obj.symbol_type == SymbolType.MODEL:
-                return ParameterType.MODEL
-            elif obj.symbol_type == SymbolType.CODE:
-                return ParameterType.CODE
-            else:
-                raise ValueError(f"unexpected symbol type for code parameter: {obj}")
-        elif is_jsonable(obj):
-            return ParameterType.VALUE
-        else:
-            raise ValueError(f"unknown object {obj} to code parameter")
-
-
-class Parameter(UUIDModel):
-    """
-    A parameter is a named argument to a statement typed with Schemas.
-
-    All statements can be parameterized, but not all symbols support every argument type.
-    """
-
-    statement = models.ForeignKey(Statement, on_delete=models.CASCADE, related_name="parameters")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    type = TextChoicesField(choices_enum=ParameterType)
-    schema = SchemaElementField(null=True, blank=True)  # models need not have a schema
-
-    def __str__(self):
-        return f"{self.name}: {self.type}"
-
-    class Meta:
-        ordering = ["name"]
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_parameter_statement_name_ak",
-                fields=["statement", "name"],
-            )
-        ]
-
-
-class Argument(UUIDModel):
-    """
-    An argument is a bound value to some parameter, either a symbol through a statement or JSON.
-    Arguments are bound to statements.
-    """
-
-    statement = models.ForeignKey(Statement, on_delete=models.CASCADE, related_name="arguments")
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    reference = models.ForeignKey("Statement", on_delete=models.CASCADE, null=True, blank=True)
-    value = models.JSONField(null=True, blank=True)
-
-    def __str__(self):
-        if self.value:
-            content_str = f"value={self.value}"
-        elif self.reference:
-            content_str = f"reference={self.reference}"
-        else:
-            content_str = "<undefined>"
-        return f"{self.name}={content_str}"
-
-    class Meta:
-        ordering = ["name"]
-        constraints = [
-            models.UniqueConstraint(
-                name="bench_argument_statement_name_ak",
-                fields=["statement", "name"],
-            )
-        ]
 
 
 def replace_refs(
