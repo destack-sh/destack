@@ -1,5 +1,5 @@
-import { provideGlobalAction } from "@/utils/actions";
-import { useOperationsStore } from "@/utils/operations";
+import { provideGlobalAction } from "@/state/actions";
+import { useOperationsStore } from "@/state/operations";
 import { toRef } from "vue";
 
 export function useOperationsActions() {

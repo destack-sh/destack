@@ -1,5 +1,5 @@
-import { provideGlobalAction } from "@/utils/actions";
-import { useEditorState, type Editor } from "@/utils/editor";
+import { provideGlobalAction } from "@/state/actions";
+import { useEditorState, type Editor } from "@/state/editor";
 import { computed } from "vue";
 
 export function useEditorActions() {

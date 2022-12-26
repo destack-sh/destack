@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { useSymbolInterfaceState, type StatementHeader } from "@/utils/editor";
+import { useSymbolInterfaceState, type StatementHeader } from "@/state/editor";
 import type { Ref } from "vue";
 
 export const SchemaContentType = graphql(/* GraphQL */ `

@@ -6,7 +6,7 @@ import {
   type Editor,
   type EditorInterfaceState,
   type FileEditor,
-} from "@/utils/editor";
+} from "@/state/editor";
 import { useScroll, watchDebounced } from "@vueuse/core";
 import { onMounted, provide, ref, watchEffect } from "vue";
 

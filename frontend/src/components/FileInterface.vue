@@ -4,8 +4,8 @@ import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType, type StatementContentFragment } from "@/gql/graphql";
-import { FileHeaderType, StatementContentType } from "@/utils/fragments";
-import { useOperations } from "@/utils/operations";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 

@@ -3,10 +3,10 @@ import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
-import { provideAction, useActions } from "@/utils/actions";
-import { useEditorPersistence, useEditorState, type FileEditor } from "@/utils/editor";
-import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
-import { useOperations, useOperationsStore } from "@/utils/operations";
+import { provideAction, useActions } from "@/state/actions";
+import { useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
+import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import { useOperations, useOperationsStore } from "@/state/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {

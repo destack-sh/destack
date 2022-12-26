@@ -1,7 +1,7 @@
 import { graphql, useFragment } from "@/gql";
 import type { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
-import { StatementHeaderType } from "@/utils/fragments";
-import { useOperationsStore } from "@/utils/operations";
+import { StatementHeaderType } from "@/state/fragments";
+import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useStatementOps() {

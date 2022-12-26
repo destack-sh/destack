@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/EditableSpan.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { StatementContentType } from "@/utils/fragments";
-import { useOperations } from "@/utils/operations";
+import { StatementContentType } from "@/state/fragments";
+import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watchEffect, type Ref } from "vue";
 
