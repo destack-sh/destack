@@ -9,8 +9,6 @@ import { computed } from "vue";
 const props = defineProps<{
   statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof SchemaContentType>;
-  compiled: boolean;
-  commented: boolean;
   focused: boolean;
   lineNumberBase: number;
   xOffset: number;

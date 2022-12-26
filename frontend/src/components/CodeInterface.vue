@@ -2,18 +2,17 @@
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { CodeContentType } from "@/utils/code";
-import { useEditorState } from "@/utils/editor";
 import { StatementHeaderType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref } from "vue";
+import { computed, ref, watchEffect } from "vue";
 
 const props = defineProps<{
   statement: FragmentType<typeof StatementHeaderType>;
   content: FragmentType<typeof CodeContentType>;
-  compiled: boolean;
-  commented: boolean;
   focused: boolean;
+  editing: boolean;
+  readonly: boolean;
   lineNumberBase: number;
   xOffset: number;
 }>();
@@ -25,40 +24,39 @@ const emit = defineEmits<{
 const statement = computed(() => useFragment(StatementHeaderType, props.statement));
 const content = computed(() => useFragment(CodeContentType, props.content));
 
-const editor = useEditorState();
-const readonly = computed(() => editor.readonly || props.compiled);
 const operations = useOperations();
+const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
+const code = ref("");
 
-function onCodeEnter(code: string) {
+function saveCode(code: string) {
   const oldCode = content.value.code ?? "";
   if (oldCode !== code) {
     operations.content.updateCodeContent(statement.value.id, { code: oldCode }, { code });
   }
 }
+const saveCodeDebounced = useDebounceFn(saveCode, 200, { maxWait: 500 });
 
-const onCodeEnterDebounced = useDebounceFn(onCodeEnter, 200, { maxWait: 500 });
+// sync code to local if not editing
+watchEffect(() => {
+  if (!props.editing) {
+    code.value = content.value.code ?? "";
+  }
+});
 
-const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
-
-function focus() {
-  monacoEditor.value?.focus();
-}
-
-function defocus() {
-  monacoEditor.value?.defocus();
-}
-
-defineExpose({ focus, defocus });
+defineExpose({
+  focus: () => monacoEditor.value?.focus(),
+  defocus: () => monacoEditor.value?.defocus(),
+});
 </script>
 <template>
   <MonacoEditor
     ref="monacoEditor"
-    v-if="content.code != null"
+    v-if="code != null"
     :line-number-offset="lineNumberBase + 1 /* for statement itself */"
     :line-number-shift-px="xOffset + 20"
     :style="{ marginLeft: -xOffset - 43 + 'px' }"
-    :model-value="content.code"
-    @update:model-value="onCodeEnterDebounced"
+    :model-value="code"
+    @update:model-value="saveCodeDebounced"
     @navigateUp="emit('navigateUp')"
     @navigateDown="emit('navigateDown')"
     @escape="emit('escape')"

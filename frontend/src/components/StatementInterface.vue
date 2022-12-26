@@ -146,27 +146,13 @@ type MetaAction = {
   action: () => void;
 };
 
-const run = provideAction({
-  id: "statement.run",
-  label: "Run",
-  shortcuts: ["ctrl+enter"],
-  registered: computed(() => isRunnable.value && isFocused.value),
-  apply: async () => {
-    assert(isRunnable.value, "statement is runnable");
-    const runConfiguration = makeRunConfiguration(statement.value);
-    const runEditor = makeRunEditor(runConfiguration);
-    editorState.openEditor(runEditor);
-    editorState.focusEditor(runEditor);
-  },
-});
-
 const metaActions: ComputedRef<MetaAction[]> = computed(() => {
   const metaActions = [];
   if (isRunnable.value) {
     metaActions.push({
       icon: PlayIcon,
-      label: run.value.label,
-      action: run.value.apply,
+      label: "Run",
+      action: () => ({}),
     });
   }
   return metaActions;
@@ -793,9 +779,9 @@ async function morphToBlank() {
         :content="content"
         :lineNumberBase="lineNumberBase"
         :xOffset="depthOffsetX"
-        :compiled="statement.compiled"
-        :commented="statement.commented"
         :focused="isFocused"
+        :editing="isEditing"
+        :readonly="readonly"
         @navigateUp="navigateUp"
         @navigateDown="navigateDown"
         @escape="cancelCurrentEditing"

@@ -1,10 +1,10 @@
 <script lang="ts" setup>
+import EditableSpan from "@/components/EditableSpan.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { useEditorState } from "@/utils/editor";
 import { StatementContentType } from "@/utils/fragments";
 import { useOperations } from "@/utils/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watchEffect, type Ref } from "vue";
 
 const TaskContentType = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
@@ -16,9 +16,9 @@ const TaskContentType = graphql(/* GraphQL */ `
 const props = defineProps<{
   statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof TaskContentType>;
-  compiled: boolean;
-  commented: boolean;
   focused: boolean;
+  editing: boolean;
+  readonly: boolean;
   lineNumberBase: number;
   xOffset: number;
 }>();
@@ -31,43 +31,43 @@ const emit = defineEmits<{
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(TaskContentType, props.content));
 
-const editor = useEditorState();
-const readonly = computed(() => editor.readonly || props.compiled);
 const operations = useOperations();
+const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const description = ref("");
 
-const description: Ref<HTMLInputElement | null> = ref(null);
-async function onDescriptionEnter() {
-  const newDescription = (description.value as HTMLInputElement).innerText;
+async function saveDescription() {
+  const newDescription = description.value;
   if (newDescription.length > 0 && newDescription != content.value.description) {
     await operations.content.updateTaskContent(statement.value.id, content.value.description, newDescription);
   }
 }
+const saveDescriptionDebounced = useDebounceFn(saveDescription, 200, { maxWait: 500 });
 
-const onDescriptionEnterDebounced = useDebounceFn(onDescriptionEnter, 200);
+// sync description to local if not editing
+watchEffect(() => {
+  if (!props.editing) {
+    description.value = content.value.description;
+  }
+});
 
-function focus() {
-  description.value?.focus();
-}
-function defocus() {
-  description.value?.blur();
-}
-
-defineExpose({ focus, defocus });
+defineExpose({
+  focus: () => descriptionRef.value?.focus(),
+  defocus: () => descriptionRef.value?.defocus(),
+});
 </script>
 <template>
   <div class="relative flex items-baseline text-sm text-black">
-    <span
-      ref="description"
-      :contenteditable="!readonly"
+    <EditableSpan
+      ref="descriptionRef"
+      :readonly="readonly"
+      v-model="description"
       maxlength="200"
-      class="inline w-full rounded-sm bg-transparent py-0.5 outline-none"
-      @keydown.enter.prevent="onDescriptionEnter"
-      @keydown.up.prevent="emit('navigateUp', description?.selectionStart as number)"
-      @keydown.down.prevent="emit('navigateDown', description?.selectionStart as number)"
-      @keydown.esc.prevent="emit('escape')"
-      @keydown="onDescriptionEnterDebounced"
-    >
-      {{ content.description }}
-    </span>
+      class="inline w-full rounded-sm bg-transparent outline-none"
+      @enter="saveDescription"
+      @navigateUp="emit('navigateUp')"
+      @navigateDown="emit('navigateDown')"
+      @escape="emit('escape')"
+      @keydown="saveDescriptionDebounced"
+    />
   </div>
 </template>

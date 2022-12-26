@@ -225,7 +225,7 @@ export const useEditorState = defineStore("editor", {
           }
         }
       } else {
-        // just reset if we don't have any intermediate refs
+        // just reset if we don't have any iyntermediate refs
         this.$reset();
       }
 

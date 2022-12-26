@@ -95,7 +95,7 @@ function initMonaco(monaco: Monaco) {
       { token: "constant.character", foreground: "#d97706" },
       { token: "constant.language", foreground: "#d97706" },
       { token: "constant.other", foreground: "#d97706" },
-      { token: "identifier.python", foreground: "#111827" },
+      { token: "identifier.python", foreground: "#000000" },
       // make comments italic
       { token: "comment", fontStyle: "italic" },
       // TODO @UX: make builtin functions orange and bold

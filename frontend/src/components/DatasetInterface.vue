@@ -11,9 +11,9 @@ const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof DatasetContentType>;
-  compiled: boolean;
-  commented: boolean;
   focused: boolean;
+  readonly: boolean;
+  editing: boolean;
   lineNumberBase: number;
   xOffset: number;
 }>();
@@ -55,7 +55,7 @@ const state = useDatasetInterfaceState(statement);
       :model-value="state.view == 'jsonl' ? contentAsJsonlText : contentAsJsonText"
       language="json"
       :focused="focused"
-      :readonly="compiled"
+      :readonly="readonly"
       @navigateUp="emit('navigateUp')"
       @navigateDown="emit('navigateDown')"
       @escape="emit('escape')"
