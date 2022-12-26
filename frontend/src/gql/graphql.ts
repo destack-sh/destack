@@ -31,17 +31,6 @@ export type AddCompilationPayload = {
   compilation: Compilation;
 };
 
-export type Argument = Node & {
-  __typename?: "Argument";
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  reference?: Maybe<Statement>;
-  statement: Statement;
-  updatedAt: Scalars["DateTime"];
-  value?: Maybe<Scalars["JSON"]>;
-};
-
 export type Code = Node &
   SymbolContent & {
     __typename?: "Code";
@@ -377,25 +366,6 @@ export type PageInfo = {
   startCursor?: Maybe<Scalars["String"]>;
 };
 
-export type Parameter = Node & {
-  __typename?: "Parameter";
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  schema?: Maybe<SchemaElement>;
-  statement: Statement;
-  type: ParameterType;
-  updatedAt: Scalars["DateTime"];
-};
-
-/** An enumeration. */
-export enum ParameterType {
-  Code = "CODE",
-  Data = "DATA",
-  Model = "MODEL",
-  Value = "VALUE",
-}
-
 export type Project = Node & {
   __typename?: "Project";
   createdAt: Scalars["DateTime"];
@@ -591,7 +561,6 @@ export type SourceMapping = Node & {
 
 export type Statement = Node & {
   __typename?: "Statement";
-  arguments: Array<Argument>;
   children: Array<Statement>;
   commented: Scalars["Boolean"];
   compiled: Scalars["Boolean"];
@@ -604,7 +573,6 @@ export type Statement = Node & {
   index?: Maybe<Scalars["Int"]>;
   modifier?: Maybe<StatementModifier>;
   name?: Maybe<Scalars["String"]>;
-  parameters: Array<Parameter>;
   parent?: Maybe<Statement>;
   projectVersion: ProjectVersion;
   reference?: Maybe<Statement>;
@@ -661,6 +629,7 @@ export enum StatementModifier {
   Suggest = "SUGGEST",
   Unlike = "UNLIKE",
   Verify = "VERIFY",
+  With = "WITH",
 }
 
 export type StatementMorphInput = {
@@ -727,6 +696,7 @@ export enum StatementType {
   Comment = "COMMENT",
   Definition = "DEFINITION",
   Import = "IMPORT",
+  Redefinition = "REDEFINITION",
   Reference = "REFERENCE",
 }
 
@@ -1062,15 +1032,6 @@ export type StatementContentFragment = {
   reference?:
     | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
     | null;
-  parameters: Array<{ __typename?: "Parameter"; name: string; type: ParameterType }>;
-  arguments: Array<{
-    __typename?: "Argument";
-    name: string;
-    value?: any | null;
-    reference?:
-      | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
-      | null;
-  }>;
 } & { " $fragmentName"?: "StatementContentFragment" };
 
 export type ProjectVersionContentSenseFragment = {
@@ -2009,36 +1970,6 @@ export const StatementContentFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parameters" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "arguments" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "value" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "reference" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
-                  },
-                },
-              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "text" } },

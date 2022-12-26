@@ -176,17 +176,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     reference {
       ...StatementHeader
     }
-    parameters {
-      name
-      type
-    }
-    arguments {
-      name
-      value
-      reference {
-        ...StatementHeader
-      }
-    }
     text
   }
 `);

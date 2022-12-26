@@ -13,7 +13,6 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.backend.builtins import code_builtins
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.models import (
@@ -22,7 +21,6 @@ from bench.models import (
     Expectation,
     File,
     Organization,
-    ParameterType,
     Project,
     ProjectVersion,
     Schema,
@@ -37,7 +35,6 @@ from bench.utils.schema import (
     SchemaObjectSerializer,
     ValueType,
     derive_schema_from_function,
-    get_value_type,
 )
 
 logger = structlog.get_logger(__name__)
@@ -395,16 +392,6 @@ def parse_code(
         )
         code.set_schema_element(schema_element)
 
-        # parameters are defined in the schema extracted from the function signature
-        for param in input_schema.elements:
-            statement.add_parameter(name=param.name, type=ParameterType.VALUE, schema=param)
-        consumed_lines = bind_references(segment, project_v, statement)
-        if consumed_lines:
-            # remove consumed lines from segment
-            segment.lines = segment.lines[consumed_lines:]
-            code.code = segment.full_code
-            code.save()
-
     return code, on_defined
 
 
@@ -445,54 +432,3 @@ def parse_expect(
             _parse_child_statement(project_v, statement, modifier, statement_type, symbol_declr)
 
     return expectation, on_defined
-
-
-def bind_references(
-    segment: StatementSegment,
-    project_v: ProjectVersion,
-    statement: Statement,
-) -> int:
-    # references are defined as type only lines like:
-    # name: Task|Code|Model|Dataset|..
-    # name: <type>
-    # Parameters are resolved to their name or an @alias.
-    consumed_lines: int = 0
-    for line in segment.lines:
-        # assume all parameters are declared up front
-        if ":" not in line or "=" in line or "(" in line:
-            break
-        consumed_lines += 1
-        if "#" in line:
-            comment = line[line.find("#") :]
-            line = line[: line.find("#")]
-        else:
-            comment = ""
-        param_name, param_type = line.split(":", 1)
-        param_name = param_name.strip()
-        param_type = param_type.strip()
-        if param_name in code_builtins:
-            continue  # ignore builtins
-
-        param_schema = None
-        if param_type == "Dataset":
-            param_type = ParameterType.DATA
-        elif param_type == "Model":
-            param_type = ParameterType.MODEL
-        elif param_type == "Code":
-            param_type = ParameterType.CODE
-        else:
-            param_schema = SchemaElement(name=param_name, type=get_value_type(param_type))
-            param_type = ParameterType.VALUE
-        statement.add_parameter(name=param_name, type=param_type, schema=param_schema)
-
-        # use alias if set
-        if "@alias" in comment:
-            symbol_ref_name = comment[comment.find("@alias") + 6 :].strip()
-        else:
-            symbol_ref_name = param_name
-
-        if param_type == ParameterType.VALUE:
-            raise NotImplementedError(f"json argument resolution not supported: {line}")
-        symbol_ref = project_v.statement(file=None, name=symbol_ref_name)
-        statement.bind_argument(param_name, symbol_ref)
-    return consumed_lines

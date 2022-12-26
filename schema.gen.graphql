@@ -8,16 +8,6 @@ type AddCompilationPayload {
   compilation: Compilation!
 }
 
-type Argument implements Node {
-  id: GlobalID!
-  statement: Statement!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  reference: Statement
-  value: JSON
-}
-
 type Code implements SymbolContent & Node {
   id: GlobalID!
   definition: Statement!
@@ -271,24 +261,6 @@ type PageInfo {
   endCursor: String
 }
 
-type Parameter implements Node {
-  id: GlobalID!
-  statement: Statement!
-  name: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  type: ParameterType!
-  schema: SchemaElement
-}
-
-"""An enumeration."""
-enum ParameterType {
-  DATA
-  MODEL
-  CODE
-  VALUE
-}
-
 type Project implements Node {
   id: GlobalID!
   name: String!
@@ -479,8 +451,6 @@ type Statement implements Node {
   sourceDefinition(pk: ID): Statement
   reference: Statement
   referencedBy: [Statement!]!
-  parameters: [Parameter!]!
-  arguments: [Argument!]!
   content(pk: ID): SymbolContent
 }
 
@@ -515,6 +485,7 @@ input StatementFilter {
 enum StatementModifier {
   MAIN
   SUGGEST
+  WITH
   LIKE
   UNLIKE
   VERIFY
@@ -579,6 +550,7 @@ enum StatementType {
   IMPORT
   DEFINITION
   REFERENCE
+  REDEFINITION
   COMMENT
   BLANK
 }
