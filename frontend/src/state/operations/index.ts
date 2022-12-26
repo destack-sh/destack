@@ -1,8 +1,8 @@
-import { useCompilationOps } from "@/utils/operations/compilation";
-import { useFileOps } from "@/utils/operations/file";
-import { useStatementOps } from "@/utils/operations/statement";
-import { useSymbolContentOps } from "@/utils/operations/symbol";
-import { useProjectVersionOps } from "@/utils/operations/version";
+import { useCompilationOps } from "@/state/operations/compilation";
+import { useFileOps } from "@/state/operations/file";
+import { useStatementOps } from "@/state/operations/statement";
+import { useSymbolContentOps } from "@/state/operations/symbol";
+import { useProjectVersionOps } from "@/state/operations/version";
 import { defineStore } from "pinia";
 
 type Operation<T> = {

@@ -2,9 +2,9 @@
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import type { DatasetContentFragment } from "@/gql/graphql";
-import { DatasetContentType, useDatasetInterfaceState } from "@/utils/dataset";
-import { FileHeaderType, StatementContentType } from "@/utils/fragments";
-import { useSchemadSymbolSchema } from "@/utils/intellisense";
+import { DatasetContentType, useDatasetInterfaceState } from "@/state/dataset";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useSchemadSymbolSchema } from "@/state/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{

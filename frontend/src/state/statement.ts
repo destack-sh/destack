@@ -1,5 +1,5 @@
 import type { FragmentType } from "@/gql";
-import type { StatementHeaderType } from "@/utils/fragments";
+import type { StatementHeaderType } from "@/state/fragments";
 
 export type StatementProps<T> = {
   statement: FragmentType<typeof StatementHeaderType>;

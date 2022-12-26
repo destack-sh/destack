@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useFragment, type FragmentType } from "@/gql";
 import { ValueType } from "@/gql/graphql";
-import { SchemaElementContentDeepType } from "@/utils/fragments";
+import { SchemaElementContentDeepType } from "@/state/fragments";
 import { ArrowRightIcon } from "@heroicons/vue/20/solid";
 import { computed } from "vue";
 

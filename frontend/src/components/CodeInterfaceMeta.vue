@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { CodeContentType } from "@/utils/code";
-import { FileHeaderType, StatementContentType } from "@/utils/fragments";
-import { useSchemadSymbolSchema } from "@/utils/intellisense";
+import { CodeContentType } from "@/state/code";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useSchemadSymbolSchema } from "@/state/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{

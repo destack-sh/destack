@@ -1,4 +1,4 @@
-import { useActionsStore } from "@/utils/actions";
+import { useActionsStore } from "@/state/actions";
 import Mousetrap from "mousetrap";
 import { watchEffect } from "vue";
 

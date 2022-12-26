@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { FileType } from "@/gql/graphql";
-import { provideAction, useActions } from "@/utils/actions";
-import { FILE_TYPE_SHORTNAME, useEditorState, type FileHeader } from "@/utils/editor";
-import { useOperations } from "@/utils/operations";
+import { provideAction, useActions } from "@/state/actions";
+import { FILE_TYPE_SHORTNAME, useEditorState, type FileHeader } from "@/state/editor";
+import { useOperations } from "@/state/operations";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside } from "@vueuse/core";
 import { computed, ref, type Component } from "vue";

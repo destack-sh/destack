@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import type { AddCompilationInput } from "@/gql/graphql";
-import { useOperationsStore } from "@/utils/operations";
+import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useCompilationOps() {

@@ -1,9 +1,9 @@
 import { getRandomName } from "@/composables/useRandomName";
 import { FileType } from "@/gql/graphql";
-import { provideGlobalAction } from "@/utils/actions";
-import { useEditorState } from "@/utils/editor";
-import { useIntelliSense } from "@/utils/intellisense";
-import { useOperations } from "@/utils/operations";
+import { provideGlobalAction } from "@/state/actions";
+import { useEditorState } from "@/state/editor";
+import { useIntelliSense } from "@/state/intellisense";
+import { useOperations } from "@/state/operations";
 import { computed } from "vue";
 
 export function useFileActions() {

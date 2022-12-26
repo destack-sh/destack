@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { CodeContentType } from "@/utils/code";
-import { StatementHeaderType } from "@/utils/fragments";
-import { useOperations } from "@/utils/operations";
+import { CodeContentType } from "@/state/code";
+import { StatementHeaderType } from "@/state/fragments";
+import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watchEffect } from "vue";
 

@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { useOperationsStore } from "@/utils/operations";
+import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useProjectVersionOps() {

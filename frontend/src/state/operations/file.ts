@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "@/gql";
-import { FileHeaderType } from "@/utils/fragments";
-import { useOperationsStore } from "@/utils/operations";
+import { FileHeaderType } from "@/state/fragments";
+import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useFileOps() {

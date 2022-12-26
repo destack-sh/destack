@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { useActions } from "@/utils/actions";
-import { ProjectHeaderType, ProjectVersionHeaderType } from "@/utils/fragments";
-import { useOperationsStore } from "@/utils/operations";
+import { useActions } from "@/state/actions";
+import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import { useOperationsStore } from "@/state/operations";
 import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";

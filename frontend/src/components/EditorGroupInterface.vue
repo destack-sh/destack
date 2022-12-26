@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import EditorInterface from "@/components/EditorInterface.vue";
-import { useEditorState, type Editor, type EditorGroup } from "@/utils/editor";
+import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { computed, ref, watch } from "vue";
 

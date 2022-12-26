@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { StatementType } from "@/gql/graphql";
-import { useEditorState, type FileHeader } from "@/utils/editor";
-import { useOperations } from "@/utils/operations";
+import { useEditorState, type FileHeader } from "@/state/editor";
+import { useOperations } from "@/state/operations";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 
 const props = defineProps<{ file: FileHeader; index: number }>();

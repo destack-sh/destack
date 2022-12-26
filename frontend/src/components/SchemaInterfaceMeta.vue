@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementContentType } from "@/utils/fragments";
-import { useSchemaInterfaceState, viewModes, type SchemaContentType, type ViewMode } from "@/utils/schema";
+import { StatementContentType } from "@/state/fragments";
+import { useSchemaInterfaceState, viewModes, type SchemaContentType, type ViewMode } from "@/state/schema";
 import { computed } from "vue";
 
 const props = defineProps<{

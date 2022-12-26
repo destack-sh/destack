@@ -1,7 +1,7 @@
 import { getRandomName } from "@/composables/useRandomName";
-import { provideGlobalAction } from "@/utils/actions";
-import { useEditorState } from "@/utils/editor";
-import { useOperations, useOperationsStore } from "@/utils/operations";
+import { provideGlobalAction } from "@/state/actions";
+import { useEditorState } from "@/state/editor";
+import { useOperations, useOperationsStore } from "@/state/operations";
 import { computed } from "vue";
 
 export function useVersionActions() {

@@ -2,8 +2,8 @@
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementContentType } from "@/utils/fragments";
-import { SchemaContentType, useSchemaInterfaceState } from "@/utils/schema";
+import { StatementContentType } from "@/state/fragments";
+import { SchemaContentType, useSchemaInterfaceState } from "@/state/schema";
 import { computed } from "vue";
 
 const props = defineProps<{

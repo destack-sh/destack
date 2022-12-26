@@ -2,9 +2,9 @@
 import ListboxSelect from "@/components/basic/ListboxSelect.vue";
 import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { DatasetContentType, useDatasetInterfaceState, viewModes, type ViewMode } from "@/utils/dataset";
-import { FileHeaderType, StatementContentType } from "@/utils/fragments";
-import { useSchemadSymbolSchema } from "@/utils/intellisense";
+import { DatasetContentType, useDatasetInterfaceState, viewModes, type ViewMode } from "@/state/dataset";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useSchemadSymbolSchema } from "@/state/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{

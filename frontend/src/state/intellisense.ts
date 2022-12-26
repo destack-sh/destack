@@ -1,8 +1,8 @@
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType, type DependencyHeaderFragment } from "@/gql/graphql";
-import { useEditorState, type FileHeader, type StatementHeader } from "@/utils/editor";
-import { DependencyHeaderType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
-import { SchemaContentType } from "@/utils/schema";
+import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { DependencyHeaderType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { SchemaContentType } from "@/state/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { assert } from "ts-essentials";

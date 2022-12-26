@@ -12,23 +12,20 @@ import TaskInterface from "@/components/TaskInterface.vue";
 import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
-import { provideAction, useActions } from "@/utils/actions";
+import { useActions } from "@/state/actions";
 import {
-  makeRunConfiguration,
-  makeRunEditor,
   MODIFIER_BY_SHORTNAME,
   MODIFIER_SHORTNAME,
   SYMBOL_TYPE_BY_SHORTNAME,
   SYMBOL_TYPE_SHORTNAME,
   useEditorState,
-} from "@/utils/editor";
-import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
-import { useIntelliSense, useStatementMetadata, type LocalStatementHeader } from "@/utils/intellisense";
-import { useOperations } from "@/utils/operations";
+} from "@/state/editor";
+import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { useIntelliSense, useStatementMetadata, type LocalStatementHeader } from "@/state/intellisense";
+import { useOperations } from "@/state/operations";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
-import { assert } from "ts-essentials";
 import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef } from "vue";
 
 const props = defineProps<{
