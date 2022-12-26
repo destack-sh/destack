@@ -46,6 +46,10 @@ export const useOperationsStore = defineStore("operations", {
     },
   },
   actions: {
+    reset(): void {
+      this.$reset();
+    },
+
     async _do<T>(operation: Operation<T>): Promise<T> {
       this.inflight.push(operation);
       const ret = await operation.do();
