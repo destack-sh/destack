@@ -517,7 +517,7 @@ async function morphToBlank() {
 <template>
   <div
     ref="containerRef"
-    class="group relative border-x border-gray-200 tracking-tight transition-colors"
+    class="group relative border-x border-gray-200 transition-colors"
     :class="{
       'border-gray-200 ': !isFocused,
       'border-l-orange-500': isFamilyFocused,
