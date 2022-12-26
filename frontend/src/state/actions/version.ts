@@ -16,6 +16,7 @@ export function useVersionActions() {
     enabled: computed(() => editor.currentProjectVersionId != null && !opsState.hasInflightLike("version.commit")),
     apply: () => {
       const randomName = getRandomName();
+      opsState.reset();
       return ops.version.commit(editor.currentProjectVersionId as string, randomName);
     },
   });
