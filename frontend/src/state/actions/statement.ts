@@ -234,6 +234,22 @@ export function useStatementActions() {
       editor.editElement(newStatement);
     },
   });
+  const insertChildCurrent = provideGlobalAction({
+    id: "statement.insertChildCurrent",
+    label: "Insert statement as child of current",
+    shortcuts: ["shift+i", "shift+b", "shift+plus"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: async () => {
+      const current = statement.value;
+      const newStatement = await operations.statement.create(
+        current.file.id,
+        current.id,
+        sense.registry.statementsByParentId[current.id]?.length ?? 0,
+        StatementType.Blank
+      );
+      editor.editElement(newStatement);
+    },
+  });
 
   // toggle comment statement
   const toggleCommentedCurrent = provideGlobalAction({
@@ -266,6 +282,7 @@ export function useStatementActions() {
     deleteCurrent,
     insertBeforeCurrent,
     insertAfterCurrent,
-    toggleCommentCurrent: toggleCommentedCurrent,
+    insertChildCurrent,
+    toggleCommentedCurrent,
   };
 }
