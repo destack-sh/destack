@@ -8,6 +8,7 @@ import {
   type RefMapping,
   type Statement,
 } from "@/gql/graphql";
+import { reverseRecord } from "@/utils/functools";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, type Ref } from "vue";
 
@@ -48,28 +49,16 @@ export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
 };
-export const SYMBOL_TYPE_BY_SHORTNAME: Record<string, SymbolType> = {
-  schema: SymbolType.Schema,
-  code: SymbolType.Code,
-  data: SymbolType.Dataset,
-  model: SymbolType.Model,
-  expect: SymbolType.Expectation,
-  task: SymbolType.Task,
-};
+export const SYMBOL_TYPE_BY_SHORTNAME: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_SHORTNAME);
 export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",
   [StatementModifier.Unlike]: "unlike",
   [StatementModifier.Verify]: "verify",
+  [StatementModifier.With]: "with",
   [StatementModifier.Main]: "main",
   [StatementModifier.Suggest]: "suggset",
 };
-export const MODIFIER_BY_SHORTNAME: Record<string, StatementModifier> = {
-  like: StatementModifier.Like,
-  unlike: StatementModifier.Unlike,
-  verify: StatementModifier.Verify,
-  main: StatementModifier.Main,
-  suggest: StatementModifier.Suggest,
-};
+export const MODIFIER_BY_SHORTNAME: Record<string, StatementModifier> = reverseRecord(MODIFIER_SHORTNAME);
 
 export type RunConfiguration = {
   name: string;

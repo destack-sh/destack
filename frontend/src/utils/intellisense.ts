@@ -1,10 +1,11 @@
-import { graphql, useFragment } from "@/gql";
-import { StatementType, SymbolType, type DependencyHeaderFragment } from "@/gql/graphql";
+import { graphql, useFragment, type FragmentType } from "@/gql";
+import { StatementModifier, StatementType, SymbolType, type DependencyHeaderFragment } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/utils/editor";
 import { DependencyHeaderType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/utils/fragments";
 import { SchemaContentType } from "@/utils/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
+import { assert } from "ts-essentials";
 import { computed, reactive, toRef, type ComputedRef, type Ref } from "vue";
 
 const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
@@ -254,4 +255,79 @@ export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<Sta
   const schemaContent = computed(() => useFragment(SchemaContentType, schema.value?.content));
 
   return { schemaHeader, schema, schemaContent };
+}
+
+export type StatementMetadata = {
+  isRedefinition: boolean;
+  isDefinition: boolean;
+  isReference: boolean;
+  isArgument: boolean;
+  isParameter: boolean;
+  isImport: boolean;
+  isComment: boolean;
+  isCommented: boolean;
+  isDeleted: boolean;
+  isRunnable: boolean;
+  isAlias: boolean;
+  importPath: string | null | undefined;
+};
+
+export function useStatementMetadata(
+  fileRef: Ref<FragmentType<typeof FileHeaderType>>,
+  statementRef: Ref<FragmentType<typeof StatementContentType>>
+): StatementMetadata {
+  const sense = useIntelliSense();
+
+  const file = computed(() => useFragment(FileHeaderType, fileRef.value));
+  const statement = computed(() => useFragment(StatementContentType, statementRef.value));
+  const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
+
+  const isRedefinition = computed(() => statement.value?.type == StatementType.Redefinition);
+  const isDefinition = computed(() => statement.value?.type == StatementType.Definition || isRedefinition.value);
+  const isReference = computed(() => statement.value?.type == StatementType.Reference || isRedefinition.value);
+  const isParameter = computed(() => isReference.value && statement.value.modifier == StatementModifier.With);
+  const isArgument = computed(() => isDefinition.value && statement.value.modifier == StatementModifier.With);
+  const isImport = computed(() => statement.value?.type == StatementType.Import);
+  const isComment = computed(() => statement.value?.type == StatementType.Comment);
+  const isCommented = computed(() => statement.value?.commented);
+  const isRunnable = computed(
+    () =>
+      !isImport.value &&
+      (statement.value?.symbolType == SymbolType.Code || statement.value?.symbolType == SymbolType.Task)
+  );
+  const isDeleted = computed(() => statement.value?.deletedAt != null);
+
+  const isAlias = computed(
+    () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
+  );
+  const importPath = computed(() => {
+    assert(isImport.value, "statement is import");
+    if (reference.value?.file.projectVersion.id != file.value.projectVersion.id) {
+      // absolute import to dependency
+      const dependency = sense.registry.dependenciesById[reference.value?.file.projectVersion.id];
+      if (!dependency) {
+        return null; // dependency not registered or not yet loaded
+      } else {
+        return dependency.project.path + "." + reference.value?.file.pathWithoutExtension;
+      }
+    } else {
+      // relative import
+      return "." + reference.value?.file.pathWithoutExtension;
+    }
+  });
+
+  return reactive({
+    isRedefinition,
+    isDefinition,
+    isReference,
+    isArgument,
+    isParameter,
+    isImport,
+    isComment,
+    isCommented,
+    isDeleted,
+    isRunnable,
+    isAlias,
+    importPath,
+  });
 }
