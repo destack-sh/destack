@@ -1,7 +1,7 @@
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { StatementModifier, StatementType, SymbolType, type DependencyHeaderFragment } from "@/gql/graphql";
+import { StatementModifier, StatementType, SymbolType, type ProjectVersionAsDependencyFragment } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
-import { DependencyHeaderType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { ProjectVersionAsDependencyType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { SchemaContentType } from "@/state/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -25,7 +25,7 @@ const ProjectVersionContentSenseType = graphql(/* GraphQL */ `
     }
     dependencies {
       id
-      ...DependencyHeader
+      ...ProjectVersionAsDependency
     }
   }
 `);
@@ -46,7 +46,7 @@ export type IntelliSenseRegistry = {
   statementsByFileId: Readonly<Record<string, LocalStatementHeader[]>>;
   // statements and files can be nested but we get them flat, so build a tree
   statementsByParentId: Readonly<Record<string, LocalStatementHeader[]>>;
-  dependenciesById: Readonly<Record<string, DependencyHeaderFragment>>;
+  dependenciesById: Readonly<Record<string, ProjectVersionAsDependencyFragment>>;
 };
 
 /* IntelliSense is fully declarative and computed from the project version content. */
@@ -91,7 +91,7 @@ function _useIntelliSenseRegistry(projectVersionId: Ref<string | null>): Intelli
         .filter((s) => s.deletedAt == null) || []
   );
   const dependencies = computed(
-    () => content.value?.dependencies.map((d) => useFragment(DependencyHeaderType, d)) || []
+    () => content.value?.dependencies.map((d) => useFragment(ProjectVersionAsDependencyType, d)) || []
   );
 
   const filesById: ComputedRef<Record<string, LocalFileHeader>> = computed(
@@ -235,11 +235,14 @@ export type StatementMetadata = {
   isArgument: boolean;
   isParameter: boolean;
   isImport: boolean;
+  isDependency: boolean;
+  isCompilation: boolean;
   isComment: boolean;
   isCommented: boolean;
   isDeleted: boolean;
   isRunnable: boolean;
   isAlias: boolean;
+  dependencyPath?: string | null;
   importPath?: string | null;
   parameters?: LocalStatementHeader[];
   arguments?: LocalStatementHeader[];
@@ -258,6 +261,8 @@ export function useStatementMetadata(
   const isRedefinition = computed(() => statement.value?.type == StatementType.Redefinition);
   const isDefinition = computed(() => statement.value?.type == StatementType.Definition || isRedefinition.value);
   const isReference = computed(() => statement.value?.type == StatementType.Reference || isRedefinition.value);
+  const isDependency = computed(() => statement.value?.type == StatementType.Dependency);
+  const isCompilation = computed(() => statement.value?.type == StatementType.Compilation);
   const isParameter = computed(() => isReference.value && statement.value.modifier == StatementModifier.With);
   const isArgument = computed(() => isDefinition.value && statement.value.modifier == StatementModifier.With);
   const isImport = computed(() => statement.value?.type == StatementType.Import);
@@ -273,6 +278,15 @@ export function useStatementMetadata(
   const isAlias = computed(
     () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
   );
+  const dependencyPath = computed(() => {
+    assert(isDependency.value, "statement is dependency");
+    const dependencyVersion = useFragment(ProjectVersionAsDependencyType, statement.value.dependency?.projectVersion);
+    if (!dependencyVersion) {
+      return null; // dependency not registered or not yet loaded
+    } else {
+      return dependencyVersion.project.path + "@" + dependencyVersion.name ?? dependencyVersion.id;
+    }
+  });
   const importPath = computed(() => {
     assert(isImport.value, "statement is import");
     if (reference.value?.file.projectVersion.id != file.value.projectVersion.id) {
@@ -307,6 +321,8 @@ export function useStatementMetadata(
     isRedefinition,
     isDefinition,
     isReference,
+    isDependency,
+    isCompilation,
     isArgument,
     isParameter,
     isImport,
@@ -315,6 +331,7 @@ export function useStatementMetadata(
     isDeleted,
     isRunnable,
     isAlias,
+    dependencyPath,
     importPath,
     parameters,
     arguments: arguments_,

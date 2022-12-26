@@ -62,15 +62,8 @@ export type CommitPayload = {
 
 export type Compilation = Node & {
   __typename?: "Compilation";
-  backends: Array<Model>;
-  createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   mappings: Array<SourceMapping>;
-  name: Scalars["String"];
-  targetCode?: Maybe<Code>;
-  targetTask?: Maybe<Task>;
-  task: Task;
-  updatedAt: Scalars["DateTime"];
 };
 
 export type CompileInput = {
@@ -98,6 +91,12 @@ export type DatasetRecord = Node & {
   data: Scalars["JSON"];
   id: Scalars["GlobalID"];
   index: Scalars["Int"];
+};
+
+export type Dependency = Node & {
+  __typename?: "Dependency";
+  id: Scalars["GlobalID"];
+  projectVersion: ProjectVersion;
 };
 
 export type Execution = Node & {
@@ -139,7 +138,6 @@ export type File = Node & {
   deletedAt?: Maybe<Scalars["DateTime"]>;
   files: Array<File>;
   id: Scalars["GlobalID"];
-  isFolder: Scalars["Boolean"];
   name: Scalars["String"];
   parent?: Maybe<File>;
   path: Scalars["String"];
@@ -155,7 +153,6 @@ export type FileStatementsArgs = {
 };
 
 export type FileCreateInput = {
-  isFolder?: InputMaybe<Scalars["Boolean"]>;
   name: Scalars["String"];
   parent?: InputMaybe<NodeInput>;
   projectVersion: NodeInput;
@@ -179,9 +176,10 @@ export type FileSoftDeleteInput = {
   id: Scalars["GlobalID"];
 };
 
-/** The type of file determines the type of statements it can contain. */
+/** The type of file determines the type of statements it is intended to contain. */
 export enum FileType {
   Compile = "COMPILE",
+  Directory = "DIRECTORY",
   Instruct = "INSTRUCT",
   Project = "PROJECT",
 }
@@ -551,22 +549,25 @@ export type SetModifierStatementPayload = OperationInfo | Statement;
 
 export type SourceMapping = Node & {
   __typename?: "SourceMapping";
-  compilation: Compilation;
   id: Scalars["GlobalID"];
   source: Statement;
   sourcePath: Scalars["JSON"];
+  sourceRevision: Scalars["Int"];
   target: Statement;
   targetPath: Scalars["JSON"];
+  targetRevision: Scalars["Int"];
 };
 
 export type Statement = Node & {
   __typename?: "Statement";
   children: Array<Statement>;
   commented: Scalars["Boolean"];
+  compilation?: Maybe<Compilation>;
   compiled: Scalars["Boolean"];
   content?: Maybe<SymbolContent>;
   createdAt: Scalars["DateTime"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
+  dependency?: Maybe<Dependency>;
   descendants: Array<Statement>;
   file: File;
   id: Scalars["GlobalID"];
@@ -694,7 +695,9 @@ export type StatementSoftDeletePayload = {
 export enum StatementType {
   Blank = "BLANK",
   Comment = "COMMENT",
+  Compilation = "COMPILATION",
   Definition = "DEFINITION",
+  Dependency = "DEPENDENCY",
   Import = "IMPORT",
   Redefinition = "REDEFINITION",
   Reference = "REFERENCE",
@@ -835,11 +838,6 @@ export type ProjectVersionContentFragment = {
   committed: boolean;
   committedAt?: any | null;
   files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
-  compilations: Array<
-    { __typename?: "Compilation"; id: any } & {
-      " $fragmentRefs"?: { CompilationHeaderFragment: CompilationHeaderFragment };
-    }
-  >;
 } & { " $fragmentName"?: "ProjectVersionContentFragment" };
 
 export type ProjectVersionContentQueryVariables = Exact<{
@@ -917,7 +915,7 @@ export type ProjectHeaderFragment = {
   };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
-export type DependencyHeaderFragment = {
+export type ProjectVersionAsDependencyFragment = {
   __typename?: "ProjectVersion";
   id: any;
   createdAt: any;
@@ -932,7 +930,7 @@ export type DependencyHeaderFragment = {
     path: string;
     organization: { __typename?: "Organization"; id: any; name: string; slug: string };
   };
-} & { " $fragmentName"?: "DependencyHeaderFragment" };
+} & { " $fragmentName"?: "ProjectVersionAsDependencyFragment" };
 
 export type FileHeaderFragment = {
   __typename?: "File";
@@ -970,14 +968,6 @@ export type StatementHeaderFragment = {
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
-
-export type CompilationHeaderFragment = {
-  __typename?: "Compilation";
-  id: any;
-  name: string;
-  createdAt: any;
-  updatedAt: any;
-} & { " $fragmentName"?: "CompilationHeaderFragment" };
 
 export type SchemaElementContentDeepFragment = {
   __typename?: "SchemaElement";
@@ -1032,6 +1022,12 @@ export type StatementContentFragment = {
   reference?:
     | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
     | null;
+  dependency?: {
+    __typename?: "Dependency";
+    projectVersion: { __typename?: "ProjectVersion" } & {
+      " $fragmentRefs"?: { ProjectVersionAsDependencyFragment: ProjectVersionAsDependencyFragment };
+    };
+  } | null;
 } & { " $fragmentName"?: "StatementContentFragment" };
 
 export type ProjectVersionContentSenseFragment = {
@@ -1052,7 +1048,7 @@ export type ProjectVersionContentSenseFragment = {
   >;
   dependencies: Array<
     { __typename?: "ProjectVersion"; id: any } & {
-      " $fragmentRefs"?: { DependencyHeaderFragment: DependencyHeaderFragment };
+      " $fragmentRefs"?: { ProjectVersionAsDependencyFragment: ProjectVersionAsDependencyFragment };
     }
   >;
 } & { " $fragmentName"?: "ProjectVersionContentSenseFragment" };
@@ -1081,42 +1077,6 @@ export type SchemaContentByIdQuery = {
         " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment };
       })
     | null;
-};
-
-export type AddCompilationMutationVariables = Exact<{
-  input: AddCompilationInput;
-}>;
-
-export type AddCompilationMutation = {
-  __typename?: "Mutation";
-  addCompilationTarget: {
-    __typename?: "AddCompilationPayload";
-    compilation: { __typename?: "Compilation"; id: any; name: string; createdAt: any; updatedAt: any };
-  };
-};
-
-export type CompileMutationVariables = Exact<{
-  compilationId: Scalars["GlobalID"];
-}>;
-
-export type CompileMutation = {
-  __typename?: "Mutation";
-  compile: {
-    __typename?: "CompilePayload";
-    compilation: {
-      __typename?: "Compilation";
-      id: any;
-      name: string;
-      createdAt: any;
-      updatedAt: any;
-      targetTask?:
-        | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
-        | null;
-      targetCode?:
-        | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
-        | null;
-    };
-  };
 };
 
 export type CreateFileMutationVariables = Exact<{
@@ -1501,25 +1461,6 @@ export const FileHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<FileHeaderFragment, unknown>;
-export const CompilationHeaderFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "CompilationHeader" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Compilation" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<CompilationHeaderFragment, unknown>;
 export const ProjectVersionContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1560,17 +1501,6 @@ export const ProjectVersionContentFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "compilations" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "CompilationHeader" } },
               ],
             },
           },
@@ -1886,6 +1816,58 @@ export const StatementHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementHeaderFragment, unknown>;
+export const ProjectVersionAsDependencyFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionAsDependency" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "slug" } },
+                { kind: "Field", name: { kind: "Name", value: "path" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "organization" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectVersionAsDependencyFragment, unknown>;
 export const StatementContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1972,64 +1954,31 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "text" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<StatementContentFragment, unknown>;
-export const DependencyHeaderFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "DependencyHeader" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "files" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "project" },
+            name: { kind: "Name", value: "dependency" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "slug" } },
-                { kind: "Field", name: { kind: "Name", value: "path" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "organization" },
+                  name: { kind: "Name", value: "projectVersion" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionAsDependency" } },
                     ],
                   },
                 },
               ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
         ],
       },
     },
   ],
-} as unknown as DocumentNode<DependencyHeaderFragment, unknown>;
+} as unknown as DocumentNode<StatementContentFragment, unknown>;
 export const ProjectVersionContentSenseFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -2103,7 +2052,7 @@ export const ProjectVersionContentSenseFragmentDoc = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "DependencyHeader" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionAsDependency" } },
               ],
             },
           },
@@ -2183,6 +2132,7 @@ export const FileContentByIdDocument = {
     ...SchemaContentFragmentDoc.definitions,
     ...SchemaElementContentDeepFragmentDoc.definitions,
     ...StatementHeaderFragmentDoc.definitions,
+    ...ProjectVersionAsDependencyFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const ProjectVersionsDocument = {
@@ -2322,7 +2272,6 @@ export const ProjectVersionContentDocument = {
     },
     ...ProjectVersionContentFragmentDoc.definitions,
     ...FileHeaderFragmentDoc.definitions,
-    ...CompilationHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
 export const ProjectMigrationRefsDocument = {
@@ -2448,7 +2397,7 @@ export const ProjectVersionContentSenseDocument = {
     ...ProjectVersionContentSenseFragmentDoc.definitions,
     ...FileHeaderFragmentDoc.definitions,
     ...StatementHeaderFragmentDoc.definitions,
-    ...DependencyHeaderFragmentDoc.definitions,
+    ...ProjectVersionAsDependencyFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentSenseQuery, ProjectVersionContentSenseQueryVariables>;
 export const SchemaContentByIdDocument = {
@@ -2497,140 +2446,10 @@ export const SchemaContentByIdDocument = {
     ...SchemaContentFragmentDoc.definitions,
     ...SchemaElementContentDeepFragmentDoc.definitions,
     ...StatementHeaderFragmentDoc.definitions,
+    ...ProjectVersionAsDependencyFragmentDoc.definitions,
+    ...FileHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SchemaContentByIdQuery, SchemaContentByIdQueryVariables>;
-export const AddCompilationDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "addCompilation" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
-          type: {
-            kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "AddCompilationInput" } },
-          },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "addCompilationTarget" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "compilation" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<AddCompilationMutation, AddCompilationMutationVariables>;
-export const CompileDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "compile" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "compile" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "compilationId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "compilation" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "targetTask" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "targetCode" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "CodeContent" } }],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...TaskContentFragmentDoc.definitions,
-    ...CodeContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<CompileMutation, CompileMutationVariables>;
 export const CreateFileDocument = {
   kind: "Document",
   definitions: [

@@ -372,6 +372,8 @@ watchEffect(() => {
         aliasContent.value = "";
       }
     }
+  } else if (statement.value.type == StatementType.Dependency) {
+    declarationContent.value = meta.dependencyPath
   }
 });
 
@@ -415,7 +417,11 @@ function deleteLeftOnMain() {
       morphToBlank();
     }
   } else if (statement.value.symbolType != null) {
-    morphToBlank();
+    if (content.value != null) {
+      console.log("cannot delete, already have content");
+    } else {
+      morphToBlank();
+    }
   } else if (statement.value.modifier != null) {
     setModifier(null);
   }
@@ -596,6 +602,7 @@ async function morphToBlank() {
         </span>
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
+        <span class="mr-1 text-orange-600" v-if="meta.isDependency">use</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
         <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
         <!-- Editable statement main part -->

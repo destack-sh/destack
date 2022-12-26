@@ -29,6 +29,7 @@ from bench.models import (
     SymbolType,
     Task,
 )
+from bench.models.project import FileType
 from bench.models.symbol import Statement, StatementModifier
 from bench.utils.schema import (
     SchemaElement,
@@ -100,7 +101,8 @@ class Command(BaseCommand):
 
         project_v = project.create_version(name=version_id)
         project_v.reset()
-        load_symbols(project_v, path)
+        project_v.bootstrap()
+        load(project_v, path)
 
         # advance head to new version
         project.head = project_v
@@ -109,7 +111,7 @@ class Command(BaseCommand):
         logger.info(f"Updated head to {project_v} in {project}")
 
 
-def load_symbols(project_v: ProjectVersion, path: str):
+def load(project_v: ProjectVersion, path: str):
     """Loads symbols from a file into a project version"""
 
     # read task file lines
@@ -122,7 +124,7 @@ def load_symbols(project_v: ProjectVersion, path: str):
         if library is None:
             raise ValueError(f"library {library_dependency.library} not found")
         library_v = library.head  # just use head
-        project_v.dependencies.add(library_v)
+        project_v.add_dependency(library_v, file=project_v.project_file)
         logger.info(f"Import library {library_v}")
     executor = Executor(Resolver())
     # convert segments to a single task symbol tree
@@ -165,7 +167,9 @@ def load_symbols(project_v: ProjectVersion, path: str):
                 symbol_content = result
                 on_defined = None
 
-            file = project_v.create_file_from_path(segment.virtual_path, exists_ok=True)
+            file = project_v.create_file_from_path(
+                segment.virtual_path, FileType.INSTRUCT, exists_ok=True
+            )
             statement = project_v.define_symbol(
                 segment.symbol_name, content=symbol_content, file=file
             )
@@ -175,7 +179,9 @@ def load_symbols(project_v: ProjectVersion, path: str):
 
             parse_extra(project_v, segment, statement, lookup_def=_get_symbol)
         elif segment.type == StatementType.IMPORT:
-            file = project_v.create_file_from_path(segment.virtual_path, exists_ok=True)
+            file = project_v.create_file_from_path(
+                segment.virtual_path, FileType.INSTRUCT, exists_ok=True
+            )
             statement = parse_import(project_v, file, segment)
         else:
             raise ValueError(f"unexpected segment type: {segment.type}")
@@ -260,7 +266,7 @@ def parse_import(project_v: ProjectVersion, file: File, segment: StatementSegmen
         library = source.split(".")[1]
         path = ".".join(source.split(".")[2:])
         dependency = project_v.dependency(organization, library)
-        source_file = dependency.get_file(path)
+        source_file = dependency.get_file(path, FileType.INSTRUCT)
         source_statement = dependency.statement(source_file, source_name)
     else:
         raise ValueError(f"invalid import statement: {segment.header}")

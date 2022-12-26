@@ -36,13 +36,6 @@ type CommitPayload {
 
 type Compilation implements Node {
   id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  task: Task!
-  name: String!
-  backends: [Model!]!
-  targetTask: Task
-  targetCode: Code
   mappings: [SourceMapping!]!
 }
 
@@ -71,6 +64,11 @@ type DatasetRecord implements Node {
 
 """Date with time (isoformat)"""
 scalar DateTime
+
+type Dependency implements Node {
+  id: GlobalID!
+  projectVersion: ProjectVersion!
+}
 
 type Execution implements Node {
   id: GlobalID!
@@ -114,7 +112,6 @@ type File implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
-  isFolder: Boolean!
   parent: File
   files: [File!]!
   statements(filters: StatementFilter): [Statement!]!
@@ -124,7 +121,6 @@ input FileCreateInput {
   projectVersion: NodeInput!
   type: FileType
   name: String!
-  isFolder: Boolean
   parent: NodeInput
 }
 
@@ -145,8 +141,11 @@ input FileSoftDeleteInput {
   id: GlobalID!
 }
 
-"""The type of file determines the type of statements it can contain."""
+"""
+The type of file determines the type of statements it is intended to contain.
+"""
 enum FileType {
+  DIRECTORY
   INSTRUCT
   COMPILE
   PROJECT
@@ -421,11 +420,12 @@ union SetModifierStatementPayload = Statement | OperationInfo
 
 type SourceMapping implements Node {
   id: GlobalID!
-  compilation: Compilation!
   source: Statement!
   sourcePath: JSON!
+  sourceRevision: Int!
   target: Statement!
   targetPath: JSON!
+  targetRevision: Int!
 }
 
 type Statement implements Node {
@@ -452,6 +452,8 @@ type Statement implements Node {
   reference: Statement
   referencedBy: [Statement!]!
   content(pk: ID): SymbolContent
+  compilation: Compilation
+  dependency: Dependency
 }
 
 input StatementCommentedInput {
@@ -551,6 +553,8 @@ enum StatementType {
   DEFINITION
   REFERENCE
   REDEFINITION
+  DEPENDENCY
+  COMPILATION
   COMMENT
   BLANK
 }

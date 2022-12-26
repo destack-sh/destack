@@ -27,10 +27,12 @@ from bench.utils.record import RecordList
 
 class Resolver:
     """
-    Server-side resolver to fetch all recursive arguments and contents.
+    Server-side resolver to fetch all recursive arguments and contents within a single transaction.
+
+    Keeps track of revisions used for automatic caching and re-computation.
     """
 
-    async def resolve_model(
+    def resolve_model(
         self, model: Model, settings: typing.Optional[ModelInferenceSettings]
     ) -> ResolvedModel:
         return ResolvedModel(
@@ -44,13 +46,11 @@ class Resolver:
             external_name=model.external_name,
         )
 
-    async def resolve_dataset(self, dataset: Dataset) -> ResolvedDataset:
+    def resolve_dataset(self, dataset: Dataset) -> ResolvedDataset:
         # TODO @Performance: do not load all records when resolving dataset arguments
         #  All functions are executed async, but dataset access is neater if it's synchronous.
         #  So we pre-load everything and wrap it in a synchronous wrapper.
-        records = []
-        async for record in dataset:
-            records.append(record)
+        records = list(dataset)
         batch = RecordList(records)
         return ResolvedDataset(
             statement_id=dataset.definition.id,
@@ -61,9 +61,9 @@ class Resolver:
             records=batch,
         )
 
-    async def resolve_code(self, code: Code) -> ResolvedCode:
-        parameters = await self._get_code_parameters(code)
-        arguments = await self.resolve_arguments(code)
+    def resolve_code(self, code: Code) -> ResolvedCode:
+        parameters = self._get_code_parameters(code)
+        arguments = self.resolve_arguments(code)
         return ResolvedCode(
             statement_id=code.definition.id,
             content_id=code.id,
@@ -78,13 +78,13 @@ class Resolver:
             arguments=arguments,
         )
 
-    async def _get_code_parameters(self, code: Code) -> dict[str, ResolvedParameter]:
+    def _get_code_parameters(self, code: Code) -> dict[str, ResolvedParameter]:
         parameters = {}
-        async for parameter in code.parameters.all():
+        for parameter in code.parameters.all():
             parameters[parameter.name] = ResolvedParameter(name=parameter.name, type=parameter.type)
         return parameters
 
-    async def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
+    def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
         bound_arguments: QuerySet[Statement] = code.arguments.all().select_related(
             "reference",
             "reference__model",
@@ -93,27 +93,23 @@ class Resolver:
             "reference__code",
         )
         bound_arguments_resolved: dict[str, Any] = {}
-        async for argument in bound_arguments:
+        for argument in bound_arguments:
             if argument.reference is None:
                 raise ValueError(f"argument {argument} has no statement reference")
             # resolve statement reference
-            bound_arguments_resolved[argument.name] = await self.resolve_argument(
-                argument.reference
-            )
+            bound_arguments_resolved[argument.name] = self.resolve_argument(argument.reference)
         return bound_arguments_resolved
 
-    async def resolve_argument(
-        self, value: Value | Statement | SymbolContent
-    ) -> ResolvedSymbol | Value:
+    def resolve_argument(self, value: Statement | SymbolContent) -> ResolvedSymbol | Value:
         if isinstance(value, SymbolContent):
             value = value.definition
         if isinstance(value, Statement):
             if value.type == SymbolType.MODEL:
-                return await self.resolve_model(value.model_, settings=None)
+                return self.resolve_model(value.model_, settings=None)
             elif value.type == SymbolType.DATASET:
-                return await self.resolve_dataset(value.dataset_)
+                return self.resolve_dataset(value.dataset_)
             elif value.type == SymbolType.CODE:
-                return await self.resolve_code(value.code_)
+                return self.resolve_code(value.code_)
             else:
                 raise ValueError(f"unexpected argument type: {value}")
         else:
