@@ -97,7 +97,7 @@ function getFileTypeShortname(file: FileHeader) {
         <li
           v-for="file in files"
           :key="file.id"
-          class="relative border border-transparent px-3 hover:cursor-pointer"
+          class="relative max-w-full border border-transparent px-3 hover:cursor-pointer"
           :class="{
             'bg-orange-100 text-orange-600': file.id == editor?.focusedFileId,
             'text-gray-700 hover:text-orange-600': file.id != editor?.focusedFileId,
@@ -108,7 +108,7 @@ function getFileTypeShortname(file: FileHeader) {
           <span
             :contenteditable="renaming && editor?.focusedElementId == file.id"
             maxlength="50"
-            class="decoration-none inline rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
+            class="decoration-none inline truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
             :class="{
               'select-all': renaming && editor?.focusedElementId == file.id,
             }"
