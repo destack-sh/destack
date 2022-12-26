@@ -9,14 +9,14 @@ from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.code import Code, CodeMutation, CodeRunMutation
-from bench.api.compilation import CompilationMutation
+from bench.api.compilation import Compilation, CompilationMutation
 from bench.api.dataset import Dataset
 from bench.api.expectation import Expectation, ExpectationMutation
 from bench.api.model import Model
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.schema import Schema
-from bench.api.symbol import Statement, StatementMutation
+from bench.api.symbol import Dependency, Statement, StatementMutation
 from bench.api.task import Task, TaskMutation
 from bench.api.user import User
 from bench.settings import DEBUG, TEST
@@ -71,5 +71,5 @@ schema = strawberry.Schema(
     Mutation,
     extensions=extensions,
     # add interface implementation types explicitly
-    types=[Schema, Task, Expectation, Code, Model, Dataset],
+    types=[Schema, Task, Expectation, Code, Model, Dataset, Compilation, Dependency],
 )

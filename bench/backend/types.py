@@ -75,7 +75,7 @@ class ResolvedCode(ResolvedSymbol):
     code_function_name: typing.Optional[str]
     builtin_id: typing.Optional[str]
     parameters: dict[str, ResolvedParameter]
-    arguments: dict[str, ResolvedSymbol | typing.Any]
+    arguments: dict[str, ResolvedSymbol]
 
     def __content_str__(self):
         # copied almost verbatim from Code.__str__

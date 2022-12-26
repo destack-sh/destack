@@ -6,7 +6,7 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.management.commands.load import load_symbols
+from bench.management.commands.load import load
 from bench.models import Model, ModelInferenceSettings, Organization, Project
 from bench.models.model import ProviderKey
 from bench.models.project import FileType, ProjectType, ProjectVersion
@@ -76,7 +76,8 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
         stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
 
     stdlib_v.reset()
-    load_symbols(stdlib_v, path)
+    stdlib_v.bootstrap()
+    load(stdlib_v, path)
 
     # advance head
     stdlib_v.commit(name=version_id)

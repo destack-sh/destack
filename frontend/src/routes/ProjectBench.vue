@@ -5,7 +5,7 @@ import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
-import { CompilationHeaderType, FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useOperations, useOperationsStore } from "@/state/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
@@ -99,10 +99,6 @@ const ProjectVersionContent = graphql(/* GraphQL */ `
       id
       ...FileHeader
     }
-    compilations {
-      id
-      ...CompilationHeader
-    }
   }
 `);
 
@@ -122,9 +118,6 @@ const content = computed(() => useFragment(ProjectVersionContent, contentQuery.v
 const files = computed(
   () => content.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
 ); // filter deletedAt to increase responsiveness
-const compilations = computed(
-  () => content.value?.compilations.map((c) => useFragment(CompilationHeaderType, c)) || []
-);
 
 // actions (ensure global actions are available)
 const actions = useActions();
@@ -132,29 +125,14 @@ const operationsStore = useOperationsStore();
 const anyInflightOps = computed(() => operationsStore.hasInflight);
 const operations = useOperations();
 
-// compile
-const isCompiling = computed(() => operationsStore.hasInflightLike("compilation.compile"));
-const canCompile = computed(() => !isCompiling.value && compilations.value?.length > 0);
-
-async function compileAll() {
-  await Promise.all(compilations.value.map((c) => operations.compilation.compile(c.id)));
-}
-
-provideAction({
-  id: "compilation.compileAll",
-  label: "Compile all",
-  shortcuts: [],
-  enabled: canCompile,
-  apply: () => compileAll,
-});
-
+const canCompile = computed(() => false);
 async function createDefaultCompilation() {
   throw new Error("not implemented");
 }
 
 const compileNavigation = computed(() => [
-  { name: "Compile all", action: compileAll, disabled: !canCompile.value },
-  { name: "Compile optimized", action: compileAll, disabled: !canCompile.value },
+  { name: "Compile all", action: () => ({}), disabled: true },
+  { name: "Compile optimized", action: () => ({}), disabled: true },
   { name: "Add default target", action: createDefaultCompilation },
 ]);
 
@@ -376,7 +354,7 @@ watchEffect(async () => {
                 :disabled="!canCompile"
               >
                 <WrenchIcon class="h-5 w-5" aria-hidden="true" />
-                <span class="ml-1" @click="compileAll">Compile</span>
+                <span class="ml-1">Compile</span>
               </button>
               <Menu as="div" class="relative h-full flex-shrink-0">
                 <MenuButton

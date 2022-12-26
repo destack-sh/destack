@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Type, Union, cast
 from uuid import UUID
@@ -17,6 +18,7 @@ from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 if TYPE_CHECKING:
     from bench.models import (
         Code,
+        Compilation,
         Dataset,
         Expectation,
         File,
@@ -34,10 +36,14 @@ class StatementType(models.TextChoices):
     The type of Bench statement.
     """
 
+    # symbol statements
     IMPORT = "import"  # import
     DEFINITION = "def"  # :
     REFERENCE = "ref"  #
     REDEFINITION = "redef"  # =
+    # non-symbol statements
+    DEPENDENCY = "dependency"  # use
+    COMPILATION = "compilation"  # compile
     COMMENT = "comment"  # //
     BLANK = "blank"  # used while creating a new statement
 
@@ -117,7 +123,7 @@ class StatementManager(models.Manager["Statement"]):
         parent: Optional[Statement],
         index: Optional[int],
         type: StatementType,
-        name: str,
+        name: Optional[str],
         **kwargs,
     ) -> Statement:
         # auto set index if not passed
@@ -217,7 +223,7 @@ SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
 
 class Statement(UUIDModel):
     """
-    A statement in a file. Can import, define or reference a symbol.
+    A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
     Statements and the files that contain them can be soft-deleted.
     """
@@ -226,6 +232,7 @@ class Statement(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="statements"
     )
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
+    revision = models.IntegerField(default=1)
     type = TextChoicesField(choices_enum=StatementType)
     modifier = TextChoicesField(choices_enum=StatementModifier, null=True, blank=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
@@ -240,6 +247,8 @@ class Statement(UUIDModel):
     )
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     index = models.IntegerField(null=True)  # index into file or parent statement
+
+    symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
     reference = models.ForeignKey(
         "Statement",
         on_delete=models.SET_NULL,
@@ -247,10 +256,9 @@ class Statement(UUIDModel):
         blank=True,
         related_name="referenced_by",
     )
+    reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
-
     text = models.TextField(null=True, blank=True)  # as markdown
-    symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
     schema = models.OneToOneField(
         "Schema", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
@@ -269,13 +277,36 @@ class Statement(UUIDModel):
     dataset = models.OneToOneField(
         "Dataset", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
+    compilation = models.OneToOneField(
+        "Compilation", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+    )
+    compilation_id: Optional[UUID]  # noqa via Statement.compilation
+    dependency = models.OneToOneField(
+        "Dependency", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+    )
+    dependency_id: Optional[UUID]  # noqa via Statement.dependency
 
-    def deepcopy(self, to: Statement, refs: dict[UUID, SymbolContent | Statement]):
+    def deepcopy(
+        self,
+        to: Statement,
+        refs: dict[UUID, SymbolContent | Compilation | Dependency | Statement],
+    ):
         # copy symbol content
         if self.type == StatementType.DEFINITION:
             new_content = refs[self.content_id]
             self.content.deepcopy(to=new_content, refs=refs)
             new_content.save()
+        # copy compilation
+        if self.type == StatementType.COMPILATION:
+            new_compilation = refs[self.compilation_id]
+            self.compilation.deepcopy(to=new_compilation, refs=refs)
+            new_compilation.save()
+        # copy dependency
+        if self.type == StatementType.DEPENDENCY:
+            new_dependency = refs[self.dependency_id]
+            self.dependency.deepcopy(to=new_dependency, refs=refs)
+            new_dependency.save()
+
         # reset symbol type since set_content nulls it
         to.symbol_type = self.symbol_type
         # replace ref (default to same ref if not in refs since library refs are not copied)
@@ -293,6 +324,14 @@ class Statement(UUIDModel):
             raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""
         return f"{path}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
+
+    @contextlib.contextmanager
+    def edit(self):
+        """Edits a statement and saves it with a new revision when done"""
+        with transaction.atomic():
+            yield self
+            self.revision += 1
+            self.save()
 
     @property
     def absolute_index(self) -> str:
@@ -630,18 +669,32 @@ class SymbolContent(UUIDModel):
         abstract = True
 
 
+class Dependency(UUIDModel):
+    """
+    A dependency sets the version to use for a specific library (project).
+    The derived set of dependencies is copied into ProjectVersion.dependencies for performance.
+    """
+
+    project_version = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)
+
+    def deepcopy(self, to, refs: dict[str, Any]):
+        pass  # nothing to do
+
+
 def replace_refs(
     obj: models.Model,
     to: models.Model,
-    refs: dict[UUID, Statement | SymbolContent],
+    refs: dict[UUID, Statement | SymbolContent | Compilation | Dependency],
     include_one_to_many: bool = True,
     include_many_to_many: bool = True,
 ):
+    from bench.models import Compilation, Dependency  # avoid circular import
+
     """Replaces all references to symbols with the given refs (refs need not be complete)."""
     for field in obj._meta.get_fields():
         if field.related_model is None:
             continue
-        if not issubclass(field.related_model, (Statement, SymbolContent)):
+        if not issubclass(field.related_model, (Statement, SymbolContent, Compilation, Dependency)):
             continue
         # if many to one
         if include_one_to_many and field.many_to_one:

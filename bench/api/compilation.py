@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated
 
 import strawberry
 from asgiref.sync import async_to_sync
@@ -6,37 +6,29 @@ from strawberry import auto, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
+import bench.models.compilation
 from bench import models
+from bench.backend.compiler import Compiler, get_stdlib_model
 from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
-from bench.compiler import Compiler, get_stdlib_model
 
 if TYPE_CHECKING:
-    from bench.api.code import Code
-    from bench.api.model import Model
     from bench.api.symbol import Statement
-    from bench.api.task import Task
 
 
-@gql.django.type(models.Compilation)
+@gql.django.type(bench.models.compilation.Compilation)
 class Compilation(gql.Node):
-    created_at: auto
-    updated_at: auto
-    task: Annotated["Task", lazy(".task")]
-    name: auto
-    backends: list[Annotated["Model", lazy(".model")]]
-    target_task: Optional[Annotated["Task", lazy(".task")]]
-    target_code: Optional[Annotated["Code", lazy(".code")]]
     mappings: list["SourceMapping"]
 
 
-@gql.django.type(models.SourceMapping)
+@gql.django.type(bench.models.compilation.SourceMapping)
 class SourceMapping(gql.Node):
-    compilation: Compilation
     source: Annotated["Statement", lazy(".symbol")]
     source_path: auto
+    source_revision: auto
     target: Annotated["Statement", lazy(".symbol")]
     target_path: auto
+    target_revision: auto
 
 
 @strawberry.input
@@ -73,7 +65,7 @@ class CompilationMutation:
     @strawberry.mutation
     def compile(self, input: CompileInput) -> CompilePayload:
         compilation = (
-            models.Compilation.objects.all()
+            bench.models.compilation.Compilation.objects.all()
             .select_related("project_version", "task", "target_task", "target_code")
             .get(id=input.compilation_id.node_id)
         )

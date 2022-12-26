@@ -38,8 +38,8 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const DependencyHeaderType = graphql(/* GraphQL */ `
-  fragment DependencyHeader on ProjectVersion {
+export const ProjectVersionAsDependencyType = graphql(/* GraphQL */ `
+  fragment ProjectVersionAsDependency on ProjectVersion {
     id
     createdAt
     committedAt
@@ -107,15 +107,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const CompilationHeaderType = graphql(/* GraphQL */ `
-  fragment CompilationHeader on Compilation {
-    id
-    name
-    createdAt
-    updatedAt
-  }
-`);
-
 export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
   fragment SchemaElementContentDeep on SchemaElement {
     name
@@ -175,6 +166,11 @@ export const StatementContentType = graphql(/* GraphQL */ `
     }
     reference {
       ...StatementHeader
+    }
+    dependency {
+      projectVersion {
+        ...ProjectVersionAsDependency
+      }
     }
     text
   }

@@ -1,18 +1,18 @@
 from .code import Code, Execution, ExecutionStatus
+from .compilation import Compilation, SourceMapping
 from .dataset import Dataset, DatasetRecord
 from .model import Model, ModelInference, ModelInferenceSettings
 from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .schema import Schema
 from .schema_field import SchemaElementField, SchemaField
-from .symbol import Statement, StatementType, SymbolContent, SymbolType
+from .symbol import Dependency, Statement, StatementType, SymbolContent, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
-from .task import Compilation, Expectation, SourceMapping, Task
+from .task import Expectation, Task
 from .user import User
 
 __all__ = [
     "Code",
-    "Compilation",
     "Dataset",
     "DatasetRecord",
     "Execution",
@@ -28,14 +28,16 @@ __all__ = [
     "Schema",
     "SchemaElementField",
     "SchemaField",
-    "SourceMapping",
     "Statement",
     "StatementType",
     "SymbolContent",
     "SymbolType",
+    "Dependency",
     "Tag",
     "TaggableMixin",
     "TaggedItem",
     "Task",
+    "Compilation",
+    "SourceMapping",
     "User",
 ]

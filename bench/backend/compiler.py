@@ -16,6 +16,7 @@ from django.db.models import QuerySet
 from bench.backend.executor import Executor
 from bench.models import (
     Code,
+    Compilation,
     Dataset,
     File,
     Model,
@@ -25,8 +26,8 @@ from bench.models import (
     ProjectVersion,
     SymbolType,
 )
-from bench.models.symbol import SYMBOL_CONTENT_FIELDS, Statement
-from bench.models.task import Compilation, Expectation, Task
+from bench.models.symbol import SYMBOL_CONTENT_FIELDS, Statement, StatementModifier
+from bench.models.task import Expectation, Task
 from bench.utils.record import RecordBatch, RecordList
 from bench.utils.schema import SchemaElement
 
@@ -40,21 +41,19 @@ async def _acollect(collectable: QuerySet | AsyncIterable | Dataset) -> list:
     return items
 
 
-def get_stdlib_model(path: str) -> Model:
+def get_stdlib_model(owner_slug: str, model_name: str) -> Model:
     """
     Gets the backend model from a stdlib library where backend=owner/model
     """
-    owner_slug, model_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
     return stdlib.head_.statement(file=None, name=model_name, symbol_type=SymbolType.MODEL).model_
 
 
-def get_stdlib_code(path: str) -> Code:
+def get_stdlib_code(owner_slug: str, code_name) -> Code:
     """
     Gets the code from a stdlib where path=owner/code
     """
-    owner_slug, code_name = path.split("/")
     organization = Organization.objects.get(slug=owner_slug)
     stdlib: Project = organization.projects.get(slug="stdlib")
     return stdlib.head_.statement(file=None, name=code_name, symbol_type=SymbolType.CODE).code_
@@ -102,6 +101,8 @@ class StatementData:
         if self.symbol_type == SymbolType.CODE:
             if self.code.code_function_name is None:
                 raise ValueError(f"expectation statement has no code function: {self}")
+            if self.code.definition.modifier == StatementModifier.VERIFY:
+                return ExpectationStatementType.VERIFY
             if "gen" in self.code.code_function_name:
                 return ExpectationStatementType.GENERATE
             elif "verif" in self.code.code_function_name:
@@ -226,14 +227,14 @@ class TaskData:
 
 class Compiler:
     """
-    Transforms and optimizes a task symbol into a set of executable code (incl. arguments).
+    Worker-side compiler to transform and optimize statements.
     """
 
     def __init__(self, executor: Executor):
         self.executor = executor
         # TODO @Cleanup: make compiler backend model configurable?
-        self.compiler_model = get_stdlib_model("openai/text-davinci-003")
-        self.get_temperature = get_stdlib_code("symbolx/get_temperature")
+        self.compiler_model = get_stdlib_model("openai", "text-davinci-003")
+        self.get_temperature = get_stdlib_code("symbolx", "get_temperature")
 
     async def compile(self, compilation: Compilation) -> None:
         """
