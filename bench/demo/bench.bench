@@ -1,0 +1,10 @@
+--- project.bench ---
+# Requirements
+require symbolx.stdlib@latest
+require openai.stdlib@latest
+
+
+--- lints.instruct ---
+# AI support for linting Bench files and statements
+
+--- suggest.instruct ---

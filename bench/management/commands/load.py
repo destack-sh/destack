@@ -13,8 +13,6 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
 from bench.models import (
     Code,
     Dataset,
@@ -126,7 +124,6 @@ def load(project_v: ProjectVersion, path: str):
         library_v = library.head  # just use head
         project_v.add_requirement(library_v, file=project_v.project_file)
         logger.info(f"Import library {library_v}")
-    executor = Executor(Resolver())
     # convert segments to a single task symbol tree
     for segment in segments:
         if segment.header.startswith("ignore"):

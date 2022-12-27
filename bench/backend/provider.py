@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypedDict, Union
 from bench.models.model import ModelInferenceSettings
 
 if TYPE_CHECKING:
-    from bench.backend.executor import ModelData
+    from bench.language.types import Model
 else:
     ResolvedModel = Any
 
@@ -17,7 +17,7 @@ class ModelProvider(abc.ABC):
     """
 
     async def access(
-        self, model: ModelData, settings: ModelInferenceSettings, for_user: str
+        self, model: Model, settings: ModelInferenceSettings, for_user: str
     ) -> ModelHandle:
         raise NotImplementedError
 

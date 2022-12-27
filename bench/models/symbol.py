@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Type, Union, cast
 from uuid import UUID
 
+import cachetools
 import pytz
 import structlog
 from django.db import models, transaction
@@ -13,6 +14,7 @@ from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
+from bench.language.types import StatementModifier, StatementType, SymbolType
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
@@ -31,84 +33,46 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class StatementType(models.TextChoices):
-    """
-    The type of Bench statement.
-    """
-
-    # symbol statements
-    IMPORT = "import"  # import
-    DEFINITION = "def"  # :
-    REFERENCE = "ref"  #
-    REDEFINITION = "redef"  # =
-    # non-symbol statements
-    REQUIREMENT = "requirement"  # require
-    COMPILATION = "compilation"  # compile
-    RUNCONFIG = "run"  # run
-    COMMENT = "comment"  # //
-    BLANK = "blank"  # used while creating a new statement
+# Symbol type helpers
 
 
-class StatementModifier(models.TextChoices):
-    """
-    A modifier to a Bench statement.
-    """
+@cachetools.cached({})
+def symbol_type_to_content_type_map():
+    # re-import for real to avoid circular import (above is only for type checking)
+    from bench.models import Code, Dataset, Expectation, Model, Schema, Task, Value  # noqa
 
-    WITH = "with"
-    LIKE = "like"
-    UNLIKE = "unlike"
-    VERIFY = "verify"
+    return {
+        SymbolType.SCHEMA: Schema,
+        SymbolType.TASK: Task,
+        SymbolType.EXPECTATION: Expectation,
+        SymbolType.CODE: Code,
+        SymbolType.MODEL: Model,
+        SymbolType.DATASET: Dataset,
+        SymbolType.VALUE: Value,
+    }
 
 
-class SymbolType(models.TextChoices):
-    """
-    The type of symbol content.
-    """
+def symbol_type_to_content_type(type: SymbolType) -> Type[SymbolContent]:
+    content_type = symbol_type_to_content_type_map()[type]
+    if content_type is None:
+        raise ValueError(f"unexpected symbol type {type}")
+    return content_type
 
-    SCHEMA = "schema", "Schema"
-    TASK = "task", "Task"
-    EXPECTATION = "expect", "Expectation"
-    CODE = "code", "Code"
-    MODEL = "model", "Model"
-    DATASET = "data", "Dataset"
-    VALUE = "value", "Value"
 
-    @staticmethod
-    def type_to_content_type_map():
-        # re-import for real to avoid circular import (above is only for type checking)
-        from bench.models import Code, Dataset, Expectation, Model, Schema, Task, Value  # noqa
+def content_type_to_symbol_type(content_type: Type[SymbolContent]) -> SymbolType:
+    content_type_type_map = {k: v for v, k in symbol_type_to_content_type_map().items()}
+    if content_type not in content_type_type_map:
+        raise ValueError(f"unexpected symbol content type {content_type}")
+    return content_type_type_map[content_type]
 
-        return {
-            SymbolType.SCHEMA: Schema,
-            SymbolType.TASK: Task,
-            SymbolType.EXPECTATION: Expectation,
-            SymbolType.CODE: Code,
-            SymbolType.MODEL: Model,
-            SymbolType.DATASET: Dataset,
-            SymbolType.VALUE: Value,
-        }
 
-    @staticmethod
-    def type_to_content_type(type: SymbolType) -> Type[SymbolContent]:
-        content_type = SymbolType.type_to_content_type_map()[type]
-        if content_type is None:
-            raise ValueError(f"unexpected symbol type {type}")
-        return content_type
+def symbol_type_from_content(content: SymbolContent) -> SymbolType:
+    return content_type_to_symbol_type(type(content))
 
-    @staticmethod
-    def content_type_to_type(content_type: Type[SymbolContent]) -> SymbolType:
-        content_type_type_map = {k: v for v, k in SymbolType.type_to_content_type_map().items()}
-        if content_type not in content_type_type_map:
-            raise ValueError(f"unexpected symbol content type {content_type}")
-        return content_type_type_map[content_type]
 
-    @staticmethod
-    def from_content(content: SymbolContent) -> SymbolType:
-        return SymbolType.content_type_to_type(type(content))
-
-    def default_content(self) -> SymbolContent:
-        cls = self.type_to_content_type(self)
-        return cls()
+def get_default_symbol_content(symbol_type: SymbolType) -> SymbolContent:
+    cls = symbol_type_to_content_type(symbol_type)
+    return cls()
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -158,7 +122,7 @@ class StatementManager(models.Manager["Statement"]):
         # (don't test via pk since we set that automatically)
         if content._state.adding:
             content.save()
-        symbol_type = SymbolType.from_content(content)
+        symbol_type = symbol_type_from_content(content)
         return self.create_statement(
             project_version=project_version,
             file=file,
@@ -397,7 +361,7 @@ class Statement(UUIDModel):
         if content is None:
             self.symbol_type = None
         else:
-            self.symbol_type = SymbolType.from_content(content)
+            self.symbol_type = symbol_type_from_content(content)
             setattr(self, self.symbol_type_to_field(self.symbol_type), content)
 
     @property
@@ -650,7 +614,7 @@ class SymbolContent(UUIDModel):
 
     @property
     def type(self) -> SymbolType:
-        return SymbolType.from_content(self)
+        return symbol_type_from_content(self)
 
     @property
     def parameters(self) -> models.QuerySet[Statement]:
