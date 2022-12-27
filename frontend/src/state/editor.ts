@@ -243,6 +243,12 @@ export const useEditorState = defineStore("editor", {
       if (group.activeEditor == editor) {
         // if active editor was removed, set first editor as active
         group.activeEditor = group.editors[0] || null;
+        // if editor was focused, focus new active editor
+        if (editor == this.focusedEditor) {
+          this.focusedEditor = group.activeEditor;
+          // defocus element
+          this.focusedElementId = null;
+        }
       }
       editor.groupId = null;
     },
