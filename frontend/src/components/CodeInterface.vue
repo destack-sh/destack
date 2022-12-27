@@ -5,7 +5,7 @@ import { CodeContentType } from "@/state/code";
 import { StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref, watchEffect } from "vue";
+import { computed, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{
   statement: FragmentType<typeof StatementHeaderType>;
@@ -26,7 +26,7 @@ const content = computed(() => useFragment(CodeContentType, props.content));
 
 const operations = useOperations();
 const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
-const code = ref("");
+const code: Ref<string | null> = ref(null);
 
 function saveCode(code: string) {
   const oldCode = content.value.code ?? "";
@@ -38,7 +38,7 @@ const saveCodeDebounced = useDebounceFn(saveCode, 200, { maxWait: 500 });
 
 // sync code to local if not editing
 watchEffect(() => {
-  if (!props.editing) {
+  if (!props.editing || code.value == null) {
     code.value = content.value.code ?? "";
   }
 });

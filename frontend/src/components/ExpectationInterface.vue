@@ -33,19 +33,18 @@ const content = computed(() => useFragment(ExpectationContentType, props.content
 
 const operations = useOperations();
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const description = ref("");
+const description: Ref<string | null> = ref(null);
 
 async function saveDescription() {
-  const newDescription = description.value;
-  if (newDescription.length > 0 && newDescription != content.value.description) {
-    await operations.content.updateTaskContent(statement.value.id, content.value.description, newDescription);
+  if (description.value != null && description.value.length > 0 && description.value != content.value.description) {
+    await operations.content.updateTaskContent(statement.value.id, content.value.description, description.value);
   }
 }
 const saveDescriptionDebounced = useDebounceFn(saveDescription, 200, { maxWait: 500 });
 
 // sync description to local if not editing
 watchEffect(() => {
-  if (!props.editing) {
+  if (!props.editing || description.value == null) {
     description.value = content.value.description;
   }
 });
@@ -60,14 +59,14 @@ defineExpose({
     <EditableSpan
       ref="descriptionRef"
       :readonly="readonly"
-      v-model="description"
+      :model-value="description ?? ''"
       maxlength="200"
-      class="inline w-full rounded-sm bg-transparent outline-none"
+      @update:model-value="saveDescriptionDebounced"
       @enter="saveDescription"
+      class="inline w-full rounded-sm bg-transparent outline-none"
       @navigateUp="emit('navigateUp')"
       @navigateDown="emit('navigateDown')"
       @escape="emit('escape')"
-      @keydown="saveDescriptionDebounced"
     />
   </div>
 </template>
