@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import enum
 import random
-from collections import defaultdict
-from functools import cached_property
 from itertools import chain
-from typing import AsyncIterable, Iterable, Optional, cast
-from uuid import UUID
+from typing import AsyncIterable
 
 import structlog
 from asgiref.sync import sync_to_async
-from attr import dataclass
 from django.db.models import QuerySet
 
 from bench.backend.executor import Executor
+from bench.backend.types import CompilationData, TaskData
 from bench.models import (
     Code,
     Compilation,
@@ -26,10 +23,6 @@ from bench.models import (
     ProjectVersion,
     SymbolType,
 )
-from bench.models.symbol import SYMBOL_CONTENT_FIELDS, Statement, StatementModifier
-from bench.models.task import Expectation, Task
-from bench.utils.record import RecordBatch, RecordList
-from bench.utils.schema import SchemaElement
 
 logger = structlog.get_logger(__name__)
 
@@ -69,162 +62,6 @@ class ExpectationStatementType(enum.Enum):
     VERIFY = "verify"
 
 
-@dataclass
-class StatementData:
-    expectation: Expectation
-    symbol: Statement
-
-    @property
-    def symbol_type(self):
-        return self.symbol.type
-
-    @property
-    def description(self):
-        return self.expectation.description
-
-    @property
-    def dataset(self) -> Dataset:
-        if self.symbol_type != SymbolType.DATASET:
-            raise ValueError(f"expectation statement is not a dataset: {self}")
-        return cast(Dataset, self.symbol.content)
-
-    @property
-    def code(self) -> Code:
-        if self.symbol_type != SymbolType.CODE:
-            raise ValueError(f"expectation statement is not an code: {self}")
-        return cast(Code, self.symbol.code)
-
-    @cached_property
-    def type(self) -> ExpectationStatementType:
-        # (naive implementation: guess statement type)
-        # TODO @Feature: define expectation statement type in statement
-        if self.symbol_type == SymbolType.CODE:
-            if self.code.code_function_name is None:
-                raise ValueError(f"expectation statement has no code function: {self}")
-            if self.code.definition.modifier == StatementModifier.VERIFY:
-                return ExpectationStatementType.VERIFY
-            if "gen" in self.code.code_function_name:
-                return ExpectationStatementType.GENERATE
-            elif "verif" in self.code.code_function_name:
-                return ExpectationStatementType.VERIFY
-            else:
-                return ExpectationStatementType.TRANSFORM
-        elif self.symbol_type == SymbolType.DATASET:
-            return ExpectationStatementType.GENERATE
-        else:
-            raise NotImplementedError(f"unknown statement type: {self}")
-
-
-@dataclass(repr=False)
-class TaskData:
-    expectations: list[Expectation]
-    statements: dict[UUID, list[StatementData]]  # by expectation id
-    examples: dict[UUID, RecordBatch]  # by dataset id
-    parent: Optional[TaskData]
-    children: dict[UUID, TaskData]  # by task id
-    optimal_backend: Optional[Model]
-    task: Task
-
-    @property
-    def definition(self) -> Statement:
-        return self.task.definition
-
-    def __str__(self):
-        return f"TaskData({self.task})"
-
-    def __repr__(self):
-        return f"TaskData({self.task})"
-
-    @property
-    def id(self):
-        return self.task.id
-
-    @property
-    def input_schema(self) -> SchemaElement:
-        return self.task.input_schema
-
-    @property
-    def output_schema(self) -> SchemaElement:
-        return self.task.output_schema
-
-    def walk_tree_dfs(self) -> Iterable[TaskData]:
-        yield self
-        for child in self.children.values():
-            yield from child.walk_tree_dfs()
-
-    def walk_tree_bfs(self) -> Iterable[TaskData]:
-        queue = [self]
-        while queue:
-            task = queue.pop(0)
-            yield task
-            queue.extend(task.children.values())
-
-    @cached_property
-    def expectations_by_id(self) -> dict[UUID, Expectation]:
-        return {e.id: e for e in self.expectations}
-
-    @cached_property
-    def code_statements(self) -> list[tuple[UUID, StatementData]]:
-        return [
-            (expectation_id, statement)
-            for expectation_id, statements in self.statements.items()
-            for statement in statements
-            if statement.symbol_type == SymbolType.CODE
-        ]
-
-    @staticmethod
-    def _collect_examples(
-        statements: Iterable[StatementData],
-    ) -> dict[UUID, RecordBatch]:
-        examples: dict[UUID, RecordBatch] = {}
-        for statement in statements:
-            if statement.symbol_type != SymbolType.DATASET:
-                continue
-            examples_records = list(statement.dataset)
-            examples[statement.expectation.id] = RecordList(examples_records)
-        return examples
-
-    @classmethod
-    def _from_task_rec(cls, task: Task, parent: Optional[TaskData]) -> TaskData:
-        # collect and cache statements (examples/code)
-        expectations: list[Expectation] = []
-        statements: dict = defaultdict(list)
-        for expectation in task.expectations.all():
-            for statement_def in expectation.statements.all().select_related(
-                *SYMBOL_CONTENT_FIELDS
-            ):
-                statement_data = StatementData(expectation=expectation, symbol=statement_def)
-                statements[expectation.id].append(statement_data)
-            expectations.append(expectation)
-        examples = cls._collect_examples(chain(*statements.values()))
-
-        # build task data and recurse
-        self = cls(
-            expectations=expectations,
-            statements=statements,
-            examples=examples,
-            optimal_backend=None,
-            parent=parent,
-            children={},
-            task=task,
-        )
-        for child in task.subtasks.all():
-            if child.task is None:
-                continue
-            self.children[child.id] = cls._from_task_rec(child.task, parent=self)
-
-        return self
-
-    @classmethod
-    def from_task(cls, task: Task) -> TaskData:
-        """
-        Collects all the information needed to compile a task into a symbol.
-
-        As tasks can be nested, this method is recursive.
-        """
-        return cls._from_task_rec(task, parent=None)
-
-
 class Compiler:
     """
     Worker-side compiler to transform and optimize statements.
@@ -236,45 +73,8 @@ class Compiler:
         self.compiler_model = get_stdlib_model("openai", "text-davinci-003")
         self.get_temperature = get_stdlib_code("symbolx", "get_temperature")
 
-    async def compile(self, compilation: Compilation) -> None:
-        """
-        Compiles a task into an executable code.
-        """
-        # get data
-        project_v = compilation.project_version
-        backends: list[Model] = await _acollect(compilation.backends.all())
-
+    async def compile(self, compilation: CompilationData) -> CompilationData:
         # run compile
-        main_task, main_code = await self.compile_task(project_v, compilation, backends)
-
-        # save result
-        compilation.target_task = main_task
-        compilation.target_code = main_code
-        await sync_to_async(compilation.save)()
-
-    async def compile_task(
-        self,
-        project_v: ProjectVersion,
-        compilation: Compilation,
-        backends: list[Model],
-    ) -> tuple[Task, Code]:
-        """
-        Compiles a task into an executable code.
-
-        General compile:
-        1. Lay out task tree (tasks may have recursive subtasks)
-        2. Optimize task tree for backends and options
-           - Expand, refactor and merge subtasks for backend
-           - Use backend statistics for task heuristics, choosing optimal backends
-           - May build (partial) code to update/gather statistics
-        3. Build parallel code tree (map tasks to code)
-           Respect code templates where defined.
-           - Replace task references with compiled code
-           - Build model code from task symbols without templates
-           - Use default code for parent tasks
-           - Copy code if explicitly defined (and requested)
-        4. Optimize code tree for backends and options
-        """
         log = logger.bind(compilation=compilation, task=compilation.task)
         log.info("compile.started")
 
@@ -303,58 +103,31 @@ class Compiler:
     async def _build_code(
         self, project_v: ProjectVersion, compilation: Compilation, task_data: TaskData
     ) -> Code:
-        """
-        Generates target code from a task symbol.
-
-        Basic model code compilation:
-        (ignoring subtasks and source code)
-        1. Render explanation descriptions into basic task description.
-        2. Collect and render examples from expectations and examples.
-        3. Convert task descriptions and examples to backend model format.
-        4. Determine optimal settings for backend model.
-        5. Build prompt and bake into model code.
-        """
-
-        # 1. render expectation statements
+        # 1. render expectation statements (naive render: join all into one string)
         expect_descriptions = [expect.description for expect in task_data.expectations]
-        # (naive render: join all into one string)
         task_description = "\n".join(expect_descriptions)
 
         # 2. render expectations into examples
         compiled_examples = await self._compile_examples(task_data)
-        # order compiled examples optimally
-        # (naive implementation: random order)
+        # order compiled examples optimally (naive implementation: random order)
         random.shuffle(compiled_examples)
 
-        genfile = await sync_to_async(self._get_clean_genfile)(project_v, compilation)
         # write examples to file
         compiled_examples_dataset = await sync_to_async(self._gen_llm_examples)(
             genfile, compiled_examples, task_data
         )
-
-        # 3. convert task descriptions and examples to backend model format
-        pass  # (naive implementation: noop i.e. no adaptation)
-
-        # 4. determine optimal settings for backend model
-        # (naive implementation: guess settings without optimization)
+        # 3. convert task descriptions and examples to backend model format (naive: noop)
+        # 4. determine optimal settings for backend model (naive: guess)
         settings = await self._guess_settings(
             task_data, task_description, compiled_examples_dataset
         )
-
-        # 5. build prompt and bake into model code
-        # (naive implementation)
+        # 5. build prompt and bake into statements
         llm_code = await sync_to_async(self._gen_llm_code)(
             genfile, task_data, task_description, compiled_examples_dataset, settings
         )
         return llm_code
 
     async def _compile_examples(self, task_data: TaskData) -> list[dict]:
-        """
-        Compiles examples for the given task.
-
-        Examples are compiled using code and examples from expectation statements.
-        """
-
         # 2.1 collect static examples
         # (naive implementation: collect all static examples indiscriminately)
         static_examples: list[dict] = list(chain(*task_data.examples.values()))
@@ -489,7 +262,4 @@ class Compiler:
             examples=task_examples.definition,
             settings=settings.as_dict(omit_empty=True),
         )
-        # add parameter for input keys
-        for key in task_data.input_schema.keys:
-            llm_code.definition.add_parameter(key, ParameterType.VALUE)
         return llm_code

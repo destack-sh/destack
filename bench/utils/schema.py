@@ -67,6 +67,25 @@ class SchemaElement:
         else:
             return [e.name for e in self.elements]
 
+    @property
+    def input_(self) -> SchemaElement:
+        return self.find("input")
+
+    @property
+    def output_(self) -> SchemaElement:
+        return self.find("output")
+
+    def find(self, key: str) -> SchemaElement:
+        """Find a schema element by key (only works for objects)."""
+        if self.type != ValueType.OBJECT:
+            raise ValueError(f"find cannot be used on {self}")
+        if self.elements is None:
+            raise ValueError("elements is None")
+        for e in self.elements:
+            if e.name == key:
+                return e
+        raise ValueError(f"key {key} not found in {self}")
+
     def __str__(self):
         required_str = "!" if self.required else ""
         elements_str = ", ".join(str(e) for e in self.elements) if self.elements else ""

@@ -5,14 +5,7 @@ from typing import Any
 
 from django.db.models import QuerySet
 
-from bench.backend.types import (
-    ResolvedCode,
-    ResolvedDataset,
-    ResolvedModel,
-    ResolvedParameter,
-    ResolvedSymbol,
-    Value,
-)
+from bench.backend.types import CodeData, DatasetData, ModelData, StatementData, SymbolData, Value
 from bench.models import (
     Code,
     Dataset,
@@ -23,19 +16,25 @@ from bench.models import (
     SymbolType,
 )
 from bench.utils.record import RecordList
+from bench.utils.schema import SchemaElement
 
 
 class Resolver:
     """
-    Server-side resolver to fetch all recursive arguments and contents within a single transaction.
-
+    Server-side resolver to remotely read and write files and statements.
     Keeps track of revisions used for automatic caching and re-computation.
     """
 
-    def resolve_model(
+    def read_statement(self, statement: Statement) -> StatementData:
+        raise NotImplementedError
+
+    def write_statement(self, statement: StatementData) -> StatementData:
+        raise NotImplementedError
+
+    def read_model(
         self, model: Model, settings: typing.Optional[ModelInferenceSettings]
-    ) -> ResolvedModel:
-        return ResolvedModel(
+    ) -> ModelData:
+        return ModelData(
             statement_id=model.definition.id,
             content_id=model.id,
             name=model.definition.name,
@@ -46,31 +45,32 @@ class Resolver:
             external_name=model.external_name,
         )
 
-    def resolve_dataset(self, dataset: Dataset) -> ResolvedDataset:
+    def read_dataset(self, dataset: Dataset) -> DatasetData:
         # TODO @Performance: do not load all records when resolving dataset arguments
         #  All functions are executed async, but dataset access is neater if it's synchronous.
         #  So we pre-load everything and wrap it in a synchronous wrapper.
         records = list(dataset)
         batch = RecordList(records)
-        return ResolvedDataset(
+        return DatasetData(
             statement_id=dataset.definition.id,
             content_id=dataset.id,
             name=dataset.definition.name,
             type=SymbolType.DATASET,
-            schema=dataset.schema_,
+            schema=dataset.schema_.element,
             records=batch,
         )
 
-    def resolve_code(self, code: Code) -> ResolvedCode:
+    def read_code(self, code: Code) -> CodeData:
         parameters = self._get_code_parameters(code)
-        arguments = self.resolve_arguments(code)
-        return ResolvedCode(
+        arguments = self.read_arguments(code)
+        schema: SchemaElement = code.schema_.element
+        return CodeData(
             statement_id=code.definition.id,
             content_id=code.id,
             name=code.definition.name,
             type=SymbolType.CODE,
-            input_schema=code.input_schema,
-            output_schema=code.output_schema,
+            input_schema=schema.input_,
+            output_schema=schema.output_,
             code_text=code.code,
             code_function_name=code.code_function_name,
             builtin_id=code.builtin_id,
@@ -78,13 +78,7 @@ class Resolver:
             arguments=arguments,
         )
 
-    def _get_code_parameters(self, code: Code) -> dict[str, ResolvedParameter]:
-        parameters = {}
-        for parameter in code.parameters.all():
-            parameters[parameter.name] = ResolvedParameter(name=parameter.name, type=parameter.type)
-        return parameters
-
-    def resolve_arguments(self, code: Code) -> dict[str, ResolvedSymbol | Value]:
+    def read_arguments(self, code: Code) -> dict[str, SymbolData | Value]:
         bound_arguments: QuerySet[Statement] = code.arguments.all().select_related(
             "reference",
             "reference__model",
@@ -97,19 +91,19 @@ class Resolver:
             if argument.reference is None:
                 raise ValueError(f"argument {argument} has no statement reference")
             # resolve statement reference
-            bound_arguments_resolved[argument.name] = self.resolve_argument(argument.reference)
+            bound_arguments_resolved[argument.name] = self.read_argument(argument.reference)
         return bound_arguments_resolved
 
-    def resolve_argument(self, value: Statement | SymbolContent) -> ResolvedSymbol | Value:
+    def read_argument(self, value: Statement | SymbolContent) -> SymbolData | Value:
         if isinstance(value, SymbolContent):
             value = value.definition
         if isinstance(value, Statement):
             if value.type == SymbolType.MODEL:
-                return self.resolve_model(value.model_, settings=None)
+                return self.read_model(value.model_, settings=None)
             elif value.type == SymbolType.DATASET:
-                return self.resolve_dataset(value.dataset_)
+                return self.read_dataset(value.dataset_)
             elif value.type == SymbolType.CODE:
-                return self.resolve_code(value.code_)
+                return self.read_code(value.code_)
             else:
                 raise ValueError(f"unexpected argument type: {value}")
         else:

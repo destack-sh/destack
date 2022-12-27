@@ -12,7 +12,7 @@ import pytz
 import structlog
 
 from bench.backend.provider import Completion, ModelHandle
-from bench.backend.types import LoadedCode, LoadedModel, ResolvedParameter
+from bench.backend.types import LoadedCode, LoadedModel
 from bench.models import Execution, ExecutionStatus, SymbolType
 from bench.utils.record import RecordBatch
 from bench.utils.schema import SchemaElement, get_value_type
@@ -272,7 +272,7 @@ class ValidationTracer(Tracer):
         elif value_type != schema.type:
             raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
 
-    def _check_argument(self, code: LoadedCode, value: Any, parameter: ResolvedParameter):
+    def _check_argument(self, code: LoadedCode, value: Any, parameter: ParameterData):
         # TODO @Typing: check that the argument has a compatible schema
         if parameter.symbol_type == SymbolType.CODE:
             if not callable(value):

@@ -281,13 +281,29 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     def bootstrap(self):
         """Creates default files and statements."""
         # TODO @Cleanup: replace the bootstrapped files with templated snippets in Bench format
+        # (and move out of ProjectVersion?)
         if self.project.type == ProjectType.EXECUTABLE:
             main_file = self.create_file("main", FileType.INSTRUCT)
-            self.comment("Instruct an AI to do something.", main_file)
-        compile_file = self.create_file("all", FileType.COMPILE)
-        self.comment("Define how to build statements.", compile_file)
-        project_file = self.create_file("project", FileType.PROJECT)
-        self.comment("Describe project metadata and dependencies.", project_file)
+            self.add_comment("Instruct AI on something.", main_file)
+        elif self.project.type == ProjectType.LIBRARY:
+            main_file = self.create_file("main", FileType.INSTRUCT)
+            self.add_comment("Your AI library root.", main_file)
+        else:
+            raise ValueError(f"unexpected project type {self.project.type}")
+        project_file = self.create_file("bench", FileType.PROJECT)
+        self.add_comment("# Project metadata", project_file)
+        self.add_blank(project_file)
+
+        self.add_comment("# Requirements", project_file)
+        # default requirements
+        self.add_requirement(Project.objects.get_by_slug("symbolx", "stdlib").head_, project_file)
+
+        # TODO @Feature: bootstrap project version with default/template content
+        if self.project.type == ProjectType.EXECUTABLE:
+            self.add_comment("# Compilations", project_file)
+            self.add_blank(project_file)
+            self.add_comment("# Run", project_file)
+            self.add_blank(project_file)
 
     @transaction.atomic
     def commit(self, name: Optional[str] = None, description: Optional[str] = None):
@@ -392,7 +408,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         else:
             return self.statements.all()
 
-    def comment(self, text: str, file: File, index: Optional[int] = None) -> Statement:
+    def add_comment(self, text: str, file: File, index: Optional[int] = None) -> Statement:
         return Statement.objects.create_statement(
             project_version=self,
             file=file,
@@ -400,6 +416,16 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             index=index,
             type=StatementType.COMMENT,
             text=text,
+            name=None,
+        )
+
+    def add_blank(self, file: File, index: Optional[int] = None) -> Statement:
+        return Statement.objects.create_statement(
+            project_version=self,
+            file=file,
+            parent=None,
+            index=index,
+            type=StatementType.BLANK,
             name=None,
         )
 
@@ -561,11 +587,10 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
 
 class FileType(models.TextChoices):
-    """The type of file determines the type of statements it is intended to contain."""
+    """The type of file determines what it is intended to contain."""
 
     DIRECTORY = "directory", "Directory"  # contains sub-directories and files
     INSTRUCT = "instruct", "Instructions"  # actual instructions
-    COMPILE = "compile", "Compilations"  # how instructions are compiled
     PROJECT = "bench", "Project metadata"  # meta, dependencies, etc.
 
 
