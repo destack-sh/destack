@@ -27,14 +27,14 @@ from bench.backend.tracing import (
 )
 from bench.backend.types import (
     CodeCallable,
+    CodeData,
+    DatasetData,
     LoadedCode,
     LoadedDataset,
     LoadedModel,
     LoadedSymbol,
-    ResolvedCode,
-    ResolvedDataset,
-    ResolvedModel,
-    ResolvedSymbol,
+    ModelData,
+    SymbolData,
     Value,
 )
 from bench.models import Dataset, Model, Statement, SymbolContent
@@ -241,15 +241,15 @@ class Executor:
         self.resolver = resolver
 
     async def _load_arguments(
-        self, arguments: dict[str, Value | ResolvedSymbol], proxy: Proxy
-    ) -> dict[str, Value | ResolvedSymbol]:
+        self, arguments: dict[str, Value | SymbolData], proxy: Proxy
+    ) -> dict[str, Value | SymbolData]:
         loaded_arguments = {}
         for name, argument in arguments.items():
-            if isinstance(argument, ResolvedDataset):
+            if isinstance(argument, DatasetData):
                 loaded_arguments[name] = await self._load_dataset(argument, proxy)
-            elif isinstance(argument, ResolvedModel):
+            elif isinstance(argument, ModelData):
                 loaded_arguments[name] = await self._load_model(argument, proxy)
-            elif isinstance(argument, ResolvedCode):
+            elif isinstance(argument, CodeData):
                 loaded_arguments[name] = await self._load_code(argument, proxy)
             else:
                 loaded_arguments[name] = argument
@@ -257,16 +257,16 @@ class Executor:
 
     def _unwrap_arguments(
         self, arguments: dict[str, Value | LoadedSymbol], proxy: Proxy
-    ) -> dict[str, Value | ResolvedSymbol]:
+    ) -> dict[str, Value | SymbolData]:
         unwrapped_arguments = {}
         for name, argument in arguments.items():
             unwrapped_arguments[name] = proxy.unwrap(argument)
         return unwrapped_arguments
 
-    async def _load_dataset(self, dataset: ResolvedDataset, proxy: Proxy) -> LoadedDataset:
+    async def _load_dataset(self, dataset: DatasetData, proxy: Proxy) -> LoadedDataset:
         return LoadedDataset(**dataset.__dict__)
 
-    async def _load_model(self, model: ResolvedModel, proxy: Proxy) -> LoadedModel:
+    async def _load_model(self, model: ModelData, proxy: Proxy) -> LoadedModel:
         provider = self.providers.get(ProviderKey(model.provider))
         if provider is None:
             raise ValueError(f"unknown provider {model.provider}")
@@ -277,7 +277,7 @@ class Executor:
         )
         return proxy.proxy_model(LoadedModel(**model.__dict__, handle=handle))
 
-    async def _load_code(self, code: ResolvedCode, proxy: Proxy) -> LoadedCode:
+    async def _load_code(self, code: CodeData, proxy: Proxy) -> LoadedCode:
         """
         Resolves a code symbol and all its arguments to an async callable.
         """
@@ -322,7 +322,7 @@ class Executor:
         )
         return proxy.proxy_code(loaded_code)
 
-    def _get_dynamic_builtins(self, code: ResolvedCode) -> dict:
+    def _get_dynamic_builtins(self, code: CodeData) -> dict:
         return {
             "random": Random(code.content_id.hex.encode()),
         }
@@ -354,16 +354,16 @@ class Executor:
         traces: list[Trace] | None = None,
     ):
         resolved_arguments = {
-            name: await self.resolver.resolve_argument(argument)
+            name: await self.resolver.read_argument(argument)
             for name, argument in arguments.items()
         }
-        resolved_code = await self.resolver.resolve_code(code)
+        resolved_code = await self.resolver.read_code(code)
         return await self.run(resolved_code, resolved_arguments, traces)
 
     async def run(
         self,
-        code: ResolvedCode,
-        arguments: dict[str, Value | ResolvedSymbol],
+        code: CodeData,
+        arguments: dict[str, Value | SymbolData],
         traces: list[Trace] | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]] | None:
         execution_tracker = ExecutionTracker()

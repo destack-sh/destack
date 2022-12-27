@@ -18,3 +18,8 @@ class Dataset(SymbolContent):
 class DatasetRecord(gql.Node):
     index: auto
     data: auto
+
+
+@gql.django.type(models.Value)
+class Value(gql.Node):
+    value: auto

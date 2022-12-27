@@ -151,3 +151,9 @@ class DatasetRecord(UUIDModel):
         indexes = [
             GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
         ]
+
+
+class Value(Schemad, SymbolContent):
+    """A single JSON-ish value, akin to a dataset record but as an explicit statement."""
+
+    value = models.JSONField(null=True, blank=True)

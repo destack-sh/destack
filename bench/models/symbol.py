@@ -44,6 +44,7 @@ class StatementType(models.TextChoices):
     # non-symbol statements
     REQUIREMENT = "requirement"  # require
     COMPILATION = "compilation"  # compile
+    RUNCONFIG = "run"  # run
     COMMENT = "comment"  # //
     BLANK = "blank"  # used while creating a new statement
 
@@ -53,8 +54,6 @@ class StatementModifier(models.TextChoices):
     A modifier to a Bench statement.
     """
 
-    MAIN = "main"
-    SUGGEST = "suggest"
     WITH = "with"
     LIKE = "like"
     UNLIKE = "unlike"
@@ -72,11 +71,12 @@ class SymbolType(models.TextChoices):
     CODE = "code", "Code"
     MODEL = "model", "Model"
     DATASET = "data", "Dataset"
+    VALUE = "value", "Value"
 
     @staticmethod
     def type_to_content_type_map():
         # re-import for real to avoid circular import (above is only for type checking)
-        from bench.models import Code, Dataset, Expectation, Model, Schema, Task  # noqa
+        from bench.models import Code, Dataset, Expectation, Model, Schema, Task, Value  # noqa
 
         return {
             SymbolType.SCHEMA: Schema,
@@ -85,6 +85,7 @@ class SymbolType(models.TextChoices):
             SymbolType.CODE: Code,
             SymbolType.MODEL: Model,
             SymbolType.DATASET: Dataset,
+            SymbolType.VALUE: Value,
         }
 
     @staticmethod
@@ -285,27 +286,33 @@ class Statement(UUIDModel):
         "Requirement", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
     requirement_id: Optional[UUID]  # noqa via Statement.requirement
+    runconfig = models.OneToOneField(
+        "RunConfiguration",
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        related_name="definition",
+    )
+    runconfig_id: Optional[UUID]  # noqa via Statement.run
 
     def deepcopy(
         self,
         to: Statement,
-        refs: dict[UUID, SymbolContent | Compilation | Requirement | Statement],
+        refs: dict[UUID, SymbolContent | Compilation | Requirement | RunConfiguration | Statement],
     ):
-        # copy symbol content
+        # copy contents
         if self.type == StatementType.DEFINITION:
-            new_content = refs[self.content_id]
-            self.content.deepcopy(to=new_content, refs=refs)
-            new_content.save()
-        # copy compilation
+            self.content.deepcopy(to=(refs[self.content_id]), refs=refs)
+            refs[self.content_id].save()
         if self.type == StatementType.COMPILATION:
-            new_compilation = refs[self.compilation_id]
-            self.compilation.deepcopy(to=new_compilation, refs=refs)
-            new_compilation.save()
-        # copy dependency
+            self.compilation.deepcopy(to=(refs[self.compilation_id]), refs=refs)
+            refs[self.compilation_id].save()
         if self.type == StatementType.REQUIREMENT:
-            new_dependency = refs[self.requirement_id]
-            self.requirement.deepcopy(to=new_dependency, refs=refs)
-            new_dependency.save()
+            self.requirement.deepcopy(to=(refs[self.requirement_id]), refs=refs)
+            refs[self.requirement_id].save()
+        if self.type == StatementType.RUNCONFIG:
+            self.runconfig.deepcopy(to=(refs[self.runconfig_id]), refs=refs)
+            refs[self.runconfig_id].save()
 
         # reset symbol type since set_content nulls it
         to.symbol_type = self.symbol_type
@@ -672,10 +679,21 @@ class SymbolContent(UUIDModel):
 class Requirement(UUIDModel):
     """
     A requirement sets the version to use for a specific library (project).
-    The derived set of dependencies is copied into ProjectVersion.dependencies for performance.
+    The derived set of dependencies is copied into ProjectVersion.dependencies for lookup speed.
     """
 
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)
+    definition: Statement  # noqa via Statement.requirement
+
+    def deepcopy(self, to, refs: dict[str, Any]):
+        pass  # nothing to do
+
+
+class RunConfiguration(UUIDModel):
+    """Configuration to run executable statements."""
+
+    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
+    definition: Statement  # noqa via Statement.run
 
     def deepcopy(self, to, refs: dict[str, Any]):
         pass  # nothing to do
@@ -684,7 +702,7 @@ class Requirement(UUIDModel):
 def replace_refs(
     obj: models.Model,
     to: models.Model,
-    refs: dict[UUID, Statement | SymbolContent | Compilation | Requirement],
+    refs: dict[UUID, Statement | SymbolContent | Compilation | Requirement | RunConfiguration],
     include_one_to_many: bool = True,
     include_many_to_many: bool = True,
 ):
@@ -695,7 +713,8 @@ def replace_refs(
         if field.related_model is None:
             continue
         if not issubclass(
-            field.related_model, (Statement, SymbolContent, Compilation, Requirement)
+            field.related_model,
+            (Statement, SymbolContent, Compilation, Requirement, RunConfiguration),
         ):
             continue
         # if many to one

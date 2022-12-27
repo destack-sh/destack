@@ -4,6 +4,7 @@ from typing import Any
 
 from django.db import models
 
+from bench.models.symbol import Statement, SymbolType
 from bench.models.utils import UUIDModel
 
 
@@ -15,12 +16,25 @@ class Compilation(UUIDModel):
     """
 
     mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
+    definition: Statement  # noqa via Statement.compilation
 
     def deepcopy(self, to, refs: dict[str, Any]):
         pass  # nothing to do
 
+    @property
+    def task(self) -> Statement:
+        if self.definition.reference is None:
+            raise ValueError("compilation has no reference")
+        if self.definition.reference.symbol_type != SymbolType.TASK:
+            raise ValueError("compilation has no task")
+        return self.definition.reference
+
+    @property
+    def model_backends(self) -> models.QuerySet[Statement]:
+        return self.definition.arguments.filter(symbol_type=SymbolType.MODEL)
+
     def __str__(self):
-        return f"{self.id.hex}.compilation"
+        return f"(compile)"
 
 
 class SourceMapping(UUIDModel):

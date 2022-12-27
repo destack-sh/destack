@@ -51,6 +51,11 @@ class Requirement(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
 
 
+@gql.django.type(models.RunConfiguration)
+class RunConfiguration(gql.Node):
+    project_version: Annotated["ProjectVersion", lazy(".project")]
+
+
 @gql.input
 class StatementCreateInput:
     fileId: GlobalID

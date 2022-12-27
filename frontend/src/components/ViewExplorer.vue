@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { FileType } from "@/gql/graphql";
+import { FileType } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { FILE_TYPE_SHORTNAME, useEditorState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
@@ -8,6 +8,17 @@ import { onClickOutside } from "@vueuse/core";
 import { computed, ref, type Component } from "vue";
 
 const props = defineProps<{ files: FileHeader[] }>();
+
+const filesSorted = computed(() => {
+  const files = [...props.files];
+  return files.sort((a, b) => {
+    if (a.type == b.type) {
+      return a.path.localeCompare(b.path);
+    } else {
+      return a.type == FileType.Directory || a.type == FileType.Project ? -1 : 1;
+    }
+  });
+});
 
 const editor = useEditorState();
 
@@ -95,7 +106,7 @@ function getFileTypeShortname(file: FileHeader) {
       <!-- View: explorer -->
       <ul role="list" class="flex flex-col gap-1 py-1 text-sm">
         <li
-          v-for="file in files"
+          v-for="file in filesSorted"
           :key="file.id"
           class="relative max-w-full border border-transparent px-3 hover:cursor-pointer"
           :class="{

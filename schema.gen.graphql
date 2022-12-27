@@ -136,13 +136,10 @@ input FileSoftDeleteInput {
   id: GlobalID!
 }
 
-"""
-The type of file determines the type of statements it is intended to contain.
-"""
+"""The type of file determines what it is intended to contain."""
 enum FileType {
   DIRECTORY
   INSTRUCT
-  COMPILE
   PROJECT
 }
 
@@ -485,8 +482,6 @@ input StatementFilter {
 
 """A modifier to a Bench statement."""
 enum StatementModifier {
-  MAIN
-  SUGGEST
   WITH
   LIKE
   UNLIKE
@@ -555,6 +550,7 @@ enum StatementType {
   REDEFINITION
   REQUIREMENT
   COMPILATION
+  RUNCONFIG
   COMMENT
   BLANK
 }
@@ -571,6 +567,7 @@ enum SymbolType {
   CODE
   MODEL
   DATASET
+  VALUE
 }
 
 type Task implements SymbolContent & Node {

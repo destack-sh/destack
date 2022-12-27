@@ -170,9 +170,8 @@ export type FileSoftDeleteInput = {
   id: Scalars["GlobalID"];
 };
 
-/** The type of file determines the type of statements it is intended to contain. */
+/** The type of file determines what it is intended to contain. */
 export enum FileType {
-  Compile = "COMPILE",
   Directory = "DIRECTORY",
   Instruct = "INSTRUCT",
   Project = "PROJECT",
@@ -626,8 +625,6 @@ export type StatementFilter = {
 /** A modifier to a Bench statement. */
 export enum StatementModifier {
   Like = "LIKE",
-  Main = "MAIN",
-  Suggest = "SUGGEST",
   Unlike = "UNLIKE",
   Verify = "VERIFY",
   With = "WITH",
@@ -701,6 +698,7 @@ export enum StatementType {
   Redefinition = "REDEFINITION",
   Reference = "REFERENCE",
   Requirement = "REQUIREMENT",
+  Runconfig = "RUNCONFIG",
 }
 
 export type SymbolContent = {
@@ -715,6 +713,7 @@ export enum SymbolType {
   Model = "MODEL",
   Schema = "SCHEMA",
   Task = "TASK",
+  Value = "VALUE",
 }
 
 export type Task = Node &
