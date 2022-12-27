@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 from django.db.models import QuerySet
 
 from bench.backend.executor import Executor
-from bench.backend.types import CompilationData, TaskData
+from bench.language.types import Compilation, Task
 from bench.models import (
     Code,
     Compilation,
@@ -73,14 +73,14 @@ class Compiler:
         self.compiler_model = get_stdlib_model("openai", "text-davinci-003")
         self.get_temperature = get_stdlib_code("symbolx", "get_temperature")
 
-    async def compile(self, compilation: CompilationData) -> CompilationData:
+    async def compile(self, compilation: Compilation) -> Compilation:
         # run compile
         log = logger.bind(compilation=compilation, task=compilation.task)
         log.info("compile.started")
 
         # 1. lay out the task tree
         log.info("compile.layout.started")
-        task_data = await sync_to_async(TaskData.from_task)(compilation.task)
+        task_data = await sync_to_async(Task.from_task)(compilation.task)
         log.info("compile.layout.finished")
 
         # 2. naively set optimal backend for all tasks
@@ -101,7 +101,7 @@ class Compiler:
         return task_data.task, target_code
 
     async def _build_code(
-        self, project_v: ProjectVersion, compilation: Compilation, task_data: TaskData
+        self, project_v: ProjectVersion, compilation: Compilation, task_data: Task
     ) -> Code:
         # 1. render expectation statements (naive render: join all into one string)
         expect_descriptions = [expect.description for expect in task_data.expectations]
@@ -127,7 +127,7 @@ class Compiler:
         )
         return llm_code
 
-    async def _compile_examples(self, task_data: TaskData) -> list[dict]:
+    async def _compile_examples(self, task_data: Task) -> list[dict]:
         # 2.1 collect static examples
         # (naive implementation: collect all static examples indiscriminately)
         static_examples: list[dict] = list(chain(*task_data.examples.values()))
@@ -180,7 +180,7 @@ class Compiler:
         return file
 
     def _gen_llm_examples(
-        self, genfile: File, compiled_examples: list[dict], task_data: TaskData
+        self, genfile: File, compiled_examples: list[dict], task_data: Task
     ) -> Dataset:
         dataset = Dataset.objects.from_list(compiled_examples)
         genfile.define_symbol("examples", dataset, compiled=True)
@@ -193,7 +193,7 @@ class Compiler:
         return dataset
 
     async def _guess_settings(
-        self, task_data: TaskData, task_description: str, examples_dataset: Dataset
+        self, task_data: Task, task_description: str, examples_dataset: Dataset
     ) -> ModelInferenceSettings:
         # (naive implementation: set only temperature and max_tokens)
         temperature = await self.executor.resolve_and_run(
@@ -227,7 +227,7 @@ class Compiler:
     def _gen_llm_code(
         self,
         genfile: File,
-        task_data: TaskData,
+        task_data: Task,
         task_description: str,
         task_examples: Dataset,
         settings: ModelInferenceSettings,

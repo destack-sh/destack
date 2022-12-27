@@ -5,7 +5,8 @@ from typing import Any
 
 from django.db.models import QuerySet
 
-from bench.backend.types import CodeData, DatasetData, ModelData, StatementData, SymbolData, Value
+from bench.backend.types import Value
+from bench.language.types import Code, Dataset, Model, Statement, SymbolContent
 from bench.models import (
     Code,
     Dataset,
@@ -25,16 +26,14 @@ class Resolver:
     Keeps track of revisions used for automatic caching and re-computation.
     """
 
-    def read_statement(self, statement: Statement) -> StatementData:
+    def read_statement(self, statement: Statement) -> Statement:
         raise NotImplementedError
 
-    def write_statement(self, statement: StatementData) -> StatementData:
+    def write_statement(self, statement: Statement) -> Statement:
         raise NotImplementedError
 
-    def read_model(
-        self, model: Model, settings: typing.Optional[ModelInferenceSettings]
-    ) -> ModelData:
-        return ModelData(
+    def read_model(self, model: Model, settings: typing.Optional[ModelInferenceSettings]) -> Model:
+        return Model(
             statement_id=model.definition.id,
             content_id=model.id,
             name=model.definition.name,
@@ -45,13 +44,13 @@ class Resolver:
             external_name=model.external_name,
         )
 
-    def read_dataset(self, dataset: Dataset) -> DatasetData:
+    def read_dataset(self, dataset: Dataset) -> Dataset:
         # TODO @Performance: do not load all records when resolving dataset arguments
         #  All functions are executed async, but dataset access is neater if it's synchronous.
         #  So we pre-load everything and wrap it in a synchronous wrapper.
         records = list(dataset)
         batch = RecordList(records)
-        return DatasetData(
+        return Dataset(
             statement_id=dataset.definition.id,
             content_id=dataset.id,
             name=dataset.definition.name,
@@ -60,11 +59,11 @@ class Resolver:
             records=batch,
         )
 
-    def read_code(self, code: Code) -> CodeData:
+    def read_code(self, code: Code) -> Code:
         parameters = self._get_code_parameters(code)
         arguments = self.read_arguments(code)
         schema: SchemaElement = code.schema_.element
-        return CodeData(
+        return Code(
             statement_id=code.definition.id,
             content_id=code.id,
             name=code.definition.name,
@@ -78,7 +77,7 @@ class Resolver:
             arguments=arguments,
         )
 
-    def read_arguments(self, code: Code) -> dict[str, SymbolData | Value]:
+    def read_arguments(self, code: Code) -> dict[str, SymbolContent | Value]:
         bound_arguments: QuerySet[Statement] = code.arguments.all().select_related(
             "reference",
             "reference__model",
@@ -94,7 +93,7 @@ class Resolver:
             bound_arguments_resolved[argument.name] = self.read_argument(argument.reference)
         return bound_arguments_resolved
 
-    def read_argument(self, value: Statement | SymbolContent) -> SymbolData | Value:
+    def read_argument(self, value: Statement | SymbolContent) -> SymbolContent | Value:
         if isinstance(value, SymbolContent):
             value = value.definition
         if isinstance(value, Statement):

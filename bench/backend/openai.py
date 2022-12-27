@@ -4,7 +4,7 @@ from typing import Any, Optional, Union
 import aiohttp
 
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
-from bench.backend.types import ModelData
+from bench.language.types import Model
 from bench.models import ModelInferenceSettings
 
 
@@ -17,7 +17,7 @@ class OpenAIProvider(ModelProvider):
         return {"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"}
 
     async def access(
-        self, model: ModelData, settings: ModelInferenceSettings, for_user: str
+        self, model: Model, settings: ModelInferenceSettings, for_user: str
     ) -> ModelHandle:
         user_hashed = hashlib.shake_256(for_user.encode()).hexdigest(len(for_user) * 2)
         if model.external_name is None:

@@ -186,6 +186,10 @@ export type Model = Node &
     provider: Scalars["String"];
   };
 
+export type ModelBaselineArgs = {
+  pk?: InputMaybe<Scalars["ID"]>;
+};
+
 export type MorphStatementPayload = {
   __typename?: "MorphStatementPayload";
   statement: Statement;

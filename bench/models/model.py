@@ -32,10 +32,6 @@ class Model(SymbolContent):
 
     external_name = models.CharField(max_length=128, null=True, blank=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
-    # TODO @Feature @Architecture: Model.baseline is really Symbol.extends
-    baseline = models.ForeignKey(
-        "Model", on_delete=models.CASCADE, null=True, related_name="derivatives"
-    )
     provider = models.CharField(max_length=64, choices=ProviderKey.choices)
     default_settings = models.ForeignKey("ModelInferenceSettings", on_delete=models.CASCADE)
 

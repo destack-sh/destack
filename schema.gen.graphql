@@ -156,7 +156,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 type Model implements SymbolContent & Node {
   id: GlobalID!
   definition: Statement!
-  baseline: Model
+  baseline(pk: ID): Model
   provider: String!
 }
 
