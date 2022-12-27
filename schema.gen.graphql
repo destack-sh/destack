@@ -65,11 +65,6 @@ type DatasetRecord implements Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
-type Dependency implements Node {
-  id: GlobalID!
-  projectVersion: ProjectVersion!
-}
-
 type Execution implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -379,6 +374,11 @@ union RenameFilePayload = File | OperationInfo
 
 union RenameStatementPayload = Statement | OperationInfo
 
+type Requirement implements Node {
+  id: GlobalID!
+  projectVersion: ProjectVersion!
+}
+
 input RunCodeInput {
   codeId: GlobalID!
   arguments: [RunCodeValueArgumentInput!]!
@@ -453,7 +453,7 @@ type Statement implements Node {
   referencedBy: [Statement!]!
   content(pk: ID): SymbolContent
   compilation: Compilation
-  dependency: Dependency
+  requirement: Requirement
 }
 
 input StatementCommentedInput {
@@ -553,7 +553,7 @@ enum StatementType {
   DEFINITION
   REFERENCE
   REDEFINITION
-  DEPENDENCY
+  REQUIREMENT
   COMPILATION
   COMMENT
   BLANK

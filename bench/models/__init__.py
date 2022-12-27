@@ -6,7 +6,7 @@ from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .schema import Schema
 from .schema_field import SchemaElementField, SchemaField
-from .symbol import Dependency, Statement, StatementType, SymbolContent, SymbolType
+from .symbol import Requirement, Statement, StatementType, SymbolContent, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
 from .task import Expectation, Task
 from .user import User
@@ -32,7 +32,7 @@ __all__ = [
     "StatementType",
     "SymbolContent",
     "SymbolType",
-    "Dependency",
+    "Requirement",
     "Tag",
     "TaggableMixin",
     "TaggedItem",

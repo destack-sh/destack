@@ -1,7 +1,12 @@
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType, type ProjectVersionAsDependencyFragment } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
-import { ProjectVersionAsDependencyType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import {
+  ProjectVersionAsDependencyType,
+  FileHeaderType,
+  StatementContentType,
+  StatementHeaderType,
+} from "@/state/fragments";
 import { SchemaContentType } from "@/state/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -235,14 +240,14 @@ export type StatementMetadata = {
   isArgument: boolean;
   isParameter: boolean;
   isImport: boolean;
-  isDependency: boolean;
+  isRequirement: boolean;
   isCompilation: boolean;
   isComment: boolean;
   isCommented: boolean;
   isDeleted: boolean;
   isRunnable: boolean;
   isAlias: boolean;
-  dependencyPath?: string | null;
+  requirementPath?: string | null;
   importPath?: string | null;
   parameters?: LocalStatementHeader[];
   arguments?: LocalStatementHeader[];
@@ -261,7 +266,7 @@ export function useStatementMetadata(
   const isRedefinition = computed(() => statement.value?.type == StatementType.Redefinition);
   const isDefinition = computed(() => statement.value?.type == StatementType.Definition || isRedefinition.value);
   const isReference = computed(() => statement.value?.type == StatementType.Reference || isRedefinition.value);
-  const isDependency = computed(() => statement.value?.type == StatementType.Dependency);
+  const isRequirement = computed(() => statement.value?.type == StatementType.Requirement);
   const isCompilation = computed(() => statement.value?.type == StatementType.Compilation);
   const isParameter = computed(() => isReference.value && statement.value.modifier == StatementModifier.With);
   const isArgument = computed(() => isDefinition.value && statement.value.modifier == StatementModifier.With);
@@ -278,9 +283,9 @@ export function useStatementMetadata(
   const isAlias = computed(
     () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
   );
-  const dependencyPath = computed(() => {
-    assert(isDependency.value, "statement is dependency");
-    const dependencyVersion = useFragment(ProjectVersionAsDependencyType, statement.value.dependency?.projectVersion);
+  const requirementPath = computed(() => {
+    assert(isRequirement.value, "statement is dependency");
+    const dependencyVersion = useFragment(ProjectVersionAsDependencyType, statement.value.requirement?.projectVersion);
     if (!dependencyVersion) {
       return null; // dependency not registered or not yet loaded
     } else {
@@ -321,7 +326,7 @@ export function useStatementMetadata(
     isRedefinition,
     isDefinition,
     isReference,
-    isDependency,
+    isRequirement,
     isCompilation,
     isArgument,
     isParameter,
@@ -331,7 +336,7 @@ export function useStatementMetadata(
     isDeleted,
     isRunnable,
     isAlias,
-    dependencyPath,
+    requirementPath,
     importPath,
     parameters,
     arguments: arguments_,

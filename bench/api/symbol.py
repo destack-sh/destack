@@ -38,7 +38,7 @@ class Statement(gql.relay.Node):
     referenced_by: list["Statement"]
     content: Optional["SymbolContent"]
     compilation: Optional[Annotated["Compilation", lazy(".compilation")]]
-    dependency: Optional["Dependency"]
+    requirement: Optional["Requirement"]
 
 
 @gql.django.interface(models.SymbolContent)
@@ -46,8 +46,8 @@ class SymbolContent(gql.Node):
     pass
 
 
-@gql.django.type(models.Dependency)
-class Dependency(gql.Node):
+@gql.django.type(models.Requirement)
+class Requirement(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
 
 

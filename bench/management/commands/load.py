@@ -124,7 +124,7 @@ def load(project_v: ProjectVersion, path: str):
         if library is None:
             raise ValueError(f"library {library_dependency.library} not found")
         library_v = library.head  # just use head
-        project_v.add_dependency(library_v, file=project_v.project_file)
+        project_v.add_requirement(library_v, file=project_v.project_file)
         logger.info(f"Import library {library_v}")
     executor = Executor(Resolver())
     # convert segments to a single task symbol tree
