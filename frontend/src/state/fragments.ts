@@ -167,7 +167,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     reference {
       ...StatementHeader
     }
-    dependency {
+    requirement {
       projectVersion {
         ...ProjectVersionAsDependency
       }

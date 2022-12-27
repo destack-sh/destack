@@ -16,7 +16,7 @@ from bench.api.model import Model
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.schema import Schema
-from bench.api.symbol import Dependency, Statement, StatementMutation
+from bench.api.symbol import Requirement, Statement, StatementMutation
 from bench.api.task import Task, TaskMutation
 from bench.api.user import User
 from bench.settings import DEBUG, TEST
@@ -71,5 +71,5 @@ schema = strawberry.Schema(
     Mutation,
     extensions=extensions,
     # add interface implementation types explicitly
-    types=[Schema, Task, Expectation, Code, Model, Dataset, Compilation, Dependency],
+    types=[Schema, Task, Expectation, Code, Model, Dataset, Compilation, Requirement],
 )

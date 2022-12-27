@@ -42,7 +42,7 @@ class StatementType(models.TextChoices):
     REFERENCE = "ref"  #
     REDEFINITION = "redef"  # =
     # non-symbol statements
-    DEPENDENCY = "dependency"  # use
+    REQUIREMENT = "requirement"  # require
     COMPILATION = "compilation"  # compile
     COMMENT = "comment"  # //
     BLANK = "blank"  # used while creating a new statement
@@ -281,15 +281,15 @@ class Statement(UUIDModel):
         "Compilation", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
     compilation_id: Optional[UUID]  # noqa via Statement.compilation
-    dependency = models.OneToOneField(
-        "Dependency", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+    requirement = models.OneToOneField(
+        "Requirement", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
-    dependency_id: Optional[UUID]  # noqa via Statement.dependency
+    requirement_id: Optional[UUID]  # noqa via Statement.requirement
 
     def deepcopy(
         self,
         to: Statement,
-        refs: dict[UUID, SymbolContent | Compilation | Dependency | Statement],
+        refs: dict[UUID, SymbolContent | Compilation | Requirement | Statement],
     ):
         # copy symbol content
         if self.type == StatementType.DEFINITION:
@@ -302,9 +302,9 @@ class Statement(UUIDModel):
             self.compilation.deepcopy(to=new_compilation, refs=refs)
             new_compilation.save()
         # copy dependency
-        if self.type == StatementType.DEPENDENCY:
-            new_dependency = refs[self.dependency_id]
-            self.dependency.deepcopy(to=new_dependency, refs=refs)
+        if self.type == StatementType.REQUIREMENT:
+            new_dependency = refs[self.requirement_id]
+            self.requirement.deepcopy(to=new_dependency, refs=refs)
             new_dependency.save()
 
         # reset symbol type since set_content nulls it
@@ -669,9 +669,9 @@ class SymbolContent(UUIDModel):
         abstract = True
 
 
-class Dependency(UUIDModel):
+class Requirement(UUIDModel):
     """
-    A dependency sets the version to use for a specific library (project).
+    A requirement sets the version to use for a specific library (project).
     The derived set of dependencies is copied into ProjectVersion.dependencies for performance.
     """
 
@@ -684,17 +684,19 @@ class Dependency(UUIDModel):
 def replace_refs(
     obj: models.Model,
     to: models.Model,
-    refs: dict[UUID, Statement | SymbolContent | Compilation | Dependency],
+    refs: dict[UUID, Statement | SymbolContent | Compilation | Requirement],
     include_one_to_many: bool = True,
     include_many_to_many: bool = True,
 ):
-    from bench.models import Compilation, Dependency  # avoid circular import
+    from bench.models import Compilation, Requirement  # avoid circular import
 
     """Replaces all references to symbols with the given refs (refs need not be complete)."""
     for field in obj._meta.get_fields():
         if field.related_model is None:
             continue
-        if not issubclass(field.related_model, (Statement, SymbolContent, Compilation, Dependency)):
+        if not issubclass(
+            field.related_model, (Statement, SymbolContent, Compilation, Requirement)
+        ):
             continue
         # if many to one
         if include_one_to_many and field.many_to_one:

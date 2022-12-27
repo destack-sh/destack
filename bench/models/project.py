@@ -13,7 +13,7 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models import Compilation
-from bench.models.symbol import Dependency, Statement, StatementType, SymbolContent, SymbolType
+from bench.models.symbol import Requirement, Statement, StatementType, SymbolContent, SymbolType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -168,7 +168,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
     def copy(
         self, source: ProjectVersion, target: ProjectVersion
-    ) -> dict[UUID, File | Statement | SymbolContent | Compilation | Dependency]:
+    ) -> dict[UUID, File | Statement | SymbolContent | Compilation | Requirement]:
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  This is awfully sequential and slow, particularly deepcopy of symbol contents.
         #  For one, we can likely just bulk save if we defer parent/child relations to a second pass.
@@ -186,7 +186,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         new_statements: dict[UUID, Statement] = {}
         new_contents: dict[UUID, SymbolContent] = {}
         new_compilations: dict[UUID, Compilation] = {}
-        new_dependencies: dict[UUID, Dependency] = {}
+        new_requirements: dict[UUID, Requirement] = {}
         for statement in walk_children_bfs(
             source.statements.filter(deleted_at=None, parent=None), "children"
         ):
@@ -194,8 +194,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             old_compilation = (
                 statement.compilation if statement.type == StatementType.COMPILATION else None
             )
-            old_dependency = (
-                statement.dependency if statement.type == StatementType.DEPENDENCY else None
+            old_requirement = (
+                statement.requirement if statement.type == StatementType.REQUIREMENT else None
             )
             # copy statement
             old_id = statement.id
@@ -205,7 +205,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statement.project_version = target
             statement.set_content(None)
             statement.compilation = None
-            statement.dependency = None
+            statement.requirement = None
             statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
             new_statements[old_id] = statement
@@ -225,18 +225,18 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 compilation.save()
                 statement.compilation = compilation
                 new_compilations[old_id] = compilation
-            # if statement is a dependency, copy dependency
-            if old_dependency is not None:
-                old_id = old_dependency.id
-                dependency = old_dependency
-                dependency.pk = None
-                dependency.save()
-                statement.dependency = dependency
-                new_dependencies[old_id] = dependency
+            # if statement is a requirement, copy requirement
+            if old_requirement is not None:
+                old_id = old_requirement.id
+                requirement = old_requirement
+                requirement.pk = None
+                requirement.save()
+                statement.requirement = requirement
+                new_requirements[old_id] = requirement
             statement.save()
-        refs: dict[UUID, File | SymbolContent | Dependency | Compilation | Statement] = {
+        refs: dict[UUID, File | SymbolContent | Requirement | Compilation | Statement] = {
             **new_contents,
-            **new_dependencies,
+            **new_requirements,
             **new_compilations,
             **new_statements,
             **new_files,
@@ -321,8 +321,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
         # only use one dependency statement per project, error if there are multiple
         dependency_by_project: dict[Project, ProjectVersion] = {}
-        for statement in self.statements.filter(type=StatementType.DEPENDENCY):
-            dependency = statement.dependency.project_version
+        for statement in self.statements.filter(type=StatementType.REQUIREMENT):
+            dependency = statement.requirement.project_version
             dependency_project = dependency.project
             if dependency_project in dependency_by_project:
                 raise ValueError(f"multiple dependency statements for project: {statement}")
@@ -404,21 +404,21 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         )
 
     @transaction.atomic
-    def add_dependency(
+    def add_requirement(
         self, dependency_v: ProjectVersion, file: File, index: Optional[int] = None
     ) -> Statement:
-        use = Dependency.objects.create(project_version=dependency_v)
-        use = Statement.objects.create_statement(
+        requirement = Requirement.objects.create(project_version=dependency_v)
+        statement = Statement.objects.create_statement(
             project_version=self,
             file=file,
             parent=None,
             index=index,
-            type=StatementType.DEPENDENCY,
-            dependency=use,
+            type=StatementType.REQUIREMENT,
+            requirement=requirement,
             name=dependency_v.project.name,
         )
         self.derive_dependencies()
-        return use
+        return statement
 
     def define_symbol(
         self,

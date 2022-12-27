@@ -93,12 +93,6 @@ export type DatasetRecord = Node & {
   index: Scalars["Int"];
 };
 
-export type Dependency = Node & {
-  __typename?: "Dependency";
-  id: Scalars["GlobalID"];
-  projectVersion: ProjectVersion;
-};
-
 export type Execution = Node & {
   __typename?: "Execution";
   children: Array<Execution>;
@@ -503,6 +497,12 @@ export type RenameFilePayload = File | OperationInfo;
 
 export type RenameStatementPayload = OperationInfo | Statement;
 
+export type Requirement = Node & {
+  __typename?: "Requirement";
+  id: Scalars["GlobalID"];
+  projectVersion: ProjectVersion;
+};
+
 export type RunCodeInput = {
   arguments: Array<RunCodeValueArgumentInput>;
   codeId: Scalars["GlobalID"];
@@ -567,7 +567,6 @@ export type Statement = Node & {
   content?: Maybe<SymbolContent>;
   createdAt: Scalars["DateTime"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
-  dependency?: Maybe<Dependency>;
   descendants: Array<Statement>;
   file: File;
   id: Scalars["GlobalID"];
@@ -578,6 +577,7 @@ export type Statement = Node & {
   projectVersion: ProjectVersion;
   reference?: Maybe<Statement>;
   referencedBy: Array<Statement>;
+  requirement?: Maybe<Requirement>;
   /** Traverses references to get the source definition. */
   sourceDefinition?: Maybe<Statement>;
   symbolType?: Maybe<SymbolType>;
@@ -697,10 +697,10 @@ export enum StatementType {
   Comment = "COMMENT",
   Compilation = "COMPILATION",
   Definition = "DEFINITION",
-  Dependency = "DEPENDENCY",
   Import = "IMPORT",
   Redefinition = "REDEFINITION",
   Reference = "REFERENCE",
+  Requirement = "REQUIREMENT",
 }
 
 export type SymbolContent = {
@@ -1022,8 +1022,8 @@ export type StatementContentFragment = {
   reference?:
     | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
     | null;
-  dependency?: {
-    __typename?: "Dependency";
+  requirement?: {
+    __typename?: "Requirement";
     projectVersion: { __typename?: "ProjectVersion" } & {
       " $fragmentRefs"?: { ProjectVersionAsDependencyFragment: ProjectVersionAsDependencyFragment };
     };
@@ -1956,7 +1956,7 @@ export const StatementContentFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "dependency" },
+            name: { kind: "Name", value: "requirement" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [

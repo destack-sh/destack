@@ -372,8 +372,8 @@ watchEffect(() => {
         aliasContent.value = "";
       }
     }
-  } else if (statement.value.type == StatementType.Dependency) {
-    declarationContent.value = meta.dependencyPath
+  } else if (statement.value.type == StatementType.Requirement) {
+    declarationContent.value = meta.requirementPath ?? "";
   }
 });
 
@@ -602,7 +602,7 @@ async function morphToBlank() {
         </span>
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
-        <span class="mr-1 text-orange-600" v-if="meta.isDependency">use</span>
+        <span class="mr-1 text-orange-600" v-if="meta.isRequirement">require</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
         <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
         <!-- Editable statement main part -->

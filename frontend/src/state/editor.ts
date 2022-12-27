@@ -69,7 +69,7 @@ export type RunConfiguration = {
 export type ViewId = "explorer" | "history";
 
 export type Editor = {
-  type: "file" | "symbol" | "run";
+  type: "file" | "run";
   id: string;
   path: string;
   scroll?: { x: number; y: number };
