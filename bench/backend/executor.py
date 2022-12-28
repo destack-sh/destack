@@ -15,7 +15,6 @@ import structlog
 from bench.backend.builtins import code_builtins
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
-from bench.backend.resolver import Resolver
 from bench.backend.tracing import (
     ExecutionTrace,
     ExecutionTracer,
@@ -227,7 +226,7 @@ class Proxy:
 
 
 class Executor:
-    def __init__(self, resolver: Resolver):
+    def __init__(self):
         # TODO @Security: don't pass internal secrets to workers via environment variables
         self.providers: dict[ProviderKey, ModelProvider] = {
             ProviderKey.OPENAI: OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"]),
@@ -235,7 +234,6 @@ class Executor:
         self.can_exec = DEBUG or TEST  # or sandboxed
         self.static_builtins = {**code_builtins}
         self.default_imports: dict = {Model: ModelHandle, Dataset: RecordBatch}
-        self.resolver = resolver
 
     async def _load_arguments(
         self, arguments: dict[str, Value | SymbolContent], proxy: Proxy

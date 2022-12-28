@@ -4,11 +4,11 @@ from typing import Any
 
 from django.db import models
 
-from bench.models.symbol import Statement, SymbolType
+from bench.models.symbol import Statement, SymbolContent, SymbolType
 from bench.models.utils import UUIDModel
 
 
-class Compilation(UUIDModel):
+class Compilation(SymbolContent):
     """
     A compilation translates a task with a template code tree (code) into a runnable code.
 

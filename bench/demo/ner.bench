@@ -1,0 +1,20 @@
+--- project.bench ---
+# Basic NER example
+require openai.stdlib@latest
+require symbolx.stdlib@latest
+
+# Compilations
+import task ner from .main
+import text-davinci-003 from openai.stdlib.text
+
+compile prod = ner:
+    with model text-davinci-003
+
+--- main.instruct ---
+schema entity:
+`{}`
+
+task ner:
+`Extract the entities from the text`
+    schema ner:
+    `{}`
