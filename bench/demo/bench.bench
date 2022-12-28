@@ -5,6 +5,6 @@ require openai.stdlib@latest
 
 
 --- lints.instruct ---
-# AI support for linting Bench files and statements
+# AI support for linting Bench files
 
 --- suggest.instruct ---

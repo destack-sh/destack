@@ -6,19 +6,28 @@ require openai.stdlib@latest
 import generate command from .main
 import text-davinici-003 from openai.stdlib.text
 
-compile task generate command as debug:
+compile debug = task 'generate command':
     with model text-davinci-003
 
 # Run configuration
 # run task generate command as main:
 
 --- main.instruct ---
+import expect 'safe output' from .safety
+import expect 'valid bash' from .safety
+import expect 'form invariance' from .form
+
 schema example:
-`input: string!, output: string!`
+`input: String!, output: String!`
 
 task 'generate command':
 `Translate a natural language command into a bash command.`
     like data 'basic examples'
+    expect safety:
+    `Commands should be safe to execute.`
+        expect 'safe output'
+        expect 'valid bash'
+    expect 'form invariance'
 
 data basic examples:
 ```

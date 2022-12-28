@@ -1,8 +1,11 @@
 import sys
 
 from django.core.management import BaseCommand
+from rich.console import Console
+from rich.table import Table
 
-from bench.language.lex import SourceFile, lex
+from bench.language.lex import SourceFile, Token, TokenType, lex
+from bench.language.parse import parse
 
 
 class Command(BaseCommand):
@@ -20,7 +23,29 @@ class Command(BaseCommand):
                 string = f.read()
         source_file = SourceFile(path=path if path != "-" else "<stdin>", content=string)
 
-        print(repr(source_file))
+        console = Console()
 
         tokens = lex(source_file)
-        print("\n".join(map(str, tokens)))
+        console.print(pprint_tokens(tokens))
+
+        files = parse(tokens)
+
+
+def pprint_tokens(tokens: list[Token]) -> Table:
+    table = Table(title=f"{len(tokens)} tokens")
+    table.add_column("Type", style="yellow")
+    table.add_column("Value", style="dim")
+    table.add_column("Location", style="green")
+    current_file = None
+    for token in tokens:
+        if token.type == TokenType.WHITESPACE:
+            continue
+        if token.source_file != current_file:
+            current_file = token.source_file
+            table.add_row("---", f"[bold]{current_file.path}[/bold]", "---")
+        table.add_row(
+            token.type.name,
+            token.value_truncated,
+            token.location_in_file,
+        )
+    return table
