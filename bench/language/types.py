@@ -77,7 +77,6 @@ class Statement:
 
 @dataclass(repr=False)
 class SymbolContent:
-    definition_id: UUID
     id: UUID
     type: SymbolType
 

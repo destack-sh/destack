@@ -18,7 +18,7 @@ import expect 'valid bash' from .safety
 import expect 'form invariance' from .form
 
 schema example:
-`input: String!, output: String!`
+`input: String!; output: String!`
 
 task 'generate command':
 `Translate a natural language command into a bash command.`
@@ -29,7 +29,7 @@ task 'generate command':
         expect 'valid bash'
     expect 'form invariance'
 
-data basic examples:
+data 'basic examples':
 ```
 {"input":"list files in the current directory","output":"ls -l"}
 {"input":"revert commit","output":"git revert"}
