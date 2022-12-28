@@ -224,6 +224,7 @@ class Statement(UUIDModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     text = models.TextField(null=True, blank=True)  # as markdown
+    value = models.JSONField(null=True, blank=True)
     schema = models.OneToOneField(
         "Schema", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )

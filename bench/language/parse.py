@@ -460,7 +460,7 @@ def _parse_statement(
 
 
 def resolve(files: list[File]):
-    """Resolve references"""
+    """Resolve references across files."""
     files: dict[UUID, File] = {}
     statements: dict[UUID, Statement] = {}
 

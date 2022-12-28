@@ -76,6 +76,19 @@ class File:
         return f"<File {self.path}>"
 
     @property
+    def extension(self) -> str:
+        if "." not in self.path:
+            raise ValueError(f"{self} has no extension")
+        return self.path.split(".")[-1]
+
+    @property
+    def path_without_extension(self) -> str:
+        if "." in self.path:
+            return self.path[: -len(self.extension) - 1]
+        else:
+            return self.path
+
+    @property
     def root_statements(self) -> list[Statement]:
         return [statement for statement in self.statements if statement.parent is None]
 
@@ -95,7 +108,7 @@ class Statement:
     text: Optional[str] = None
     value: Optional[dict] = None
     symbol_type: Optional[SymbolType] = None
-    content: Optional[SymbolContent] = None
+    content: Optional[SymbolContent | Requirement | Compilation | RunConfiguration] = None
     reference: Optional[Statement | UnresolvedStatement] = None
     requirement: Optional[Requirement] = None
     compilation: Optional[Compilation] = None
@@ -240,22 +253,23 @@ class Code(SymbolContent):
 class Requirement:
     name: str
     version: str
+    project_version_id: Optional[UUID] = None
+    id: UUID = field(default_factory=uuid.uuid4)
 
 
 @dataclass(repr=False)
 class RunConfiguration:
-    pass
+    id: UUID = field(default_factory=uuid.uuid4)
 
 
 @dataclass(repr=False)
 class Compilation:
-    id: UUID
-    source_mappings: list["SourceMapping"]
+    id: UUID = field(default_factory=uuid.uuid4)
+    source_mappings: list["SourceMapping"] = field(default_factory=list)
 
 
 @dataclass(repr=False)
 class SourceMapping:
-    id: UUID
     source_id: UUID
     source: Statement
     source_revision: int
@@ -264,3 +278,4 @@ class SourceMapping:
     target: Statement
     target_revision: int
     target_path: dict
+    id: UUID = field(default_factory=uuid.uuid4)

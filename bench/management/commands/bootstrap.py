@@ -6,7 +6,9 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.management.commands.load import load
+from bench.backend.resolver import write
+from bench.language import lex, parse
+from bench.language.lex import SourceFile
 from bench.models import Model, ModelInferenceSettings, Organization, Project
 from bench.models.model import ProviderKey
 from bench.models.project import FileType, ProjectType, ProjectVersion
@@ -53,7 +55,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, force: bool, *args, **options):
         create_model_providers()
-        create_symbolx_stdlib("bench/demo/stdlib.py", overwrite=force)
+        create_symbolx_stdlib("bench/demo/stdlib.bench", overwrite=force)
 
 
 @transaction.atomic
@@ -77,7 +79,9 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
 
     stdlib_v.reset()
     stdlib_v.bootstrap()
-    load(stdlib_v, path)
+    source_file = SourceFile(path=path, content=Path(path).read_text())
+    language_files = parse(lex(source_file), strip_whitespace=True)
+    write(language_files, stdlib_v)
 
     # advance head
     stdlib_v.commit(name=version_id)

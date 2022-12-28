@@ -7,7 +7,7 @@ from bench.backend.executor import Executor
 from bench.backend.resolver import Resolver
 from bench.models import Project
 
-executor = Executor(Resolver())
+executor = Executor()
 
 
 # TODO @Performance: execute run program endpoint non-blocking (async)
