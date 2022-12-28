@@ -39,7 +39,7 @@ export type StatementHeader = Pick<
 export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
   [FileType.Directory]: "",
   [FileType.Instruct]: "instruct",
-  [FileType.Project]: "meta",
+  [FileType.Project]: "bench",
 };
 export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
   [SymbolType.Schema]: "schema",
