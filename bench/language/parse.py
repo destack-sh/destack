@@ -9,17 +9,43 @@ from typing import Optional
 import structlog
 
 from bench.language.lex import Token, TokenType, get_location_range_pointer
-from bench.language.types import Dataset, File, StatementType, SymbolContent, SymbolType
+from bench.language.types import (
+    Code,
+    Dataset,
+    Expectation,
+    File,
+    Schema,
+    StatementModifier,
+    StatementType,
+    SymbolContent,
+    SymbolType,
+    Task,
+    Value,
+)
+from bench.utils.record import RecordList
 
 logger = structlog.get_logger(__name__)
 
 
 class ParseError(ValueError):
-    def __init__(self, message: str, token: Optional[Token], context: Optional[str] = None):
-        super().__init__(
-            message + ParseError.token_context(token) + (f"\n{context}" if context else "")
-        )
+    def __init__(
+        self,
+        message: str,
+        token: Optional[Token],
+        cause: Optional[Exception] = None,
+        context: Optional[dict] = None,
+    ):
+        super().__init__(self._to_message(message, token, cause))
         self.token = token
+        self.cause = cause
+        self.context = context
+
+    def _to_message(self, message: str, token: Optional[Token], cause: Optional[dict]):
+        return (
+            message
+            + ParseError.token_context(token)
+            + (f"\npossible cause: {cause}" if cause else "")
+        )
 
     @staticmethod
     def token_context(token: Optional[Token]) -> str:
@@ -39,12 +65,16 @@ class ParseError(ValueError):
 @dataclass
 class ProtoFile:
     path: str
-    statements: list[ProtoStatement] = field(default_factory=list)
+    statements: list[ProtoStatement] = field(default_factory=list, repr=False)
+
+    def __str__(self):
+        return self.path
 
 
 @dataclass
 class ProtoStatement:
     type: StatementType
+    modifier: Optional[StatementModifier] = None
     parent: Optional[ProtoStatement] = None
     index: Optional[int] = None
     name: Optional[str] = None
@@ -80,15 +110,20 @@ class ProtoParse:
     files: dict[str, ProtoFile] = field(default_factory=dict)  # by path
 
 
-def parse(tokens: list[Token]) -> list[File]:
+def parse(tokens: list[Token], strip_whitespace: bool) -> list[File]:
     """Parse a stream of tokens into Bench AST (with top-level files)."""
     if len(tokens) == 0:
         return []
 
+    if strip_whitespace:
+        tokens = [t for t in tokens if t.type != TokenType.WHITESPACE]
+
     # first pass: extract files and statements
-    proto = _parse_proto(tokens)
+    proto = preparse(tokens)
 
     # second pass: resolve statements into AST by resolving references
+    files = resolve(proto)
+    return files
 
 
 class TokenEater:
@@ -102,7 +137,7 @@ class TokenEater:
         self._start_pos = start_pos
         self._mark_pos = start_pos
         self._peek_pos = start_pos
-        self._indent_level = indent_level
+        self.indent_level = indent_level
         self.reset()
 
     def mark(self):
@@ -145,11 +180,12 @@ class TokenEater:
             self._peek_pos += 1
 
         # skip indentation
-        if self._indent_level != 0:
+        if self.indent_level != 0:
             prev_pos = self._peek_pos
-            for _ in range(self._indent_level):
+            for _ in range(self.indent_level):
                 if _get(TokenType.INDENT) is None:
                     self._peek_pos = prev_pos  # rewind
+                    break
                 self._peek_pos += 1
 
     def peek(self) -> Optional[Token]:
@@ -166,34 +202,44 @@ class TokenEater:
         self._advance()
         return peek_token
 
-    def peek_type(self, type: TokenType) -> Optional[Token]:
-        token = self.peek()
-        return token if token is not None and token.type == type else None
-
-    def peek_keyword(self, keyword: str | enum.Enum) -> Optional[Token]:
-        if isinstance(keyword, enum.Enum):
-            keyword = keyword.value
-        token = self.peek_type(TokenType.KEYWORD)
-        if token is None or token.value != keyword:
-            return None
-        return token
-
     def eat_whitespace(self) -> Token:
         return self.eat_type(TokenType.WHITESPACE)
 
     def eat_indent(self) -> Token:
         return self.eat_type(TokenType.INDENT)
 
+    def peek_type(self, type: TokenType) -> Optional[Token]:
+        token = self.peek()
+        return token if token is not None and token.type == type else None
+
     def eat_type(self, type: TokenType) -> Token:
         token = self.eat()
         if token.type != type:
-            raise ParseError(f"expected {type}", token)
+            raise ParseError(f"expected {type.value}", token)
+        return token
+
+    def peek_keyword(self, keyword: str | enum.Enum) -> Optional[Token]:
+        token = self.peek_type(TokenType.KEYWORD)
+        if token is None or token.value != keyword:
+            return None
         return token
 
     def eat_keyword(self, keyword: str | enum.Enum) -> Token:
         token = self.eat_type(TokenType.KEYWORD)
         if token.value != keyword:
-            raise ParseError(f"expected {TokenType.KEYWORD} {keyword}", token)
+            raise ParseError(f"expected {TokenType.KEYWORD.value} {keyword}", token)
+        return token
+
+    def peek_keyword_like(self, keyword_cls: typing.Type[enum.Enum]) -> Optional[Token]:
+        token = self.peek_type(TokenType.KEYWORD)
+        if token is None or not isinstance(token.value, keyword_cls):
+            return None
+        return token
+
+    def eat_keyword_like(self, keyword_cls: typing.Type[enum.Enum]) -> Token:
+        token = self.eat_type(TokenType.KEYWORD)
+        if not isinstance(token.value, keyword_cls):
+            raise ParseError(f"expected {TokenType.KEYWORD.value} {keyword_cls}", token)
         return token
 
     def eat_identifier(self) -> Token:
@@ -204,14 +250,14 @@ class TokenEater:
             separator = separator.value
         token = self.eat_type(TokenType.SEPARATOR)
         if token.value != separator:
-            raise ParseError(f"expected {TokenType.SEPARATOR} {separator}", token)
+            raise ParseError(f"expected {TokenType.SEPARATOR.value} {separator}", token)
         return token
 
     def eat_literal(self) -> Token:
         return self.eat_type(TokenType.LITERAL)
 
 
-def _parse_proto(tokens: list[Token]) -> ProtoParse:
+def preparse(tokens: list[Token]) -> ProtoParse:
     proto = ProtoParse()
 
     eater = TokenEater(tokens, start_pos=0, indent_level=0)
@@ -243,12 +289,24 @@ def _parse_proto(tokens: list[Token]) -> ProtoParse:
             if len(ancestors) < indent:
                 raise ParseError("unexpected indent level", eater.peek())
 
-            local_errors = []
-            eater.mark()
-            statement = _parse_statement(eater, on_error=lambda p, e: local_errors.append((p, e)))
+            local_errors = []  # (parser name, pos, error)
+            eater.indent_level = indent
+            statement = _parse_statement(
+                eater, on_error=lambda p, c, e: local_errors.append((p, c, e))
+            )
+            eater.indent_level = 0  # skip only for statement parsing
             if statement is None:
-                context = "\n".join(f"{parser}:\n{error}" for parser, error in local_errors)
-                raise ParseError(f"unexpected statement", eater.peek(), f"local errors:\n{context}")
+                # sort by parsed pos descending (get the furthest error)
+                local_errors.sort(key=lambda e: e[1], reverse=True)
+                likely_error = (
+                    local_errors[0][2] if local_errors[0][1] > local_errors[-1][1] else None
+                )
+                raise ParseError(
+                    f"unexpected statement",
+                    eater.peek(),
+                    cause=likely_error,
+                    context={"local_errors": local_errors},
+                )
             statement._source = eater.eaten
             file.statements.append(statement)
 
@@ -282,7 +340,8 @@ def _parse_requirement(tokens: TokenEater) -> ProtoStatement:
 
 def _parse_import(tokens: TokenEater) -> ProtoStatement:
     tokens.eat_keyword(StatementType.IMPORT)
-    reference = tokens.eat_identifier().value
+    symbol_type = tokens.eat_keyword_like(SymbolType)
+    reference = tokens.eat_identifier()
     if tokens.peek_keyword("as"):
         tokens.eat_keyword("as")
         alias = tokens.eat_identifier()
@@ -290,41 +349,116 @@ def _parse_import(tokens: TokenEater) -> ProtoStatement:
         alias = reference.value
     tokens.eat_keyword("from")
     source = tokens.eat_identifier().value
-    return ProtoStatement(type=StatementType.IMPORT, name=alias, reference=(reference, source))
-
-
-def _parse_definition_dataset(tokens: TokenEater) -> ProtoStatement:
-    tokens.eat_keyword("data")
-    name = tokens.eat_identifier()
-    tokens.eat_separator(":")
-    value = tokens.eat_literal()
-    # parse as jsonl
-    records = []
-    for value_line in value.value.strip().splitlines():
-        try:
-            records.append(json.loads(value_line.strip()))
-        except json.JSONDecodeError as e:
-            raise ParseError(f"failed to parse jsonl: {e}", value)
-    dataset = Dataset(records=records)
     return ProtoStatement(
-        type=StatementType.DEFINITION,
-        name=name.value,
-        symbol_type=SymbolType.DATASET,
-        content=dataset,
+        type=StatementType.IMPORT,
+        name=alias,
+        symbol_type=symbol_type.value,
+        reference=(reference.value, source),
     )
 
 
-# in parse order
-STATEMENT_PARSERS = [_parse_comment, _parse_requirement, _parse_definition_dataset, _parse_import]
+def _parse_definition(tokens: TokenEater) -> ProtoStatement:
+    if tokens.peek_keyword_like(StatementModifier):
+        modifier = tokens.eat_keyword_like(StatementModifier).value
+        if not isinstance(modifier, StatementModifier):
+            raise ParseError("expected statement modifier", modifier)
+    else:
+        modifier = None
+    symbol_type = tokens.eat_keyword_like(SymbolType)
+    name = tokens.eat_identifier()
+    tokens.eat_separator(":")
+    literal = tokens.eat_literal()
+    if symbol_type.value == SymbolType.SCHEMA:
+        try:
+            element = json.loads(literal.value)
+        except json.JSONDecodeError as e:
+            raise ParseError("failed to parse schema element", literal) from e
+        content = Schema(type=SymbolType.SCHEMA, description="", element=element)
+    elif symbol_type.value == SymbolType.TASK:
+        content = Task(type=SymbolType.TASK, description=literal.value)
+    elif symbol_type.value == SymbolType.EXPECTATION:
+        content = Expectation(type=SymbolType.EXPECTATION, description=literal.value)
+    elif symbol_type.value == SymbolType.CODE:
+        content = Code(
+            type=SymbolType.CODE, code_function_name=None, builtin_id=None, code_text=literal.value
+        )
+    elif symbol_type.value == SymbolType.DATASET:
+        try:  # parse as jsonl
+            records = []
+            for value_line in literal.value.strip().splitlines():
+                records.append(json.loads(value_line.strip()))
+            content = Dataset(type=SymbolType.DATASET, records=RecordList(records))
+        except json.JSONDecodeError as e:
+            raise ParseError(f"failed to parse jsonl: {e}", literal)
+    elif symbol_type.value == SymbolType.VALUE:
+        try:  # parse as json
+            value = json.loads(literal.value)
+            content = Value(type=SymbolType.VALUE, value=value)
+        except json.JSONDecodeError as e:
+            raise ParseError(f"failed to parse json: {e}", literal)
+    else:
+        raise ParseError(f"unexpected symbol type {symbol_type.value}", symbol_type)
+
+    return ProtoStatement(
+        type=StatementType.DEFINITION,
+        modifier=modifier,
+        name=name.value,
+        symbol_type=SymbolType.DATASET,
+        content=content,
+    )
+
+
+def _parse_reference(tokens: TokenEater) -> ProtoStatement:
+    if tokens.peek_keyword_like(StatementModifier):
+        modifier = tokens.eat_keyword_like(StatementModifier).value
+        if not isinstance(modifier, StatementModifier):
+            raise ParseError("expected statement modifier", modifier)
+    else:
+        modifier = None
+    symbol_type = tokens.eat_keyword_like(SymbolType)
+    name = tokens.eat_identifier()
+    return ProtoStatement(
+        type=StatementType.REFERENCE,
+        modifier=modifier,
+        name=name.value,
+        symbol_type=symbol_type.value,
+    )
+
+
+def _parse_compile(tokens: TokenEater) -> ProtoStatement:
+    tokens.eat_keyword(StatementType.COMPILATION)
+    name = tokens.eat_identifier()
+    tokens.eat_separator("=")
+    symbol_type = tokens.eat_keyword_like(SymbolType)
+    reference = tokens.eat_identifier()
+    tokens.eat_separator(":")
+    return ProtoStatement(
+        type=StatementType.COMPILATION,
+        name=name.value,
+        symbol_type=symbol_type.value,
+        reference=reference.value,
+    )
 
 
 def _parse_statement(
-    eater: TokenEater, on_error: typing.Callable[[str, ParseError], None]
+    eater: TokenEater, on_error: typing.Callable[[str, int, ParseError], None]
 ) -> Optional[ProtoStatement]:
-    for parser in STATEMENT_PARSERS:
+    eater.mark()
+    for parser in [
+        _parse_comment,
+        _parse_requirement,
+        _parse_compile,
+        _parse_definition,
+        _parse_reference,
+        _parse_import,
+    ]:
         try:
             return parser(eater)
         except ParseError as e:
-            on_error(parser.__name__, e)
+            on_error(parser.__name__, eater.current_pos, e)
             eater.reset()
     return None
+
+
+def resolve(proto: ProtoParse) -> list[File]:
+    return []
