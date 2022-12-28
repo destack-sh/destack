@@ -3,7 +3,7 @@
 require openai.stdlib@latest
 
 --- temperature.instruct ---
-import text-davinci-003 as model from openai.stdlib.text
+import text-davinci-003 as llm from openai.stdlib.text
 
 data 'temperature examples':
 ```
@@ -22,7 +22,7 @@ value temperature_map:
 code get_temperature:
 ```
 temperature_label = await llm_classify(
-    model,
+    llm,
     text=description,
     examples=temperature_examples,
     prompt_prefix="Assess the temperature (that is, the desired degree of variation or creativity required)",

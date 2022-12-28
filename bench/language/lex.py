@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 import re
 from dataclasses import dataclass
@@ -13,8 +15,7 @@ class SourceFile:
     content: str
 
     def __str__(self):
-        linecount = len(self.linebreaks)
-        return f"{self.path} ({linecount} lines)"
+        return f"{self.path} ({len(self.linebreaks)} lines, {len(self.content)} characters)"
 
     def __repr__(self):
         # truncate content on both sides
@@ -42,16 +43,52 @@ class SourceFile:
             linebreaks.append(match.end())
         return linebreaks
 
+    def line(self, index: int) -> str:
+        if index >= len(self.linebreaks):
+            raise IndexError(f"line {index} does not exist")
+        elif index == len(self.linebreaks) - 1:
+            return self.content[self.linebreaks[index] :]
+        else:
+            return self.content[self.linebreaks[index] : self.linebreaks[index + 1]]
+
 
 class TokenType(enum.Enum):
     NEW_FILE = "new_file"
     INDENT = "indent"
     COMMENT = "comment"
-    BLANK = "blank"
+    WHITESPACE = "whitespace"
     KEYWORD = "keyword"
     SEPERATOR = "seperator"
     IDENTIFIER = "identifier"
     LITERAL = "literal"
+
+
+@dataclass
+class Token:
+    source_file: SourceFile
+    line_number: int
+    line_span: int
+    start_column: int
+    end_column: int
+    type: TokenType
+    value: Optional[str | enum.Enum]
+
+    def __str__(self):
+        # truncate value if too long
+        max_length = 100
+        if self.value is None:
+            value = "<none>"
+        elif len(self.value) > max_length:
+            value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2 :]}"
+        else:
+            value = self.value
+        # replace newlines with literal \n
+        value = value.replace("\n", "\\n")
+        if self.line_span > 1:
+            loc = f"{self.line_number}:{self.start_column}-{self.line_number + self.line_span}:{self.end_column}"
+        else:
+            loc = f"{self.line_number}:{self.start_column}-{self.end_column}"
+        return f"{self.type.name} {value} ({self.source_file.path} {loc})"
 
 
 class SyntaxError(ValueError):
@@ -60,9 +97,18 @@ class SyntaxError(ValueError):
 
 KEYWORDS = {
     # StatementModifier
-    **{modifier.value: modifier for modifier in StatementModifier},
+    "with": StatementModifier.WITH,
+    "like": StatementModifier.LIKE,
+    "unlike": StatementModifier.UNLIKE,
+    "verify": StatementModifier.VERIFY,
     # SymbolType
-    **{symbol_type.value: symbol_type for symbol_type in SymbolType},
+    "schema": SymbolType.SCHEMA,
+    "task": SymbolType.TASK,
+    "expect": SymbolType.EXPECTATION,
+    "code": SymbolType.CODE,
+    "model": SymbolType.MODEL,
+    "data": SymbolType.DATASET,
+    "value": SymbolType.VALUE,
     # Other
     "as": None,
     "from": None,
@@ -71,35 +117,35 @@ KEYWORDS = {
     "run": StatementType.RUNCONFIG,
     "compile": StatementType.COMPILATION,
 }
-SEPARATORS = {":", "=", "\n"}
+SEPARATORS = {":", "=", "@"}
 
 
+# any whitespace
+WHITESPACE_REGEX = re.compile(r"\s+", re.MULTILINE)
 # new file like --- <path> ---
-NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>.*)\s*---$", re.MULTILINE)
+NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>[\w\.-]*)\s*---$", re.MULTILINE)
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"^(?P<value> {4}|\t)")
 # comment like # <comment>
 COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
-# blank lines
-BLANK_REGEX = re.compile(r"^\s*$", re.MULTILINE)
 # keywords from set
 KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")")
 # seperator from set
 SEPERATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # identifier like <12na_me-> or <name_.name> or '<name name name>'
 # (allowed characters: a-z, A-Z, 0-9, _, -, . and whitespace in quotes)
-IDENTIFIER_REGEX = re.compile(r"(?P<value>'([a-zA-Z_][ a-zA-Z0-9_]')|([a-zA-Z_][a-zA-Z0-9_.-]*))")
+IDENTIFIER_REGEX = re.compile(r"(?P<value>('\w[ \w.\-]*')|(\w[\w.-]*))")
 # literal as `<value>` or ^```<multiline\n value>```$
 # (two separate regexes to avoid multiline matching with re.DOTALL)
-MULTILINE_LITERAL_REGEX = re.compile(r"^```(?P<value>.*)```$", re.DOTALL | re.MULTILINE)
+MULTILINE_LITERAL_REGEX = re.compile(r"^```(?P<value>.*?)```$", re.DOTALL | re.MULTILINE)
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`]+)`")
 
 # token type + corresponding pattern in lex order
 PATTERNS = [
+    (TokenType.WHITESPACE, WHITESPACE_REGEX),  # eat any whitespace
     (TokenType.NEW_FILE, NEW_FILE_REGEX),
     (TokenType.INDENT, INDENT_REGEX),
     (TokenType.COMMENT, COMMENT_REGEX),
-    (TokenType.BLANK, BLANK_REGEX),
     (TokenType.KEYWORD, KEYWORD_REGEX),
     (TokenType.SEPERATOR, SEPERATOR_REGEX),
     (TokenType.IDENTIFIER, IDENTIFIER_REGEX),
@@ -108,67 +154,67 @@ PATTERNS = [
 ]
 
 
-@dataclass
-class Token:
-    source_file: SourceFile
-    line_number: int
-    line_span: int
-    start_column: Optional[int]
-    end_column: Optional[int]
-    type: TokenType
-    value: Optional[str]
-
-    def __str__(self):
-        return f"{self.type.name} {self.value!r} ({self.line_number}:{self.start_column}-{self.end_column})"
-
-
-def lex(source_file: SourceFile) -> list[Token]:
+def lex(source: SourceFile) -> list[Token]:
     """Lex a source file into a list of tokens."""
     tokens = []
 
     prev_token = None
     while True:
-        token = _lex_token(source_file, prev_token)
+        if prev_token is None:
+            line_number = 1
+            start_column = 0
+        else:
+            line_number = prev_token.line_number + prev_token.line_span
+            start_column = prev_token.end_column
+
+        current_pos = source.linebreaks[line_number - 1] + start_column
+        token = _lex_token(source, current_pos)
         if token is None:
-            break
-        tokens.append(token)
+            # if we're at the end of the file, we're done
+            if current_pos >= len(source.content):
+                break
+            else:  # otherwise, we have an error
+                prev_lines = "".join(
+                    source.line(line_number - i - 1) for i in reversed(range(0, 4))
+                )
+                if not prev_lines.endswith("\n"):
+                    prev_lines = prev_lines + "\n"
+                context = f"{prev_lines}{'-' * start_column}^"
+                raise SyntaxError(
+                    f"unknown token at {line_number}:{start_column} in {source.path}:\n{context}"
+                )
+        if token.type != TokenType.WHITESPACE:
+            tokens.append(token)
+            print(token)
         prev_token = token
 
     return tokens
 
 
-def _lex_token(source_file: SourceFile, prev_token: Optional[Token]) -> Optional[Token]:
+def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
     """Lex a single token from a source file."""
-    if prev_token is None:
-        line_number = 0
-        start_column = 0
-    else:
-        line_number = prev_token.line_number
-        start_column = prev_token.end_column
-
-    current_pos = source_file.linebreaks[line_number] + start_column
     # try to match a pattern (once at current position)
     for token_type, pattern in PATTERNS:
-        match = pattern.match(source_file.content, current_pos)
+        match = pattern.match(source.content, current_pos)
         if match is not None:
             break
     else:
-        preview_length = 35
-        next_few_chars = source_file.content[current_pos : current_pos + preview_length]
-        if len(next_few_chars) == preview_length:
-            next_few_chars += "..."
-        raise SyntaxError(
-            f"unknown token at {line_number}:{start_column} in {source_file.path}: {next_few_chars!r}"
-        )
+        return None
 
-    # create token
-    value = match.group("value")
+    # create token (with value if group "value" exists)
+    value = match.group("value") if "value" in match.groupdict() else None
+    if token_type == TokenType.KEYWORD and KEYWORDS.get(value) is not None:
+        value = KEYWORDS[value]
+    line_number = source.content.count("\n", 0, match.start()) + 1
+    line_span = source.content.count("\n", current_pos, match.end())
+    start_column = match.start() - source.linebreaks[line_number - 1]
+    end_column = match.end() - source.linebreaks[line_number + line_span - 1]
     return Token(
-        source_file=source_file,
+        source_file=source,
         line_number=line_number,
-        line_span=source_file.content.count("\n", current_pos, match.end()),
+        line_span=line_span,
         start_column=start_column,
-        end_column=start_column + len(value),
+        end_column=end_column,
         type=token_type,
         value=value,
     )
