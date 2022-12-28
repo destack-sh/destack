@@ -257,7 +257,19 @@ class TokenEater:
         return self.eat_type(TokenType.LITERAL)
 
 
+def _clean_literal_indent(text: str, indent_level: int) -> str:
+    """Removes indentation up to the given level (4 spaces or 1 tab)."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith(" " * 4 * indent_level):
+            lines[i] = line[indent_level * 4 :]
+        elif line.startswith("\t" * indent_level):
+            lines[i] = line[indent_level:]
+    return "\n".join(lines)
+
+
 def preparse(tokens: list[Token]) -> ProtoParse:
+    """Map tokens into proto files and statements with unresolved references."""
     proto = ProtoParse()
 
     eater = TokenEater(tokens, start_pos=0, indent_level=0)
@@ -302,7 +314,7 @@ def preparse(tokens: list[Token]) -> ProtoParse:
                     local_errors[0][2] if local_errors[0][1] > local_errors[-1][1] else None
                 )
                 raise ParseError(
-                    f"unexpected statement",
+                    "unexpected statement",
                     eater.peek(),
                     cause=likely_error,
                     context={"local_errors": local_errors},
@@ -322,6 +334,7 @@ def _parse_comment(tokens: TokenEater) -> ProtoStatement:
 
 
 def _parse_requirement(tokens: TokenEater) -> ProtoStatement:
+    """Parse a requirement statement."""
     tokens.eat_keyword(StatementType.REQUIREMENT)
     dependency = tokens.eat_identifier()
     if tokens.peek_keyword("as"):
@@ -339,6 +352,7 @@ def _parse_requirement(tokens: TokenEater) -> ProtoStatement:
 
 
 def _parse_import(tokens: TokenEater) -> ProtoStatement:
+    """Parse an import statement."""
     tokens.eat_keyword(StatementType.IMPORT)
     symbol_type = tokens.eat_keyword_like(SymbolType)
     reference = tokens.eat_identifier()
@@ -358,6 +372,7 @@ def _parse_import(tokens: TokenEater) -> ProtoStatement:
 
 
 def _parse_definition(tokens: TokenEater) -> ProtoStatement:
+    """Parses a symbol definition statement."""
     if tokens.peek_keyword_like(StatementModifier):
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
@@ -379,8 +394,9 @@ def _parse_definition(tokens: TokenEater) -> ProtoStatement:
     elif symbol_type.value == SymbolType.EXPECTATION:
         content = Expectation(type=SymbolType.EXPECTATION, description=literal.value)
     elif symbol_type.value == SymbolType.CODE:
+        code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         content = Code(
-            type=SymbolType.CODE, code_function_name=None, builtin_id=None, code_text=literal.value
+            type=SymbolType.CODE, code_function_name=None, builtin_id=None, code_text=code_text
         )
     elif symbol_type.value == SymbolType.DATASET:
         try:  # parse as jsonl
@@ -409,6 +425,7 @@ def _parse_definition(tokens: TokenEater) -> ProtoStatement:
 
 
 def _parse_reference(tokens: TokenEater) -> ProtoStatement:
+    """Parse a reference statement."""
     if tokens.peek_keyword_like(StatementModifier):
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
@@ -444,6 +461,7 @@ def _parse_statement(
     eater: TokenEater, on_error: typing.Callable[[str, int, ParseError], None]
 ) -> Optional[ProtoStatement]:
     eater.mark()
+    # parsing is greedy, so the order matters (e.g. definition before reference)
     for parser in [
         _parse_comment,
         _parse_requirement,
@@ -461,4 +479,5 @@ def _parse_statement(
 
 
 def resolve(proto: ProtoParse) -> list[File]:
+    """Resolve references and map to language objects."""
     return []
