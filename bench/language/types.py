@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import uuid
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from django.db import models
@@ -51,62 +53,130 @@ class SymbolType(models.TextChoices):
 
 
 @dataclass(repr=False)
-class File:
-    id: UUID
-    path: str
-    statements: list[Statement] = field(default_factory=list)
+class DerivedRoot:
+    """The root for derived statement data. To simplify, we assume statements are never deleted and immutable."""
+
+    # TODO @Architecture: how to represent statement derived state? when/where to (re)compute it?
+
+    statements_by_parent: dict[UUID, list[Statement]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
 
 
 @dataclass(repr=False)
+class File:
+    path: str
+    statements: list[Statement] = field(default_factory=list)
+    id: UUID = field(default_factory=uuid.uuid4)
+
+    def __str__(self):
+        return self.path
+
+    def __repr__(self):
+        return f"<File {self.path}>"
+
+    @property
+    def root_statements(self) -> list[Statement]:
+        return [statement for statement in self.statements if statement.parent is None]
+
+
+UnresolvedStatement = tuple[str, str]
+
+
+@dataclass(repr=False, frozen=True)
 class Statement:
-    id: UUID
     file: File
     parent: Optional[Statement]
-    children: list[UUID]
-    parameters: Optional[dict[str, UUID]]
-    arguments: Optional[dict[str, UUID]]
     index: int
     type: StatementType
-    name: Optional[str]
-    text: Optional[str]
-    value: Optional[dict]
-    symbol_type: SymbolType
-    content: Optional[SymbolContent]
+    id: UUID = field(default_factory=uuid.uuid4)
+    modifier: Optional[StatementModifier] = None
+    name: Optional[str] = None
+    text: Optional[str] = None
+    value: Optional[dict] = None
+    symbol_type: Optional[SymbolType] = None
+    content: Optional[SymbolContent] = None
+    reference: Optional[Statement | UnresolvedStatement] = None
+    requirement: Optional[Requirement] = None
+    compilation: Optional[Compilation] = None
+    runconfig: Optional[RunConfiguration] = None
+
+    _root: Optional[DerivedRoot] = None
+    _source: Optional[Any] = None
+
+    def __str__(self):
+        path = self.file.path + ":" + str(self.absolute_index)
+        if self.type == StatementType.DEFINITION:
+            content_str = f"{self.content}"
+        elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
+            content_str = f"{self.reference}"
+        elif self.type == StatementType.COMMENT:
+            content_str = f"{len(self.text)}"
+        else:
+            raise ValueError(f"unknown statement type {self.type}")
+        modifier_str = f" {self.modifier}" if self.modifier else ""
+        return f"{path}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
+
+    def __repr__(self):
+        return f"<Statement {self}>"
+
+    @property
+    def absolute_index(self) -> str:
+        if self.parent:
+            return f"{self.parent.absolute_index}.{self.index}"
+        return str(self.index)
+
+    @property
+    def _root_(self) -> DerivedRoot:
+        if self._root is None:
+            raise RuntimeError("Statement._root is not set")
+        return self._root
+
+    def __post_init__(self):
+        if self._root is None:
+            return
+        if self.parent is not None:
+            self._root_.statements_by_parent[self.parent.id].append(self)
+
+    @property
+    def children(self):
+        return self._root.statements_by_parent[self.id]
+
+    @property
+    def siblings(self):
+        if self.parent is None:
+            return self.file.root_statements
+        return self.parent.children
 
 
 @dataclass(repr=False)
 class SymbolContent:
     type: SymbolType
-
-    def __str__(self):
-        return f"{self.type} {self.name}@{self.definition_id}({self.__content_str__()})"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__}: {str(self)}>"
-
-    def __content_str__(self):
-        return ""
+    definition: Statement
 
 
 @dataclass(repr=False)
 class Task(SymbolContent):
     description: str
 
-    def __content_str__(self):
-        return f"{self.input_schema}->({self.output_schema})"
+    def __str__(self):
+        return f"({self.description})"
 
 
 @dataclass(repr=False)
 class Expectation(SymbolContent):
     description: str
 
+    def __str__(self):
+        return f"(description={self.description})"
+
 
 @dataclass(repr=False)
 class Dataset(SymbolContent):
     records: RecordBatch
 
-    def __content_str__(self):
-        return f"schema={self.schema}, length={len(self.records)}"
+    def __str__(self):
+        return f"({len(self.records)}*{'<no schema>'})"
 
 
 @dataclass(repr=False)
@@ -164,6 +234,17 @@ class Code(SymbolContent):
         else:
             raise ValueError(f"code has no content: {self}")
         return f"{content},{self.input_schema}->{self.output_schema}"
+
+
+@dataclass(repr=False)
+class Requirement:
+    name: str
+    version: str
+
+
+@dataclass(repr=False)
+class RunConfiguration:
+    pass
 
 
 @dataclass(repr=False)
