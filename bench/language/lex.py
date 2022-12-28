@@ -144,7 +144,7 @@ separator_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 IDENTIFIER_REGEX = re.compile(r"(?P<value>([\w.\-][\w.-]*))")
 ESCAPED_IDENTIFIER_REGEX = re.compile(r"'(?P<value>[\w.\-][ \w.\-]*)'")
 # literal as `<value>` or ^```<multiline\n value>```$
-MULTILINE_LITERAL_REGEX = re.compile(r"```(?P<value>.*?)```", re.DOTALL | re.MULTILINE)
+MULTILINE_LITERAL_REGEX = re.compile(r"```\s?(?P<value>.*?)\s?```", re.DOTALL | re.MULTILINE)
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`]+)`")
 
 # token type + corresponding pattern in lex order
