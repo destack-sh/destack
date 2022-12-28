@@ -58,7 +58,7 @@ class TokenType(enum.Enum):
     COMMENT = "comment"
     WHITESPACE = "whitespace"
     KEYWORD = "keyword"
-    SEPERATOR = "seperator"
+    SEPARATOR = "seperator"
     IDENTIFIER = "identifier"
     LITERAL = "literal"
 
@@ -154,7 +154,7 @@ TOKEN_PATTERNS = [
     (TokenType.NEW_FILE, NEW_FILE_REGEX),
     (TokenType.COMMENT, COMMENT_REGEX),
     (TokenType.KEYWORD, KEYWORD_REGEX),
-    (TokenType.SEPERATOR, SEPERATOR_REGEX),
+    (TokenType.SEPARATOR, SEPERATOR_REGEX),
     (TokenType.IDENTIFIER, IDENTIFIER_REGEX),
     (TokenType.IDENTIFIER, ESCAPED_IDENTIFIER_REGEX),
     (TokenType.LITERAL, MULTILINE_LITERAL_REGEX),
@@ -193,7 +193,7 @@ def lex(source: SourceFile) -> list[Token]:
 
 def get_location_pointer(
     source: SourceFile, line_number: int, start_column: int, prev_lines: int = 4
-):
+) -> str:
     prev_lines = "> ".join(source.line(line_number - i - 1) for i in reversed(range(0, prev_lines)))
     if not prev_lines.endswith("\n"):
         prev_lines = prev_lines + "\n"
@@ -203,9 +203,8 @@ def get_location_pointer(
 
 def get_location_range_pointer(
     source: SourceFile, start_line: int, start_column: int, end_line: int, end_column: int
-):
-    if end_line > start_line:
-        raise NotImplementedError("multiline location range pointers not implemented yet")
+) -> str:
+    # does not handle multiline tokens yet
     prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, start_line)))
     if not prev_lines.endswith("\n"):
         prev_lines = prev_lines + "\n"
@@ -228,7 +227,7 @@ def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
     if token_type == TokenType.KEYWORD and KEYWORDS.get(value) is not None:
         value = KEYWORDS[value]
     line_number = source.content.count("\n", 0, match.start()) + 1
-    line_span = source.content.count("\n", current_pos, match.end())
+    line_span = source.content.count("\n", current_pos, match.end() - 1)
     start_column = match.start() - source.linebreaks[line_number - 1]
     end_column = match.end() - source.linebreaks[line_number + line_span - 1]
     return Token(
