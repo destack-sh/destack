@@ -3,7 +3,7 @@
 require openai.stdlib@latest
 
 --- temperature.instruct ---
-import text-davinci-003 as llm from openai.stdlib.text
+import model text-davinci-003 as llm from openai.stdlib.text
 
 data 'temperature examples':
 ```

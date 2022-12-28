@@ -58,7 +58,7 @@ class TokenType(enum.Enum):
     COMMENT = "comment"
     WHITESPACE = "whitespace"
     KEYWORD = "keyword"
-    SEPARATOR = "seperator"
+    SEPARATOR = "separator"
     IDENTIFIER = "identifier"
     LITERAL = "literal"
 
@@ -74,7 +74,7 @@ class Token:
     value: Optional[str | enum.Enum]
 
     def __str__(self):
-        return f"{self.type.name} {self.value_truncated} ({self.source_file.path} {self.location_in_file})"
+        return f"{self.type.value} {self.value_truncated} ({self.source_file.path} {self.location_in_file})"
 
     @cached_property
     def value_truncated(self) -> str:
@@ -137,8 +137,8 @@ NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>[\w\.-]*)\s*---$", re.MULTILINE)
 COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
 # keywords from set
 KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")")
-# seperator from set
-SEPERATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
+# separator from set
+separator_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # identifier like <12na_me-> or <name_.name> or '<name name name>'
 # (allowed characters: a-z, A-Z, 0-9, _, -, . and whitespace in quotes)
 IDENTIFIER_REGEX = re.compile(r"(?P<value>([\w.\-][\w.-]*))")
@@ -154,7 +154,7 @@ TOKEN_PATTERNS = [
     (TokenType.NEW_FILE, NEW_FILE_REGEX),
     (TokenType.COMMENT, COMMENT_REGEX),
     (TokenType.KEYWORD, KEYWORD_REGEX),
-    (TokenType.SEPARATOR, SEPERATOR_REGEX),
+    (TokenType.SEPARATOR, separator_REGEX),
     (TokenType.IDENTIFIER, IDENTIFIER_REGEX),
     (TokenType.IDENTIFIER, ESCAPED_IDENTIFIER_REGEX),
     (TokenType.LITERAL, MULTILINE_LITERAL_REGEX),

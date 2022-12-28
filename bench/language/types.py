@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import typing
 from dataclasses import dataclass, field
+from typing import Optional
 from uuid import UUID
 
 from django.db import models
@@ -61,23 +61,21 @@ class File:
 class Statement:
     id: UUID
     file: File
-    file_id: UUID
-    parent_id: typing.Optional[UUID]
+    parent: Optional[Statement]
     children: list[UUID]
-    parameters: typing.Optional[dict[str, UUID]]
-    arguments: typing.Optional[dict[str, UUID]]
+    parameters: Optional[dict[str, UUID]]
+    arguments: Optional[dict[str, UUID]]
     index: int
     type: StatementType
-    name: typing.Optional[str]
-    text: typing.Optional[str]
-    value: typing.Optional[dict]
+    name: Optional[str]
+    text: Optional[str]
+    value: Optional[dict]
     symbol_type: SymbolType
-    content: typing.Optional[SymbolContent]
+    content: Optional[SymbolContent]
 
 
 @dataclass(repr=False)
 class SymbolContent:
-    id: UUID
     type: SymbolType
 
     def __str__(self):
@@ -92,8 +90,6 @@ class SymbolContent:
 
 @dataclass(repr=False)
 class Task(SymbolContent):
-    input_schema: SchemaElement
-    output_schema: SchemaElement
     description: str
 
     def __content_str__(self):
@@ -107,11 +103,19 @@ class Expectation(SymbolContent):
 
 @dataclass(repr=False)
 class Dataset(SymbolContent):
-    schema: SchemaElement
     records: RecordBatch
 
     def __content_str__(self):
         return f"schema={self.schema}, length={len(self.records)}"
+
+
+@dataclass(repr=False)
+class Schema(SymbolContent):
+    element: SchemaElement
+    description: str = ""
+
+    def __content_str__(self):
+        return str(self.element)
 
 
 @dataclass(repr=False)
@@ -126,8 +130,8 @@ class Value(SymbolContent):
 class Model(SymbolContent):
     provider: str
     external_name: str
-    settings: typing.Optional[ModelInferenceSettings]
-    default_settings: typing.Optional[ModelInferenceSettings]
+    settings: Optional[ModelInferenceSettings]
+    default_settings: Optional[ModelInferenceSettings]
 
     def __content_str__(self):
         return f"provider={self.provider}/{self.external_name}"
@@ -145,11 +149,9 @@ class ModelInferenceSettings:
 
 @dataclass(repr=False)
 class Code(SymbolContent):
-    input_schema: SchemaElement
-    output_schema: SchemaElement
-    code_text: typing.Optional[str]
-    code_function_name: typing.Optional[str]
-    builtin_id: typing.Optional[str]
+    code_text: Optional[str]
+    code_function_name: Optional[str]
+    builtin_id: Optional[str]
 
     def __content_str__(self):
         # copied almost verbatim from Code.__str__
@@ -167,10 +169,6 @@ class Code(SymbolContent):
 @dataclass(repr=False)
 class Compilation:
     id: UUID
-    definition_id: UUID
-    source_id: UUID
-    backend_models_ids: list[UUID]
-    backend_models: list[Statement]
     source_mappings: list["SourceMapping"]
 
 

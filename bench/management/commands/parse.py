@@ -28,7 +28,7 @@ class Command(BaseCommand):
         tokens = lex(source_file)
         console.print(pprint_tokens(tokens))
 
-        files = parse(tokens)
+        files = parse(tokens, strip_whitespace=True)
 
 
 def pprint_tokens(tokens: list[Token]) -> Table:
