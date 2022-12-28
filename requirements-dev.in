@@ -8,20 +8,21 @@
 -c requirements.txt
 
 black==22.10.0
-djangorestframework-stubs==1.7.0
 django-stubs==1.13.0
-flake8==5.0.4
+djangorestframework-stubs==1.7.0
 flake8-import-order==0.18.1
+flake8==5.0.4
 isort==5.10.1
 mypy==0.990
 pip-tools==6.9.0
 pre-commit==2.20.0
-pytest==7.2.0
 pytest-django==4.5.2
 pytest-xdist==3.0.2
+pytest==7.2.0
+rich==12.6.0
 types-dj-database-url==1.0.0
-types-Pygments==2.13.1.1
 types-psycopg2==2.9.21.2
+types-Pygments==2.13.1.1
 
 # compatibility
 typing-extensions>4.2.0

@@ -74,21 +74,29 @@ class Token:
     value: Optional[str | enum.Enum]
 
     def __str__(self):
+        return f"{self.type.name} {self.value_truncated} ({self.source_file.path} {self.location_in_file})"
+
+    @cached_property
+    def value_truncated(self) -> str:
         # truncate value if too long
-        max_length = 100
+        max_length = 50
         if self.value is None:
             value = "<none>"
         elif len(self.value) > max_length:
-            value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2 :]}"
+            value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2:]}"
         else:
             value = self.value
         # replace newlines with literal \n
         value = value.replace("\n", "\\n")
+        return value
+
+    @cached_property
+    def location_in_file(self):
         if self.line_span > 1:
             loc = f"{self.line_number}:{self.start_column}-{self.line_number + self.line_span}:{self.end_column}"
         else:
             loc = f"{self.line_number}:{self.start_column}-{self.end_column}"
-        return f"{self.type.name} {value} ({self.source_file.path} {loc})"
+        return loc
 
 
 class SyntaxError(ValueError):
@@ -119,13 +127,12 @@ KEYWORDS = {
 }
 SEPARATORS = {":", "=", "@"}
 
-
-# any whitespace
-WHITESPACE_REGEX = re.compile(r"\s+", re.MULTILINE)
+# indent with 4 spaces or 1 tab
+INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
+# any whitespace except indent
+WHITESPACE_REGEX = re.compile(r"(?P<value>[ \n\r\f\v])")
 # new file like --- <path> ---
 NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>[\w\.-]*)\s*---$", re.MULTILINE)
-# indent with 4 spaces or 1 tab
-INDENT_REGEX = re.compile(r"^(?P<value> {4}|\t)")
 # comment like # <comment>
 COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
 # keywords from set
@@ -134,21 +141,22 @@ KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")")
 SEPERATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # identifier like <12na_me-> or <name_.name> or '<name name name>'
 # (allowed characters: a-z, A-Z, 0-9, _, -, . and whitespace in quotes)
-IDENTIFIER_REGEX = re.compile(r"(?P<value>('\w[ \w.\-]*')|(\w[\w.-]*))")
+IDENTIFIER_REGEX = re.compile(r"(?P<value>([\w.\-][\w.-]*))")
+ESCAPED_IDENTIFIER_REGEX = re.compile(r"'(?P<value>[\w.\-][ \w.\-]*)'")
 # literal as `<value>` or ^```<multiline\n value>```$
-# (two separate regexes to avoid multiline matching with re.DOTALL)
-MULTILINE_LITERAL_REGEX = re.compile(r"^```(?P<value>.*?)```$", re.DOTALL | re.MULTILINE)
+MULTILINE_LITERAL_REGEX = re.compile(r"```(?P<value>.*?)```", re.DOTALL | re.MULTILINE)
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`]+)`")
 
 # token type + corresponding pattern in lex order
-PATTERNS = [
+TOKEN_PATTERNS = [
+    (TokenType.INDENT, INDENT_REGEX),
     (TokenType.WHITESPACE, WHITESPACE_REGEX),  # eat any whitespace
     (TokenType.NEW_FILE, NEW_FILE_REGEX),
-    (TokenType.INDENT, INDENT_REGEX),
     (TokenType.COMMENT, COMMENT_REGEX),
     (TokenType.KEYWORD, KEYWORD_REGEX),
     (TokenType.SEPERATOR, SEPERATOR_REGEX),
     (TokenType.IDENTIFIER, IDENTIFIER_REGEX),
+    (TokenType.IDENTIFIER, ESCAPED_IDENTIFIER_REGEX),
     (TokenType.LITERAL, MULTILINE_LITERAL_REGEX),
     (TokenType.LITERAL, INLINE_LITERAL_REGEX),
 ]
@@ -166,35 +174,49 @@ def lex(source: SourceFile) -> list[Token]:
         else:
             line_number = prev_token.line_number + prev_token.line_span
             start_column = prev_token.end_column
-
         current_pos = source.linebreaks[line_number - 1] + start_column
+
         token = _lex_token(source, current_pos)
         if token is None:
-            # if we're at the end of the file, we're done
             if current_pos >= len(source.content):
-                break
-            else:  # otherwise, we have an error
-                prev_lines = "".join(
-                    source.line(line_number - i - 1) for i in reversed(range(0, 4))
-                )
-                if not prev_lines.endswith("\n"):
-                    prev_lines = prev_lines + "\n"
-                context = f"{prev_lines}{'-' * start_column}^"
-                raise SyntaxError(
-                    f"unknown token at {line_number}:{start_column} in {source.path}:\n{context}"
-                )
-        if token.type != TokenType.WHITESPACE:
-            tokens.append(token)
-            print(token)
+                break  # EOF, done
+            # otherwise, we have an error
+            context = get_location_pointer(source, line_number, start_column)
+            raise SyntaxError(
+                f"unknown token at {line_number}:{start_column} in {source.path}:\n{context}"
+            )
+        tokens.append(token)
         prev_token = token
 
     return tokens
 
 
+def get_location_pointer(
+    source: SourceFile, line_number: int, start_column: int, prev_lines: int = 4
+):
+    prev_lines = "> ".join(source.line(line_number - i - 1) for i in reversed(range(0, prev_lines)))
+    if not prev_lines.endswith("\n"):
+        prev_lines = prev_lines + "\n"
+    context = f"> {prev_lines}> {'-' * start_column}^"
+    return context
+
+
+def get_location_range_pointer(
+    source: SourceFile, start_line: int, start_column: int, end_line: int, end_column: int
+):
+    if end_line > start_line:
+        raise NotImplementedError("multiline location range pointers not implemented yet")
+    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, start_line)))
+    if not prev_lines.endswith("\n"):
+        prev_lines = prev_lines + "\n"
+    context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
+    return context
+
+
 def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
     """Lex a single token from a source file."""
     # try to match a pattern (once at current position)
-    for token_type, pattern in PATTERNS:
+    for token_type, pattern in TOKEN_PATTERNS:
         match = pattern.match(source.content, current_pos)
         if match is not None:
             break

@@ -53,21 +53,25 @@ class SymbolType(models.TextChoices):
 @dataclass(repr=False)
 class File:
     id: UUID
+    path: str
     statements: list[Statement] = field(default_factory=list)
 
 
 @dataclass(repr=False)
 class Statement:
     id: UUID
+    file: File
     file_id: UUID
     parent_id: typing.Optional[UUID]
-    index: int
-    name: str
-    type: StatementType
-    symbol_type: SymbolType
     children: list[UUID]
-    parameters: dict[str, UUID]
-    arguments: dict[str, UUID]
+    parameters: typing.Optional[dict[str, UUID]]
+    arguments: typing.Optional[dict[str, UUID]]
+    index: int
+    type: StatementType
+    name: typing.Optional[str]
+    text: typing.Optional[str]
+    value: typing.Optional[dict]
+    symbol_type: SymbolType
     content: typing.Optional[SymbolContent]
 
 
