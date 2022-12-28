@@ -44,7 +44,7 @@ class Task(Schemad, SymbolContent):
         return compilation
 
     def __str__(self):
-        return f"({self.schema or '<no schema>'})"
+        return f"({self.description})"
 
     objects = TaskManager()
 

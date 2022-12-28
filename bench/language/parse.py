@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import dataclasses
 import enum
 import json
 import typing
-from dataclasses import dataclass, field
 from typing import Optional
+from uuid import UUID
 
 import structlog
 
@@ -12,12 +13,14 @@ from bench.language.lex import Token, TokenType, get_location_range_pointer
 from bench.language.types import (
     Code,
     Dataset,
+    DerivedRoot,
     Expectation,
     File,
+    Requirement,
     Schema,
+    Statement,
     StatementModifier,
     StatementType,
-    SymbolContent,
     SymbolType,
     Task,
     Value,
@@ -62,54 +65,6 @@ class ParseError(ValueError):
             return f" at {token}\n{context}"
 
 
-@dataclass
-class ProtoFile:
-    path: str
-    statements: list[ProtoStatement] = field(default_factory=list, repr=False)
-
-    def __str__(self):
-        return self.path
-
-
-@dataclass
-class ProtoStatement:
-    type: StatementType
-    modifier: Optional[StatementModifier] = None
-    parent: Optional[ProtoStatement] = None
-    index: Optional[int] = None
-    name: Optional[str] = None
-    symbol_type: Optional[SymbolType] = None
-    text: typing.Optional[str] = None
-    value: typing.Optional[dict] = None
-    reference: str | tuple[str, str] | None = None
-    content: typing.Optional[SymbolContent] = None
-    compilation: Optional[ProtoCompilation] = None
-    requirement: Optional[ProtoRequirement] = None
-    runconfig: Optional[ProtoRunConfiguration] = None
-    _source: Optional[list[Token]] = field(default_factory=list, repr=False)
-
-
-@dataclass
-class ProtoCompilation:
-    pass
-
-
-@dataclass
-class ProtoRequirement:
-    name: str
-    version: str
-
-
-@dataclass
-class ProtoRunConfiguration:
-    pass
-
-
-@dataclass
-class ProtoParse:
-    files: dict[str, ProtoFile] = field(default_factory=dict)  # by path
-
-
 def parse(tokens: list[Token], strip_whitespace: bool) -> list[File]:
     """Parse a stream of tokens into Bench AST (with top-level files)."""
     if len(tokens) == 0:
@@ -119,14 +74,14 @@ def parse(tokens: list[Token], strip_whitespace: bool) -> list[File]:
         tokens = [t for t in tokens if t.type != TokenType.WHITESPACE]
 
     # first pass: extract files and statements
-    proto = preparse(tokens)
-
+    files = preparse(tokens)
     # second pass: resolve statements into AST by resolving references
-    files = resolve(proto)
+    resolve(files)
+
     return files
 
 
-class TokenEater:
+class TokenParser:
     """
     Iterates over the source stream with a peek window of 1 token.
     Automatically skips whitespace and matching indentation.
@@ -163,6 +118,7 @@ class TokenEater:
 
     def _advance(self):
         """Advances the peek position, skipping whitespace and matching indentation."""
+
         # (note that we can't use eat/peek here because they use _advance)
         def _get(type: Optional[TokenType] = None) -> Optional[Token]:
             if self.current_pos >= len(self._tokens):
@@ -268,45 +224,53 @@ def _clean_literal_indent(text: str, indent_level: int) -> str:
     return "\n".join(lines)
 
 
-def preparse(tokens: list[Token]) -> ProtoParse:
-    """Map tokens into proto files and statements with unresolved references."""
-    proto = ProtoParse()
+def preparse(tokens: list[Token]) -> list[File]:
+    """Map tokens into files and statements with unresolved references."""
 
-    eater = TokenEater(tokens, start_pos=0, indent_level=0)
+    files: dict[str, File] = {}
+    parser = TokenParser(tokens, start_pos=0, indent_level=0)
     # first token has to be a new file
-    file: ProtoFile = ProtoFile(path=eater.eat_type(TokenType.NEW_FILE).value)
+    root = DerivedRoot()
+    file: File = File(path=parser.eat_type(TokenType.NEW_FILE).value)
     indent: int = 0
-    ancestors: list[ProtoStatement] = []  # by indent
+    ancestors: list[Statement] = []  # by indent
 
-    while eater.peek() is not None:
+    while parser.peek() is not None:
         # reset indent if previous token was on a different line
-        if eater.previous is not None and eater.previous.line_number != eater.peek().line_number:
+        if parser.previous is not None and parser.previous.line_number != parser.peek().line_number:
             indent = 0
 
-        if eater.peek().type == TokenType.NEW_FILE:
-            path = eater.eat().value
-            if path not in proto.files:
-                proto.files[path] = ProtoFile(path=path)
+        if parser.peek().type == TokenType.NEW_FILE:
+            path = parser.eat().value
+            if path not in files:
+                files[path] = File(path=path)
             # reset per-file state
-            file = proto.files[path]
+            file = files[path]
             indent = 0
             ancestors = []
-        elif eater.peek().type == TokenType.WHITESPACE:
-            eater.eat()
-        elif eater.peek().type == TokenType.INDENT:
-            eater.eat()
+        elif parser.peek().type == TokenType.WHITESPACE:
+            parser.eat()
+        elif parser.peek().type == TokenType.INDENT:
+            parser.eat()
             indent += 1
         else:  # parse statement
             # error if there is no ancestor one level up
             if len(ancestors) < indent:
-                raise ParseError("unexpected indent level", eater.peek())
+                raise ParseError("unexpected indent level", parser.peek())
+
+            parent = ancestors[indent - 1] if indent > 0 else None
+            index = len(file.root_statements) if parent is None else len(parent.children)
 
             local_errors = []  # (parser name, pos, error)
-            eater.indent_level = indent
+            parser.indent_level = indent
             statement = _parse_statement(
-                eater, on_error=lambda p, c, e: local_errors.append((p, c, e))
+                parser,
+                on_error=lambda p, c, e: local_errors.append((p, c, e)),
+                file=file,
+                parent=parent,
+                index=index,
             )
-            eater.indent_level = 0  # skip only for statement parsing
+            parser.indent_level = 0  # skip only for statement parsing
             if statement is None:
                 # sort by parsed pos descending (get the furthest error)
                 local_errors.sort(key=lambda e: e[1], reverse=True)
@@ -315,25 +279,25 @@ def preparse(tokens: list[Token]) -> ProtoParse:
                 )
                 raise ParseError(
                     "unexpected statement",
-                    eater.peek(),
+                    parser.peek(),
                     cause=likely_error,
                     context={"local_errors": local_errors},
                 )
-            statement._source = eater.eaten
+            statement = dataclasses.replace(statement, _root=root, _source=parser.eaten)
             file.statements.append(statement)
 
             ancestors = ancestors[:indent]  # wipe ancestors with higher indent
             ancestors += [statement]  # replace ancestor at current indent
 
-    return proto
+    return list(files.values())
 
 
-def _parse_comment(tokens: TokenEater) -> ProtoStatement:
+def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
     token = tokens.eat_type(TokenType.COMMENT)
-    return ProtoStatement(type=StatementType.COMMENT, text=token.value)
+    return Statement(type=StatementType.COMMENT, text=token.value, **kwargs)
 
 
-def _parse_requirement(tokens: TokenEater) -> ProtoStatement:
+def _parse_requirement(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a requirement statement."""
     tokens.eat_keyword(StatementType.REQUIREMENT)
     dependency = tokens.eat_identifier()
@@ -344,14 +308,15 @@ def _parse_requirement(tokens: TokenEater) -> ProtoStatement:
         alias = dependency.value
     tokens.eat_separator("@")
     version = tokens.eat_identifier()
-    return ProtoStatement(
+    return Statement(
         type=StatementType.REQUIREMENT,
         name=alias,
-        requirement=ProtoRequirement(name=dependency.value, version=version.value),
+        requirement=Requirement(name=dependency.value, version=version.value),
+        **kwargs,
     )
 
 
-def _parse_import(tokens: TokenEater) -> ProtoStatement:
+def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     """Parse an import statement."""
     tokens.eat_keyword(StatementType.IMPORT)
     symbol_type = tokens.eat_keyword_like(SymbolType)
@@ -363,15 +328,16 @@ def _parse_import(tokens: TokenEater) -> ProtoStatement:
         alias = reference.value
     tokens.eat_keyword("from")
     source = tokens.eat_identifier().value
-    return ProtoStatement(
+    return Statement(
         type=StatementType.IMPORT,
         name=alias,
         symbol_type=symbol_type.value,
         reference=(reference.value, source),
+        **kwargs,
     )
 
 
-def _parse_definition(tokens: TokenEater) -> ProtoStatement:
+def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     """Parses a symbol definition statement."""
     if tokens.peek_keyword_like(StatementModifier):
         modifier = tokens.eat_keyword_like(StatementModifier).value
@@ -383,48 +349,61 @@ def _parse_definition(tokens: TokenEater) -> ProtoStatement:
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     literal = tokens.eat_literal()
+
+    definition = Statement(
+        type=StatementType.DEFINITION,
+        modifier=modifier,
+        name=name.value,
+        symbol_type=symbol_type.value,
+        **kwargs,
+    )
+
     if symbol_type.value == SymbolType.SCHEMA:
         try:
             element = json.loads(literal.value)
         except json.JSONDecodeError as e:
             raise ParseError("failed to parse schema element", literal) from e
-        content = Schema(type=SymbolType.SCHEMA, description="", element=element)
+        content = Schema(
+            type=SymbolType.SCHEMA, description="", element=element, definition=definition
+        )
     elif symbol_type.value == SymbolType.TASK:
-        content = Task(type=SymbolType.TASK, description=literal.value)
+        content = Task(type=SymbolType.TASK, description=literal.value, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
-        content = Expectation(type=SymbolType.EXPECTATION, description=literal.value)
+        content = Expectation(
+            type=SymbolType.EXPECTATION, description=literal.value, definition=definition
+        )
     elif symbol_type.value == SymbolType.CODE:
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         content = Code(
-            type=SymbolType.CODE, code_function_name=None, builtin_id=None, code_text=code_text
+            type=SymbolType.CODE,
+            code_function_name=None,
+            builtin_id=None,
+            code_text=code_text,
+            definition=definition,
         )
     elif symbol_type.value == SymbolType.DATASET:
         try:  # parse as jsonl
             records = []
             for value_line in literal.value.strip().splitlines():
                 records.append(json.loads(value_line.strip()))
-            content = Dataset(type=SymbolType.DATASET, records=RecordList(records))
+            content = Dataset(
+                type=SymbolType.DATASET, records=RecordList(records), definition=definition
+            )
         except json.JSONDecodeError as e:
             raise ParseError(f"failed to parse jsonl: {e}", literal)
     elif symbol_type.value == SymbolType.VALUE:
         try:  # parse as json
             value = json.loads(literal.value)
-            content = Value(type=SymbolType.VALUE, value=value)
+            content = Value(type=SymbolType.VALUE, value=value, definition=definition)
         except json.JSONDecodeError as e:
             raise ParseError(f"failed to parse json: {e}", literal)
     else:
         raise ParseError(f"unexpected symbol type {symbol_type.value}", symbol_type)
-
-    return ProtoStatement(
-        type=StatementType.DEFINITION,
-        modifier=modifier,
-        name=name.value,
-        symbol_type=SymbolType.DATASET,
-        content=content,
-    )
+    definition = dataclasses.replace(definition, content=content)
+    return definition
 
 
-def _parse_reference(tokens: TokenEater) -> ProtoStatement:
+def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a reference statement."""
     if tokens.peek_keyword_like(StatementModifier):
         modifier = tokens.eat_keyword_like(StatementModifier).value
@@ -434,35 +413,37 @@ def _parse_reference(tokens: TokenEater) -> ProtoStatement:
         modifier = None
     symbol_type = tokens.eat_keyword_like(SymbolType)
     name = tokens.eat_identifier()
-    return ProtoStatement(
+    return Statement(
         type=StatementType.REFERENCE,
         modifier=modifier,
         name=name.value,
         symbol_type=symbol_type.value,
+        **kwargs,
     )
 
 
-def _parse_compile(tokens: TokenEater) -> ProtoStatement:
+def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_keyword(StatementType.COMPILATION)
     name = tokens.eat_identifier()
     tokens.eat_separator("=")
     symbol_type = tokens.eat_keyword_like(SymbolType)
     reference = tokens.eat_identifier()
     tokens.eat_separator(":")
-    return ProtoStatement(
+    return Statement(
         type=StatementType.COMPILATION,
         name=name.value,
         symbol_type=symbol_type.value,
         reference=reference.value,
+        **kwargs,
     )
 
 
 def _parse_statement(
-    eater: TokenEater, on_error: typing.Callable[[str, int, ParseError], None]
-) -> Optional[ProtoStatement]:
-    eater.mark()
+    parser: TokenParser, on_error: typing.Callable[[str, int, ParseError], None], **statement_kwargs
+) -> Optional[Statement]:
+    parser.mark()
     # parsing is greedy, so the order matters (e.g. definition before reference)
-    for parser in [
+    for _parse in [
         _parse_comment,
         _parse_requirement,
         _parse_compile,
@@ -471,13 +452,16 @@ def _parse_statement(
         _parse_import,
     ]:
         try:
-            return parser(eater)
+            return _parse(parser, **statement_kwargs)
         except ParseError as e:
-            on_error(parser.__name__, eater.current_pos, e)
-            eater.reset()
+            on_error(_parse.__name__, parser.current_pos, e)
+            parser.reset()
     return None
 
 
-def resolve(proto: ProtoParse) -> list[File]:
-    """Resolve references and map to language objects."""
-    return []
+def resolve(files: list[File]):
+    """Resolve references"""
+    files: dict[UUID, File] = {}
+    statements: dict[UUID, Statement] = {}
+
+    return files
