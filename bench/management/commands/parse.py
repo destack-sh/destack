@@ -7,7 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from bench.language import File
-from bench.language.lex import SourceFile, Token, TokenType, lex
+from bench.language.lex import SourceFile, Token, lex
 from bench.language.parse import parse
 from bench.language.reconstruct import render_file
 
@@ -29,7 +29,7 @@ class Command(BaseCommand):
         source_file = SourceFile(path=path if path != "-" else "<stdin>", content=string)
         tokens = lex(source_file)
         console.print(pprint_tokens(tokens))
-        files = parse(tokens, strip_whitespace=True)
+        files = parse(tokens)
         for panel in pprint_files(files):
             console.print(panel)
 
@@ -42,15 +42,13 @@ def pprint_tokens(tokens: list[Token]) -> Table:
     table.add_column("Location", style="green")
     current_file = None
     for token in tokens:
-        if token.type == TokenType.WHITESPACE:
-            continue
         if token.source_file != current_file:
             current_file = token.source_file
             table.add_row("---", f"[bold]{current_file.path}[/bold]", "---")
         extras_str = ", ".join(f"{key}={value}" for key, value in token.value_extras.items())
         table.add_row(
             token.type.name,
-            token.value_truncated,
+            markup.escape(token.value_truncated),
             extras_str,
             token.location_in_file,
         )

@@ -143,8 +143,8 @@ def render_bql(schema: SchemaElement) -> str:
     required_str = "" if schema.required else "?"
     elements_str = ", ".join(render_bql(e) for e in schema.elements) if schema.elements else ""
     if schema.type == ValueType.OBJECT:
-        # output as name: {elem1, elem2, ...}
-        return f"{name_str}{{{elements_str}}}{required_str}"
+        # output as name: { elem1, elem2, ... }
+        return f"{name_str}{{ {elements_str} }}{required_str}"
     elif schema.type == ValueType.ARRAY:
         # output as name: [elem1]
         return f"{name_str}[{elements_str}]{required_str}"

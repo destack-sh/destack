@@ -10,7 +10,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.lex import Token, TokenType, get_location_range_pointer
-from bench.language.schema import SchemaElementSerializer, parse_bql
+from bench.language.schema import parse_bql
 from bench.language.types import (
     Code,
     Dataset,
@@ -71,16 +71,12 @@ class ParseError(ValueError):
             return f" at {token}\n{context}"
 
 
-def parse(tokens: list[Token], strip_whitespace: bool) -> list[File]:
+def parse(tokens: list[Token]) -> list[File]:
     """
     Parse a stream of tokens into Bench AST (with top-level files).
-    Stripping whitespace ahead of parsing is cleaner and faster, but perfect reconstruction is impossible.
     """
     if len(tokens) == 0:
         return []
-
-    if strip_whitespace:  # strip _before_ parsing (we ignore whitespace anyway)
-        tokens = [t for t in tokens if t.type != TokenType.WHITESPACE]
 
     # first pass: extract files and statements
     files = preparse(tokens)
@@ -93,7 +89,7 @@ def parse(tokens: list[Token], strip_whitespace: bool) -> list[File]:
 class TokenParser:
     """
     Iterates over the source stream with a peek window of 1 token.
-    Automatically skips whitespace and matching indentation.
+    Automatically matching indentation at the configured level.
     """
 
     def __init__(self, tokens: list[Token], start_pos: int, indent_level: int):
@@ -126,7 +122,7 @@ class TokenParser:
         return self._tokens[self.current_pos - 1]
 
     def _advance(self):
-        """Advances the peek position, skipping whitespace and matching indentation."""
+        """Advances the peek position, skipping matching indentation."""
 
         # (note that we can't use eat/peek here because they use _advance)
         def _get(type: Optional[TokenType] = None) -> Optional[Token]:
@@ -139,10 +135,6 @@ class TokenParser:
 
         # advance to next token (current pos is based on peek pos)
         self._peek_pos += 1
-
-        # skip whitespace
-        while _get(TokenType.WHITESPACE) is not None:
-            self._peek_pos += 1
 
         # skip indentation
         if self.indent_level != 0:
@@ -162,13 +154,18 @@ class TokenParser:
     def eat(self) -> Token:
         """Eats the next token."""
         if self.peek() is None:
-            raise ParseError("expected token", None)
+            raise ParseError("expected token after", self.previous)
         peek_token = self.peek()
         self._advance()
         return peek_token
 
-    def eat_whitespace(self) -> Token:
-        return self.eat_type(TokenType.WHITESPACE)
+    def eat_newline(self) -> Token:
+        return self.eat_type(TokenType.NEWLINE)
+
+    def eat_newline_or_eof(self) -> Optional[Token]:
+        if self.peek() is None:
+            return
+        return self.eat_newline()
 
     def eat_indent(self) -> Token:
         return self.eat_type(TokenType.INDENT)
@@ -218,6 +215,9 @@ class TokenParser:
             raise ParseError(f"expected {TokenType.SEPARATOR.value} {separator}", token)
         return token
 
+    def eat_space(self) -> Token:
+        return self.eat_separator(" ")
+
     def eat_literal(self) -> Token:
         return self.eat_type(TokenType.LITERAL)
 
@@ -248,24 +248,22 @@ def preparse(tokens: list[Token]) -> list[File]:
     root = DerivedRoot()
 
     # init per-file state (first token has to be a new file)
-    file: File = File(path=parser.eat_type(TokenType.NEW_FILE).value)
+    file: File = File(path=parser.eat_type(TokenType.NEWFILE).value)
     files[file.path] = file
     local = ParseState()
 
     while parser.peek() is not None:
         # reset indent if previous token was on a different line
         if parser.previous is not None and parser.previous.line_number != parser.peek().line_number:
-            indent = 0
+            local.indent = 0
 
-        if parser.peek().type == TokenType.NEW_FILE:
+        if parser.peek().type == TokenType.NEWFILE:
             path = parser.eat().value
             if path not in files:
                 files[path] = File(path=path)
             # reset per-file state
             file = files[path]
             local = ParseState()
-        elif parser.peek().type == TokenType.WHITESPACE:
-            parser.eat()
         elif parser.peek().type == TokenType.INDENT:
             parser.eat()
             local.indent += 1
@@ -289,11 +287,11 @@ def preparse(tokens: list[Token]) -> list[File]:
             )
             local.previous_errors.append(likely_error)
             if statement is None:
+                cause = likely_error or (
+                    local.previous_errors[-2] if len(local.previous_errors) > 1 else None
+                )
                 raise ParseError(
-                    "unexpected statement",
-                    parser.peek(),
-                    cause=likely_error or local.previous_errors[-2],
-                    context={"local_errors": errors},
+                    "unexpected statement", parser.peek(), cause=cause, context={"errors": errors}
                 )
             statement = dataclasses.replace(statement, _root=root, _source=parser.eaten)
             file.statements.append(statement)
@@ -306,23 +304,21 @@ def preparse(tokens: list[Token]) -> list[File]:
 
 def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
     token = tokens.eat_type(TokenType.COMMENT)
+    tokens.eat_newline_or_eof()
     return Statement(type=StatementType.COMMENT, text=token.value, **kwargs)
 
 
 def _parse_requirement(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a requirement statement."""
     tokens.eat_keyword(StatementType.REQUIREMENT)
+    tokens.eat_space()
     dependency = tokens.eat_identifier()
-    if tokens.peek_keyword("as"):
-        tokens.eat_keyword("as")
-        alias = tokens.eat_identifier()
-    else:
-        alias = dependency.value
     tokens.eat_separator("@")
     version = tokens.eat_identifier()
+    tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.REQUIREMENT,
-        name=alias,
+        name=dependency.value,
         requirement=Requirement(name=dependency.value, version=version.value),
         **kwargs,
     )
@@ -331,20 +327,27 @@ def _parse_requirement(tokens: TokenParser, **kwargs) -> Statement:
 def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     """Parse an import statement."""
     tokens.eat_keyword(StatementType.IMPORT)
+    tokens.eat_space()
     symbol_type = tokens.eat_keyword_like(SymbolType)
-    reference = tokens.eat_identifier()
+    tokens.eat_space()
+    reference = tokens.eat_identifier().value
+    tokens.eat_space()
     if tokens.peek_keyword("as"):
         tokens.eat_keyword("as")
-        alias = tokens.eat_identifier()
+        tokens.eat_space()
+        alias = tokens.eat_identifier().value
+        tokens.eat_space()
     else:
-        alias = reference.value
+        alias = reference
     tokens.eat_keyword("from")
+    tokens.eat_space()
     source = tokens.eat_identifier().value
+    tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.IMPORT,
         name=alias,
         symbol_type=symbol_type.value,
-        reference=UnresolvedStatement(source, reference.value),
+        reference=UnresolvedStatement(source, reference),
         **kwargs,
     )
 
@@ -355,12 +358,16 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
             raise ParseError("expected statement modifier", modifier)
+        tokens.eat_space()
     else:
         modifier = None
     symbol_type = tokens.eat_keyword_like(SymbolType)
+    tokens.eat_space()
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
+    tokens.eat_newline()
     literal = tokens.eat_literal()
+    tokens.eat_newline_or_eof()
 
     definition = Statement(
         type=StatementType.DEFINITION,
@@ -372,14 +379,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
 
     if symbol_type.value == SymbolType.SCHEMA:
         try:
-            lang = literal.value_extras.get("lang", "bql")
-            if lang == "bql":
-                element = parse_bql(literal.value)
-            elif lang == "json":
-                element_json = json.loads(literal.value)
-                element = SchemaElementSerializer().from_json(element_json)
-            else:
-                raise ParseError("unsupported schema language", literal)
+            element = parse_bql(literal.value)
         except ValueError as e:
             raise ParseError("failed to parse schema element", literal) from e
         content = Schema(
@@ -392,7 +392,9 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             type=SymbolType.EXPECTATION, description=literal.value, definition=definition
         )
     elif symbol_type.value == SymbolType.CODE:
-        lang = literal.value_extras.get("lang", "python")
+        lang = literal.value_extras.get("lang")
+        if lang is None:
+            raise ParseError("expected language", literal)
         if lang != "python":
             raise ParseError("unsupported code language", literal)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
@@ -405,9 +407,11 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             definition=definition,
         )
     elif symbol_type.value == SymbolType.DATASET:
-        lang = literal.value_extras.get("lang", "jsonl")
+        lang = literal.value_extras.get("lang")
         try:
-            if lang == "jsonl":
+            if lang is None:
+                raise ParseError("expected language", literal)
+            elif lang == "jsonl":
                 records = []
                 for value_line in literal.value.strip().splitlines():
                     records.append(json.loads(value_line.strip()))
@@ -438,10 +442,13 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
             raise ParseError("expected statement modifier", modifier)
+        tokens.eat_space()
     else:
         modifier = None
     symbol_type = tokens.eat_keyword_like(SymbolType)
+    tokens.eat_space()
     name = tokens.eat_identifier()
+    tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.REFERENCE,
         modifier=modifier,
@@ -454,18 +461,28 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
 
 def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_keyword(StatementType.COMPILATION)
+    tokens.eat_space()
     name = tokens.eat_identifier()
+    tokens.eat_space()
     tokens.eat_separator("=")
+    tokens.eat_space()
     symbol_type = tokens.eat_keyword_like(SymbolType)
+    tokens.eat_space()
     reference = tokens.eat_identifier()
     tokens.eat_separator(":")
+    tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.COMPILATION,
         name=name.value,
         symbol_type=symbol_type.value,
-        reference=reference.value,
+        reference=UnresolvedStatement(".", reference.value),
         **kwargs,
     )
+
+
+def _parse_blank(tokens: TokenParser, **kwargs) -> Statement:
+    tokens.eat_newline()
+    return Statement(type=StatementType.BLANK, **kwargs)
 
 
 def _parse_statement(
@@ -480,6 +497,7 @@ def _parse_statement(
         _parse_definition,
         _parse_reference,
         _parse_import,
+        _parse_blank,
     ]:
         try:
             return _parse(parser, **statement_kwargs)
@@ -495,5 +513,7 @@ def resolve(files: list[File]):
     """Resolve references across files."""
     files: dict[UUID, File] = {}
     statements: dict[UUID, Statement] = {}
+
+    # TODO @Broken: resolve references within and across files
 
     return files

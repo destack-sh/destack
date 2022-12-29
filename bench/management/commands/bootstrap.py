@@ -78,7 +78,7 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
     stdlib_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    language_files = parse(lex(source_file), strip_whitespace=True)
+    language_files = parse(lex(source_file))
     write(language_files, stdlib_v)
 
     # advance head

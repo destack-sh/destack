@@ -16,7 +16,7 @@ data 'temperature examples':
 {"text": "Given an input command, write a program that implements it in Python","temperature": "medium"}
 ```
     schema _:
-    `{ text: string, temperature: string }`{bql}
+    `{ text: string, temperature: string }`{.bql}
 
 value temperature_map:
 `{"high": 0.9, "medium": 0.5, "low": 0.1}`

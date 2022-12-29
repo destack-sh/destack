@@ -3,7 +3,6 @@
 require symbolx.stdlib@latest
 require openai.stdlib@latest
 
-
 --- lints.instruct ---
 # AI support for linting Bench files
 
