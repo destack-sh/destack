@@ -6,7 +6,6 @@ import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import SchemaInterface from "@/components/SchemaInterface.vue";
-import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
 import DescriptionInterface from "@/components/DescriptionInterface.vue";
 import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useFragment, type FragmentType } from "@/gql";
@@ -86,13 +85,11 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Code]: {
     component: CodeInterfaceMeta,
   },
-  [SymbolType.Schema]: {
-    component: SchemaInterfaceMeta,
-  },
   [SymbolType.Task]: {
     component: TaskInterfaceMeta,
   },
   // not yet defined symbol interfaces
+  [SymbolType.Schema]: undefined,
   [SymbolType.Value]: undefined,
   [SymbolType.Expectation]: undefined,
   [SymbolType.Model]: undefined,

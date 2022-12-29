@@ -23,3 +23,4 @@ class Schema(SymbolContent):
     definition: Statement
     description: str
     element: SchemaElement
+    bql: str

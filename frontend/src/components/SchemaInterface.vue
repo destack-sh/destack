@@ -1,13 +1,10 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import SchemaElement from "@/components/SchemaElement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementContentType } from "@/state/fragments";
-import { SchemaContentType, useSchemaInterfaceState } from "@/state/schema";
-import { computed } from "vue";
+import { SchemaContentType } from "@/state/fragments";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
-  statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof SchemaContentType>;
   focused: boolean;
   readonly: boolean;
@@ -19,37 +16,30 @@ const emit = defineEmits<{
   (e: "navigateDown", position?: number): void;
   (e: "escape"): void;
 }>();
-const statement = computed(() => useFragment(StatementContentType, props.statement));
 const content = computed(() => useFragment(SchemaContentType, props.content));
 
-const elementAsJsonObj = computed(() => content.value?.element || {});
-const elementAsJsonText = computed(() =>
-  JSON.stringify(elementAsJsonObj.value, (key, value) => (value == null || key == "__typename" ? undefined : value), 2)
-);
+const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
 
-// local interface state
-const state = useSchemaInterfaceState(statement);
+defineExpose({
+  focus: () => monacoEditor.value?.focus(),
+  defocus: () => monacoEditor.value?.defocus(),
+});
 </script>
 <template>
   <div class="flex h-full w-full flex-col gap-1 text-sm">
     <span v-if="content.description" class="text-black">{{ content.description }}</span>
     <MonacoEditor
-      v-if="state.view == 'json'"
+      ref="monacoEditor"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       hide-line-numbers
       :style="{ marginLeft: -23 + 'px' }"
-      :model-value="elementAsJsonText"
-      language="json"
+      :model-value="content.bql"
+      language="text/bql"
       :focused="focused"
       :readonly="readonly"
       @navigateUp="emit('navigateUp')"
       @navigateDown="emit('navigateDown')"
       @escape="emit('escape')"
-    />
-    <SchemaElement
-      v-else-if="state.view == 'pretty'"
-      :element="content.element"
-      :omit-name="content.element.name == statement.name"
     />
   </div>
 </template>

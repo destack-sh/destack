@@ -128,6 +128,17 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
   }
 `);
 
+export const SchemaContentType = graphql(/* GraphQL */ `
+  fragment SchemaContent on Schema {
+    id
+    description
+    element {
+      ...SchemaElementContentDeep
+    }
+    bql
+  }
+`);
+
 export const StatementContentType = graphql(/* GraphQL */ `
   fragment StatementContent on Statement {
     id
@@ -152,10 +163,10 @@ export const StatementContentType = graphql(/* GraphQL */ `
         ...DatasetContent
       }
       ... on Expectation {
-        ...ExpectationContent
+        description
       }
       ... on Task {
-        ...TaskContent
+        description
       }
       ... on Schema {
         ...SchemaContent

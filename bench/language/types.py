@@ -8,7 +8,7 @@ from uuid import UUID
 
 from django.db import models
 
-from bench.language.schema import SchemaElement
+from bench.language.schema import SchemaElement, render_bql
 from bench.utils.record import RecordBatch
 
 
@@ -204,6 +204,10 @@ class Dataset(SymbolContent):
 class Schema(SymbolContent):
     element: SchemaElement
     description: str = ""
+
+    @property
+    def bql(self):
+        return render_bql(self.element)
 
     def __content_str__(self):
         return str(self.element)
