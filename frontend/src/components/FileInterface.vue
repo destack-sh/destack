@@ -80,7 +80,12 @@ const positionedStatements = computed(() => {
 
   // group sibling import & comment statements at root
   for (const [i, positioned] of positionedStatements.entries()) {
-    if (positioned.statement.type == StatementType.Import || positioned.statement.type == StatementType.Comment) {
+    if (
+      positioned.statement.type == StatementType.Import ||
+      positioned.statement.type == StatementType.Comment ||
+      positioned.statement.type == StatementType.Blank ||
+      positioned.statement.type == StatementType.Requirement
+    ) {
       const next = positionedStatements[i + 1];
       if (next && next.depth == 0 && next.statement.type == positioned.statement.type) {
         positioned.isLastInGroup = false;

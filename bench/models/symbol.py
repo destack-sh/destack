@@ -270,16 +270,16 @@ class Statement(UUIDModel):
         refs: dict[UUID, SymbolContent | Compilation | Requirement | RunConfiguration | Statement],
     ):
         # copy contents
-        if self.type == StatementType.DEFINITION:
+        if self.type == StatementType.DEFINITION and self.content is not None:
             self.content.deepcopy(to=(refs[self.content_id]), refs=refs)
             refs[self.content_id].save()
-        if self.type == StatementType.COMPILATION:
+        if self.type == StatementType.COMPILATION and self.compilation is not None:
             self.compilation.deepcopy(to=(refs[self.compilation_id]), refs=refs)
             refs[self.compilation_id].save()
-        if self.type == StatementType.REQUIREMENT:
+        if self.type == StatementType.REQUIREMENT and self.requirement is not None:
             self.requirement.deepcopy(to=(refs[self.requirement_id]), refs=refs)
             refs[self.requirement_id].save()
-        if self.type == StatementType.RUNCONFIG:
+        if self.type == StatementType.RUNCONFIG and self.runconfig is not None:
             self.runconfig.deepcopy(to=(refs[self.runconfig_id]), refs=refs)
             refs[self.runconfig_id].save()
 

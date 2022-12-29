@@ -6,7 +6,7 @@ from uuid import UUID
 from django.db import transaction
 
 from bench import language, models
-from bench.models.project import FileType
+from bench.models.project import FileType, Project, ProjectVersion
 from bench.models.symbol import SYMBOL_TYPE_TO_FIELD
 
 
@@ -26,6 +26,7 @@ def read_statement(statement: models.Statement) -> language.Statement:
 @transaction.atomic
 def write(files: list[language.File], project_version: models.ProjectVersion) -> list[models.File]:
     """Write the language files (and their contents) as models to the database."""
+    lang_statements: dict[UUID, language.Statement] = {}
     model_files: dict[UUID, models.File] = {}
     model_statements: dict[UUID, models.Statement] = {}
     model_contents: dict[UUID, typing.Any] = {}
@@ -43,6 +44,7 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     for file in files:
         model_file = model_files[file.id]
         for statement in file.statements:
+            lang_statements[statement.id] = statement
             if statement.content is not None:
                 model_content, relations = map_symbol(statement.content)
                 model_contents[statement.id] = model_content
@@ -88,11 +90,15 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     models.Statement.objects.bulk_create(model_statements.values())
 
     # set references to other statements
-    for statement in model_statements.values():
-        if statement.parent is not None:
-            statement.parent = model_statements.get(statement.parent.id)
-        if statement.reference is not None and isinstance(statement.reference, language.Statement):
-            statement.reference = model_statements.get(statement.reference.id)
+    for lang_statement in lang_statements.values():
+        model_statement = model_statements[lang_statement.id]
+        if lang_statement.parent is not None:
+            model_statement.parent = model_statements.get(lang_statement.parent.id)
+        if lang_statement.reference is not None and isinstance(
+            lang_statement.reference, language.Statement
+        ):
+            model_statement.reference = model_statements.get(lang_statement.reference.id)
+    models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     return list(model_files.values())
 
@@ -133,8 +139,20 @@ def map_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, l
 
 def map_requirement(
     requirement: language.Requirement,
-) -> tuple[models.Requirement, list[typing.Any]]:
-    return models.Requirement(), []
+) -> models.Requirement():
+    # requirement names are organization.library
+    organization_slug, library_slug = requirement.name.split(".")
+    try:
+        library = Project.objects.get_by_slug(organization_slug, library_slug)
+    except Project.DoesNotExist:
+        raise ValueError(f"{requirement} could not be resolved")
+
+    if requirement.version == "latest":
+        version = library.head_
+    else:
+        version = ProjectVersion.objects.get(project=library, name=requirement.version)
+
+    return models.Requirement(project_version=version)
 
 
 def map_compilation(

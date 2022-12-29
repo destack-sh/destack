@@ -9,7 +9,8 @@ from django.db import transaction
 from bench.backend.mapper import write
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
-from bench.models import Model, ModelInferenceSettings, Organization, Project
+from bench.language.types import ModelInferenceSettings
+from bench.models import Model, Organization, Project
 from bench.models.model import ProviderKey
 from bench.models.project import FileType, ProjectType, ProjectVersion
 
@@ -110,7 +111,7 @@ def create_model_providers():
             model = Model.objects.create(
                 external_name=model_id,
                 provider=provider_key,
-                default_settings=ModelInferenceSettings.objects.create(),
+                default_settings=ModelInferenceSettings().as_dict(omit_empty=True),
             )
             models_file.define_symbol(name=model_id, content=model)
 

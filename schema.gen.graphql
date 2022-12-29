@@ -405,11 +405,10 @@ type Schema implements SymbolContent & Node {
 }
 
 type SchemaElement {
-  name: String!
+  name: String
   type: ValueType!
   required: Boolean!
   schemaId: String
-  choices: [String!]
   elements: [SchemaElement!]
 }
 

@@ -540,9 +540,8 @@ export type Schema = Node &
 
 export type SchemaElement = {
   __typename?: "SchemaElement";
-  choices?: Maybe<Array<Scalars["String"]>>;
   elements?: Maybe<Array<SchemaElement>>;
-  name: Scalars["String"];
+  name?: Maybe<Scalars["String"]>;
   required: Scalars["Boolean"];
   schemaId?: Maybe<Scalars["String"]>;
   type: ValueType;
@@ -981,25 +980,22 @@ export type StatementHeaderFragment = {
 
 export type SchemaElementContentDeepFragment = {
   __typename?: "SchemaElement";
-  name: string;
+  name?: string | null;
   type: ValueType;
   required: boolean;
   schemaId?: string | null;
-  choices?: Array<string> | null;
   elements?: Array<{
     __typename?: "SchemaElement";
-    name: string;
+    name?: string | null;
     type: ValueType;
     required: boolean;
     schemaId?: string | null;
-    choices?: Array<string> | null;
     elements?: Array<{
       __typename?: "SchemaElement";
-      name: string;
+      name?: string | null;
       type: ValueType;
       required: boolean;
       schemaId?: string | null;
-      choices?: Array<string> | null;
     }> | null;
   }> | null;
 } & { " $fragmentName"?: "SchemaElementContentDeepFragment" };
@@ -1710,7 +1706,6 @@ export const SchemaElementContentDeepFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "required" } },
           { kind: "Field", name: { kind: "Name", value: "schemaId" } },
-          { kind: "Field", name: { kind: "Name", value: "choices" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "elements" },
@@ -1721,7 +1716,6 @@ export const SchemaElementContentDeepFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "type" } },
                 { kind: "Field", name: { kind: "Name", value: "required" } },
                 { kind: "Field", name: { kind: "Name", value: "schemaId" } },
-                { kind: "Field", name: { kind: "Name", value: "choices" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "elements" },
@@ -1732,7 +1726,6 @@ export const SchemaElementContentDeepFragmentDoc = {
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "required" } },
                       { kind: "Field", name: { kind: "Name", value: "schemaId" } },
-                      { kind: "Field", name: { kind: "Name", value: "choices" } },
                     ],
                   },
                 },
