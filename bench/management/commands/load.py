@@ -8,7 +8,7 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.backend.resolver import write
+from bench.backend.mapper import write
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.models import Organization, Project
@@ -40,8 +40,6 @@ class Command(BaseCommand):
 
         project_v = project.create_version(name=version_id)
         project_v.reset()
-        project_v.bootstrap()
-
         source_file = SourceFile(path=path, content=Path(path).read_text())
         language_files = parse(lex(source_file), strip_whitespace=True)
         write(language_files, project_v)

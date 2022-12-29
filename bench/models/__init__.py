@@ -1,7 +1,7 @@
 from .code import Code, Execution, ExecutionStatus
 from .compilation import Compilation, SourceMapping
 from .dataset import Dataset, DatasetRecord, Value
-from .model import Model, ModelInference, ModelInferenceSettings
+from .model import Model, ModelInference
 from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .schema import Schema
@@ -29,7 +29,6 @@ __all__ = [
     "File",
     "Model",
     "ModelInference",
-    "ModelInferenceSettings",
     "Organization",
     "Project",
     "ProjectVersion",

@@ -356,7 +356,9 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return file
 
     @transaction.atomic
-    def create_path(self, path: str, type: FileType, exists_ok: bool = False) -> "File":
+    def create_path(
+        self, path: str, type: FileType, exists_ok: bool = False, id: Optional[UUID] = None
+    ) -> "File":
         """
         Create a file or directory at the given path, automatically creating parent directories.
         """
@@ -369,19 +371,20 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             )
         # create file
         file, created = File.objects.get_or_create(
-            project_version=self, parent=parent, name=file_parts[-1], type=type
+            project_version=self,
+            parent=parent,
+            name=file_parts[-1],
+            type=type,
+            defaults={"id": id} if id is not None else {},
         )
         if not created and not exists_ok:
             raise ValueError(f"file already exists: {file}")
         return file
 
-    def create_file_from_path(self, path: str, type: FileType, exists_ok: bool = False) -> "File":
-        return self.create_path(path, type, exists_ok=exists_ok)
-
-    def create_directory_from_path(
-        self, path: str, type: FileType, exists_ok: bool = False
+    def create_file_from_path(
+        self, path: str, type: FileType, exists_ok: bool = False, id: Optional[UUID] = None
     ) -> "File":
-        return self.create_path(path, type, exists_ok=exists_ok)
+        return self.create_path(path, type, exists_ok=exists_ok, id=id)
 
     def get_file(self, path: str, type: FileType) -> "File":
         try:

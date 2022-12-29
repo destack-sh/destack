@@ -11,7 +11,6 @@ from django.db import connection, models, transaction
 from bench.models.schema_field import Schemad
 from bench.models.symbol import Statement, SymbolContent, SymbolContentManager
 from bench.models.utils import UUIDModel
-from bench.utils.schema import derive_schema_from_records
 
 
 class DatasetManager(SymbolContentManager, models.Manager["Dataset"]):
@@ -91,13 +90,6 @@ class Dataset(Schemad, SymbolContent):
     def set(self, records: list[dict]):
         self.clear()
         self.extend(records)
-
-    @transaction.atomic
-    def derive_schema(self):
-        """Derives and sets a new schema from the records."""
-        records = list(self)
-        new_schema_element = derive_schema_from_records(records)
-        self.set_schema_element(new_schema_element)
 
     def update(self, index: int, record: dict):
         with transaction.atomic():

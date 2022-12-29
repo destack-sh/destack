@@ -32,10 +32,10 @@ from bench.backend.types import (
     LoadedSymbol,
     Value,
 )
-from bench.language.types import Code, Dataset, Model, SymbolContent
+from bench.language.types import Code, Dataset, Model, ModelInferenceSettings, SymbolContent
 from bench.models import Dataset, Model, Statement, SymbolContent
 from bench.models.code import Code
-from bench.models.model import ModelInference, ModelInferenceSettings, ModelOperation, ProviderKey
+from bench.models.model import ModelInference, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
@@ -293,7 +293,7 @@ class Executor:
             if code.code_function_name is not None:
                 # Run code to get function symbol.
                 symbols = await self.run_text(
-                    code.code_text, {**dynamic_builtins, **unwrapped_arguments}
+                    code.code, {**dynamic_builtins, **unwrapped_arguments}
                 )
                 if code.code_function_name not in symbols:
                     raise ValueError(
@@ -305,7 +305,7 @@ class Executor:
                 #  Currently re exec() the code every time it's called.
                 async def _run_anonymous(**kwargs):
                     await self._do_exec(
-                        code.code_text, {**dynamic_builtins, **loaded_arguments, **kwargs}
+                        code.code, {**dynamic_builtins, **loaded_arguments, **kwargs}
                     )
 
                 _run_anonymous.__name__ = f"_anon_{code.content_id.hex}"
@@ -349,10 +349,9 @@ class Executor:
         traces: list[Trace] | None = None,
     ):
         resolved_arguments = {
-            name: await self.resolver.read_argument(argument)
-            for name, argument in arguments.items()
+            name: await self.mapper.read_argument(argument) for name, argument in arguments.items()
         }
-        resolved_code = await self.resolver.read_code(code)
+        resolved_code = await self.mapper.read_code(code)
         return await self.run(resolved_code, resolved_arguments, traces)
 
     async def run(

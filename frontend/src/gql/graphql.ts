@@ -767,6 +767,13 @@ export type UserEdge = {
   node: User;
 };
 
+export type Value = Node &
+  SymbolContent & {
+    __typename?: "Value";
+    id: Scalars["GlobalID"];
+    value?: Maybe<Scalars["JSON"]>;
+  };
+
 /** An enumeration. */
 export enum ValueType {
   Array = "ARRAY",
@@ -1021,6 +1028,7 @@ export type StatementContentFragment = {
     | { __typename?: "Model" }
     | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
     | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+    | { __typename?: "Value" }
     | null;
   reference?:
     | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
@@ -1190,6 +1198,7 @@ export type MorphStatementMutation = {
         | { __typename?: "Model" }
         | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
         | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+        | { __typename?: "Value" }
         | null;
     } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } };
   };
@@ -1357,6 +1366,7 @@ export type UpdateTaskContentMutation = {
       | { __typename?: "Model"; id: any }
       | { __typename?: "Schema"; id: any }
       | { __typename?: "Task"; description: string; id: any }
+      | { __typename?: "Value"; id: any }
       | null;
   };
 };
@@ -1378,6 +1388,7 @@ export type UpdateExpectationContentMutation = {
       | { __typename?: "Model"; id: any }
       | { __typename?: "Schema"; id: any }
       | { __typename?: "Task"; id: any }
+      | { __typename?: "Value"; id: any }
       | null;
   };
 };
@@ -1400,6 +1411,7 @@ export type UpdateCodeContentMutation = {
       | { __typename?: "Model"; id: any }
       | { __typename?: "Schema"; id: any }
       | { __typename?: "Task"; id: any }
+      | { __typename?: "Value"; id: any }
       | null;
   };
 };

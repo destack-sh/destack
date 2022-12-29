@@ -10,7 +10,7 @@ class SchemaManager(SymbolContentManager, models.Manager["Schema"]):
 
 def _make_default_schema_element():
     from bench.api.schema import SchemaElement
-    from bench.utils.schema import ValueType
+    from bench.language.schema import ValueType
 
     return SchemaElement(name="", type=ValueType.OBJECT, required=True, elements=[])
 

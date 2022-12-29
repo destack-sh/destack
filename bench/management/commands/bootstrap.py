@@ -6,7 +6,7 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.backend.resolver import write
+from bench.backend.mapper import write
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.models import Model, ModelInferenceSettings, Organization, Project
@@ -74,11 +74,9 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
         return
     if exists:
         logger.warn(f"Overwriting library {stdlib_v} at {version_id}")
-    else:
-        stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
 
+    stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
     stdlib_v.reset()
-    stdlib_v.bootstrap()
     source_file = SourceFile(path=path, content=Path(path).read_text())
     language_files = parse(lex(source_file), strip_whitespace=True)
     write(language_files, stdlib_v)

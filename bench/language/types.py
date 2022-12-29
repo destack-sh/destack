@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, NamedTuple, Optional
 from uuid import UUID
 
 from django.db import models
 
+from bench.language.schema import SchemaElement
 from bench.utils.record import RecordBatch
-from bench.utils.schema import SchemaElement
 
 
 # TODO @Cleanup: don't use Django's TextChoices inside language
@@ -93,7 +93,7 @@ class File:
         return [statement for statement in self.statements if statement.parent is None]
 
 
-UnresolvedStatement = tuple[str, str]
+UnresolvedStatement = NamedTuple("UnresolvedStatement", [("path", str), ("name", str)])
 
 
 @dataclass(repr=False, frozen=True)
@@ -102,17 +102,16 @@ class Statement:
     parent: Optional[Statement]
     index: int
     type: StatementType
-    id: UUID = field(default_factory=uuid.uuid4)
     modifier: Optional[StatementModifier] = None
     name: Optional[str] = None
     text: Optional[str] = None
-    value: Optional[dict] = None
     symbol_type: Optional[SymbolType] = None
     content: Optional[SymbolContent | Requirement | Compilation | RunConfiguration] = None
     reference: Optional[Statement | UnresolvedStatement] = None
     requirement: Optional[Requirement] = None
     compilation: Optional[Compilation] = None
     runconfig: Optional[RunConfiguration] = None
+    id: UUID = field(default_factory=uuid.uuid4)
 
     _root: Optional[DerivedRoot] = None
     _source: Optional[Any] = None
@@ -132,6 +131,15 @@ class Statement:
 
     def __repr__(self):
         return f"<Statement {self}>"
+
+    @property
+    def is_alias(self):
+        if isinstance(self.reference, UnresolvedStatement):
+            return self.reference[1] != self.name
+        elif isinstance(self.reference, Statement):
+            return self.reference.name != self.name
+        else:
+            return False
 
     @property
     def absolute_index(self) -> str:
@@ -203,7 +211,7 @@ class Schema(SymbolContent):
 
 @dataclass(repr=False)
 class Value(SymbolContent):
-    value: dict
+    value: dict | list | int | float | bool | str
 
     def __content_str__(self):
         return f"{self.value}"
@@ -229,10 +237,15 @@ class ModelInferenceSettings:
     logprobs: int = 2
     stop: list[str] = field(default_factory=list)
 
+    def as_dict(self, omit_empty: bool) -> dict[str, Any]:
+        return asdict(
+            self, dict_factory=lambda items: {k: v for k, v in items if not omit_empty or v}
+        )
+
 
 @dataclass(repr=False)
 class Code(SymbolContent):
-    code_text: Optional[str]
+    code: Optional[str]
     code_function_name: Optional[str]
     builtin_id: Optional[str]
 
@@ -240,10 +253,10 @@ class Code(SymbolContent):
         # copied almost verbatim from Code.__str__
         if self.builtin_id:
             content = f"builtin={self.builtin_id}"
-        elif self.code_function_name and self.code_text:
-            content = f"function={self.code_function_name},chars={len(self.code_text)},lines={len(self.code_text.splitlines())}"
-        elif self.code_text:
-            content = f"length={len(self.code_text)}"
+        elif self.code_function_name and self.code:
+            content = f"function={self.code_function_name},chars={len(self.code)},lines={len(self.code.splitlines())}"
+        elif self.code:
+            content = f"length={len(self.code)}"
         else:
             raise ValueError(f"code has no content: {self}")
         return f"{content},{self.input_schema}->{self.output_schema}"
@@ -254,28 +267,26 @@ class Requirement:
     name: str
     version: str
     project_version_id: Optional[UUID] = None
-    id: UUID = field(default_factory=uuid.uuid4)
+
+    def __str__(self):
+        return f"{self.name}@{self.version}"
 
 
 @dataclass(repr=False)
 class RunConfiguration:
-    id: UUID = field(default_factory=uuid.uuid4)
+    pass
 
 
 @dataclass(repr=False)
 class Compilation:
-    id: UUID = field(default_factory=uuid.uuid4)
     source_mappings: list["SourceMapping"] = field(default_factory=list)
 
 
 @dataclass(repr=False)
 class SourceMapping:
-    source_id: UUID
     source: Statement
     source_revision: int
     source_path: dict
-    target_id: UUID
     target: Statement
     target_revision: int
     target_path: dict
-    id: UUID = field(default_factory=uuid.uuid4)

@@ -21,5 +21,5 @@ class DatasetRecord(gql.Node):
 
 
 @gql.django.type(models.Value)
-class Value(gql.Node):
+class Value(SymbolContent):
     value: auto

@@ -4,7 +4,7 @@ from strawberry_django_plus import gql
 
 from bench import models
 from bench.api.symbol import Statement, SymbolContent
-from bench.utils import schema
+from bench.language import schema
 
 ValueType = gql.enum(schema.ValueType)
 

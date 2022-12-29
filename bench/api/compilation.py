@@ -10,7 +10,7 @@ import bench.models.compilation
 from bench import models
 from bench.backend.compiler import Compiler, get_stdlib_model
 from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
+from bench.backend.mapper import Mapper
 
 if TYPE_CHECKING:
     from bench.api.symbol import Statement
@@ -69,7 +69,7 @@ class CompilationMutation:
             .select_related("project_version", "task", "target_task", "target_code")
             .get(id=input.compilation_id.node_id)
         )
-        executor = Executor(Resolver())
+        executor = Executor(Mapper())
         compiler = Compiler(executor)
         async_to_sync(compiler.compile)(compilation)
         return CompilePayload(compilation=compilation)

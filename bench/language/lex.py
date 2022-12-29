@@ -72,14 +72,20 @@ class Token:
     end_column: int
     type: TokenType
     value: Optional[str | enum.Enum]
+    value_extras: Optional[dict[str, str]]
 
     def __str__(self):
-        return f"{self.type.value} {self.value_truncated} ({self.source_file.path} {self.location_in_file})"
+        if self.value_extras:
+            extras_str = ", ".join(f"{key}={value}" for key, value in self.value_extras.items())
+            extras_str = f" ({extras_str})"
+        else:
+            extras_str = ""
+        return f"{self.type.value} {self.value_truncated}{extras_str} ({self.source_file.path} {self.location_in_file})"
 
     @cached_property
     def value_truncated(self) -> str:
         # truncate value if too long
-        max_length = 50
+        max_length = 100
         if self.value is None:
             value = "<none>"
         elif len(self.value) > max_length:
@@ -143,9 +149,11 @@ separator_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # (allowed characters: a-z, A-Z, 0-9, _, -, . and whitespace in quotes)
 IDENTIFIER_REGEX = re.compile(r"(?P<value>([\w.\-][\w.-]*))")
 ESCAPED_IDENTIFIER_REGEX = re.compile(r"'(?P<value>[\w.\-][ \w.\-]*)'")
-# literal as `<value>` or ^```<multiline\n value>```$
-MULTILINE_LITERAL_REGEX = re.compile(r"```\s?(?P<value>.*?)\s?```", re.DOTALL | re.MULTILINE)
-INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`]+)`")
+# literal as `<value>`{<lang>}? or ^```<lang>?<multi \n line \n value>```$
+MULTILINE_LITERAL_REGEX = re.compile(
+    r"```((?P<lang>\w+)\n)?\s?(?P<value>.*?)\s?```", re.DOTALL | re.MULTILINE
+)
+INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({(?P<lang>\w+)})?")
 
 # token type + corresponding pattern in lex order
 TOKEN_PATTERNS = [
@@ -202,10 +210,15 @@ def get_location_pointer(
 
 
 def get_location_range_pointer(
-    source: SourceFile, start_line: int, start_column: int, end_line: int, end_column: int
+    source: SourceFile,
+    start_line: int,
+    start_column: int,
+    end_line: int,
+    end_column: int,
+    prev_lines: int = 4,
 ) -> str:
     # does not handle multiline tokens yet
-    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, start_line)))
+    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, prev_lines)))
     if not prev_lines.endswith("\n"):
         prev_lines = prev_lines + "\n"
     context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
@@ -225,7 +238,10 @@ def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
     # create token (with value if group "value" exists)
     value = match.group("value") if "value" in match.groupdict() else None
     if token_type == TokenType.KEYWORD and KEYWORDS.get(value) is not None:
-        value = KEYWORDS[value]
+        value = KEYWORDS[value]  # map to enum
+    # add additional groups as value_extras
+    value_extras = {k: v for k, v in match.groupdict().items() if k != "value" and v is not None}
+
     line_number = source.content.count("\n", 0, match.start()) + 1
     line_span = source.content.count("\n", current_pos, match.end() - 1)
     start_column = match.start() - source.linebreaks[line_number - 1]
@@ -238,4 +254,5 @@ def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
         end_column=end_column,
         type=token_type,
         value=value,
+        value_extras=value_extras,
     )

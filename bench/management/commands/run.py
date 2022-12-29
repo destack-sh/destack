@@ -5,7 +5,7 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
 from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
+from bench.backend.mapper import Mapper
 from bench.models import Compilation, Project, SymbolType
 from bench.models.project import ProjectType
 
@@ -43,6 +43,6 @@ class Command(BaseCommand):
             compilation = main_program.task.compilations.get(name=compilation_name)
         main_code = compilation.target_code
 
-        executor = Executor(Resolver())
+        executor = Executor(Mapper())
         output = async_to_sync(executor.resolve_and_run)(main_code, {"input": input})
         print(output)

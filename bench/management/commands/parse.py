@@ -2,10 +2,14 @@ import sys
 
 from django.core.management import BaseCommand
 from rich.console import Console
+from rich.layout import Layout
+from rich.panel import Panel
 from rich.table import Table
 
+from bench.language import File
 from bench.language.lex import SourceFile, Token, TokenType, lex
 from bench.language.parse import parse
+from bench.language.reconstruct import render_file
 
 
 class Command(BaseCommand):
@@ -15,6 +19,7 @@ class Command(BaseCommand):
         parser.add_argument("path", type=str)
 
     def handle(self, path, *args, **options):
+        console = Console()
         if path == "-":
             # read until EOF
             string = sys.stdin.read()
@@ -22,19 +27,18 @@ class Command(BaseCommand):
             with open(path, "r") as f:
                 string = f.read()
         source_file = SourceFile(path=path if path != "-" else "<stdin>", content=string)
-
-        console = Console()
-
         tokens = lex(source_file)
         console.print(pprint_tokens(tokens))
-
         files = parse(tokens, strip_whitespace=True)
+        for panel in pprint_files(files):
+            console.print(panel)
 
 
 def pprint_tokens(tokens: list[Token]) -> Table:
     table = Table(title=f"{len(tokens)} tokens")
     table.add_column("Type", style="yellow")
     table.add_column("Value", style="dim")
+    table.add_column("Extras", style="cyan")
     table.add_column("Location", style="green")
     current_file = None
     for token in tokens:
@@ -43,9 +47,20 @@ def pprint_tokens(tokens: list[Token]) -> Table:
         if token.source_file != current_file:
             current_file = token.source_file
             table.add_row("---", f"[bold]{current_file.path}[/bold]", "---")
+        extras_str = ", ".join(f"{key}={value}" for key, value in token.value_extras.items())
         table.add_row(
             token.type.name,
             token.value_truncated,
+            extras_str,
             token.location_in_file,
         )
     return table
+
+
+def pprint_files(files: list[File]) -> list[Panel]:
+    # arrange files as panels
+    panels: list[Panel] = []
+    for file in files:
+        file_str = render_file(file)
+        panels.append(Panel(file_str, title=file.path))
+    return panels
