@@ -26,15 +26,15 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex h-full w-full flex-col gap-1 text-sm">
+  <div class="flex flex-col w-full h-full gap-1 text-sm">
     <span v-if="content.description" class="text-black">{{ content.description }}</span>
     <MonacoEditor
       ref="monacoEditor"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       hide-line-numbers
       :style="{ marginLeft: -23 + 'px' }"
-      :model-value="content.bql"
-      language="text/bql"
+      :model-value="content.bsl"
+      language="text/bsl"
       :focused="focused"
       :readonly="readonly"
       @navigateUp="emit('navigateUp')"

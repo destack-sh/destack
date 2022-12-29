@@ -402,7 +402,7 @@ type Schema implements SymbolContent & Node {
   definition: Statement!
   description: String!
   element: SchemaElement!
-  bql: String!
+  bsl: String!
 }
 
 type SchemaElement {

@@ -1,6 +1,6 @@
 from django.db import models
 
-from bench.language.schema import render_bql
+from bench.language.schema import render_bsl
 from bench.models.schema_field import SchemaElementField
 from bench.models.symbol import SymbolContent, SymbolContentManager
 
@@ -28,7 +28,7 @@ class Schema(SymbolContent):
         return f"({self.element})"
 
     @property
-    def bql(self):
-        return render_bql(self.element)
+    def bsl(self):
+        return render_bsl(self.element)
 
     objects = SchemaManager()

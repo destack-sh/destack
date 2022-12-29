@@ -93,7 +93,7 @@ class SchemaElement:
 
     @functools.cache
     def __str__(self):
-        return render_bql(self)
+        return render_bsl(self)
 
     @cached_property
     def is_resolved(self):
@@ -137,11 +137,11 @@ class SchemaElement:
             return self
 
 
-def render_bql(schema: SchemaElement) -> str:
-    """Renders a schema to a BQL string."""
+def render_bsl(schema: SchemaElement) -> str:
+    """Renders a schema to a bsl string."""
     name_str = f"{schema.name}: " if schema.name else ""
     required_str = "" if schema.required else "?"
-    elements_str = ", ".join(render_bql(e) for e in schema.elements) if schema.elements else ""
+    elements_str = ", ".join(render_bsl(e) for e in schema.elements) if schema.elements else ""
     if schema.type == ValueType.OBJECT:
         # output as name: { elem1, elem2, ... }
         return f"{name_str}{{ {elements_str} }}{required_str}"
@@ -154,26 +154,26 @@ def render_bql(schema: SchemaElement) -> str:
         return f"{name_str}{schema.type.value}{required_str}"
 
 
-def parse_bql(bql: str) -> SchemaElement:
+def parse_bsl(bsl: str) -> SchemaElement:
     """
-    Parse a schema from a BQL string.
+    Parse a schema from a bsl string.
     This is a basic parser and should probably be a more formal grammar later.
     """
-    bql = bql.strip()
+    bsl = bsl.strip()
 
     # required
-    required_match = re.match(r"^(.*)\?$", bql)
+    required_match = re.match(r"^(.*)\?$", bsl)
     if required_match:
         required = False
-        bql = bql[: required_match.start(1)]
+        bsl = bsl[: required_match.start(1)]
     else:
         required = True
 
     # name
-    name_match = re.match(r"^(?P<name>[a-zA-Z0-9_]+): ", bql)
+    name_match = re.match(r"^(?P<name>[a-zA-Z0-9_]+): ", bsl)
     if name_match:
         name = name_match.group("name")
-        bql = bql[name_match.end() :]
+        bsl = bsl[name_match.end() :]
     else:
         name = None
 
@@ -181,23 +181,23 @@ def parse_bql(bql: str) -> SchemaElement:
     elements = None
     schema_id = None
 
-    object_match = re.match(r"^\{(?P<elements>.*)}$", bql)
-    array_match = re.match(r"^\[(?P<elements>.*)]$", bql)
-    type_match = re.match(rf"^(?P<type>{'|'.join(t.value for t in LITERAL_TYPES)})$", bql)
+    object_match = re.match(r"^\{(?P<elements>.*)}$", bsl)
+    array_match = re.match(r"^\[(?P<elements>.*)]$", bsl)
+    type_match = re.match(rf"^(?P<type>{'|'.join(t.value for t in LITERAL_TYPES)})$", bsl)
     if object_match:  # object
         value_type = ValueType.OBJECT
-        elements_bql = object_match.group("elements").split(",")
-        elements = [parse_bql(e.strip()) for e in elements_bql]
+        elements_bsl = object_match.group("elements").split(",")
+        elements = [parse_bsl(e.strip()) for e in elements_bsl]
     elif array_match:  # array
         value_type = ValueType.ARRAY
-        elements_bql = array_match.group("elements").split(",")
-        elements = [parse_bql(e.strip()) for e in elements_bql]
+        elements_bsl = array_match.group("elements").split(",")
+        elements = [parse_bsl(e.strip()) for e in elements_bsl]
     elif type_match:  # value type
         value_type = ValueType(type_match.group("type"))
     else:  # schema reference (if not defined inline)
-        schema_name_match = re.match(r"^(?P<schema_name>[a-zA-Z0-9_]+)$", bql)
+        schema_name_match = re.match(r"^(?P<schema_name>[a-zA-Z0-9_]+)$", bsl)
         if not schema_name_match:
-            raise ValueError(f"invalid schema reference: {bql}")
+            raise ValueError(f"invalid schema reference: {bsl}")
         value_type = ValueType.SCHEMA
         schema_id = schema_name_match.group("schema_name")
         elements = None
