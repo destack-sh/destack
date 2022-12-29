@@ -41,7 +41,7 @@ class Command(BaseCommand):
         project_v = project.create_version(name=version_id)
         project_v.reset()
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        language_files = parse(lex(source_file), strip_whitespace=True)
+        language_files = parse(lex(source_file))
         write(language_files, project_v)
 
         # advance head to new version

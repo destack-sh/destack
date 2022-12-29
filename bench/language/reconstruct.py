@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from dataclasses import dataclass
 from itertools import chain
 from typing import Iterable, Optional
 from uuid import UUID
@@ -17,18 +16,12 @@ from bench.language.types import (
     Code,
     Dataset,
     Expectation,
-    Model,
     Schema,
     SymbolContent,
     Task,
     UnresolvedStatement,
     Value,
 )
-
-
-@dataclass
-class RenderContext:
-    preserve_whitespace: bool
 
 
 def render(files: list[File]) -> str:
@@ -76,19 +69,24 @@ def render_statement(statement: Statement, indent: int, render_indent: bool) -> 
 
 
 def render_statement_content(statement: Statement) -> str:
-    if statement.type == StatementType.COMMENT:
+    if statement.type == StatementType.BLANK:
+        return ""
+    elif statement.type == StatementType.COMMENT:
         return f"# {statement.text}"
     elif statement.type == StatementType.REQUIREMENT:
         return f"require {statement.requirement.name}@{statement.requirement.version}"
     elif statement.type == StatementType.COMPILATION:
-        return f"compile {statement.name} = {statement.symbol_type} {statement.reference}:"
+        compilation_name = _escape_identifier(statement.name)
+        reference_name = _escape_identifier(_get_reference_name(statement.reference))
+        return f"compile {compilation_name} = {statement.symbol_type} {reference_name}:"
     elif statement.type == StatementType.RUNCONFIG:
         raise NotImplementedError
     elif statement.type == StatementType.IMPORT:
-        alias_str = f" as {statement.name}" if statement.is_alias else ""
-        reference_name = _get_reference_name(statement.reference)
+        alias_name = _escape_identifier(statement.name)
+        alias_str = f" as {alias_name}" if statement.is_alias else ""
+        reference_name = _escape_identifier(_get_reference_name(statement.reference))
         import_path = _get_reference_path(statement.reference, via=statement)
-        return f"import {reference_name}{alias_str} from {import_path}"
+        return f"import {statement.symbol_type} {reference_name}{alias_str} from {import_path}"
     elif statement.type == StatementType.DEFINITION:
         content_str = render_symbol_content(statement.content)
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
@@ -105,7 +103,7 @@ def render_statement_content(statement: Statement) -> str:
 def render_symbol_content(content: SymbolContent) -> str:
     if isinstance(content, Schema):
         bql = render_bql(content.element)
-        return _render_literal(bql, lang="bql")
+        return _render_literal(bql)
     elif isinstance(content, Task):
         return _render_literal(content.description)
     elif isinstance(content, Expectation):
@@ -117,7 +115,7 @@ def render_symbol_content(content: SymbolContent) -> str:
         return _render_literal(records_as_jsonl, lang="jsonl")
     elif isinstance(content, Value):
         value_as_json = json.dumps(content.value)
-        return _render_literal(value_as_json, lang="json")
+        return _render_literal(value_as_json)
     else:
         raise ValueError(f"unexpected symbol content type: {content}")
 

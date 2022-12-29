@@ -53,10 +53,10 @@ class SourceFile:
 
 
 class TokenType(enum.Enum):
-    NEW_FILE = "new_file"
+    NEWFILE = "newfile"
     INDENT = "indent"
+    NEWLINE = "newline"
     COMMENT = "comment"
-    WHITESPACE = "whitespace"
     KEYWORD = "keyword"
     SEPARATOR = "separator"
     IDENTIFIER = "identifier"
@@ -131,15 +131,14 @@ KEYWORDS = {
     "run": StatementType.RUNCONFIG,
     "compile": StatementType.COMPILATION,
 }
-SEPARATORS = {":", "=", "@"}
+SEPARATORS = {" ", ":", "=", "@"}
 
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
 # any whitespace except indent
-INLINE_WHITESPACE_REGEX = re.compile(r"(?P<value>[ \n\r\f\v])")
-NEWLINE_WHITESPACE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
+NEWLINE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
 # new file like --- <path> ---
-NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>[\w.-]*)\s*---$", re.MULTILINE)
+NEWFILE_REGEX = re.compile(r"^---\s*(?P<value>[\w.-]*)\s*---$\n", re.MULTILINE)
 # comment like # <comment>
 COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
 # keywords from set
@@ -158,11 +157,10 @@ INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({\.(?P<lang>\w+)})?")
 
 # token type + corresponding pattern in lex order
 TOKEN_PATTERNS = [
-    (TokenType.NEW_FILE, NEW_FILE_REGEX),
+    (TokenType.NEWFILE, NEWFILE_REGEX),
     (TokenType.INDENT, INDENT_REGEX),
     # eat any other whitespace
-    (TokenType.WHITESPACE, INLINE_WHITESPACE_REGEX),
-    (TokenType.WHITESPACE, NEWLINE_WHITESPACE_REGEX),
+    (TokenType.NEWLINE, NEWLINE_REGEX),
     (TokenType.COMMENT, COMMENT_REGEX),
     (TokenType.KEYWORD, KEYWORD_REGEX),
     (TokenType.SEPARATOR, SEPARATOR_REGEX),
