@@ -137,8 +137,9 @@ SEPARATORS = {" ", ":", "=", "@"}
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
 # any whitespace except indent
 NEWLINE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
-# new file like --- <path> ---
-NEWFILE_REGEX = re.compile(r"^---\s*(?P<value>[\w.-]*)\s*---$\n", re.MULTILINE)
+# new file like --- <path> --- (eating previous newline)
+# (eating the previous newline should be a parsing concern, but it's easier in lex for now)
+NEWFILE_REGEX = re.compile(r"^\n?---\s*(?P<value>[\w.-]*)\s*---$\n", re.MULTILINE)
 # comment like # <comment>
 COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
 # keywords from set
@@ -200,32 +201,6 @@ def lex(source: SourceFile) -> list[Token]:
     return tokens
 
 
-def get_location_pointer(
-    source: SourceFile, line_number: int, start_column: int, prev_lines: int = 4
-) -> str:
-    prev_lines = "> ".join(source.line(line_number - i - 1) for i in reversed(range(0, prev_lines)))
-    if not prev_lines.endswith("\n"):
-        prev_lines = prev_lines + "\n"
-    context = f"> {prev_lines}> {'-' * start_column}^"
-    return context
-
-
-def get_location_range_pointer(
-    source: SourceFile,
-    start_line: int,
-    start_column: int,
-    end_line: int,
-    end_column: int,
-    prev_lines: int = 4,
-) -> str:
-    # does not handle multiline tokens yet
-    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, prev_lines)))
-    if not prev_lines.endswith("\n"):
-        prev_lines = prev_lines + "\n"
-    context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
-    return context
-
-
 def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
     """Lex a single token from a source file."""
     # try to match a pattern (once at current position)
@@ -257,3 +232,29 @@ def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
         value=value,
         value_extras=value_extras,
     )
+
+
+def get_location_pointer(
+    source: SourceFile, line_number: int, start_column: int, prev_lines: int = 4
+) -> str:
+    prev_lines = "> ".join(source.line(line_number - i - 1) for i in reversed(range(0, prev_lines)))
+    if not prev_lines.endswith("\n"):
+        prev_lines = prev_lines + "\n"
+    context = f"> {prev_lines}> {'-' * start_column}^"
+    return context
+
+
+def get_location_range_pointer(
+    source: SourceFile,
+    start_line: int,
+    start_column: int,
+    end_line: int,
+    end_column: int,
+    prev_lines: int = 4,
+) -> str:
+    # does not handle multiline tokens yet
+    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, prev_lines)))
+    if not prev_lines.endswith("\n"):
+        prev_lines = prev_lines + "\n"
+    context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
+    return context

@@ -9,6 +9,7 @@ import model text-davinci-003 from openai.stdlib.text
 
 compile prod = task 'extract entities':
     with model text-davinci-003
+
 --- main.instruct ---
 schema entity:
 `{ name: string, type: string }`
