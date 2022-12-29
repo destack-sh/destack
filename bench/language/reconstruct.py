@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from dataclasses import dataclass
 from itertools import chain
-from typing import Iterable
+from typing import Iterable, Optional
 from uuid import UUID
 
 from bench.api.symbol import StatementType
 from bench.language import File, Statement
+from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX
 from bench.language.schema import render_bql
 from bench.language.types import (
     Code,
@@ -22,6 +24,11 @@ from bench.language.types import (
     UnresolvedStatement,
     Value,
 )
+
+
+@dataclass
+class RenderContext:
+    preserve_whitespace: bool
 
 
 def render(files: list[File]) -> str:
@@ -74,7 +81,7 @@ def render_statement_content(statement: Statement) -> str:
     elif statement.type == StatementType.REQUIREMENT:
         return f"require {statement.requirement.name}@{statement.requirement.version}"
     elif statement.type == StatementType.COMPILATION:
-        return f"compile {statement.name} = {statement.symbol_type} {statement.reference}"
+        return f"compile {statement.name} = {statement.symbol_type} {statement.reference}:"
     elif statement.type == StatementType.RUNCONFIG:
         raise NotImplementedError
     elif statement.type == StatementType.IMPORT:
@@ -84,30 +91,56 @@ def render_statement_content(statement: Statement) -> str:
         return f"import {reference_name}{alias_str} from {import_path}"
     elif statement.type == StatementType.DEFINITION:
         content_str = render_symbol_content(statement.content)
-        return f"{statement.symbol_type} {statement.name}:\n{content_str}"
+        modifier_str = f"{statement.modifier} " if statement.modifier else ""
+        identifier_str = _escape_identifier(statement.name)
+        return f"{modifier_str}{statement.symbol_type} {identifier_str}:\n{content_str}"
     elif statement.type == StatementType.REFERENCE:
-        return "reference"  # nocheckin
+        modifier_str = f"{statement.modifier} " if statement.modifier else ""
+        identifier_str = _escape_identifier(statement.name)
+        return f"{modifier_str}{statement.symbol_type} {identifier_str}"
     else:
         raise ValueError(f"unexpected statement type: {statement}")
 
 
 def render_symbol_content(content: SymbolContent) -> str:
     if isinstance(content, Schema):
-        return f"`{render_bql(content.element)}`{{bql}}"
+        bql = render_bql(content.element)
+        return _render_literal(bql, lang="bql")
     elif isinstance(content, Task):
-        return f"`{content.description}`"
+        return _render_literal(content.description)
     elif isinstance(content, Expectation):
-        return f"`{content.description}`"
+        return _render_literal(content.description)
     elif isinstance(content, Code):
-        return f"```python\n{content.code}\n```"
+        return _render_literal(content.code, lang=content.language)
     elif isinstance(content, Dataset):
         records_as_jsonl = "\n".join(json.dumps(record) for record in content.records)
-        return f"```jsonl\n{records_as_jsonl}\n```"
+        return _render_literal(records_as_jsonl, lang="jsonl")
     elif isinstance(content, Value):
         value_as_json = json.dumps(content.value)
-        return f"`{value_as_json}`"
+        return _render_literal(value_as_json, lang="json")
     else:
         raise ValueError(f"unexpected symbol content type: {content}")
+
+
+def _escape_identifier(identifier: str) -> str:
+    """Wraps an identifier in single quotes if it contains special characters."""
+    if IDENTIFIER_REGEX.fullmatch(identifier):
+        return identifier
+    else:
+        return f"'{identifier}'"
+
+
+def _render_literal(value: str, lang: Optional[str] = None) -> str:
+    if INLINE_LITERAL_REGEX.fullmatch(f"`{value}`"):
+        if lang is None:
+            return f"`{value}`"
+        else:
+            return f"`{value}`{{.{lang}}}"
+    else:  # multiline
+        if lang is None:
+            return f"```\n{value}\n```"
+        else:
+            return f"```{lang}\n{value}\n```"
 
 
 def _get_reference_name(reference: Statement | UnresolvedStatement) -> str:
@@ -123,6 +156,6 @@ def _get_reference_path(reference: Statement | UnresolvedStatement, via: Stateme
     if isinstance(reference, UnresolvedStatement):
         return reference[0]
     elif isinstance(reference, Statement):
-        return reference.file.path
+        raise NotImplementedError
     else:
         raise ValueError(f"unexpected reference type: {reference}")

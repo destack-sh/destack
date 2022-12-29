@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from typing import Any, NamedTuple, Optional
+from typing import Any, Literal, NamedTuple, Optional
 from uuid import UUID
 
 from django.db import models
@@ -245,6 +245,7 @@ class ModelInferenceSettings:
 
 @dataclass(repr=False)
 class Code(SymbolContent):
+    language: Literal["python"]
     code: Optional[str]
     code_function_name: Optional[str]
     builtin_id: Optional[str]

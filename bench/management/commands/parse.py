@@ -1,8 +1,8 @@
 import sys
 
 from django.core.management import BaseCommand
+from rich import markup
 from rich.console import Console
-from rich.layout import Layout
 from rich.panel import Panel
 from rich.table import Table
 
@@ -62,5 +62,5 @@ def pprint_files(files: list[File]) -> list[Panel]:
     panels: list[Panel] = []
     for file in files:
         file_str = render_file(file)
-        panels.append(Panel(file_str, title=file.path))
+        panels.append(Panel(markup.escape(file_str), title=file.path))
     return panels

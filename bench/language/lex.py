@@ -136,15 +136,16 @@ SEPARATORS = {":", "=", "@"}
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
 # any whitespace except indent
-WHITESPACE_REGEX = re.compile(r"(?P<value>[ \n\r\f\v])")
+INLINE_WHITESPACE_REGEX = re.compile(r"(?P<value>[ \n\r\f\v])")
+NEWLINE_WHITESPACE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
 # new file like --- <path> ---
-NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>[\w\.-]*)\s*---$", re.MULTILINE)
+NEW_FILE_REGEX = re.compile(r"^---\s*(?P<value>[\w.-]*)\s*---$", re.MULTILINE)
 # comment like # <comment>
 COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
 # keywords from set
 KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")")
 # separator from set
-separator_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
+SEPARATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # identifier like <12na_me-> or <name_.name> or '<name name name>'
 # (allowed characters: a-z, A-Z, 0-9, _, -, . and whitespace in quotes)
 IDENTIFIER_REGEX = re.compile(r"(?P<value>([\w.\-][\w.-]*))")
@@ -153,16 +154,18 @@ ESCAPED_IDENTIFIER_REGEX = re.compile(r"'(?P<value>[\w.\-][ \w.\-]*)'")
 MULTILINE_LITERAL_REGEX = re.compile(
     r"```((?P<lang>\w+)\n)?\s?(?P<value>.*?)\s?```", re.DOTALL | re.MULTILINE
 )
-INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({(?P<lang>\w+)})?")
+INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({\.(?P<lang>\w+)})?")
 
 # token type + corresponding pattern in lex order
 TOKEN_PATTERNS = [
-    (TokenType.INDENT, INDENT_REGEX),
-    (TokenType.WHITESPACE, WHITESPACE_REGEX),  # eat any whitespace
     (TokenType.NEW_FILE, NEW_FILE_REGEX),
+    (TokenType.INDENT, INDENT_REGEX),
+    # eat any other whitespace
+    (TokenType.WHITESPACE, INLINE_WHITESPACE_REGEX),
+    (TokenType.WHITESPACE, NEWLINE_WHITESPACE_REGEX),
     (TokenType.COMMENT, COMMENT_REGEX),
     (TokenType.KEYWORD, KEYWORD_REGEX),
-    (TokenType.SEPARATOR, separator_REGEX),
+    (TokenType.SEPARATOR, SEPARATOR_REGEX),
     (TokenType.IDENTIFIER, IDENTIFIER_REGEX),
     (TokenType.IDENTIFIER, ESCAPED_IDENTIFIER_REGEX),
     (TokenType.LITERAL, MULTILINE_LITERAL_REGEX),
