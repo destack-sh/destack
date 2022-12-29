@@ -11,7 +11,7 @@ from bench.api.symbol import StatementType
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX
 from bench.language.parse import UNGROUPED_STATEMENT_TYPES
-from bench.language.schema import render_bql
+from bench.language.schema import render_bsl
 from bench.language.types import (
     Code,
     Dataset,
@@ -108,8 +108,8 @@ def render_statement_content(statement: Statement) -> str:
 
 def render_symbol_content(content: SymbolContent) -> str:
     if isinstance(content, Schema):
-        bql = render_bql(content.element)
-        return _render_literal(bql)
+        bsl = render_bsl(content.element)
+        return _render_literal(bsl)
     elif isinstance(content, Task):
         return _render_literal(content.description)
     elif isinstance(content, Expectation):

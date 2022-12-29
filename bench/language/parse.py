@@ -10,7 +10,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.lex import Token, TokenType, get_location_range_pointer
-from bench.language.schema import parse_bql
+from bench.language.schema import parse_bsl
 from bench.language.types import (
     Code,
     Dataset,
@@ -406,7 +406,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
 
     if symbol_type.value == SymbolType.SCHEMA:
         try:
-            element = parse_bql(literal.value)
+            element = parse_bsl(literal.value)
         except ValueError as e:
             raise ParseError("failed to parse schema element", literal) from e
         content = Schema(

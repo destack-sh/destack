@@ -532,7 +532,7 @@ export type RunCodeValueArgumentInput = {
 export type Schema = Node &
   SymbolContent & {
     __typename?: "Schema";
-    bql: Scalars["String"];
+    bsl: Scalars["String"];
     definition: Statement;
     description: Scalars["String"];
     element: SchemaElement;
@@ -1001,7 +1001,7 @@ export type SchemaContentFragment = {
   __typename?: "Schema";
   id: any;
   description: string;
-  bql: string;
+  bsl: string;
   element: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
@@ -1734,7 +1734,7 @@ export const SchemaContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "bql" } },
+          { kind: "Field", name: { kind: "Name", value: "bsl" } },
         ],
       },
     },
