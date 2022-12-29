@@ -32,12 +32,12 @@ task 'generate command':
 
 data 'basic examples':
 ```jsonl
-{"input":"list files in the current directory","output":"ls -l"}
-{"input":"revert commit","output":"git revert"}
-{"input":"find listening to port 5432","output":"netstat -tulpen | grep 5432"}
-{"input":"build docker image","output":"docker build"}
-{"input":"new python env","output":"python -m venv venv"}
-{"input":"install bs4","output":"pip install bs4"}
+{"input": "list files in the current directory", "output": "ls -l"}
+{"input": "revert commit", "output": "git revert"}
+{"input": "find listening to port 5432", "output": "netstat -tulpen | grep 5432"}
+{"input": "build docker image", "output": "docker build"}
+{"input": "new python env", "output": "python -m venv venv"}
+{"input": "install bs4", "output": "pip install bs4"}
 ```
     schema example
 

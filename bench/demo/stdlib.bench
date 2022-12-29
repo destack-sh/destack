@@ -12,8 +12,8 @@ data 'temperature examples':
 {"text": "Summarize the given news stories", "temperature": "medium"}
 {"text": "You are a helpful and truthful chat agent. If a user asks you a question, you should answer it truthfully. If you don't know, say so.", "temperature": "medium"}
 {"text": "You are a calculator", "temperature": "low"}
-{"text": "This is a conversation between a chatty and imaginative buddy and his friends.","temperature": "high"}
-{"text": "Given an input command, write a program that implements it in Python","temperature": "medium"}
+{"text": "This is a conversation between a chatty and imaginative buddy and his friends.", "temperature": "high"}
+{"text": "Given an input command, write a program that implements it in Python", "temperature": "medium"}
 ```
     schema _:
     `{ text: string, temperature: string }`
