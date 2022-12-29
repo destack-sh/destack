@@ -532,6 +532,7 @@ export type RunCodeValueArgumentInput = {
 export type Schema = Node &
   SymbolContent & {
     __typename?: "Schema";
+    bql: Scalars["String"];
     definition: Statement;
     description: Scalars["String"];
     element: SchemaElement;
@@ -788,10 +789,6 @@ export type TaskContentFragment = { __typename?: "Task"; id: any; description: s
   " $fragmentName"?: "TaskContentFragment";
 };
 
-export type ExpectationContentFragment = { __typename?: "Expectation"; id: any; description: string } & {
-  " $fragmentName"?: "ExpectationContentFragment";
-};
-
 export type FileContentByIdQueryVariables = Exact<{
   fileId: Scalars["GlobalID"];
 }>;
@@ -1000,6 +997,16 @@ export type SchemaElementContentDeepFragment = {
   }> | null;
 } & { " $fragmentName"?: "SchemaElementContentDeepFragment" };
 
+export type SchemaContentFragment = {
+  __typename?: "Schema";
+  id: any;
+  description: string;
+  bql: string;
+  element: { __typename?: "SchemaElement" } & {
+    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
+  };
+} & { " $fragmentName"?: "SchemaContentFragment" };
+
 export type StatementContentFragment = {
   __typename?: "Statement";
   id: any;
@@ -1018,12 +1025,10 @@ export type StatementContentFragment = {
   content?:
     | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
     | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
-    | ({ __typename?: "Expectation" } & {
-        " $fragmentRefs"?: { ExpectationContentFragment: ExpectationContentFragment };
-      })
+    | { __typename?: "Expectation"; description: string }
     | { __typename?: "Model" }
     | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
-    | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+    | { __typename?: "Task"; description: string }
     | { __typename?: "Value" }
     | null;
   reference?:
@@ -1188,12 +1193,10 @@ export type MorphStatementMutation = {
       content?:
         | ({ __typename?: "Code" } & { " $fragmentRefs"?: { CodeContentFragment: CodeContentFragment } })
         | ({ __typename?: "Dataset" } & { " $fragmentRefs"?: { DatasetContentFragment: DatasetContentFragment } })
-        | ({ __typename?: "Expectation" } & {
-            " $fragmentRefs"?: { ExpectationContentFragment: ExpectationContentFragment };
-          })
+        | { __typename?: "Expectation"; description: string }
         | { __typename?: "Model" }
         | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
-        | ({ __typename?: "Task" } & { " $fragmentRefs"?: { TaskContentFragment: TaskContentFragment } })
+        | { __typename?: "Task"; description: string }
         | { __typename?: "Value" }
         | null;
     } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } };
@@ -1432,15 +1435,23 @@ export type CommitMutation = {
   };
 };
 
-export type SchemaContentFragment = {
-  __typename?: "Schema";
-  id: any;
-  description: string;
-  element: { __typename?: "SchemaElement" } & {
-    " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
-  };
-} & { " $fragmentName"?: "SchemaContentFragment" };
-
+export const TaskContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaskContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TaskContentFragment, unknown>;
 export const FileHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1658,40 +1669,6 @@ export const DatasetContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<DatasetContentFragment, unknown>;
-export const ExpectationContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ExpectationContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Expectation" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "description" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ExpectationContentFragment, unknown>;
-export const TaskContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "TaskContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "description" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<TaskContentFragment, unknown>;
 export const SchemaElementContentDeepFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1757,6 +1734,7 @@ export const SchemaContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "bql" } },
         ],
       },
     },
@@ -1932,7 +1910,7 @@ export const StatementContentFragmentDoc = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Expectation" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ExpectationContent" } }],
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
                   },
                 },
                 {
@@ -1940,7 +1918,7 @@ export const StatementContentFragmentDoc = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } }],
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
                   },
                 },
                 {
@@ -2135,8 +2113,6 @@ export const FileContentByIdDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
-    ...ExpectationContentFragmentDoc.definitions,
-    ...TaskContentFragmentDoc.definitions,
     ...SchemaContentFragmentDoc.definitions,
     ...SchemaElementContentDeepFragmentDoc.definitions,
     ...StatementHeaderFragmentDoc.definitions,
@@ -2449,8 +2425,6 @@ export const SchemaContentByIdDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
-    ...ExpectationContentFragmentDoc.definitions,
-    ...TaskContentFragmentDoc.definitions,
     ...SchemaContentFragmentDoc.definitions,
     ...SchemaElementContentDeepFragmentDoc.definitions,
     ...StatementHeaderFragmentDoc.definitions,
@@ -2970,9 +2944,7 @@ export const MorphStatementDocument = {
                               typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Expectation" } },
                               selectionSet: {
                                 kind: "SelectionSet",
-                                selections: [
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ExpectationContent" } },
-                                ],
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
                               },
                             },
                             {
@@ -2980,7 +2952,7 @@ export const MorphStatementDocument = {
                               typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Task" } },
                               selectionSet: {
                                 kind: "SelectionSet",
-                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaskContent" } }],
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
                               },
                             },
                             {
@@ -3008,8 +2980,6 @@ export const MorphStatementDocument = {
     ...StatementHeaderFragmentDoc.definitions,
     ...CodeContentFragmentDoc.definitions,
     ...DatasetContentFragmentDoc.definitions,
-    ...ExpectationContentFragmentDoc.definitions,
-    ...TaskContentFragmentDoc.definitions,
     ...SchemaContentFragmentDoc.definitions,
     ...SchemaElementContentDeepFragmentDoc.definitions,
   ],

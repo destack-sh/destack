@@ -6,8 +6,8 @@ import {
   FileHeaderType,
   StatementContentType,
   StatementHeaderType,
+  SchemaContentType,
 } from "@/state/fragments";
-import { SchemaContentType } from "@/state/schema";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { assert } from "ts-essentials";

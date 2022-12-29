@@ -56,10 +56,10 @@ export function useStatementOps() {
                 ...DatasetContent
               }
               ... on Expectation {
-                ...ExpectationContent
+                description
               }
               ... on Task {
-                ...TaskContent
+                description
               }
               ... on Schema {
                 ...SchemaContent
