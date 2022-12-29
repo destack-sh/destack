@@ -3,10 +3,8 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, Any, Optional, TypedDict, Union
 
-from bench.models.model import ModelInferenceSettings
-
 if TYPE_CHECKING:
-    from bench.language.types import Model
+    from bench.language.types import Model, ModelInferenceSettings
 else:
     ResolvedModel = Any
 

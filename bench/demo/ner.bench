@@ -5,16 +5,16 @@ require symbolx.stdlib@latest
 
 # Compilations
 import task ner from .main
-import text-davinci-003 from openai.stdlib.text
+import model text-davinci-003 from openai.stdlib.text
 
-compile prod = ner:
+compile prod = task 'extract entities':
     with model text-davinci-003
 
 --- main.instruct ---
 schema entity:
-`{}`
+`{ name: string, type: string }`
 
-task ner:
+task 'extract entities':
 `Extract the entities from the text`
     schema ner:
-    `{}`
+    `{ input: string, output: [entity] }`

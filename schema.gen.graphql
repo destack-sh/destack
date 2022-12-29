@@ -616,6 +616,11 @@ type UserEdge {
   node: User!
 }
 
+type Value implements SymbolContent & Node {
+  id: GlobalID!
+  value: JSON
+}
+
 """An enumeration."""
 enum ValueType {
   STRING

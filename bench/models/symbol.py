@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         ProjectVersion,
         Schema,
         Task,
+        Value,
     )
 
 logger = structlog.get_logger(__name__)
@@ -182,6 +183,7 @@ SYMBOL_TYPE_TO_FIELD = {
     SymbolType.CODE: "code",
     SymbolType.MODEL: "model",
     SymbolType.DATASET: "dataset",
+    SymbolType.VALUE: "value",
 }
 SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
 
@@ -224,7 +226,6 @@ class Statement(UUIDModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     text = models.TextField(null=True, blank=True)  # as markdown
-    value = models.JSONField(null=True, blank=True)
     schema = models.OneToOneField(
         "Schema", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
@@ -242,6 +243,9 @@ class Statement(UUIDModel):
     )
     dataset = models.OneToOneField(
         "Dataset", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+    )
+    value = models.OneToOneField(
+        "Value", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
     )
     compilation = models.OneToOneField(
         "Compilation", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
@@ -341,18 +345,16 @@ class Statement(UUIDModel):
         return SYMBOL_TYPE_TO_FIELD[type]
 
     @gql.model_property(
-        only=["symbol_type", "schema", "task", "expectation", "code", "model", "dataset"],
-        select_related=["schema", "task", "expectation", "code", "model", "dataset"],
+        only=["symbol_type", *SYMBOL_CONTENT_FIELDS],
+        select_related=list(SYMBOL_CONTENT_FIELDS),
     )
-    def content(self) -> Union[None, Schema, Task, Expectation, Code, Model, Dataset]:
+    def content(self) -> Union[None, Schema, Task, Expectation, Code, Model, Dataset, Value]:
         if self.symbol_type is None:
             return None
-        content: Union[Schema, Task, Expectation, Code, Model, Dataset, None] = getattr(
-            self, self.symbol_type_to_field(self.symbol_type)
-        )
+        content: SymbolContent | None = getattr(self, self.symbol_type_to_field(self.symbol_type))
         return content
 
-    def content_(self) -> Union[Schema, Task, Expectation, Code, Model, Dataset]:
+    def content_(self) -> SymbolContent:
         content = self.content
         if content is None:
             raise ValueError(f"{self} has no content for {self.symbol_type}")
@@ -647,7 +649,7 @@ class Requirement(UUIDModel):
     The derived set of dependencies is copied into ProjectVersion.dependencies for lookup speed.
     """
 
-    project_version = models.ForeignKey("ProjectVersion", on_delete=models.SET_NULL, null=True)
+    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     definition: Statement  # noqa via Statement.requirement
 
     def deepcopy(self, to, refs: dict[str, Any]):

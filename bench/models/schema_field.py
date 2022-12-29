@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from django.db import models
 
-from bench.utils.schema import SchemaElement, SchemaElementSerializer, ValueType
+from bench.language.schema import SchemaElement, SchemaElementSerializer, ValueType
 
 
 class SchemaElementField(models.JSONField):

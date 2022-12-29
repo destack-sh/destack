@@ -4,7 +4,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
+from bench.backend.mapper import Mapper
 from bench.models import Project
 
 executor = Executor()

@@ -83,8 +83,8 @@ function initMonaco(monaco: Monaco) {
     inherit: true,
     rules: [
       // make keywords orange
-      { token: "keyword", foreground: "#ea580c" },
-      { token: "string.key.json", foreground: "#ea580c" },
+      { token: "keyword", foreground: "#b45309" },
+      { token: "string.key.json", foreground: "#b45309" },
       // make comments grey
       { token: "comment", foreground: "#6b7280" },
       // make literals and constants orange

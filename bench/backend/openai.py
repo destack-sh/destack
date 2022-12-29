@@ -4,8 +4,7 @@ from typing import Any, Optional, Union
 import aiohttp
 
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
-from bench.language.types import Model
-from bench.models import ModelInferenceSettings
+from bench.language.types import Model, ModelInferenceSettings
 
 
 class OpenAIProvider(ModelProvider):

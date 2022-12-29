@@ -3,7 +3,7 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
 from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
+from bench.backend.mapper import Mapper
 from bench.compiler import Compiler, get_stdlib_model
 from bench.models import Project, SymbolType
 
@@ -33,7 +33,7 @@ class Command(BaseCommand):
         if not backends:
             raise ValueError("no backends provided")
 
-        executor = Executor(Resolver())
+        executor = Executor(Mapper())
         compiler = Compiler(executor)
         compilation, _ = task_def.task.compilations.select_related("project_version").get_or_create(
             project_version=project_v, task=task_def.task, name="default"

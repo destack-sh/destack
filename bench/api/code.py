@@ -9,7 +9,7 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.symbol import Statement, SymbolContent
 from bench.backend.executor import Executor
-from bench.backend.resolver import Resolver
+from bench.backend.mapper import Mapper
 from bench.backend.tracing import ExecutionTrace
 
 if TYPE_CHECKING:
@@ -91,7 +91,7 @@ class CodeRunMutation:
         code = models.Code.objects.get(id=input.code_id.node_id)
         # assumes only value arguments
         arguments = {arg.name: arg.value for arg in input.arguments}
-        executor = Executor(Resolver())
+        executor = Executor(Mapper())
         execution_trace = ExecutionTrace(frames=[])
         output = async_to_sync(executor.resolve_and_run)(code, arguments, [execution_trace])
 

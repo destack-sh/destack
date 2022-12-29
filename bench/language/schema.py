@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import functools
 import inspect
+import re
 import typing
 from collections import OrderedDict
 from enum import Enum
+from functools import cached_property
 from typing import Optional, Union
 
 from attr import dataclass
@@ -18,6 +21,8 @@ class ValueType(Enum):
     ARRAY = "array"
     NULL = "null"
 
+
+LITERAL_TYPES = [ValueType.NULL, ValueType.BOOLEAN, ValueType.NUMBER, ValueType.STRING]
 
 PyValueType = Union[int, float, bool, str, dict, list]
 
@@ -51,13 +56,12 @@ def get_value_type_from_type(typ: type) -> ValueType:
     raise ValueError(f"unknown value type: {typ}")
 
 
-@dataclass
+@dataclass(frozen=True)
 class SchemaElement:
-    name: str
+    name: Optional[str]
     type: ValueType
     required: bool = True
     schema_id: Optional[str] = None
-    choices: Optional[list[PyValueType]] = None
     elements: Optional[list["SchemaElement"]] = None
 
     @property
@@ -69,13 +73,14 @@ class SchemaElement:
 
     @property
     def input_(self) -> SchemaElement:
-        return self.find("input")
+        return self.element("input")
 
     @property
     def output_(self) -> SchemaElement:
-        return self.find("output")
+        return self.element("output")
 
-    def find(self, key: str) -> SchemaElement:
+    @functools.cache
+    def element(self, key: str) -> SchemaElement:
         """Find a schema element by key (only works for objects)."""
         if self.type != ValueType.OBJECT:
             raise ValueError(f"find cannot be used on {self}")
@@ -86,20 +91,21 @@ class SchemaElement:
                 return e
         raise ValueError(f"key {key} not found in {self}")
 
+    @functools.cache
     def __str__(self):
-        required_str = "!" if self.required else ""
-        elements_str = ", ".join(str(e) for e in self.elements) if self.elements else ""
-        if self.type == ValueType.OBJECT:
-            # output as name={elem1, elem2, ...}
-            return f"{self.name}={{{elements_str}}}{required_str}"
-        elif self.type == ValueType.ARRAY:
-            # output as name=[elem1, elem2, ...]
-            return f"{self.name}=[{elements_str}]{required_str}"
+        return render_bql(self)
+
+    @cached_property
+    def is_resolved(self):
+        """Check if this schema (and all sub-schemas) are resolved."""
+        if self.type == ValueType.SCHEMA:
+            return False
+        elif self.type == ValueType.OBJECT or self.type == ValueType.ARRAY:
+            if self.elements is None:
+                raise ValueError("elements is None")
+            return all(e.is_resolved for e in self.elements)
         else:
-            if not self.choices:
-                return f"{self.name}={self.type.value}{required_str}"
-            else:
-                return f"{self.name}={self.type.value}(enum){required_str}"
+            return True
 
     def resolve(self, schemas: dict[str, "SchemaElement"]) -> SchemaElement:
         """Resolve this schema and all sub-schema references."""
@@ -129,6 +135,106 @@ class SchemaElement:
             )
         else:
             return self
+
+
+def render_bql(schema: SchemaElement) -> str:
+    """Renders a schema to a BQL string."""
+    name_str = f"{schema.name}: " if schema.name else ""
+    required_str = "" if schema.required else "?"
+    elements_str = ", ".join(render_bql(e) for e in schema.elements) if schema.elements else ""
+    if schema.type == ValueType.OBJECT:
+        # output as name: {elem1, elem2, ...}
+        return f"{name_str}{{{elements_str}}}{required_str}"
+    elif schema.type == ValueType.ARRAY:
+        # output as name: [elem1]
+        return f"{name_str}[{elements_str}]{required_str}"
+    elif schema.type == ValueType.SCHEMA:
+        return f"{name_str}{schema.schema_id}{required_str}"
+    else:
+        return f"{name_str}{schema.type.value}{required_str}"
+
+
+def parse_bql(bql: str) -> SchemaElement:
+    """
+    Parse a schema from a BQL string.
+    This is a basic parser and should probably be a more formal grammar later.
+    """
+    bql = bql.strip()
+
+    # required
+    required_match = re.match(r"^(.*)\?$", bql)
+    if required_match:
+        required = False
+        bql = bql[: required_match.start(1)]
+    else:
+        required = True
+
+    # name
+    name_match = re.match(r"^(?P<name>[a-zA-Z0-9_]+): ", bql)
+    if name_match:
+        name = name_match.group("name")
+        bql = bql[name_match.end() :]
+    else:
+        name = None
+
+    # value type and elements
+    elements = None
+    schema_id = None
+
+    object_match = re.match(r"^\{(?P<elements>.*)}$", bql)
+    array_match = re.match(r"^\[(?P<elements>.*)]$", bql)
+    type_match = re.match(rf"^(?P<type>{'|'.join(t.value for t in LITERAL_TYPES)})$", bql)
+    if object_match:  # object
+        value_type = ValueType.OBJECT
+        elements_bql = object_match.group("elements").split(",")
+        elements = [parse_bql(e.strip()) for e in elements_bql]
+    elif array_match:  # array
+        value_type = ValueType.ARRAY
+        elements_bql = array_match.group("elements").split(",")
+        elements = [parse_bql(e.strip()) for e in elements_bql]
+    elif type_match:  # value type
+        value_type = ValueType(type_match.group("type"))
+    else:  # schema reference (if not defined inline)
+        schema_name_match = re.match(r"^(?P<schema_name>[a-zA-Z0-9_]+)$", bql)
+        if not schema_name_match:
+            raise ValueError(f"invalid schema reference: {bql}")
+        value_type = ValueType.SCHEMA
+        schema_id = schema_name_match.group("schema_name")
+        elements = None
+
+    return SchemaElement(
+        name=name, required=required, type=value_type, schema_id=schema_id, elements=elements
+    )
+
+
+class SchemaElementSerializer:
+    @staticmethod
+    def to_json(schema_element: "SchemaElement") -> dict:
+        elements = (
+            [SchemaElementSerializer.to_json(e) for e in schema_element.elements]
+            if schema_element.elements
+            else None
+        )
+        return {
+            "name": schema_element.name,
+            "type": schema_element.type.value,
+            "required": schema_element.required,
+            "elements": elements,
+        }
+
+    @staticmethod
+    def from_json(json: dict) -> "SchemaElement":
+        elements = (
+            [SchemaElementSerializer.from_json(e) for e in json.get("elements", [])]
+            if json.get("elements") is not None
+            else None
+        )
+        return SchemaElement(
+            name=json.get("name"),
+            type=ValueType(json["type"]),
+            required=json.get("required", True),
+            elements=elements,
+        )
 
 
 def derive_schema_from_records(records: list[dict], name: str | None = "record") -> SchemaElement:
@@ -237,59 +343,3 @@ def derive_schema_from_type(
         return SchemaElement(name, ValueType.OBJECT, required=required, elements=None)
     else:
         return SchemaElement(name, PYTYPE_TO_VALUE_TYPE[resolved_type], required=required)
-
-
-class SchemaElementSerializer:
-    @staticmethod
-    def to_json(schema_element: "SchemaElement") -> dict:
-        elements = (
-            [SchemaElementSerializer.to_json(e) for e in schema_element.elements]
-            if schema_element.elements
-            else None
-        )
-        return {
-            "name": schema_element.name,
-            "type": schema_element.type.value,
-            "required": schema_element.required,
-            "choices": schema_element.choices,
-            "elements": elements,
-        }
-
-    @staticmethod
-    def from_json(json: dict) -> "SchemaElement":
-        elements = (
-            [SchemaElementSerializer.from_json(e) for e in json.get("elements", [])]
-            if json.get("elements") is not None
-            else None
-        )
-        return SchemaElement(
-            name=json["name"],
-            type=ValueType(json["type"]),
-            required=json.get("required", True),
-            choices=json.get("choices"),
-            elements=elements,
-        )
-
-
-class SchemaElementArraySerializer:
-    @staticmethod
-    def to_json(schema_element: list["SchemaElement"]) -> list[dict]:
-        return [SchemaElementSerializer.to_json(e) for e in schema_element]
-
-    @staticmethod
-    def from_json(json: list[dict]) -> list["SchemaElement"]:
-        return [SchemaElementSerializer.from_json(e) for e in json]
-
-
-class SchemaObjectSerializer:
-    @staticmethod
-    def from_json(name: str, json: dict | list[dict]) -> "SchemaElement":
-        if isinstance(json, dict):
-            return SchemaElementSerializer.from_json(json)
-        else:
-            return SchemaElement(
-                name=name,
-                type=ValueType.OBJECT,
-                choices=None,
-                elements=[SchemaElementSerializer.from_json(e) for e in json],
-            )

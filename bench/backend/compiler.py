@@ -17,7 +17,6 @@ from bench.models import (
     Dataset,
     File,
     Model,
-    ModelInferenceSettings,
     Organization,
     Project,
     ProjectVersion,

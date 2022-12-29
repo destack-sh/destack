@@ -10,6 +10,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.lex import Token, TokenType, get_location_range_pointer
+from bench.language.schema import SchemaElementSerializer, parse_bql
 from bench.language.types import (
     Code,
     Dataset,
@@ -23,6 +24,7 @@ from bench.language.types import (
     StatementType,
     SymbolType,
     Task,
+    UnresolvedStatement,
     Value,
 )
 from bench.utils.record import RecordList
@@ -37,11 +39,15 @@ class ParseError(ValueError):
         token: Optional[Token],
         cause: Optional[Exception] = None,
         context: Optional[dict] = None,
+        parser: Optional[str] = None,
+        position: Optional[int] = -1,
     ):
         super().__init__(self._to_message(message, token, cause))
         self.token = token
         self.cause = cause
         self.context = context
+        self.position = position
+        self.parser = parser
 
     def _to_message(self, message: str, token: Optional[Token], cause: Optional[dict]):
         return (
@@ -66,11 +72,14 @@ class ParseError(ValueError):
 
 
 def parse(tokens: list[Token], strip_whitespace: bool) -> list[File]:
-    """Parse a stream of tokens into Bench AST (with top-level files)."""
+    """
+    Parse a stream of tokens into Bench AST (with top-level files).
+    Stripping whitespace ahead of parsing is cleaner and faster, but perfect reconstruction is impossible.
+    """
     if len(tokens) == 0:
         return []
 
-    if strip_whitespace:
+    if strip_whitespace:  # strip _before_ parsing (we ignore whitespace anyway)
         tokens = [t for t in tokens if t.type != TokenType.WHITESPACE]
 
     # first pass: extract files and statements
@@ -224,16 +233,24 @@ def _clean_literal_indent(text: str, indent_level: int) -> str:
     return "\n".join(lines)
 
 
+@dataclasses.dataclass
+class ParseState:
+    indent: int = 0
+    ancestors: list[Statement] = dataclasses.field(default_factory=list)  # by indent
+    previous_errors: list[ParseError | None] = dataclasses.field(default_factory=list)
+
+
 def preparse(tokens: list[Token]) -> list[File]:
     """Map tokens into files and statements with unresolved references."""
 
     files: dict[str, File] = {}
     parser = TokenParser(tokens, start_pos=0, indent_level=0)
-    # first token has to be a new file
     root = DerivedRoot()
+
+    # init per-file state (first token has to be a new file)
     file: File = File(path=parser.eat_type(TokenType.NEW_FILE).value)
-    indent: int = 0
-    ancestors: list[Statement] = []  # by indent
+    files[file.path] = file
+    local = ParseState()
 
     while parser.peek() is not None:
         # reset indent if previous token was on a different line
@@ -246,48 +263,43 @@ def preparse(tokens: list[Token]) -> list[File]:
                 files[path] = File(path=path)
             # reset per-file state
             file = files[path]
-            indent = 0
-            ancestors = []
+            local = ParseState()
         elif parser.peek().type == TokenType.WHITESPACE:
             parser.eat()
         elif parser.peek().type == TokenType.INDENT:
             parser.eat()
-            indent += 1
+            local.indent += 1
         else:  # parse statement
-            # error if there is no ancestor one level up
-            if len(ancestors) < indent:
+            if len(local.ancestors) < local.indent:  # too much indentation
                 raise ParseError("unexpected indent level", parser.peek())
-
-            parent = ancestors[indent - 1] if indent > 0 else None
+            parent = local.ancestors[local.indent - 1] if local.indent > 0 else None
             index = len(file.root_statements) if parent is None else len(parent.children)
 
-            local_errors = []  # (parser name, pos, error)
-            parser.indent_level = indent
+            errors: list[ParseError] = []
+            parser.indent_level = local.indent  # skip indent tokens at current level
             statement = _parse_statement(
-                parser,
-                on_error=lambda p, c, e: local_errors.append((p, c, e)),
-                file=file,
-                parent=parent,
-                index=index,
+                parser, on_error=errors.append, file=file, parent=parent, index=index
             )
             parser.indent_level = 0  # skip only for statement parsing
+
+            # handle and remember parse errors
+            errors.sort(key=lambda e: e.position, reverse=True)  # get the deepest error
+            likely_error = (
+                errors[0] if errors and errors[0].position > errors[-1].position else None
+            )
+            local.previous_errors.append(likely_error)
             if statement is None:
-                # sort by parsed pos descending (get the furthest error)
-                local_errors.sort(key=lambda e: e[1], reverse=True)
-                likely_error = (
-                    local_errors[0][2] if local_errors[0][1] > local_errors[-1][1] else None
-                )
                 raise ParseError(
                     "unexpected statement",
                     parser.peek(),
-                    cause=likely_error,
-                    context={"local_errors": local_errors},
+                    cause=likely_error or local.previous_errors[-2],
+                    context={"local_errors": errors},
                 )
             statement = dataclasses.replace(statement, _root=root, _source=parser.eaten)
             file.statements.append(statement)
 
-            ancestors = ancestors[:indent]  # wipe ancestors with higher indent
-            ancestors += [statement]  # replace ancestor at current indent
+            local.ancestors = local.ancestors[: local.indent]  # wipe ancestors with higher indent
+            local.ancestors += [statement]  # replace ancestor at current indent
 
     return list(files.values())
 
@@ -332,7 +344,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.IMPORT,
         name=alias,
         symbol_type=symbol_type.value,
-        reference=(reference.value, source),
+        reference=UnresolvedStatement(source, reference.value),
         **kwargs,
     )
 
@@ -360,8 +372,15 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
 
     if symbol_type.value == SymbolType.SCHEMA:
         try:
-            element = json.loads(literal.value)
-        except json.JSONDecodeError as e:
+            lang = literal.value_extras.get("lang", "bql")
+            if lang == "bql":
+                element = parse_bql(literal.value)
+            elif lang == "json":
+                element_json = json.loads(literal.value)
+                element = SchemaElementSerializer().from_json(element_json)
+            else:
+                raise ParseError("unsupported schema language", literal)
+        except ValueError as e:
             raise ParseError("failed to parse schema element", literal) from e
         content = Schema(
             type=SymbolType.SCHEMA, description="", element=element, definition=definition
@@ -373,24 +392,33 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             type=SymbolType.EXPECTATION, description=literal.value, definition=definition
         )
     elif symbol_type.value == SymbolType.CODE:
+        lang = literal.value_extras.get("lang", "python")
+        if lang != "python":
+            raise ParseError("unsupported code language", literal)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         content = Code(
             type=SymbolType.CODE,
             code_function_name=None,
             builtin_id=None,
-            code_text=code_text,
+            code=code_text,
             definition=definition,
         )
     elif symbol_type.value == SymbolType.DATASET:
-        try:  # parse as jsonl
-            records = []
-            for value_line in literal.value.strip().splitlines():
-                records.append(json.loads(value_line.strip()))
+        lang = literal.value_extras.get("lang", "jsonl")
+        try:
+            if lang == "jsonl":
+                records = []
+                for value_line in literal.value.strip().splitlines():
+                    records.append(json.loads(value_line.strip()))
+            elif lang == "json":
+                records = json.loads(literal.value)
+            else:
+                raise ParseError("unsupported dataset language", literal)
             content = Dataset(
                 type=SymbolType.DATASET, records=RecordList(records), definition=definition
             )
         except json.JSONDecodeError as e:
-            raise ParseError(f"failed to parse jsonl: {e}", literal)
+            raise ParseError(f"failed to parse records: {e}", literal)
     elif symbol_type.value == SymbolType.VALUE:
         try:  # parse as json
             value = json.loads(literal.value)
@@ -417,6 +445,7 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.REFERENCE,
         modifier=modifier,
         name=name.value,
+        reference=UnresolvedStatement(".", name.value),
         symbol_type=symbol_type.value,
         **kwargs,
     )
@@ -439,7 +468,7 @@ def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
 
 
 def _parse_statement(
-    parser: TokenParser, on_error: typing.Callable[[str, int, ParseError], None], **statement_kwargs
+    parser: TokenParser, on_error: typing.Callable[[ParseError], None], **statement_kwargs
 ) -> Optional[Statement]:
     parser.mark()
     # parsing is greedy, so the order matters (e.g. definition before reference)
@@ -454,7 +483,9 @@ def _parse_statement(
         try:
             return _parse(parser, **statement_kwargs)
         except ParseError as e:
-            on_error(_parse.__name__, parser.current_pos, e)
+            e.parser = _parse.__name__
+            e.position = parser.current_pos
+            on_error(e)
             parser.reset()
     return None
 
