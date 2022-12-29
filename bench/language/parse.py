@@ -31,6 +31,13 @@ from bench.utils.record import RecordList
 
 logger = structlog.get_logger(__name__)
 
+UNGROUPED_STATEMENT_TYPES = (
+    StatementType.DEFINITION,
+    StatementType.REDEFINITION,
+    StatementType.COMPILATION,
+    StatementType.RUNCONFIG,
+)
+
 
 class ParseError(ValueError):
     def __init__(
@@ -95,21 +102,26 @@ class TokenParser:
     def __init__(self, tokens: list[Token], start_pos: int, indent_level: int):
         self._tokens = tokens
         self._start_pos = start_pos
-        self._mark_pos = start_pos
         self._peek_pos = start_pos
+        self._peek_indent_level = 0
+        self._peek_has_indent = False
+        self._marks = {}
         self.indent_level = indent_level
-        self.reset()
+        self.reset(None)
 
-    def mark(self):
-        self._mark_pos = self.current_pos
+    def mark(self) -> object:
+        mark_token = object()
+        self._marks[mark_token] = self.current_pos
+        return mark_token
 
-    def reset(self):
-        self._peek_pos = self._mark_pos
+    def reset(self, mark_token: object | None):
+        if mark_token:
+            self._peek_pos = self._marks.pop(mark_token)
         self._advance()
 
-    @property
-    def eaten(self) -> list[Token]:
-        return self._tokens[self._mark_pos : max(0, self.current_pos)]
+    def eaten(self, mark_token: object | None) -> list[Token]:
+        start_pos = self._marks[mark_token] if mark_token else self._start_pos
+        return self._tokens[start_pos : max(0, self.current_pos)]
 
     @property
     def current_pos(self) -> int:
@@ -136,14 +148,20 @@ class TokenParser:
         # advance to next token (current pos is based on peek pos)
         self._peek_pos += 1
 
-        # skip indentation
-        if self.indent_level != 0:
-            prev_pos = self._peek_pos
-            for _ in range(self.indent_level):
-                if _get(TokenType.INDENT) is None:
-                    self._peek_pos = prev_pos  # rewind
-                    break
-                self._peek_pos += 1
+        # get next indent level
+        self._peek_indent_level = 0
+        for token in self._tokens[self.current_pos :]:
+            if token.type != TokenType.INDENT:
+                break
+            self._peek_indent_level += 1
+
+        # skip indentation if matching
+        if self._peek_indent_level == self.indent_level:
+            self._peek_pos += self._peek_indent_level
+
+    @property
+    def peek_indent_level(self) -> int:
+        return self._peek_indent_level
 
     def peek(self) -> Optional[Token]:
         """Peeks the next token without eating it."""
@@ -159,17 +177,6 @@ class TokenParser:
         self._advance()
         return peek_token
 
-    def eat_newline(self) -> Token:
-        return self.eat_type(TokenType.NEWLINE)
-
-    def eat_newline_or_eof(self) -> Optional[Token]:
-        if self.peek() is None:
-            return
-        return self.eat_newline()
-
-    def eat_indent(self) -> Token:
-        return self.eat_type(TokenType.INDENT)
-
     def peek_type(self, type: TokenType) -> Optional[Token]:
         token = self.peek()
         return token if token is not None and token.type == type else None
@@ -179,6 +186,20 @@ class TokenParser:
         if token.type != type:
             raise ParseError(f"expected {type.value}", token)
         return token
+
+    def eat_newline(self) -> Token:
+        return self.eat_type(TokenType.NEWLINE)
+
+    def eat_newline_or_eof(self) -> Optional[Token]:
+        if self.peek() is None:
+            return
+        return self.eat_newline()
+
+    def peek_indent(self) -> Optional[Token]:
+        return self.peek_type(TokenType.INDENT)
+
+    def eat_indent(self) -> Token:
+        return self.eat_type(TokenType.INDENT)
 
     def peek_keyword(self, keyword: str | enum.Enum) -> Optional[Token]:
         token = self.peek_type(TokenType.KEYWORD)
@@ -275,8 +296,14 @@ def preparse(tokens: list[Token]) -> list[File]:
 
             errors: list[ParseError] = []
             parser.indent_level = local.indent  # skip indent tokens at current level
+            start_mark = parser.mark()
             statement = _parse_statement(
-                parser, on_error=errors.append, file=file, parent=parent, index=index
+                parser,
+                is_root=parent is None,
+                on_error=errors.append,
+                file=file,
+                parent=parent,
+                index=index,
             )
             parser.indent_level = 0  # skip only for statement parsing
 
@@ -293,7 +320,7 @@ def preparse(tokens: list[Token]) -> list[File]:
                 raise ParseError(
                     "unexpected statement", parser.peek(), cause=cause, context={"errors": errors}
                 )
-            statement = dataclasses.replace(statement, _root=root, _source=parser.eaten)
+            statement = dataclasses.replace(statement, _root=root, _source=parser.eaten(start_mark))
             file.statements.append(statement)
 
             local.ancestors = local.ancestors[: local.indent]  # wipe ancestors with higher indent
@@ -486,26 +513,35 @@ def _parse_blank(tokens: TokenParser, **kwargs) -> Statement:
 
 
 def _parse_statement(
-    parser: TokenParser, on_error: typing.Callable[[ParseError], None], **statement_kwargs
+    parser: TokenParser,
+    is_root: bool,
+    on_error: typing.Callable[[ParseError], None],
+    **statement_kwargs,
 ) -> Optional[Statement]:
-    parser.mark()
-    # parsing is greedy, so the order matters (e.g. definition before reference)
     for _parse in [
         _parse_comment,
         _parse_requirement,
         _parse_compile,
         _parse_definition,
-        _parse_reference,
         _parse_import,
+        _parse_reference,
         _parse_blank,
     ]:
+        mark = parser.mark()
         try:
-            return _parse(parser, **statement_kwargs)
+            statement = _parse(parser, **statement_kwargs)
+            # check if there's a blank line after the end of a group
+            is_ungrouped = statement.type in UNGROUPED_STATEMENT_TYPES
+            could_be_group_end = (is_root and is_ungrouped) or not is_root
+            # we're at the end if there is an unintended token next
+            if could_be_group_end and parser.peek_indent_level == 0:
+                parser.eat_newline_or_eof()
+            return statement
         except ParseError as e:
             e.parser = _parse.__name__
             e.position = parser.current_pos
             on_error(e)
-            parser.reset()
+            parser.reset(mark)
     return None
 
 

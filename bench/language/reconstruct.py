@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from itertools import chain
 from typing import Iterable, Optional
 from uuid import UUID
 
 from bench.api.symbol import StatementType
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX
+from bench.language.parse import UNGROUPED_STATEMENT_TYPES
 from bench.language.schema import render_bql
 from bench.language.types import (
     Code,
@@ -26,7 +26,9 @@ from bench.language.types import (
 
 def render(files: list[File]) -> str:
     lines = []
-    for file in files:
+    for i, file in enumerate(files):
+        if i != 0:
+            lines.append("")
         lines.append(f"--- {file.path} ---")
         lines.append(render_file(file))
     return "\n".join(lines)
@@ -50,8 +52,12 @@ def render_file(file: File) -> str:
             yield from walk_dfs(child, indent + 1)
 
     root_statements = statements_by_parent.get(None, [])
-    for statement, indent in chain(*(walk_dfs(root, 0) for root in root_statements)):
-        lines.append(render_statement(statement, indent, render_indent=True))
+    for i, root_statement in enumerate(root_statements):
+        for statement, indent in walk_dfs(root_statement, 0):
+            lines.append(render_statement(statement, indent, render_indent=True))
+        # add extra blank line between ungrouped root statements
+        if root_statement.type in UNGROUPED_STATEMENT_TYPES and i != (len(root_statements) - 1):
+            lines.append("")
 
     return "\n".join(lines)
 

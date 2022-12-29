@@ -9,7 +9,7 @@ from rich.table import Table
 from bench.language import File
 from bench.language.lex import SourceFile, Token, lex
 from bench.language.parse import parse
-from bench.language.reconstruct import render_file
+from bench.language.reconstruct import render, render_file
 
 
 class Command(BaseCommand):
@@ -17,8 +17,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("path", type=str)
+        # whether to show final render only as 'render_only'
+        parser.add_argument("-r", "--reconstruct", action="store_true")
 
-    def handle(self, path, *args, **options):
+    def handle(self, path: str, reconstruct: bool, *args, **options):
         console = Console()
         if path == "-":
             # read until EOF
@@ -28,10 +30,15 @@ class Command(BaseCommand):
                 string = f.read()
         source_file = SourceFile(path=path if path != "-" else "<stdin>", content=string)
         tokens = lex(source_file)
-        console.print(pprint_tokens(tokens))
+        if not reconstruct:
+            console.print(pprint_tokens(tokens))
         files = parse(tokens)
-        for panel in pprint_files(files):
-            console.print(panel)
+        if not reconstruct:
+            for panel in pprint_files(files):
+                console.print(panel)
+        else:
+            reconstruction = render(files)
+            console.print(reconstruction, markup=False, highlight=False)
 
 
 def pprint_tokens(tokens: list[Token]) -> Table:
