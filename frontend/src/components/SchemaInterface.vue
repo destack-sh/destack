@@ -10,6 +10,7 @@ const props = defineProps<{
   statement: FragmentType<typeof StatementContentType>;
   content: FragmentType<typeof SchemaContentType>;
   focused: boolean;
+  readonly: boolean;
   lineNumberBase: number;
   xOffset: number;
 }>();
@@ -40,7 +41,7 @@ const state = useSchemaInterfaceState(statement);
       :model-value="elementAsJsonText"
       language="json"
       :focused="focused"
-      :readonly="compiled"
+      :readonly="readonly"
       @navigateUp="emit('navigateUp')"
       @navigateDown="emit('navigateDown')"
       @escape="emit('escape')"

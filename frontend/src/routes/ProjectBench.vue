@@ -120,10 +120,10 @@ const files = computed(
 ); // filter deletedAt to increase responsiveness
 
 // actions (ensure global actions are available)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actions = useActions();
 const operationsStore = useOperationsStore();
 const anyInflightOps = computed(() => operationsStore.hasInflight);
-const operations = useOperations();
 
 const canCompile = computed(() => false);
 async function createDefaultCompilation() {
@@ -219,7 +219,7 @@ watch(
       await state.migrateTo(projectHead.value, undefined);
       migrating.value = false;
     } else if (projectMigrationRefs.value) {
-      const intermediateVersions = projectMigrationRefs.value?.project?.versions;
+      const intermediateVersions = [...(projectMigrationRefs.value?.project?.versions ?? [])];
       const intermediateRefs = intermediateVersions
         ?.sort((a, b) => a.createdAt - b.createdAt)
         .map((v) => v.parentsRefs);
