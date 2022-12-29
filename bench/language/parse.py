@@ -191,7 +191,7 @@ class TokenParser:
         return self.eat_type(TokenType.NEWLINE)
 
     def eat_newline_or_eof(self) -> Optional[Token]:
-        if self.peek() is None:
+        if self.peek() is None or self.peek_type(TokenType.NEWFILE) is not None:
             return
         return self.eat_newline()
 
