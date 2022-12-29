@@ -13,7 +13,14 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models import Compilation
-from bench.models.symbol import Requirement, Statement, StatementType, SymbolContent, SymbolType
+from bench.models.symbol import (
+    Requirement,
+    RunConfiguration,
+    Statement,
+    StatementType,
+    SymbolContent,
+    SymbolType,
+)
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -168,7 +175,9 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
     def copy(
         self, source: ProjectVersion, target: ProjectVersion
-    ) -> dict[UUID, File | Statement | SymbolContent | Compilation | Requirement]:
+    ) -> dict[
+        UUID, File | Statement | SymbolContent | Compilation | Requirement | RunConfiguration
+    ]:
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  This is awfully sequential and slow, particularly deepcopy of symbol contents.
         #  For one, we can likely just bulk save if we defer parent/child relations to a second pass.
@@ -187,6 +196,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         new_contents: dict[UUID, SymbolContent] = {}
         new_compilations: dict[UUID, Compilation] = {}
         new_requirements: dict[UUID, Requirement] = {}
+        new_runconfigs: dict[UUID, RunConfiguration] = {}
         for statement in walk_children_bfs(
             source.statements.filter(deleted_at=None, parent=None), "children"
         ):
@@ -196,6 +206,9 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             )
             old_requirement = (
                 statement.requirement if statement.type == StatementType.REQUIREMENT else None
+            )
+            old_runconfig = (
+                statement.runconfig if statement.type == StatementType.RUNCONFIG else None
             )
             # copy statement
             old_id = statement.id
@@ -233,8 +246,16 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 requirement.save()
                 statement.requirement = requirement
                 new_requirements[old_id] = requirement
+            # if statement is a runconfig, copy runconfig
+            if old_runconfig is not None:
+                old_id = old_runconfig.id
+                runconfig = old_runconfig
+                runconfig.pk = None
+                runconfig.save()
+                statement.runconfig = runconfig
+                new_runconfigs[old_id] = runconfig
             statement.save()
-        refs: dict[UUID, File | SymbolContent | Requirement | Compilation | Statement] = {
+        refs = {
             **new_contents,
             **new_requirements,
             **new_compilations,

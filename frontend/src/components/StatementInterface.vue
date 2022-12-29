@@ -371,6 +371,10 @@ watchEffect(() => {
         declarationContent.value = statement.value.name ?? "";
         aliasContent.value = "";
       }
+    } else {
+      // no reference
+      declarationContent.value = statement.value.name ?? "";
+      aliasContent.value = "";
     }
   } else if (statement.value.type == StatementType.Requirement) {
     declarationContent.value = meta.requirementPath ?? "";
@@ -595,7 +599,7 @@ async function morphToBlank() {
             statement.symbolType == null &&
             declarationContent.length == 0
           "
-          class="absolute text-gray-500"
+          class="absolute select-none text-gray-500"
           :class="{ 'opacity-100': isFocused, 'opacity-20 group-hover:opacity-100': !isFocused }"
         >
           ...

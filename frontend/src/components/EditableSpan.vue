@@ -33,15 +33,7 @@ function deleteRightIfAtEnd() {
 
 const span = ref<HTMLElement | null>(null);
 
-function focus() {
-  span.value?.focus();
-}
-
-function defocus() {
-  span.value?.blur();
-}
-
-defineExpose({ focus, defocus });
+defineExpose({ focus: () => span.value?.focus(), defocus: () => span.value?.blur() });
 </script>
 <template>
   <span

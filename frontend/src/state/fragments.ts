@@ -113,19 +113,16 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
     type
     required
     schemaId
-    choices
     elements {
       name
       type
       required
       schemaId
-      choices
       elements {
         name
         type
         required
         schemaId
-        choices
       }
     }
   }

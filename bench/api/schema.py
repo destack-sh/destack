@@ -11,12 +11,10 @@ ValueType = gql.enum(schema.ValueType)
 
 @gql.type
 class SchemaElement:
-    name: str
+    name: Optional[str]
     type: ValueType
     required: bool
     schema_id: Optional[str] = None
-    # TODO @Cleanup: schema element choices should be unions
-    choices: Optional[list[str]] = None
     elements: Optional[list["SchemaElement"]] = None
 
 

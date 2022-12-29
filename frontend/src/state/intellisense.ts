@@ -242,6 +242,7 @@ export type StatementMetadata = {
   isImport: boolean;
   isRequirement: boolean;
   isCompilation: boolean;
+  isRunconfig: boolean;
   isComment: boolean;
   isCommented: boolean;
   isDeleted: boolean;
@@ -268,6 +269,7 @@ export function useStatementMetadata(
   const isReference = computed(() => statement.value?.type == StatementType.Reference || isRedefinition.value);
   const isRequirement = computed(() => statement.value?.type == StatementType.Requirement);
   const isCompilation = computed(() => statement.value?.type == StatementType.Compilation);
+  const isRunconfig = computed(() => statement.value?.type == StatementType.Runconfig);
   const isParameter = computed(() => isReference.value && statement.value.modifier == StatementModifier.With);
   const isArgument = computed(() => isDefinition.value && statement.value.modifier == StatementModifier.With);
   const isImport = computed(() => statement.value?.type == StatementType.Import);
@@ -328,6 +330,7 @@ export function useStatementMetadata(
     isReference,
     isRequirement,
     isCompilation,
+    isRunconfig,
     isArgument,
     isParameter,
     isImport,
