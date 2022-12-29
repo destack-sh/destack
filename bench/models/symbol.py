@@ -488,7 +488,7 @@ class Statement(UUIDModel):
             if self.type == StatementType.DEFINITION:
                 if isinstance(symbol, SymbolType):
                     # create default content for the given type
-                    symbol = symbol.default_content()
+                    symbol = get_default_symbol_content(symbol)
                     symbol.save()
                 self.set_content(symbol)
                 # not sure about setting reference on morph, should be another atomic operation?

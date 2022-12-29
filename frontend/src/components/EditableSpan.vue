@@ -26,7 +26,7 @@ function deleteLeftIfEmpty() {
 function deleteRightIfAtEnd() {
   // check if cursor is at the end of the text
   const selection = window.getSelection();
-  if (selection && selection.anchorOffset == props.modelValue.length) {
+  if (props.modelValue.length > 0 && selection && selection.anchorOffset == props.modelValue.length) {
     emit("deleteRight");
   }
 }
@@ -46,7 +46,7 @@ defineExpose({ focus: () => span.value?.focus(), defocus: () => span.value?.blur
     @keydown.backspace="deleteLeftIfEmpty"
     @keydown.delete="deleteRightIfAtEnd"
     @keydown.escape.prevent="emit('escape')"
-    @input="emit('update:modelValue', $event.target?.innerText)"
+    @input="emit('update:modelValue', span?.innerText ?? '')"
   >
     {{ modelValue }}
   </span>

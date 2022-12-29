@@ -6,8 +6,8 @@ import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watchEffect, type Ref } from "vue";
 
-const ExpectationContentType = graphql(/* GraphQL */ `
-  fragment ExpectationContent on Expectation {
+const TaskContentType = graphql(/* GraphQL */ `
+  fragment TaskContent on Task {
     id
     description
   }
@@ -15,7 +15,7 @@ const ExpectationContentType = graphql(/* GraphQL */ `
 
 const props = defineProps<{
   statement: FragmentType<typeof StatementContentType>;
-  content: FragmentType<typeof ExpectationContentType>;
+  content: FragmentType<typeof TaskContentType>;
   focused: boolean;
   editing: boolean;
   readonly: boolean;
@@ -29,7 +29,7 @@ const emit = defineEmits<{
 }>();
 
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const content = computed(() => useFragment(ExpectationContentType, props.content));
+const content = computed(() => useFragment(TaskContentType, props.content));
 
 const operations = useOperations();
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -59,9 +59,12 @@ defineExpose({
     <EditableSpan
       ref="descriptionRef"
       :readonly="readonly"
-      :model-value="description ?? ''"
+      :modelValue="description ?? ''"
       maxlength="200"
-      @update:model-value="saveDescriptionDebounced"
+      @update:modelValue="
+        description = $event;
+        saveDescriptionDebounced();
+      "
       @enter="saveDescription"
       class="inline w-full rounded-sm bg-transparent outline-none"
       @navigateUp="emit('navigateUp')"

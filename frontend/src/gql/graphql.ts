@@ -784,6 +784,10 @@ export enum ValueType {
   String = "STRING",
 }
 
+export type TaskContentFragment = { __typename?: "Task"; id: any; description: string } & {
+  " $fragmentName"?: "TaskContentFragment";
+};
+
 export type ExpectationContentFragment = { __typename?: "Expectation"; id: any; description: string } & {
   " $fragmentName"?: "ExpectationContentFragment";
 };
@@ -803,10 +807,6 @@ export type FileContentByIdQuery = {
         >;
       } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | null;
-};
-
-export type TaskContentFragment = { __typename?: "Task"; id: any; description: string } & {
-  " $fragmentName"?: "TaskContentFragment";
 };
 
 export type ProjectVersionsQueryVariables = Exact<{

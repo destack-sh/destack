@@ -4,11 +4,10 @@ import CodeInterfaceMeta from "@/components/CodeInterfaceMeta.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import ExpectationInterface from "@/components/ExpectationInterface.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import SchemaInterface from "@/components/SchemaInterface.vue";
 import SchemaInterfaceMeta from "@/components/SchemaInterfaceMeta.vue";
-import TaskInterface from "@/components/TaskInterface.vue";
+import DescriptionInterface from "@/components/DescriptionInterface.vue";
 import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
@@ -67,16 +66,17 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Code]: {
     component: CodeInterface,
   },
+  [SymbolType.Task]: {
+    component: DescriptionInterface,
+  },
   [SymbolType.Expectation]: {
-    component: ExpectationInterface,
+    component: DescriptionInterface,
   },
   [SymbolType.Schema]: {
     component: SchemaInterface,
   },
-  [SymbolType.Task]: {
-    component: TaskInterface,
-  },
   // not yet defined symbol interfaces
+  [SymbolType.Value]: undefined,
   [SymbolType.Model]: undefined,
 };
 const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
@@ -93,6 +93,7 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
     component: TaskInterfaceMeta,
   },
   // not yet defined symbol interfaces
+  [SymbolType.Value]: undefined,
   [SymbolType.Expectation]: undefined,
   [SymbolType.Model]: undefined,
 };
