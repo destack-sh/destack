@@ -397,6 +397,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             raise ParseError("unsupported code language", literal)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         content = Code(
+            language=lang,
             type=SymbolType.CODE,
             code_function_name=None,
             builtin_id=None,
