@@ -112,22 +112,26 @@ def error_module_lookup(*args, **kwargs):
 
 def parse(
     tokens: list[Token],
+    module: Optional[Module] = None,
     lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
-) -> list[File]:
+) -> Module:
     """
     Parse a stream of tokens into Bench AST (grouped into files).
     """
-    if len(tokens) == 0:
-        return []
     if on_error == "raise":
         on_error = raise_error
+    if module is None:
+        module = Module(name="<local>", files=[])
 
     # first pass: extract files and statements
-    files = preparse(tokens, on_error=on_error)
+    files = preparse(tokens, module, on_error=on_error)
+    module.files.extend(files)
+
     # second pass: resolve statements into AST
-    resolve(files, lookup_module=lookup_module, on_error=on_error)
-    return files
+    resolve(module, lookup_module=lookup_module, on_error=on_error)
+
+    return module
 
 
 class TokenParser:
@@ -336,12 +340,16 @@ class FileParseState:
         return self.statements_by_parent[None]
 
 
-def preparse(tokens: list[Token], on_error: Callable[[ParseError], None]) -> list[File]:
+def preparse(
+    tokens: list[Token], module: Module, on_error: Callable[[ParseError], None]
+) -> list[File]:
     """Map tokens into files and statements with unresolved references."""
 
     parser = TokenParser(tokens, start_pos=0, indent_level=0)
     states: dict[str, FileParseState] = OrderedDict()  # remember original file order
-    initial_file: File = File(path=parser.eat_newfile().value)  # tokens[0] must be newfile
+    initial_file: File = File(
+        module=module, path=parser.eat_newfile().value
+    )  # tokens[0] must be newfile
     local = FileParseState(file=initial_file)
     states[initial_file.path] = local
 
@@ -352,8 +360,9 @@ def preparse(tokens: list[Token], on_error: Callable[[ParseError], None]) -> lis
 
         if parser.peek().type == TokenType.NEWFILE:
             path = parser.eat_newfile().value
-            if path not in states:
-                states[path] = FileParseState(file=File(path=path))  # begin new file state
+            if path not in states:  # begin new file state
+                new_file = File(module=module, path=path)
+                states[path] = FileParseState(file=new_file)
             local = states[path]
         elif parser.peek().type == TokenType.INDENT:
             parser.eat()
@@ -682,13 +691,11 @@ class IndexedModule:
 
 
 def resolve(
-    module: list[File] | Module,
+    module: Module,
     lookup_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> IndexedModule:
     """Resolve references across files within a module."""
-    if not isinstance(module, Module):
-        module = Module(name="<local>", files=module)
 
     def _error(
         message: str, statement: Statement, cause: Exception | None = None, **related_statements

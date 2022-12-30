@@ -66,15 +66,16 @@ class Module:
 
 @dataclass(repr=False)
 class File:
+    module: Module
     path: str
     statements: list[Statement] = field(default_factory=list)
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __str__(self):
-        return self.path
+        return f"{self.module.name}.{self.path}"
 
     def __repr__(self):
-        return f"<File {self.path}>"
+        return f"<File {str(self)}>"
 
     @property
     def extension(self) -> str:

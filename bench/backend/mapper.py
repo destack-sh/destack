@@ -26,12 +26,13 @@ def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
     lang_files: dict[UUID, language.File] = {}
     lang_statements: dict[UUID, language.Statement] = {}
 
-    module = language.Module(name=project_v.project.name, files=[])
+    module_name = f"{project_v.project.organization.slug}.{project_v.project.slug}"
+    module = language.Module(name=module_name, files=[])
     model_statements = project_v.statements.select_related(*CONTENT_FIELDS).all()
 
     # map files
     for file in project_v.files.all():
-        lang_file = language.File(id=file.id, path=file.path)
+        lang_file = language.File(module=module, id=file.id, path=file.path)
         lang_files[file.id] = lang_file
         module.files.append(lang_file)
 
