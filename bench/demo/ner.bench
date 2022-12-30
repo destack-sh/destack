@@ -4,7 +4,7 @@ require openai.stdlib@latest
 require symbolx.stdlib@latest
 
 # Compilations
-import task ner from .main
+import task 'extract entities' from .main
 import model text-davinci-003 from openai.stdlib.text
 
 compile prod = task 'extract entities':

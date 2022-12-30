@@ -17,6 +17,6 @@ if len(demo_paths) == 0:
 def test_round_trip_demo(path: str):
     source_file = SourceFile(path=path, content=Path(path).read_text())
     tokens = lex(source_file)
-    files = parse(tokens)
+    files = parse(tokens, on_error="raise")
     reconstructed = render(files)
     assert reconstructed == source_file.content

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, NamedTuple, Optional
 from uuid import UUID
@@ -53,17 +52,6 @@ class SymbolType(models.TextChoices):
 
 
 @dataclass(repr=False)
-class DerivedRoot:
-    """The root for derived statement data. To simplify, we assume statements are never deleted and immutable."""
-
-    # TODO @Architecture: how to represent statement derived state? when/where to (re)compute it?
-
-    statements_by_parent: dict[UUID, list[Statement]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
-
-
-@dataclass(repr=False)
 class File:
     path: str
     statements: list[Statement] = field(default_factory=list)
@@ -93,10 +81,14 @@ class File:
         return [statement for statement in self.statements if statement.parent is None]
 
 
-UnresolvedStatement = NamedTuple("UnresolvedStatement", [("path", str), ("name", str)])
+StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
 
 
-@dataclass(repr=False, frozen=True)
+def statement_path_as_str(statement_path: StatementPath) -> str:
+    return f"{statement_path.path}::{statement_path.name}"
+
+
+@dataclass(repr=False)
 class Statement:
     file: File
     parent: Optional[Statement]
@@ -107,23 +99,31 @@ class Statement:
     text: Optional[str] = None
     symbol_type: Optional[SymbolType] = None
     content: Optional[SymbolContent | Requirement | Compilation | RunConfiguration] = None
-    reference: Optional[Statement | UnresolvedStatement] = None
+    reference: Optional[Statement | StatementPath] = None
     requirement: Optional[Requirement] = None
     compilation: Optional[Compilation] = None
     runconfig: Optional[RunConfiguration] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
-    _root: Optional[DerivedRoot] = None
     _source: Optional[Any] = None
 
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)
         if self.type == StatementType.DEFINITION:
-            content_str = f"{self.content}"
+            content_str = str(self.content)
         elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
-            content_str = f"{self.reference}"
+            if isinstance(self.reference, Statement):
+                content_str = f"{self.reference.file.path}::{self.reference.name}"
+            else:
+                content_str = statement_path_as_str(self.reference)
         elif self.type == StatementType.COMMENT:
-            content_str = f"{len(self.text)}"
+            content_str = str(len(self.text))
+        elif self.type == StatementType.REQUIREMENT:
+            content_str = str(self.requirement)
+        elif self.type == StatementType.COMPILATION:
+            content_str = str(self.compilation)
+        elif self.type == StatementType.RUNCONFIG:
+            content_str = str(self.runconfig)
         else:
             raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""
@@ -133,8 +133,18 @@ class Statement:
         return f"<Statement {self}>"
 
     @property
+    def referable(self) -> bool:
+        return self.type in (
+            StatementType.DEFINITION,
+            StatementType.REDEFINITION,
+            StatementType.IMPORT,
+            StatementType.COMPILATION,
+            StatementType.RUNCONFIG,
+        )
+
+    @property
     def is_alias(self):
-        if isinstance(self.reference, UnresolvedStatement):
+        if isinstance(self.reference, StatementPath):
             return self.reference[1] != self.name
         elif isinstance(self.reference, Statement):
             return self.reference.name != self.name
@@ -146,28 +156,6 @@ class Statement:
         if self.parent:
             return f"{self.parent.absolute_index}.{self.index}"
         return str(self.index)
-
-    @property
-    def _root_(self) -> DerivedRoot:
-        if self._root is None:
-            raise RuntimeError("Statement._root is not set")
-        return self._root
-
-    def __post_init__(self):
-        if self._root is None:
-            return
-        if self.parent is not None:
-            self._root_.statements_by_parent[self.parent.id].append(self)
-
-    @property
-    def children(self):
-        return self._root.statements_by_parent[self.id]
-
-    @property
-    def siblings(self):
-        if self.parent is None:
-            return self.file.root_statements
-        return self.parent.children
 
 
 @dataclass(repr=False)
@@ -187,6 +175,8 @@ class Task(SymbolContent):
 @dataclass(repr=False)
 class Expectation(SymbolContent):
     description: str
+    # --- derived ---
+    expectations: Optional[list[Expectation]] = None
 
     def __str__(self):
         return f"(description={self.description})"
