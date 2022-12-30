@@ -160,6 +160,10 @@ def render_import_source(reference: Statement | StatementPath, via: Statement) -
     if isinstance(reference, StatementPath):
         return reference[0]
     elif isinstance(reference, Statement):
-        raise NotImplementedError
+        # if same module, use local reference
+        if reference.file.module.name == via.file.module.name:
+            return f".{reference.file.path_without_extension}"
+        else:  # otherwise use absolute reference
+            return f"{reference.file.module.name}.{reference.file.path_without_extension}"
     else:
         raise ValueError(f"unexpected reference type: {reference}")

@@ -39,15 +39,15 @@ class Command(BaseCommand):
             console.print(pprint_tokens(tokens))
 
         if database:
-            files = parse(tokens, lookup_module=lookup_module_in_db)
+            module = parse(tokens, lookup_module=lookup_module_in_db)
         else:
-            files = parse(tokens)
+            module = parse(tokens)
 
         if not reconstruct:
-            for panel in pprint_files(files):
+            for panel in pprint_files(module.files):
                 console.print(panel)
         else:
-            reconstruction = render(files)
+            reconstruction = render(module.files)
             console.print(reconstruction, markup=False, highlight=False)
 
 
