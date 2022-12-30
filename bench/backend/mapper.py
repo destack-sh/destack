@@ -1,3 +1,8 @@
+"""
+Server-side mapper to remotely read and write files and statements.
+Keeps track of revisions and follows references in read/write operations.
+"""
+
 from __future__ import annotations
 
 import typing
@@ -10,16 +15,8 @@ from bench.models.project import FileType, Project, ProjectVersion
 from bench.models.symbol import SYMBOL_TYPE_TO_FIELD
 
 
-class Mapper:
-    """
-    Server-side mapper to remotely read and write files and statements.
-    Keeps track of revisions and follows references in read/write operations.
-    """
-
-    pass
-
-
-def read_statement(statement: models.Statement) -> language.Statement:
+@transaction.atomic
+def read(project_v: ProjectVersion) -> language.Module:
     raise NotImplementedError
 
 
@@ -144,19 +141,23 @@ def map_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, l
 def map_requirement(
     requirement: language.Requirement,
 ) -> models.Requirement():
+    version = lookup_requirement(requirement)
+    if version is None:
+        raise ValueError(f"requirement not found: {requirement}")
+    return models.Requirement(project_version=version)
+
+
+def lookup_requirement(requirement: language.Requirement) -> typing.Optional[ProjectVersion]:
     # requirement names are organization.library
     organization_slug, library_slug = requirement.name.split(".")
     try:
         library = Project.objects.get_by_slug(organization_slug, library_slug)
     except Project.DoesNotExist:
-        raise ValueError(f"{requirement} could not be resolved")
-
+        return None
     if requirement.version == "latest":
-        version = library.head_
+        return library.head_
     else:
-        version = ProjectVersion.objects.get(project=library, name=requirement.version)
-
-    return models.Requirement(project_version=version)
+        return ProjectVersion.objects.filter(project=library, name=requirement.version).first()
 
 
 def map_compilation(

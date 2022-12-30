@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import dataclasses
 import enum
 import json
+import re
 import typing
 from collections import OrderedDict, defaultdict
+from dataclasses import dataclass, field
 from typing import Callable, Optional
 from uuid import UUID
 
@@ -111,7 +112,7 @@ def error_module_lookup(*args, **kwargs):
 
 def parse(
     tokens: list[Token],
-    lookup_module: Callable[[StatementPath], Statement | None] = ignore_module_lookup,
+    lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> list[File]:
     """
@@ -125,7 +126,7 @@ def parse(
     # first pass: extract files and statements
     files = preparse(tokens, on_error=on_error)
     # second pass: resolve statements into AST
-    idx = resolve(files, lookup_module=lookup_module, on_error=on_error)
+    resolve(files, lookup_module=lookup_module, on_error=on_error)
     return files
 
 
@@ -293,15 +294,15 @@ def _clean_literal_indent(text: str, indent_level: int) -> str:
     return "\n".join(lines)
 
 
-@dataclasses.dataclass
+@dataclass
 class FileParseState:
     file: File
     indent: int = 0
-    ancestors: list[Statement] = dataclasses.field(default_factory=list)  # by indent
-    statements_by_parent: dict[UUID | None, list[Statement]] = dataclasses.field(
+    ancestors: list[Statement] = field(default_factory=list)  # by indent
+    statements_by_parent: dict[UUID | None, list[Statement]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    previous_errors: list[ParseError | None] = dataclasses.field(default_factory=list)
+    previous_errors: list[ParseError | None] = field(default_factory=list)
 
     def add_statement(self, statement: Statement):
         self.file.statements.append(statement)
@@ -418,6 +419,20 @@ def _parse_requirement(tokens: TokenParser, **kwargs) -> Statement:
     )
 
 
+# import source must either be in current module (.*) or absolute (<owner>.<name>.*)
+RELATIVE_IMPORT_SOURCE_REGEX = re.compile(r"^\.(?P<path>[\w.-]+)$")
+ABSOLUTE_IMPORT_SOURCE_REGEX = re.compile(
+    r"^(?P<owner>[\w-]+)\.(?P<name>[\w-]+)\.(?P<path>[\w.-]+)$"
+)
+
+
+def is_valid_import_source(source: str) -> bool:
+    return (
+        RELATIVE_IMPORT_SOURCE_REGEX.match(source) is not None
+        or ABSOLUTE_IMPORT_SOURCE_REGEX.match(source) is not None
+    )
+
+
 def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     """Parse an import statement."""
     tokens.eat_keyword(StatementType.IMPORT)
@@ -435,13 +450,15 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
         alias = reference
     tokens.eat_keyword("from")
     tokens.eat_space()
-    source = tokens.eat_identifier().value
+    source = tokens.eat_identifier()
+    if not is_valid_import_source(source.value):
+        raise ParseError("invalid import source", source)
     tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.IMPORT,
         name=alias,
         symbol_type=symbol_type.value,
-        reference=StatementPath(source, reference),
+        reference=StatementPath(source.value, reference),
         **kwargs,
     )
 
@@ -617,21 +634,30 @@ class SemanticError(ValueError):
         self,
         message: str,
         statement: Optional[Statement],
+        cause: Optional[Exception] = None,
         related_statements: dict[str, Statement] | None = None,
     ):
-        super().__init__(self._format_message(message, statement, related_statements))
+        super().__init__(self._format_message(message, statement, cause, related_statements))
         self.statement = statement
         self.related_statements = related_statements
+        self.cause = cause
 
     def _format_message(
-        self, message: str, statement: Statement, related_statements: dict[str, Statement] | None
+        self,
+        message: str,
+        statement: Statement,
+        cause: Exception | None,
+        related_statements: dict[str, Statement] | None,
     ) -> str:
         related_statements = related_statements or {}
         related_context = "".join(
             f"\nrelated {k}: {SemanticError.statement_context(v)}"
             for k, v in related_statements.items()
         )
-        return message + SemanticError.statement_context(statement) + related_context
+        cause_context = f"\ncause: {cause.__class__.__name__} {cause}" if cause is not None else ""
+        return (
+            message + SemanticError.statement_context(statement) + related_context + cause_context
+        )
 
     @staticmethod
     def statement_context(statement: Optional[Statement]) -> str:
@@ -651,74 +677,115 @@ class SemanticError(ValueError):
             return f" at\n{statement}\n{source[0].source_file.path} {source[0].line_number}\n{source_context}"
 
 
-@dataclasses.dataclass
+@dataclass
 class IndexedModule:
     module: Module
-    statements_by_path: dict[StatementPath, Statement] = dataclasses.field(default_factory=dict)
-    statements_by_parent: dict[UUID, list[Statement]] = dataclasses.field(
+    requirements_by_name: dict[str, Requirement] = field(default_factory=dict)
+    statements_by_id: dict[UUID, Statement] = field(default_factory=OrderedDict)
+    statements_by_path: dict[StatementPath, Statement] = field(default_factory=dict)
+    statements_by_parent: dict[UUID, list[Statement]] = field(
         default_factory=lambda: defaultdict(list)
     )
 
 
 def resolve(
     module: list[File] | Module,
-    lookup_module: Callable[[StatementPath], Statement | None],
+    lookup_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> IndexedModule:
     """Resolve references across files within a module."""
     if not isinstance(module, Module):
         module = Module(name="<local>", files=module)
 
-    idx = IndexedModule(module=module)
+    def _error(
+        message: str, statement: Statement, cause: Exception | None = None, **related_statements
+    ):
+        on_error(SemanticError(message, statement, cause, related_statements))
+
+    idx = index_module(module, on_error=on_error)
+
+    # resolve references
+    for statement in idx.statements_by_id.values():
+        if not isinstance(statement.reference, StatementPath):
+            continue  # already resolved
+
+        # normalize path to resolve file-local references (with .)
+        normalized_path = statement.reference
+        if statement.reference.path[0] == ".":  # current file
+            normalized_path = StatementPath(
+                f".{statement.file.path_without_extension}", statement.name
+            )
+
+        if normalized_path[0].startswith("."):  # resolve in local module
+            resolved = idx.statements_by_path.get(normalized_path)
+        else:  # resolve in external module
+            # get source requirement
+            source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path[0])
+            if source is None:  # (should be caught in parse)
+                raise RuntimeError(f"invalid source at {statement}")
+            requirement_name = f"{source.group('owner')}.{source.group('name')}"
+            requirement = idx.requirements_by_name.get(requirement_name)
+            if requirement is None:
+                _error(f"unknown import source {requirement_name}", statement)
+                continue
+            # localize path to requirement module
+            localized_path = StatementPath("." + source.group("path"), statement.name)
+            # use module lookup to resolve
+            try:
+                resolved = lookup_module(requirement, localized_path)
+            except Exception as e:
+                _error(f"failed to resolve {statement_path_as_str(normalized_path)}", statement, e)
+                continue
+
+        if resolved is None:
+            _error(f"reference is undefined: {statement_path_as_str(normalized_path)}", statement)
+            continue
+
+        statement.reference = resolved
+        # check if the reference has the correct type
+        if resolved.symbol_type != statement.symbol_type:
+            _error(f"reference has other symbol type: {resolved}", statement)
+
+    return idx
+
+
+def index_module(
+    module: Module,
+    on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise",
+) -> IndexedModule:
+    if on_error == "raise":
+        on_error = raise_error
 
     def _error(
         message: str, statement: Statement, related_statements: dict[str, Statement] | None = None
     ):
         on_error(SemanticError(message, statement, related_statements))
 
+    idx = IndexedModule(module=module)
+
     # collect files and statements
     for file in module.files:
         for statement in file.statements:
+            idx.statements_by_id[statement.id] = statement
             if statement.parent is not None:
                 idx.statements_by_parent[statement.parent.id].append(statement)
             if statement.referable:
                 statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
                 if statement_path in idx.statements_by_path:
-                    error = SemanticError(f"multiple definitions for {statement_path}", statement)
-                    on_error(error)
+                    _error(f"multiple definitions for {statement_path}", statement)
                     continue
                 idx.statements_by_path[statement_path] = statement
+    # sort statements by parent by index (for deterministic resolution)
+    for statements in idx.statements_by_parent.values():
+        statements.sort(key=lambda s: s.index)
 
-    # resolve references
-    for file in module.files:
-        for statement in file.statements:
-            if isinstance(statement.reference, StatementPath):
-                normalized_path = statement.reference
-                if statement.reference.path[0] == ".":  # current file
-                    normalized_path = StatementPath(
-                        f".{file.path_without_extension}", statement.name
-                    )
-                is_local = normalized_path[0].startswith(".")
-                if is_local:  # resolve within current module
-                    resolved = idx.statements_by_path.get(normalized_path)
-                else:
-                    try:
-                        resolved = lookup_module(normalized_path)
-                    except Exception as e:
-                        _error(f"failed to resolve {normalized_path}: {e}", statement)
-                        continue
-
-                # resolve reference
-                if resolved is None:
-                    _error(
-                        f"reference is undefined: {statement_path_as_str(statement.reference)}",
-                        statement,
-                    )
-                else:
-                    statement.reference = resolved
-
-                # check if the reference has the correct type
-                if resolved.symbol_type != statement.symbol_type:
-                    _error(f"reference has other symbol type: {resolved}", statement)
+    # collect requirements
+    for statement in idx.statements_by_id.values():
+        if statement.type == StatementType.REQUIREMENT:
+            requirement_name = statement.name
+            if requirement_name in idx.requirements_by_name:
+                _error(f"multiple requirements for {requirement_name}", statement)
+                continue
+            idx.requirements_by_name[requirement_name] = statement.requirement
 
     return idx
