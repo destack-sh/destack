@@ -7,6 +7,7 @@ from bench.language.types import (
     Expectation,
     File,
     Model,
+    Module,
     Requirement,
     RunConfiguration,
     Schema,
@@ -19,6 +20,7 @@ from bench.language.types import (
 
 __all__ = [
     "SymbolType",
+    "Module",
     "File",
     "Statement",
     "SymbolContent",

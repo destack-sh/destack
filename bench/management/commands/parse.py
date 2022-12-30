@@ -6,10 +6,13 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from bench.language import File
+from bench import language
+from bench.backend.mapper import lookup_requirement
+from bench.language import File, Requirement
 from bench.language.lex import SourceFile, Token, lex
-from bench.language.parse import parse
+from bench.language.parse import index_module, parse
 from bench.language.reconstruct import render, render_file
+from bench.language.types import Statement, StatementPath
 
 
 class Command(BaseCommand):
@@ -19,8 +22,10 @@ class Command(BaseCommand):
         parser.add_argument("path", type=str)
         # whether to show final render only as 'render_only'
         parser.add_argument("-r", "--reconstruct", action="store_true")
+        # whether to use libraries from the database
+        parser.add_argument("-d", "--database", action="store_true")
 
-    def handle(self, path: str, reconstruct: bool, *args, **options):
+    def handle(self, path: str, reconstruct: bool, database: bool, *args, **options):
         console = Console()
         if path == "-":
             # read until EOF
@@ -32,13 +37,30 @@ class Command(BaseCommand):
         tokens = lex(source_file)
         if not reconstruct:
             console.print(pprint_tokens(tokens))
-        files = parse(tokens)
+
+        if database:
+            files = parse(tokens, lookup_module=lookup_module_in_db)
+        else:
+            files = parse(tokens)
+
         if not reconstruct:
             for panel in pprint_files(files):
                 console.print(panel)
         else:
             reconstruction = render(files)
             console.print(reconstruction, markup=False, highlight=False)
+
+
+def lookup_module_in_db(requirement: Requirement, path: StatementPath) -> Statement:
+    from bench.backend import mapper
+
+    version = lookup_requirement(requirement)
+    if version is None:
+        raise ValueError(f"could not find module {requirement}")
+
+    module: language.Module = mapper.read(version)
+    idx = index_module(module)
+    return idx.statements_by_path[path]
 
 
 def pprint_tokens(tokens: list[Token]) -> Table:

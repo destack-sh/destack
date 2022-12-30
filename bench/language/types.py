@@ -57,6 +57,12 @@ class Module:
     files: list[File]
     id: UUID = field(default_factory=uuid.uuid4)
 
+    def __str__(self):
+        return f"{self.name} ({len(self.files)} files)"
+
+    def __repr__(self):
+        return f"<Module {str(self)}>"
+
 
 @dataclass(repr=False)
 class File:
@@ -269,7 +275,6 @@ class Code(SymbolContent):
 class Requirement:
     name: str
     version: str
-    project_version_id: Optional[UUID] = None
 
     def __str__(self):
         return f"{self.name}@{self.version}"
