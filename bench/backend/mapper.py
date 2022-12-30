@@ -7,11 +7,10 @@ Server-side mapper to translate between language and database models.
 from __future__ import annotations
 
 import typing
-from itertools import chain
+from itertools import chain, groupby
 from uuid import UUID
 
 from django.db import transaction
-from more_itertools import bucket
 
 from bench import language, models
 from bench.language.parse import index_module
@@ -39,8 +38,7 @@ def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
     lang_files: dict[UUID, language.File] = {}
     lang_statements: dict[UUID, language.Statement] = {}
 
-    module_name = f"{project_v.project.organization.slug}.{project_v.project.slug}"
-    module = language.Module(name=module_name, files=[])
+    module = rmap_module(project_v)
     model_statements = project_v.statements.select_related(*CONTENT_FIELDS).all()
 
     # map files
@@ -141,10 +139,10 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
         model_statements[statement.id] = model_statement
 
     # create statements contents
-    for content_cls, contents in bucket(*model_contents.values(), key=type):
+    for content_cls, contents in groupby(model_contents.values(), key=type):
         content_cls.objects.bulk_create(contents)
     # and their relations
-    for relation_cls, relations in bucket(*model_contents_relations, key=type):
+    for relation_cls, relations in groupby(model_contents_relations, key=type):
         relation_cls.objects.bulk_create(relations)
 
     # create actual statements
@@ -162,6 +160,12 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     return list(model_files.values())
+
+
+def rmap_module(project_v: ProjectVersion) -> language.Module:
+    module_name = f"{project_v.project.organization.slug}.{project_v.project.slug}"
+    module = language.Module(name=module_name, files=[])
+    return module
 
 
 def wmap_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, list[typing.Any]]:
