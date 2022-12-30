@@ -165,10 +165,10 @@ def parse_bsl(bsl: str) -> SchemaElement:
     bsl = bsl.strip()
 
     # required
-    required_match = re.match(r"^(.*)\?$", bsl)
-    if required_match:
+    optional_match = re.match(r"^(.*)\?$", bsl)
+    if optional_match:
         required = False
-        bsl = bsl[: required_match.start(1)]
+        bsl = bsl[: optional_match.start(1)]
     else:
         required = True
 
@@ -221,6 +221,7 @@ class SchemaElementSerializer:
         return {
             "name": schema_element.name,
             "type": schema_element.type.value,
+            "schema_id": schema_element.schema_id,
             "required": schema_element.required,
             "elements": elements,
         }
@@ -235,6 +236,7 @@ class SchemaElementSerializer:
         return SchemaElement(
             name=json.get("name"),
             type=ValueType(json["type"]),
+            schema_id=json.get("schema_id"),
             required=json.get("required", True),
             elements=elements,
         )
