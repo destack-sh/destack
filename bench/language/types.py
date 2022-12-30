@@ -52,6 +52,13 @@ class SymbolType(models.TextChoices):
 
 
 @dataclass(repr=False)
+class Module:
+    name: str
+    files: list[File]
+    id: UUID = field(default_factory=uuid.uuid4)
+
+
+@dataclass(repr=False)
 class File:
     path: str
     statements: list[Statement] = field(default_factory=list)
@@ -108,6 +115,7 @@ class Statement:
     _source: Optional[Any] = None
 
     def __str__(self):
+        # TODO @Cleanup: Statement.__str__ looks suspiciously like a worse reconstruct.render_statement
         path = self.file.path + ":" + str(self.absolute_index)
         if self.type == StatementType.DEFINITION:
             content_str = str(self.content)
