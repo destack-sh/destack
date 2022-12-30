@@ -15,7 +15,7 @@ from bench.api.expectation import Expectation, ExpectationMutation
 from bench.api.model import Model
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
-from bench.api.schema import Schema
+from bench.api.schema import Schema, SchemaMutation
 from bench.api.symbol import Requirement, Statement, StatementMutation
 from bench.api.task import Task, TaskMutation
 from bench.api.user import User
@@ -42,6 +42,7 @@ class Query:
 class Mutation(
     StatementMutation,
     FileMutation,
+    SchemaMutation,
     TaskMutation,
     ExpectationMutation,
     CodeMutation,

@@ -69,6 +69,8 @@ const documents = {
     types.CommentStatementDocument,
   "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {\n          statement {\n            id\n            reference {\n              ...StatementHeader\n            }\n          }\n        }\n      }\n    ":
     types.SetReferenceDocument,
+  "\n      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {\n        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {\n          id\n          content {\n            ...SchemaContent\n          }\n        }\n      }\n    ":
+    types.UpdateSchemaContentDocument,
   "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    ":
     types.UpdateTaskContentDocument,
   "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    ":
@@ -181,6 +183,9 @@ export function graphql(
 export function graphql(
   source: "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {\n          statement {\n            id\n            reference {\n              ...StatementHeader\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {\n          statement {\n            id\n            reference {\n              ...StatementHeader\n            }\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {\n        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {\n          id\n          content {\n            ...SchemaContent\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {\n        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {\n          id\n          content {\n            ...SchemaContent\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "];

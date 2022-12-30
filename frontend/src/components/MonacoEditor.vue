@@ -6,7 +6,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref 
 
 const props = defineProps<{
   modelValue: string;
-  language: "json" | "python" | "markdown";
+  language: "json" | "jsonl" | "python" | "markdown" | "bsl";
   focused: boolean;
   readonly?: boolean;
   commented?: boolean;
