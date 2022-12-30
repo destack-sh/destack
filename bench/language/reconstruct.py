@@ -82,25 +82,25 @@ def render_statement_content(statement: Statement) -> str:
     elif statement.type == StatementType.REQUIREMENT:
         return f"require {statement.requirement.name}@{statement.requirement.version}"
     elif statement.type == StatementType.COMPILATION:
-        compilation_name = _escape_identifier(statement.name)
-        reference_name = _escape_identifier(_get_reference_name(statement.reference))
+        compilation_name = escape_identifier(statement.name)
+        reference_name = escape_identifier(_get_reference_name(statement.reference))
         return f"compile {compilation_name} = {statement.symbol_type} {reference_name}:"
     elif statement.type == StatementType.RUNCONFIG:
         raise NotImplementedError
     elif statement.type == StatementType.IMPORT:
-        alias_name = _escape_identifier(statement.name)
+        alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""
-        reference_name = _escape_identifier(_get_reference_name(statement.reference))
-        import_path = _get_reference_path(statement.reference, via=statement)
-        return f"import {statement.symbol_type} {reference_name}{alias_str} from {import_path}"
+        reference_name = escape_identifier(_get_reference_name(statement.reference))
+        import_source = render_import_source(statement.reference, via=statement)
+        return f"import {statement.symbol_type} {reference_name}{alias_str} from {import_source}"
     elif statement.type == StatementType.DEFINITION:
         content_str = render_symbol_content(statement.content)
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
-        identifier_str = _escape_identifier(statement.name)
+        identifier_str = escape_identifier(statement.name)
         return f"{modifier_str}{statement.symbol_type} {identifier_str}:\n{content_str}"
     elif statement.type == StatementType.REFERENCE:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
-        identifier_str = _escape_identifier(statement.name)
+        identifier_str = escape_identifier(statement.name)
         return f"{modifier_str}{statement.symbol_type} {identifier_str}"
     else:
         raise ValueError(f"unexpected statement type: {statement}")
@@ -126,7 +126,7 @@ def render_symbol_content(content: SymbolContent) -> str:
         raise ValueError(f"unexpected symbol content type: {content}")
 
 
-def _escape_identifier(identifier: str) -> str:
+def escape_identifier(identifier: str) -> str:
     """Wraps an identifier in single quotes if it contains special characters."""
     if IDENTIFIER_REGEX.fullmatch(identifier):
         return identifier
@@ -156,7 +156,7 @@ def _get_reference_name(reference: Statement | StatementPath) -> str:
         raise ValueError(f"unexpected reference type: {reference}")
 
 
-def _get_reference_path(reference: Statement | StatementPath, via: Statement) -> str:
+def render_import_source(reference: Statement | StatementPath, via: Statement) -> str:
     if isinstance(reference, StatementPath):
         return reference[0]
     elif isinstance(reference, Statement):
