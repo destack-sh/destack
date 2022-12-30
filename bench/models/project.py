@@ -299,33 +299,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         """Hard deletes all files (cascades to statements and their contents)."""
         self.files.all().delete()
 
-    def bootstrap(self):
-        """Creates default files and statements."""
-        # TODO @Cleanup: replace the bootstrapped files with templated snippets in Bench format
-        # (and move out of ProjectVersion?)
-        if self.project.type == ProjectType.EXECUTABLE:
-            main_file = self.create_file("main", FileType.INSTRUCT)
-            self.add_comment("Instruct AI on something.", main_file)
-        elif self.project.type == ProjectType.LIBRARY:
-            main_file = self.create_file("main", FileType.INSTRUCT)
-            self.add_comment("Your AI library root.", main_file)
-        else:
-            raise ValueError(f"unexpected project type {self.project.type}")
-        project_file = self.create_file("bench", FileType.PROJECT)
-        self.add_comment("# Project metadata", project_file)
-        self.add_blank(project_file)
-
-        self.add_comment("# Requirements", project_file)
-        # default requirements
-        self.add_requirement(Project.objects.get_by_slug("symbolx", "stdlib").head_, project_file)
-
-        # TODO @Feature: bootstrap project version with default/template content
-        if self.project.type == ProjectType.EXECUTABLE:
-            self.add_comment("# Compilations", project_file)
-            self.add_blank(project_file)
-            self.add_comment("# Run", project_file)
-            self.add_blank(project_file)
-
     @transaction.atomic
     def commit(self, name: Optional[str] = None, description: Optional[str] = None):
         if self.committed:

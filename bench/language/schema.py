@@ -64,6 +64,13 @@ class SchemaElement:
     schema_id: Optional[str] = None
     elements: Optional[list["SchemaElement"]] = None
 
+    def __str__(self):
+        return self.bsl
+
+    @cached_property
+    def bsl(self) -> str:
+        return render_bsl(self)
+
     @property
     def keys(self) -> list[str]:
         if self.elements is None:
@@ -90,10 +97,6 @@ class SchemaElement:
             if e.name == key:
                 return e
         raise ValueError(f"key {key} not found in {self}")
-
-    @functools.cache
-    def __str__(self):
-        return render_bsl(self)
 
     @cached_property
     def is_resolved(self):
