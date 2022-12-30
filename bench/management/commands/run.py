@@ -4,7 +4,7 @@ from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
-from bench.backend.executor import Executor
+from bench.backend.execute import Executor
 from bench.backend.mapper import Mapper
 from bench.models import Compilation, Project, SymbolType
 from bench.models.project import ProjectType

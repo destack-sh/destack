@@ -2,9 +2,9 @@ from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
-from bench.backend.executor import Executor
+from bench.backend.execute import Executor
 from bench.backend.mapper import Mapper
-from bench.compiler import Compiler, get_stdlib_model
+from bench.compile import Compiler, get_stdlib_model
 from bench.models import Project, SymbolType
 
 
