@@ -6,12 +6,12 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.backend.mapper import write
+from bench.backend.mapper import lookup_module_in_db, write
+from bench.backend.types import ProviderKey
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.language.types import ModelInferenceSettings
 from bench.models import Model, Organization, Project
-from bench.models.model import ProviderKey
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 
 logger = structlog.get_logger(__name__)
@@ -79,7 +79,8 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
     stdlib_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    language_files = parse(lex(source_file), on_error="raise").files
+    module = parse(lex(source_file), lookup_module=lookup_module_in_db, on_error="raise")
+    language_files = module.files
     write(language_files, stdlib_v)
 
     # advance head

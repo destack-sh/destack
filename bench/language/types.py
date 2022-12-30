@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, NamedTuple, Optional
+from typing import Any, Literal, NamedTuple, Optional, Union
 from uuid import UUID
 
 from django.db import models
@@ -10,6 +10,7 @@ from django.db import models
 from bench.language.schema import SchemaElement, render_bsl
 from bench.utils.record import RecordBatch
 
+LiteralValue = Union[dict, list, int, float, bool, str, None]
 
 # TODO @Cleanup: don't use Django's TextChoices inside language
 #  (it carries all the Django baggage into all language-dependent code like workers)
@@ -102,6 +103,13 @@ def statement_path_as_str(statement_path: StatementPath) -> str:
     return f"{statement_path.path}::{statement_path.name}"
 
 
+def parse_statement_path(statement_path: str) -> StatementPath:
+    if "::" not in statement_path:
+        raise ValueError(f"invalid statement path: {statement_path}")
+    path, name = statement_path.split("::")
+    return StatementPath(path, name)
+
+
 @dataclass(repr=False)
 class Statement:
     file: File
@@ -169,6 +177,10 @@ class Statement:
         )
 
     @property
+    def defines_symbol(self) -> bool:
+        return self.type in (StatementType.DEFINITION, StatementType.REDEFINITION)
+
+    @property
     def is_alias(self):
         if isinstance(self.reference, StatementPath):
             return self.reference[1] != self.name
@@ -234,7 +246,7 @@ class Dataset(SymbolContent):
 
 @dataclass(repr=False)
 class Value(SymbolContent):
-    value: dict | list | int | float | bool | str
+    value: LiteralValue
 
     def __content_str__(self):
         return f"{self.value}"
@@ -269,20 +281,21 @@ class ModelInferenceSettings:
 class Code(SymbolContent):
     language: Literal["python"]
     code: Optional[str]
-    code_function_name: Optional[str]
     builtin_id: Optional[str]
 
     def __content_str__(self):
         # copied almost verbatim from Code.__str__
         if self.builtin_id:
             content = f"builtin={self.builtin_id}"
-        elif self.code_function_name and self.code:
-            content = f"function={self.code_function_name},chars={len(self.code)},lines={len(self.code.splitlines())}"
         elif self.code:
             content = f"length={len(self.code)}"
         else:
             raise ValueError(f"code has no content: {self}")
         return f"{content},{self.input_schema}->{self.output_schema}"
+
+    @property
+    def is_async(self):
+        return "await " in self.code  # TODO @Cleanup: improve async functions detection
 
 
 @dataclass(repr=False)

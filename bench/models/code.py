@@ -24,7 +24,6 @@ class Code(Schemad, SymbolContent):
     # either set builtin id or set custom code
     builtin_id = models.CharField(null=True, blank=True, max_length=256)
     code = models.TextField(null=True, blank=True, default="")
-    code_function_name = models.CharField(null=True, blank=True, max_length=256)
     length = models.IntegerField(default=0)
 
     def deepcopy(self, to: Code, refs: dict[UUID, Statement | SymbolContent]):
@@ -33,8 +32,6 @@ class Code(Schemad, SymbolContent):
     def __str__(self):
         if self.builtin_id:
             content = f"builtin={self.builtin_id}"
-        elif self.code_function_name and self.code:
-            content = f"function={self.code_function_name},chars={len(self.code)},lines={len(self.code.splitlines())}"
         elif self.code:
             content = f"length={len(self.code)}"
         else:
@@ -45,17 +42,6 @@ class Code(Schemad, SymbolContent):
         # update length using line count
         self.length = len(self.code.splitlines()) if self.code else 0
         super().save(*args, **kwargs)
-
-    @property
-    def anonymous(self) -> bool:
-        """Whether this code is defined as anonymous code ir with a defined function (same name)"""
-        if self.builtin_id is not None:
-            # builtins are always directly callable
-            return False
-        elif self.code is not None:
-            return self.code_function_name is None
-        else:
-            raise ValueError(f"code {self} must have either builtin_id or code")
 
     objects = CodeManager()
 

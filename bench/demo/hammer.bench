@@ -10,7 +10,7 @@ compile debug = task 'generate command':
     with model text-davinci-003
 
 # Run configuration
-# run task generate command as main:
+# execute task generate command as main:
 
 --- main.instruct ---
 import expect 'safe output' from .safety
@@ -69,7 +69,7 @@ expect 'valid bash':
     ```python
     # check bash command syntax
     try:
-        subprocess.run(f"bash -n {example['command']}", shell=True, check=True)
+        subprocess.execute(f"bash -n {example['command']}", shell=True, check=True)
         return True
     except subprocess.CalledProcessError as e:
         return False

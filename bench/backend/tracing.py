@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import abc
 import copy
 import typing
 import uuid
@@ -13,8 +13,8 @@ import structlog
 
 from bench.backend.provider import Completion, ModelHandle
 from bench.backend.types import CodeInstance, ModelInstance
+from bench.language import Statement, SymbolType
 from bench.language.schema import SchemaElement, get_value_type
-from bench.models import Execution, ExecutionStatus, SymbolType
 from bench.utils.record import RecordBatch
 
 logger = structlog.get_logger(__name__)
@@ -22,8 +22,7 @@ logger = structlog.get_logger(__name__)
 
 class Tracer:
     """
-    A worker-side tracer that can be attached to an executor.
-
+    A worker-side tracer that can be attached to an execution.
     Tracer will be called in an async context on a worker pod.
     """
 
@@ -48,7 +47,6 @@ class Tracer:
 class MultiTracer(Tracer):
     """
     A worker-side tracer that delegates to multiple tracers.
-
     On exit, tracers are called in reverse order.
     """
 
@@ -79,9 +77,7 @@ class MultiTracer(Tracer):
 
 
 class Trace:
-    """
-    A trace collected from a worker-side tracer.
-    """
+    """A trace collected by a worker-side tracer."""
 
     pass
 
@@ -100,58 +96,9 @@ class ExecutionFrame:
     exception: typing.Optional[Exception]
 
 
-class ExecutionTracker:
-    def __init__(self):
-        self.pending_frames_queue: asyncio.Queue[ExecutionFrame] = asyncio.Queue()
-
-    def push_frame(self, frame: ExecutionFrame):
-        self.pending_frames_queue.put_nowait(frame)
-
-    async def process_forever(self):
-        # loop until cancelled
-        while True:
-            await self.process_one()
-
-    async def process_until_empty(self):
-        # TODO @Performance: batch execution tracker updates
-        while not self.pending_frames_queue.empty():
-            await self.process_one()
-
-    async def process_one(self):
-        frame = await self.pending_frames_queue.get()
-        if frame.exited_at:
-            status = ExecutionStatus.Completed
-        elif frame.exception:
-            status = ExecutionStatus.Failed
-        else:
-            status = ExecutionStatus.Running
-
-        if frame.exception:
-            error = {
-                "message": str(frame.exception),
-                "type": type(frame.exception).__name__,
-            }
-        else:
-            error = None
-
-        await Execution.objects.aupdate_or_create(
-            id=frame.id,
-            parent_id=frame.parent.id if frame.parent else None,
-            code_id=frame.code.content_id,
-            model_id=frame.model.content_id if frame.model else None,
-            defaults=dict(
-                started_at=frame.entered_at,
-                terminated_at=frame.exited_at,
-                status=status,
-                inputs=frame.inputs,
-                outputs=frame.outputs,
-                error=error,
-            ),
-        )
-        self.pending_frames_queue.task_done()
-
-    async def join(self):
-        await self.pending_frames_queue.join()
+class ExecutionTracker(abc.ABC):
+    def __call__(self, frame: ExecutionFrame):
+        raise NotImplementedError
 
 
 @dataclass
@@ -199,20 +146,20 @@ class ExecutionTracer(Tracer):
         inputs = {**copy.deepcopy(kwargs), "__args__": copy.deepcopy(args)}
         frame = self._create_frame(code, None, inputs)
         self.stacktrace.append(frame)
-        self.tracker.push_frame(frame)
+        self.tracker(frame)
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        self.tracker.push_frame(frame)
+        self.tracker(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.exception = exception
-        self.tracker.push_frame(frame)
+        self.tracker(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def model_complete_enter(self, model: ModelInstance, prompt: str):
@@ -226,7 +173,7 @@ class ExecutionTracer(Tracer):
         inputs = {"prompt": prompt}
         frame = self._create_frame(parent_code, model, inputs)
         self.stacktrace.append(frame)
-        self.tracker.push_frame(frame)
+        self.tracker(frame)
         logger.debug("trace.model.complete.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def model_complete_exit(
@@ -237,7 +184,7 @@ class ExecutionTracer(Tracer):
         # duplicating model inference in execution trace is not ideal but okay for now
         frame.outputs = {"completion": completion}
         frame.inference_id = inference_id
-        self.tracker.push_frame(frame)
+        self.tracker(frame)
         logger.debug("trace.model.complete.exit", frame=frame, stackdepth=len(self.stacktrace))
 
 
@@ -272,7 +219,7 @@ class ValidationTracer(Tracer):
         elif value_type != schema.type:
             raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
 
-    def _check_argument(self, code: CodeInstance, value: Any, parameter: ParameterData):
+    def _check_argument(self, code: CodeInstance, value: Any, parameter: Statement):
         # TODO @Typing: check that the argument has a compatible schema
         if parameter.symbol_type == SymbolType.CODE:
             if not callable(value):
@@ -283,7 +230,7 @@ class ValidationTracer(Tracer):
         elif parameter.symbol_type == SymbolType.DATASET:
             if not isinstance(value, RecordBatch):
                 raise ValidationError(f"argument {parameter.name} tp {code} is not a dataset")
-        elif parameter.symbol_type == ParameterType.VALUE:
+        elif parameter.symbol_type == SymbolType.VALUE:
             # check that the argument is a JSON object or primitive
             if not isinstance(value, (dict, list, str, int, float, bool, type(None))):
                 raise ValueError(

@@ -209,7 +209,7 @@ export type Mutation = {
   renameStatement: RenameStatementPayload;
   restoreFile: File;
   restoreStatement: StatementRestorePayload;
-  run: RunCodePayload;
+  execute: RunCodePayload;
   setModifierStatement: SetModifierStatementPayload;
   setReferenceStatement: StatementSetReferencePayload;
   softDeleteFile: File;

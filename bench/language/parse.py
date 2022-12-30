@@ -11,7 +11,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.lex import Token, TokenType, get_location_range_pointer
+from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
 from bench.language.schema import parse_bsl
 from bench.language.types import (
     Code,
@@ -28,6 +28,7 @@ from bench.language.types import (
     SymbolType,
     Task,
     Value,
+    parse_statement_path,
     statement_path_as_str,
 )
 from bench.utils.record import RecordList
@@ -116,9 +117,7 @@ def parse(
     lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
-    """
-    Parse a stream of tokens into Bench AST (grouped into files).
-    """
+    """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
     if on_error == "raise":
         on_error = raise_error
     if module is None:
@@ -132,6 +131,16 @@ def parse(
     resolve(module, lookup_module=lookup_module, on_error=on_error)
 
     return module
+
+
+def parse_string(
+    string: str,
+    module: Optional[Module] = None,
+    lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
+    on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
+) -> Module:
+    tokens = lex(SourceFile(path="<string>", content=string))
+    return parse(tokens, module=module, lookup_module=lookup_module, on_error=on_error)
 
 
 class TokenParser:
@@ -514,13 +523,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         if lang != "python":
             raise ParseError("unsupported code language", literal)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
-        content = Code(
-            language=lang,
-            code_function_name=None,
-            builtin_id=None,
-            code=code_text,
-            definition=definition,
-        )
+        content = Code(language=lang, builtin_id=None, code=code_text, definition=definition)
     elif symbol_type.value == SymbolType.DATASET:
         lang = literal.value_extras.get("lang")
         try:
@@ -688,6 +691,11 @@ class IndexedModule:
     statements_by_parent: dict[UUID, list[Statement]] = field(
         default_factory=lambda: defaultdict(list)
     )
+
+    def statement(self, path: StatementPath | str) -> Statement:
+        if isinstance(path, str):
+            path = parse_statement_path(path)
+        return self.statements_by_path[path]
 
 
 def resolve(

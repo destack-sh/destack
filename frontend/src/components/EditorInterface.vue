@@ -67,7 +67,7 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
       :state="editor.localState"
       @update:state="Object.assign(editor.localState, $event)"
     />
-    <!-- <RunInterface v-else-if="editor.type == 'run'" :config="(editor as RunEditor).config" /> -->
+    <!-- <RunInterface v-else-if="editor.type == 'execute'" :config="(editor as RunEditor).config" /> -->
     <div v-else class="h-full w-full text-center">
       <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
     </div>

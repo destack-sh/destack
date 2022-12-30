@@ -8,8 +8,7 @@ from strawberry_django_plus.relay import GlobalID
 
 import bench.models.compilation
 from bench import models
-from bench.backend.compile import Compiler, get_stdlib_model
-from bench.backend.execute import Executor
+from bench.backend.compile import get_stdlib_model
 
 if TYPE_CHECKING:
     from bench.api.symbol import Statement
@@ -68,7 +67,5 @@ class CompilationMutation:
             .select_related("project_version", "task", "target_task", "target_code")
             .get(id=input.compilation_id.node_id)
         )
-        executor = Executor()
-        compiler = Compiler(executor)
         async_to_sync(compiler.compile)(compilation)
         return CompilePayload(compilation=compilation)

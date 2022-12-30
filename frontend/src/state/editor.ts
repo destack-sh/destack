@@ -67,7 +67,7 @@ export type RunConfiguration = {
 export type ViewId = "explorer" | "history";
 
 export type Editor = {
-  type: "file" | "run";
+  type: "file" | "execute";
   id: string;
   path: string;
   scroll?: { x: number; y: number };
@@ -92,7 +92,7 @@ export type SymbolEditor = Editor & {
 };
 
 export type RunEditor = Editor & {
-  type: "run";
+  type: "execute";
   config: RunConfiguration;
 };
 
@@ -133,8 +133,8 @@ export function makeRunConfiguration(statement: StatementHeader): RunConfigurati
 
 export function makeRunEditor(config: RunConfiguration): RunEditor {
   return {
-    id: "run-" + config.symbolId + Math.random().toString(16),
-    type: "run",
+    id: "execute-" + config.symbolId + Math.random().toString(16),
+    type: "execute",
     path: config.name,
     config: config,
     localState: {},

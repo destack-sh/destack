@@ -141,7 +141,7 @@ async def llm_classify(
         return completion["text"].strip()
 
 
-code_builtins: dict = {
+CODE_BUILTINS: dict = {
     "llm": llm,
     "llm_fewshot": llm_fewshot,
     "llm_classify": llm_classify,

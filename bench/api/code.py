@@ -8,7 +8,6 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.symbol import Statement, SymbolContent
-from bench.backend.execute import Executor
 from bench.backend.tracing import ExecutionTrace
 
 if TYPE_CHECKING:

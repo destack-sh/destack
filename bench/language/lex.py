@@ -11,7 +11,7 @@ from bench.language.types import StatementModifier, StatementType, SymbolType
 
 @dataclass(repr=False)
 class SourceFile:
-    path: Optional[str]
+    path: str
     content: str
 
     def __str__(self):
