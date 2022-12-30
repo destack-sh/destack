@@ -216,6 +216,7 @@ export type Mutation = {
   softDeleteStatement: StatementSoftDeletePayload;
   updateCodeContent: Statement;
   updateExpectationContent: Statement;
+  updateSchemaContent: Statement;
   updateTaskContent: Statement;
 };
 
@@ -293,6 +294,10 @@ export type MutationUpdateCodeContentArgs = {
 
 export type MutationUpdateExpectationContentArgs = {
   input: ExpectationUpdateContentDescription;
+};
+
+export type MutationUpdateSchemaContentArgs = {
+  input: SchemaUpdateContentBsl;
 };
 
 export type MutationUpdateTaskContentArgs = {
@@ -546,6 +551,11 @@ export type SchemaElement = {
   required: Scalars["Boolean"];
   schemaId?: Maybe<Scalars["String"]>;
   type: ValueType;
+};
+
+export type SchemaUpdateContentBsl = {
+  bsl: Scalars["String"];
+  statementId: Scalars["GlobalID"];
 };
 
 export type SetModifierStatementPayload = OperationInfo | Statement;
@@ -1345,6 +1355,28 @@ export type SetReferenceMutation = {
         | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
         | null;
     };
+  };
+};
+
+export type UpdateSchemaContentMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  bsl: Scalars["String"];
+}>;
+
+export type UpdateSchemaContentMutation = {
+  __typename?: "Mutation";
+  updateSchemaContent: {
+    __typename?: "Statement";
+    id: any;
+    content?:
+      | { __typename?: "Code" }
+      | { __typename?: "Dataset" }
+      | { __typename?: "Expectation" }
+      | { __typename?: "Model" }
+      | ({ __typename?: "Schema" } & { " $fragmentRefs"?: { SchemaContentFragment: SchemaContentFragment } })
+      | { __typename?: "Task" }
+      | { __typename?: "Value" }
+      | null;
   };
 };
 
@@ -3651,6 +3683,74 @@ export const SetReferenceDocument = {
     ...StatementHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SetReferenceMutation, SetReferenceMutationVariables>;
+export const UpdateSchemaContentDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateSchemaContent" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "bsl" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateSchemaContent" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "bsl" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "bsl" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "content" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaContent" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...SchemaContentFragmentDoc.definitions,
+    ...SchemaElementContentDeepFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateSchemaContentMutation, UpdateSchemaContentMutationVariables>;
 export const UpdateTaskContentDocument = {
   kind: "Document",
   definitions: [

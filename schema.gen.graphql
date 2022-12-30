@@ -178,6 +178,7 @@ type Mutation {
   renameFile(input: FileRenameInput!): RenameFilePayload!
   softDeleteFile(input: FileSoftDeleteInput!): File!
   restoreFile(input: FileRestoreInput!): File!
+  updateSchemaContent(input: SchemaUpdateContentBsl!): Statement!
   updateTaskContent(input: TaskUpdateContentDescription!): Statement!
   updateExpectationContent(input: ExpectationUpdateContentDescription!): Statement!
   updateCodeContent(input: CodeUpdateContentCode!): Statement!
@@ -411,6 +412,11 @@ type SchemaElement {
   required: Boolean!
   schemaId: String
   elements: [SchemaElement!]
+}
+
+input SchemaUpdateContentBsl {
+  statementId: GlobalID!
+  bsl: String!
 }
 
 union SetModifierStatementPayload = Statement | OperationInfo

@@ -5,6 +5,33 @@ import { useMutation } from "@vue/apollo-composable";
 export function useSymbolContentOps() {
   const operations = useOperationsStore();
 
+  // schema mutations
+
+  const { mutate: updateSchemaContentMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {
+        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {
+          id
+          content {
+            ...SchemaContent
+          }
+        }
+      }
+    `)
+  );
+
+  async function updateSchemaContent(id: string, oldBsl: string, newBsl: string) {
+    await operations.perform({
+      type: "symbol.schema.updateContent",
+      do: async () => {
+        await updateSchemaContentMut({ id: id, bsl: newBsl });
+      },
+      undo: async () => {
+        await updateSchemaContentMut({ id: id, bsl: oldBsl });
+      },
+    });
+  }
+
   // task mutations
 
   const { mutate: updateTaskContentMut } = useMutation(
@@ -108,5 +135,5 @@ export function useSymbolContentOps() {
     });
   }
 
-  return { updateTaskContent, updateExpectationContent, updateCodeContent };
+  return { updateSchemaContent, updateTaskContent, updateExpectationContent, updateCodeContent };
 }
