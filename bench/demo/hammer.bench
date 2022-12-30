@@ -4,7 +4,7 @@ require openai.stdlib@latest
 
 # Compilations
 import task 'generate command' from .main
-import model text-davinici-003 from openai.stdlib.text
+import model text-davinci-003 from openai.stdlib.text
 
 compile debug = task 'generate command':
     with model text-davinci-003

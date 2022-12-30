@@ -6,13 +6,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from bench import language
-from bench.backend.mapper import lookup_requirement
-from bench.language import File, Requirement
+from bench.backend.mapper import lookup_module_in_db
+from bench.language import File
 from bench.language.lex import SourceFile, Token, lex
-from bench.language.parse import index_module, parse
+from bench.language.parse import parse
 from bench.language.reconstruct import render, render_file
-from bench.language.types import Statement, StatementPath
 
 
 class Command(BaseCommand):
@@ -49,18 +47,6 @@ class Command(BaseCommand):
         else:
             reconstruction = render(module.files)
             console.print(reconstruction, markup=False, highlight=False)
-
-
-def lookup_module_in_db(requirement: Requirement, path: StatementPath) -> Statement:
-    from bench.backend import mapper
-
-    version = lookup_requirement(requirement)
-    if version is None:
-        raise ValueError(f"could not find module {requirement}")
-
-    module: language.Module = mapper.read(version, path)
-    idx = index_module(module)
-    return idx.statements_by_path[path]
 
 
 def pprint_tokens(tokens: list[Token]) -> Table:

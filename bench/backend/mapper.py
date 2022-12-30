@@ -14,15 +14,28 @@ from django.db import transaction
 from more_itertools import bucket
 
 from bench import language, models
+from bench.language.parse import index_module
 from bench.language.types import StatementPath
 from bench.models.project import FileType, Project, ProjectVersion
 from bench.models.symbol import CONTENT_FIELDS, SYMBOL_TYPE_TO_FIELD
 from bench.utils.record import RecordList
 
 
+def lookup_module_in_db(
+    requirement: language.Requirement, path: StatementPath
+) -> language.Statement:
+    version = lookup_requirement(requirement)
+    if version is None:
+        raise ValueError(f"could not find module {requirement}")
+
+    module: language.Module = read(version, path)
+    idx = index_module(module)
+    return idx.statements_by_path.get(path)
+
+
 @transaction.atomic(savepoint=False)  # read-only
 def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
-    """Reads the DB module to satisfy the given path. Currently, reads the entire module."""
+    """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
     lang_files: dict[UUID, language.File] = {}
     lang_statements: dict[UUID, language.Statement] = {}
 
