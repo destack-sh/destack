@@ -3,10 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bench.backend.execute import Executor
 from bench.models import Project
-
-executor = Executor()
 
 
 # TODO @Performance: execute run program endpoint non-blocking (async)

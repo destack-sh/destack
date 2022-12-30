@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing
+import uuid
 from dataclasses import dataclass
 from functools import cached_property, partial
 
@@ -9,8 +10,8 @@ from django.db import models
 from bench.backend.provider import ModelHandle
 from bench.language.types import Code, Dataset, Model
 
-CodeCallable = typing.Callable[..., typing.Coroutine]
-Value = typing.Any
+AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
+SyncCodeCallable = typing.Callable[..., typing.Any]
 
 
 class ProviderKey(models.TextChoices):
@@ -19,9 +20,13 @@ class ProviderKey(models.TextChoices):
     AI21 = "ai21"
 
 
+class StatementInstance:
+    instance_id: uuid.UUID
+
+
 @dataclass(repr=False)
 class DatasetInstance(Dataset):
-    pass  # no additional attributes for now
+    pass
 
 
 @dataclass(repr=False)
@@ -31,7 +36,7 @@ class ModelInstance(Model):
 
 @dataclass(repr=False)
 class CodeInstance(Code):
-    code_callable: CodeCallable
+    code_callable: SyncCodeCallable | AsyncCodeCallable
 
     @cached_property
     def callable_name(self) -> str:

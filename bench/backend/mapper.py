@@ -182,11 +182,7 @@ def wmap_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, 
         )
         return model, []
     elif isinstance(content, language.Code):
-        model_code = models.Code(
-            code=content.code,
-            code_function_name=content.code_function_name,
-            builtin_id=content.builtin_id,
-        )
+        model_code = models.Code(code=content.code, builtin_id=content.builtin_id)
         return model_code, []
     elif isinstance(content, language.Dataset):
         model_dataset = models.Dataset()
@@ -219,11 +215,11 @@ def rmap_symbol(
             settings=content.default_settings,
         )
     elif isinstance(content, models.Code):
+        # only python is supported for now
         return language.Code(
             definition=definition,
-            language="python",  # only python is supported for now
+            language="python",
             code=content.code,
-            code_function_name=content.code_function_name,
             builtin_id=content.builtin_id,
         )
     elif isinstance(content, models.Dataset):

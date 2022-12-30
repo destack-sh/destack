@@ -136,7 +136,7 @@ const compileNavigation = computed(() => [
   { name: "Add default target", action: createDefaultCompilation },
 ]);
 
-// run
+// execute
 const canRun = false;
 
 // set up editor state
