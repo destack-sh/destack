@@ -86,6 +86,10 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     for content in model_contents.values():
         content.save()
 
+    # create statements relations
+    for relation in model_contents_relations:
+        relation.save()
+
     # bulk create statements
     models.Statement.objects.bulk_create(model_statements.values())
 
