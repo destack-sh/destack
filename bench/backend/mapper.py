@@ -16,7 +16,7 @@ from bench import language, models
 from bench.language.parse import index_module
 from bench.language.types import StatementPath
 from bench.models.project import FileType, Project, ProjectVersion
-from bench.models.symbol import CONTENT_FIELDS, SYMBOL_TYPE_TO_FIELD
+from bench.models.symbol import CONTENT_FIELDS
 from bench.utils.record import RecordList
 
 
@@ -101,27 +101,6 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     # map statements
     for statement in chain.from_iterable(file.statements for file in files):
         lang_statements[statement.id] = statement
-        if statement.content is not None:
-            model_content, relations = wmap_symbol(statement.content)
-            model_contents[statement.id] = model_content
-            model_contents_relations.extend(relations)
-            content_kwargs = {SYMBOL_TYPE_TO_FIELD[statement.content.type]: model_content}
-        elif statement.requirement is not None:
-            model_requirement = wmap_requirement(statement.requirement)
-            model_contents[statement.id] = model_requirement
-            content_kwargs = dict(requirement=model_requirement)
-        elif statement.compilation is not None:
-            model_compilation, relations = wmap_compilation(statement.compilation)
-            model_contents[statement.id] = model_compilation
-            model_contents_relations.extend(relations)
-            content_kwargs = dict(compilation=model_compilation)
-        elif statement.runconfig is not None:
-            model_runconfig = wmap_runconfig(statement.runconfig)
-            model_contents[statement.id] = model_runconfig
-            content_kwargs = dict(runconfig=model_runconfig)
-        else:
-            content_kwargs = {}
-
         model_statement = models.Statement(
             id=statement.id,
             project_version=project_version,
@@ -134,9 +113,27 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
             text=statement.text,
             symbol_type=statement.symbol_type,
             reference=None,
-            **content_kwargs,
         )
         model_statements[statement.id] = model_statement
+
+        if statement.content is not None:
+            model_content, relations = wmap_symbol(statement.content)
+            model_contents[statement.id] = model_content
+            model_contents_relations.extend(relations)
+            model_statement.set_content(model_content)
+        elif statement.requirement is not None:
+            model_requirement = wmap_requirement(statement.requirement)
+            model_contents[statement.id] = model_requirement
+            model_statement.requirement = model_requirement
+        elif statement.compilation is not None:
+            model_compilation, relations = wmap_compilation(statement.compilation)
+            model_contents[statement.id] = model_compilation
+            model_contents_relations.extend(relations)
+            model_statement.compilation = model_compilation
+        elif statement.runconfig is not None:
+            model_runconfig = wmap_runconfig(statement.runconfig)
+            model_contents[statement.id] = model_runconfig
+            model_statement.runconfig = model_runconfig
 
     # create statements contents
     for content_cls, contents in groupby(model_contents.values(), key=type):
@@ -154,6 +151,10 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
         model_statement.parent_id = lang_statement.parent_id
         model_statement.reference_id = lang_statement.reference_id
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
+
+    # update derived project version data
+    # TODO @Cleanup: storing any derived semantic data in the DB may be a bad idea
+    project_version.derive_dependencies()
 
     return list(model_files.values())
 
