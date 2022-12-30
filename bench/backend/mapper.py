@@ -151,12 +151,8 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     # map references (incl. parent)
     for lang_statement in lang_statements.values():
         model_statement = model_statements[lang_statement.id]
-        if lang_statement.parent is not None:
-            model_statement.parent = model_statements.get(lang_statement.parent.id)
-        if lang_statement.reference is not None and isinstance(
-            lang_statement.reference, language.Statement
-        ):
-            model_statement.reference = model_statements.get(lang_statement.reference.id)
+        model_statement.parent_id = lang_statement.parent_id
+        model_statement.reference_id = lang_statement.reference_id
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     return list(model_files.values())
