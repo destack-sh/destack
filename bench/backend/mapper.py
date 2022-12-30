@@ -27,6 +27,7 @@ def lookup_module_in_db(
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
+    # TODO @Performance: cache indexed module for lookup by version
     module: language.Module = read(version, path)
     idx = index_module(module)
     return idx.statements_by_path.get(path)

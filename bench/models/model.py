@@ -1,17 +1,9 @@
 from __future__ import annotations
 
-from uuid import UUID
-
 from django.db import models
 
-from bench.models.symbol import Statement, SymbolContent, SymbolContentManager
+from bench.models.symbol import SymbolContent, SymbolContentManager
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDTModel
-
-
-class ProviderKey(models.TextChoices):
-    OPENAI = "openai"
-    GOOSEAI = "gooseai"
-    AI21 = "ai21"
 
 
 class ModelManager(SymbolContentManager, models.Manager["Model"]):
@@ -28,7 +20,7 @@ class Model(SymbolContent):
 
     external_name = models.CharField(max_length=128, null=True, blank=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
-    provider = models.CharField(max_length=64, choices=ProviderKey.choices)
+    provider = models.CharField(max_length=64)
     default_settings = models.JSONField(default=dict)
 
     def __str__(self):

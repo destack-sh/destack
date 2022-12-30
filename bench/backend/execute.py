@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import hashlib
-import json
+import abc
 import os
-import time
 import typing
+import uuid
 from dataclasses import replace
 from functools import partial
 from random import Random
 from typing import Any, Union
+from uuid import UUID
 
 import structlog
 
@@ -26,16 +26,14 @@ from bench.backend.tracing import (
 )
 from bench.backend.types import (
     CodeCallable,
-    LoadedCode,
-    LoadedDataset,
-    LoadedModel,
-    LoadedSymbol,
+    CodeInstance,
+    DatasetInstance,
+    ModelInstance,
+    ProviderKey,
+    SymbolInstance,
     Value,
 )
 from bench.language.types import Code, Dataset, Model, ModelInferenceSettings, SymbolContent
-from bench.models import Dataset, Model, Statement, SymbolContent
-from bench.models.code import Code
-from bench.models.model import ModelInference, ModelOperation, ProviderKey
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
@@ -60,15 +58,28 @@ def _arguments_summary(arguments: Any) -> str:
         return type(arguments).__name__
 
 
+ModelInference = typing.NamedTuple("ModelInference", [("id", UUID), ("output", dict)])
+
+
+class ModelInferenceCache(abc.ABC):
+    async def get(self, model: Model, input: dict, settings: dict) -> ModelInference | None:
+        raise NotImplementedError
+
+    async def set(self, model: Model, input: dict, settings: dict, output: dict) -> None:
+        raise NotImplementedError
+
+
 class ModelProxy(ModelHandle):
     """
-    A worker-side model proxy for wrapping model access with tracers and caches.
+    A worker-side model proxy for wrapping model access with tracing and caching.
     """
 
-    def __init__(self, model: LoadedModel, tracer: Tracer, use_cache: bool):
+    def __init__(
+        self, model: ModelInstance, tracer: Tracer, cache: typing.Optional[ModelInferenceCache]
+    ):
         self.model = model
         self.tracer = tracer
-        self.use_cache = use_cache
+        self.cache = cache
 
     @property
     def settings(self) -> ModelInferenceSettings:
@@ -77,27 +88,22 @@ class ModelProxy(ModelHandle):
     def configure(self, **settings: dict[str, Any]) -> ModelHandle:
         new_handle = self.model.handle.configure(**settings)
         new_model = replace(self.model, handle=new_handle)
-        return ModelProxy(new_model, self.tracer, self.use_cache)
+        return ModelProxy(new_model, self.tracer, self.cache)
 
-    # insecure hashing is fine here since it's just for caching
-    # noinspection InsecureHash
     async def complete(
         self, prompt: str, settings: typing.Optional[dict[str, Any]] = None
     ) -> Union[Completion, list[Completion]]:
+        inference_id = uuid.uuid4()
         # set up parameters and cache keys
         if settings is not None:
             settings_merged = {**self.settings.as_dict(omit_empty=True), **settings}
         else:
             settings_merged = self.settings.as_dict(omit_empty=True)
-        settings_as_str = json.dumps(settings_merged, sort_keys=True)
-        settings_hash = hashlib.md5(settings_as_str.encode()).hexdigest()
-        input_hash = hashlib.md5(prompt.encode()).hexdigest()
         log = logger.bind(
             model=self.model,
             handle=self.model.handle,
-            operation=ModelOperation.COMPLETE,
-            settings_hash=settings_hash,
-            input_hash=input_hash,
+            operation="complete",
+            inference_id=inference_id,
         )
 
         self.tracer.model_complete_enter(self.model, prompt)
@@ -105,37 +111,25 @@ class ModelProxy(ModelHandle):
 
         # try to get from cache if enabled
         cached_result = None
-        if self.use_cache:
-            inference = await ModelInference.objects.filter(
-                model_id=self.model.content_id,
-                operation=ModelOperation.COMPLETE,
-                settings_hash=settings_hash,
-                input_hash=input_hash,
-            ).afirst()
-            if inference is not None:
-                cached_result = inference.output
+        if self.cache:
+            cached_result = await self.cache.get(
+                model=self.model, input={"prompt": prompt}, settings=settings_merged
+            )
 
         # cache miss or cache disabled
         if cached_result is None:
             log.debug("model.complete.cache.miss")
-            start_time = time.time()
             completion = await self.model.handle.complete(prompt)
-            duration_ms = (time.time() - start_time) * 1000
 
             # write to cache
-            inference = await ModelInference.objects.acreate(
-                model_id=self.model.content_id,
-                operation=ModelOperation.COMPLETE,
-                settings_hash=settings_hash,
-                settings=settings_merged,
-                input_hash=input_hash,
-                input=prompt,
-                output=completion,
-                duration_ms=duration_ms,
-            )
-            log.debug(
-                "model.complete.cache.put", duration_ms=duration_ms, inference_id=inference.id
-            )
+            if self.cache:
+                await self.cache.set(
+                    model=self.model,
+                    input={"prompt": prompt},
+                    settings=settings_merged,
+                    output=completion,
+                )
+            log.debug("model.complete.cache.put")
         else:
             completion = cached_result
             log.debug("model.complete.cache.hit")
@@ -146,7 +140,7 @@ class ModelProxy(ModelHandle):
             else (len(c["text"]) for c in completion)
         )
         logger.debug("model.complete.exit", completion=completion_length)
-        self.tracer.model_complete_exit(self.model, prompt, completion, inference.id)
+        self.tracer.model_complete_exit(self.model, prompt, completion, inference_id)
         return completion
 
     async def embed(self, text: str, settings: typing.Optional[dict[str, Any]] = None) -> bytes:
@@ -158,7 +152,7 @@ class CodeProxy:
     A worker-side code proxy for wrapping code access with tracers and caches.
     """
 
-    def __init__(self, code: LoadedCode, tracer: Tracer):
+    def __init__(self, code: CodeInstance, tracer: Tracer):
         self.code = code
         self.tracer = tracer
 
@@ -187,39 +181,38 @@ class Proxy:
     A proxy that wraps direct access to loaded symbol content.
     """
 
-    def __init__(self, tracer: Tracer):
+    def __init__(self, tracer: Tracer, cache: ModelInferenceCache):
         self.tracer = tracer
+        self.cache = cache
 
-    def proxy_dataset(self, dataset: LoadedDataset) -> LoadedDataset:
+    def proxy_dataset(self, dataset: DatasetInstance) -> DatasetInstance:
         return dataset  # not proxied
 
-    def proxy_model(self, model: LoadedModel) -> LoadedModel:
-        model_proxy = ModelProxy(
-            model, self.tracer, use_cache=True
-        )  # should make this configurable
+    def proxy_model(self, model: ModelInstance) -> ModelInstance:
+        model_proxy = ModelProxy(model, self.tracer, cache=self.cache)
         return replace(model, handle=model_proxy)
 
-    def proxy_code(self, code: LoadedCode) -> LoadedCode:
+    def proxy_code(self, code: CodeInstance) -> CodeInstance:
         code_proxy = CodeProxy(code, self.tracer)
         return replace(code, code_callable=code_proxy)
 
-    def unwrap_dataset(self, dataset: LoadedDataset) -> RecordBatch:
+    def unwrap_dataset(self, dataset: DatasetInstance) -> RecordBatch:
         return dataset.records
 
-    def unwrap_model(self, model: LoadedModel) -> ModelHandle:
+    def unwrap_model(self, model: ModelInstance) -> ModelHandle:
         return model.handle
 
-    def unwrap_code(self, code: LoadedCode) -> CodeCallable:
+    def unwrap_code(self, code: CodeInstance) -> CodeCallable:
         return code.code_callable
 
     def unwrap(
-        self, value: Value | LoadedDataset | LoadedModel | LoadedCode
+        self, value: Value | DatasetInstance | ModelInstance | CodeInstance
     ) -> Value | RecordBatch | ModelHandle | CodeCallable:
-        if isinstance(value, LoadedDataset):
+        if isinstance(value, DatasetInstance):
             return self.unwrap_dataset(value)
-        elif isinstance(value, LoadedModel):
+        elif isinstance(value, ModelInstance):
             return self.unwrap_model(value)
-        elif isinstance(value, LoadedCode):
+        elif isinstance(value, CodeInstance):
             return self.unwrap_code(value)
         else:
             return value
@@ -241,38 +234,35 @@ class Executor:
         loaded_arguments = {}
         for name, argument in arguments.items():
             if isinstance(argument, Dataset):
-                loaded_arguments[name] = await self._load_dataset(argument, proxy)
+                loaded_arguments[name] = await self._instantiate_dataset(argument, proxy)
             elif isinstance(argument, Model):
-                loaded_arguments[name] = await self._load_model(argument, proxy)
+                loaded_arguments[name] = await self._instantiate_model(argument, proxy)
             elif isinstance(argument, Code):
-                loaded_arguments[name] = await self._load_code(argument, proxy)
+                loaded_arguments[name] = await self._instantiate_code(argument, proxy)
             else:
                 loaded_arguments[name] = argument
         return loaded_arguments
 
     def _unwrap_arguments(
-        self, arguments: dict[str, Value | LoadedSymbol], proxy: Proxy
+        self, arguments: dict[str, Value | SymbolInstance], proxy: Proxy
     ) -> dict[str, Value | SymbolContent]:
         unwrapped_arguments = {}
         for name, argument in arguments.items():
             unwrapped_arguments[name] = proxy.unwrap(argument)
         return unwrapped_arguments
 
-    async def _load_dataset(self, dataset: Dataset, proxy: Proxy) -> LoadedDataset:
-        return LoadedDataset(**dataset.__dict__)
+    async def _instantiate_dataset(self, dataset: Dataset, proxy: Proxy) -> DatasetInstance:
+        return DatasetInstance(**dataset.__dict__)
 
-    async def _load_model(self, model: Model, proxy: Proxy) -> LoadedModel:
+    async def _instantiate_model(self, model: Model, proxy: Proxy) -> ModelInstance:
         provider = self.providers.get(ProviderKey(model.provider))
         if provider is None:
             raise ValueError(f"unknown provider {model.provider}")
-        # TODO @Compliance: set actual user identifier for model access (e.g. for OpenAI)
-        user_identifier = model.content_id.hex
-        handle = await provider.access(
-            model, model.settings or model.default_settings, for_user=user_identifier
-        )
-        return proxy.proxy_model(LoadedModel(**model.__dict__, handle=handle))
+        user_identifier = model.definition.id.hex
+        handle = await provider.access(model, model.settings, for_user=user_identifier)
+        return proxy.proxy_model(ModelInstance(**model.__dict__, handle=handle))
 
-    async def _load_code(self, code: Code, proxy: Proxy) -> LoadedCode:
+    async def _instantiate_code(self, code: Code, proxy: Proxy) -> CodeInstance:
         """
         Resolves a code symbol and all its arguments to an async callable.
         """
@@ -302,15 +292,15 @@ class Executor:
                 code_callable = symbols[code.code_function_name]
             else:
                 # TODO @Performance @Cleanup: just compile anonymous functions into named functions?
-                #  Currently re exec() the code every time it's called.
+                #  Currently we exec() the code every time it's called.
                 async def _run_anonymous(**kwargs):
                     await self._do_exec(
                         code.code, {**dynamic_builtins, **loaded_arguments, **kwargs}
                     )
 
-                _run_anonymous.__name__ = f"_anon_{code.content_id.hex}"
+                _run_anonymous.__name__ = f"_anon_{code.definition.id.hex}"
                 code_callable = _run_anonymous
-        loaded_code = LoadedCode(
+        loaded_code = CodeInstance(
             **code.__dict__,
             code_callable=code_callable,
             loaded_arguments=loaded_arguments,
@@ -319,7 +309,7 @@ class Executor:
 
     def _get_dynamic_builtins(self, code: Code) -> dict:
         return {
-            "random": Random(code.content_id.hex.encode()),
+            "random": Random(code.definition.id.hex.encode()),
         }
 
     async def _do_exec(self, code: str, globals: dict):
@@ -342,18 +332,6 @@ class Executor:
         tracers.append(ValidationTracer())
         return MultiTracer(tracers)
 
-    async def resolve_and_run(
-        self,
-        code: Code,
-        arguments: dict[str, Value | Statement | SymbolContent],
-        traces: list[Trace] | None = None,
-    ):
-        resolved_arguments = {
-            name: await self.mapper.read_argument(argument) for name, argument in arguments.items()
-        }
-        resolved_code = await self.mapper.read_code(code)
-        return await self.run(resolved_code, resolved_arguments, traces)
-
     async def run(
         self,
         code: Code,
@@ -367,7 +345,7 @@ class Executor:
         unwrapped_arguments = self._unwrap_arguments(loaded_arguments, proxy)
 
         try:
-            loaded_code = await self._load_code(code, proxy)
+            loaded_code = await self._instantiate_code(code, proxy)
         except Exception as e:
             raise ValueError(
                 f"error resolving code {code} with arguments {_arguments_summary(unwrapped_arguments)}: {e}"

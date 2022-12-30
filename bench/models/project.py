@@ -33,6 +33,11 @@ class ProjectType(models.TextChoices):
     LIBRARY = "library", "Library"
 
 
+class ProjectVisibility(models.TextChoices):
+    PUBLIC = "public", "Public"
+    PRIVATE = "private", "Private"
+
+
 class ProjectManager(models.Manager["Project"]):
     @transaction.atomic
     def create_project(
@@ -41,8 +46,11 @@ class ProjectManager(models.Manager["Project"]):
         name: str,
         slug: str,
         type: ProjectType = ProjectType.EXECUTABLE,
+        visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
     ):
-        project = super().create(organization=organization, name=name, slug=slug, type=type)
+        project = super().create(
+            organization=organization, name=name, slug=slug, type=type, visibility=visibility
+        )
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
         return project
@@ -69,6 +77,7 @@ class Project(TaggableMixin, UUIDModel):
     type = TextChoicesField(choices_enum=ProjectType, default=ProjectType.EXECUTABLE)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
+    visibility = TextChoicesField(choices_enum=ProjectVisibility, default=ProjectVisibility.PRIVATE)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
@@ -76,7 +85,6 @@ class Project(TaggableMixin, UUIDModel):
     head = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
-
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects"
     )

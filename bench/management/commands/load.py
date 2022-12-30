@@ -12,6 +12,7 @@ from bench.backend.mapper import lookup_module_in_db, rmap_module, write
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.models import Organization, Project
+from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)
 
@@ -32,7 +33,10 @@ class Command(BaseCommand):
         project = Project.objects.filter(slug=project_slug, organization=organization).first()
         if project is None:
             project = Project.objects.create_project(
-                organization=organization, name=project_slug, slug=project_slug
+                organization=organization,
+                name=project_slug,
+                slug=project_slug,
+                visibility=ProjectVisibility.PRIVATE,
             )
 
         last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)

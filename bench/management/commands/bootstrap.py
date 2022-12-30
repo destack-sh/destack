@@ -12,7 +12,7 @@ from bench.language.lex import SourceFile
 from bench.language.types import ModelInferenceSettings
 from bench.models import Model, Organization, Project
 from bench.models.model import ProviderKey
-from bench.models.project import FileType, ProjectType, ProjectVersion
+from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 
 logger = structlog.get_logger(__name__)
 
@@ -132,6 +132,7 @@ def get_or_create_stdlib(organization_name: str, organization_slug: str) -> Proj
             f"{organization_name} standard library",
             "stdlib",
             type=ProjectType.LIBRARY,
+            visibility=ProjectVisibility.PUBLIC,
         )
         logger.info(f"Created provider: {organization}")
     else:

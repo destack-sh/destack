@@ -12,7 +12,7 @@ import pytz
 import structlog
 
 from bench.backend.provider import Completion, ModelHandle
-from bench.backend.types import LoadedCode, LoadedModel
+from bench.backend.types import CodeInstance, ModelInstance
 from bench.language.schema import SchemaElement, get_value_type
 from bench.models import Execution, ExecutionStatus, SymbolType
 from bench.utils.record import RecordBatch
@@ -27,20 +27,20 @@ class Tracer:
     Tracer will be called in an async context on a worker pod.
     """
 
-    def code_enter(self, code: LoadedCode, args, kwargs):
+    def code_enter(self, code: CodeInstance, args, kwargs):
         pass
 
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
+    def code_exit(self, code: CodeInstance, args, kwargs, result):
         pass
 
-    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
+    def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         pass
 
-    def model_complete_enter(self, model: LoadedModel, prompt: str):
+    def model_complete_enter(self, model: ModelInstance, prompt: str):
         pass
 
     def model_complete_exit(
-        self, model: LoadedModel, prompt: str, completion: Completion, inference_id: uuid.UUID
+        self, model: ModelInstance, prompt: str, completion: Completion, inference_id: uuid.UUID
     ):
         pass
 
@@ -55,24 +55,24 @@ class MultiTracer(Tracer):
     def __init__(self, tracers: list[Tracer]):
         self.tracers = tracers
 
-    def code_enter(self, code: LoadedCode, args, kwargs):
+    def code_enter(self, code: CodeInstance, args, kwargs):
         for tracer in self.tracers:
             tracer.code_enter(code, args, kwargs)
 
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
+    def code_exit(self, code: CodeInstance, args, kwargs, result):
         for tracer in reversed(self.tracers):
             tracer.code_exit(code, args, kwargs, result)
 
-    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
+    def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         for tracer in reversed(self.tracers):
             tracer.code_exception(code, args, kwargs, exception)
 
-    def model_complete_enter(self, model: LoadedModel, prompt: str):
+    def model_complete_enter(self, model: ModelInstance, prompt: str):
         for tracer in self.tracers:
             tracer.model_complete_enter(model, prompt)
 
     def model_complete_exit(
-        self, model: LoadedModel, prompt: str, completion: Completion, inference_id: uuid.UUID
+        self, model: ModelInstance, prompt: str, completion: Completion, inference_id: uuid.UUID
     ):
         for tracer in reversed(self.tracers):
             tracer.model_complete_exit(model, prompt, completion, inference_id)
@@ -89,8 +89,8 @@ class Trace:
 @dataclass
 class ExecutionFrame:
     id: uuid.UUID
-    code: LoadedCode
-    model: typing.Optional[LoadedModel]
+    code: CodeInstance
+    model: typing.Optional[ModelInstance]
     parent: typing.Optional[ExecutionFrame]
     entered_at: datetime
     exited_at: typing.Optional[datetime]
@@ -175,8 +175,8 @@ class ExecutionTracer(Tracer):
 
     def _create_frame(
         self,
-        code: typing.Optional[LoadedCode],
-        model: typing.Optional[LoadedModel],
+        code: typing.Optional[CodeInstance],
+        model: typing.Optional[ModelInstance],
         inputs: dict[str, Any],
     ):
         parent = self.stacktrace[-1] if self.stacktrace else None
@@ -195,27 +195,27 @@ class ExecutionTracer(Tracer):
         self.trace.frames.append(frame)
         return frame
 
-    def code_enter(self, code: LoadedCode, args, kwargs):
+    def code_enter(self, code: CodeInstance, args, kwargs):
         inputs = {**copy.deepcopy(kwargs), "__args__": copy.deepcopy(args)}
         frame = self._create_frame(code, None, inputs)
         self.stacktrace.append(frame)
         self.tracker.push_frame(frame)
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
+    def code_exit(self, code: CodeInstance, args, kwargs, result):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.tracker.push_frame(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exception(self, code: LoadedCode, args, kwargs, exception: Exception):
+    def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.exception = exception
         self.tracker.push_frame(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
-    def model_complete_enter(self, model: LoadedModel, prompt: str):
+    def model_complete_enter(self, model: ModelInstance, prompt: str):
         # warn if there is no code on the stack
         parent_code = self.stacktrace[-1].code if self.stacktrace else None
         if parent_code is None:
@@ -230,7 +230,7 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.model.complete.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def model_complete_exit(
-        self, model: LoadedModel, prompt: str, completion: Completion, inference_id: uuid.UUID
+        self, model: ModelInstance, prompt: str, completion: Completion, inference_id: uuid.UUID
     ):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -250,7 +250,7 @@ class ValidationTracer(Tracer):
     A worker-side tracer that validates inputs and outputs.
     """
 
-    def code_enter(self, code: LoadedCode, args, kwargs):
+    def code_enter(self, code: CodeInstance, args, kwargs):
         # validate kwargs
         for name, value in kwargs.items():
             parameter = code.parameters.get(name)
@@ -261,10 +261,10 @@ class ValidationTracer(Tracer):
                 continue
             self._check_argument(code, value, parameter)
 
-    def code_exit(self, code: LoadedCode, args, kwargs, result):
+    def code_exit(self, code: CodeInstance, args, kwargs, result):
         self._check_schema(code, result, code.output_schema)
 
-    def _check_schema(self, code: LoadedCode, value: Any, schema: SchemaElement):
+    def _check_schema(self, code: CodeInstance, value: Any, schema: SchemaElement):
         # TODO @Typing: recursive schema validation
         value_type = get_value_type(value)
         if not schema.required and value is None:
@@ -272,7 +272,7 @@ class ValidationTracer(Tracer):
         elif value_type != schema.type:
             raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
 
-    def _check_argument(self, code: LoadedCode, value: Any, parameter: ParameterData):
+    def _check_argument(self, code: CodeInstance, value: Any, parameter: ParameterData):
         # TODO @Typing: check that the argument has a compatible schema
         if parameter.symbol_type == SymbolType.CODE:
             if not callable(value):

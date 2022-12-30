@@ -4,27 +4,34 @@ import typing
 from dataclasses import dataclass
 from functools import cached_property, partial
 
+from django.db import models
+
 from bench.backend.provider import ModelHandle
-from bench.language.types import Code, Dataset, Model, SymbolContent
+from bench.language.types import Code, Dataset, Model
 
 CodeCallable = typing.Callable[..., typing.Coroutine]
 Value = typing.Any
 
 
+class ProviderKey(models.TextChoices):
+    OPENAI = "openai"
+    GOOSEAI = "gooseai"
+    AI21 = "ai21"
+
+
 @dataclass(repr=False)
-class LoadedDataset(Dataset):
+class DatasetInstance(Dataset):
     pass  # no additional attributes for now
 
 
 @dataclass(repr=False)
-class LoadedModel(Model):
+class ModelInstance(Model):
     handle: ModelHandle
 
 
 @dataclass(repr=False)
-class LoadedCode(Code):
+class CodeInstance(Code):
     code_callable: CodeCallable
-    loaded_arguments: dict[str, SymbolContent | typing.Any]
 
     @cached_property
     def callable_name(self) -> str:
@@ -35,4 +42,4 @@ class LoadedCode(Code):
             return self.code_callable.__name__
 
 
-LoadedSymbol = typing.Union[LoadedDataset, LoadedModel, LoadedCode]
+SymbolInstance = typing.Union[DatasetInstance, ModelInstance, CodeInstance]
