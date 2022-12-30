@@ -4,7 +4,8 @@ import dataclasses
 import enum
 import json
 import typing
-from typing import Optional
+from collections import OrderedDict, defaultdict
+from typing import Callable, Optional
 from uuid import UUID
 
 import structlog
@@ -14,18 +15,18 @@ from bench.language.schema import parse_bsl
 from bench.language.types import (
     Code,
     Dataset,
-    DerivedRoot,
     Expectation,
     File,
     Requirement,
     Schema,
     Statement,
     StatementModifier,
+    StatementPath,
     StatementType,
     SymbolType,
     Task,
-    UnresolvedStatement,
     Value,
+    statement_path_as_str,
 )
 from bench.utils.record import RecordList
 
@@ -37,6 +38,27 @@ UNGROUPED_STATEMENT_TYPES = (
     StatementType.COMPILATION,
     StatementType.RUNCONFIG,
 )
+
+
+def raise_error(error: ValueError):
+    raise error
+
+
+def do_nothing(*args, **kwargs):
+    pass
+
+
+ErrorT = typing.TypeVar("ErrorT", bound=ValueError)
+
+
+class ErrorCollector(typing.Generic[ErrorT]):
+    def __init__(self, on_error: Callable[[ErrorT], None]):
+        self.on_error = on_error
+        self.errors: list[ErrorT] = []
+
+    def __call__(self, error: ErrorT):
+        self.errors.append(error)
+        self.on_error(error)
 
 
 class ParseError(ValueError):
@@ -78,18 +100,22 @@ class ParseError(ValueError):
             return f" at {token}\n{context}"
 
 
-def parse(tokens: list[Token]) -> list[File]:
+def parse(
+    tokens: list[Token],
+    on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
+) -> list[File]:
     """
-    Parse a stream of tokens into Bench AST (with top-level files).
+    Parse a stream of tokens into Bench AST (grouped into files).
     """
     if len(tokens) == 0:
         return []
+    if on_error == "raise":
+        on_error = raise_error
 
     # first pass: extract files and statements
-    files = preparse(tokens)
+    files = preparse(tokens, on_error=on_error)
     # second pass: resolve statements into AST by resolving references
-    resolve(files)
-
+    resolve(files, on_error=on_error)
     return files
 
 
@@ -187,6 +213,9 @@ class TokenParser:
             raise ParseError(f"expected {type.value}", token)
         return token
 
+    def eat_newfile(self) -> Token:
+        return self.eat_type(TokenType.NEWFILE)
+
     def eat_newline(self) -> Token:
         return self.eat_type(TokenType.NEWLINE)
 
@@ -255,23 +284,55 @@ def _clean_literal_indent(text: str, indent_level: int) -> str:
 
 
 @dataclasses.dataclass
-class ParseState:
+class FileParseState:
+    file: File
     indent: int = 0
     ancestors: list[Statement] = dataclasses.field(default_factory=list)  # by indent
+    statements_by_parent: dict[UUID | None, list[Statement]] = dataclasses.field(
+        default_factory=lambda: defaultdict(list)
+    )
     previous_errors: list[ParseError | None] = dataclasses.field(default_factory=list)
 
+    def add_statement(self, statement: Statement):
+        self.file.statements.append(statement)
 
-def preparse(tokens: list[Token]) -> list[File]:
+        self.ancestors = self.ancestors[: self.indent]  # wipe ancestors with higher indent
+        self.ancestors += [statement]  # replace ancestor at current indent
+
+        parent_id = statement.parent.id if statement.parent else None
+        self.statements_by_parent[parent_id].append(statement)
+
+    def children(self, statement: Statement) -> list[Statement]:
+        return self.statements_by_parent[statement.id]
+
+    @property
+    def root(self) -> bool:
+        return self.indent == 0
+
+    @property
+    def parent(self) -> Statement | None:
+        return self.ancestors[self.indent - 1] if self.indent > 0 else None
+
+    @property
+    def index(self) -> int:
+        if self.parent is None:
+            return len(self.root_statements)
+        else:
+            return len(self.children(self.parent))
+
+    @property
+    def root_statements(self) -> list[Statement]:
+        return self.statements_by_parent[None]
+
+
+def preparse(tokens: list[Token], on_error: Callable[[ParseError], None]) -> list[File]:
     """Map tokens into files and statements with unresolved references."""
 
-    files: dict[str, File] = {}
     parser = TokenParser(tokens, start_pos=0, indent_level=0)
-    root = DerivedRoot()
-
-    # init per-file state (first token has to be a new file)
-    file: File = File(path=parser.eat_type(TokenType.NEWFILE).value)
-    files[file.path] = file
-    local = ParseState()
+    states: dict[str, FileParseState] = OrderedDict()  # remember original file order
+    initial_file: File = File(path=parser.eat_newfile().value)  # tokens[0] must be newfile
+    local = FileParseState(file=initial_file)
+    states[initial_file.path] = local
 
     while parser.peek() is not None:
         # reset indent if previous token was on a different line
@@ -279,31 +340,27 @@ def preparse(tokens: list[Token]) -> list[File]:
             local.indent = 0
 
         if parser.peek().type == TokenType.NEWFILE:
-            path = parser.eat().value
-            if path not in files:
-                files[path] = File(path=path)
-            # reset per-file state
-            file = files[path]
-            local = ParseState()
+            path = parser.eat_newfile().value
+            if path not in states:
+                states[path] = FileParseState(file=File(path=path))  # begin new file state
+            local = states[path]
         elif parser.peek().type == TokenType.INDENT:
             parser.eat()
             local.indent += 1
         else:  # parse statement
             if len(local.ancestors) < local.indent:  # too much indentation
                 raise ParseError("unexpected indent level", parser.peek())
-            parent = local.ancestors[local.indent - 1] if local.indent > 0 else None
-            index = len(file.root_statements) if parent is None else len(parent.children)
 
             errors: list[ParseError] = []
             parser.indent_level = local.indent  # skip indent tokens at current level
             start_mark = parser.mark()
             statement = _parse_statement(
                 parser,
-                is_root=parent is None,
+                is_root=local.root,
                 on_error=errors.append,
-                file=file,
-                parent=parent,
-                index=index,
+                file=local.file,
+                parent=local.parent,
+                index=local.index,
             )
             parser.indent_level = 0  # skip only for statement parsing
 
@@ -317,16 +374,16 @@ def preparse(tokens: list[Token]) -> list[File]:
                 cause = likely_error or (
                     local.previous_errors[-2] if len(local.previous_errors) > 1 else None
                 )
-                raise ParseError(
+                error = ParseError(
                     "unexpected statement", parser.peek(), cause=cause, context={"errors": errors}
                 )
-            statement = dataclasses.replace(statement, _root=root, _source=parser.eaten(start_mark))
-            file.statements.append(statement)
+                on_error(error)
+                continue
 
-            local.ancestors = local.ancestors[: local.indent]  # wipe ancestors with higher indent
-            local.ancestors += [statement]  # replace ancestor at current indent
+            statement._source = parser.eaten(start_mark)
+            local.add_statement(statement)
 
-    return list(files.values())
+    return [state.file for state in states.values()]
 
 
 def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
@@ -374,7 +431,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.IMPORT,
         name=alias,
         symbol_type=symbol_type.value,
-        reference=UnresolvedStatement(source, reference),
+        reference=StatementPath(source, reference),
         **kwargs,
     )
 
@@ -459,7 +516,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             raise ParseError(f"failed to parse json: {e}", literal)
     else:
         raise ParseError(f"unexpected symbol type {symbol_type.value}", symbol_type)
-    definition = dataclasses.replace(definition, content=content)
+    definition.content = content
     return definition
 
 
@@ -480,7 +537,7 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.REFERENCE,
         modifier=modifier,
         name=name.value,
-        reference=UnresolvedStatement(".", name.value),
+        reference=StatementPath(".", name.value),
         symbol_type=symbol_type.value,
         **kwargs,
     )
@@ -502,7 +559,7 @@ def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.COMPILATION,
         name=name.value,
         symbol_type=symbol_type.value,
-        reference=UnresolvedStatement(".", reference.value),
+        reference=StatementPath(".", reference.value),
         **kwargs,
     )
 
@@ -515,7 +572,7 @@ def _parse_blank(tokens: TokenParser, **kwargs) -> Statement:
 def _parse_statement(
     parser: TokenParser,
     is_root: bool,
-    on_error: typing.Callable[[ParseError], None],
+    on_error: Callable[[ParseError], None],
     **statement_kwargs,
 ) -> Optional[Statement]:
     for _parse in [
@@ -545,11 +602,90 @@ def _parse_statement(
     return None
 
 
-def resolve(files: list[File]):
+class SemanticError(ValueError):
+    def __init__(
+        self,
+        message: str,
+        statement: Optional[Statement],
+        related_statements: dict[str, Statement] | None = None,
+    ):
+        super().__init__(self._format_message(message, statement, related_statements))
+        self.statement = statement
+        self.related_statements = related_statements
+
+    def _format_message(
+        self, message: str, statement: Statement, related_statements: dict[str, Statement] | None
+    ) -> str:
+        related_statements = related_statements or {}
+        related_context = "".join(
+            f"\nrelated {k}: {SemanticError.statement_context(v)}"
+            for k, v in related_statements.items()
+        )
+        return message + SemanticError.statement_context(statement) + related_context
+
+    @staticmethod
+    def statement_context(statement: Optional[Statement]) -> str:
+        if statement is None:
+            return ""
+        elif statement._source is None:
+            return "<source unavailable>"
+        else:
+            source = typing.cast(list[Token], statement._source)
+            source_context = get_location_range_pointer(
+                source[0].source_file,
+                source[0].line_number,
+                source[0].start_column,
+                source[-1].line_number + source[-1].line_span,
+                source[-1].end_column,
+            )
+            return f" at\n{statement}\n{source[0].source_file.path} {source[0].line_number}\n{source_context}"
+
+
+def resolve(files: list[File], on_error: Callable[[SemanticError], None]):
     """Resolve references across files."""
-    files: dict[UUID, File] = {}
-    statements: dict[UUID, Statement] = {}
 
-    # TODO @Broken: resolve references within and across files
+    statements_by_path: dict[StatementPath, Statement] = {}
+    statements_by_parent: dict[UUID, list[Statement]] = defaultdict(list)
 
-    return files
+    def _error(
+        message: str, statement: Statement, related_statements: dict[str, Statement] | None = None
+    ):
+        on_error(SemanticError(message, statement, related_statements))
+
+    # collect files and statements
+    for file in files:
+        for statement in file.statements:
+            if statement.parent is not None:
+                statements_by_parent[statement.parent.id].append(statement)
+            if statement.referable:
+                statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
+                if statement_path in statements_by_path:
+                    error = SemanticError(f"multiple definitions for {statement_path}", statement)
+                    on_error(error)
+                    continue
+                statements_by_path[statement_path] = statement
+
+    # resolve references
+    for file in files:
+        for statement in file.statements:
+            if isinstance(statement.reference, StatementPath):
+                if statement.reference.path[0] == ".":  # current file
+                    normalized_path = StatementPath(
+                        f".{file.path_without_extension}", statement.name
+                    )
+                else:
+                    normalized_path = statement.reference
+                # resolve reference
+                if normalized_path in statements_by_path:
+                    statement.reference = statements_by_path[normalized_path]
+                else:
+                    _error(
+                        f"reference is undefined: {statement_path_as_str(statement.reference)}",
+                        statement,
+                    )
+                # check if the reference has the correct type
+                if statement.reference.symbol_type != statement.symbol_type:
+                    _error(
+                        f"reference has other symbol type: {statement_path_as_str(statement.reference)}",
+                        statement,
+                    )

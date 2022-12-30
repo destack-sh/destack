@@ -17,9 +17,9 @@ from bench.language.types import (
     Dataset,
     Expectation,
     Schema,
+    StatementPath,
     SymbolContent,
     Task,
-    UnresolvedStatement,
     Value,
 )
 
@@ -147,8 +147,8 @@ def _render_literal(value: str, lang: Optional[str] = None) -> str:
             return f"```{lang}\n{value}\n```"
 
 
-def _get_reference_name(reference: Statement | UnresolvedStatement) -> str:
-    if isinstance(reference, UnresolvedStatement):
+def _get_reference_name(reference: Statement | StatementPath) -> str:
+    if isinstance(reference, StatementPath):
         return reference[1]
     elif isinstance(reference, Statement):
         return reference.name
@@ -156,8 +156,8 @@ def _get_reference_name(reference: Statement | UnresolvedStatement) -> str:
         raise ValueError(f"unexpected reference type: {reference}")
 
 
-def _get_reference_path(reference: Statement | UnresolvedStatement, via: Statement) -> str:
-    if isinstance(reference, UnresolvedStatement):
+def _get_reference_path(reference: Statement | StatementPath, via: Statement) -> str:
+    if isinstance(reference, StatementPath):
         return reference[0]
     elif isinstance(reference, Statement):
         raise NotImplementedError
