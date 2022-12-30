@@ -55,7 +55,7 @@ defineExpose({
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       hide-line-numbers
       :style="{ marginLeft: -23 + 'px' }"
-      :model-value="content.bsl"
+      :model-value="bsl"
       @update:model-value="saveBslDebounced"
       language="bsl"
       :focused="focused"

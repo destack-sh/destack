@@ -151,6 +151,14 @@ class Statement:
         return f"<Statement {self}>"
 
     @property
+    def parent_id(self) -> Optional[UUID]:
+        return self.parent.id if self.parent else None
+
+    @property
+    def reference_id(self) -> Optional[UUID]:
+        return self.reference.id if isinstance(self.reference, Statement) else None
+
+    @property
     def referable(self) -> bool:
         return self.type in (
             StatementType.DEFINITION,

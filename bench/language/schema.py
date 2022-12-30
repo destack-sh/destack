@@ -191,10 +191,14 @@ def parse_bsl(bsl: str) -> SchemaElement:
         value_type = ValueType.OBJECT
         elements_bsl = object_match.group("elements").split(",")
         elements = [parse_bsl(e.strip()) for e in elements_bsl]
+        if any(e.name is None for e in elements):
+            raise ValueError(f"object cannot have elements without name: {object_match}")
     elif array_match:  # array
         value_type = ValueType.ARRAY
         elements_bsl = array_match.group("elements").split(",")
         elements = [parse_bsl(e.strip()) for e in elements_bsl]
+        if len(elements) != 1:
+            raise ValueError(f"arrays must have exactly one element: {array_match}")
     elif type_match:  # value type
         value_type = ValueType(type_match.group("type"))
     else:  # schema reference (if not defined inline)
