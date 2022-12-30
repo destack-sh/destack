@@ -676,7 +676,7 @@ class SemanticError(ValueError):
                 source[-1].line_number + source[-1].line_span,
                 source[-1].end_column,
             )
-            return f" at\n{statement}\n{source[0].source_file.path} {source[0].line_number}\n{source_context}"
+            return f" at\n> {statement}\n{source[0].source_file.path}:{source[0].line_number}\n{source_context}"
 
 
 @dataclass
@@ -711,16 +711,16 @@ def resolve(
 
         # normalize path to resolve file-local references (with .)
         normalized_path = statement.reference
-        if statement.reference.path[0] == ".":  # current file
+        if statement.reference.path == ".":  # current file
             normalized_path = StatementPath(
                 f".{statement.file.path_without_extension}", statement.name
             )
 
-        if normalized_path[0].startswith("."):  # resolve in local module
+        if normalized_path.path.startswith("."):  # resolve in local module
             resolved = idx.statements_by_path.get(normalized_path)
         else:  # resolve in external module
             # get source requirement
-            source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path[0])
+            source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path.path)
             if source is None:  # (should be caught in parse)
                 raise RuntimeError(f"invalid source at {statement}")
             requirement_name = f"{source.group('owner')}.{source.group('name')}"
@@ -729,7 +729,7 @@ def resolve(
                 _error(f"unknown import source {requirement_name}", statement)
                 continue
             # localize path to requirement module
-            localized_path = StatementPath("." + source.group("path"), normalized_path[1])
+            localized_path = StatementPath("." + source.group("path"), normalized_path.name)
             # use module lookup to resolve
             try:
                 resolved = lookup_module(requirement, localized_path)

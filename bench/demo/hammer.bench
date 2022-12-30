@@ -137,3 +137,7 @@ for perturb in [misspell, paraphrase, perturb_spacing]:
     transforms.append(transformed)
 return transforms
 ```
+
+expect 'form invariance':
+`The command should be invariant to small changes in the input.`
+    like code vary_form
