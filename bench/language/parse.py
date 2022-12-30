@@ -17,6 +17,7 @@ from bench.language.types import (
     Dataset,
     Expectation,
     File,
+    Module,
     Requirement,
     Schema,
     Statement,
@@ -100,8 +101,17 @@ class ParseError(ValueError):
             return f" at {token}\n{context}"
 
 
+def ignore_module_lookup(*args, **kwargs):
+    return None
+
+
+def error_module_lookup(*args, **kwargs):
+    raise NotImplementedError
+
+
 def parse(
     tokens: list[Token],
+    lookup_module: Callable[[StatementPath], Statement | None] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> list[File]:
     """
@@ -114,8 +124,8 @@ def parse(
 
     # first pass: extract files and statements
     files = preparse(tokens, on_error=on_error)
-    # second pass: resolve statements into AST by resolving references
-    resolve(files, on_error=on_error)
+    # second pass: resolve statements into AST
+    idx = resolve(files, lookup_module=lookup_module, on_error=on_error)
     return files
 
 
@@ -641,11 +651,25 @@ class SemanticError(ValueError):
             return f" at\n{statement}\n{source[0].source_file.path} {source[0].line_number}\n{source_context}"
 
 
-def resolve(files: list[File], on_error: Callable[[SemanticError], None]):
-    """Resolve references across files."""
+@dataclasses.dataclass
+class IndexedModule:
+    module: Module
+    statements_by_path: dict[StatementPath, Statement] = dataclasses.field(default_factory=dict)
+    statements_by_parent: dict[UUID, list[Statement]] = dataclasses.field(
+        default_factory=lambda: defaultdict(list)
+    )
 
-    statements_by_path: dict[StatementPath, Statement] = {}
-    statements_by_parent: dict[UUID, list[Statement]] = defaultdict(list)
+
+def resolve(
+    module: list[File] | Module,
+    lookup_module: Callable[[StatementPath], Statement | None],
+    on_error: Callable[[SemanticError], None],
+) -> IndexedModule:
+    """Resolve references across files within a module."""
+    if not isinstance(module, Module):
+        module = Module(name="<local>", files=module)
+
+    idx = IndexedModule(module=module)
 
     def _error(
         message: str, statement: Statement, related_statements: dict[str, Statement] | None = None
@@ -653,39 +677,48 @@ def resolve(files: list[File], on_error: Callable[[SemanticError], None]):
         on_error(SemanticError(message, statement, related_statements))
 
     # collect files and statements
-    for file in files:
+    for file in module.files:
         for statement in file.statements:
             if statement.parent is not None:
-                statements_by_parent[statement.parent.id].append(statement)
+                idx.statements_by_parent[statement.parent.id].append(statement)
             if statement.referable:
                 statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
-                if statement_path in statements_by_path:
+                if statement_path in idx.statements_by_path:
                     error = SemanticError(f"multiple definitions for {statement_path}", statement)
                     on_error(error)
                     continue
-                statements_by_path[statement_path] = statement
+                idx.statements_by_path[statement_path] = statement
 
     # resolve references
-    for file in files:
+    for file in module.files:
         for statement in file.statements:
             if isinstance(statement.reference, StatementPath):
+                normalized_path = statement.reference
                 if statement.reference.path[0] == ".":  # current file
                     normalized_path = StatementPath(
                         f".{file.path_without_extension}", statement.name
                     )
+                is_local = normalized_path[0].startswith(".")
+                if is_local:  # resolve within current module
+                    resolved = idx.statements_by_path.get(normalized_path)
                 else:
-                    normalized_path = statement.reference
+                    try:
+                        resolved = lookup_module(normalized_path)
+                    except Exception as e:
+                        _error(f"failed to resolve {normalized_path}: {e}", statement)
+                        continue
+
                 # resolve reference
-                if normalized_path in statements_by_path:
-                    statement.reference = statements_by_path[normalized_path]
-                else:
+                if resolved is None:
                     _error(
                         f"reference is undefined: {statement_path_as_str(statement.reference)}",
                         statement,
                     )
+                else:
+                    statement.reference = resolved
+
                 # check if the reference has the correct type
-                if statement.reference.symbol_type != statement.symbol_type:
-                    _error(
-                        f"reference has other symbol type: {statement_path_as_str(statement.reference)}",
-                        statement,
-                    )
+                if resolved.symbol_type != statement.symbol_type:
+                    _error(f"reference has other symbol type: {resolved}", statement)
+
+    return idx
