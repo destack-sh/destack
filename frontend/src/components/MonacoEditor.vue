@@ -36,7 +36,7 @@ function updateEditorHeight(container: HTMLElement, code: string) {
 }
 
 function onResize() {
-  if (editor.value && editorContainer.value) {
+  if (editorContainer.value) {
     updateEditorHeight(editorContainer.value, props.modelValue);
   }
 }
@@ -44,7 +44,7 @@ function onResize() {
 const editorContainer: Ref<HTMLElement | null> = ref(null);
 const { width: editorContainerWidth } = useElementSize(editorContainer);
 // resize editor when container width changes
-watch(editorContainerWidth, onResize);
+watch(editorContainerWidth, onResize, { immediate: true });
 
 onMounted(() => {
   loader.init().then(initMonaco);
