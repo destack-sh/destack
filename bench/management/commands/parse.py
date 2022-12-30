@@ -58,7 +58,7 @@ def lookup_module_in_db(requirement: Requirement, path: StatementPath) -> Statem
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
-    module: language.Module = mapper.read(version)
+    module: language.Module = mapper.read(version, path)
     idx = index_module(module)
     return idx.statements_by_path[path]
 

@@ -122,6 +122,7 @@ class Statement:
 
     def __str__(self):
         # TODO @Cleanup: Statement.__str__ looks suspiciously like a worse reconstruct.render_statement
+        #  (also it's duplicated in models.Statement)
         path = self.file.path + ":" + str(self.absolute_index)
         if self.type == StatementType.DEFINITION:
             content_str = str(self.content)
@@ -132,6 +133,8 @@ class Statement:
                 content_str = statement_path_as_str(self.reference)
         elif self.type == StatementType.COMMENT:
             content_str = str(len(self.text))
+        elif self.type == StatementType.BLANK:
+            content_str = ""
         elif self.type == StatementType.REQUIREMENT:
             content_str = str(self.requirement)
         elif self.type == StatementType.COMPILATION:
@@ -174,8 +177,24 @@ class Statement:
 
 @dataclass(repr=False)
 class SymbolContent:
-    type: SymbolType
     definition: Statement
+
+    @property
+    def type(self) -> SymbolType:
+        return self.definition.symbol_type
+
+
+@dataclass(repr=False)
+class Schema(SymbolContent):
+    element: SchemaElement
+    description: str = ""
+
+    @property
+    def bsl(self):
+        return render_bsl(self.element)
+
+    def __content_str__(self):
+        return str(self.element)
 
 
 @dataclass(repr=False)
@@ -205,19 +224,6 @@ class Dataset(SymbolContent):
 
 
 @dataclass(repr=False)
-class Schema(SymbolContent):
-    element: SchemaElement
-    description: str = ""
-
-    @property
-    def bsl(self):
-        return render_bsl(self.element)
-
-    def __content_str__(self):
-        return str(self.element)
-
-
-@dataclass(repr=False)
 class Value(SymbolContent):
     value: dict | list | int | float | bool | str
 
@@ -230,7 +236,6 @@ class Model(SymbolContent):
     provider: str
     external_name: str
     settings: Optional[ModelInferenceSettings]
-    default_settings: Optional[ModelInferenceSettings]
 
     def __content_str__(self):
         return f"provider={self.provider}/{self.external_name}"

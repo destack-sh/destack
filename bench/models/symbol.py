@@ -186,6 +186,7 @@ SYMBOL_TYPE_TO_FIELD = {
     SymbolType.VALUE: "value",
 }
 SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
+CONTENT_FIELDS = SYMBOL_CONTENT_FIELDS | {"compilation", "requirement", "runconfig"}
 
 
 class Statement(UUIDModel):
@@ -296,6 +297,14 @@ class Statement(UUIDModel):
             content_str = f"{self.reference}"
         elif self.type == StatementType.COMMENT:
             content_str = f"{len(self.text)}"
+        elif self.type == StatementType.BLANK:
+            content_str = ""
+        elif self.type == StatementType.REQUIREMENT:
+            content_str = str(self.requirement)
+        elif self.type == StatementType.COMPILATION:
+            content_str = str(self.compilation)
+        elif self.type == StatementType.RUNCONFIG:
+            content_str = str(self.runconfig)
         else:
             raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""

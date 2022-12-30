@@ -1,23 +1,73 @@
 """
-Server-side mapper to remotely read and write files and statements.
-Keeps track of revisions and follows references in read/write operations.
+Server-side mapper to translate between language and database models.
+
+'Write' direction is language -> database, 'read' is database -> language.
 """
 
 from __future__ import annotations
 
 import typing
+from itertools import chain
 from uuid import UUID
 
 from django.db import transaction
+from more_itertools import bucket
 
 from bench import language, models
+from bench.language.types import StatementPath
 from bench.models.project import FileType, Project, ProjectVersion
-from bench.models.symbol import SYMBOL_TYPE_TO_FIELD
+from bench.models.symbol import CONTENT_FIELDS, SYMBOL_TYPE_TO_FIELD
+from bench.utils.record import RecordList
 
 
-@transaction.atomic
-def read(project_v: ProjectVersion) -> language.Module:
-    raise NotImplementedError
+@transaction.atomic(savepoint=False)  # read-only
+def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
+    """Reads the DB module to satisfy the given path. Currently, reads the entire module."""
+    lang_files: dict[UUID, language.File] = {}
+    lang_statements: dict[UUID, language.Statement] = {}
+
+    module = language.Module(name=project_v.project.name, files=[])
+    model_statements = project_v.statements.select_related(*CONTENT_FIELDS).all()
+
+    # map files
+    for file in project_v.files.all():
+        lang_file = language.File(id=file.id, path=file.path)
+        lang_files[file.id] = lang_file
+        module.files.append(lang_file)
+
+    # map statements
+    for statement in model_statements:
+        lang_statement = language.Statement(
+            id=statement.id,
+            file=lang_files[statement.file_id],
+            parent=None,
+            index=statement.index,
+            type=statement.type,
+            modifier=statement.modifier,
+            name=statement.name,
+            text=statement.text,
+            symbol_type=statement.symbol_type,
+            reference=None,
+        )
+        lang_statements[statement.id] = lang_statement
+        lang_statement.file.statements.append(lang_statement)
+
+        if statement.content is not None:
+            lang_statement.content = rmap_symbol(statement.content, lang_statement)
+        elif statement.requirement is not None:
+            lang_statement.requirement = rmap_requirement(statement.requirement)
+        elif statement.runconfig is not None:
+            lang_statement.runconfig = rmap_runconfig(statement.runconfig)
+        elif statement.compilation is not None:
+            lang_statement.compilation = rmap_compilation(statement.compilation)
+
+    # wmap references (incl. parent)
+    for statement in model_statements:
+        lang_statement = lang_statements[statement.id]
+        lang_statement.parent = lang_statements.get(statement.parent_id)
+        lang_statement.reference = lang_statements.get(statement.reference_id)
+
+    return module
 
 
 @transaction.atomic
@@ -32,65 +82,61 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     # create files
     for file in files:
         file_type = FileType(file.extension)
-        model_file = project_version.create_file_from_path(
+        model_files[file.id] = project_version.create_file_from_path(
             file.path_without_extension, file_type, id=file.id
         )
-        model_files[file.id] = model_file
 
-    # create statements
-    for file in files:
-        model_file = model_files[file.id]
-        for statement in file.statements:
-            lang_statements[statement.id] = statement
-            if statement.content is not None:
-                model_content, relations = map_symbol(statement.content)
-                model_contents[statement.id] = model_content
-                model_contents_relations.extend(relations)
-                kwargs = {SYMBOL_TYPE_TO_FIELD[statement.content.type]: model_content}
-            elif statement.requirement is not None:
-                model_requirement = map_requirement(statement.requirement)
-                model_contents[statement.id] = model_requirement
-                kwargs = dict(requirement=model_requirement)
-            elif statement.compilation is not None:
-                model_compilation, relations = map_compilation(statement.compilation)
-                model_contents[statement.id] = model_compilation
-                model_contents_relations.extend(relations)
-                kwargs = dict(compilation=model_compilation)
-            elif statement.runconfig is not None:
-                model_runconfig = map_runconfig(statement.runconfig)
-                model_contents[statement.id] = model_runconfig
-                kwargs = dict(runconfig=model_runconfig)
-            else:
-                kwargs = {}
+    # map statements
+    for statement in chain.from_iterable(file.statements for file in files):
+        lang_statements[statement.id] = statement
+        if statement.content is not None:
+            model_content, relations = wmap_symbol(statement.content)
+            model_contents[statement.id] = model_content
+            model_contents_relations.extend(relations)
+            content_kwargs = {SYMBOL_TYPE_TO_FIELD[statement.content.type]: model_content}
+        elif statement.requirement is not None:
+            model_requirement = wmap_requirement(statement.requirement)
+            model_contents[statement.id] = model_requirement
+            content_kwargs = dict(requirement=model_requirement)
+        elif statement.compilation is not None:
+            model_compilation, relations = wmap_compilation(statement.compilation)
+            model_contents[statement.id] = model_compilation
+            model_contents_relations.extend(relations)
+            content_kwargs = dict(compilation=model_compilation)
+        elif statement.runconfig is not None:
+            model_runconfig = wmap_runconfig(statement.runconfig)
+            model_contents[statement.id] = model_runconfig
+            content_kwargs = dict(runconfig=model_runconfig)
+        else:
+            content_kwargs = {}
 
-            model_statement = models.Statement(
-                id=statement.id,
-                project_version=project_version,
-                file=model_file,
-                parent=None,
-                index=statement.index,
-                type=statement.type,
-                modifier=statement.modifier,
-                name=statement.name,
-                text=statement.text,
-                symbol_type=statement.symbol_type,
-                reference=None,
-                **kwargs,
-            )
-            model_statements[statement.id] = model_statement
+        model_statement = models.Statement(
+            id=statement.id,
+            project_version=project_version,
+            file=model_files[statement.file.id],
+            parent=None,
+            index=statement.index,
+            type=statement.type,
+            modifier=statement.modifier,
+            name=statement.name,
+            text=statement.text,
+            symbol_type=statement.symbol_type,
+            reference=None,
+            **content_kwargs,
+        )
+        model_statements[statement.id] = model_statement
 
     # create statements contents
-    for content in model_contents.values():
-        content.save()
+    for content_cls, contents in bucket(*model_contents.values(), key=type):
+        content_cls.objects.bulk_create(contents)
+    # and their relations
+    for relation_cls, relations in bucket(*model_contents_relations, key=type):
+        relation_cls.objects.bulk_create(relations)
 
-    # create statements relations
-    for relation in model_contents_relations:
-        relation.save()
-
-    # bulk create statements
+    # create actual statements
     models.Statement.objects.bulk_create(model_statements.values())
 
-    # set references to other statements
+    # map references (incl. parent)
     for lang_statement in lang_statements.values():
         model_statement = model_statements[lang_statement.id]
         if lang_statement.parent is not None:
@@ -104,7 +150,7 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     return list(model_files.values())
 
 
-def map_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, list[typing.Any]]:
+def wmap_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, list[typing.Any]]:
     """Maps language symbol content to database models."""
     if isinstance(content, language.Schema):
         return models.Schema(description=content.description, element=content.element), []
@@ -116,6 +162,7 @@ def map_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, l
         model = models.Model(
             provider=content.provider,
             external_name=content.external_name,
+            default_settings=content.settings,
         )
         return model, []
     elif isinstance(content, language.Code):
@@ -138,13 +185,40 @@ def map_symbol(content: language.SymbolContent) -> tuple[models.SymbolContent, l
         raise ValueError(f"unexpected symbol content: {content}")
 
 
-def map_requirement(
-    requirement: language.Requirement,
-) -> models.Requirement():
-    version = lookup_requirement(requirement)
-    if version is None:
-        raise ValueError(f"requirement not found: {requirement}")
-    return models.Requirement(project_version=version)
+def rmap_symbol(
+    content: models.SymbolContent, definition: language.Statement
+) -> language.SymbolContent:
+    """Maps database symbol content to language models."""
+    if isinstance(content, models.Schema):
+        return language.Schema(definition, description=content.description, element=content.element)
+    elif isinstance(content, models.Task):
+        return language.Task(definition, description=content.description)
+    elif isinstance(content, models.Expectation):
+        return language.Expectation(definition, description=content.description)
+    elif isinstance(content, models.Model):
+        return language.Model(
+            definition=definition,
+            provider=content.provider,
+            external_name=content.external_name,
+            settings=content.default_settings,
+        )
+    elif isinstance(content, models.Code):
+        return language.Code(
+            definition=definition,
+            language="python",  # only python is supported for now
+            code=content.code,
+            code_function_name=content.code_function_name,
+            builtin_id=content.builtin_id,
+        )
+    elif isinstance(content, models.Dataset):
+        return language.Dataset(
+            definition=definition,
+            records=RecordList([record.data for record in content.records.all()]),
+        )
+    elif isinstance(content, models.Value):
+        return language.Value(definition=definition, value=content.value)
+    else:
+        raise ValueError(f"unexpected symbol content: {content}")
 
 
 def lookup_requirement(requirement: language.Requirement) -> typing.Optional[ProjectVersion]:
@@ -160,7 +234,23 @@ def lookup_requirement(requirement: language.Requirement) -> typing.Optional[Pro
         return ProjectVersion.objects.filter(project=library, name=requirement.version).first()
 
 
-def map_compilation(
+def wmap_requirement(
+    requirement: language.Requirement,
+) -> models.Requirement:
+    version = lookup_requirement(requirement)
+    if version is None:
+        raise ValueError(f"requirement not found: {requirement}")
+    return models.Requirement(project_version=version)
+
+
+def rmap_requirement(requirement: models.Requirement) -> language.Requirement:
+    return language.Requirement(
+        name=requirement.project_version.project.slug,
+        version=requirement.project_version.name,
+    )
+
+
+def wmap_compilation(
     compilation: language.Compilation,
 ) -> tuple[models.Compilation, list[typing.Any]]:
     model_compilation = models.Compilation()
@@ -179,7 +269,27 @@ def map_compilation(
     return model_compilation, source_mappings
 
 
-def map_runconfig(
+def rmap_compilation(compilation: models.Compilation) -> language.Compilation:
+    return language.Compilation(
+        source_mappings=[
+            language.SourceMapping(
+                source=compilation.source,
+                source_path=m.source_path,
+                source_revision=m.source_revision,
+                target=compilation.target,
+                target_path=m.target_path,
+                target_revision=m.target_revision,
+            )
+            for m in compilation.mappings.all()
+        ]
+    )
+
+
+def wmap_runconfig(
     runconfig: language.RunConfiguration,
 ) -> tuple[models.RunConfiguration, list[typing.Any]]:
     return models.RunConfiguration(), []
+
+
+def rmap_runconfig(runconfig: models.RunConfiguration) -> language.RunConfiguration:
+    return language.RunConfiguration()

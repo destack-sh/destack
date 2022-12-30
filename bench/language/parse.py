@@ -493,15 +493,11 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             element = parse_bsl(literal.value)
         except ValueError as e:
             raise ParseError("failed to parse schema element", literal) from e
-        content = Schema(
-            type=SymbolType.SCHEMA, description="", element=element, definition=definition
-        )
+        content = Schema(description="", element=element, definition=definition)
     elif symbol_type.value == SymbolType.TASK:
-        content = Task(type=SymbolType.TASK, description=literal.value, definition=definition)
+        content = Task(description=literal.value, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
-        content = Expectation(
-            type=SymbolType.EXPECTATION, description=literal.value, definition=definition
-        )
+        content = Expectation(description=literal.value, definition=definition)
     elif symbol_type.value == SymbolType.CODE:
         lang = literal.value_extras.get("lang")
         if lang is None:
@@ -511,7 +507,6 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         content = Code(
             language=lang,
-            type=SymbolType.CODE,
             code_function_name=None,
             builtin_id=None,
             code=code_text,
@@ -530,15 +525,13 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
                 records = json.loads(literal.value)
             else:
                 raise ParseError("unsupported dataset language", literal)
-            content = Dataset(
-                type=SymbolType.DATASET, records=RecordList(records), definition=definition
-            )
+            content = Dataset(records=RecordList(records), definition=definition)
         except json.JSONDecodeError as e:
             raise ParseError(f"failed to parse records: {e}", literal)
     elif symbol_type.value == SymbolType.VALUE:
         try:  # parse as json
             value = json.loads(literal.value)
-            content = Value(type=SymbolType.VALUE, value=value, definition=definition)
+            content = Value(value=value, definition=definition)
         except json.JSONDecodeError as e:
             raise ParseError(f"failed to parse json: {e}", literal)
     else:
@@ -729,7 +722,7 @@ def resolve(
                 _error(f"unknown import source {requirement_name}", statement)
                 continue
             # localize path to requirement module
-            localized_path = StatementPath("." + source.group("path"), statement.name)
+            localized_path = StatementPath("." + source.group("path"), normalized_path[1])
             # use module lookup to resolve
             try:
                 resolved = lookup_module(requirement, localized_path)
