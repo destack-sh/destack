@@ -6,11 +6,17 @@ require openai.stdlib@latest
 import task 'generate command' from .main
 import model text-davinci-003 from openai.stdlib.text
 
-compile debug = task 'generate command':
-    with model text-davinci-003
+compile test-codegen:
+    with model codegen
+    task 'generate command'
 
-# Run configuration
-# execute task generate command as main:
+compile prod:
+    with model text-davinci-003
+    task 'generate command'
+
+# Run configurations
+run task 'generate command' as main:
+#   [with compile prod]
 
 --- main.instruct ---
 import expect 'safe output' from .safety

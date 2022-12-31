@@ -173,7 +173,7 @@ NEWLINE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
 # (eating the previous newline should be a parsing concern, but it's easier in lex for now)
 NEWFILE_REGEX = re.compile(r"^\n?---\s*(?P<value>[\w.-]*)\s*---$\n", re.MULTILINE)
 # comment like # <comment>
-COMMENT_REGEX = re.compile(r"^#\s*(?P<value>.*)\s*$", re.MULTILINE)
+COMMENT_REGEX = re.compile(r"^#\s(?P<value>.*)\s*$", re.MULTILINE)
 # keywords from set
 KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")")
 # separator from set
