@@ -8,6 +8,7 @@ import textwrap
 import typing
 import uuid
 from asyncio import iscoroutinefunction
+from collections import OrderedDict
 from dataclasses import replace
 from functools import partial
 from random import Random
@@ -21,14 +22,24 @@ from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
 from bench.backend.tracing import Tracer
 from bench.backend.type import (
-    AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
     ModelInstance,
     ProviderKey,
-    SyncCodeCallable,
+    StatementInstance,
+    SymbolInstance,
+    ValueInstance,
 )
-from bench.language.type import Code, Dataset, LiteralValue, Model, ModelInferenceSettings, Value
+from bench.language.parse import IndexedModule
+from bench.language.type import (
+    Code,
+    Dataset,
+    LiteralValue,
+    Model,
+    ModelInferenceSettings,
+    Statement,
+    Value,
+)
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
@@ -212,6 +223,9 @@ class Proxy:
     def proxy_dataset(self, dataset: DatasetInstance) -> DatasetInstance:
         return dataset  # not proxied
 
+    def proxy_value(self, value: ValueInstance) -> ValueInstance:
+        return value  # not proxied
+
     def proxy_model(self, model: ModelInstance) -> ModelInstance:
         model_proxy = ModelProxy(model, self.tracer, cache=self.cache)
         return replace(model, handle=model_proxy)
@@ -224,44 +238,24 @@ class Proxy:
         return replace(code, code_callable=code_proxy)
 
 
-def unwrap_dataset(dataset: DatasetInstance) -> RecordBatch:
-    return dataset.records
+def unwrap(value: StatementInstance):
+    if not isinstance(value, SymbolInstance):
+        raise ValueError(f"cannot unwrap {value}")
+    return value.py_handle
 
 
-def unwrap_model(model: ModelInstance) -> ModelHandle:
-    return model.handle
-
-
-def unwrap_code(code: CodeInstance) -> SyncCodeCallable | AsyncCodeCallable:
-    return code.code_callable
-
-
-def unwrap(
-    value: Value | DatasetInstance | ModelInstance | CodeInstance,
-) -> Value | RecordBatch | ModelHandle | SyncCodeCallable | AsyncCodeCallable:
-    if isinstance(value, DatasetInstance):
-        return unwrap_dataset(value)
-    elif isinstance(value, ModelInstance):
-        return unwrap_model(value)
-    elif isinstance(value, CodeInstance):
-        return unwrap_code(value)
-    else:
-        return value
-
-
-def unwrap_arguments(self, arguments: dict[str, Any]) -> dict[str, Any]:
+def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
-
-
-def get_dynamic_builtins(code: Code) -> dict:
-    return {
-        "random": Random(code.definition.id.hex.encode()),
-    }
 
 
 def instantiate_dataset(dataset: Dataset, proxy: Proxy) -> DatasetInstance:
     dataset = DatasetInstance(**dataset.__dict__)
     return proxy.proxy_dataset(dataset)
+
+
+def instantiate_value(value: Value, proxy: Proxy) -> ValueInstance:
+    value = ValueInstance(**value.__dict__)
+    return proxy.proxy_value(value)
 
 
 def instantiate_model(model: Model, proxy: Proxy) -> ModelInstance:
@@ -273,10 +267,10 @@ def instantiate_model(model: Model, proxy: Proxy) -> ModelInstance:
     return proxy.proxy_model(ModelInstance(**model.__dict__, handle=handle))
 
 
-def instantiate_code(code: Code, proxy: Proxy) -> CodeInstance:
-    """
-    Resolves a code symbol and all its arguments to an async callable.
-    """
+def instantiate_code(
+    code: Code, proxy: Proxy, context: OrderedDict[str, StatementInstance]
+) -> CodeInstance:
+    instance_id = uuid.uuid4()
     if code.builtin_id:
         # builtins are already defined and are just curried using the arguments
         builtin = STATIC_BUILTINS.get(code.builtin_id)
@@ -284,43 +278,93 @@ def instantiate_code(code: Code, proxy: Proxy) -> CodeInstance:
             raise ValueError(f"unknown builtin in {code}: {code.builtin_id}")
         code_callable = partial(builtin)
     else:
-        dynamic_builtins = get_dynamic_builtins(code)
+        dynamic_builtins = {"random": Random(code.definition.id.hex.encode())}
+        dynamic_context = {
+            "context": {name: unwrap(value) for name, value in context.items()},
+            # 'inline' all context variables that are valid Python identifiers
+            **{name: unwrap(value) for name, value in context.items() if name.isidentifier()},
+            "__statement__": code.definition,
+            "__file__": code.definition.file,
+            "__module__": code.definition.file.module,
+        }
+
         # create python function from code
-        func_name = f"_anon_{code.definition.id.hex}"
+        func_name = f"_anon_{instance_id.hex}"
         async_str = "async " if code.is_async else ""
         indented_code = textwrap.indent(code.code, "    ")
         code_str = f"{async_str}def {func_name}():\n{indented_code}"
-        code_callable = _execute_code(code_str, {**STATIC_BUILTINS, **dynamic_builtins})[func_name]
-    code_instance = CodeInstance(**code.__dict__, code_callable=code_callable)
+        local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
+        code_callable = _execute_code(code_str, local_globals)[func_name]
+    code_instance = CodeInstance(
+        instance_id=instance_id, **code.__dict__, code_callable=code_callable
+    )
     return proxy.proxy_code(code_instance)
 
 
-def execute(
-    code: Code, arguments: dict[str, LiteralValue] | None = None, tracer: Tracer | None = None
-) -> LiteralValue:
-    tracer = tracer or Tracer()
-    proxy = Proxy(tracer=tracer, cache=ModelInferenceCacheDict())
-    code_instance = instantiate_code(code, proxy)
-    arguments = arguments or {}
-    try:
-        output = unwrap_code(code_instance)(**arguments)
-    except Exception as e:
-        raise ExecutionError(f"error executing {code} with {_summarize_args(arguments)}: {e}", e)
-    return output
+def instantiate(
+    statement: Statement, idx: IndexedModule, proxy: Proxy | None = None
+) -> StatementInstance:
+    """Instantiate a statement and its context (recursively)."""
+    context = get_context(statement, idx, used_only=True)
+
+    proxy = proxy or Proxy(tracer=Tracer(), cache=ModelInferenceCache())
+    # instantiate context (preserving order)
+    instantiated_context = OrderedDict()
+    for name, value in context.items():
+        instantiated_context[name] = instantiate(statement=value, idx=idx, proxy=proxy)
+
+    if isinstance(statement.content, Code):
+        return instantiate_code(statement.content, proxy, instantiated_context)
+    elif isinstance(statement.content, Value):
+        return instantiate_value(statement.content, proxy)
+    elif isinstance(statement.content, Model):
+        return instantiate_model(statement.content, proxy)
+    elif isinstance(statement.content, Dataset):
+        return instantiate_dataset(statement.content, proxy)
+    else:
+        raise ValueError(f"cannot instantiate {statement.content}")
 
 
-async def execute_async(
-    code: Code, arguments: dict[str, LiteralValue] | None = None, tracer: Tracer | None = None
-) -> LiteralValue:
-    tracer = tracer or Tracer()
-    proxy = Proxy(tracer=tracer, cache=ModelInferenceCacheDict())
-    code_instance = instantiate_code(code, proxy)
+def get_context(
+    statement: Statement, idx: IndexedModule, used_only: bool
+) -> OrderedDict[str, Statement]:
+    # gather all available statements: everything above and next to the statement
+    available_statements = []
+    current_parent = statement.parent
+    while current_parent is not None:
+        available_statements.extend(idx.statements_by_parent[current_parent.id])
+        current_parent = current_parent.parent
+    available_statements.extend(statement.file.root_statements)
+
+    available_context = OrderedDict()
+    for available_statement in available_statements:
+        var_name = available_statement.name
+        if var_name not in available_context:
+            # there may be local shadowing, so use the first reference
+            # (also ignore duplicate definitions, that's for semantic parse)
+            available_context[var_name] = available_statement
+
+    if not used_only:
+        return available_context
+
+    # filter to used context only
+    context = OrderedDict()
+    if isinstance(statement.content, Code):
+        for var_name in available_context:
+            if var_name in statement.content.code:
+                context[var_name] = available_context[var_name]
+    else:
+        # only code gets context for now
+        pass
+    return context
+
+
+def execute(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
     arguments = arguments or {}
     try:
-        output = await unwrap_code(code_instance)(**arguments)
+        return code.py_handle(**arguments)
     except Exception as e:
         raise ExecutionError(f"error executing {code} with {_summarize_args(arguments)}: {e}", e)
-    return output
 
 
 def _summarize_args(arguments: Any) -> str:
