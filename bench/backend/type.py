@@ -8,7 +8,7 @@ from functools import cached_property, partial
 from django.db import models
 
 from bench.backend.provider import ModelHandle
-from bench.language.types import Code, Dataset, Model
+from bench.language.type import Code, Dataset, Model
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., typing.Any]

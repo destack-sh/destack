@@ -20,7 +20,7 @@ from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
 from bench.backend.tracing import Tracer
-from bench.backend.types import (
+from bench.backend.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
@@ -28,7 +28,7 @@ from bench.backend.types import (
     ProviderKey,
     SyncCodeCallable,
 )
-from bench.language.types import Code, Dataset, LiteralValue, Model, ModelInferenceSettings, Value
+from bench.language.type import Code, Dataset, LiteralValue, Model, ModelInferenceSettings, Value
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
@@ -71,7 +71,7 @@ class ModelInferenceCacheDict(ModelInferenceCache):
         settings_hash = hashlib.md5(settings_str.encode("utf-8")).hexdigest()
         input_str = json.dumps(input, sort_keys=True)
         input_hash = hashlib.md5(input_str.encode("utf-8")).hexdigest()
-        return f"{model.definition.id}.{settings_hash}.{settings_hash}"
+        return f"{model.definition.id}.{settings_hash}.{input_hash}"
 
     async def get(self, model: Model, input: dict, settings: dict) -> ModelInference | None:
         key = self.key(model, input, settings)

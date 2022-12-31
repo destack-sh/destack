@@ -7,10 +7,10 @@ from django.core.management import BaseCommand
 from django.db import transaction
 
 from bench.backend.mapper import lookup_module_in_db, write
-from bench.backend.types import ProviderKey
+from bench.backend.type import ProviderKey
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
-from bench.language.types import ModelInferenceSettings
+from bench.language.type import ModelInferenceSettings
 from bench.models import Model, Organization, Project
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 

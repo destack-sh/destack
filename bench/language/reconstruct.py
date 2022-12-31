@@ -12,7 +12,7 @@ from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX
 from bench.language.parse import UNGROUPED_STATEMENT_TYPES
 from bench.language.schema import render_bsl
-from bench.language.types import (
+from bench.language.type import (
     Code,
     Dataset,
     Expectation,
