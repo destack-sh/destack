@@ -15,11 +15,13 @@ from bench.language.lex import SourceFile, Token, TokenType, get_location_range_
 from bench.language.schema import parse_bsl
 from bench.language.type import (
     Code,
+    Compilation,
     Dataset,
     Expectation,
     File,
     Module,
     Requirement,
+    RunConfiguration,
     Schema,
     Statement,
     StatementModifier,
@@ -298,6 +300,14 @@ class TokenParser:
     def eat_identifier(self) -> Token:
         return self.eat_type(TT.IDENTIFIER)
 
+    def peek_separator(self, separator: str | enum.Enum) -> Optional[Token]:
+        if isinstance(separator, enum.Enum):
+            separator = separator.value
+        token = self.peek_type(TT.SEPARATOR)
+        if token is None or token.value != separator:
+            return None
+        return token
+
     def eat_separator(self, separator: str | enum.Enum) -> Token:
         if isinstance(separator, enum.Enum):
             separator = separator.value
@@ -502,13 +512,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
 
 def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     """Parses a symbol definition statement."""
-    if tokens.peek_keyword_like(StatementModifier):
-        modifier = tokens.eat_keyword_like(StatementModifier).value
-        if not isinstance(modifier, StatementModifier):
-            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=modifier)
-        tokens.eat_space()
-    else:
-        modifier = None
+    modifier = _parse_modifier_slot(tokens)
     symbol_type = tokens.eat_keyword_like(SymbolType)
     tokens.eat_space()
     name = tokens.eat_identifier()
@@ -571,20 +575,40 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     return definition
 
 
+def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
+    """Parse a redefinition statement."""
+    modifier = _parse_modifier_slot(tokens)
+    name, symbol_type = _parse_reference_slot(tokens)
+    tokens.eat_separator(" ")
+    tokens.eat_separator("=")
+    tokens.eat_separator(" ")
+    reference_name, other_symbol_type = _parse_reference_slot(tokens)
+    # defined symbol type and referenced symbol type must match
+    # (both may be null for non-symbol statements)
+    if not (symbol_type == other_symbol_type or symbol_type.value == other_symbol_type.value):
+        raise ParseError(
+            PE.UNEXPECTED_TOKEN_VALUE, reference_name, type=TT.IDENTIFIER, value=symbol_type
+        )
+    if modifier != StatementModifier.WITH:
+        # only non-arg definitions can have children
+        # this isn't great since it forbids re-aliasing but much easier to implement
+        # since we would need to track the 'defining with contents' flag independently.
+        tokens.eat_separator(":")
+
+    return Statement(
+        type=StatementType.REDEFINITION,
+        modifier=modifier,
+        name=name.value,
+        reference=StatementPath(".", reference_name.value),
+        symbol_type=symbol_type.value if symbol_type else None,
+        **kwargs,
+    )
+
+
 def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a reference statement."""
-    if tokens.peek_keyword_like(StatementModifier):
-        modifier = tokens.eat_keyword_like(StatementModifier).value
-        if not isinstance(modifier, StatementModifier):
-            raise ParseError(
-                PE.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=StatementModifier
-            )
-        tokens.eat_space()
-    else:
-        modifier = None
-    symbol_type = tokens.eat_keyword_like(SymbolType)
-    tokens.eat_space()
-    name = tokens.eat_identifier()
+    modifier = _parse_modifier_slot(tokens)
+    name, symbol_type = _parse_reference_slot(tokens)
     tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.REFERENCE,
@@ -596,23 +620,67 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     )
 
 
+def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:
+    if tokens.peek_keyword_like(StatementModifier):
+        modifier = tokens.eat_keyword_like(StatementModifier).value
+        if not isinstance(modifier, StatementModifier):
+            raise ParseError(
+                PE.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=StatementModifier
+            )
+        tokens.eat_space()
+    else:
+        modifier = None
+    return modifier
+
+
+def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token | None]:
+    # references can be either to symbol types or compile and run statements
+    if tokens.peek_keyword(StatementType.COMPILATION) or tokens.peek_keyword(
+        StatementType.RUNCONFIG
+    ):
+        tokens.eat()
+        symbol_type = None
+    else:
+        symbol_type = tokens.eat_keyword_like(SymbolType)
+    tokens.eat_space()
+    name = tokens.eat_identifier()
+    return name, symbol_type
+
+
 def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_keyword(StatementType.COMPILATION)
     tokens.eat_space()
     name = tokens.eat_identifier()
-    tokens.eat_space()
-    tokens.eat_separator("=")
+    tokens.eat_separator(":")
+    tokens.eat_newline_or_eof()
+    return Statement(
+        type=StatementType.COMPILATION, name=name.value, compilation=Compilation(), **kwargs
+    )
+
+
+def _parse_runconfig(tokens: TokenParser, **kwargs) -> Statement:
+    tokens.eat_keyword(StatementType.RUNCONFIG)
     tokens.eat_space()
     symbol_type = tokens.eat_keyword_like(SymbolType)
     tokens.eat_space()
     reference = tokens.eat_identifier()
-    tokens.eat_separator(":")
+    tokens.eat_space()
+    tokens.eat_keyword("as")
+    tokens.eat_space()
+    name = tokens.eat_identifier()
+    if tokens.peek_separator(":"):
+        # has local config
+        tokens.eat_separator(":")
+        has_custom_config = True
+    else:
+        has_custom_config = False
     tokens.eat_newline_or_eof()
     return Statement(
-        type=StatementType.COMPILATION,
+        type=StatementType.RUNCONFIG,
         name=name.value,
         symbol_type=symbol_type.value,
         reference=StatementPath(".", reference.value),
+        runconfig=RunConfiguration(has_custom_config=has_custom_config),
         **kwargs,
     )
 
@@ -632,8 +700,10 @@ def _parse_statement(
         _parse_comment,
         _parse_requirement,
         _parse_compile,
+        _parse_runconfig,
         _parse_definition,
         _parse_import,
+        _parse_redefinition,
         _parse_reference,
         _parse_blank,
     ]:
@@ -673,6 +743,11 @@ class SemanticErrorType(enum.Enum):
     AMBIGUOUS_SCHEMA = enum.auto(), "multiple schemas"
     UNEXPECTED_PARENT = enum.auto(), "unexpected parent {parent}"
     EXPECTED_PARENT = enum.auto(), "expected a parent"
+    EXPECTED_PROPER_CHILDREN = enum.auto(), "expected proper children"
+    UNEXPECTED_CHILDREN = enum.auto(), "unexpected children"
+    EXPECTED_PARAMETERS = enum.auto(), "expected parameters of type {type}"
+    UNEXPECTED_PARAMETERS = enum.auto(), "unexpected parameters"
+    EXPECTED_ARGUMENTS = enum.auto(), "expected arguments of type {type}"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
@@ -681,6 +756,7 @@ class SemanticErrorType(enum.Enum):
         return obj
 
 
+ST = StatementType
 SE = SemanticErrorType
 
 
@@ -784,12 +860,12 @@ def check_statement(
         on_error(SemanticError(_t, statement, cause, **error_args))
 
     all_children = idx.statements_by_parent[statement.id]
-    parameters = filter(lambda s: s.is_parameter, all_children)
-    arguments = filter(lambda s: s.is_argument, all_children)
-    proper_children = filter(lambda s: not s.is_parameter and not s.is_argument, all_children)
+    parameters = [s for s in all_children if s.is_parameter]
+    arguments = [s for s in all_children if s.is_argument]
+    proper_children = [s for s in all_children if not s.is_parameter and not s.is_argument]
 
     # check schema'd symbol definitions have exactly one schema
-    if statement.type == StatementType.DEFINITION and statement.requires_schema:
+    if statement.type == ST.DEFINITION and statement.requires_schema:
         schema_candidates = [c for c in proper_children if c.symbol_type == SymbolType.SCHEMA]
         if len(schema_candidates) > 1:
             _error(SE.AMBIGUOUS_SCHEMA, statement)
@@ -797,17 +873,30 @@ def check_statement(
             _error(SE.MISSING_SCHEMA, statement)
 
     # check that non-symbol definitions are top-level
-    if statement.type in (
-        StatementType.REQUIREMENT,
-        StatementType.COMPILATION,
-        StatementType.RUNCONFIG,
-    ):
+    if statement.type in (ST.REQUIREMENT, ST.COMPILATION, ST.RUNCONFIG):
         if statement.parent is not None:
             _error(SE.UNEXPECTED_PARENT, statement, parent=statement.parent)
 
     # check that arguments and parameters have a parent
-    if statement.is_argument or statement.is_parameter:
+    if (statement.is_argument or statement.is_parameter) and statement.parent is None:
         _error(SE.EXPECTED_PARENT, statement)
+
+    # check that compile has proper children and model parameters
+    if statement.type == ST.COMPILATION:
+        if len(proper_children) == 0:
+            _error(SE.EXPECTED_PROPER_CHILDREN, statement)
+        model_parameters = [s for s in parameters if s.symbol_type == SymbolType.MODEL]
+        if len(model_parameters) == 0:
+            _error(SE.EXPECTED_PARAMETERS, statement, type=SymbolType.MODEL)
+
+    # check that runconfig with custom config has arguments (and vice versa)
+    if statement.type == ST.RUNCONFIG:
+        if statement.runconfig.has_custom_config:
+            if len(arguments) == 0:
+                _error(SE.EXPECTED_ARGUMENTS, statement, type="any")
+        else:
+            if len(all_children) > 0:
+                _error(SE.UNEXPECTED_CHILDREN, statement)
 
 
 def resolve_statement_reference(
@@ -821,8 +910,8 @@ def resolve_statement_reference(
     ):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
-    if not isinstance(statement.reference, StatementPath):
-        return  # already resolved
+    if not isinstance(statement.reference, StatementPath) or statement.is_parameter:
+        return  # need not be resolved
 
     # normalize path to resolve file-local references (with .)
     normalized_path = statement.reference
@@ -894,7 +983,9 @@ def index_module(
             idx.statements_by_id[statement.id] = statement
             if statement.parent is not None:
                 idx.statements_by_parent[statement.parent.id].append(statement)
-            if statement.referable:
+            if statement.referable and statement.parent is None:
+                # TODO @Feature: make non-top-level statements referable
+                #  Will need to change resolution with StatementPaths in indexed module.
                 statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
                 if statement_path in idx.statements_by_path:
                     _error(SE.AMBIGUOUS_DEFINITION, statement, path=statement_path)
@@ -906,7 +997,7 @@ def index_module(
 
     # collect requirements
     for statement in idx.statements_by_id.values():
-        if statement.type == StatementType.REQUIREMENT:
+        if statement.type == ST.REQUIREMENT:
             requirement_name = statement.name
             if requirement_name in idx.requirements_by_name:
                 _error(SE.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)

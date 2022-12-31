@@ -141,6 +141,11 @@ class Statement:
                 content_str = f"{self.reference.file.path}::{self.reference.name}"
             else:
                 content_str = statement_path_as_str(self.reference)
+        elif self.type == StatementType.REDEFINITION:
+            if isinstance(self.reference, Statement):
+                content_str = f"{self.name} = {self.reference.file.path}::{self.reference.name}"
+            else:
+                content_str = f"{self.name} = {statement_path_as_str(self.reference)}"
         elif self.type == StatementType.COMMENT:
             content_str = str(len(self.text))
         elif self.type == StatementType.BLANK:
@@ -335,7 +340,7 @@ class Requirement:
 
 @dataclass(repr=False)
 class RunConfiguration:
-    pass
+    has_custom_config: bool
 
 
 @dataclass(repr=False)

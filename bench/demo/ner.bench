@@ -7,8 +7,14 @@ require symbolx.stdlib@latest
 import task 'extract entities' from .main
 import model text-davinci-003 from openai.stdlib.text
 
-compile prod = task 'extract entities':
+compile prod:
     with model text-davinci-003
+    task 'extract entities'
+
+# Run configurations
+# run task 'extract entities' as extract-prod:
+#     with compile target = compile prod
+# (this doesn't work right now because compilations cannot be redefinitions)
 
 --- main.instruct ---
 schema entity:

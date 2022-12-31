@@ -83,14 +83,16 @@ def render_statement_content(statement: Statement) -> str:
         return f"require {statement.requirement.name}@{statement.requirement.version}"
     elif statement.type == StatementType.COMPILATION:
         compilation_name = escape_identifier(statement.name)
-        reference_name = escape_identifier(_get_reference_name(statement.reference))
-        return f"compile {compilation_name} = {statement.symbol_type} {reference_name}:"
+        return f"compile {compilation_name}:"
     elif statement.type == StatementType.RUNCONFIG:
-        raise NotImplementedError
+        reference_name = escape_identifier(get_reference_name(statement.reference))
+        identifier_str = escape_identifier(statement.name)
+        custom_def_str = ":" if statement.runconfig.has_custom_config else ""
+        return f"run {statement.symbol_type} {reference_name} as {identifier_str}{custom_def_str}"
     elif statement.type == StatementType.IMPORT:
         alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""
-        reference_name = escape_identifier(_get_reference_name(statement.reference))
+        reference_name = escape_identifier(get_reference_name(statement.reference))
         import_source = render_import_source(statement.reference, via=statement)
         return f"import {statement.symbol_type} {reference_name}{alias_str} from {import_source}"
     elif statement.type == StatementType.DEFINITION:
@@ -98,6 +100,11 @@ def render_statement_content(statement: Statement) -> str:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
         return f"{modifier_str}{statement.symbol_type} {identifier_str}:\n{content_str}"
+    elif statement.type == StatementType.REDEFINITION:
+        modifier_str = f"{statement.modifier} " if statement.modifier else ""
+        identifier_str = escape_identifier(statement.name)
+        reference_name = escape_identifier(get_reference_name(statement.reference))
+        return f"{modifier_str}{statement.symbol_type} {identifier_str} = {statement.symbol_type} {reference_name}"
     elif statement.type == StatementType.REFERENCE:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
@@ -109,19 +116,19 @@ def render_statement_content(statement: Statement) -> str:
 def render_symbol_content(content: SymbolContent) -> str:
     if isinstance(content, Schema):
         bsl = render_bsl(content.element)
-        return _render_literal(bsl)
+        return render_literal(bsl)
     elif isinstance(content, Task):
-        return _render_literal(content.description)
+        return render_literal(content.description)
     elif isinstance(content, Expectation):
-        return _render_literal(content.description)
+        return render_literal(content.description)
     elif isinstance(content, Code):
-        return _render_literal(content.code, lang=content.language)
+        return render_literal(content.code, lang=content.language)
     elif isinstance(content, Dataset):
         records_as_jsonl = "\n".join(json.dumps(record) for record in content.records)
-        return _render_literal(records_as_jsonl, lang="jsonl")
+        return render_literal(records_as_jsonl, lang="jsonl")
     elif isinstance(content, Value):
         value_as_json = json.dumps(content.value)
-        return _render_literal(value_as_json)
+        return render_literal(value_as_json)
     else:
         raise ValueError(f"unexpected symbol content type: {content}")
 
@@ -134,7 +141,7 @@ def escape_identifier(identifier: str) -> str:
         return f"'{identifier}'"
 
 
-def _render_literal(value: str, lang: Optional[str] = None) -> str:
+def render_literal(value: str, lang: Optional[str] = None) -> str:
     if INLINE_LITERAL_REGEX.fullmatch(f"`{value}`"):
         if lang is None:
             return f"`{value}`"
@@ -147,7 +154,7 @@ def _render_literal(value: str, lang: Optional[str] = None) -> str:
             return f"```{lang}\n{value}\n```"
 
 
-def _get_reference_name(reference: Statement | StatementPath) -> str:
+def get_reference_name(reference: Statement | StatementPath) -> str:
     if isinstance(reference, StatementPath):
         return reference[1]
     elif isinstance(reference, Statement):
