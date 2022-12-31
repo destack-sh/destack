@@ -105,8 +105,40 @@ class Token:
         return loc
 
 
+class SyntaxErrorType(enum.Enum):
+    UNKNOWN_TOKEN = "unknown_token"
+
+
 class SyntaxError(ValueError):
-    pass
+    def __int__(
+        self,
+        type: SyntaxErrorType,
+        file: SourceFile,
+        line_number: int,
+        column: int,
+        extra_message: str | None = None,
+    ):
+        super().__init__(SyntaxError.format_message(type, file, line_number, column, extra_message))
+        self.type = type
+        self.file = file
+        self.line_number = line_number
+        self.column = column
+        self.extra_message = extra_message
+
+    @staticmethod
+    def format_message(
+        type: SyntaxErrorType,
+        file: SourceFile,
+        line_number: int,
+        column: int,
+        extra_message: str | None = None,
+    ) -> str:
+        if extra_message:
+            extra_message = f": {extra_message}"
+        else:
+            extra_message = ""
+        context = get_location_pointer(file, line_number, column)
+        return f"{type.value} at {file.path}:{line_number}:{column}{extra_message}:\n{context}"
 
 
 KEYWORDS = {
@@ -191,10 +223,7 @@ def lex(source: SourceFile) -> list[Token]:
             if current_pos >= len(source.content):
                 break  # EOF, done
             # otherwise, we have an error
-            context = get_location_pointer(source, line_number, start_column)
-            raise SyntaxError(
-                f"unknown token at {line_number}:{start_column} in {source.path}:\n{context}"
-            )
+            raise SyntaxError(SyntaxErrorType.UNKNOWN_TOKEN, source, line_number, start_column)
         tokens.append(token)
         prev_token = token
 
