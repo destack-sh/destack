@@ -281,9 +281,11 @@ def get_location_range_pointer(
     end_column: int,
     prev_lines: int = 4,
 ) -> str:
-    # does not handle multiline tokens yet
     prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, prev_lines)))
     if not prev_lines.endswith("\n"):
         prev_lines = prev_lines + "\n"
+    # does not handle multiline ranges yet, so if it's multiline, we extend until end of first line
+    if end_line > start_line:
+        end_column = len(source.line(start_line - 1))
     context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
     return context

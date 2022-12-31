@@ -191,6 +191,14 @@ class Statement:
         return self.type in (StatementType.DEFINITION, StatementType.REDEFINITION)
 
     @property
+    def is_parameter(self) -> bool:
+        return self.modifier == StatementModifier.WITH and self.type == StatementType.REFERENCE
+
+    @property
+    def is_argument(self) -> bool:
+        return self.modifier == StatementModifier.WITH and self.defines_symbol
+
+    @property
     def is_alias(self):
         if isinstance(self.reference, StatementPath):
             return self.reference[1] != self.name
@@ -198,6 +206,14 @@ class Statement:
             return self.reference.name != self.name
         else:
             return False
+
+    @property
+    def requires_schema(self):
+        return self.type == StatementType.DEFINITION and self.symbol_type in (
+            SymbolType.TASK,
+            SymbolType.CODE,
+            SymbolType.DATASET,
+        )
 
     @property
     def absolute_index(self) -> str:

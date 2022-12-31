@@ -25,7 +25,7 @@ value val:
 `5`
 
 value 'unwieldy name':
-`1`
+`2`
 
 code function:
 ```python
@@ -35,4 +35,21 @@ return val * context['unwieldy name']
     )
     idx = index_module(module)
     code = instantiate(idx.statement(".test::function"), idx)
-    assert execute(code) == 5
+    assert execute(code) == 10
+
+
+def test_execute_single_code_with_schema():
+    module = parse_string(
+        """
+--- test.bench ---
+code function:
+```python
+return 5 * val
+```
+    schema _:
+    `{ input: { val: number }, output: number }`
+"""
+    )
+    idx = index_module(module)
+    code = instantiate(idx.statement(".test::function"), idx)
+    assert execute(code, {"val": 2}) == 10

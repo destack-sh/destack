@@ -6,8 +6,8 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
+from bench.backend.execute import ProviderKey
 from bench.backend.mapper import lookup_module_in_db, write
-from bench.backend.type import ProviderKey
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.language.type import ModelInferenceSettings

@@ -16,6 +16,7 @@ from typing import Any, Union
 from uuid import UUID
 
 import structlog
+from django.db import models
 
 from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
@@ -25,7 +26,6 @@ from bench.backend.type import (
     CodeInstance,
     DatasetInstance,
     ModelInstance,
-    ProviderKey,
     StatementInstance,
     SymbolInstance,
     ValueInstance,
@@ -43,7 +43,15 @@ from bench.language.type import (
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
+
+class ProviderKey(models.TextChoices):
+    OPENAI = "openai"
+    GOOSEAI = "gooseai"
+    AI21 = "ai21"
+
+
 # TODO @Security: don't pass internal secrets to workers via environment variables
+#  (maybe proxy on the worker pod through a sidecar container.. or something)
 PROVIDERS: dict[ProviderKey, ModelProvider] = {}
 if "OPENAI_API_KEY" in os.environ:
     PROVIDERS[ProviderKey.OPENAI] = OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"])
@@ -121,12 +129,7 @@ class ModelProxy(ModelHandle):
             settings_merged = {**self.settings.as_dict(omit_empty=True), **settings}
         else:
             settings_merged = self.settings.as_dict(omit_empty=True)
-        log = logger.bind(
-            model=self.model,
-            handle=self.model.handle,
-            operation="complete",
-            inference_id=inference_id,
-        )
+        log = logger.bind(model=self.model, operation="complete")
 
         self.tracer.model_complete_enter(self.model, prompt)
         log.debug("model.complete.enter", prompt=len(prompt))
@@ -289,7 +292,7 @@ def instantiate_code(
         }
 
         # create python function from code
-        func_name = f"_anon_{instance_id.hex}"
+        func_name = f"_anon_{code.definition.id.hex}_{instance_id.hex}"
         async_str = "async " if code.is_async else ""
         indented_code = textwrap.indent(code.code, "    ")
         code_str = f"{async_str}def {func_name}():\n{indented_code}"
@@ -307,7 +310,7 @@ def instantiate(
     """Instantiate a statement and its context (recursively)."""
     context = get_context(statement, idx, used_only=True)
 
-    proxy = proxy or Proxy(tracer=Tracer(), cache=ModelInferenceCache())
+    proxy = proxy or Proxy(tracer=Tracer(), cache=ModelInferenceCacheDict())
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in context.items():

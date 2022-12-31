@@ -32,3 +32,5 @@ temperature_label = await llm_classify(
 )
 return temperature_map.get(temperature_label, 0.5)
 ```
+    schema _:
+    `{ input: { description: string }, output: float }`

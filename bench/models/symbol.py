@@ -540,19 +540,6 @@ class Statement(UUIDModel):
         self.descendants.update(commented=commented)
         self.save()
 
-    @property
-    def parameters(self) -> models.QuerySet[Statement]:
-        return self.active_children.filter(
-            modifier=StatementModifier.WITH, type=StatementType.REFERENCE
-        )
-
-    @property
-    def arguments(self) -> models.QuerySet[Statement]:
-        return self.active_children.filter(
-            modifier=StatementModifier.WITH,
-            type__in=(StatementType.REDEFINITION, StatementType.DEFINITION),
-        )
-
     def add_parameter(
         self,
         name: str,
@@ -627,14 +614,6 @@ class SymbolContent(UUIDModel):
     @property
     def type(self) -> SymbolType:
         return symbol_type_from_content(self)
-
-    @property
-    def parameters(self) -> models.QuerySet[Statement]:
-        return self.definition.parameters
-
-    @property
-    def arguments(self) -> models.QuerySet[Statement]:
-        return self.definition.arguments
 
     def deepcopy(self, to: Any, refs: dict[UUID, Statement | SymbolContent]):
         if type(self) != type(to):
