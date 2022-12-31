@@ -10,6 +10,8 @@ code function:
 ```python
 return 5
 ```
+    schema _:
+    `{ input: null, output: number }`
 """
     )
     idx = index_module(module)
@@ -31,6 +33,8 @@ code function:
 ```python
 return val * context['unwieldy name']
 ```
+    schema _:
+    `{ input: null, output: number }`
 """
     )
     idx = index_module(module)

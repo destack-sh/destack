@@ -24,10 +24,11 @@ class StatementType(models.TextChoices):
     DEFINITION = "def"  # :
     REFERENCE = "ref"  #
     REDEFINITION = "redef"  # =
-    # non-symbol statements
+    # other content statements (should really not be separate statement types)
     REQUIREMENT = "requirement"  # require
     COMPILATION = "compilation"  # compile
     RUNCONFIG = "run"  # run
+    # non-symbol statements
     COMMENT = "comment"  # //
     BLANK = "blank"  # used while creating a new statement
 
@@ -51,6 +52,15 @@ class SymbolType(models.TextChoices):
     MODEL = "model"
     DATASET = "data"
     VALUE = "value"
+
+
+class ContentType(models.TextChoices):
+    """The type of statement content."""
+
+    SYMBOL = "symbol"
+    REQUIREMENT = "requirement"
+    COMPILATION = "compilation"
+    RUNCONFIG = "runconfig"
 
 
 @dataclass(repr=False)
