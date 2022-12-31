@@ -64,28 +64,53 @@ class ErrorCollector(typing.Generic[ErrorT]):
         self.on_error(error)
 
 
+class ParseErrorType(enum.Enum):
+    MISSING_TOKEN = enum.auto(), "expected another token"
+    UNEXPECTED_TOKEN_TYPE = enum.auto(), "expected token type {type}"
+    UNEXPECTED_TOKEN_VALUE = enum.auto(), "expected token value {value}"
+    UNEXPECTED_INDENT = enum.auto(), "expected indent <= {indent}"
+    MISSING_EXTRA = enum.auto(), "expected token value extra {extra}"
+    UNEXPECTED_EXTRA = enum.auto(), "unexpected token value extra {extra}={value}"
+    INVALID_TOKEN_VALUE = enum.auto(), "invalid token value {value} {error}"
+
+    def __new__(cls, value, description):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.description = description
+        return obj
+
+
+PE = ParseErrorType
+TT = TokenType
+
+
 class ParseError(ValueError):
     def __init__(
         self,
-        message: str,
+        _t: ParseErrorType,
         token: Optional[Token],
         cause: Optional[Exception] = None,
-        context: Optional[dict] = None,
         parser: Optional[str] = None,
         position: Optional[int] = -1,
+        **error_args,
     ):
-        super().__init__(self._to_message(message, token, cause))
+        super().__init__(self._to_message(_t, error_args, token, cause))
+        self.type = _t
         self.token = token
         self.cause = cause
-        self.context = context
         self.position = position
         self.parser = parser
+        self.error_args = error_args
 
-    def _to_message(self, message: str, token: Optional[Token], cause: Optional[dict]):
-        return (
-            message
-            + ParseError.token_context(token)
-            + (f"\npossible cause: {cause}" if cause else "")
+    def _to_message(
+        self, type: ParseErrorType, error_args: dict, token: Optional[Token], cause: Optional[dict]
+    ):
+        # noinspection StrFormat
+        return "{0}: {1}{2}{3}".format(
+            type.name,
+            type.description.format(**error_args),
+            ParseError.token_context(token),
+            (f"\npossible cause: {cause}" if cause else ""),
         )
 
     @staticmethod
@@ -108,13 +133,13 @@ def ignore_module_lookup(*args, **kwargs):
 
 
 def error_module_lookup(*args, **kwargs):
-    raise NotImplementedError
+    raise NotImplementedError("external module lookup disabled")
 
 
 def parse(
     tokens: list[Token],
     module: Optional[Module] = None,
-    lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
+    lookup_module: Callable[[Requirement, StatementPath], Statement | None] = error_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
     """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
@@ -187,7 +212,7 @@ class TokenParser:
         """Advances the peek position, skipping matching indentation."""
 
         # (note that we can't use eat/peek here because they use _advance)
-        def _get(type: Optional[TokenType] = None) -> Optional[Token]:
+        def _get(type: Optional[TT] = None) -> Optional[Token]:
             if self.current_pos >= len(self._tokens):
                 return None
             token = self._tokens[self.current_pos]
@@ -201,7 +226,7 @@ class TokenParser:
         # get next indent level
         self._peek_indent_level = 0
         for token in self._tokens[self.current_pos :]:
-            if token.type != TokenType.INDENT:
+            if token.type != TT.INDENT:
                 break
             self._peek_indent_level += 1
 
@@ -222,78 +247,78 @@ class TokenParser:
     def eat(self) -> Token:
         """Eats the next token."""
         if self.peek() is None:
-            raise ParseError("expected token after", self.previous)
+            raise ParseError(PE.MISSING_TOKEN, self.previous)
         peek_token = self.peek()
         self._advance()
         return peek_token
 
-    def peek_type(self, type: TokenType) -> Optional[Token]:
+    def peek_type(self, type: TT) -> Optional[Token]:
         token = self.peek()
         return token if token is not None and token.type == type else None
 
-    def eat_type(self, type: TokenType) -> Token:
+    def eat_type(self, type: TT) -> Token:
         token = self.eat()
         if token.type != type:
-            raise ParseError(f"expected {type.value}", token)
+            raise ParseError(PE.UNEXPECTED_TOKEN_TYPE, token, type=type)
         return token
 
     def eat_newfile(self) -> Token:
-        return self.eat_type(TokenType.NEWFILE)
+        return self.eat_type(TT.NEWFILE)
 
     def eat_newline(self) -> Token:
-        return self.eat_type(TokenType.NEWLINE)
+        return self.eat_type(TT.NEWLINE)
 
     def eat_newline_or_eof(self) -> Optional[Token]:
-        if self.peek() is None or self.peek_type(TokenType.NEWFILE) is not None:
+        if self.peek() is None or self.peek_type(TT.NEWFILE) is not None:
             return
         return self.eat_newline()
 
     def peek_indent(self) -> Optional[Token]:
-        return self.peek_type(TokenType.INDENT)
+        return self.peek_type(TT.INDENT)
 
     def eat_indent(self) -> Token:
-        return self.eat_type(TokenType.INDENT)
+        return self.eat_type(TT.INDENT)
 
     def peek_keyword(self, keyword: str | enum.Enum) -> Optional[Token]:
-        token = self.peek_type(TokenType.KEYWORD)
+        token = self.peek_type(TT.KEYWORD)
         if token is None or token.value != keyword:
             return None
         return token
 
     def eat_keyword(self, keyword: str | enum.Enum) -> Token:
-        token = self.eat_type(TokenType.KEYWORD)
+        token = self.eat_type(TT.KEYWORD)
         if token.value != keyword:
-            raise ParseError(f"expected {TokenType.KEYWORD.value} {keyword}", token)
+            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.KEYWORD, value=keyword)
         return token
 
     def peek_keyword_like(self, keyword_cls: typing.Type[enum.Enum]) -> Optional[Token]:
-        token = self.peek_type(TokenType.KEYWORD)
+        token = self.peek_type(TT.KEYWORD)
         if token is None or not isinstance(token.value, keyword_cls):
             return None
         return token
 
     def eat_keyword_like(self, keyword_cls: typing.Type[enum.Enum]) -> Token:
-        token = self.eat_type(TokenType.KEYWORD)
+        token = self.eat_type(TT.KEYWORD)
         if not isinstance(token.value, keyword_cls):
-            raise ParseError(f"expected {TokenType.KEYWORD.value} {keyword_cls}", token)
+            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.KEYWORD, value=keyword_cls)
         return token
 
     def eat_identifier(self) -> Token:
-        return self.eat_type(TokenType.IDENTIFIER)
+        return self.eat_type(TT.IDENTIFIER)
 
     def eat_separator(self, separator: str | enum.Enum) -> Token:
         if isinstance(separator, enum.Enum):
             separator = separator.value
-        token = self.eat_type(TokenType.SEPARATOR)
+        token = self.eat_type(TT.SEPARATOR)
         if token.value != separator:
-            raise ParseError(f"expected {TokenType.SEPARATOR.value} {separator}", token)
+            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.SEPARATOR, value=separator)
         return token
 
     def eat_space(self) -> Token:
         return self.eat_separator(" ")
 
     def eat_literal(self) -> Token:
-        return self.eat_type(TokenType.LITERAL)
+        return self.eat_type(TT.LITERAL)
 
 
 def _clean_literal_indent(text: str, indent_level: int) -> str:
@@ -367,18 +392,18 @@ def preparse(
         if parser.previous is not None and parser.previous.line_number != parser.peek().line_number:
             local.indent = 0
 
-        if parser.peek().type == TokenType.NEWFILE:
+        if parser.peek().type == TT.NEWFILE:
             path = parser.eat_newfile().value
             if path not in states:  # begin new file state
                 new_file = File(module=module, path=path)
                 states[path] = FileParseState(file=new_file)
             local = states[path]
-        elif parser.peek().type == TokenType.INDENT:
+        elif parser.peek().type == TT.INDENT:
             parser.eat()
             local.indent += 1
         else:  # parse statement
             if len(local.ancestors) < local.indent:  # too much indentation
-                raise ParseError("unexpected indent level", parser.peek())
+                raise ParseError(ParseErrorType.UNEXPECTED_INDENT, parser.peek())
 
             errors: list[ParseError] = []
             parser.indent_level = local.indent  # skip indent tokens at current level
@@ -403,9 +428,7 @@ def preparse(
                 cause = likely_error or (
                     local.previous_errors[-2] if len(local.previous_errors) > 1 else None
                 )
-                error = ParseError(
-                    "unexpected statement", parser.peek(), cause=cause, context={"errors": errors}
-                )
+                error = ParseError(PE.UNEXPECTED_STATEMENT, parser.peek(), cause=cause)
                 on_error(error)
                 continue
 
@@ -416,7 +439,7 @@ def preparse(
 
 
 def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
-    token = tokens.eat_type(TokenType.COMMENT)
+    token = tokens.eat_type(TT.COMMENT)
     tokens.eat_newline_or_eof()
     return Statement(type=StatementType.COMMENT, text=token.value, **kwargs)
 
@@ -470,7 +493,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_space()
     source = tokens.eat_identifier()
     if not is_valid_import_source(source.value):
-        raise ParseError("invalid import source", source)
+        raise ParseError(PE.INVALID_IMPORT_SOURCE, source)
     tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.IMPORT,
@@ -486,7 +509,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     if tokens.peek_keyword_like(StatementModifier):
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
-            raise ParseError("expected statement modifier", modifier)
+            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=modifier)
         tokens.eat_space()
     else:
         modifier = None
@@ -510,7 +533,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         try:
             element = parse_bsl(literal.value)
         except ValueError as e:
-            raise ParseError("failed to parse schema element", literal) from e
+            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
         content = Schema(description="", element=element, definition=definition)
     elif symbol_type.value == SymbolType.TASK:
         content = Task(description=literal.value, definition=definition)
@@ -519,16 +542,16 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     elif symbol_type.value == SymbolType.CODE:
         lang = literal.value_extras.get("lang")
         if lang is None:
-            raise ParseError("expected language", literal)
+            raise ParseError(PE.MISSING_EXTRA, literal, extra="lang")
         if lang != "python":
-            raise ParseError("unsupported code language", literal)
+            raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         content = Code(language=lang, builtin_id=None, code=code_text, definition=definition)
     elif symbol_type.value == SymbolType.DATASET:
         lang = literal.value_extras.get("lang")
         try:
             if lang is None:
-                raise ParseError("expected language", literal)
+                raise ParseError(PE.MISSING_EXTRA, literal, extra="lang")
             elif lang == "jsonl":
                 records = []
                 for value_line in literal.value.strip().splitlines():
@@ -536,18 +559,18 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             elif lang == "json":
                 records = json.loads(literal.value)
             else:
-                raise ParseError("unsupported dataset language", literal)
+                raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
             content = Dataset(records=RecordList(records), definition=definition)
         except json.JSONDecodeError as e:
-            raise ParseError(f"failed to parse records: {e}", literal)
+            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.VALUE:
         try:  # parse as json
             value = json.loads(literal.value)
             content = Value(value=value, definition=definition)
         except json.JSONDecodeError as e:
-            raise ParseError(f"failed to parse json: {e}", literal)
+            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
     else:
-        raise ParseError(f"unexpected symbol type {symbol_type.value}", symbol_type)
+        raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
     definition.content = content
     return definition
 
@@ -557,7 +580,9 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     if tokens.peek_keyword_like(StatementModifier):
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
-            raise ParseError("expected statement modifier", modifier)
+            raise ParseError(
+                PE.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=StatementModifier
+            )
         tokens.eat_space()
     else:
         modifier = None
@@ -634,35 +659,62 @@ def _parse_statement(
     return None
 
 
+class SemanticErrorType(enum.Enum):
+    UNKNOWN_IMPORT_SOURCE = enum.auto(), "unspecified import module source {source}"
+    UNDEFINED_LOCAL_REFERENCE = enum.auto(), "undefined reference {path}"
+    UNDEFINED_EXTERNAL_REFERENCE = (
+        enum.auto(),
+        "undefined external reference {path} in module {module}",
+    )
+    EXTERNAL_LOOKUP_FAILED = (
+        enum.auto(),
+        "failed to lookup reference {path} in module {module}: {error}",
+    )
+    REFERENCE_TYPE_MISMATCH = enum.auto(), "reference {resolved} is not of type {resolved}"
+    AMBIGUOUS_DEFINITION = enum.auto(), "multiple definitions for {path}"
+    AMBIGUOUS_REQUIREMENT = enum.auto(), "multiple requirements for {name}"
+
+    def __new__(cls, value, description):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.description = description
+        return obj
+
+
+SE = SemanticErrorType
+
+
 class SemanticError(ValueError):
     def __init__(
         self,
-        message: str,
+        _t: SemanticErrorType,
         statement: Optional[Statement],
         cause: Optional[Exception] = None,
-        related_statements: dict[str, Statement] | None = None,
+        **error_args,
     ):
-        super().__init__(self._format_message(message, statement, cause, related_statements))
+        super().__init__(self._format_message(_t, error_args, statement, cause))
+        self.type = _t
         self.statement = statement
-        self.related_statements = related_statements
+        self.related_statements = {k: v for k, v in error_args.items() if isinstance(v, Statement)}
         self.cause = cause
 
     def _format_message(
         self,
-        message: str,
+        error_type: SemanticErrorType,
+        error_args: dict,
         statement: Statement,
         cause: Exception | None,
-        related_statements: dict[str, Statement] | None,
     ) -> str:
-        related_statements = related_statements or {}
-        related_context = "".join(
-            f"\nrelated {k}: {SemanticError.statement_context(v)}"
-            for k, v in related_statements.items()
-        )
+        # convert error args as needed
+        # StatementPath with statement_path_as_str
+        error_args = {
+            k: statement_path_as_str(v) if isinstance(v, StatementPath) else v
+            for k, v in error_args.items()
+        }
+        # noinspection StrFormat
+        message = error_type.description.format(**error_args)
         cause_context = f"\ncause: {cause.__class__.__name__} {cause}" if cause is not None else ""
-        return (
-            message + SemanticError.statement_context(statement) + related_context + cause_context
-        )
+        return message + SemanticError.statement_context(statement) + cause_context
 
     @staticmethod
     def statement_context(statement: Optional[Statement]) -> str:
@@ -706,9 +758,9 @@ def resolve(
     """Resolve references across files within a module."""
 
     def _error(
-        message: str, statement: Statement, cause: Exception | None = None, **related_statements
+        _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
     ):
-        on_error(SemanticError(message, statement, cause, related_statements))
+        on_error(SemanticError(_t, statement, cause, **error_args))
 
     idx = index_module(module, on_error=on_error)
 
@@ -724,8 +776,12 @@ def resolve(
                 f".{statement.file.path_without_extension}", statement.name
             )
 
-        if normalized_path.path.startswith("."):  # resolve in local module
+        is_module_local = normalized_path.path.startswith(".")
+        if is_module_local:  # resolve in local module
             resolved = idx.statements_by_path.get(normalized_path)
+            if resolved is None:
+                _error(SE.UNDEFINED_LOCAL_REFERENCE, statement, path=normalized_path)
+                continue
         else:  # resolve in external module
             # get source requirement
             source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path.path)
@@ -734,7 +790,7 @@ def resolve(
             requirement_name = f"{source.group('owner')}.{source.group('name')}"
             requirement = idx.requirements_by_name.get(requirement_name)
             if requirement is None:
-                _error(f"unknown import source {requirement_name}", statement)
+                _error(SE.UNKNOWN_IMPORT_SOURCE, statement, source=requirement_name)
                 continue
             # localize path to requirement module
             localized_path = StatementPath("." + source.group("path"), normalized_path.name)
@@ -742,17 +798,29 @@ def resolve(
             try:
                 resolved = lookup_module(requirement, localized_path)
             except Exception as e:
-                _error(f"failed to resolve {statement_path_as_str(normalized_path)}", statement, e)
+                _error(
+                    SE.EXTERNAL_LOOKUP_FAILED,
+                    statement,
+                    error=e,
+                    path=localized_path,
+                    module=requirement,
+                )
                 continue
-
-        if resolved is None:
-            _error(f"reference is undefined: {statement_path_as_str(normalized_path)}", statement)
-            continue
+            if resolved is None:
+                _error(
+                    SE.UNDEFINED_EXTERNAL_REFERENCE,
+                    statement,
+                    path=localized_path,
+                    module=requirement.name,
+                )
+                continue
 
         statement.reference = resolved
         # check if the reference has the correct type
         if resolved.symbol_type != statement.symbol_type:
-            _error(f"reference has other symbol type: {resolved}", statement)
+            _error(
+                SE.REFERENCE_TYPE_MISMATCH, statement, type=statement.symbol_type, resolved=resolved
+            )
 
     return idx
 
@@ -765,9 +833,9 @@ def index_module(
         on_error = raise_error
 
     def _error(
-        message: str, statement: Statement, related_statements: dict[str, Statement] | None = None
+        _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
     ):
-        on_error(SemanticError(message, statement, related_statements))
+        on_error(SemanticError(_t, statement, cause, **error_args))
 
     idx = IndexedModule(module=module)
 
@@ -780,7 +848,7 @@ def index_module(
             if statement.referable:
                 statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
                 if statement_path in idx.statements_by_path:
-                    _error(f"multiple definitions for {statement_path}", statement)
+                    _error(SE.AMBIGUOUS_DEFINITION, statement, path=statement_path)
                     continue
                 idx.statements_by_path[statement_path] = statement
     # sort statements by parent by index (for deterministic resolution)
@@ -792,7 +860,7 @@ def index_module(
         if statement.type == StatementType.REQUIREMENT:
             requirement_name = statement.name
             if requirement_name in idx.requirements_by_name:
-                _error(f"multiple requirements for {requirement_name}", statement)
+                _error(SE.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
                 continue
             idx.requirements_by_name[requirement_name] = statement.requirement
 
