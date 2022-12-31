@@ -12,7 +12,7 @@ import pytz
 import structlog
 
 from bench.backend.provider import Completion, ModelHandle
-from bench.backend.types import CodeInstance, ModelInstance
+from bench.backend.type import CodeInstance, ModelInstance
 from bench.language import Statement, SymbolType
 from bench.language.schema import SchemaElement, get_value_type
 from bench.utils.record import RecordBatch

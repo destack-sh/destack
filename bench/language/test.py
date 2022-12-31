@@ -27,12 +27,13 @@ def _raise_if(test: Callable):
     return functools.partial(_raise_if_error, test=test)
 
 
+def _raise_if_not_external():
+    return _raise_if(lambda e: e.type != SemanticErrorType.EXTERNAL_LOOKUP_FAILED)
+
+
 @pytest.mark.parametrize("path", demo_paths)
 def test_round_trip_demo_files(path: str):
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    module = parse(
-        lex(source_file),
-        on_error=_raise_if(lambda e: e.type != SemanticErrorType.EXTERNAL_LOOKUP_FAILED),
-    )
+    module = parse(lex(source_file), on_error=_raise_if_not_external())
     reconstructed = render(module.files)
     assert reconstructed == source_file.content

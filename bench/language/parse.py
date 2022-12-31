@@ -13,7 +13,7 @@ import structlog
 
 from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
 from bench.language.schema import parse_bsl
-from bench.language.types import (
+from bench.language.type import (
     Code,
     Dataset,
     Expectation,
@@ -378,6 +378,10 @@ def preparse(
     tokens: list[Token], module: Module, on_error: Callable[[ParseError], None]
 ) -> list[File]:
     """Map tokens into files and statements with unresolved references."""
+
+    if len(tokens) == 0:
+        # empty stream
+        return []
 
     parser = TokenParser(tokens, start_pos=0, indent_level=0)
     states: dict[str, FileParseState] = OrderedDict()  # remember original file order
@@ -757,72 +761,77 @@ def resolve(
 ) -> IndexedModule:
     """Resolve references across files within a module."""
 
+    idx = index_module(module, on_error=on_error)
+
+    # resolve references
+    for statement in idx.statements_by_id.values():
+        resolve_statement_reference(statement, idx, lookup_module, on_error)
+
+    return idx
+
+
+def resolve_statement_reference(
+    statement: Statement,
+    idx: IndexedModule,
+    lookup_module: Callable[[Requirement, StatementPath], Statement | None],
+    on_error: Callable[[SemanticError], None],
+) -> None:
     def _error(
         _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
     ):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
-    idx = index_module(module, on_error=on_error)
+    if not isinstance(statement.reference, StatementPath):
+        return  # already resolved
 
-    # resolve references
-    for statement in idx.statements_by_id.values():
-        if not isinstance(statement.reference, StatementPath):
-            continue  # already resolved
+    # normalize path to resolve file-local references (with .)
+    normalized_path = statement.reference
+    if statement.reference.path == ".":  # current file
+        normalized_path = StatementPath(
+            f".{statement.file.path_without_extension}", statement.reference.name
+        )
 
-        # normalize path to resolve file-local references (with .)
-        normalized_path = statement.reference
-        if statement.reference.path == ".":  # current file
-            normalized_path = StatementPath(
-                f".{statement.file.path_without_extension}", statement.name
-            )
-
-        is_module_local = normalized_path.path.startswith(".")
-        if is_module_local:  # resolve in local module
-            resolved = idx.statements_by_path.get(normalized_path)
-            if resolved is None:
-                _error(SE.UNDEFINED_LOCAL_REFERENCE, statement, path=normalized_path)
-                continue
-        else:  # resolve in external module
-            # get source requirement
-            source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path.path)
-            if source is None:  # (should be caught in parse)
-                raise RuntimeError(f"invalid source at {statement}")
-            requirement_name = f"{source.group('owner')}.{source.group('name')}"
-            requirement = idx.requirements_by_name.get(requirement_name)
-            if requirement is None:
-                _error(SE.UNKNOWN_IMPORT_SOURCE, statement, source=requirement_name)
-                continue
-            # localize path to requirement module
-            localized_path = StatementPath("." + source.group("path"), normalized_path.name)
-            # use module lookup to resolve
-            try:
-                resolved = lookup_module(requirement, localized_path)
-            except Exception as e:
-                _error(
-                    SE.EXTERNAL_LOOKUP_FAILED,
-                    statement,
-                    error=e,
-                    path=localized_path,
-                    module=requirement,
-                )
-                continue
-            if resolved is None:
-                _error(
-                    SE.UNDEFINED_EXTERNAL_REFERENCE,
-                    statement,
-                    path=localized_path,
-                    module=requirement.name,
-                )
-                continue
-
-        statement.reference = resolved
-        # check if the reference has the correct type
-        if resolved.symbol_type != statement.symbol_type:
+    if normalized_path.path.startswith("."):  # resolve in local module
+        resolved = idx.statements_by_path.get(normalized_path)
+        if resolved is None:
+            _error(SE.UNDEFINED_LOCAL_REFERENCE, statement, path=normalized_path)
+            return
+    else:  # resolve in external module
+        # get source requirement
+        source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path.path)
+        if source is None:  # (should be caught in parse)
+            raise RuntimeError(f"invalid source at {statement}")
+        requirement_name = f"{source.group('owner')}.{source.group('name')}"
+        requirement = idx.requirements_by_name.get(requirement_name)
+        if requirement is None:
+            _error(SE.UNKNOWN_IMPORT_SOURCE, statement, source=requirement_name)
+            return
+        # localize path to requirement module
+        localized_path = StatementPath("." + source.group("path"), normalized_path.name)
+        try:  # use module lookup to resolve
+            resolved = lookup_module(requirement, localized_path)
+        except Exception as e:
             _error(
-                SE.REFERENCE_TYPE_MISMATCH, statement, type=statement.symbol_type, resolved=resolved
+                SE.EXTERNAL_LOOKUP_FAILED,
+                statement,
+                error=e,
+                path=localized_path,
+                module=requirement,
             )
+            return
+        if resolved is None:
+            _error(
+                SE.UNDEFINED_EXTERNAL_REFERENCE,
+                statement,
+                path=localized_path,
+                module=requirement.name,
+            )
+            return
 
-    return idx
+    statement.reference = resolved
+    # check if the reference has the correct type
+    if resolved.symbol_type != statement.symbol_type:
+        _error(SE.REFERENCE_TYPE_MISMATCH, statement, type=statement.symbol_type, resolved=resolved)
 
 
 def index_module(

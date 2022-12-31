@@ -12,6 +12,7 @@ from bench.utils.record import RecordBatch
 
 LiteralValue = Union[dict, list, int, float, bool, str, None]
 
+
 # TODO @Cleanup: don't use Django's TextChoices inside language
 #  (it carries all the Django baggage into all language-dependent code like workers)
 #  Can probably use a custom enum.Enum subclass instead (or monkey-patch somehow)

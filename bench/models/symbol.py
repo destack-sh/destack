@@ -14,7 +14,7 @@ from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.language.types import StatementModifier, StatementType, SymbolType
+from bench.language.type import StatementModifier, StatementType, SymbolType
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
