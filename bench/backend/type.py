@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import typing
 import uuid
-from dataclasses import dataclass, field
-
-from django.db import models
+from dataclasses import dataclass
 
 from bench.backend.provider import ModelHandle
 from bench.language.schema import SchemaElement
@@ -15,15 +13,11 @@ AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., typing.Any]
 
 
-class ProviderKey(models.TextChoices):
-    OPENAI = "openai"
-    GOOSEAI = "gooseai"
-    AI21 = "ai21"
-
-
 @dataclass
 class StatementInstance:
-    instance_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    instance_id: uuid.UUID
+    children: list[StatementInstance]
+    arguments: dict[str, StatementInstance]
 
 
 @dataclass
@@ -34,7 +28,7 @@ class SymbolInstance(StatementInstance):
 
 
 @dataclass(repr=False)
-class SchemaInstance(SymbolInstance, Schema):
+class SchemaInstance(Schema, SymbolInstance):
     @property
     def py_handle(self) -> SchemaElement:
         return self.element
@@ -42,45 +36,46 @@ class SchemaInstance(SymbolInstance, Schema):
 
 @dataclass(repr=False)
 class TaskInstance(SymbolInstance, Task):
+    schema: SchemaInstance
+
+
+@dataclass(repr=False)
+class ExpectationInstance(Expectation, SymbolInstance):
     pass
 
 
 @dataclass(repr=False)
-class ExpectationInstance(SymbolInstance, Expectation):
-    pass
+class DatasetInstance(Dataset, SymbolInstance):
+    schema: SchemaInstance
 
-
-@dataclass(repr=False)
-class DatasetInstance(SymbolInstance, Dataset):
     @property
     def py_handle(self) -> RecordBatch:
         return self.records
 
 
 @dataclass(repr=False)
-class ValueInstance(SymbolInstance, Value):
+class ValueInstance(Value, SymbolInstance):
+    schema: SchemaInstance
+
     @property
     def py_handle(self):
         return self.value
 
 
 @dataclass(repr=False)
-class ModelInstance(SymbolInstance, Model):
-    handle: ModelHandle | None = None
+class ModelInstance(Model, SymbolInstance):
+    handle: ModelHandle
 
     @property
     def py_handle(self) -> ModelHandle:
-        if self.handle is None:
-            raise RuntimeError("handle is None")
         return self.handle
 
 
 @dataclass(repr=False)
-class CodeInstance(SymbolInstance, Code):
-    code_callable: SyncCodeCallable | AsyncCodeCallable | None = None
+class CodeInstance(Code, SymbolInstance):
+    schema: SchemaInstance
+    code_callable: SyncCodeCallable | AsyncCodeCallable
 
     @property
     def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:
-        if self.code_callable is None:
-            raise RuntimeError("code_callable is None")
         return self.code_callable

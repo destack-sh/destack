@@ -669,6 +669,10 @@ class SemanticErrorType(enum.Enum):
     REFERENCE_TYPE_MISMATCH = enum.auto(), "reference {resolved} is not of type {resolved}"
     AMBIGUOUS_DEFINITION = enum.auto(), "multiple definitions for {path}"
     AMBIGUOUS_REQUIREMENT = enum.auto(), "multiple requirements for {name}"
+    MISSING_SCHEMA = enum.auto(), "missing schema"
+    AMBIGUOUS_SCHEMA = enum.auto(), "multiple schemas"
+    UNEXPECTED_PARENT = enum.auto(), "unexpected parent {parent}"
+    EXPECTED_PARENT = enum.auto(), "expected a parent"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
@@ -745,13 +749,16 @@ class IndexedModule:
             path = parse_statement_path(path)
         return self.statements_by_path[path]
 
+    def children(self, statement: Statement) -> list[Statement]:
+        return self.statements_by_parent[statement.id]
+
 
 def resolve(
     module: Module,
     lookup_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> IndexedModule:
-    """Resolve references across files within a module."""
+    """Resolve unresolved references in the given module."""
 
     idx = index_module(module, on_error=on_error)
 
@@ -759,7 +766,48 @@ def resolve(
     for statement in idx.statements_by_id.values():
         resolve_statement_reference(statement, idx, lookup_module, on_error)
 
+    # check other semantic issues
+    # TODO @Cleanup: not sure where to put non-resolution semantic checking
+    #  And what about lints and such? Probably separate.. but where?
+    for statement in idx.statements_by_id.values():
+        check_statement(statement, idx, on_error)
+
     return idx
+
+
+def check_statement(
+    statement: Statement, idx: IndexedModule, on_error: Callable[[SemanticError], None]
+):
+    def _error(
+        _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
+    ):
+        on_error(SemanticError(_t, statement, cause, **error_args))
+
+    all_children = idx.statements_by_parent[statement.id]
+    parameters = filter(lambda s: s.is_parameter, all_children)
+    arguments = filter(lambda s: s.is_argument, all_children)
+    proper_children = filter(lambda s: not s.is_parameter and not s.is_argument, all_children)
+
+    # check schema'd symbol definitions have exactly one schema
+    if statement.type == StatementType.DEFINITION and statement.requires_schema:
+        schema_candidates = [c for c in proper_children if c.symbol_type == SymbolType.SCHEMA]
+        if len(schema_candidates) > 1:
+            _error(SE.AMBIGUOUS_SCHEMA, statement)
+        elif len(schema_candidates) == 0:
+            _error(SE.MISSING_SCHEMA, statement)
+
+    # check that non-symbol definitions are top-level
+    if statement.type in (
+        StatementType.REQUIREMENT,
+        StatementType.COMPILATION,
+        StatementType.RUNCONFIG,
+    ):
+        if statement.parent is not None:
+            _error(SE.UNEXPECTED_PARENT, statement, parent=statement.parent)
+
+    # check that arguments and parameters have a parent
+    if statement.is_argument or statement.is_parameter:
+        _error(SE.EXPECTED_PARENT, statement)
 
 
 def resolve_statement_reference(
@@ -792,7 +840,7 @@ def resolve_statement_reference(
         # get source requirement
         source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path.path)
         if source is None:  # (should be caught in parse)
-            raise RuntimeError(f"invalid source at {statement}")
+            raise RuntimeError(f"invalid import source at {statement}")
         requirement_name = f"{source.group('owner')}.{source.group('name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:

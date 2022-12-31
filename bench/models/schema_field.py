@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from django.db import models
 
@@ -86,15 +86,3 @@ class Schemad:
         if self.schema is None:
             raise ValueError(f"{self} doesn't have a schema")
         return self.schema
-
-    def set_schema_element(self: Any, element: SchemaElement, name: str = "schema"):
-        if self.schema is None:
-            # auto define new schema if none exists
-            from bench.models import Schema
-
-            schema = Schema(description="", element=element)
-            self.definition.file.define_symbol(
-                name=name, content=schema, parent=self.definition, index=0
-            )
-        else:
-            self.schema.element = element
