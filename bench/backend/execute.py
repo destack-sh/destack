@@ -17,17 +17,22 @@ from uuid import UUID
 
 import structlog
 from django.db import models
+from more_itertools import first
 
+from bench.api.schema import SchemaElement
 from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
 from bench.backend.tracing import Tracer
 from bench.backend.type import (
+    AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
     ModelInstance,
+    SchemaInstance,
     StatementInstance,
     SymbolInstance,
+    SyncCodeCallable,
     ValueInstance,
 )
 from bench.language.parse import IndexedModule
@@ -37,6 +42,7 @@ from bench.language.type import (
     LiteralValue,
     Model,
     ModelInferenceSettings,
+    Schema,
     Statement,
     Value,
 )
@@ -223,6 +229,9 @@ class Proxy:
         self.tracer = tracer
         self.cache = cache
 
+    def proxy_schema(self, schema: SchemaInstance) -> SchemaInstance:
+        return schema  # not proxied
+
     def proxy_dataset(self, dataset: DatasetInstance) -> DatasetInstance:
         return dataset  # not proxied
 
@@ -240,6 +249,20 @@ class Proxy:
         code_proxy = code_proxy_cls(code, self.tracer)
         return replace(code, code_callable=code_proxy)
 
+    def proxy(self, symbol: SymbolInstance) -> SymbolInstance:
+        if isinstance(symbol, SchemaInstance):
+            return self.proxy_schema(symbol)
+        elif isinstance(symbol, DatasetInstance):
+            return self.proxy_dataset(symbol)
+        elif isinstance(symbol, ValueInstance):
+            return self.proxy_value(symbol)
+        elif isinstance(symbol, ModelInstance):
+            return self.proxy_model(symbol)
+        elif isinstance(symbol, CodeInstance):
+            return self.proxy_code(symbol)
+        else:
+            raise ValueError(f"unknown symbol type: {symbol}")
+
 
 def unwrap(value: StatementInstance):
     if not isinstance(value, SymbolInstance):
@@ -251,29 +274,33 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
 
 
-def instantiate_dataset(dataset: Dataset, proxy: Proxy) -> DatasetInstance:
-    dataset = DatasetInstance(**dataset.__dict__)
-    return proxy.proxy_dataset(dataset)
+def _instantiate_schema_element(
+    schema: Schema, context: OrderedDict[str, StatementInstance]
+) -> SchemaElement:
+    context_schemas = {
+        key: value.element for key, value in context.items() if isinstance(value, SchemaInstance)
+    }
+    resolved_schema = schema.element.resolve(context_schemas)
+    if not resolved_schema.is_resolved:
+        raise ValueError(f"schema {schema} is not fully resolved")
+    return resolved_schema
 
 
-def instantiate_value(value: Value, proxy: Proxy) -> ValueInstance:
-    value = ValueInstance(**value.__dict__)
-    return proxy.proxy_value(value)
-
-
-def instantiate_model(model: Model, proxy: Proxy) -> ModelInstance:
+def _instantiate_model_handle(model):
     provider = PROVIDERS.get(ProviderKey(model.provider))
     if provider is None:
         raise ValueError(f"unknown provider {model.provider}")
     user_identifier = model.definition.id.hex
     handle = provider.access(model, model.settings, for_user=user_identifier)
-    return proxy.proxy_model(ModelInstance(**model.__dict__, handle=handle))
+    return handle
 
 
-def instantiate_code(
-    code: Code, proxy: Proxy, context: OrderedDict[str, StatementInstance]
-) -> CodeInstance:
-    instance_id = uuid.uuid4()
+def _instantiate_code_callable(
+    code: Code,
+    schema: SchemaInstance,
+    context: OrderedDict[str, StatementInstance],
+    instance_id: uuid.UUID,
+) -> SyncCodeCallable | AsyncCodeCallable:
     if code.builtin_id:
         # builtins are already defined and are just curried using the arguments
         builtin = STATIC_BUILTINS.get(code.builtin_id)
@@ -291,23 +318,22 @@ def instantiate_code(
             "__module__": code.definition.file.module,
         }
 
+        input_keys = schema.element.element("input").keys
         # create python function from code
         func_name = f"_anon_{code.definition.id.hex}_{instance_id.hex}"
         async_str = "async " if code.is_async else ""
+        func_params = ", ".join(input_keys)
         indented_code = textwrap.indent(code.code, "    ")
-        code_str = f"{async_str}def {func_name}():\n{indented_code}"
+        code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
         local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
         code_callable = _execute_code(code_str, local_globals)[func_name]
-    code_instance = CodeInstance(
-        instance_id=instance_id, **code.__dict__, code_callable=code_callable
-    )
-    return proxy.proxy_code(code_instance)
+    return code_callable
 
 
 def instantiate(
     statement: Statement, idx: IndexedModule, proxy: Proxy | None = None
 ) -> StatementInstance:
-    """Instantiate a statement and its context (recursively)."""
+    """Instantiate a statement, its context and children (recursively)."""
     context = get_context(statement, idx, used_only=True)
 
     proxy = proxy or Proxy(tracer=Tracer(), cache=ModelInferenceCacheDict())
@@ -316,21 +342,56 @@ def instantiate(
     for name, value in context.items():
         instantiated_context[name] = instantiate(statement=value, idx=idx, proxy=proxy)
 
-    if isinstance(statement.content, Code):
-        return instantiate_code(statement.content, proxy, instantiated_context)
+    # instantiate children
+    # TODO @Cleanup: deduplicate statement instances (where possible, may be actually different)
+    all_children = [
+        instantiate(statement=child, idx=idx, proxy=proxy)
+        for child in idx.statements_by_parent[statement.id]
+    ]
+    schema = first((c for c in all_children if isinstance(c, SchemaInstance)), None)
+    if statement.requires_schema and schema is None:
+        raise ValueError(f"statement {statement} requires a schema")
+
+    # instantiate statement itself
+    instance_id = uuid.uuid4()
+    if isinstance(statement.content, Schema):
+        element = _instantiate_schema_element(statement.content, instantiated_context)
+        dict_wo_element = statement.content.__dict__.copy()
+        del dict_wo_element["element"]  # we're replacing element
+        instance = SchemaInstance(instance_id=instance_id, **dict_wo_element, element=element)
+    elif isinstance(statement.content, Code):
+        code_callable = _instantiate_code_callable(
+            statement.content, schema, instantiated_context, instance_id
+        )
+        instance = CodeInstance(
+            instance_id=instance_id,
+            **statement.content.__dict__,
+            schema=schema,
+            code_callable=code_callable,
+        )
     elif isinstance(statement.content, Value):
-        return instantiate_value(statement.content, proxy)
+        instance = ValueInstance(instance_id=instance_id, **statement.content.__dict__)
     elif isinstance(statement.content, Model):
-        return instantiate_model(statement.content, proxy)
+        model_handle = _instantiate_model_handle(statement.content)
+        instance = ModelInstance(
+            instance_id=instance_id, **statement.content.__dict__, handle=model_handle
+        )
     elif isinstance(statement.content, Dataset):
-        return instantiate_dataset(statement.content, proxy)
+        instance = DatasetInstance(
+            instance_id=instance_id, **statement.content.__dict__, schema=schema
+        )
     else:
         raise ValueError(f"cannot instantiate {statement.content}")
+    return proxy.proxy(instance)
 
 
 def get_context(
     statement: Statement, idx: IndexedModule, used_only: bool
 ) -> OrderedDict[str, Statement]:
+    if not isinstance(statement.content, (Code, Schema)):
+        # only code and schema statements can use context right now (see below)
+        return OrderedDict()
+
     # gather all available statements: everything above and next to the statement
     available_statements = []
     current_parent = statement.parent
@@ -351,14 +412,17 @@ def get_context(
         return available_context
 
     # filter to used context only
-    context = OrderedDict()
+    # TODO @Cleanup: improve context visibility filters (not just string matching)
     if isinstance(statement.content, Code):
-        for var_name in available_context:
-            if var_name in statement.content.code:
-                context[var_name] = available_context[var_name]
+        used_keys = {key for key in available_context if key in statement.content.code}
+    elif isinstance(statement.content, Schema):
+        used_keys = {key for key in available_context if key in statement.content.bsl}
     else:
-        # only code gets context for now
-        pass
+        used_keys = set()
+    context = OrderedDict()
+    for key in available_context:  # preserve order
+        if key in used_keys:
+            context[key] = available_context[key]
     return context
 
 

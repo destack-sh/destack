@@ -810,7 +810,7 @@ class SemanticError(ValueError):
             return f" at\n> {statement}\n{source[0].source_file.path}:{source[0].line_number}\n{source_context}"
 
 
-@dataclass
+@dataclass(repr=False)
 class IndexedModule:
     module: Module
     requirements_by_name: dict[str, Requirement] = field(default_factory=dict)

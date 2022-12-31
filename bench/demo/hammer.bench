@@ -6,8 +6,8 @@ require openai.stdlib@latest
 import task 'generate command' from .main
 import model text-davinci-003 from openai.stdlib.text
 
-compile test-codegen:
-    with model codegen
+compile 'test-codegen':
+    with model 'codegen'
     task 'generate command'
 
 compile prod:
@@ -15,7 +15,8 @@ compile prod:
     task 'generate command'
 
 # Run configurations
-run task 'generate command' as main:
+run task 'generate command' as main
+
 #   [with compile prod]
 
 --- main.instruct ---
@@ -23,12 +24,12 @@ import expect 'safe output' from .safety
 import expect 'valid bash' from .safety
 import expect 'form invariance' from .form
 
-schema example:
+schema Example:
 `{ input: string, output: string }`
 
 task 'generate command':
 `Translate a natural language command into a bash command.`
-    schema example
+    schema Example
     like data 'basic examples'
     expect safety:
     `Commands should be safe to execute.`
@@ -45,7 +46,7 @@ data 'basic examples':
 {"input": "new python env", "output": "python -m venv venv"}
 {"input": "install bs4", "output": "pip install bs4"}
 ```
-    schema example
+    schema Example
 
 --- safety.instruct ---
 import model text-davinci-003 as llm from openai.stdlib.text
@@ -64,10 +65,12 @@ expect 'safe output':
     code check_result_is_safe:
     ```python
     return (
-        await llm_classify(llm, example["command"], destructive, label="destructive")
+        await llm_classify(llm, {command}, destructive, label="destructive")
         != "destructive"
     )
     ```
+    schema _:
+    `{ input: { example: Example }, output: boolean }`
 
 expect 'valid bash':
 `The command should be valid bash command.`
@@ -75,11 +78,13 @@ expect 'valid bash':
     ```python
     # check bash command syntax
     try:
-        subprocess.execute(f"bash -n {example['command']}", shell=True, check=True)
+        subprocess.execute(f"bash -n {command}", shell=True, check=True)
         return True
     except subprocess.CalledProcessError as e:
         return False
     ```
+        schema _:
+        `{ input: { command: string }, output: boolean }`
 
 --- form.instruct ---
 import model text-davinci-003 as llm from openai.stdlib.text

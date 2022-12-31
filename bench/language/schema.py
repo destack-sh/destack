@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import inspect
 import re
 import typing
@@ -86,7 +85,6 @@ class SchemaElement:
     def output_(self) -> SchemaElement:
         return self.element("output")
 
-    @functools.cache
     def element(self, key: str) -> SchemaElement:
         """Find a schema element by key (only works for objects)."""
         if self.type != ValueType.OBJECT:

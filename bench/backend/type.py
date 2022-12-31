@@ -5,19 +5,35 @@ import uuid
 from dataclasses import dataclass
 
 from bench.backend.provider import ModelHandle
+from bench.language.parse import IndexedModule
 from bench.language.schema import SchemaElement
-from bench.language.type import Code, Dataset, Expectation, Model, Schema, Task, Value
+from bench.language.type import (
+    Code,
+    Dataset,
+    Expectation,
+    Model,
+    Module,
+    Schema,
+    StatementPath,
+    Task,
+    Value,
+)
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., typing.Any]
 
 
+@dataclass(repr=False)
+class InstantiatedModule:
+    module: Module
+    index: IndexedModule
+    instances_by_path: dict[StatementPath, StatementInstance]
+
+
 @dataclass
 class StatementInstance:
     instance_id: uuid.UUID
-    children: list[StatementInstance]
-    arguments: dict[str, StatementInstance]
 
 
 @dataclass
@@ -55,8 +71,6 @@ class DatasetInstance(Dataset, SymbolInstance):
 
 @dataclass(repr=False)
 class ValueInstance(Value, SymbolInstance):
-    schema: SchemaInstance
-
     @property
     def py_handle(self):
         return self.value

@@ -540,29 +540,6 @@ class Statement(UUIDModel):
         self.descendants.update(commented=commented)
         self.save()
 
-    def add_parameter(
-        self,
-        name: str,
-        symbol_type: SymbolType,
-        exists_ok: bool = False,
-    ) -> Statement:
-        raise NotImplementedError
-
-    @transaction.atomic
-    def bind_argument(
-        self, name: str, value: Statement, exists_ok: bool = False
-    ) -> tuple[Statement, Statement]:
-        if value is None:
-            raise ValueError(f"cannot bind {self} argument {name} to None")
-        if isinstance(value, Statement) and value.file_id != self.file_id:
-            raise ValueError(f"cannot bind {self} argument {name} to {value} in different file")
-
-        raise NotImplementedError
-
-    def bind_arguments(self, exists_ok: bool = False, **arguments: Statement):
-        for name, value in arguments.items():
-            self.bind_argument(name, value, exists_ok)
-
     objects: StatementManager = StatementManager()
 
     class Meta:
