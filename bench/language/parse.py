@@ -72,6 +72,7 @@ class ParseErrorType(enum.Enum):
     MISSING_EXTRA = enum.auto(), "expected token value extra {extra}"
     UNEXPECTED_EXTRA = enum.auto(), "unexpected token value extra {extra}={value}"
     INVALID_TOKEN_VALUE = enum.auto(), "invalid token value {value} {error}"
+    INVALID_STATEMENT = enum.auto(), "invalid statement"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
@@ -210,15 +211,6 @@ class TokenParser:
 
     def _advance(self):
         """Advances the peek position, skipping matching indentation."""
-
-        # (note that we can't use eat/peek here because they use _advance)
-        def _get(type: Optional[TT] = None) -> Optional[Token]:
-            if self.current_pos >= len(self._tokens):
-                return None
-            token = self._tokens[self.current_pos]
-            if token.type != type:
-                return None
-            return token
 
         # advance to next token (current pos is based on peek pos)
         self._peek_pos += 1
@@ -432,7 +424,7 @@ def preparse(
                 cause = likely_error or (
                     local.previous_errors[-2] if len(local.previous_errors) > 1 else None
                 )
-                error = ParseError(PE.UNEXPECTED_STATEMENT, parser.peek(), cause=cause)
+                error = ParseError(PE.INVALID_STATEMENT, parser.peek(), cause=cause)
                 on_error(error)
                 continue
 
@@ -497,7 +489,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_space()
     source = tokens.eat_identifier()
     if not is_valid_import_source(source.value):
-        raise ParseError(PE.INVALID_IMPORT_SOURCE, source)
+        raise ParseError(PE.INVALID_TOKEN_VALUE, source, value=source.value, error="invalid")
     tokens.eat_newline_or_eof()
     return Statement(
         type=StatementType.IMPORT,

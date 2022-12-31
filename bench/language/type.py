@@ -168,6 +168,15 @@ class Statement:
         return self.reference.id if isinstance(self.reference, Statement) else None
 
     @property
+    def underlying_definition(self) -> Optional[Statement]:
+        if self.type == StatementType.DEFINITION:
+            return self
+        elif isinstance(self.reference, Statement):
+            return self.reference.underlying_definition
+        else:
+            return None
+
+    @property
     def referable(self) -> bool:
         return self.type in (
             StatementType.DEFINITION,
