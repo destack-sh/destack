@@ -1,4 +1,4 @@
---- project.bench ---
+--- project.instruct ---
 # Requirements
 require symbolx.stdlib@latest
 require openai.stdlib@latest

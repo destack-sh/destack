@@ -1,4 +1,4 @@
---- project.bench ---
+--- project.instruct ---
 # Requirements
 require openai.stdlib@latest
 
@@ -15,7 +15,8 @@ compile prod:
     task 'generate command'
 
 # Run configurations
-run task 'generate command' as main
+run main:
+    task 'generate command'
 
 #   [with compile prod]
 
