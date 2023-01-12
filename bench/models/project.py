@@ -400,10 +400,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         except File.DoesNotExist:
             raise ValueError(f"project {self} does not contain {path}.{type}")
 
-    @property
-    def project_file(self) -> File:
-        return self.files.filter(type=FileType.PROJECT, deleted_at=None).get()
-
     def available_statements(self, include_dependencies: bool = True) -> QuerySet[Statement]:
         # get own and dependencies symbols (non-recursive for now)
         if include_dependencies:
@@ -592,11 +588,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
 
 class FileType(models.TextChoices):
-    """The type of file determines what it is intended to contain."""
-
     DIRECTORY = "directory", "Directory"  # contains sub-directories and files
     INSTRUCT = "instruct", "Instructions"  # actual instructions
-    PROJECT = "bench", "Project metadata"  # meta, dependencies, etc.
 
 
 class FileManager(models.Manager):

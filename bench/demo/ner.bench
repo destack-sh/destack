@@ -1,4 +1,4 @@
---- project.bench ---
+--- project.instruct ---
 # Basic NER example
 require openai.stdlib@latest
 require symbolx.stdlib@latest

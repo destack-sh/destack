@@ -136,11 +136,10 @@ input FileSoftDeleteInput {
   id: GlobalID!
 }
 
-"""The type of file determines what it is intended to contain."""
+"""An enumeration."""
 enum FileType {
   DIRECTORY
   INSTRUCT
-  PROJECT
 }
 
 """

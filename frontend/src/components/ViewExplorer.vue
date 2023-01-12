@@ -15,7 +15,7 @@ const filesSorted = computed(() => {
     if (a.type == b.type) {
       return a.path.localeCompare(b.path);
     } else {
-      return a.type == FileType.Directory || a.type == FileType.Project ? -1 : 1;
+      return a.type == FileType.Directory ? -1 : 1;
     }
   });
 });
