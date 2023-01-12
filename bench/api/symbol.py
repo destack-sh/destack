@@ -9,7 +9,6 @@ from bench import models
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
-    from bench.api.task import Compilation
 
 StatementType = gql.enum(models.StatementType)
 SymbolType = gql.enum(models.SymbolType)
@@ -37,8 +36,6 @@ class Statement(gql.relay.Node):
     reference: Optional["Statement"]
     referenced_by: list["Statement"]
     content: Optional["SymbolContent"]
-    compilation: Optional[Annotated["Compilation", lazy(".compilation")]]
-    requirement: Optional["Requirement"]
 
 
 @gql.django.interface(models.SymbolContent)

@@ -2,35 +2,20 @@ from __future__ import annotations
 
 from django.db import models
 
-from bench.models.symbol import SymbolContent, SymbolContentManager
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDTModel
 
 
-class ModelManager(SymbolContentManager, models.Manager["Model"]):
-    pass
-
-
-class Model(SymbolContent):
+class ModelContentMixin:
     """
-    A model is a language model provided and stored elsewhere.
-
-    Baseline models are typically provided externally and may be fine-tuned within a project.
-    We will likely later provide our own compute for model tuning and inference.
+    Model content as in language.Model
+    TODO @Cleanup: Statement chouldn't contain all raw language.Model fields via ModelContentMixin,
+     as that seems like too much specific info compared to the other symbol contents. Model is weird currently.
     """
 
     external_name = models.CharField(max_length=128, null=True, blank=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True, blank=True)
     provider = models.CharField(max_length=64)
     default_settings = models.JSONField(default=dict)
-
-    def __str__(self):
-        return f"(provider={self.provider}/{self.external_name})"
-
-    objects = ModelManager()
-
-    class Meta:
-        default_manager_name = "objects"
-        base_manager_name = "objects"
 
 
 class ModelOperation(models.TextChoices):
@@ -42,7 +27,7 @@ class ModelInference(UUIDTModel):
     A single output from a model inference for debugging and caching.
     """
 
-    model = models.ForeignKey("Model", on_delete=models.CASCADE, related_name="inferences")
+    model = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="inferences")
     operation = models.CharField(max_length=64, choices=ModelOperation.choices)
     settings_hash = models.CharField(max_length=64)
     settings = models.JSONField()

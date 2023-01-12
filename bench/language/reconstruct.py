@@ -14,8 +14,11 @@ from bench.language.parse import UNGROUPED_STATEMENT_TYPES
 from bench.language.schema import render_bsl
 from bench.language.type import (
     Code,
+    Compilation,
     Dataset,
     Expectation,
+    Requirement,
+    Runconfig,
     Schema,
     StatementPath,
     SymbolContent,
@@ -79,14 +82,6 @@ def render_statement_content(statement: Statement) -> str:
         return ""
     elif statement.type == StatementType.COMMENT:
         return f"# {statement.text}"
-    elif statement.type == StatementType.REQUIREMENT:
-        return f"require {statement.requirement.name}@{statement.requirement.version}"
-    elif statement.type == StatementType.COMPILATION:
-        compilation_name = escape_identifier(statement.name)
-        return f"compile {compilation_name}:"
-    elif statement.type == StatementType.RUNCONFIG:
-        identifier_str = escape_identifier(statement.name)
-        return f"run {identifier_str}:"
     elif statement.type == StatementType.IMPORT:
         alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""
@@ -97,7 +92,8 @@ def render_statement_content(statement: Statement) -> str:
         content_str = render_symbol_content(statement.content)
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
-        return f"{modifier_str}{statement.symbol_type} {identifier_str}:\n{content_str}"
+        def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}:"
+        return f"{def_str}\n{content_str}" if content_str else def_str
     elif statement.type == StatementType.REDEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
@@ -111,7 +107,7 @@ def render_statement_content(statement: Statement) -> str:
         raise ValueError(f"unexpected statement type: {statement}")
 
 
-def render_symbol_content(content: SymbolContent) -> str:
+def render_symbol_content(content: SymbolContent) -> Optional[str]:
     if isinstance(content, Schema):
         bsl = render_bsl(content.element)
         return render_literal(bsl)
@@ -127,6 +123,8 @@ def render_symbol_content(content: SymbolContent) -> str:
     elif isinstance(content, Value):
         value_as_json = json.dumps(content.value)
         return render_literal(value_as_json)
+    elif isinstance(content, (Compilation, Runconfig, Requirement)):
+        return None
     else:
         raise ValueError(f"unexpected symbol content type: {content}")
 

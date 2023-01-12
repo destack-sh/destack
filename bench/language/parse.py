@@ -21,7 +21,7 @@ from bench.language.type import (
     File,
     Module,
     Requirement,
-    RunConfiguration,
+    Runconfig,
     Schema,
     Statement,
     StatementModifier,
@@ -40,8 +40,8 @@ logger = structlog.get_logger(__name__)
 UNGROUPED_STATEMENT_TYPES = (
     StatementType.DEFINITION,
     StatementType.REDEFINITION,
-    StatementType.COMPILATION,
-    StatementType.RUNCONFIG,
+    SymbolType.COMPILATION,
+    SymbolType.RUNCONFIG,
 )
 
 
@@ -452,14 +452,14 @@ def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
 
 def _parse_requirement(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a requirement statement."""
-    tokens.eat_keyword(StatementType.REQUIREMENT)
+    tokens.eat_keyword(SymbolType.REQUIREMENT)
     tokens.eat_space()
     dependency = tokens.eat_identifier()
     tokens.eat_separator("@")
     version = tokens.eat_identifier()
     tokens.eat_newline_or_eof()
     return Statement(
-        type=StatementType.REQUIREMENT,
+        type=SymbolType.REQUIREMENT,
         name=dependency.value,
         requirement=Requirement(name=dependency.value, version=version.value),
         **kwargs,
@@ -635,9 +635,7 @@ def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:
 
 def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token | None]:
     # references can be either to symbol types or compile and run statements
-    if tokens.peek_keyword(StatementType.COMPILATION) or tokens.peek_keyword(
-        StatementType.RUNCONFIG
-    ):
+    if tokens.peek_keyword(SymbolType.COMPILATION) or tokens.peek_keyword(SymbolType.RUNCONFIG):
         tokens.eat()
         symbol_type = None
     else:
@@ -648,25 +646,23 @@ def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token | None]:
 
 
 def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
-    tokens.eat_keyword(StatementType.COMPILATION)
+    tokens.eat_keyword(SymbolType.COMPILATION)
     tokens.eat_space()
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     tokens.eat_newline_or_eof()
     return Statement(
-        type=StatementType.COMPILATION, name=name.value, compilation=Compilation(), **kwargs
+        type=SymbolType.COMPILATION, name=name.value, compilation=Compilation(), **kwargs
     )
 
 
 def _parse_runconfig(tokens: TokenParser, **kwargs) -> Statement:
-    tokens.eat_keyword(StatementType.RUNCONFIG)
+    tokens.eat_keyword(SymbolType.RUNCONFIG)
     tokens.eat_space()
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     tokens.eat_newline_or_eof()
-    return Statement(
-        type=StatementType.RUNCONFIG, name=name.value, runconfig=RunConfiguration(), **kwargs
-    )
+    return Statement(type=SymbolType.RUNCONFIG, name=name.value, runconfig=Runconfig(), **kwargs)
 
 
 def _parse_blank(tokens: TokenParser, **kwargs) -> Statement:

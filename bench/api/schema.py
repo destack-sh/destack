@@ -15,7 +15,7 @@ ValueType = gql.enum(schema.ValueType)
 class SchemaElement:
     name: Optional[str]
     type: ValueType
-    required: bool
+    required: bool = True
     schema_id: Optional[str] = None
     elements: Optional[list["SchemaElement"]] = None
 

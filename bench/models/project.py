@@ -2,24 +2,18 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
+from itertools import groupby
 from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypedDict, TypeVar
 from uuid import UUID
 
 import pytz
+from django import db
 from django.core.validators import validate_slug
 from django.db import models, transaction
-from django.db.models import Q, QuerySet
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models import Compilation
-from bench.models.symbol import (
-    Requirement,
-    RunConfiguration,
-    Statement,
-    StatementType,
-    SymbolContent,
-)
+from bench.models.symbol import Statement, StatementType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -180,14 +174,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             slug=version,
         )
 
-    def copy(
-        self, source: ProjectVersion, target: ProjectVersion
-    ) -> dict[
-        UUID, File | Statement | SymbolContent | Compilation | Requirement | RunConfiguration
-    ]:
+    def copy(self, source: ProjectVersion, target: ProjectVersion) -> dict[UUID, File | Statement]:
+        from bench.models.mapper import wmap_symbol  # avoid circular import
+
         # TODO @Performance: copy project version on commit server-side (in SQL)
-        #  This is awfully sequential and slow, particularly deepcopy of symbol contents.
-        #  For one, we can likely just bulk save if we defer parent/child relations to a second pass.
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
@@ -200,82 +190,36 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             new_files[old_id] = file
         # 2. copy statements and their contents
         new_statements: dict[UUID, Statement] = {}
-        new_contents: dict[UUID, SymbolContent] = {}
-        new_compilations: dict[UUID, Compilation] = {}
-        new_requirements: dict[UUID, Requirement] = {}
-        new_runconfigs: dict[UUID, RunConfiguration] = {}
+        new_contents: list[db.models.Model] = []
         for statement in walk_children_bfs(
             source.statements.filter(deleted_at=None, parent=None), "children"
         ):
             old_content = statement.content if statement.type == StatementType.DEFINITION else None
-            old_compilation = (
-                statement.compilation if statement.type == StatementType.COMPILATION else None
-            )
-            old_requirement = (
-                statement.requirement if statement.type == StatementType.REQUIREMENT else None
-            )
-            old_runconfig = (
-                statement.runconfig if statement.type == StatementType.RUNCONFIG else None
-            )
             # copy statement
             old_id = statement.id
             statement.pk = None
             statement.revision = 0  # reset revision
             statement.file = new_files[statement.file_id]
             statement.project_version = target
-            statement.set_content(None)
-            statement.compilation = None
-            statement.requirement = None
             statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
             new_statements[old_id] = statement
-            # if statement is a definition, copy symbol content
-            if old_content is not None:
-                old_id = old_content.id
-                content = old_content
-                content.pk = None
-                content.save()
-                statement.set_content(content)
-                new_contents[old_id] = content
-            # if statement is a compilation, copy compilation
-            if old_compilation is not None:
-                old_id = old_compilation.id
-                compilation = old_compilation
-                compilation.pk = None
-                compilation.save()
-                statement.compilation = compilation
-                new_compilations[old_id] = compilation
-            # if statement is a requirement, copy requirement
-            if old_requirement is not None:
-                old_id = old_requirement.id
-                requirement = old_requirement
-                requirement.pk = None
-                requirement.save()
-                statement.requirement = requirement
-                new_requirements[old_id] = requirement
-            # if statement is a runconfig, copy runconfig
-            if old_runconfig is not None:
-                old_id = old_runconfig.id
-                runconfig = old_runconfig
-                runconfig.pk = None
-                runconfig.save()
-                statement.runconfig = runconfig
-                new_runconfigs[old_id] = runconfig
+            # if statement is a definition, add relations to save in batch later
+            new_content_relations = wmap_symbol(statement, old_content)
+            new_contents.extend(new_content_relations)
             statement.save()
-        refs = {
-            **new_contents,
-            **new_requirements,
-            **new_compilations,
-            **new_statements,
-            **new_files,
-        }
-        # 3 re-assign references and deep copy other relations
-        for old_statement in source.statements.filter(deleted_at=None):
-            new_statement = new_statements[old_statement.id]
-            old_statement.deepcopy(new_statement, refs)
-            new_statement.save()
+        # 3. re-assign references
+        for old in source.statements.filter(deleted_at=None):
+            new = new_statements[old.id]
+            # replace ref (default to same ref if not in refs since library refs are not copied)
+            new.parent = new_statements[old.parent_id]
+            new.reference = new_statements.get(old.reference_id, old.reference)
+        Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
+        # 4. save content relations
+        for relation_cls, relations in groupby(new_contents, key=type):
+            relation_cls.objects.bulk_create(relations)
 
-        return refs
+        return {**new_statements, **new_files}
 
 
 class ProjectVersion(TaggableMixin, UUIDModel):
@@ -294,7 +238,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
     parents_refs = models.JSONField(default=dict)
-    dependencies = models.ManyToManyField("Project", related_name="dependents", blank=True)
     files: models.QuerySet["File"]  # noqa via File
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol
     statements: models.QuerySet["Statement"]  # noqa via Statement
@@ -325,20 +268,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
     @property
     def organization(self):
         return self.project.organization
-
-    def dependency(self, organization_slug: str, project_slug: str) -> ProjectVersion:
-        return self.dependencies.filter(
-            project__organization__slug=organization_slug, project__slug=project_slug
-        ).get()
-
-    @transaction.atomic
-    def derive_dependencies(self) -> None:
-        """Re-derives dependencies from all dependency statements"""
-        self.dependencies.clear()
-
-        # only use one dependency statement per project, error if there are multiple
-        for statement in self.statements.filter(type=StatementType.REQUIREMENT):
-            self.dependencies.add(statement.requirement.project_version.project)
 
     @transaction.atomic
     def create_file(
@@ -392,130 +321,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             )
         except File.DoesNotExist:
             raise ValueError(f"project {self} does not contain {path}.{type}")
-
-    def available_statements(self, include_dependencies: bool = True) -> QuerySet[Statement]:
-        # get own and dependencies symbols (non-recursive for now)
-        if include_dependencies:
-            return Statement.objects.filter(
-                Q(project_version_id__in=(self.id, *self.dependencies.values_list("id", flat=True)))
-            )
-        else:
-            return self.statements.all()
-
-    def add_comment(self, text: str, file: File, index: Optional[int] = None) -> Statement:
-        return Statement.objects.create_statement(
-            project_version=self,
-            file=file,
-            parent=None,
-            index=index,
-            type=StatementType.COMMENT,
-            text=text,
-            name=None,
-        )
-
-    def add_blank(self, file: File, index: Optional[int] = None) -> Statement:
-        return Statement.objects.create_statement(
-            project_version=self,
-            file=file,
-            parent=None,
-            index=index,
-            type=StatementType.BLANK,
-            name=None,
-        )
-
-    @transaction.atomic
-    def add_requirement(
-        self, dependency_v: ProjectVersion, file: File, index: Optional[int] = None
-    ) -> Statement:
-        requirement = Requirement.objects.create(project_version=dependency_v)
-        statement = Statement.objects.create_statement(
-            project_version=self,
-            file=file,
-            parent=None,
-            index=index,
-            type=StatementType.REQUIREMENT,
-            requirement=requirement,
-            name=dependency_v.project.name,
-        )
-        self.derive_dependencies()
-        return statement
-
-    def define_symbol(
-        self,
-        name: str,
-        content: SymbolContent,
-        file: File,
-        parent: Optional[Statement] = None,
-        index: Optional[int] = None,
-    ) -> Statement:
-        """Define a symbol in this project version in the given file."""
-        definition = Statement.objects.create_definition(
-            content=content,
-            project_version=self,
-            name=name,
-            file=file,
-            parent=parent,
-            index=index,
-        )
-        return definition
-
-    def import_statement(
-        self,
-        statement: Statement,
-        alias: Optional[str],
-        file: File,
-        parent: Optional[Statement] = None,
-        index: Optional[int] = None,
-    ) -> Statement:
-        """Imports a statement from another file."""
-        if statement.file == file:
-            raise ValueError(f"cannot import {statement} in same file {file}")
-        if statement.type == StatementType.IMPORT:
-            raise ValueError(f"cannot import an import statement {statement}")
-        if (
-            statement.file.project_version != self
-            and statement.file.project_version not in self.dependencies.all()
-        ):
-            raise ValueError(
-                f"cannot import {statement} from {statement.file.project_version} (not a dependency)"
-            )
-
-        import_statement = Statement.objects.create_import(
-            statement=statement,
-            project_version=self,
-            file=file,
-            name=alias or statement.name,
-            parent=parent,
-            index=index or 0,  # imports are always at the top by default
-        )
-        return import_statement
-
-    def get_import_of(self, file: File, statement: Statement) -> Optional[Statement]:
-        return self.statements.filter(
-            file=file, type=StatementType.IMPORT, reference=statement
-        ).first()
-
-    def reference_statement(
-        self,
-        statement: Statement,
-        alias: Optional[str],
-        file: File,
-        parent: Optional[Statement] = None,
-        index: Optional[int] = None,
-    ) -> Statement:
-        """References a statement from another file."""
-        if statement.file != file:
-            raise ValueError(f"cannot reference statement {statement} from {file}")
-
-        reference_statement = Statement.objects.create_reference(
-            statement=statement,
-            project_version=self,
-            file=file,
-            name=alias or statement.name,
-            parent=parent,
-            index=index,
-        )
-        return reference_statement
 
     objects = ProjectVersionManager()
 
