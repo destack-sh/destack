@@ -5,7 +5,7 @@ from bench.language.parse import index_module, parse_string
 def test_execute_single_code():
     module = parse_string(
         """
---- test.bench ---
+--- test.instruct ---
 code function:
 ```python
 return 5
@@ -22,7 +22,7 @@ return 5
 def test_execute_single_code_with_context():
     module = parse_string(
         """
---- test.bench ---
+--- test.instruct ---
 value val:
 `5`
 
@@ -45,7 +45,7 @@ return val * context['unwieldy name']
 def test_execute_single_code_with_schema():
     module = parse_string(
         """
---- test.bench ---
+--- test.instruct ---
 code function:
 ```python
 return 5 * val

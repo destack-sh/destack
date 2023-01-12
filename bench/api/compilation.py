@@ -8,7 +8,6 @@ from strawberry_django_plus.relay import GlobalID
 
 import bench.models.compilation
 from bench import models
-from bench.backend.compile import get_stdlib_model
 
 if TYPE_CHECKING:
     from bench.api.symbol import Statement

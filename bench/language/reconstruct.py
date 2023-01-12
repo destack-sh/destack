@@ -85,10 +85,8 @@ def render_statement_content(statement: Statement) -> str:
         compilation_name = escape_identifier(statement.name)
         return f"compile {compilation_name}:"
     elif statement.type == StatementType.RUNCONFIG:
-        reference_name = escape_identifier(get_reference_name(statement.reference))
         identifier_str = escape_identifier(statement.name)
-        custom_def_str = ":" if statement.runconfig.has_custom_config else ""
-        return f"run {statement.symbol_type} {reference_name} as {identifier_str}{custom_def_str}"
+        return f"run {identifier_str}:"
     elif statement.type == StatementType.IMPORT:
         alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""

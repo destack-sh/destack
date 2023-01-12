@@ -12,7 +12,7 @@ from bench.language.lex import SourceFile, lex
 from bench.language.parse import ParseError, SemanticError, SemanticErrorType
 from bench.language.reconstruct import render
 
-# all .bench files in bench/demo
+# all .instruct files in bench/demo
 demo_paths = glob.glob("../demo/*.bench")
 if len(demo_paths) == 0:
     raise RuntimeError(f"no demo files found at bench/demo (cwd={Path.cwd()})")

@@ -1,22 +1,5 @@
---- project.instruct ---
-# Basic NER example
-require openai.stdlib@latest
-require symbolx.stdlib@latest
-
-# Compilations
-import task 'extract entities' from .main
-import model text-davinci-003 from openai.stdlib.text
-
-compile prod:
-    with model text-davinci-003
-    task 'extract entities'
-
-# Run configurations
-# run task 'extract entities' as extract-prod:
-#     with compile target = compile prod
-# (this doesn't work right now because compilations cannot be redefinitions)
-
 --- main.instruct ---
+# Describe what to do
 schema entity:
 `{ name: string, type: string }`
 
@@ -24,3 +7,15 @@ task 'extract entities':
 `Extract the entities from the text`
     schema ner:
     `{ input: string, output: [entity] }`
+
+# Build
+require openai.stdlib@latest
+import model text-davinci-003 from openai.stdlib.text
+
+compile prod:
+    with model text-davinci-003
+    task 'extract entities'
+
+run ner-prod:
+    with compile target = compile prod
+    task 'extract entities'

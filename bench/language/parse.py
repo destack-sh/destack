@@ -661,27 +661,11 @@ def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
 def _parse_runconfig(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_keyword(StatementType.RUNCONFIG)
     tokens.eat_space()
-    symbol_type = tokens.eat_keyword_like(SymbolType)
-    tokens.eat_space()
-    reference = tokens.eat_identifier()
-    tokens.eat_space()
-    tokens.eat_keyword("as")
-    tokens.eat_space()
     name = tokens.eat_identifier()
-    if tokens.peek_separator(":"):
-        # has local config
-        tokens.eat_separator(":")
-        has_custom_config = True
-    else:
-        has_custom_config = False
+    tokens.eat_separator(":")
     tokens.eat_newline_or_eof()
     return Statement(
-        type=StatementType.RUNCONFIG,
-        name=name.value,
-        symbol_type=symbol_type.value,
-        reference=StatementPath(".", reference.value),
-        runconfig=RunConfiguration(has_custom_config=has_custom_config),
-        **kwargs,
+        type=StatementType.RUNCONFIG, name=name.value, runconfig=RunConfiguration(), **kwargs
     )
 
 
@@ -889,14 +873,10 @@ def check_statement(
         if len(model_parameters) == 0:
             _error(SE.EXPECTED_PARAMETERS, statement, type=SymbolType.MODEL)
 
-    # check that runconfig with custom config has arguments (and vice versa)
+    # check that runconfig has arguments
     if statement.type == ST.RUNCONFIG:
-        if statement.runconfig.has_custom_config:
-            if len(arguments) == 0:
-                _error(SE.EXPECTED_ARGUMENTS, statement, type="any")
-        else:
-            if len(all_children) > 0:
-                _error(SE.UNEXPECTED_CHILDREN, statement)
+        if len(proper_children) == 0:
+            _error(SE.EXPECTED_PROPER_CHILDREN, statement, type="any")
 
 
 def resolve_statement_reference(

@@ -624,7 +624,6 @@ class Requirement(UUIDModel):
 class RunConfiguration(UUIDModel):
     """Configuration to run executable statements."""
 
-    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     definition: Statement  # noqa via Statement.run
 
     def deepcopy(self, to, refs: dict[str, Any]):

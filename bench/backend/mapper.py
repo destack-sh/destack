@@ -299,8 +299,8 @@ def rmap_compilation(compilation: models.Compilation) -> language.Compilation:
 
 def wmap_runconfig(
     runconfig: language.RunConfiguration,
-) -> tuple[models.RunConfiguration, list[typing.Any]]:
-    return models.RunConfiguration(), []
+) -> models.RunConfiguration:
+    return models.RunConfiguration()
 
 
 def rmap_runconfig(runconfig: models.RunConfiguration) -> language.RunConfiguration:

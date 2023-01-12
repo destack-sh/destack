@@ -350,7 +350,7 @@ class Requirement:
 
 @dataclass(repr=False)
 class RunConfiguration:
-    has_custom_config: bool
+    pass
 
 
 @dataclass(repr=False)

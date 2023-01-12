@@ -19,7 +19,6 @@ from bench.models.symbol import (
     Statement,
     StatementType,
     SymbolContent,
-    SymbolType,
 )
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
@@ -295,7 +294,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
     parents_refs = models.JSONField(default=dict)
-    dependencies = models.ManyToManyField("ProjectVersion", related_name="dependents", blank=True)
+    dependencies = models.ManyToManyField("Project", related_name="dependents", blank=True)
     files: models.QuerySet["File"]  # noqa via File
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol
     statements: models.QuerySet["Statement"]  # noqa via Statement
@@ -338,14 +337,8 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         self.dependencies.clear()
 
         # only use one dependency statement per project, error if there are multiple
-        dependency_by_project: dict[Project, ProjectVersion] = {}
         for statement in self.statements.filter(type=StatementType.REQUIREMENT):
-            dependency = statement.requirement.project_version
-            dependency_project = dependency.project
-            if dependency_project in dependency_by_project:
-                raise ValueError(f"multiple dependency statements for project: {statement}")
-            dependency_by_project[dependency_project] = dependency
-            self.dependencies.add(dependency)
+            self.dependencies.add(statement.requirement.project_version.project)
 
     @transaction.atomic
     def create_file(
@@ -523,63 +516,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
             index=index,
         )
         return reference_statement
-
-    def get_statements(
-        self,
-        file: Optional[File],
-        name: str,
-        type: Optional[StatementType],
-        symbol_type: Optional[SymbolType] = None,
-    ) -> QuerySet[Statement]:
-        qs = self.available_statements().filter(name=name)
-        if type is not None:
-            qs = qs.filter(type=type)
-        if symbol_type is not None:
-            qs = qs.filter(symbol_type=symbol_type)
-        if file is not None:
-            qs = qs.filter(file=file)
-        return qs
-
-    def get_statement(
-        self,
-        file: Optional[File],
-        name: str,
-        type: Optional[StatementType] = None,
-        symbol_type: Optional[SymbolType] = None,
-    ) -> Optional[Statement]:
-        try:
-            return self.get_statements(file, name, type, symbol_type).get()
-        except Statement.MultipleObjectsReturned as e:
-            raise Statement.MultipleObjectsReturned(
-                f"multiple statements with file={file} name={name} type={type} symbol_type={symbol_type} in {self}"
-            ) from e
-        except Statement.DoesNotExist:
-            return None
-
-    def statement(
-        self,
-        file: Optional[File],
-        name: str,
-        type: Optional[StatementType] = None,
-        symbol_type: Optional[SymbolType] = None,
-    ) -> Statement:
-        statement = self.get_statement(file, name, type, symbol_type)
-        if statement is None:
-            available_symbols_str = self._get_available_symbols_str()
-            raise ValueError(
-                f"symbol file={file} name={name} type={type} symbol_type={symbol_type} is not defined {self}:\n{available_symbols_str}"
-            )
-        else:
-            return statement
-
-    def _get_available_symbols_str(self, limit: int = 50) -> str:
-        available_symbols_count = self.available_statements().count()
-        available_symbols_strs = (str(d) for d in self.available_statements()[:limit])
-        available_symbols_str = (
-            f"({min(limit, available_symbols_count)} of {available_symbols_count}"
-            f" available statements: {', '.join(available_symbols_strs)})"
-        )
-        return available_symbols_str
 
     objects = ProjectVersionManager()
 
