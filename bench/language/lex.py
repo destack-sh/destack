@@ -155,13 +155,13 @@ KEYWORDS = {
     "model": SymbolType.MODEL,
     "data": SymbolType.DATASET,
     "value": SymbolType.VALUE,
+    "import": StatementType.IMPORT,
+    "require": SymbolType.REQUIREMENT,
+    "run": SymbolType.RUNCONFIG,
+    "compile": SymbolType.COMPILATION,
     # Other
     "as": None,
     "from": None,
-    "import": StatementType.IMPORT,
-    "require": StatementType.REQUIREMENT,
-    "run": StatementType.RUNCONFIG,
-    "compile": StatementType.COMPILATION,
 }
 SEPARATORS = {" ", ":", "=", "@"}
 

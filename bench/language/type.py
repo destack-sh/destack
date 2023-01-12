@@ -8,7 +8,7 @@ from uuid import UUID
 from django.db import models
 
 from bench.language.schema import SchemaElement, render_bsl
-from bench.utils.record import RecordBatch
+from bench.utils.record import RecordBatch, RecordList
 
 LiteralValue = Union[dict, list, int, float, bool, str, None]
 
@@ -24,10 +24,6 @@ class StatementType(models.TextChoices):
     DEFINITION = "def"  # :
     REFERENCE = "ref"  #
     REDEFINITION = "redef"  # =
-    # other content statements (should really not be separate statement types)
-    REQUIREMENT = "requirement"  # require
-    COMPILATION = "compilation"  # compile
-    RUNCONFIG = "run"  # run
     # non-symbol statements
     COMMENT = "comment"  # //
     BLANK = "blank"  # used while creating a new statement
@@ -52,15 +48,9 @@ class SymbolType(models.TextChoices):
     MODEL = "model"
     DATASET = "data"
     VALUE = "value"
-
-
-class ContentType(models.TextChoices):
-    """The type of statement content."""
-
-    SYMBOL = "symbol"
-    REQUIREMENT = "requirement"
-    COMPILATION = "compilation"
-    RUNCONFIG = "runconfig"
+    REQUIREMENT = "require"
+    COMPILATION = "compile"
+    RUNCONFIG = "run"
 
 
 @dataclass(repr=False)
@@ -74,6 +64,9 @@ class Module:
 
     def __repr__(self):
         return f"<Module {str(self)}>"
+
+
+MOCK_MODULE = Module("<mock>", [])
 
 
 @dataclass(repr=False)
@@ -107,6 +100,8 @@ class File:
         return [statement for statement in self.statements if statement.parent is None]
 
 
+MOCK_FILE = File(MOCK_MODULE, "<mock>")
+
 StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
 
 
@@ -131,11 +126,11 @@ class Statement:
     name: Optional[str] = None
     text: Optional[str] = None
     symbol_type: Optional[SymbolType] = None
-    content: Optional[SymbolContent | Requirement | Compilation | RunConfiguration] = None
+    content: Optional[SymbolContent | Requirement | Compilation | Runconfig] = None
     reference: Optional[Statement | StatementPath] = None
     requirement: Optional[Requirement] = None
     compilation: Optional[Compilation] = None
-    runconfig: Optional[RunConfiguration] = None
+    runconfig: Optional[Runconfig] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     _source: Optional[Any] = None
@@ -160,11 +155,11 @@ class Statement:
             content_str = str(len(self.text))
         elif self.type == StatementType.BLANK:
             content_str = ""
-        elif self.type == StatementType.REQUIREMENT:
+        elif self.type == SymbolType.REQUIREMENT:
             content_str = str(self.requirement)
-        elif self.type == StatementType.COMPILATION:
+        elif self.type == SymbolType.COMPILATION:
             content_str = str(self.compilation)
-        elif self.type == StatementType.RUNCONFIG:
+        elif self.type == SymbolType.RUNCONFIG:
             content_str = str(self.runconfig)
         else:
             raise ValueError(f"unknown statement type {self.type}")
@@ -197,8 +192,6 @@ class Statement:
             StatementType.DEFINITION,
             StatementType.REDEFINITION,
             StatementType.IMPORT,
-            StatementType.COMPILATION,
-            StatementType.RUNCONFIG,
         )
 
     @property
@@ -237,6 +230,9 @@ class Statement:
         return str(self.index)
 
 
+MOCK_STATEMENT = Statement(file=MOCK_FILE, parent=None, index=0, type=StatementType.DEFINITION)
+
+
 @dataclass(repr=False)
 class SymbolContent:
     definition: Statement
@@ -261,7 +257,7 @@ class Schema(SymbolContent):
 
 @dataclass(repr=False)
 class Task(SymbolContent):
-    description: str
+    description: str = ""
 
     def __str__(self):
         return f"({self.description})"
@@ -269,9 +265,7 @@ class Task(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(SymbolContent):
-    description: str
-    # --- derived ---
-    expectations: Optional[list[Expectation]] = None
+    description: str = ""
 
     def __str__(self):
         return f"(description={self.description})"
@@ -279,7 +273,7 @@ class Expectation(SymbolContent):
 
 @dataclass(repr=False)
 class Dataset(SymbolContent):
-    records: RecordBatch
+    records: RecordBatch = field(default_factory=lambda: RecordList([]))
 
     def __str__(self):
         return f"({len(self.records)}*{'<no schema>'})"
@@ -287,7 +281,7 @@ class Dataset(SymbolContent):
 
 @dataclass(repr=False)
 class Value(SymbolContent):
-    value: LiteralValue
+    value: LiteralValue = None
 
     def __content_str__(self):
         return f"{self.value}"
@@ -340,21 +334,21 @@ class Code(SymbolContent):
 
 
 @dataclass(repr=False)
-class Requirement:
-    name: str
-    version: str
+class Requirement(SymbolContent):
+    name: Optional[str]
+    version: Optional[str] = None
 
     def __str__(self):
         return f"{self.name}@{self.version}"
 
 
 @dataclass(repr=False)
-class RunConfiguration:
+class Runconfig(SymbolContent):
     pass
 
 
 @dataclass(repr=False)
-class Compilation:
+class Compilation(SymbolContent):
     source_mappings: list["SourceMapping"] = field(default_factory=list)
 
 
@@ -366,3 +360,22 @@ class SourceMapping:
     target: Statement
     target_revision: int
     target_path: dict
+
+
+def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
+    if symbol_type == SymbolType.TASK:
+        return Task(definition)
+    elif symbol_type == SymbolType.EXPECTATION:
+        return Expectation(definition)
+    elif symbol_type == SymbolType.DATASET:
+        return Dataset(definition)
+    elif symbol_type == SymbolType.VALUE:
+        return Value(definition)
+    elif symbol_type == SymbolType.CODE:
+        return Code(definition, language="python", code="", builtin_id=None)
+    elif symbol_type == SymbolType.REQUIREMENT:
+        return Requirement(definition, name="", version="")
+    elif symbol_type == SymbolType.RUNCONFIG:
+        return Runconfig(definition)
+    elif symbol_type == SymbolType.COMPILATION:
+        return Compilation(definition)

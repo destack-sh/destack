@@ -2,78 +2,34 @@ from __future__ import annotations
 
 import contextlib
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Type, Union, cast
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-import cachetools
 import pytz
 import structlog
 from django.db import models, transaction
 from django.db.models import Q
-from django.dispatch import receiver
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.language.type import StatementModifier, StatementType, SymbolType
+from bench import language
+from bench.language.type import (
+    MOCK_FILE,
+    MOCK_STATEMENT,
+    StatementModifier,
+    StatementType,
+    SymbolType,
+    get_default_symbol_content,
+)
+from bench.models.data import DatasetContentMixin
+from bench.models.model import ModelContentMixin
+from bench.models.schema_field import SchemaElementField
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import (
-        Code,
-        Compilation,
-        Dataset,
-        Expectation,
-        File,
-        Model,
-        ProjectVersion,
-        Schema,
-        Task,
-        Value,
-    )
+    from bench.models import File, ProjectVersion
 
 logger = structlog.get_logger(__name__)
-
-
-# Symbol type helpers
-
-
-@cachetools.cached({})
-def symbol_type_to_content_type_map():
-    # re-import for real to avoid circular import (above is only for type checking)
-    from bench.models import Code, Dataset, Expectation, Model, Schema, Task, Value  # noqa
-
-    return {
-        SymbolType.SCHEMA: Schema,
-        SymbolType.TASK: Task,
-        SymbolType.EXPECTATION: Expectation,
-        SymbolType.CODE: Code,
-        SymbolType.MODEL: Model,
-        SymbolType.DATASET: Dataset,
-        SymbolType.VALUE: Value,
-    }
-
-
-def symbol_type_to_content_type(type: SymbolType) -> Type[SymbolContent]:
-    content_type = symbol_type_to_content_type_map()[type]
-    if content_type is None:
-        raise ValueError(f"unexpected symbol type {type}")
-    return content_type
-
-
-def content_type_to_symbol_type(content_type: Type[SymbolContent]) -> SymbolType:
-    content_type_type_map = {k: v for v, k in symbol_type_to_content_type_map().items()}
-    if content_type not in content_type_type_map:
-        raise ValueError(f"unexpected symbol content type {content_type}")
-    return content_type_type_map[content_type]
-
-
-def symbol_type_from_content(content: SymbolContent) -> SymbolType:
-    return content_type_to_symbol_type(type(content))
-
-
-def get_default_symbol_content(symbol_type: SymbolType) -> SymbolContent:
-    cls = symbol_type_to_content_type(symbol_type)
-    return cls()
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -110,86 +66,23 @@ class StatementManager(models.Manager["Statement"]):
             **kwargs,
         )
 
-    def create_definition(
-        self,
-        project_version: ProjectVersion,
-        file: File,
-        parent: Optional[Statement],
-        index: Optional[int],
-        content: SymbolContent,
-        name: str,
-    ) -> Statement:
-        # save content if it's not loaded from the db
-        # (don't test via pk since we set that automatically)
-        if content._state.adding:
-            content.save()
-        symbol_type = symbol_type_from_content(content)
-        return self.create_statement(
-            project_version=project_version,
-            file=file,
-            type=StatementType.DEFINITION,
-            parent=parent,
-            index=index,
-            name=name,
-            symbol_type=symbol_type,
-            **{SYMBOL_TYPE_TO_FIELD[symbol_type]: content},
-        )
 
-    def create_import(
-        self,
-        project_version: ProjectVersion,
-        file: File,
-        parent: Optional[Statement],
-        index: Optional[int],
-        name: str,
-        statement: Statement,
-    ) -> Statement:
-        return self.create_statement(
-            project_version=project_version,
-            file=file,
-            parent=parent,
-            index=index,
-            type=StatementType.IMPORT,
-            name=name,
-            reference=statement,
-            symbol_type=statement.symbol_type,
-        )
-
-    def create_reference(
-        self,
-        project_version: ProjectVersion,
-        file: File,
-        parent: Optional[Statement],
-        index: Optional[int],
-        name: str,
-        statement: Statement,
-    ) -> Statement:
-        return self.create_statement(
-            project_version=project_version,
-            file=file,
-            type=StatementType.REFERENCE,
-            symbol_type=statement.symbol_type,
-            parent=parent,
-            index=index,
-            name=name,
-            reference=statement,
-        )
-
-
-SYMBOL_TYPE_TO_FIELD = {
-    SymbolType.SCHEMA: "schema",
-    SymbolType.TASK: "task",
-    SymbolType.EXPECTATION: "expectation",
-    SymbolType.CODE: "code",
-    SymbolType.MODEL: "model",
-    SymbolType.DATASET: "dataset",
-    SymbolType.VALUE: "value",
+# sync with actual symbol content fields of Statement
+SYMBOL_CONTENT_VALUE_FIELDS = {
+    "code",
+    "code_builtin_id",
+    "description",
+    "element",
+    "value",
 }
-SYMBOL_CONTENT_FIELDS = set(SYMBOL_TYPE_TO_FIELD.values())
-CONTENT_FIELDS = SYMBOL_CONTENT_FIELDS | {"compilation", "requirement", "runconfig"}
+SYMBOL_CONTENT_RELATION_FIELDS = {
+    "reference_project_version",
+    "mappings",
+    "records",
+}
 
 
-class Statement(UUIDModel):
+class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
     """
     A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
@@ -226,68 +119,19 @@ class Statement(UUIDModel):
     )
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
-    text = models.TextField(null=True, blank=True)  # as markdown
-    schema = models.OneToOneField(
-        "Schema", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
+    text = models.TextField(null=True, blank=True)  # for comment
+    # symbol contents (sync with SYMBOL_CONTENT_FIELDS)
+    code = models.TextField(null=True, blank=True)  # for code content
+    code_builtin_id = models.CharField(
+        max_length=MAX_NAME_LENGTH, null=True, blank=True
+    )  # for code content
+    description = models.TextField(null=True, blank=True)  # for task and expectation content
+    reference_project_version = models.ForeignKey(  # for requirement
+        "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
-    task = models.OneToOneField(
-        "Task", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    expectation = models.OneToOneField(
-        "Expectation", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    code = models.OneToOneField(
-        "Code", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    model = models.OneToOneField(
-        "Model", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    dataset = models.OneToOneField(
-        "Dataset", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    value = models.OneToOneField(
-        "Value", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    compilation = models.OneToOneField(
-        "Compilation", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    compilation_id: Optional[UUID]  # noqa via Statement.compilation
-    requirement = models.OneToOneField(
-        "Requirement", on_delete=models.RESTRICT, null=True, blank=True, related_name="definition"
-    )
-    requirement_id: Optional[UUID]  # noqa via Statement.requirement
-    runconfig = models.OneToOneField(
-        "RunConfiguration",
-        on_delete=models.RESTRICT,
-        null=True,
-        blank=True,
-        related_name="definition",
-    )
-    runconfig_id: Optional[UUID]  # noqa via Statement.run
-
-    def deepcopy(
-        self,
-        to: Statement,
-        refs: dict[UUID, SymbolContent | Compilation | Requirement | RunConfiguration | Statement],
-    ):
-        # copy contents
-        if self.type == StatementType.DEFINITION and self.content is not None:
-            self.content.deepcopy(to=(refs[self.content_id]), refs=refs)
-            refs[self.content_id].save()
-        if self.type == StatementType.COMPILATION and self.compilation is not None:
-            self.compilation.deepcopy(to=(refs[self.compilation_id]), refs=refs)
-            refs[self.compilation_id].save()
-        if self.type == StatementType.REQUIREMENT and self.requirement is not None:
-            self.requirement.deepcopy(to=(refs[self.requirement_id]), refs=refs)
-            refs[self.requirement_id].save()
-        if self.type == StatementType.RUNCONFIG and self.runconfig is not None:
-            self.runconfig.deepcopy(to=(refs[self.runconfig_id]), refs=refs)
-            refs[self.runconfig_id].save()
-
-        # reset symbol type since set_content nulls it
-        to.symbol_type = self.symbol_type
-        # replace ref (default to same ref if not in refs since library refs are not copied)
-        to.reference = refs.get(self.reference_id, self.reference)
+    value = models.JSONField(null=True, blank=True)  # for value
+    element = SchemaElementField(null=True, blank=True)  # for schema content
+    # ... other contents currently via DatasetContentMixin and ModelContentMixin
 
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)
@@ -299,12 +143,6 @@ class Statement(UUIDModel):
             content_str = f"{len(self.text)}"
         elif self.type == StatementType.BLANK:
             content_str = ""
-        elif self.type == StatementType.REQUIREMENT:
-            content_str = str(self.requirement)
-        elif self.type == StatementType.COMPILATION:
-            content_str = str(self.compilation)
-        elif self.type == StatementType.RUNCONFIG:
-            content_str = str(self.runconfig)
         else:
             raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""
@@ -335,97 +173,37 @@ class Statement(UUIDModel):
             Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
         )
 
-    @property
-    def active_children(self) -> models.QuerySet[Statement]:
-        return self.children.filter(deleted_at__isnull=True, commented=False)
-
-    @property
-    def active_descendants(self) -> models.QuerySet[Statement]:
-        return self.descendants.filter(deleted_at__isnull=True, commented=False)
-
-    def active_children_like(self, symbol_type: SymbolType) -> models.QuerySet[Statement]:
-        return self.children.filter(deleted_at=None, commented=False, symbol_type=symbol_type)
-
-    def active_child_like(self, symbol_type: SymbolType) -> Optional[Statement]:
-        return self.active_children_like(symbol_type=symbol_type).first()
-
-    @staticmethod
-    def symbol_type_to_field(type: SymbolType) -> str:
-        return SYMBOL_TYPE_TO_FIELD[type]
-
     @gql.model_property(
-        only=["symbol_type", *SYMBOL_CONTENT_FIELDS],
-        select_related=list(SYMBOL_CONTENT_FIELDS),
+        only=["symbol_type", *SYMBOL_CONTENT_VALUE_FIELDS],
+        select_related=list(SYMBOL_CONTENT_RELATION_FIELDS),
     )
-    def content(self) -> Union[None, Schema, Task, Expectation, Code, Model, Dataset, Value]:
+    def content(self) -> Optional[language.SymbolContent]:
+        from bench.models.mapper import rmap_statement  # avoid circular import
+
         if self.symbol_type is None:
             return None
-        content: SymbolContent | None = getattr(self, self.symbol_type_to_field(self.symbol_type))
-        return content
+        try:
+            lang_statement = rmap_statement(self, MOCK_FILE)
+            return lang_statement.content
+        except ValueError:  # invalid/partial content
+            return None
 
-    def content_(self) -> SymbolContent:
+    def content_(self) -> language.SymbolContent:
         content = self.content
         if content is None:
             raise ValueError(f"{self} has no content for {self.symbol_type}")
         return content
 
-    def set_content(self, content: SymbolContent | None):
+    def set_content(self, content: language.SymbolContent | None):
+        from bench.models.mapper import wmap_symbol  # avoid circular import
+
         if content is None:
             self.symbol_type = None
         else:
-            self.symbol_type = symbol_type_from_content(content)
-            setattr(self, self.symbol_type_to_field(self.symbol_type), content)
+            self.symbol_type = content.type
+            wmap_symbol(self, content)
 
-    @property
-    def task_(self) -> Task:
-        if TYPE_CHECKING:
-            return cast(Task, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def schema_(self) -> Schema:
-        if TYPE_CHECKING:
-            return cast(Schema, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def expectation_(self) -> Expectation:
-        if TYPE_CHECKING:
-            return cast(Expectation, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def code_(self) -> Code:
-        if TYPE_CHECKING:
-            return cast(Code, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def model_(self) -> Model:
-        if TYPE_CHECKING:
-            return cast(Model, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def dataset_(self) -> Dataset:
-        if TYPE_CHECKING:
-            return cast(Dataset, self.content)
-        else:
-            return self.content  # noqa
-
-    @property
-    def content_id(self) -> UUID:
-        return self.content.id
-
-    @gql.model_property(
-        only=["type", "reference"],
-        select_related=["reference"],
-    )
+    @gql.model_property(only=["type", "reference"], select_related=["reference"])
     def source_definition(self) -> Statement:
         """Traverses references to get the source definition."""
         if self.type == StatementType.DEFINITION:
@@ -475,40 +253,24 @@ class Statement(UUIDModel):
             self.index = index
             self.save()
 
-    @transaction.atomic
     def morph_to(
         self,
         type: StatementType,
-        symbol: SymbolType | SymbolContent | None,
+        symbol_type: SymbolType | None,
     ):
-        """Changes the type of the statement. Only works if it doesn't have any content."""
-        if self.type == StatementType.DEFINITION and self.content is not None:
-            # we can't morph existing content because that would make it impossible to undo this operation
-            # instead, we delete the content and create a new statement in its place on the frontend
-            raise ValueError(f"{self} has content and cannot be morphed")
+        """Changes the type of the statement without clearing any old content fields."""
         self.type = type
-        # delete existing content
-        if self.content is not None:
-            content = self.content
-            self.set_content(None)
-            content.delete()
-        # set new content
-        if symbol is not None:
-            if self.type == StatementType.DEFINITION:
-                if isinstance(symbol, SymbolType):
-                    # create default content for the given type
-                    symbol = get_default_symbol_content(symbol)
-                    symbol.save()
-                self.set_content(symbol)
-                # not sure about setting reference on morph, should be another atomic operation?
-                self.reference = None
-            else:
-                if isinstance(symbol, SymbolContent):
-                    raise ValueError("can't set content for a reference")
-                self.symbol_type = symbol
-            self.text = None  # clear text
-        else:
-            self.symbol_type = None
+        # set default content if not already set
+        self.symbol_type = symbol_type
+        # create default content for the given type if not already set
+        if (
+            self.symbol_type is not None
+            and self.type == StatementType.DEFINITION
+            and self.content is None  # 'content' is dynamically created on symbol_type
+        ):
+            lang_symbol = get_default_symbol_content(MOCK_STATEMENT, symbol_type)
+            # ignore created relations since defaults are empty
+            _ = wmap_symbol(self, lang_symbol)
         self.save()
 
     @transaction.atomic
@@ -560,100 +322,3 @@ class Statement(UUIDModel):
                 name="bench_statement_reference_name_set",
             ),
         ]
-
-
-# auto delete symbol content if statement is deleted
-@receiver(models.signals.post_delete, sender=Statement)
-def auto_delete_symbol_content(sender, instance: Statement, **kwargs):
-    if "content" in instance._state.fields_cache:
-        instance.content.delete()
-    else:
-        # this shouldn't happen but just in case
-        pass
-
-
-class SymbolContentManager(models.Manager):
-    # Note that this manager is applied to _every_ SymbolContent query (related or not)!
-
-    def get_queryset(self):
-        # always select related symbol
-        return super().get_queryset().select_related("definition")
-
-
-class SymbolContent(UUIDModel):
-    """
-    The content of a symbol definition. This is the interface that Statement.content points to.
-    Mutable until the containing project version is committed.
-    """
-
-    definition: Statement  # noqa via Statement.content
-
-    @property
-    def type(self) -> SymbolType:
-        return symbol_type_from_content(self)
-
-    def deepcopy(self, to: Any, refs: dict[UUID, Statement | SymbolContent]):
-        if type(self) != type(to):
-            raise ValueError(f"cannot copy {self} to {to}")
-        # replace all relations referencing symbols or contents with copies
-        replace_refs(self, to, refs)
-
-    objects: SymbolContentManager = SymbolContentManager()
-
-    class Meta:
-        default_manager_name = "objects"
-        # set base manager so that _every_ query to SymbolContent goes through SymbolContentManager
-        # which ensures that we always select the related symbol
-        base_manager_name = "objects"
-        abstract = True
-
-
-class Requirement(UUIDModel):
-    """
-    A requirement sets the version to use for a specific library (project).
-    The derived set of dependencies is copied into ProjectVersion.dependencies for lookup speed.
-    """
-
-    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
-    definition: Statement  # noqa via Statement.requirement
-
-    def deepcopy(self, to, refs: dict[str, Any]):
-        pass  # nothing to do
-
-
-class RunConfiguration(UUIDModel):
-    """Configuration to run executable statements."""
-
-    definition: Statement  # noqa via Statement.run
-
-    def deepcopy(self, to, refs: dict[str, Any]):
-        pass  # nothing to do
-
-
-def replace_refs(
-    obj: models.Model,
-    to: models.Model,
-    refs: dict[UUID, Statement | SymbolContent | Compilation | Requirement | RunConfiguration],
-    include_one_to_many: bool = True,
-    include_many_to_many: bool = True,
-):
-    from bench.models import Compilation, Requirement  # avoid circular import
-
-    """Replaces all references to symbols with the given refs (refs need not be complete)."""
-    for field in obj._meta.get_fields():
-        if field.related_model is None:
-            continue
-        if not issubclass(
-            field.related_model,
-            (Statement, SymbolContent, Compilation, Requirement, RunConfiguration),
-        ):
-            continue
-        # if many to one
-        if include_one_to_many and field.many_to_one:
-            value = getattr(obj, field.name)
-            if value is not None and value.pk in refs:
-                setattr(to, field.name, refs[value.id])
-        # if many to many
-        if include_many_to_many and field.many_to_many:
-            values = getattr(obj, field.name).all().values_list("id", flat=True)
-            getattr(to, field.name).set(refs.get(id, id) for id in values)
