@@ -7,10 +7,9 @@ from collections import defaultdict
 from typing import Iterable, Optional, cast
 from uuid import UUID
 
-from bench.api.symbol import StatementType
+from bench.api.symbol import StatementType, TypeElement, ValueType
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, LINE_COMMENT_REGEX
-from bench.language.schema import render_bsl
 from bench.language.type import (
     Capability,
     Code,
@@ -19,11 +18,11 @@ from bench.language.type import (
     Expectation,
     Requirement,
     Runconfig,
-    Schema,
     StatementPath,
     SymbolContent,
     SymbolType,
     Task,
+    Type,
     Value,
 )
 
@@ -113,9 +112,8 @@ def render_statement_content(statement: Statement) -> str:
 
 
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
-    if isinstance(content, Schema):
-        bsl = render_bsl(content.element)
-        return render_literal(bsl)
+    if isinstance(content, Type):
+        return render_type_element(content.element)
     elif isinstance(content, Capability):
         return render_literal(content.description)
     elif isinstance(content, Task):
@@ -142,6 +140,30 @@ def escape_identifier(identifier: str) -> str:
         return identifier
     else:
         return f"'{identifier}'"
+
+
+def render_type_element(element: TypeElement) -> str:
+    if element.type == ValueType.FUNCTION:
+        input_str = render_type_element_struct(element.input_, seperator="\n")
+        output_str = render_type_element(element.output)
+        return f"{input_str} -> {output_str}"
+    elif element.type == ValueType.STRUCT:
+        return render_type_element_struct(element, seperator=", ")
+    elif element.type == ValueType.ARRAY:
+        return f"[{render_type_element(element.element)}]"
+    elif element.type == ValueType.TYPE_REFERENCE:
+        description_str = f' "{element.description}"' if element.description else ""
+        type_str = element.type.value
+        return f"{element.name}: {type_str}{description_str}"
+    else:
+        raise ValueError(f"unexpected type: {element.type}")
+
+
+def render_type_element_struct(element: TypeElement, seperator: str) -> str:
+    if element.elements is None:
+        raise ValueError(f"expected type with elements: {element}")
+    field_strs = [render_type_element(field) for field in element.elements]
+    return seperator.join(field_strs)
 
 
 def render_literal(value: str, lang: Optional[str] = None) -> str:

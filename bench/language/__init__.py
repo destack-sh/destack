@@ -11,22 +11,24 @@ from bench.language.type import (
     Module,
     Requirement,
     Runconfig,
-    Schema,
     SourceMapping,
     Statement,
     SymbolContent,
     SymbolType,
     Task,
+    Type,
     Value,
 )
+from bench.language.typing import ValueType
 
 __all__ = [
+    "ValueType",
     "SymbolType",
     "Module",
     "File",
     "Statement",
     "SymbolContent",
-    "Schema",
+    "Type",
     "Capability",
     "Task",
     "Expectation",

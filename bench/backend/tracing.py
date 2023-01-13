@@ -14,7 +14,7 @@ import structlog
 from bench.backend.provider import Completion, ModelHandle
 from bench.backend.type import CodeInstance, ModelInstance
 from bench.language import Statement, SymbolType
-from bench.language.schema import SchemaElement, get_value_type
+from bench.language.typing import TypeElement, get_value_type
 from bench.utils.record import RecordBatch
 
 logger = structlog.get_logger(__name__)
@@ -211,7 +211,7 @@ class ValidationTracer(Tracer):
     def code_exit(self, code: CodeInstance, args, kwargs, result):
         self._check_schema(code, result, code.output_schema)
 
-    def _check_schema(self, code: CodeInstance, value: Any, schema: SchemaElement):
+    def _check_schema(self, code: CodeInstance, value: Any, schema: TypeElement):
         # TODO @Typing: recursive schema validation
         value_type = get_value_type(value)
         if not schema.required and value is None:

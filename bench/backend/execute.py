@@ -28,24 +28,24 @@ from bench.backend.type import (
     CodeInstance,
     DatasetInstance,
     ModelInstance,
-    SchemaInstance,
     StatementInstance,
     SymbolInstance,
     SyncCodeCallable,
+    TypeInstance,
     ValueInstance,
 )
 from bench.language.parse import IndexedModule
-from bench.language.schema import SchemaElement
 from bench.language.type import (
     Code,
     Dataset,
     LiteralValue,
     Model,
     ModelInferenceSettings,
-    Schema,
     Statement,
+    Type,
     Value,
 )
+from bench.language.typing import TypeElement
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
@@ -229,7 +229,7 @@ class Proxy:
         self.tracer = tracer
         self.cache = cache
 
-    def proxy_schema(self, schema: SchemaInstance) -> SchemaInstance:
+    def proxy_schema(self, schema: TypeInstance) -> TypeInstance:
         return schema  # not proxied
 
     def proxy_dataset(self, dataset: DatasetInstance) -> DatasetInstance:
@@ -250,7 +250,7 @@ class Proxy:
         return replace(code, code_callable=code_proxy)
 
     def proxy(self, symbol: SymbolInstance) -> SymbolInstance:
-        if isinstance(symbol, SchemaInstance):
+        if isinstance(symbol, TypeInstance):
             return self.proxy_schema(symbol)
         elif isinstance(symbol, DatasetInstance):
             return self.proxy_dataset(symbol)
@@ -275,10 +275,10 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _instantiate_schema_element(
-    schema: Schema, context: OrderedDict[str, StatementInstance]
-) -> SchemaElement:
+    schema: Type, context: OrderedDict[str, StatementInstance]
+) -> TypeElement:
     context_schemas = {
-        key: value.element for key, value in context.items() if isinstance(value, SchemaInstance)
+        key: value.element for key, value in context.items() if isinstance(value, TypeInstance)
     }
     resolved_schema = schema.element.resolve(context_schemas)
     if not resolved_schema.is_resolved:
@@ -297,7 +297,7 @@ def _instantiate_model_handle(model) -> ModelHandle:
 
 def _instantiate_code_callable(
     code: Code,
-    schema: SchemaInstance,
+    schema: TypeInstance,
     context: OrderedDict[str, StatementInstance],
     instance_id: uuid.UUID,
 ) -> SyncCodeCallable | AsyncCodeCallable:
@@ -348,17 +348,17 @@ def instantiate(
         instantiate(statement=child, idx=idx, proxy=proxy)
         for child in idx.statements_by_parent[statement.id]
     ]
-    schema = first((c for c in all_children if isinstance(c, SchemaInstance)), None)
+    schema = first((c for c in all_children if isinstance(c, TypeInstance)), None)
     if statement.requires_schema and schema is None:
         raise ValueError(f"statement {statement} requires a schema")
 
     # instantiate statement itself
     instance_id = uuid.uuid4()
-    if isinstance(statement.content, Schema):
+    if isinstance(statement.content, Type):
         element = _instantiate_schema_element(statement.content, instantiated_context)
         dict_wo_element = statement.content.__dict__.copy()
         del dict_wo_element["element"]  # we're replacing element
-        instance = SchemaInstance(instance_id=instance_id, **dict_wo_element, element=element)
+        instance = TypeInstance(instance_id=instance_id, **dict_wo_element, element=element)
     elif isinstance(statement.content, Code):
         code_callable = _instantiate_code_callable(
             statement.content, schema, instantiated_context, instance_id
@@ -388,7 +388,7 @@ def instantiate(
 def get_context(
     statement: Statement, idx: IndexedModule, used_only: bool
 ) -> OrderedDict[str, Statement]:
-    if not isinstance(statement.content, (Code, Schema)):
+    if not isinstance(statement.content, (Code, Type)):
         # only code and schema statements can use context right now (see below)
         return OrderedDict()
 
@@ -415,8 +415,8 @@ def get_context(
     # TODO @Cleanup: improve context visibility filters (not just string matching)
     if isinstance(statement.content, Code):
         used_keys = {key for key in available_context if key in statement.content.code}
-    elif isinstance(statement.content, Schema):
-        used_keys = {key for key in available_context if key in statement.content.bsl}
+    elif isinstance(statement.content, Type):
+        used_keys = {key for key in available_context if key in statement.content.btl}
     else:
         used_keys = set()
     context = OrderedDict()

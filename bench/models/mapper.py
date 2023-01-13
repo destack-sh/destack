@@ -139,7 +139,7 @@ def rmap_module(project_v: ProjectVersion) -> language.Module:
 
 def wmap_symbol(statement: models.Statement, content: language.SymbolContent) -> list[typing.Any]:
     """Maps language symbol content to database models."""
-    if isinstance(content, language.Schema):
+    if isinstance(content, language.Type):
         statement.description = content.description
         statement.element = content.element
         return []
@@ -196,8 +196,8 @@ def rmap_symbol(
     statement: models.Statement, definition: language.Statement
 ) -> language.SymbolContent:
     """Maps database symbol content to language models."""
-    if statement.symbol_type == SymbolType.SCHEMA:
-        return language.Schema(
+    if statement.symbol_type == SymbolType.TYPE:
+        return language.Type(
             definition, description=statement.description, element=statement.element
         )
     elif statement.symbol_type == SymbolType.CAPABILITY:

@@ -5,7 +5,9 @@ require openai.stdlib@latest
 --- temperature.instruct ---
 import model text-davinci-003 as llm from openai.stdlib.text
 
-data 'temperature examples':
+type Temperature = string
+
+data 'temperature examples' :: (text: string, temperature: Temperature):
 ```jsonl
 {"text": "Write a poem about a space cat.", "temperature": "high"}
 {"text": "Repeat the following back to me: I am", "temperature": "low"}
@@ -15,13 +17,11 @@ data 'temperature examples':
 {"text": "This is a conversation between a chatty and imaginative buddy and his friends.", "temperature": "high"}
 {"text": "Given an input command, write a program that implements it in Python", "temperature": "medium"}
 ```
-    schema _:
-    `{ text: string, temperature: string }`
 
-value vartemp:
+value temperature_map:
 `{"high": 0.9, "medium": 0.5, "low": 0.1}`
 
-code get_temperature:
+code get_temperature :: (description: string "Task description") -> Temperature:
 ```python
 temperature_label = await llm_classify(
     llm,
@@ -32,5 +32,3 @@ temperature_label = await llm_classify(
 )
 return temperature_map.get(temperature_label, 0.5)
 ```
-    schema _:
-    `{ input: { description: string }, output: float }`

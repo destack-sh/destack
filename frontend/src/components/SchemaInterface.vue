@@ -25,20 +25,20 @@ const content = computed(() => useFragment(SchemaContentType, props.content));
 
 const operations = useOperations();
 const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
-const bsl: Ref<string | null> = ref(null);
+const btl: Ref<string | null> = ref(null);
 
-function saveBsl(bsl: string) {
-  const oldBsl = content.value.bsl ?? "";
-  if (oldBsl !== bsl) {
-    operations.content.updateSchemaContent(statement.value.id, oldBsl, bsl);
+function saveBtl(btl: string) {
+  const oldBtl = content.value.btl ?? "";
+  if (oldBtl !== btl) {
+    operations.content.updateSchemaContent(statement.value.id, oldBtl, btl);
   }
 }
-const saveBslDebounced = useDebounceFn(saveBsl, 200, { maxWait: 500 });
+const saveBtlDebounced = useDebounceFn(saveBtl, 200, { maxWait: 500 });
 
-// sync bsl to local if not editing
+// sync btl to local if not editing
 watchEffect(() => {
-  if (!props.editing || bsl.value == null) {
-    bsl.value = content.value.bsl ?? "";
+  if (!props.editing || btl.value == null) {
+    btl.value = content.value.btl ?? "";
   }
 });
 
@@ -55,9 +55,9 @@ defineExpose({
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       hide-line-numbers
       :style="{ marginLeft: -23 + 'px' }"
-      :model-value="bsl"
-      @update:model-value="saveBslDebounced"
-      language="bsl"
+      :model-value="btl"
+      @update:model-value="saveBtlDebounced"
+      language="btl"
       :focused="focused"
       :readonly="readonly"
       @navigateUp="emit('navigateUp')"

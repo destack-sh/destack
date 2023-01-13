@@ -6,8 +6,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
-from bench import models
-from bench.language import schema
+from bench import language, models
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -17,22 +16,22 @@ SymbolType = gql.enum(models.SymbolType)
 
 
 @gql.type
-class Schema:
+class Type:
     description: str
-    element: "SchemaElement"
-    bsl: str
+    element: "TypeElement"
+    btl: str
 
 
-ValueType = gql.enum(schema.ValueType)
+ValueType = gql.enum(language.ValueType)
 
 
 @gql.type
-class SchemaElement:
+class TypeElement:
     name: Optional[str]
     type: ValueType
     required: bool = True
     schema_id: Optional[str] = None
-    elements: Optional[list["SchemaElement"]] = None
+    elements: Optional[list["TypeElement"]] = None
 
 
 @gql.type
@@ -97,9 +96,7 @@ class SourceMapping:
     target_revision: int
 
 
-SymbolContent = Union[
-    Schema, Capability, Task, Expectation, Code, Dataset, Model, Value, Requirement
-]
+SymbolContent = Union[Type, Capability, Task, Expectation, Code, Dataset, Model, Value, Requirement]
 
 
 @gql.django.type(models.Statement)
