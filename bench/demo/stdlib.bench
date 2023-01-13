@@ -18,7 +18,7 @@ data 'temperature examples':
     schema _:
     `{ text: string, temperature: string }`
 
-value temperature_map:
+value vartemp:
 `{"high": 0.9, "medium": 0.5, "low": 0.1}`
 
 code get_temperature:
