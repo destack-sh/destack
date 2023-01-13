@@ -9,7 +9,7 @@ from uuid import UUID
 
 from bench.api.symbol import StatementType
 from bench.language import File, Statement
-from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX
+from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, LINE_COMMENT_REGEX
 from bench.language.schema import render_bsl
 from bench.language.type import (
     Code,
@@ -81,7 +81,7 @@ def render_statement_content(statement: Statement) -> str:
     if statement.type == StatementType.BLANK:
         return ""
     elif statement.type == StatementType.COMMENT:
-        return f"# {statement.text}"
+        return render_comment(statement.text)
     elif statement.type == StatementType.IMPORT:
         alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""
@@ -152,6 +152,13 @@ def render_literal(value: str, lang: Optional[str] = None) -> str:
             return f"```\n{value}\n```"
         else:
             return f"```{lang}\n{value}\n```"
+
+
+def render_comment(text: str) -> str:
+    if LINE_COMMENT_REGEX.fullmatch(f"# {text}"):
+        return f"# {text}"
+    else:
+        return f"###\n{text}\n###"
 
 
 def get_reference_name(reference: Statement | StatementPath) -> str:
