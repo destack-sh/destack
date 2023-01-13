@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from typing import Iterable, Optional
+from typing import Iterable, Optional, cast
 from uuid import UUID
 
 from bench.api.symbol import StatementType
@@ -21,6 +21,7 @@ from bench.language.type import (
     Schema,
     StatementPath,
     SymbolContent,
+    SymbolType,
     Task,
     Value,
 )
@@ -91,7 +92,11 @@ def render_statement_content(statement: Statement) -> str:
         content_str = render_symbol_content(statement.content)
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
-        def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}:"
+        if statement.symbol_type == SymbolType.REQUIREMENT:
+            postfix = f"@{cast(Requirement, statement.content).version}"
+        else:
+            postfix = ":"
+        def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}{postfix}"
         return f"{def_str}\n{content_str}" if content_str else def_str
     elif statement.type == StatementType.REDEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
