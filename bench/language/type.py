@@ -10,7 +10,7 @@ from django.db import models
 from bench.language.schema import SchemaElement, render_bsl
 from bench.utils.record import RecordBatch, RecordList
 
-LiteralValue = Union[dict, list, int, float, bool, str, None]
+LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
 
 
 # TODO @Cleanup: don't use Django's TextChoices inside language
@@ -77,7 +77,7 @@ class File:
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __str__(self):
-        return f"{self.module.name}.{self.path}"
+        return f"{self.module.name}/{self.path}"
 
     def __repr__(self):
         return f"<File {str(self)}>"
@@ -126,11 +126,8 @@ class Statement:
     name: Optional[str] = None
     text: Optional[str] = None
     symbol_type: Optional[SymbolType] = None
-    content: Optional[SymbolContent | Requirement | Compilation | Runconfig] = None
+    content: Optional[SymbolContent] = None
     reference: Optional[Statement | StatementPath] = None
-    requirement: Optional[Requirement] = None
-    compilation: Optional[Compilation] = None
-    runconfig: Optional[Runconfig] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     _source: Optional[Any] = None
@@ -155,12 +152,6 @@ class Statement:
             content_str = str(len(self.text))
         elif self.type == StatementType.BLANK:
             content_str = ""
-        elif self.type == SymbolType.REQUIREMENT:
-            content_str = str(self.requirement)
-        elif self.type == SymbolType.COMPILATION:
-            content_str = str(self.compilation)
-        elif self.type == SymbolType.RUNCONFIG:
-            content_str = str(self.runconfig)
         else:
             raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""
@@ -185,6 +176,11 @@ class Statement:
             return self.reference.underlying_definition
         else:
             return None
+
+    @property
+    def ungrouped(self) -> bool:
+        """Whether this statement shouldn't be grouped with its siblings."""
+        return self.defines_symbol and self.symbol_type not in (SymbolType.REQUIREMENT,)
 
     @property
     def referable(self) -> bool:
@@ -257,7 +253,7 @@ class Schema(SymbolContent):
 
 @dataclass(repr=False)
 class Task(SymbolContent):
-    description: str = ""
+    description: str
 
     def __str__(self):
         return f"({self.description})"
@@ -265,23 +261,23 @@ class Task(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(SymbolContent):
-    description: str = ""
+    description: str
 
     def __str__(self):
-        return f"(description={self.description})"
+        return f"({self.description})"
 
 
 @dataclass(repr=False)
 class Dataset(SymbolContent):
-    records: RecordBatch = field(default_factory=lambda: RecordList([]))
+    records: RecordBatch
 
     def __str__(self):
-        return f"({len(self.records)}*{'<no schema>'})"
+        return f"({len(self.records)})"
 
 
 @dataclass(repr=False)
 class Value(SymbolContent):
-    value: LiteralValue = None
+    value: LiteralValue
 
     def __content_str__(self):
         return f"{self.value}"
@@ -321,12 +317,11 @@ class Code(SymbolContent):
     def __content_str__(self):
         # copied almost verbatim from Code.__str__
         if self.builtin_id:
-            content = f"builtin={self.builtin_id}"
+            return f"builtin={self.builtin_id}"
         elif self.code:
-            content = f"length={len(self.code)}"
+            return f"length={len(self.code)}"
         else:
             raise ValueError(f"code has no content: {self}")
-        return f"{content},{self.input_schema}->{self.output_schema}"
 
     @property
     def is_async(self):
@@ -364,13 +359,13 @@ class SourceMapping:
 
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
     if symbol_type == SymbolType.TASK:
-        return Task(definition)
+        return Task(definition, description="")
     elif symbol_type == SymbolType.EXPECTATION:
-        return Expectation(definition)
+        return Expectation(definition, description="")
     elif symbol_type == SymbolType.DATASET:
-        return Dataset(definition)
+        return Dataset(definition, records=RecordList([]))
     elif symbol_type == SymbolType.VALUE:
-        return Value(definition)
+        return Value(definition, value=None)
     elif symbol_type == SymbolType.CODE:
         return Code(definition, language="python", code="", builtin_id=None)
     elif symbol_type == SymbolType.REQUIREMENT:

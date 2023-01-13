@@ -8,10 +8,10 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.backend.mapper import lookup_module_in_db, rmap_module, write
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.models import Organization, Project
+from bench.models.mapper import lookup_module_in_db, rmap_module, write
 from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)

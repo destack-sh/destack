@@ -6,12 +6,13 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
+from bench import language
 from bench.backend.execute import ProviderKey
-from bench.backend.mapper import lookup_module_in_db, write
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
-from bench.language.type import ModelInferenceSettings
-from bench.models import Model, Organization, Project
+from bench.language.type import MOCK_STATEMENT, StatementType, SymbolType
+from bench.models import Organization, Project, Statement
+from bench.models.mapper import lookup_module_in_db, wmap_symbol, write
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 
 logger = structlog.get_logger(__name__)
@@ -106,15 +107,28 @@ def create_model_providers():
         stdlib_v.reset()
 
         # add models to library
+        # TODO @Cleanup: use bench string instead of DB models to bootstrap model providers
+        #  (not yet possible since models can't be expressed in bench yet)
         models_file = stdlib_v.create_file(name="text", type=FileType.INSTRUCT)
         for model_id in provider.models:
             provider_key = ProviderKey[provider.slug.upper()]
-            model = Model.objects.create(
+            model = language.Model(
+                definition=MOCK_STATEMENT,
                 external_name=model_id,
                 provider=provider_key,
-                default_settings=ModelInferenceSettings().as_dict(omit_empty=True),
+                settings=None,
             )
-            models_file.define_symbol(name=model_id, content=model)
+            statement = Statement.objects.create_statement(
+                project_version=stdlib_v,
+                file=models_file,
+                parent=None,
+                index=None,
+                type=StatementType.DEFINITION,
+                symbol_type=SymbolType.MODEL,
+                name=model_id,
+            )
+            wmap_symbol(statement, model)
+            statement.save()
 
         # advance head
         stdlib_v.commit(version_id)

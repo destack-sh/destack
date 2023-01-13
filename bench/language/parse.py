@@ -37,12 +37,7 @@ from bench.utils.record import RecordList
 
 logger = structlog.get_logger(__name__)
 
-UNGROUPED_STATEMENT_TYPES = (
-    StatementType.DEFINITION,
-    StatementType.REDEFINITION,
-    SymbolType.COMPILATION,
-    SymbolType.RUNCONFIG,
-)
+UNGROUPED_STATEMENT_TYPES = (StatementType.DEFINITION, StatementType.REDEFINITION)
 
 
 def raise_error(error: ValueError):
@@ -450,22 +445,6 @@ def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
     return Statement(type=StatementType.COMMENT, text=token.value, **kwargs)
 
 
-def _parse_requirement(tokens: TokenParser, **kwargs) -> Statement:
-    """Parse a requirement statement."""
-    tokens.eat_keyword(SymbolType.REQUIREMENT)
-    tokens.eat_space()
-    dependency = tokens.eat_identifier()
-    tokens.eat_separator("@")
-    version = tokens.eat_identifier()
-    tokens.eat_newline_or_eof()
-    return Statement(
-        type=SymbolType.REQUIREMENT,
-        name=dependency.value,
-        requirement=Requirement(name=dependency.value, version=version.value),
-        **kwargs,
-    )
-
-
 # import source must either be in current module (.*) or absolute (<owner>.<name>.*)
 RELATIVE_IMPORT_SOURCE_REGEX = re.compile(r"^\.(?P<path>[\w.-]+)$")
 ABSOLUTE_IMPORT_SOURCE_REGEX = re.compile(
@@ -517,8 +496,16 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_space()
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
-    tokens.eat_newline()
-    literal = tokens.eat_literal()
+    # parse literal if required
+    if symbol_type.value not in (
+        SymbolType.REQUIREMENT,
+        SymbolType.COMPILATION,
+        SymbolType.RUNCONFIG,
+    ):
+        tokens.eat_newline()
+        literal = tokens.eat_literal()
+    else:
+        literal = None
     tokens.eat_newline_or_eof()
 
     definition = Statement(
@@ -569,9 +556,34 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
             content = Value(value=value, definition=definition)
         except json.JSONDecodeError as e:
             raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
+    elif symbol_type.value == SymbolType.COMPILATION:
+        content = Compilation(definition=definition)
+    # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
+    elif symbol_type.value == SymbolType.RUNCONFIG:
+        content = Runconfig(definition=definition)
     else:
         raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
     definition.content = content
+    return definition
+
+
+def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
+    """Parse a requirement statement (special path because of name@value syntax)."""
+    tokens.eat_keyword(SymbolType.REQUIREMENT)
+    tokens.eat_space()
+    dependency = tokens.eat_identifier()
+    tokens.eat_separator("@")
+    version = tokens.eat_identifier()
+    tokens.eat_newline_or_eof()
+    definition = Statement(
+        type=StatementType.DEFINITION,
+        symbol_type=SymbolType.REQUIREMENT,
+        name=dependency.value,
+        **kwargs,
+    )
+    definition.content = Requirement(
+        name=dependency.value, version=version.value, definition=definition
+    )
     return definition
 
 
@@ -584,8 +596,7 @@ def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_separator(" ")
     reference_name, other_symbol_type = _parse_reference_slot(tokens)
     # defined symbol type and referenced symbol type must match
-    # (both may be null for non-symbol statements)
-    if not (symbol_type == other_symbol_type or symbol_type.value == other_symbol_type.value):
+    if symbol_type.value != other_symbol_type.value:
         raise ParseError(
             PE.UNEXPECTED_TOKEN_VALUE, reference_name, type=TT.IDENTIFIER, value=symbol_type
         )
@@ -633,36 +644,12 @@ def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:
     return modifier
 
 
-def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token | None]:
+def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token]:
     # references can be either to symbol types or compile and run statements
-    if tokens.peek_keyword(SymbolType.COMPILATION) or tokens.peek_keyword(SymbolType.RUNCONFIG):
-        tokens.eat()
-        symbol_type = None
-    else:
-        symbol_type = tokens.eat_keyword_like(SymbolType)
+    symbol_type = tokens.eat_keyword_like(SymbolType)
     tokens.eat_space()
     name = tokens.eat_identifier()
     return name, symbol_type
-
-
-def _parse_compile(tokens: TokenParser, **kwargs) -> Statement:
-    tokens.eat_keyword(SymbolType.COMPILATION)
-    tokens.eat_space()
-    name = tokens.eat_identifier()
-    tokens.eat_separator(":")
-    tokens.eat_newline_or_eof()
-    return Statement(
-        type=SymbolType.COMPILATION, name=name.value, compilation=Compilation(), **kwargs
-    )
-
-
-def _parse_runconfig(tokens: TokenParser, **kwargs) -> Statement:
-    tokens.eat_keyword(SymbolType.RUNCONFIG)
-    tokens.eat_space()
-    name = tokens.eat_identifier()
-    tokens.eat_separator(":")
-    tokens.eat_newline_or_eof()
-    return Statement(type=SymbolType.RUNCONFIG, name=name.value, runconfig=Runconfig(), **kwargs)
 
 
 def _parse_blank(tokens: TokenParser, **kwargs) -> Statement:
@@ -678,9 +665,7 @@ def _parse_statement(
 ) -> Optional[Statement]:
     for _parse in [
         _parse_comment,
-        _parse_requirement,
-        _parse_compile,
-        _parse_runconfig,
+        _parse_definition_requirement,
         _parse_definition,
         _parse_import,
         _parse_redefinition,
@@ -691,8 +676,7 @@ def _parse_statement(
         try:
             statement = _parse(parser, **statement_kwargs)
             # check if there's a blank line after the end of a group
-            is_ungrouped = statement.type in UNGROUPED_STATEMENT_TYPES
-            could_be_group_end = (is_root and is_ungrouped) or not is_root
+            could_be_group_end = (is_root and statement.ungrouped) or not is_root
             # we're at the end if there is an unintended token next
             if could_be_group_end and parser.peek_indent_level == 0:
                 parser.eat_newline_or_eof()
@@ -736,7 +720,8 @@ class SemanticErrorType(enum.Enum):
         return obj
 
 
-ST = StatementType
+StmT = StatementType
+SymT = SymbolType
 SE = SemanticErrorType
 
 
@@ -845,32 +830,27 @@ def check_statement(
     proper_children = [s for s in all_children if not s.is_parameter and not s.is_argument]
 
     # check schema'd symbol definitions have exactly one schema
-    if statement.type == ST.DEFINITION and statement.requires_schema:
-        schema_candidates = [c for c in proper_children if c.symbol_type == SymbolType.SCHEMA]
+    if statement.type == StmT.DEFINITION and statement.requires_schema:
+        schema_candidates = [c for c in proper_children if c.symbol_type == SymT.SCHEMA]
         if len(schema_candidates) > 1:
             _error(SE.AMBIGUOUS_SCHEMA, statement)
         elif len(schema_candidates) == 0:
             _error(SE.MISSING_SCHEMA, statement)
-
-    # check that non-symbol definitions are top-level
-    if statement.type in (ST.REQUIREMENT, ST.COMPILATION, ST.RUNCONFIG):
-        if statement.parent is not None:
-            _error(SE.UNEXPECTED_PARENT, statement, parent=statement.parent)
 
     # check that arguments and parameters have a parent
     if (statement.is_argument or statement.is_parameter) and statement.parent is None:
         _error(SE.EXPECTED_PARENT, statement)
 
     # check that compile has proper children and model parameters
-    if statement.type == ST.COMPILATION:
+    if statement.symbol_type == SymT.COMPILATION:
         if len(proper_children) == 0:
             _error(SE.EXPECTED_PROPER_CHILDREN, statement)
-        model_parameters = [s for s in parameters if s.symbol_type == SymbolType.MODEL]
+        model_parameters = [s for s in parameters if s.symbol_type == SymT.MODEL]
         if len(model_parameters) == 0:
-            _error(SE.EXPECTED_PARAMETERS, statement, type=SymbolType.MODEL)
+            _error(SE.EXPECTED_PARAMETERS, statement, type=SymT.MODEL)
 
     # check that runconfig has arguments
-    if statement.type == ST.RUNCONFIG:
+    if statement.type == SymT.RUNCONFIG:
         if len(proper_children) == 0:
             _error(SE.EXPECTED_PROPER_CHILDREN, statement, type="any")
 
@@ -973,11 +953,11 @@ def index_module(
 
     # collect requirements
     for statement in idx.statements_by_id.values():
-        if statement.type == ST.REQUIREMENT:
+        if statement.symbol_type == SymT.REQUIREMENT:
             requirement_name = statement.name
             if requirement_name in idx.requirements_by_name:
                 _error(SE.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
                 continue
-            idx.requirements_by_name[requirement_name] = statement.requirement
+            idx.requirements_by_name[requirement_name] = typing.cast(Requirement, statement.content)
 
     return idx

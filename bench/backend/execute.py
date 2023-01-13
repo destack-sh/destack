@@ -19,7 +19,6 @@ import structlog
 from django.db import models
 from more_itertools import first
 
-from bench.api.schema import SchemaElement
 from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
@@ -36,6 +35,7 @@ from bench.backend.type import (
     ValueInstance,
 )
 from bench.language.parse import IndexedModule
+from bench.language.schema import SchemaElement
 from bench.language.type import (
     Code,
     Dataset,
@@ -286,7 +286,7 @@ def _instantiate_schema_element(
     return resolved_schema
 
 
-def _instantiate_model_handle(model):
+def _instantiate_model_handle(model) -> ModelHandle:
     provider = PROVIDERS.get(ProviderKey(model.provider))
     if provider is None:
         raise ValueError(f"unknown provider {model.provider}")

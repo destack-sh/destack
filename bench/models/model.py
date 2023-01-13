@@ -8,7 +8,7 @@ from bench.models.utils import MAX_DESCRIPTION_LENGTH, UUIDTModel
 class ModelContentMixin:
     """
     Model content as in language.Model
-    TODO @Cleanup: Statement chouldn't contain all raw language.Model fields via ModelContentMixin,
+    TODO @Cleanup: Statement shouldn't contain all raw language.Model fields via ModelContentMixin,
      as that seems like too much specific info compared to the other symbol contents. Model is weird currently.
     """
 

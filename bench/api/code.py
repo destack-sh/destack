@@ -1,25 +1,14 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import Optional
 
 import strawberry
 from asgiref.sync import async_to_sync
-from strawberry import auto, lazy
+from strawberry import auto
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.symbol import Statement, SymbolContent
+from bench.api.symbol import Code, Model, Statement
 from bench.backend.tracing import ExecutionTrace
-
-if TYPE_CHECKING:
-    from bench.api.model import Model
-
-
-@gql.django.type(models.Code)
-class Code(SymbolContent):
-    definition: Statement
-    builtin_id: auto
-    code: auto
-    length: auto
 
 
 @gql.django.type(models.Execution)
@@ -36,7 +25,7 @@ class Execution(gql.Node):
     parent: Optional["Execution"]
     children: list["Execution"]
     code: Code
-    model: Optional[Annotated["Model", lazy(".model")]]
+    model: Optional[Model]
 
 
 @gql.input
@@ -51,9 +40,9 @@ class CodeMutation:
     @gql.mutation
     def update_code_content(self, input: CodeUpdateContentCode) -> Statement:
         statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        statement.code_.builtin_id = input.builtin_id
-        statement.code_.code = input.code
-        statement.code_.save()
+        statement.code_builtin_id = input.builtin_id
+        statement.code = input.code
+        statement.save()
         return statement
 
 

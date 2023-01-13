@@ -16,7 +16,6 @@ from bench import language, models
 from bench.language.parse import index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.models.project import FileType, Project, ProjectVersion
-from bench.models.symbol import SYMBOL_CONTENT_RELATION_FIELDS
 from bench.utils.record import RecordList
 
 
@@ -36,20 +35,18 @@ def lookup_module_in_db(
 @transaction.atomic(savepoint=False)  # read-only
 def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
     """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
+    lang_module = rmap_module(project_v)
     lang_files: dict[UUID, language.File] = {}
     lang_statements: dict[UUID, language.Statement] = {}
 
-    module = rmap_module(project_v)
-    model_statements = project_v.statements.select_related(*SYMBOL_CONTENT_RELATION_FIELDS).all()
-
     # map files
     for file in project_v.files.all():
-        lang_file = language.File(module=module, id=file.id, path=file.path)
+        lang_file = language.File(module=lang_module, id=file.id, path=file.path)
         lang_files[file.id] = lang_file
-        module.files.append(lang_file)
+        lang_module.files.append(lang_file)
 
     # map statements
-    for statement in model_statements:
+    for statement in project_v.statements.all():
         lang_statement = rmap_statement(statement, file=lang_files[statement.file_id])
         lang_statements[statement.id] = lang_statement
         lang_statement.file.statements.append(lang_statement)
@@ -57,12 +54,12 @@ def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
             lang_statement.content = rmap_symbol(statement, lang_statement)
 
     # map references (incl. parent)
-    for statement in model_statements:
+    for statement in project_v.statements.all():
         lang_statement = lang_statements[statement.id]
         lang_statement.parent = lang_statements.get(statement.parent_id)
         lang_statement.reference = lang_statements.get(statement.reference_id)
 
-    return module
+    return lang_module
 
 
 def rmap_statement(statement: models.Statement, file: language.File):
@@ -184,7 +181,7 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
         ]
         return source_mappings
     elif isinstance(content, language.Requirement):
-        statement.project_version = lookup_requirement(content)
+        statement.reference_project_version = lookup_requirement(content)
         return []
     elif isinstance(content, language.Runconfig):
         return []
