@@ -6,9 +6,9 @@ require openai.stdlib@latest
 import task 'generate command' from .main
 import model text-davinci-003 from openai.stdlib.text
 
-compile 'test-codegen':
-    with model 'codegen'
-    task 'generate command'
+# compile test-codegen:
+#    with model codegen
+#    task 'generate command'
 
 compile prod:
     with model text-davinci-003

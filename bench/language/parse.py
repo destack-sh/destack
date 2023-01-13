@@ -845,9 +845,9 @@ def check_statement(
     if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.COMPILATION:
         if len(proper_children) == 0:
             _error(SE.EXPECTED_PROPER_CHILDREN, statement)
-        model_parameters = [s for s in parameters if s.symbol_type == SymT.MODEL]
-        if len(model_parameters) == 0:
-            _error(SE.EXPECTED_PARAMETERS, statement, type=SymT.MODEL)
+        model_arguments = [s for s in arguments if s.symbol_type == SymT.MODEL]
+        if len(model_arguments) == 0:
+            _error(SE.EXPECTED_ARGUMENTS, statement, type=SymT.MODEL)
 
     # check that runconfig has arguments
     if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.RUNCONFIG:
