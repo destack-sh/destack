@@ -12,7 +12,6 @@ from uuid import UUID
 import structlog
 
 from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
-from bench.language.schema import parse_bsl
 from bench.language.type import (
     Capability,
     Code,
@@ -23,17 +22,19 @@ from bench.language.type import (
     Module,
     Requirement,
     Runconfig,
-    Schema,
     Statement,
     StatementModifier,
     StatementPath,
     StatementType,
+    SymbolContent,
     SymbolType,
     Task,
+    Type,
     Value,
     parse_statement_path,
     statement_path_as_str,
 )
+from bench.language.typing import TypeElement, ValueType
 from bench.utils.record import RecordList
 
 logger = structlog.get_logger(__name__)
@@ -170,7 +171,7 @@ def parse_string(
 class TokenParser:
     """
     Iterates over the source stream with a peek window of 1 token.
-    Automatically matching indentation at the configured level.
+    Automatically matches (and ignores) indentation at the set level (may be changed).
     """
 
     def __init__(self, tokens: list[Token], start_pos: int, indent_level: int):
@@ -312,11 +313,29 @@ class TokenParser:
             raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.SEPARATOR, value=separator)
         return token
 
+    def peek_bracket(self, bracket: str) -> Optional[Token]:
+        token = self.peek_type(TT.BRACKET)
+        if token is None or token.value != bracket:
+            return None
+        return token
+
+    def eat_bracket(self, bracket: str) -> Token:
+        token = self.eat_type(TT.BRACKET)
+        if token is None or token.value != bracket:
+            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.BRACKET, value=bracket)
+        return token
+
     def eat_space(self) -> Token:
         return self.eat_separator(" ")
 
     def eat_literal(self) -> Token:
         return self.eat_type(TT.LITERAL)
+
+    def peek_description(self) -> Optional[Token]:
+        return self.peek_type(TT.DESCRIPTION)
+
+    def eat_description(self) -> Token:
+        return self.eat_type(TT.DESCRIPTION)
 
 
 def _clean_literal_indent(text: str, indent_level: int) -> str:
@@ -496,18 +515,6 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
     symbol_type = tokens.eat_keyword_like(SymbolType)
     tokens.eat_space()
     name = tokens.eat_identifier()
-    tokens.eat_separator(":")
-    # parse literal if required
-    if symbol_type.value not in (
-        SymbolType.REQUIREMENT,
-        SymbolType.COMPILATION,
-        SymbolType.RUNCONFIG,
-    ):
-        tokens.eat_newline()
-        literal = tokens.eat_literal()
-    else:
-        literal = None
-    tokens.eat_newline_or_eof()
 
     definition = Statement(
         type=StatementType.DEFINITION,
@@ -516,28 +523,61 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         symbol_type=symbol_type.value,
         **kwargs,
     )
+    definition.content = _parse_definition_content(tokens, symbol_type, name, definition)
+    return definition
 
-    if symbol_type.value == SymbolType.SCHEMA:
-        try:
-            element = parse_bsl(literal.value)
-        except ValueError as e:
-            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
-        content = Schema(description="", element=element, definition=definition)
-    elif symbol_type.value == SymbolType.CAPABILITY:
-        content = Capability(description=literal.value, definition=definition)
+
+def _parse_definition_content(
+    tokens: TokenParser, symbol_type: Token, name: Token, definition: Statement
+) -> SymbolContent:
+    if symbol_type.value == SymbolType.CAPABILITY:
+        tokens.eat_separator(":")
+        tokens.eat_newline()
+        description = tokens.eat_description()
+        return Capability(description=description.value, definition=definition)
     elif symbol_type.value == SymbolType.TASK:
-        content = Task(description=literal.value, definition=definition)
+        tokens.eat_space()
+        tokens.eat_separator("::")
+        tokens.eat_space()
+        func_type = parse_type_element_func(tokens, name=name.value)
+        tokens.eat_separator(":")
+        tokens.eat_newline()
+        description = tokens.eat_description()
+        return Task(description=description.value, func_type=func_type, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
-        content = Expectation(description=literal.value, definition=definition)
+        tokens.eat_separator(":")
+        tokens.eat_newline()
+        description = tokens.eat_description()
+        return Expectation(description=description.value, definition=definition)
     elif symbol_type.value == SymbolType.CODE:
+        tokens.eat_space()
+        tokens.eat_separator("::")
+        tokens.eat_space()
+        func_type = parse_type_element_func(tokens, name=name.value)
+        tokens.eat_separator(":")
+        tokens.eat_newline()
+        literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         if lang is None:
             raise ParseError(PE.MISSING_EXTRA, literal, extra="lang")
         if lang != "python":
             raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
-        content = Code(language=lang, builtin_id=None, code=code_text, definition=definition)
+        return Code(
+            language=lang,
+            builtin_id=None,
+            code=code_text,
+            func_type=func_type,
+            definition=definition,
+        )
     elif symbol_type.value == SymbolType.DATASET:
+        tokens.eat_space()
+        tokens.eat_separator("::")
+        tokens.eat_space()
+        element_type = parse_type_element_struct_inline(tokens, name="element")
+        tokens.eat_separator(":")
+        tokens.eat_newline()
+        literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         try:
             if lang is None:
@@ -550,24 +590,29 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
                 records = json.loads(literal.value)
             else:
                 raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
-            content = Dataset(records=RecordList(records), definition=definition)
+            return Dataset(
+                records=RecordList(records), element_type=element_type, definition=definition
+            )
         except json.JSONDecodeError as e:
             raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.VALUE:
+        tokens.eat_separator(":")
+        tokens.eat_newline()
+        literal = tokens.eat_literal()
         try:  # parse as json
             value = json.loads(literal.value)
-            content = Value(value=value, definition=definition)
+            return Value(value=value, definition=definition)
         except json.JSONDecodeError as e:
-            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
+            raise ParseError(PE.INVALID_TOKEN_VALUE, value, error=e)
     elif symbol_type.value == SymbolType.COMPILATION:
-        content = Compilation(definition=definition)
+        tokens.eat_separator(":")
+        return Compilation(definition=definition)
     # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
     elif symbol_type.value == SymbolType.RUNCONFIG:
-        content = Runconfig(definition=definition)
-    else:
-        raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
-    definition.content = content
-    return definition
+        tokens.eat_separator(":")
+        return Runconfig(definition=definition)
+
+    raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 
 
 def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
@@ -588,6 +633,102 @@ def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
         name=dependency.value, version=version.value, definition=definition
     )
     return definition
+
+
+def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
+    """Parse a type statement (special path because of special syntax)."""
+    tokens.eat_keyword(SymbolType.TYPE)
+    tokens.eat_space()
+    name = tokens.eat_identifier()
+    tokens.eat_separator(":")
+    definition = Statement(
+        type=StatementType.DEFINITION, symbol_type=SymbolType.TYPE, name=name.value, **kwargs
+    )
+    tokens.eat_newline()
+    description = tokens.peek_description()
+    if description is not None:
+        tokens.eat_description()
+        tokens.eat_newline()
+    element = parse_type_element_struct(tokens, name=definition.name)
+    definition.content = Type(
+        definition=definition,
+        element=element,
+        description=description.value if description else None,
+    )
+    return definition
+
+
+def parse_type_element_tuple(tokens: TokenParser) -> TypeElement:
+    # parse single tuple like <name>: <type>[ "<description>"]
+    name = tokens.eat_identifier()
+    tokens.eat_separator(":")
+    tokens.eat_space()
+    return parse_type_element_type(tokens, name.value)
+
+
+def parse_type_element_type(tokens: TokenParser, name: str) -> TypeElement:
+    # parse array like [<type>]
+    if tokens.peek_bracket("["):
+        tokens.eat_bracket("[")
+        element = parse_type_element_type(tokens, name="")
+        tokens.eat_bracket("]")
+        return element
+
+    # otherwise parse type either primitive or type reference
+    if tokens.peek_type(TokenType.PRIMITIVE_TYPE):
+        type = tokens.eat_type(TokenType.PRIMITIVE_TYPE).value
+        reference = None
+    else:
+        type = ValueType.TYPE_REFERENCE
+        reference = tokens.eat_identifier().value
+    if tokens.peek_separator(" "):
+        tokens.eat_separator(" ")
+        description = tokens.eat_description().value
+    else:
+        description = None
+    return TypeElement(name=name, type=type, reference=reference, description=description)
+
+
+def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
+    # parse tuples like <tuple1>\n<tuple2>\n...
+    element = TypeElement(name=name, type=ValueType.STRUCT, elements=[])
+    while True:
+        tuple = parse_type_element_tuple(tokens)
+        element.elements.append(tuple)
+        if not tokens.peek_type(TokenType.NEWLINE):
+            break
+        tokens.eat_newline_or_eof()
+        if not tokens.peek_type(TokenType.IDENTIFIER):
+            break
+
+    return element
+
+
+def parse_type_element_struct_inline(tokens: TokenParser, name: str) -> TypeElement:
+    tokens.eat_bracket("(")
+    element = TypeElement(name=name, type=ValueType.STRUCT, elements=[])
+    while True:
+        tuple = parse_type_element_tuple(tokens)
+        element.elements.append(tuple)
+        if not tokens.peek_separator(","):
+            break
+        tokens.eat_separator(",")
+        tokens.eat_space()
+    tokens.eat_bracket(")")
+    return element
+
+
+def parse_type_element_func(tokens: TokenParser, name: str) -> TypeElement:
+    # parse signature like (<tuple1>, <tuple2>, ...) -> <return_tuple>
+    input = parse_type_element_struct_inline(tokens, "input")
+    if tokens.peek_separator(" "):
+        tokens.eat_separator(" ")
+        tokens.eat_separator("->")
+        tokens.eat_separator(" ")
+        output = parse_type_element_type(tokens, "output")
+    else:
+        output = TypeElement(name="output", type=ValueType.NULL)
+    return TypeElement(name=name, type=ValueType.FUNCTION, elements=[input, output])
 
 
 def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
@@ -669,6 +810,7 @@ def _parse_statement(
     for _parse in [
         _parse_comment,
         _parse_definition_requirement,
+        _parse_definition_type,
         _parse_definition,
         _parse_import,
         _parse_redefinition,
@@ -706,8 +848,6 @@ class SemanticErrorType(enum.Enum):
     REFERENCE_TYPE_MISMATCH = enum.auto(), "reference {resolved} is not of type {resolved}"
     AMBIGUOUS_DEFINITION = enum.auto(), "multiple definitions for {path}"
     AMBIGUOUS_REQUIREMENT = enum.auto(), "multiple requirements for {name}"
-    MISSING_SCHEMA = enum.auto(), "missing schema"
-    AMBIGUOUS_SCHEMA = enum.auto(), "multiple schemas"
     UNEXPECTED_PARENT = enum.auto(), "unexpected parent {parent}"
     EXPECTED_PARENT = enum.auto(), "expected a parent"
     EXPECTED_PROPER_CHILDREN = enum.auto(), "expected proper children"
@@ -832,14 +972,6 @@ def check_statement(
     arguments = [s for s in all_children if s.is_argument]
     proper_children = [s for s in all_children if not s.is_parameter and not s.is_argument]
 
-    # check schema'd symbol definitions have exactly one schema
-    if statement.type == StmT.DEFINITION and statement.requires_schema:
-        schema_candidates = [c for c in proper_children if c.symbol_type == SymT.SCHEMA]
-        if len(schema_candidates) > 1:
-            _error(SE.AMBIGUOUS_SCHEMA, statement)
-        elif len(schema_candidates) == 0:
-            _error(SE.MISSING_SCHEMA, statement)
-
     # check that arguments and parameters have a parent
     if (statement.is_argument or statement.is_parameter) and statement.parent is None:
         _error(SE.EXPECTED_PARENT, statement)
@@ -848,9 +980,6 @@ def check_statement(
     if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.COMPILATION:
         if len(proper_children) == 0:
             _error(SE.EXPECTED_PROPER_CHILDREN, statement)
-        model_arguments = [s for s in arguments if s.symbol_type == SymT.MODEL]
-        if len(model_arguments) == 0:
-            _error(SE.EXPECTED_ARGUMENTS, statement, type=SymT.MODEL)
 
     # check that runconfig has arguments
     if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.RUNCONFIG:

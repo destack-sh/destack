@@ -9,8 +9,8 @@ export function useSymbolContentOps() {
 
   const { mutate: updateSchemaContentMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {
-        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {
+      mutation updateSchemaContent($id: GlobalID!, $btl: String!) {
+        updateSchemaContent(input: { statementId: $id, btl: $btl }) {
           id
           content {
             ...SchemaContent
@@ -20,14 +20,14 @@ export function useSymbolContentOps() {
     `)
   );
 
-  async function updateSchemaContent(id: string, oldBsl: string, newBsl: string) {
+  async function updateSchemaContent(id: string, oldBtl: string, newBtl: string) {
     await operations.perform({
       type: "symbol.schema.updateContent",
       do: async () => {
-        await updateSchemaContentMut({ id: id, bsl: newBsl });
+        await updateSchemaContentMut({ id: id, btl: newBtl });
       },
       undo: async () => {
-        await updateSchemaContentMut({ id: id, bsl: oldBsl });
+        await updateSchemaContentMut({ id: id, btl: oldBtl });
       },
     });
   }

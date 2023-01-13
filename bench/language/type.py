@@ -7,7 +7,7 @@ from uuid import UUID
 
 from django.db import models
 
-from bench.language.schema import SchemaElement, render_bsl
+from bench.language.typing import TypeElement
 from bench.utils.record import RecordBatch, RecordList
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
@@ -25,8 +25,8 @@ class StatementType(models.TextChoices):
     REFERENCE = "ref"  #
     REDEFINITION = "redef"  # =
     # non-symbol statements
-    COMMENT = "comment"  # //
-    BLANK = "blank"  # used while creating a new statement
+    COMMENT = "comment"  # #
+    BLANK = "blank"  #
 
 
 class StatementModifier(models.TextChoices):
@@ -42,7 +42,7 @@ class StatementModifier(models.TextChoices):
 class SymbolType(models.TextChoices):
     """The type of symbol content."""
 
-    SCHEMA = "schema"
+    TYPE = "type"
     CAPABILITY = "capability"
     TASK = "task"
     EXPECTATION = "expect"
@@ -241,13 +241,13 @@ class SymbolContent:
 
 
 @dataclass(repr=False)
-class Schema(SymbolContent):
-    element: SchemaElement
+class Type(SymbolContent):
+    element: TypeElement
     description: str = ""
 
     @property
-    def bsl(self):
-        return render_bsl(self.element)
+    def btl(self):
+        return render_type(self.element)
 
     def __content_str__(self):
         return str(self.element)
@@ -264,6 +264,7 @@ class Capability(SymbolContent):
 @dataclass(repr=False)
 class Task(SymbolContent):
     description: str
+    func_type: TypeElement
 
     def __str__(self):
         return f"({self.description})"
@@ -280,6 +281,7 @@ class Expectation(SymbolContent):
 @dataclass(repr=False)
 class Dataset(SymbolContent):
     records: RecordBatch
+    element_type: TypeElement
 
     def __str__(self):
         return f"({len(self.records)})"
@@ -323,6 +325,7 @@ class Code(SymbolContent):
     language: Literal["python"]
     code: Optional[str]
     builtin_id: Optional[str]
+    func_type: TypeElement
 
     def __content_str__(self):
         # copied almost verbatim from Code.__str__

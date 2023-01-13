@@ -6,12 +6,10 @@ def test_execute_single_code():
     module = parse_string(
         """
 --- test.instruct ---
-code function:
+code function :: () -> number:
 ```python
 return 5
 ```
-    schema _:
-    `{ input: null, output: number }`
 """
     )
     idx = index_module(module)
@@ -29,12 +27,10 @@ value val:
 value 'unwieldy name':
 `2`
 
-code function:
+code function :: () -> number:
 ```python
 return val * context['unwieldy name']
 ```
-    schema _:
-    `{ input: null, output: number }`
 """
     )
     idx = index_module(module)
@@ -46,12 +42,10 @@ def test_execute_single_code_with_schema():
     module = parse_string(
         """
 --- test.instruct ---
-code function:
+code function :: (val: number) -> number:
 ```python
 return 5 * val
 ```
-    schema _:
-    `{ input: { val: number }, output: number }`
 """
     )
     idx = index_module(module)

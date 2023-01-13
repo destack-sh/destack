@@ -6,18 +6,18 @@ from dataclasses import dataclass
 
 from bench.backend.provider import ModelHandle
 from bench.language.parse import IndexedModule
-from bench.language.schema import SchemaElement
 from bench.language.type import (
     Code,
     Dataset,
     Expectation,
     Model,
     Module,
-    Schema,
     StatementPath,
     Task,
+    Type,
     Value,
 )
+from bench.language.typing import TypeElement
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
@@ -44,15 +44,15 @@ class SymbolInstance(StatementInstance):
 
 
 @dataclass(repr=False)
-class SchemaInstance(Schema, SymbolInstance):
+class TypeInstance(Type, SymbolInstance):
     @property
-    def py_handle(self) -> SchemaElement:
+    def py_handle(self) -> TypeElement:
         return self.element
 
 
 @dataclass(repr=False)
 class TaskInstance(SymbolInstance, Task):
-    schema: SchemaInstance
+    pass
 
 
 @dataclass(repr=False)
@@ -62,7 +62,7 @@ class ExpectationInstance(Expectation, SymbolInstance):
 
 @dataclass(repr=False)
 class DatasetInstance(Dataset, SymbolInstance):
-    schema: SchemaInstance
+    pass
 
     @property
     def py_handle(self) -> RecordBatch:
@@ -87,7 +87,6 @@ class ModelInstance(Model, SymbolInstance):
 
 @dataclass(repr=False)
 class CodeInstance(Code, SymbolInstance):
-    schema: SchemaInstance
     code_callable: SyncCodeCallable | AsyncCodeCallable
 
     @property

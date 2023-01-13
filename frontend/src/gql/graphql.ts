@@ -282,7 +282,7 @@ export type MutationUpdateExpectationContentArgs = {
 };
 
 export type MutationUpdateSchemaContentArgs = {
-  input: SchemaUpdateContentBsl;
+  input: SchemaUpdateContentBtl;
 };
 
 export type MutationUpdateTaskContentArgs = {
@@ -519,7 +519,7 @@ export type RunCodeValueArgumentInput = {
 
 export type Schema = {
   __typename?: "Schema";
-  bsl: Scalars["String"];
+  btl: Scalars["String"];
   description: Scalars["String"];
   element: SchemaElement;
 };
@@ -544,8 +544,8 @@ export type SchemaElement = {
   type: ValueType;
 };
 
-export type SchemaUpdateContentBsl = {
-  bsl: Scalars["String"];
+export type SchemaUpdateContentBtl = {
+  btl: Scalars["String"];
   statementId: Scalars["GlobalID"];
 };
 
@@ -707,8 +707,8 @@ export enum SymbolType {
   Model = "MODEL",
   Requirement = "REQUIREMENT",
   Runconfig = "RUNCONFIG",
-  Schema = "SCHEMA",
   Task = "TASK",
+  Type = "TYPE",
   Value = "VALUE",
 }
 
@@ -984,7 +984,7 @@ export type SchemaElementContentDeepFragment = {
 export type SchemaContentFragment = {
   __typename?: "Schema";
   description: string;
-  bsl: string;
+  btl: string;
   element: { __typename?: "SchemaElement" } & {
     " $fragmentRefs"?: { SchemaElementContentDeepFragment: SchemaElementContentDeepFragment };
   };
@@ -1331,7 +1331,7 @@ export type SetReferenceMutation = {
 
 export type UpdateSchemaContentMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  bsl: Scalars["String"];
+  btl: Scalars["String"];
 }>;
 
 export type UpdateSchemaContentMutation = {
@@ -1735,7 +1735,7 @@ export const SchemaContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SchemaElementContentDeep" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "bsl" } },
+          { kind: "Field", name: { kind: "Name", value: "btl" } },
         ],
       },
     },
@@ -3645,7 +3645,7 @@ export const UpdateSchemaContentDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "bsl" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "btl" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
       ],
@@ -3669,8 +3669,8 @@ export const UpdateSchemaContentDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "bsl" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "bsl" } },
+                      name: { kind: "Name", value: "btl" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "btl" } },
                     },
                   ],
                 },

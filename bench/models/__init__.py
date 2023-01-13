@@ -4,7 +4,6 @@ from .data import DatasetRecord
 from .model import ModelInference
 from .organization import Organization
 from .project import File, Project, ProjectVersion
-from .schema_field import SchemaElementField, SchemaField
 from .symbol import Statement, StatementType, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
 from .user import User
@@ -18,8 +17,6 @@ __all__ = [
     "Organization",
     "Project",
     "ProjectVersion",
-    "SchemaElementField",
-    "SchemaField",
     "SourceMapping",
     "Statement",
     "StatementType",

@@ -134,7 +134,7 @@ export const SchemaContentType = graphql(/* GraphQL */ `
     element {
       ...SchemaElementContentDeep
     }
-    bsl
+    btl
   }
 `);
 

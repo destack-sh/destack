@@ -170,7 +170,7 @@ type Mutation {
   renameFile(input: FileRenameInput!): RenameFilePayload!
   softDeleteFile(input: FileSoftDeleteInput!): File!
   restoreFile(input: FileRestoreInput!): File!
-  updateSchemaContent(input: SchemaUpdateContentBsl!): Statement!
+  updateSchemaContent(input: TypeUpdateContentBtl!): Statement!
   updateTaskContent(input: TaskUpdateContentDescription!): Statement!
   updateExpectationContent(input: ExpectationUpdateContentDescription!): Statement!
   updateCodeContent(input: CodeUpdateContentCode!): Statement!
@@ -388,27 +388,6 @@ input RunCodeValueArgumentInput {
   value: String!
 }
 
-type Schema {
-  description: String!
-  element: SchemaElement!
-  bsl: String!
-}
-
-union SchemaCapabilityTaskExpectationCodeDatasetModelValueRequirement = Schema | Capability | Task | Expectation | Code | Dataset | Model | Value | Requirement
-
-type SchemaElement {
-  name: String
-  type: ValueType!
-  required: Boolean!
-  schemaId: String
-  elements: [SchemaElement!]
-}
-
-input SchemaUpdateContentBsl {
-  statementId: GlobalID!
-  bsl: String!
-}
-
 union SetModifierStatementPayload = Statement | OperationInfo
 
 type SourceMapping {
@@ -443,7 +422,7 @@ type Statement implements Node {
   sourceDefinition(pk: ID): Statement
   reference: Statement
   referencedBy: [Statement!]!
-  content: SchemaCapabilityTaskExpectationCodeDatasetModelValueRequirement
+  content: TypeCapabilityTaskExpectationCodeDatasetModelValueRequirement
 }
 
 input StatementCommentedInput {
@@ -548,7 +527,7 @@ enum StatementType {
 
 """The type of symbol content."""
 enum SymbolType {
-  SCHEMA
+  TYPE
   CAPABILITY
   TASK
   EXPECTATION
@@ -568,6 +547,27 @@ type Task {
 input TaskUpdateContentDescription {
   statementId: GlobalID!
   description: String!
+}
+
+type Type {
+  description: String!
+  element: TypeElement!
+  btl: String!
+}
+
+union TypeCapabilityTaskExpectationCodeDatasetModelValueRequirement = Type | Capability | Task | Expectation | Code | Dataset | Model | Value | Requirement
+
+type TypeElement {
+  name: String
+  type: ValueType!
+  required: Boolean!
+  schemaId: String
+  elements: [TypeElement!]
+}
+
+input TypeUpdateContentBtl {
+  statementId: GlobalID!
+  btl: String!
 }
 
 type User implements Node {
@@ -613,8 +613,9 @@ enum ValueType {
   STRING
   NUMBER
   BOOLEAN
-  SCHEMA
-  OBJECT
+  STRUCT
   ARRAY
+  UNION
   NULL
+  TYPE_REFERENCE
 }

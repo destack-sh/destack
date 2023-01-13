@@ -1,4 +1,5 @@
-from typing import Optional, Type, Union
+import typing
+from typing import Optional, Union
 
 import strawberry
 from graphql import NoSchemaIntrospectionCustomRule
@@ -13,21 +14,23 @@ from bench.api.compile import Compilation, CompilationMutation
 from bench.api.expectation import ExpectationMutation
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
-from bench.api.schema import SchemaMutation
 from bench.api.symbol import (
     Dataset,
     Expectation,
     Model,
     Requirement,
-    Schema,
     Statement,
     StatementMutation,
     Task,
+    Type,
     Value,
 )
 from bench.api.task import TaskMutation
+from bench.api.type import TypeMutation
 from bench.api.user import User
 from bench.settings import DEBUG, TEST
+
+PyType = typing.Type
 
 
 @strawberry.type
@@ -50,7 +53,7 @@ class Query:
 class Mutation(
     StatementMutation,
     FileMutation,
-    SchemaMutation,
+    TypeMutation,
     TaskMutation,
     ExpectationMutation,
     CodeMutation,
@@ -61,12 +64,12 @@ class Mutation(
     pass
 
 
-default_extensions: list[Union[Type[Extension], Extension]] = [
+default_extensions: list[Union[PyType[Extension], Extension]] = [
     DjangoOptimizerExtension,
     QueryDepthLimiter(max_depth=10),
     SchemaDirectiveExtension,
 ]
-prod_extensions: list[Union[Type[Extension], Extension]] = [
+prod_extensions: list[Union[PyType[Extension], Extension]] = [
     ParserCache(),
     AddValidationRules([NoSchemaIntrospectionCustomRule]),
 ]
@@ -80,5 +83,5 @@ schema = strawberry.Schema(
     Mutation,
     extensions=extensions,
     # add interface implementation types explicitly
-    types=[Schema, Task, Expectation, Code, Model, Dataset, Value, Compilation, Requirement],
+    types=[Type, Task, Expectation, Code, Model, Dataset, Value, Compilation, Requirement],
 )

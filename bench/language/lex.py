@@ -7,6 +7,7 @@ from functools import cached_property
 from typing import Optional
 
 from bench.language.type import StatementModifier, StatementType, SymbolType
+from bench.language.typing import ValueType
 
 
 @dataclass(repr=False)
@@ -61,6 +62,10 @@ class TokenType(enum.Enum):
     SEPARATOR = "separator"
     IDENTIFIER = "identifier"
     LITERAL = "literal"
+    DESCRIPTION = "description"
+    PRIMITIVE_TYPE = "primitive_type"
+    MARK_OPTIONAL = "mark_optional"
+    BRACKET = "bracket"
 
 
 @dataclass
@@ -149,7 +154,7 @@ KEYWORDS = {
     "unlike": StatementModifier.UNLIKE,
     "verify": StatementModifier.VERIFY,
     # SymbolType
-    "schema": SymbolType.SCHEMA,
+    "type": SymbolType.TYPE,
     "capability": SymbolType.CAPABILITY,
     "task": SymbolType.TASK,
     "expect": SymbolType.EXPECTATION,
@@ -165,7 +170,12 @@ KEYWORDS = {
     "as": None,
     "from": None,
 }
-SEPARATORS = {" ", ":", "=", "@"}
+PRIMITIVE_TYPES = {
+    "string": ValueType.STRING,
+    "number": ValueType.NUMBER,
+    "boolean": ValueType.BOOLEAN,
+}
+SEPARATORS = [" ", ",", "::", ":", "=", "@", "->"]  # order matters!
 
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
@@ -178,7 +188,7 @@ NEWFILE_REGEX = re.compile(r"^\n?---\s*(?P<value>[\w.-]*)\s*---$\n", re.MULTILIN
 LINE_COMMENT_REGEX = re.compile(r"^#\s(?P<value>.*)\s*$", re.MULTILINE)
 MULTILINE_COMMENT_REGEX = re.compile(r"###\n(?P<value>.+?)\n[ \t]*###", re.DOTALL | re.MULTILINE)
 # keywords from set
-# (must have start/whitespace before and end/whitespace after, but that is not considered part of the token)
+# (must have end/whitespace after, but that is not considered part of the token)
 KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")(?= |$)")
 # separator from set
 SEPARATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
@@ -191,6 +201,10 @@ MULTILINE_LITERAL_REGEX = re.compile(
     r"```(?P<lang>\w+)?\n(?P<value>.+?)\n[ \t]*```", re.DOTALL | re.MULTILINE
 )
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({\.(?P<lang>\w+)})?")
+# descriptions as "<value>"
+DESCRIPTION_REGEX = re.compile(r'"(?P<value>[^"\n]+)"')
+# primitive type from set (like keywords)
+PRIMITIVE_TYPE_REGEX = re.compile(r"(?P<value>" + "|".join(PRIMITIVE_TYPES.keys()) + r")(?= |$)")
 
 # token type + corresponding pattern in lex order
 TOKEN_PATTERNS = [
@@ -206,6 +220,11 @@ TOKEN_PATTERNS = [
     (TokenType.IDENTIFIER, ESCAPED_IDENTIFIER_REGEX),
     (TokenType.LITERAL, MULTILINE_LITERAL_REGEX),
     (TokenType.LITERAL, INLINE_LITERAL_REGEX),
+    (TokenType.DESCRIPTION, DESCRIPTION_REGEX),
+    (TokenType.PRIMITIVE_TYPE, PRIMITIVE_TYPE_REGEX),
+    (TokenType.MARK_OPTIONAL, re.compile(r"\?")),
+    (TokenType.BRACKET, re.compile(r"(?P<value>[(\[)\]])")),
+    (TokenType.MARK_OPTIONAL, re.compile(r"(?P<value>\?)")),
 ]
 
 

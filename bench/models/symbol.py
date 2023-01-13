@@ -23,7 +23,6 @@ from bench.language.type import (
 )
 from bench.models.data import DatasetContentMixin
 from bench.models.model import ModelContentMixin
-from bench.models.schema_field import SchemaElementField
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
@@ -130,7 +129,7 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     value = models.JSONField(null=True, blank=True)  # for value
-    element = SchemaElementField(null=True, blank=True)  # for schema content
+    btl = models.TextField(null=True, blank=True)  # for type content and any other types
     # ... other contents currently via DatasetContentMixin and ModelContentMixin
 
     def __str__(self):
@@ -258,6 +257,8 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         type: StatementType,
         symbol_type: SymbolType | None,
     ):
+        from bench.models.mapper import wmap_symbol  # avoid circular import
+
         """Changes the type of the statement without clearing any old content fields."""
         self.type = type
         # set default content if not already set
