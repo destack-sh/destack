@@ -1,15 +1,8 @@
-from strawberry import auto
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.symbol import Statement, SymbolContent
-
-
-@gql.django.type(models.Expectation)
-class Expectation(SymbolContent):
-    definition: Statement
-    description: auto
+from bench.api.symbol import Statement
 
 
 @gql.input
@@ -23,6 +16,6 @@ class ExpectationMutation:
     @gql.mutation
     def update_expectation_content(self, input: ExpectationUpdateContentDescription) -> Statement:
         statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        statement.expectation_.description = input.description
-        statement.expectation_.save()
+        statement.description = input.description
+        statement.save()
         return statement

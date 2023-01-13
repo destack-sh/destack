@@ -10,7 +10,6 @@ from uuid import UUID
 from bench.api.symbol import StatementType
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX
-from bench.language.parse import UNGROUPED_STATEMENT_TYPES
 from bench.language.schema import render_bsl
 from bench.language.type import (
     Code,
@@ -59,7 +58,7 @@ def render_file(file: File) -> str:
         for statement, indent in walk_dfs(root_statement, 0):
             lines.append(render_statement(statement, indent, render_indent=True))
         # add extra blank line between ungrouped root statements
-        if root_statement.type in UNGROUPED_STATEMENT_TYPES and i != (len(root_statements) - 1):
+        if root_statement.ungrouped and i != (len(root_statements) - 1):
             lines.append("")
 
     return "\n".join(lines)

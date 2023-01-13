@@ -1,17 +1,98 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 from strawberry import lazy
+from strawberry.scalars import JSON
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.language import schema
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
 
 StatementType = gql.enum(models.StatementType)
 SymbolType = gql.enum(models.SymbolType)
+
+
+@gql.type
+class Schema:
+    description: str
+    element: "SchemaElement"
+    bsl: str
+
+
+ValueType = gql.enum(schema.ValueType)
+
+
+@gql.type
+class SchemaElement:
+    name: Optional[str]
+    type: ValueType
+    required: bool = True
+    schema_id: Optional[str] = None
+    elements: Optional[list["SchemaElement"]] = None
+
+
+@gql.type
+class Task:
+    description: str
+
+
+@gql.type
+class Expectation:
+    description: str
+
+
+@gql.type
+class Code:
+    builtin_id: str
+    code: str
+
+
+@gql.type
+class Model:
+    provider: str
+    external_name: str
+
+
+@gql.type
+class Dataset:
+    records: list["DatasetRecord"]
+
+
+@gql.type
+class DatasetRecord(gql.Node):
+    data: JSON
+
+
+@gql.type
+class Value:
+    value: JSON
+
+
+@gql.type
+class Requirement:
+    project_version: Annotated["ProjectVersion", lazy(".project")]
+
+
+@gql.type
+class Compilation:
+    mappings: list["SourceMapping"]
+
+
+@gql.type
+class SourceMapping:
+    source: Annotated["Statement", lazy(".symbol")]
+    source_path: JSON
+    source_revision: int
+    target: Annotated["Statement", lazy(".symbol")]
+    target_path: JSON
+    target_revision: int
+
+
+SymbolContent = Union[Task, Expectation, Code, Dataset, Model, Value, Requirement]
 
 
 @gql.django.type(models.Statement)
@@ -35,27 +116,12 @@ class Statement(gql.relay.Node):
     source_definition: Optional["Statement"]
     reference: Optional["Statement"]
     referenced_by: list["Statement"]
-    content: Optional["SymbolContent"]
-
-
-@gql.django.interface(models.SymbolContent)
-class SymbolContent(gql.Node):
-    pass
-
-
-@gql.django.type(models.Requirement)
-class Requirement(gql.Node):
-    project_version: Annotated["ProjectVersion", lazy(".project")]
-
-
-@gql.django.type(models.RunConfiguration)
-class RunConfiguration(gql.Node):
-    project_version: Annotated["ProjectVersion", lazy(".project")]
+    content: Optional[SymbolContent]
 
 
 @gql.input
 class StatementCreateInput:
-    fileId: GlobalID
+    file_id: GlobalID
     type: StatementType
     name: Optional[str] = None
     parent_id: Optional[GlobalID] = None
@@ -157,7 +223,7 @@ class StatementMutation:
 
     @gql.mutation
     def create_statement(self, input: StatementCreateInput) -> StatementCreatePayload:
-        file = models.File.objects.get(id=input.fileId.node_id)
+        file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
         parent = (
             models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None

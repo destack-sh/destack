@@ -1,31 +1,9 @@
-from typing import TYPE_CHECKING, Annotated
-
 import strawberry
 from asgiref.sync import async_to_sync
-from strawberry import auto, lazy
-from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
-import bench.models.compilation
 from bench import models
-
-if TYPE_CHECKING:
-    from bench.api.symbol import Statement
-
-
-@gql.django.type(bench.models.compilation.Compilation)
-class Compilation(gql.Node):
-    mappings: list["SourceMapping"]
-
-
-@gql.django.type(bench.models.compilation.SourceMapping)
-class SourceMapping(gql.Node):
-    source: Annotated["Statement", lazy(".symbol")]
-    source_path: auto
-    source_revision: auto
-    target: Annotated["Statement", lazy(".symbol")]
-    target_path: auto
-    target_revision: auto
+from bench.api.symbol import Compilation
 
 
 @strawberry.input

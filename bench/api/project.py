@@ -10,7 +10,6 @@ from bench.models import StatementType
 from bench.models.project import RefDict
 
 if TYPE_CHECKING:
-    from bench.api.compilation import Compilation
     from bench.api.organization import Organization
     from bench.api.symbol import Statement
 
@@ -91,7 +90,6 @@ class ProjectVersion(gql.Node):
     statements: list[Annotated["Statement", lazy(".symbol")]] = gql.django.field(
         filters=StatementFilter
     )
-    compilations: list[Annotated["Compilation", lazy(".compilation")]]
 
     @gql.field
     def parents_refs(self) -> list[RefMapping]:

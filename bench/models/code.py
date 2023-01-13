@@ -52,7 +52,7 @@ class Execution(UUIDTModel):
         related_name="executions",
     )
     model = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions"
+        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )
     model_inference = models.ForeignKey(
         "ModelInference",

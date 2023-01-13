@@ -6,11 +6,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from bench.backend.mapper import lookup_module_in_db
 from bench.language import File
 from bench.language.lex import SourceFile, Token, lex
 from bench.language.parse import parse
 from bench.language.reconstruct import render, render_file
+from bench.models.mapper import lookup_module_in_db
 
 
 class Command(BaseCommand):

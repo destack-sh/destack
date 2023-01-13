@@ -393,13 +393,6 @@ class File(UUIDModel):
     def active_root_statements(self):
         return self.root_statements.filter(deleted_at__isnull=True, commented=False)
 
-    def define_symbol(
-        self, name: str, content: SymbolContent, parent: Optional[Statement] = None, **kwargs
-    ) -> Statement:
-        return self.project_version.define_symbol(
-            file=self, name=name, content=content, parent=parent, **kwargs
-        )
-
     @transaction.atomic
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
