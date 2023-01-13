@@ -150,6 +150,7 @@ KEYWORDS = {
     "verify": StatementModifier.VERIFY,
     # SymbolType
     "schema": SymbolType.SCHEMA,
+    "capability": SymbolType.CAPABILITY,
     "task": SymbolType.TASK,
     "expect": SymbolType.EXPECTATION,
     "code": SymbolType.CODE,

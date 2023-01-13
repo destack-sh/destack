@@ -1,0 +1,17 @@
+--- math.instruct ---
+require symbolx.stdlib@latest
+
+task calculate:
+`Compute a mathematical value from any expression`
+    schema _:
+    `{ input: string, output: number }`
+
+task 'solve equation':
+`Solve an equation for a variable`
+    schema _:
+    `{ equation: string, variable: string, output: number }`
+
+capability 'basic math':
+`Perform basic arithmetic operations`
+    task calculate
+    task 'solve equation'

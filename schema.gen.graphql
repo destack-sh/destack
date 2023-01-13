@@ -8,12 +8,13 @@ type AddCompilationPayload {
   compilation: Compilation!
 }
 
-type Code implements SymbolContent & Node {
-  id: GlobalID!
-  definition: Statement!
-  builtinId: String
-  code: String
-  length: Int!
+type Capability {
+  description: String!
+}
+
+type Code {
+  builtinId: String!
+  code: String!
 }
 
 input CodeUpdateContentCode {
@@ -34,8 +35,7 @@ type CommitPayload {
   newWorkingVersion: ProjectVersion!
 }
 
-type Compilation implements Node {
-  id: GlobalID!
+type Compilation {
   mappings: [SourceMapping!]!
 }
 
@@ -49,16 +49,13 @@ type CompilePayload {
 
 union CreateFilePayload = File | OperationInfo
 
-type Dataset implements SymbolContent & Node {
-  id: GlobalID!
-  definition: Statement!
-  length: Int!
+type Dataset {
   records: [DatasetRecord!]!
 }
 
 type DatasetRecord implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
-  index: Int!
   data: JSON!
 }
 
@@ -86,9 +83,7 @@ type Execution implements Node {
   model: Model
 }
 
-type Expectation implements SymbolContent & Node {
-  id: GlobalID!
-  definition: Statement!
+type Expectation {
   description: String!
 }
 
@@ -152,11 +147,9 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
-type Model implements SymbolContent & Node {
-  id: GlobalID!
-  definition: Statement!
-  baseline(pk: ID): Model
+type Model {
   provider: String!
+  externalName: String!
 }
 
 type MorphStatementPayload {
@@ -299,7 +292,6 @@ type ProjectVersion implements Node {
   mainProgram: Statement
   files(filters: FileFilter): [File!]!
   statements(filters: StatementFilter): [Statement!]!
-  compilations: [Compilation!]!
   parentsRefs: [RefMapping!]!
 }
 
@@ -371,8 +363,7 @@ union RenameFilePayload = File | OperationInfo
 
 union RenameStatementPayload = Statement | OperationInfo
 
-type Requirement implements Node {
-  id: GlobalID!
+type Requirement {
   projectVersion: ProjectVersion!
 }
 
@@ -397,13 +388,13 @@ input RunCodeValueArgumentInput {
   value: String!
 }
 
-type Schema implements SymbolContent & Node {
-  id: GlobalID!
-  definition: Statement!
+type Schema {
   description: String!
   element: SchemaElement!
   bsl: String!
 }
+
+union SchemaCapabilityTaskExpectationCodeDatasetModelValueRequirement = Schema | Capability | Task | Expectation | Code | Dataset | Model | Value | Requirement
 
 type SchemaElement {
   name: String
@@ -420,8 +411,7 @@ input SchemaUpdateContentBsl {
 
 union SetModifierStatementPayload = Statement | OperationInfo
 
-type SourceMapping implements Node {
-  id: GlobalID!
+type SourceMapping {
   source: Statement!
   sourcePath: JSON!
   sourceRevision: Int!
@@ -453,9 +443,7 @@ type Statement implements Node {
   sourceDefinition(pk: ID): Statement
   reference: Statement
   referencedBy: [Statement!]!
-  content(pk: ID): SymbolContent
-  compilation: Compilation
-  requirement: Requirement
+  content: SchemaCapabilityTaskExpectationCodeDatasetModelValueRequirement
 }
 
 input StatementCommentedInput {
@@ -487,6 +475,7 @@ input StatementFilter {
 
 """A modifier to a Bench statement."""
 enum StatementModifier {
+  VAR
   WITH
   LIKE
   UNLIKE
@@ -553,33 +542,27 @@ enum StatementType {
   DEFINITION
   REFERENCE
   REDEFINITION
-  REQUIREMENT
-  COMPILATION
-  RUNCONFIG
   COMMENT
   BLANK
-}
-
-interface SymbolContent implements Node {
-  id: GlobalID!
 }
 
 """The type of symbol content."""
 enum SymbolType {
   SCHEMA
+  CAPABILITY
   TASK
   EXPECTATION
   CODE
   MODEL
   DATASET
   VALUE
+  REQUIREMENT
+  COMPILATION
+  RUNCONFIG
 }
 
-type Task implements SymbolContent & Node {
-  id: GlobalID!
-  definition: Statement!
+type Task {
   description: String!
-  compilations: [Compilation!]!
 }
 
 input TaskUpdateContentDescription {
@@ -621,9 +604,8 @@ type UserEdge {
   node: User!
 }
 
-type Value implements SymbolContent & Node {
-  id: GlobalID!
-  value: JSON
+type Value {
+  value: JSON!
 }
 
 """An enumeration."""

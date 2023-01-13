@@ -130,7 +130,6 @@ export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
 
 export const SchemaContentType = graphql(/* GraphQL */ `
   fragment SchemaContent on Schema {
-    id
     description
     element {
       ...SchemaElementContentDeep
@@ -174,11 +173,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     }
     reference {
       ...StatementHeader
-    }
-    requirement {
-      projectVersion {
-        ...ProjectVersionAsDependency
-      }
     }
     text
   }

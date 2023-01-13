@@ -3,7 +3,7 @@ import * as types from "./graphql";
 import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-node/core";
 
 const documents = {
-  "\n  fragment TaskContent on Task {\n    id\n    description\n  }\n": types.TaskContentFragmentDoc,
+  "\n  fragment TaskContent on Task {\n    description\n  }\n": types.TaskContentFragmentDoc,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
@@ -16,9 +16,8 @@ const documents = {
     types.ProjectVersionContentDocument,
   "\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  ":
     types.ProjectMigrationRefsDocument,
-  "\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n  }\n": types.CodeContentFragmentDoc,
-  "\n  fragment DatasetContent on Dataset {\n    id\n    length\n    records {\n      data\n      index\n    }\n  }\n":
-    types.DatasetContentFragmentDoc,
+  "\n  fragment CodeContent on Code {\n    builtinId\n    code\n  }\n": types.CodeContentFragmentDoc,
+  "\n  fragment DatasetContent on Dataset {\n    records {\n      data\n    }\n  }\n": types.DatasetContentFragmentDoc,
   "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n":
     types.OperationInfoContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
@@ -33,9 +32,9 @@ const documents = {
     types.StatementHeaderFragmentDoc,
   "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    required\n    schemaId\n    elements {\n      name\n      type\n      required\n      schemaId\n      elements {\n        name\n        type\n        required\n        schemaId\n      }\n    }\n  }\n":
     types.SchemaElementContentDeepFragmentDoc,
-  "\n  fragment SchemaContent on Schema {\n    id\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n    bsl\n  }\n":
+  "\n  fragment SchemaContent on Schema {\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n    bsl\n  }\n":
     types.SchemaContentFragmentDoc,
-  "\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    content {\n      ... on Code {\n        ...CodeContent\n      }\n      ... on Dataset {\n        ...DatasetContent\n      }\n      ... on Expectation {\n        description\n      }\n      ... on Task {\n        description\n      }\n      ... on Schema {\n        ...SchemaContent\n      }\n    }\n    reference {\n      ...StatementHeader\n    }\n    requirement {\n      projectVersion {\n        ...ProjectVersionAsDependency\n      }\n    }\n    text\n  }\n":
+  "\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    content {\n      ... on Code {\n        ...CodeContent\n      }\n      ... on Dataset {\n        ...DatasetContent\n      }\n      ... on Expectation {\n        description\n      }\n      ... on Task {\n        description\n      }\n      ... on Schema {\n        ...SchemaContent\n      }\n    }\n    reference {\n      ...StatementHeader\n    }\n    text\n  }\n":
     types.StatementContentFragmentDoc,
   "\n  fragment ProjectVersionContentSense on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      ...FileHeader\n      # exact same query as fileContentById to get immediate updates\n      statements(filters: { isVisible: true }) {\n        ...StatementHeader\n      }\n    }\n    dependencies {\n      id\n      ...ProjectVersionAsDependency\n    }\n  }\n":
     types.ProjectVersionContentSenseFragmentDoc,
@@ -71,19 +70,19 @@ const documents = {
     types.SetReferenceDocument,
   "\n      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {\n        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {\n          id\n          content {\n            ...SchemaContent\n          }\n        }\n      }\n    ":
     types.UpdateSchemaContentDocument,
-  "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    ":
+  "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    ":
     types.UpdateTaskContentDocument,
-  "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    ":
+  "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    ":
     types.UpdateExpectationContentDocument,
-  "\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            id\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    ":
+  "\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    ":
     types.UpdateCodeContentDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
     types.CommitDocument,
 };
 
 export function graphql(
-  source: "\n  fragment TaskContent on Task {\n    id\n    description\n  }\n"
-): typeof documents["\n  fragment TaskContent on Task {\n    id\n    description\n  }\n"];
+  source: "\n  fragment TaskContent on Task {\n    description\n  }\n"
+): typeof documents["\n  fragment TaskContent on Task {\n    description\n  }\n"];
 export function graphql(
   source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  "];
@@ -103,11 +102,11 @@ export function graphql(
   source: "\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  "];
 export function graphql(
-  source: "\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n  }\n"
-): typeof documents["\n  fragment CodeContent on Code {\n    id\n    builtinId\n    code\n  }\n"];
+  source: "\n  fragment CodeContent on Code {\n    builtinId\n    code\n  }\n"
+): typeof documents["\n  fragment CodeContent on Code {\n    builtinId\n    code\n  }\n"];
 export function graphql(
-  source: "\n  fragment DatasetContent on Dataset {\n    id\n    length\n    records {\n      data\n      index\n    }\n  }\n"
-): typeof documents["\n  fragment DatasetContent on Dataset {\n    id\n    length\n    records {\n      data\n      index\n    }\n  }\n"];
+  source: "\n  fragment DatasetContent on Dataset {\n    records {\n      data\n    }\n  }\n"
+): typeof documents["\n  fragment DatasetContent on Dataset {\n    records {\n      data\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n"];
@@ -130,11 +129,11 @@ export function graphql(
   source: "\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    required\n    schemaId\n    elements {\n      name\n      type\n      required\n      schemaId\n      elements {\n        name\n        type\n        required\n        schemaId\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment SchemaElementContentDeep on SchemaElement {\n    name\n    type\n    required\n    schemaId\n    elements {\n      name\n      type\n      required\n      schemaId\n      elements {\n        name\n        type\n        required\n        schemaId\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment SchemaContent on Schema {\n    id\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n    bsl\n  }\n"
-): typeof documents["\n  fragment SchemaContent on Schema {\n    id\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n    bsl\n  }\n"];
+  source: "\n  fragment SchemaContent on Schema {\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n    bsl\n  }\n"
+): typeof documents["\n  fragment SchemaContent on Schema {\n    description\n    element {\n      ...SchemaElementContentDeep\n    }\n    bsl\n  }\n"];
 export function graphql(
-  source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    content {\n      ... on Code {\n        ...CodeContent\n      }\n      ... on Dataset {\n        ...DatasetContent\n      }\n      ... on Expectation {\n        description\n      }\n      ... on Task {\n        description\n      }\n      ... on Schema {\n        ...SchemaContent\n      }\n    }\n    reference {\n      ...StatementHeader\n    }\n    requirement {\n      projectVersion {\n        ...ProjectVersionAsDependency\n      }\n    }\n    text\n  }\n"
-): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    content {\n      ... on Code {\n        ...CodeContent\n      }\n      ... on Dataset {\n        ...DatasetContent\n      }\n      ... on Expectation {\n        description\n      }\n      ... on Task {\n        description\n      }\n      ... on Schema {\n        ...SchemaContent\n      }\n    }\n    reference {\n      ...StatementHeader\n    }\n    requirement {\n      projectVersion {\n        ...ProjectVersionAsDependency\n      }\n    }\n    text\n  }\n"];
+  source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    content {\n      ... on Code {\n        ...CodeContent\n      }\n      ... on Dataset {\n        ...DatasetContent\n      }\n      ... on Expectation {\n        description\n      }\n      ... on Task {\n        description\n      }\n      ... on Schema {\n        ...SchemaContent\n      }\n    }\n    reference {\n      ...StatementHeader\n    }\n    text\n  }\n"
+): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    content {\n      ... on Code {\n        ...CodeContent\n      }\n      ... on Dataset {\n        ...DatasetContent\n      }\n      ... on Expectation {\n        description\n      }\n      ... on Task {\n        description\n      }\n      ... on Schema {\n        ...SchemaContent\n      }\n    }\n    reference {\n      ...StatementHeader\n    }\n    text\n  }\n"];
 export function graphql(
   source: "\n  fragment ProjectVersionContentSense on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      ...FileHeader\n      # exact same query as fileContentById to get immediate updates\n      statements(filters: { isVisible: true }) {\n        ...StatementHeader\n      }\n    }\n    dependencies {\n      id\n      ...ProjectVersionAsDependency\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionContentSense on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      ...FileHeader\n      # exact same query as fileContentById to get immediate updates\n      statements(filters: { isVisible: true }) {\n        ...StatementHeader\n      }\n    }\n    dependencies {\n      id\n      ...ProjectVersionAsDependency\n    }\n  }\n"];
@@ -187,14 +186,14 @@ export function graphql(
   source: "\n      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {\n        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {\n          id\n          content {\n            ...SchemaContent\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation updateSchemaContent($id: GlobalID!, $bsl: String!) {\n        updateSchemaContent(input: { statementId: $id, bsl: $bsl }) {\n          id\n          content {\n            ...SchemaContent\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "];
+  source: "\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateTaskContent($id: GlobalID!, $description: String!) {\n        updateTaskContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            ... on Task {\n              description\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            id\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    "];
+  source: "\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateExpectationContent($id: GlobalID!, $description: String!) {\n        updateExpectationContent(input: { statementId: $id, description: $description }) {\n          id\n          content {\n            ... on Expectation {\n              description\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            id\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            id\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    "];
+  source: "\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {\n        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {\n          id\n          content {\n            ... on Code {\n              builtinId\n              code\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
