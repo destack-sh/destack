@@ -143,6 +143,9 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
         statement.description = content.description
         statement.element = content.element
         return []
+    elif isinstance(content, language.Capability):
+        statement.description = content.description
+        return []
     elif isinstance(content, language.Task):
         statement.description = content.description
         return []
@@ -197,6 +200,8 @@ def rmap_symbol(
         return language.Schema(
             definition, description=statement.description, element=statement.element
         )
+    elif statement.symbol_type == SymbolType.CAPABILITY:
+        return language.Capability(definition, description=statement.description)
     elif statement.symbol_type == SymbolType.TASK:
         return language.Task(definition, description=statement.description)
     elif statement.symbol_type == SymbolType.EXPECTATION:

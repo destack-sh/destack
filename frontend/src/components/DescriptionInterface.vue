@@ -8,7 +8,6 @@ import { computed, ref, watchEffect, type Ref } from "vue";
 
 const TaskContentType = graphql(/* GraphQL */ `
   fragment TaskContent on Task {
-    id
     description
   }
 `);

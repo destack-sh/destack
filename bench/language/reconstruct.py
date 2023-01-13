@@ -12,6 +12,7 @@ from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, LINE_COMMENT_REGEX
 from bench.language.schema import render_bsl
 from bench.language.type import (
+    Capability,
     Code,
     Compilation,
     Dataset,
@@ -115,6 +116,8 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
     if isinstance(content, Schema):
         bsl = render_bsl(content.element)
         return render_literal(bsl)
+    elif isinstance(content, Capability):
+        return render_literal(content.description)
     elif isinstance(content, Task):
         return render_literal(content.description)
     elif isinstance(content, Expectation):
@@ -130,7 +133,7 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
     elif isinstance(content, (Compilation, Runconfig, Requirement)):
         return None
     else:
-        raise ValueError(f"unexpected symbol content type: {content}")
+        raise ValueError(f"unexpected symbol content type: {type(content)} {content}")
 
 
 def escape_identifier(identifier: str) -> str:

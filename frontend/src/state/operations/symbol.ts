@@ -40,7 +40,6 @@ export function useSymbolContentOps() {
         updateTaskContent(input: { statementId: $id, description: $description }) {
           id
           content {
-            id
             ... on Task {
               description
             }
@@ -70,7 +69,6 @@ export function useSymbolContentOps() {
         updateExpectationContent(input: { statementId: $id, description: $description }) {
           id
           content {
-            id
             ... on Expectation {
               description
             }
@@ -100,7 +98,6 @@ export function useSymbolContentOps() {
         updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {
           id
           content {
-            id
             ... on Code {
               builtinId
               code

@@ -36,6 +36,11 @@ class SchemaElement:
 
 
 @gql.type
+class Capability:
+    description: str
+
+
+@gql.type
 class Task:
     description: str
 
@@ -92,7 +97,9 @@ class SourceMapping:
     target_revision: int
 
 
-SymbolContent = Union[Task, Expectation, Code, Dataset, Model, Value, Requirement]
+SymbolContent = Union[
+    Schema, Capability, Task, Expectation, Code, Dataset, Model, Value, Requirement
+]
 
 
 @gql.django.type(models.Statement)

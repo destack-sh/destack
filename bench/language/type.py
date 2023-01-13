@@ -43,6 +43,7 @@ class SymbolType(models.TextChoices):
     """The type of symbol content."""
 
     SCHEMA = "schema"
+    CAPABILITY = "capability"
     TASK = "task"
     EXPECTATION = "expect"
     CODE = "code"
@@ -253,6 +254,14 @@ class Schema(SymbolContent):
 
 
 @dataclass(repr=False)
+class Capability(SymbolContent):
+    description: str
+
+    def __str__(self):
+        return f"({self.description})"
+
+
+@dataclass(repr=False)
 class Task(SymbolContent):
     description: str
 
@@ -361,6 +370,8 @@ class SourceMapping:
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
     if symbol_type == SymbolType.TASK:
         return Task(definition, description="")
+    elif symbol_type == SymbolType.CAPABILITY:
+        return Capability(definition, description="")
     elif symbol_type == SymbolType.EXPECTATION:
         return Expectation(definition, description="")
     elif symbol_type == SymbolType.DATASET:

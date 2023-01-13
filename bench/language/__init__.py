@@ -1,6 +1,7 @@
 from bench.language.lex import Token, TokenType, lex
 from bench.language.parse import parse
 from bench.language.type import (
+    Capability,
     Code,
     Compilation,
     Dataset,
@@ -26,6 +27,7 @@ __all__ = [
     "Statement",
     "SymbolContent",
     "Schema",
+    "Capability",
     "Task",
     "Expectation",
     "Code",

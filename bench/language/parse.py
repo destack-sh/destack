@@ -14,6 +14,7 @@ import structlog
 from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
 from bench.language.schema import parse_bsl
 from bench.language.type import (
+    Capability,
     Code,
     Compilation,
     Dataset,
@@ -522,6 +523,8 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         except ValueError as e:
             raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
         content = Schema(description="", element=element, definition=definition)
+    elif symbol_type.value == SymbolType.CAPABILITY:
+        content = Capability(description=literal.value, definition=definition)
     elif symbol_type.value == SymbolType.TASK:
         content = Task(description=literal.value, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
