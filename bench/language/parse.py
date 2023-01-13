@@ -841,8 +841,8 @@ def check_statement(
     if (statement.is_argument or statement.is_parameter) and statement.parent is None:
         _error(SE.EXPECTED_PARENT, statement)
 
-    # check that compile has proper children and model parameters
-    if statement.symbol_type == SymT.COMPILATION:
+    # check that compile definition has proper children and model parameters
+    if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.COMPILATION:
         if len(proper_children) == 0:
             _error(SE.EXPECTED_PROPER_CHILDREN, statement)
         model_parameters = [s for s in parameters if s.symbol_type == SymT.MODEL]
@@ -850,7 +850,7 @@ def check_statement(
             _error(SE.EXPECTED_PARAMETERS, statement, type=SymT.MODEL)
 
     # check that runconfig has arguments
-    if statement.type == SymT.RUNCONFIG:
+    if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.RUNCONFIG:
         if len(proper_children) == 0:
             _error(SE.EXPECTED_PROPER_CHILDREN, statement, type="any")
 
