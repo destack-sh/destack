@@ -143,6 +143,7 @@ class SyntaxError(ValueError):
 
 KEYWORDS = {
     # StatementModifier
+    "var": StatementModifier.VAR,
     "with": StatementModifier.WITH,
     "like": StatementModifier.LIKE,
     "unlike": StatementModifier.UNLIKE,

@@ -17,5 +17,5 @@ compile prod:
     task 'extract entities'
 
 run ner-prod:
-    with compile target = compile prod
+    with target = compile prod
     task 'extract entities'

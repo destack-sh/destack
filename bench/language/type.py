@@ -32,6 +32,7 @@ class StatementType(models.TextChoices):
 class StatementModifier(models.TextChoices):
     """A modifier to a Bench statement."""
 
+    VAR = "var"
     WITH = "with"
     LIKE = "like"
     UNLIKE = "unlike"
@@ -196,11 +197,11 @@ class Statement:
 
     @property
     def is_parameter(self) -> bool:
-        return self.modifier == StatementModifier.WITH and self.type == StatementType.REFERENCE
+        return self.modifier == StatementModifier.VAR
 
     @property
     def is_argument(self) -> bool:
-        return self.modifier == StatementModifier.WITH and self.defines_symbol
+        return self.modifier == StatementModifier.WITH
 
     @property
     def is_alias(self):
