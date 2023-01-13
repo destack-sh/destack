@@ -7,3 +7,13 @@ require openai.stdlib@latest
 # AI support for linting Bench files
 
 --- suggest.instruct ---
+
+###
+This is a multi-line markdown comment.
+## Heading 2
+With
+ - headings:
+ - Try some markdown like **bold** or *italic* or `code`
+ - Can even "link" to symbols like the [stdlib](symbolx.stdlib)
+It works!
+###
