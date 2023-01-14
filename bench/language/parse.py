@@ -667,7 +667,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     return definition
 
 
-def parse_type_element_tuple(tokens: TokenParser) -> TypeElement:
+def parse_type_element(tokens: TokenParser) -> TypeElement:
     # parse single tuple like <name>: <type>[ "<description>"]
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
@@ -740,7 +740,7 @@ def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
     # parse tuples like <tuple1>\n<tuple2>\n...
     element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
     while True:
-        tuple = parse_type_element_tuple(tokens)
+        tuple = parse_type_element(tokens)
         element.elements.append(tuple)
         if not tokens.peek_type(TokenType.NEWLINE):
             break
@@ -754,7 +754,7 @@ def parse_type_element_struct_inline(tokens: TokenParser, name: str) -> TypeElem
     tokens.eat_bracket("(")
     element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
     while not tokens.peek_bracket(")"):
-        tuple = parse_type_element_tuple(tokens)
+        tuple = parse_type_element(tokens)
         element.elements.append(tuple)
         if not tokens.peek_separator(","):
             break
@@ -988,8 +988,11 @@ class SemanticError(ValueError):
             return f" at\n> {statement}\n{source[0].source_file.path}:{source[0].line_number}\n{source_context}"
 
 
+SymbolContentT = typing.TypeVar("SymbolContentT", bound=SymbolContent)
+
+
 @dataclass(repr=False)
-class IndexedModule:
+class ModuleIndex:
     module: Module
     requirements_by_name: dict[str, Requirement] = field(default_factory=dict)
     statements_by_id: dict[UUID, Statement] = field(default_factory=OrderedDict)
@@ -1003,6 +1006,16 @@ class IndexedModule:
             path = parse_statement_path(path)
         return self.statements_by_path[path]
 
+    def symbol(
+        self, path: StatementPath | str, symbol_t: typing.Type[SymbolContentT]
+    ) -> SymbolContentT:
+        statement = self.statement(path)
+        if statement.content is None:
+            raise ValueError(f"statement {statement} has no content")
+        if not isinstance(statement.content, symbol_t):
+            raise ValueError(f"statement {statement} has content of type {type(statement.content)}")
+        return typing.cast(SymbolContentT, statement.content)
+
     def children(self, statement: Statement) -> list[Statement]:
         return self.statements_by_parent[statement.id]
 
@@ -1011,14 +1024,26 @@ def resolve(
     module: Module,
     lookup_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
-) -> IndexedModule:
+) -> ModuleIndex:
     """Resolve unresolved references in the given module."""
 
     idx = index_module(module, on_error=on_error)
 
-    # resolve references
+    # resolve references to other statements
     for statement in idx.statements_by_id.values():
         resolve_statement_reference(statement, idx, lookup_module, on_error)
+
+    # resolve references in types (to other statements)
+    for statement in idx.statements_by_id.values():
+        # (on all statements that have types in their content)
+        if isinstance(statement.content, Type):
+            resolve_type_references(statement, statement.content.element, idx, on_error)
+        elif isinstance(statement.content, Dataset):
+            resolve_type_references(statement, statement.content.element_type, idx, on_error)
+        elif isinstance(statement.content, Task):
+            resolve_type_references(statement, statement.content.func_type, idx, on_error)
+        elif isinstance(statement.content, Code):
+            resolve_type_references(statement, statement.content.func_type, idx, on_error)
 
     # check other semantic issues
     # TODO @Cleanup: not sure where to put non-resolution semantic checking
@@ -1030,7 +1055,7 @@ def resolve(
 
 
 def check_statement(
-    statement: Statement, idx: IndexedModule, on_error: Callable[[SemanticError], None]
+    statement: Statement, idx: ModuleIndex, on_error: Callable[[SemanticError], None]
 ):
     def _error(
         _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
@@ -1059,13 +1084,11 @@ def check_statement(
 
 def resolve_statement_reference(
     statement: Statement,
-    idx: IndexedModule,
+    idx: ModuleIndex,
     lookup_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> None:
-    def _error(
-        _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
-    ):
+    def _error(_t: SemanticErrorType, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
     if not isinstance(statement.reference, StatementPath) or statement.is_parameter:
@@ -1081,7 +1104,7 @@ def resolve_statement_reference(
     if normalized_path.path.startswith("."):  # resolve in local module
         resolved = idx.statements_by_path.get(normalized_path)
         if resolved is None:
-            _error(SE.UNDEFINED_LOCAL_REFERENCE, statement, path=normalized_path)
+            _error(SE.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
             return
     else:  # resolve in external module
         # get source requirement
@@ -1091,40 +1114,84 @@ def resolve_statement_reference(
         requirement_name = f"{source.group('owner')}.{source.group('name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:
-            _error(SE.UNKNOWN_IMPORT_SOURCE, statement, source=requirement_name)
+            _error(SE.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
             return
         # localize path to requirement module
         localized_path = StatementPath("." + source.group("path"), normalized_path.name)
         try:  # use module lookup to resolve
             resolved = lookup_module(requirement, localized_path)
         except Exception as e:
-            _error(
-                SE.EXTERNAL_LOOKUP_FAILED,
-                statement,
-                error=e,
-                path=localized_path,
-                module=requirement,
-            )
+            _error(SE.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
             return
         if resolved is None:
-            _error(
-                SE.UNDEFINED_EXTERNAL_REFERENCE,
-                statement,
-                path=localized_path,
-                module=requirement.name,
-            )
+            _error(SE.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement.name)
             return
 
     statement.reference = resolved
     # check if the reference has the correct type
     if resolved.symbol_type != statement.symbol_type:
-        _error(SE.REFERENCE_TYPE_MISMATCH, statement, type=statement.symbol_type, resolved=resolved)
+        _error(SE.REFERENCE_TYPE_MISMATCH, type=statement.symbol_type, resolved=resolved)
+
+
+def resolve_type_references(
+    statement: Statement,
+    element: TypeElement,
+    idx: ModuleIndex,
+    on_error: Callable[[SemanticError], None],
+) -> None:
+    def _error(_t: SemanticErrorType, cause: Exception | None = None, **error_args):
+        on_error(SemanticError(_t, statement, cause, **error_args))
+
+    # walk through child elements
+    if element.elements is not None:
+        for child in element.elements:
+            resolve_type_references(statement, child, idx, on_error)
+
+    if not isinstance(element.reference, str):
+        return  # nothing to resolve
+
+    # normalize path to statement
+    normalized_path = StatementPath("." + statement.file.path_without_extension, element.reference)
+    resolved_stmt = idx.statements_by_path.get(normalized_path)
+    if resolved_stmt is None:
+        _error(SE.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
+        return
+    if resolved_stmt.symbol_type != SymT.TYPE:
+        _error(SE.REFERENCE_TYPE_MISMATCH, type=SymT.TYPE, resolved=resolved_stmt)
+        return
+
+    # turn statement into type element
+    if resolved_stmt.content is None:
+        raise RuntimeError(f"expected type statement {resolved_stmt} to have content")
+    resolved_type = typing.cast(Type, resolved_stmt.content)
+    element.reference = resolved_type.element
+
+    # impute type references (also in place)
+    impute_type_references(element, keep_references=True)
+
+
+def impute_type_references(element: TypeElement, keep_references: bool) -> None:
+    """Replace all references with their definitions."""
+    if element.type != TypeTag.TYPE_REFERENCE:
+        return
+
+    if not isinstance(element.reference, TypeElement):
+        raise ValueError(f"type reference is not resolved: {element}")
+
+    element.name = element.reference.name
+    element.type = element.reference.type
+    element.elements = element.reference.elements
+    if element.elements is not None:
+        for element in element.elements:
+            impute_type_references(element, keep_references)
+    if not keep_references:
+        element.reference = None
 
 
 def index_module(
     module: Module,
     on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise",
-) -> IndexedModule:
+) -> ModuleIndex:
     if on_error == "raise":
         on_error = raise_error
 
@@ -1133,7 +1200,7 @@ def index_module(
     ):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
-    idx = IndexedModule(module=module)
+    idx = ModuleIndex(module=module)
 
     # collect files and statements
     for file in module.files:

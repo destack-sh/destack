@@ -13,7 +13,7 @@ return 5
 """
     )
     idx = index_module(module)
-    code = instantiate(idx.statement(".test::function"), idx)
+    code = instantiate(idx.statement(".test:function"), idx)
     assert execute(code) == 5
 
 
@@ -34,7 +34,7 @@ return val * context['unwieldy name']
 """
     )
     idx = index_module(module)
-    code = instantiate(idx.statement(".test::function"), idx)
+    code = instantiate(idx.statement(".test:function"), idx)
     assert execute(code) == 10
 
 
@@ -49,5 +49,5 @@ return 5 * val
 """
     )
     idx = index_module(module)
-    code = instantiate(idx.statement(".test::function"), idx)
+    code = instantiate(idx.statement(".test:function"), idx)
     assert execute(code, {"val": 2}) == 10

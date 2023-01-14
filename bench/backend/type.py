@@ -4,7 +4,7 @@ import typing
 from dataclasses import dataclass
 
 from bench.backend.provider import ModelHandle
-from bench.language.parse import IndexedModule
+from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Code,
     Dataset,
@@ -26,7 +26,7 @@ SyncCodeCallable = typing.Callable[..., typing.Any]
 @dataclass(repr=False)
 class InstantiatedModule:
     module: Module
-    index: IndexedModule
+    index: ModuleIndex
     instances_by_path: dict[StatementPath, StatementInstance]
 
 

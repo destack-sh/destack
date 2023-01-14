@@ -7,9 +7,15 @@ from typing import Callable
 
 import pytest
 
-from bench.language import parse
+from bench.language import Type, TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import ParseError, SemanticError, SemanticErrorType
+from bench.language.parse import (
+    ParseError,
+    SemanticError,
+    SemanticErrorType,
+    index_module,
+    parse_string,
+)
 from bench.language.reconstruct import render
 
 # all .instruct files in bench/demo
@@ -37,3 +43,47 @@ def test_round_trip_demo_files(path: str):
     module = parse(lex(source_file), on_error=_raise_if_not_external())
     reconstructed = render(module.files)
     assert reconstructed == source_file.content
+
+
+def test_resolve_nested_indirect_type():
+    module = parse_string(
+        """
+--- test.instruct ---
+type RealString = string
+type MyString = RealString
+type EntityType = MyString
+
+type Entity:
+name: string
+'type': EntityType
+"""
+    )
+    idx = index_module(module)
+
+    type_entity_type = idx.symbol(".test:EntityType", Type).element
+    assert type_entity_type.type == TypeTag.STRING
+
+    type_entity = idx.symbol(".test:Entity", Type).element
+    assert type_entity.element("type").type == TypeTag.STRING
+
+
+def test_resolve_circular_type():
+    module = parse_string(
+        """
+--- test.instruct ---
+type Entity:
+name: string
+first_event: Event | null
+
+type Event:
+summary: string
+entities: [Entity]
+"""
+    )
+    idx = index_module(module)
+
+    type_event = idx.symbol(".test:Event", Type).element
+    assert type_event.element("entities").type == TypeTag.ARRAY
+
+    type_entity = idx.symbol(".test:Entity", Type).element
+    assert type_entity.element("first_event").elements[0].name == type_event.name
