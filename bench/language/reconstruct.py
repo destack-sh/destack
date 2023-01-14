@@ -9,7 +9,7 @@ from uuid import UUID
 
 from bench.api.symbol import StatementType, TypeElement, ValueType
 from bench.language import File, Statement
-from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, LINE_COMMENT_REGEX
+from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
 from bench.language.type import (
     Capability,
     Code,
@@ -25,6 +25,7 @@ from bench.language.type import (
     Type,
     Value,
 )
+from bench.language.typing import PRIMITIVE_TYPES
 
 
 def render(files: list[File]) -> str:
@@ -94,6 +95,16 @@ def render_statement_content(statement: Statement) -> str:
         identifier_str = escape_identifier(statement.name)
         if statement.symbol_type == SymbolType.REQUIREMENT:
             postfix = f"@{cast(Requirement, statement.content).version}"
+        elif statement.symbol_type == SymbolType.TASK:
+            type_str = render_type_element(cast(Task, statement.content).func_type)
+            postfix = f" :: {type_str}:"
+        elif statement.symbol_type == SymbolType.CODE:
+            type_str = render_type_element(cast(Code, statement.content).func_type)
+            postfix = f" :: {type_str}:"
+        elif statement.symbol_type == SymbolType.DATASET:
+            content = cast(Dataset, statement.content)
+            type_str = render_type_element_struct(content.element_type, ",")
+            postfix = f" :: {type_str}:"
         else:
             postfix = ":"
         def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}{postfix}"
@@ -135,26 +146,35 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
 
 
 def escape_identifier(identifier: str) -> str:
-    """Wraps an identifier in single quotes if it contains special characters."""
-    if IDENTIFIER_REGEX.fullmatch(identifier):
+    """Wraps an identifier in single quotes if it contains special characters or is a keyword."""
+    if IDENTIFIER_REGEX.fullmatch(identifier) and identifier not in KEYWORDS:
         return identifier
     else:
         return f"'{identifier}'"
 
 
-def render_type_element(element: TypeElement) -> str:
+def render_type_element(element: TypeElement, ignore_name: bool = False) -> str:
+    if element.name and not ignore_name:
+        identifier_str = escape_identifier(element.name) + ": "
+    else:
+        identifier_str = ""
+    description_str = f' "{element.description}"' if element.description else ""
     if element.type == ValueType.FUNCTION:
-        input_str = render_type_element_struct(element.input_, seperator="\n")
-        output_str = render_type_element(element.output)
-        return f"{input_str} -> {output_str}"
+        input_str = render_type_element_struct(element.input, seperator=", ")
+        if element.output.type != ValueType.NULL:
+            output_str = render_type_element(element.output, ignore_name=True)
+            return f"({input_str}) -> {output_str}"
+        else:
+            return f"({input_str})"
     elif element.type == ValueType.STRUCT:
-        return render_type_element_struct(element, seperator=", ")
+        return render_type_element_struct(element, seperator="\n")
     elif element.type == ValueType.ARRAY:
-        return f"[{render_type_element(element.element)}]"
+        type_str = f"[{render_type_element(element.elements[0])}]"
+        return f"{identifier_str}{type_str}{description_str}"
     elif element.type == ValueType.TYPE_REFERENCE:
-        description_str = f' "{element.description}"' if element.description else ""
-        type_str = element.type.value
-        return f"{element.name}: {type_str}{description_str}"
+        return f"{identifier_str}{element.reference}{description_str}"
+    elif element.type in PRIMITIVE_TYPES:
+        return f"{identifier_str}{element.type.value}{description_str}"
     else:
         raise ValueError(f"unexpected type: {element.type}")
 
@@ -167,7 +187,8 @@ def render_type_element_struct(element: TypeElement, seperator: str) -> str:
 
 
 def render_literal(value: str, lang: Optional[str] = None) -> str:
-    if INLINE_LITERAL_REGEX.fullmatch(f"`{value}`"):
+    prefer_multiline = lang == "python" or lang == "jsonl"
+    if INLINE_LITERAL_REGEX.fullmatch(f"`{value}`") and not prefer_multiline:
         if lang is None:
             return f"`{value}`"
         else:

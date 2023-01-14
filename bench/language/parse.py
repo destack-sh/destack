@@ -666,17 +666,18 @@ def parse_type_element_tuple(tokens: TokenParser) -> TypeElement:
     return parse_type_element_type(tokens, name.value)
 
 
-def parse_type_element_type(tokens: TokenParser, name: str) -> TypeElement:
+def parse_type_element_type(tokens: TokenParser, name: str | None) -> TypeElement:
     # parse array like [<type>]
     if tokens.peek_bracket("["):
         tokens.eat_bracket("[")
-        element = parse_type_element_type(tokens, name="")
+        element = parse_type_element_type(tokens, name=None)
         tokens.eat_bracket("]")
-        return element
+        return TypeElement(name=name, type=ValueType.ARRAY, elements=[element])
 
     # otherwise parse type either primitive or type reference
-    if tokens.peek_type(TokenType.PRIMITIVE_TYPE):
-        type = tokens.eat_type(TokenType.PRIMITIVE_TYPE).value
+    if tokens.peek_keyword_like(ValueType):
+        # not all value types are keywords, but only
+        type = tokens.eat_keyword_like(ValueType).value
         reference = None
     else:
         type = ValueType.TYPE_REFERENCE
@@ -700,7 +701,6 @@ def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
         tokens.eat_newline_or_eof()
         if not tokens.peek_type(TokenType.IDENTIFIER):
             break
-
     return element
 
 

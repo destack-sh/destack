@@ -10,7 +10,7 @@
 type Entity:
 "A named entity in a text"
 name: string "Canonical name of the entity"
-type: string
+'type': string
 
 task 'extract entities' :: (input: string) -> [EntityT]:
 "Extract the distinct entities from the text"

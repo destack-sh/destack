@@ -63,7 +63,6 @@ class TokenType(enum.Enum):
     IDENTIFIER = "identifier"
     LITERAL = "literal"
     DESCRIPTION = "description"
-    PRIMITIVE_TYPE = "primitive_type"
     MARK_OPTIONAL = "mark_optional"
     BRACKET = "bracket"
 
@@ -93,7 +92,7 @@ class Token:
         max_length = 100
         if self.value is None:
             value = "<none>"
-        elif len(self.value) > max_length:
+        elif isinstance(self.value, str) and len(self.value) > max_length:
             value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2:]}"
         else:
             value = self.value
@@ -166,14 +165,14 @@ KEYWORDS = {
     "require": SymbolType.REQUIREMENT,
     "run": SymbolType.RUNCONFIG,
     "compile": SymbolType.COMPILATION,
-    # Other
-    "as": None,
-    "from": None,
-}
-PRIMITIVE_TYPES = {
+    # ValueType
     "string": ValueType.STRING,
     "number": ValueType.NUMBER,
     "boolean": ValueType.BOOLEAN,
+    "null": ValueType.NULL,
+    # Other
+    "as": None,
+    "from": None,
 }
 SEPARATORS = [" ", ",", "::", ":", "=", "@", "->"]  # order matters!
 
@@ -189,7 +188,7 @@ LINE_COMMENT_REGEX = re.compile(r"^#\s(?P<value>.*)\s*$", re.MULTILINE)
 MULTILINE_COMMENT_REGEX = re.compile(r"###\n(?P<value>.+?)\n[ \t]*###", re.DOTALL | re.MULTILINE)
 # keywords from set
 # (must have end/whitespace after, but that is not considered part of the token)
-KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")(?= |$)")
+KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")(?=:|,| |$)")
 # separator from set
 SEPARATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # identifier like <12na_me-> or <name_.name> or '<name name name>'
@@ -203,8 +202,6 @@ MULTILINE_LITERAL_REGEX = re.compile(
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({\.(?P<lang>\w+)})?")
 # descriptions as "<value>"
 DESCRIPTION_REGEX = re.compile(r'"(?P<value>[^"\n]+)"')
-# primitive type from set (like keywords)
-PRIMITIVE_TYPE_REGEX = re.compile(r"(?P<value>" + "|".join(PRIMITIVE_TYPES.keys()) + r")(?= |$)")
 
 # token type + corresponding pattern in lex order
 TOKEN_PATTERNS = [
@@ -221,7 +218,6 @@ TOKEN_PATTERNS = [
     (TokenType.LITERAL, MULTILINE_LITERAL_REGEX),
     (TokenType.LITERAL, INLINE_LITERAL_REGEX),
     (TokenType.DESCRIPTION, DESCRIPTION_REGEX),
-    (TokenType.PRIMITIVE_TYPE, PRIMITIVE_TYPE_REGEX),
     (TokenType.MARK_OPTIONAL, re.compile(r"\?")),
     (TokenType.BRACKET, re.compile(r"(?P<value>[(\[)\]])")),
     (TokenType.MARK_OPTIONAL, re.compile(r"(?P<value>\?)")),
