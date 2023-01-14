@@ -11,12 +11,10 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.backend.provider import Completion, ModelHandle
+from bench.backend.provider import Completion
 from bench.backend.types import CodeInstance, ModelInstance
-from bench.language import Statement, SymbolType
 from bench.language.types import TypeElement
-from bench.language.typing import get_value_type
-from bench.utils.record import RecordBatch
+from bench.language.typing import derive_type_from_value
 
 logger = structlog.get_logger(__name__)
 
@@ -201,7 +199,7 @@ class ValidationTracer(Tracer):
     def code_enter(self, code: CodeInstance, args, kwargs):
         # validate kwargs
         for name, value in kwargs.items():
-            parameter = code.parameters.get(name)
+            parameter = code.func_type.input.element(name)
             if parameter is None:
                 # TODO @Typing: error on unknown parameters?
                 #  Currently we ignore this because schema elements don't include non-value types.
@@ -210,32 +208,16 @@ class ValidationTracer(Tracer):
             self._check_argument(code, value, parameter)
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
-        self._check_schema(code, result, code.output_schema)
+        self._check_output(code, result, code.func_type.output)
 
-    def _check_schema(self, code: CodeInstance, value: Any, schema: TypeElement):
+    def _check_output(self, code: CodeInstance, value: Any, type: TypeElement):
         # TODO @Typing: recursive schema validation
-        value_type = get_value_type(value)
-        if not schema.required and value is None:
+        value_type = derive_type_from_value(value)
+        if not type.required and value is None:
             return
-        elif value_type != schema.type:
-            raise ValidationError(f"return from {code} expected {schema}, got {value_type}")
+        elif value_type != type.type:
+            raise ValidationError(f"return from {code} expected {type}, got {value_type}")
 
-    def _check_argument(self, code: CodeInstance, value: Any, parameter: Statement):
+    def _check_argument(self, code: CodeInstance, argument: Any, parameter: TypeElement):
         # TODO @Typing: check that the argument has a compatible schema
-        if parameter.symbol_type == SymbolType.CODE:
-            if not callable(value):
-                raise ValidationError(f"argument {parameter.name} to {code} is not a callable")
-        elif parameter.symbol_type == SymbolType.MODEL:
-            if not isinstance(value, ModelHandle):
-                raise ValidationError(f"argument {parameter.name} to {code} is not a model handler")
-        elif parameter.symbol_type == SymbolType.DATASET:
-            if not isinstance(value, RecordBatch):
-                raise ValidationError(f"argument {parameter.name} tp {code} is not a dataset")
-        elif parameter.symbol_type == SymbolType.VALUE:
-            # check that the argument is a JSON object or primitive
-            if not isinstance(value, (dict, list, str, int, float, bool, type(None))):
-                raise ValueError(
-                    f"argument {parameter.name} for {code} is not a JSON object or primitive"
-                )
-        else:
-            raise RuntimeError(f"unknown parameter type for {code}: {parameter.type}")
+        raise NotImplementedError
