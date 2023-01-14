@@ -38,7 +38,7 @@ return val * context['unwieldy name']
     assert execute(code) == 10
 
 
-def test_execute_single_code_with_schema():
+def test_execute_single_code_with_args():
     module = parse_string(
         """
 --- test.instruct ---

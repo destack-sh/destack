@@ -1,6 +1,6 @@
 from bench.language.lex import Token, TokenType, lex
 from bench.language.parse import parse
-from bench.language.types import (
+from bench.language.type import (
     Capability,
     Code,
     Compilation,

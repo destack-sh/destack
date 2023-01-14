@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Union
 
-from bench.language.types import TypeTag
+from bench.language.type import TypeElement, TypeTag
 
 PyValueType = Union[int, float, bool, str, dict, list]
 
@@ -15,6 +15,11 @@ PYTYPE_TO_VALUE_TYPE = {
     list: TypeTag.ARRAY,
     type(None): TypeTag.NULL,
 }
+
+
+def unravel(type: TypeElement) -> TypeElement:
+    """Replace all references with their definitions."""
+    raise NotImplementedError
 
 
 def derive_type_from_value(obj: PyValueType) -> TypeTag:

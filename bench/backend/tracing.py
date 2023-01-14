@@ -12,8 +12,8 @@ import pytz
 import structlog
 
 from bench.backend.provider import Completion
-from bench.backend.types import CodeInstance, ModelInstance
-from bench.language.types import TypeElement
+from bench.backend.type import CodeInstance, ModelInstance
+from bench.language.type import TypeElement
 from bench.language.typing import derive_type_from_value
 
 logger = structlog.get_logger(__name__)

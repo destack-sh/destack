@@ -9,7 +9,7 @@ from uuid import UUID
 
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
-from bench.language.types import (
+from bench.language.type import (
     PRIMITIVE_TYPES,
     Capability,
     Code,
