@@ -259,7 +259,7 @@ LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str
 PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
 
 
-@dataclass(frozen=True)
+@dataclass
 class TypeElement:
     name: Optional[str]
     type: TypeTag

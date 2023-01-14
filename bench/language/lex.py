@@ -242,7 +242,6 @@ def lex(source: SourceFile) -> list[Token]:
             start_column = prev_token.end_column
         current_pos = source.linebreaks[line_number - 1] + start_column
 
-        print("lexing at {line}:{column}".format(line=line_number, column=start_column))
         token = _lex_token(source, current_pos)
         if token is None:
             if current_pos >= len(source.content):

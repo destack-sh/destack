@@ -178,6 +178,12 @@ def render_type_element(element: TypeElement, ignore_name: bool = False) -> str:
     elif element.type == TypeTag.ARRAY:
         type_str = f"[{render_type_element(element.elements[0])}]"
         return f"{identifier_str}{type_str}{description_str}"
+    elif element.type == TypeTag.UNION:
+        type_str = " | ".join(render_type_element(e) for e in element.elements)
+        return f"{identifier_str}{type_str}{description_str}"
+    elif element.type == TypeTag.INTERSECTION:
+        type_str = " & ".join(render_type_element(e) for e in element.elements)
+        return f"{identifier_str}{type_str}{description_str}"
     elif element.type == TypeTag.TYPE_REFERENCE:
         return f"{identifier_str}{element.reference}{description_str}"
     elif element.type in PRIMITIVE_TYPES:
