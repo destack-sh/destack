@@ -20,10 +20,10 @@ class ValueType(Enum):
     FUNCTION = "function"
     UNION = "union"
     NULL = "null"
-    TYPE_REFERENCE = "schema"
+    TYPE_REFERENCE = "ref"
 
 
-LITERAL_TYPES = [ValueType.NULL, ValueType.BOOLEAN, ValueType.NUMBER, ValueType.STRING]
+PRIMITIVE_TYPES = [ValueType.NULL, ValueType.BOOLEAN, ValueType.NUMBER, ValueType.STRING]
 
 PyValueType = Union[int, float, bool, str, dict, list]
 
@@ -67,11 +67,7 @@ class TypeElement:
     elements: Optional[list["TypeElement"]] = None
 
     def __str__(self):
-        return self.btl
-
-    @cached_property
-    def btl(self) -> str:
-        raise NotImplementedError
+        return f"{self.name}: {self.type}"
 
     @property
     def keys(self) -> list[str]:
@@ -81,19 +77,17 @@ class TypeElement:
             return [e.name for e in self.elements]
 
     @property
-    def input_(self) -> TypeElement:
+    def input(self) -> TypeElement:
         return self.element("input")
 
     @property
-    def output_(self) -> TypeElement:
+    def output(self) -> TypeElement:
         return self.element("output")
 
     def element(self, key: str) -> TypeElement:
         """Find a schema element by key (only works for objects)."""
-        if self.type != ValueType.STRUCT:
-            raise ValueError(f"find cannot be used on {self}")
         if self.elements is None:
-            raise ValueError("elements is None")
+            raise ValueError(f"find cannot be used on {self}")
         for e in self.elements:
             if e.name == key:
                 return e
