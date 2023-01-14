@@ -7,10 +7,10 @@ from collections import defaultdict
 from typing import Iterable, Optional, cast
 from uuid import UUID
 
-from bench.api.symbol import StatementType, TypeElement, ValueType
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
 from bench.language.type import (
+    PRIMITIVE_TYPES,
     Capability,
     Code,
     Compilation,
@@ -19,13 +19,15 @@ from bench.language.type import (
     Requirement,
     Runconfig,
     StatementPath,
+    StatementType,
     SymbolContent,
     SymbolType,
     Task,
     Type,
+    TypeElement,
+    TypeTag,
     Value,
 )
-from bench.language.typing import PRIMITIVE_TYPES
 
 
 def render(files: list[File]) -> str:
@@ -124,13 +126,18 @@ def render_statement_content(statement: Statement) -> str:
 
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
     if isinstance(content, Type):
-        return render_type_element(content.element)
+        if content.description is not None:
+            return (
+                f"{render_description(content.description)}\n{render_type_element(content.element)}"
+            )
+        else:
+            return render_type_element(content.element)
     elif isinstance(content, Capability):
-        return render_literal(content.description)
+        return render_description(content.description)
     elif isinstance(content, Task):
-        return render_literal(content.description)
+        return render_description(content.description)
     elif isinstance(content, Expectation):
-        return render_literal(content.description)
+        return render_description(content.description)
     elif isinstance(content, Code):
         return render_literal(content.code, lang=content.language)
     elif isinstance(content, Dataset):
@@ -159,19 +166,19 @@ def render_type_element(element: TypeElement, ignore_name: bool = False) -> str:
     else:
         identifier_str = ""
     description_str = f' "{element.description}"' if element.description else ""
-    if element.type == ValueType.FUNCTION:
+    if element.type == TypeTag.FUNCTION:
         input_str = render_type_element_struct(element.input, seperator=", ")
-        if element.output.type != ValueType.NULL:
+        if element.output.type != TypeTag.NULL:
             output_str = render_type_element(element.output, ignore_name=True)
             return f"({input_str}) -> {output_str}"
         else:
             return f"({input_str})"
-    elif element.type == ValueType.STRUCT:
+    elif element.type == TypeTag.STRUCT:
         return render_type_element_struct(element, seperator="\n")
-    elif element.type == ValueType.ARRAY:
+    elif element.type == TypeTag.ARRAY:
         type_str = f"[{render_type_element(element.elements[0])}]"
         return f"{identifier_str}{type_str}{description_str}"
-    elif element.type == ValueType.TYPE_REFERENCE:
+    elif element.type == TypeTag.TYPE_REFERENCE:
         return f"{identifier_str}{element.reference}{description_str}"
     elif element.type in PRIMITIVE_TYPES:
         return f"{identifier_str}{element.type.value}{description_str}"
@@ -184,6 +191,10 @@ def render_type_element_struct(element: TypeElement, seperator: str) -> str:
         raise ValueError(f"expected type with elements: {element}")
     field_strs = [render_type_element(field) for field in element.elements]
     return seperator.join(field_strs)
+
+
+def render_description(value: str) -> str:
+    return f'"{value}"'
 
 
 def render_literal(value: str, lang: Optional[str] = None) -> str:

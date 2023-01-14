@@ -30,11 +30,12 @@ from bench.language.type import (
     SymbolType,
     Task,
     Type,
+    TypeElement,
+    TypeTag,
     Value,
     parse_statement_path,
     statement_path_as_str,
 )
-from bench.language.typing import TypeElement, ValueType
 from bench.utils.record import RecordList
 
 logger = structlog.get_logger(__name__)
@@ -402,9 +403,8 @@ def preparse(
 
     parser = TokenParser(tokens, start_pos=0, indent_level=0)
     states: dict[str, FileParseState] = OrderedDict()  # remember original file order
-    initial_file: File = File(
-        module=module, path=parser.eat_newfile().value
-    )  # tokens[0] must be newfile
+    # tokens[0] must be newfile
+    initial_file: File = File(module=module, path=parser.eat_newfile().value)
     local = FileParseState(file=initial_file)
     states[initial_file.path] = local
 
@@ -672,16 +672,26 @@ def parse_type_element_type(tokens: TokenParser, name: str | None) -> TypeElemen
         tokens.eat_bracket("[")
         element = parse_type_element_type(tokens, name=None)
         tokens.eat_bracket("]")
-        return TypeElement(name=name, type=ValueType.ARRAY, elements=[element])
+        return TypeElement(name=name, type=TypeTag.ARRAY, elements=[element])
 
     # otherwise parse type either primitive or type reference
-    if tokens.peek_keyword_like(ValueType):
-        # not all value types are keywords, but only
-        type = tokens.eat_keyword_like(ValueType).value
+    if tokens.peek_keyword_like(TypeTag):
+        # not all value types are keywords, but only the valid ones are in KEYWORDS
+        type = tokens.eat_keyword_like(TypeTag).value
         reference = None
     else:
-        type = ValueType.TYPE_REFERENCE
+        type = TypeTag.TYPE_REFERENCE
         reference = tokens.eat_identifier().value
+
+    # pack into type element (either directly or as union/intersection type)
+    packing_mode: typing.Union[None, TypeTag.UNION, TypeTag.INTERSECTION] = None
+    while tokens.peek_separator(" "):
+        tokens.eat_separator(" ")
+        if tokens.peek_description():
+            tokens.eat_description()
+    # nocheckin
+
+    # end with optional description, end or irrelevant token
     if tokens.peek_separator(" "):
         tokens.eat_separator(" ")
         description = tokens.eat_description().value
@@ -692,7 +702,7 @@ def parse_type_element_type(tokens: TokenParser, name: str | None) -> TypeElemen
 
 def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
     # parse tuples like <tuple1>\n<tuple2>\n...
-    element = TypeElement(name=name, type=ValueType.STRUCT, elements=[])
+    element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
     while True:
         tuple = parse_type_element_tuple(tokens)
         element.elements.append(tuple)
@@ -706,7 +716,7 @@ def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
 
 def parse_type_element_struct_inline(tokens: TokenParser, name: str) -> TypeElement:
     tokens.eat_bracket("(")
-    element = TypeElement(name=name, type=ValueType.STRUCT, elements=[])
+    element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
     while True:
         tuple = parse_type_element_tuple(tokens)
         element.elements.append(tuple)
@@ -727,8 +737,8 @@ def parse_type_element_func(tokens: TokenParser, name: str) -> TypeElement:
         tokens.eat_separator(" ")
         output = parse_type_element_type(tokens, "output")
     else:
-        output = TypeElement(name="output", type=ValueType.NULL)
-    return TypeElement(name=name, type=ValueType.FUNCTION, elements=[input, output])
+        output = TypeElement(name="output", type=TypeTag.NULL)
+    return TypeElement(name=name, type=TypeTag.FUNCTION, elements=[input, output])
 
 
 def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
@@ -758,6 +768,29 @@ def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
         symbol_type=symbol_type.value if symbol_type else None,
         **kwargs,
     )
+
+
+def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statement:
+    """Parse a type alias statement (special path because of special syntax)."""
+    modifier = _parse_modifier_slot(tokens)
+    tokens.eat_keyword(SymbolType.TYPE)
+    tokens.eat_space()
+    name = tokens.eat_identifier()
+    tokens.eat_space()
+    tokens.eat_separator("=")
+    tokens.eat_space()
+    element = parse_type_element_type(tokens, name.value)
+
+    # like other "redefinitions", type aliases are just syntactic sugar for definitions
+    statement = Statement(
+        type=StatementType.DEFINITION,
+        symbol_type=SymbolType.TYPE,
+        name=name.value,
+        modifier=modifier,
+        **kwargs,
+    )
+    statement.content = Type(definition=statement, element=element)
+    return statement
 
 
 def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
@@ -813,6 +846,7 @@ def _parse_statement(
         _parse_definition_type,
         _parse_definition,
         _parse_import,
+        _parse_redefinition_as_type_alias,
         _parse_redefinition,
         _parse_reference,
         _parse_blank,

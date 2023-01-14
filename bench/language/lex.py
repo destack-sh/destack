@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Optional
 
-from bench.language.type import StatementModifier, StatementType, SymbolType
-from bench.language.typing import ValueType
+from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
 
 
 @dataclass(repr=False)
@@ -92,10 +91,15 @@ class Token:
         max_length = 100
         if self.value is None:
             value = "<none>"
-        elif isinstance(self.value, str) and len(self.value) > max_length:
-            value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2:]}"
+        elif isinstance(self.value, str):
+            if len(self.value) > max_length:
+                value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2:]}"
+            else:
+                value = self.value
+        elif isinstance(self.value, enum.Enum):
+            value = self.value.value
         else:
-            value = self.value
+            raise TypeError(f"unexpected value type {type(self.value)}")
         # replace newlines with literal \n
         value = value.replace("\n", "\\n")
         return value
@@ -166,15 +170,15 @@ KEYWORDS = {
     "run": SymbolType.RUNCONFIG,
     "compile": SymbolType.COMPILATION,
     # ValueType
-    "string": ValueType.STRING,
-    "number": ValueType.NUMBER,
-    "boolean": ValueType.BOOLEAN,
-    "null": ValueType.NULL,
+    "string": TypeTag.STRING,
+    "number": TypeTag.NUMBER,
+    "boolean": TypeTag.BOOLEAN,
+    "null": TypeTag.NULL,
     # Other
     "as": None,
     "from": None,
 }
-SEPARATORS = [" ", ",", "::", ":", "=", "@", "->"]  # order matters!
+SEPARATORS = [" ", "\|", "&", ",", "::", ":", "=", "@", "->"]  # order matters!
 
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
@@ -182,9 +186,9 @@ INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
 NEWLINE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
 # new file like --- <path> --- (eating previous newline)
 # (eating the previous newline should be a parsing concern, but it's easier in lex for now)
-NEWFILE_REGEX = re.compile(r"^\n?---\s*(?P<value>[\w.-]*)\s*---$\n", re.MULTILINE)
+NEWFILE_REGEX = re.compile(r"^\n?--- (?P<value>[\w.-]*) ---$\n", re.MULTILINE)
 # comment like # <comment>
-LINE_COMMENT_REGEX = re.compile(r"^#\s(?P<value>.*)\s*$", re.MULTILINE)
+LINE_COMMENT_REGEX = re.compile(r"^# (?P<value>.*)$", re.MULTILINE)
 MULTILINE_COMMENT_REGEX = re.compile(r"###\n(?P<value>.+?)\n[ \t]*###", re.DOTALL | re.MULTILINE)
 # keywords from set
 # (must have end/whitespace after, but that is not considered part of the token)
@@ -238,6 +242,7 @@ def lex(source: SourceFile) -> list[Token]:
             start_column = prev_token.end_column
         current_pos = source.linebreaks[line_number - 1] + start_column
 
+        print("lexing at {line}:{column}".format(line=line_number, column=start_column))
         token = _lex_token(source, current_pos)
         if token is None:
             if current_pos >= len(source.content):

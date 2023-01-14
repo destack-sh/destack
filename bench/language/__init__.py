@@ -17,12 +17,11 @@ from bench.language.type import (
     SymbolType,
     Task,
     Type,
+    TypeTag,
     Value,
 )
-from bench.language.typing import ValueType
 
 __all__ = [
-    "ValueType",
     "SymbolType",
     "Module",
     "File",

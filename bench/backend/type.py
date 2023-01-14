@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-import uuid
 from dataclasses import dataclass
 
 from bench.backend.provider import ModelHandle
@@ -15,9 +14,9 @@ from bench.language.type import (
     StatementPath,
     Task,
     Type,
+    TypeElement,
     Value,
 )
-from bench.language.typing import TypeElement
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
@@ -33,7 +32,7 @@ class InstantiatedModule:
 
 @dataclass
 class StatementInstance:
-    instance_id: uuid.UUID
+    pass
 
 
 @dataclass
@@ -51,7 +50,7 @@ class TypeInstance(Type, SymbolInstance):
 
 
 @dataclass(repr=False)
-class TaskInstance(SymbolInstance, Task):
+class TaskInstance(Task, SymbolInstance):
     pass
 
 
@@ -62,8 +61,6 @@ class ExpectationInstance(Expectation, SymbolInstance):
 
 @dataclass(repr=False)
 class DatasetInstance(Dataset, SymbolInstance):
-    pass
-
     @property
     def py_handle(self) -> RecordBatch:
         return self.records

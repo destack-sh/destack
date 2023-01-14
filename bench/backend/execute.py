@@ -17,7 +17,6 @@ from uuid import UUID
 
 import structlog
 from django.db import models
-from more_itertools import first
 
 from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
@@ -43,9 +42,9 @@ from bench.language.type import (
     ModelInferenceSettings,
     Statement,
     Type,
+    TypeElement,
     Value,
 )
-from bench.language.typing import TypeElement
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch
 
@@ -229,8 +228,8 @@ class Proxy:
         self.tracer = tracer
         self.cache = cache
 
-    def proxy_schema(self, schema: TypeInstance) -> TypeInstance:
-        return schema  # not proxied
+    def proxy_type(self, type: TypeInstance) -> TypeInstance:
+        return type  # not proxied
 
     def proxy_dataset(self, dataset: DatasetInstance) -> DatasetInstance:
         return dataset  # not proxied
@@ -251,7 +250,7 @@ class Proxy:
 
     def proxy(self, symbol: SymbolInstance) -> SymbolInstance:
         if isinstance(symbol, TypeInstance):
-            return self.proxy_schema(symbol)
+            return self.proxy_type(symbol)
         elif isinstance(symbol, DatasetInstance):
             return self.proxy_dataset(symbol)
         elif isinstance(symbol, ValueInstance):
@@ -274,16 +273,16 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
 
 
-def _instantiate_schema_element(
-    schema: Type, context: OrderedDict[str, StatementInstance]
+def _instantiate_type_element(
+    element: TypeElement, context: OrderedDict[str, StatementInstance]
 ) -> TypeElement:
-    context_schemas = {
+    context_types = {
         key: value.element for key, value in context.items() if isinstance(value, TypeInstance)
     }
-    resolved_schema = schema.element.resolve(context_schemas)
-    if not resolved_schema.is_resolved:
-        raise ValueError(f"schema {schema} is not fully resolved")
-    return resolved_schema
+    resolved_type = element.resolve(context_types)
+    if not resolved_type.is_resolved:
+        raise ValueError(f"type {type} is not fully resolved")
+    return resolved_type
 
 
 def _instantiate_model_handle(model) -> ModelHandle:
@@ -297,9 +296,8 @@ def _instantiate_model_handle(model) -> ModelHandle:
 
 def _instantiate_code_callable(
     code: Code,
-    schema: TypeInstance,
+    func_type: TypeElement,
     context: OrderedDict[str, StatementInstance],
-    instance_id: uuid.UUID,
 ) -> SyncCodeCallable | AsyncCodeCallable:
     if code.builtin_id:
         # builtins are already defined and are just curried using the arguments
@@ -318,9 +316,9 @@ def _instantiate_code_callable(
             "__module__": code.definition.file.module,
         }
 
-        input_keys = schema.element.element("input").keys
+        input_keys = func_type.input.keys
         # create python function from code
-        func_name = f"_anon_{code.definition.id.hex}_{instance_id.hex}"
+        func_name = f"_anon_{code.definition.id.hex}"
         async_str = "async " if code.is_async else ""
         func_params = ", ".join(input_keys)
         indented_code = textwrap.indent(code.code, "    ")
@@ -342,46 +340,27 @@ def instantiate(
     for name, value in context.items():
         instantiated_context[name] = instantiate(statement=value, idx=idx, proxy=proxy)
 
-    # instantiate children
-    # TODO @Cleanup: deduplicate statement instances (where possible, may be actually different)
-    all_children = [
-        instantiate(statement=child, idx=idx, proxy=proxy)
-        for child in idx.statements_by_parent[statement.id]
-    ]
-    schema = first((c for c in all_children if isinstance(c, TypeInstance)), None)
-    if statement.requires_schema and schema is None:
-        raise ValueError(f"statement {statement} requires a schema")
-
     # instantiate statement itself
-    instance_id = uuid.uuid4()
-    if isinstance(statement.content, Type):
-        element = _instantiate_schema_element(statement.content, instantiated_context)
-        dict_wo_element = statement.content.__dict__.copy()
-        del dict_wo_element["element"]  # we're replacing element
-        instance = TypeInstance(instance_id=instance_id, **dict_wo_element, element=element)
-    elif isinstance(statement.content, Code):
+    if isinstance(statement.content, Code):
+        func_type = _instantiate_type_element(statement.content.func_type, instantiated_context)
         code_callable = _instantiate_code_callable(
-            statement.content, schema, instantiated_context, instance_id
+            statement.content, func_type, instantiated_context
         )
         instance = CodeInstance(
-            instance_id=instance_id,
-            **statement.content.__dict__,
-            schema=schema,
-            code_callable=code_callable,
+            **statement.content.__dict__, func_type=func_type, code_callable=code_callable
         )
     elif isinstance(statement.content, Value):
-        instance = ValueInstance(instance_id=instance_id, **statement.content.__dict__)
+        instance = ValueInstance(**statement.content.__dict__)
     elif isinstance(statement.content, Model):
         model_handle = _instantiate_model_handle(statement.content)
-        instance = ModelInstance(
-            instance_id=instance_id, **statement.content.__dict__, handle=model_handle
-        )
+        instance = ModelInstance(**statement.content.__dict__, handle=model_handle)
     elif isinstance(statement.content, Dataset):
-        instance = DatasetInstance(
-            instance_id=instance_id, **statement.content.__dict__, schema=schema
+        element_type = _instantiate_type_element(
+            statement.content.element_type, instantiated_context
         )
+        instance = DatasetInstance(**statement.content.__dict__, element_type=element_type)
     else:
-        raise ValueError(f"cannot instantiate {statement.content}")
+        raise ValueError(f"cannot instantiate {statement}")
     return proxy.proxy(instance)
 
 
@@ -389,7 +368,7 @@ def get_context(
     statement: Statement, idx: IndexedModule, used_only: bool
 ) -> OrderedDict[str, Statement]:
     if not isinstance(statement.content, (Code, Type)):
-        # only code and schema statements can use context right now (see below)
+        # only code and type statements can use context right now (see below)
         return OrderedDict()
 
     # gather all available statements: everything above and next to the statement
@@ -419,11 +398,11 @@ def get_context(
         used_keys = {key for key in available_context if key in statement.content.btl}
     else:
         used_keys = set()
-    context = OrderedDict()
+    used_context = OrderedDict()
     for key in available_context:  # preserve order
         if key in used_keys:
-            context[key] = available_context[key]
-    return context
+            used_context[key] = available_context[key]
+    return used_context
 
 
 def execute(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:

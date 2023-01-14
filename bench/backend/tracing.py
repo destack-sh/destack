@@ -14,7 +14,8 @@ import structlog
 from bench.backend.provider import Completion, ModelHandle
 from bench.backend.type import CodeInstance, ModelInstance
 from bench.language import Statement, SymbolType
-from bench.language.typing import TypeElement, get_value_type
+from bench.language.type import TypeElement
+from bench.language.typing import get_value_type
 from bench.utils.record import RecordBatch
 
 logger = structlog.get_logger(__name__)

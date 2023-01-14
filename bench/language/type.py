@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict, dataclass, field
+from enum import Enum
 from typing import Any, Literal, NamedTuple, Optional, Union
 from uuid import UUID
 
 from django.db import models
 
-from bench.language.typing import TypeElement
 from bench.utils.record import RecordBatch, RecordList
-
-LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
 
 
 # TODO @Cleanup: don't use Django's TextChoices inside language
@@ -53,6 +51,22 @@ class SymbolType(models.TextChoices):
     REQUIREMENT = "require"
     COMPILATION = "compile"
     RUNCONFIG = "run"
+
+
+class TypeTag(Enum):
+    """The type of type element."""
+
+    STRING = "string"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    ARRAY = "array"
+    MAP = "map"
+    STRUCT = "struct"
+    FUNCTION = "function"
+    UNION = "union"
+    INTERSECTION = "intersection"
+    NULL = "null"
+    TYPE_REFERENCE = "ref"
 
 
 @dataclass(repr=False)
@@ -214,14 +228,6 @@ class Statement:
             return False
 
     @property
-    def requires_schema(self):
-        return self.type == StatementType.DEFINITION and self.symbol_type in (
-            SymbolType.TASK,
-            SymbolType.CODE,
-            SymbolType.DATASET,
-        )
-
-    @property
     def absolute_index(self) -> str:
         if self.parent:
             return f"{self.parent.absolute_index}.{self.index}"
@@ -245,12 +251,49 @@ class Type(SymbolContent):
     element: TypeElement
     description: str = ""
 
-    @property
-    def btl(self):
-        return render_type(self.element)
-
-    def __content_str__(self):
+    def __str__(self):
         return str(self.element)
+
+
+LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
+PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
+
+
+@dataclass(frozen=True)
+class TypeElement:
+    name: Optional[str]
+    type: TypeTag
+    required: bool = True
+    description: Optional[str] = None
+    reference: Optional[str | "TypeElement"] = None
+    elements: Optional[list["TypeElement"]] = None
+
+    def __str__(self):
+        return f"{self.name}: {self.type}"
+
+    @property
+    def keys(self) -> list[str]:
+        if self.elements is None:
+            return []
+        else:
+            return [e.name for e in self.elements]
+
+    @property
+    def input(self) -> TypeElement:
+        return self.element("input")
+
+    @property
+    def output(self) -> TypeElement:
+        return self.element("output")
+
+    def element(self, key: str) -> TypeElement:
+        """Find a schema element by key (only works for objects)."""
+        if self.elements is None:
+            raise ValueError(f"find cannot be used on {self}")
+        for e in self.elements:
+            if e.name == key:
+                return e
+        raise KeyError(f"key {key} not found in {self}")
 
 
 @dataclass(repr=False)
@@ -305,6 +348,7 @@ class Model(SymbolContent):
         return f"provider={self.provider}/{self.external_name}"
 
 
+# TODO @Cleanup: ModelInferenceSettings should probably be just a built-in Type.
 @dataclass(repr=False)
 class ModelInferenceSettings:
     max_tokens: int = 256
@@ -371,7 +415,9 @@ class SourceMapping:
 
 
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
-    if symbol_type == SymbolType.TASK:
+    if symbol_type == SymbolType.TYPE:
+        return Type(definition, TypeElement(None, TypeTag.STRUCT, elements=[]))
+    elif symbol_type == SymbolType.TASK:
         return Task(definition, description="")
     elif symbol_type == SymbolType.CAPABILITY:
         return Capability(definition, description="")
