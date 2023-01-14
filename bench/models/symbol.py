@@ -13,7 +13,7 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench import language
-from bench.language.types import (
+from bench.language.type import (
     MOCK_FILE,
     MOCK_STATEMENT,
     StatementModifier,

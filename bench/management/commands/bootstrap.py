@@ -10,7 +10,7 @@ from bench import language
 from bench.backend.execute import ProviderKey
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
-from bench.language.types import MOCK_STATEMENT, StatementType, SymbolType
+from bench.language.type import MOCK_STATEMENT, StatementType, SymbolType
 from bench.models import Organization, Project, Statement
 from bench.models.mapper import lookup_module_in_db, wmap_symbol, write
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility

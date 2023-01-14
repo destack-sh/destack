@@ -22,7 +22,7 @@ from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
 from bench.backend.tracing import Tracer
-from bench.backend.types import (
+from bench.backend.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
@@ -34,14 +34,13 @@ from bench.backend.types import (
     ValueInstance,
 )
 from bench.language.parse import IndexedModule
-from bench.language.types import (
+from bench.language.type import (
     Code,
     Dataset,
     LiteralValue,
     Model,
     ModelInferenceSettings,
     Statement,
-    Type,
     TypeElement,
     Value,
 )
@@ -296,7 +295,6 @@ def _instantiate_model_handle(model) -> ModelHandle:
 
 def _instantiate_code_callable(
     code: Code,
-    func_type: TypeElement,
     context: OrderedDict[str, StatementInstance],
 ) -> SyncCodeCallable | AsyncCodeCallable:
     if code.builtin_id:
@@ -316,7 +314,7 @@ def _instantiate_code_callable(
             "__module__": code.definition.file.module,
         }
 
-        input_keys = func_type.input.keys
+        input_keys = code.func_type.input.keys
         # create python function from code
         func_name = f"_anon_{code.definition.id.hex}"
         async_str = "async " if code.is_async else ""
@@ -342,23 +340,15 @@ def instantiate(
 
     # instantiate statement itself
     if isinstance(statement.content, Code):
-        func_type = _instantiate_type_element(statement.content.func_type, instantiated_context)
-        code_callable = _instantiate_code_callable(
-            statement.content, func_type, instantiated_context
-        )
-        instance = CodeInstance(
-            **statement.content.__dict__, func_type=func_type, code_callable=code_callable
-        )
+        code_callable = _instantiate_code_callable(statement.content, instantiated_context)
+        instance = CodeInstance(**statement.content.__dict__, code_callable=code_callable)
     elif isinstance(statement.content, Value):
         instance = ValueInstance(**statement.content.__dict__)
     elif isinstance(statement.content, Model):
         model_handle = _instantiate_model_handle(statement.content)
         instance = ModelInstance(**statement.content.__dict__, handle=model_handle)
     elif isinstance(statement.content, Dataset):
-        element_type = _instantiate_type_element(
-            statement.content.element_type, instantiated_context
-        )
-        instance = DatasetInstance(**statement.content.__dict__, element_type=element_type)
+        instance = DatasetInstance(**statement.content.__dict__)
     else:
         raise ValueError(f"cannot instantiate {statement}")
     return proxy.proxy(instance)
@@ -367,10 +357,6 @@ def instantiate(
 def get_context(
     statement: Statement, idx: IndexedModule, used_only: bool
 ) -> OrderedDict[str, Statement]:
-    if not isinstance(statement.content, (Code, Type)):
-        # only code and type statements can use context right now (see below)
-        return OrderedDict()
-
     # gather all available statements: everything above and next to the statement
     available_statements = []
     current_parent = statement.parent
@@ -382,7 +368,7 @@ def get_context(
     available_context = OrderedDict()
     for available_statement in available_statements:
         var_name = available_statement.name
-        if var_name not in available_context:
+        if var_name is not None and var_name not in available_context:
             # there may be local shadowing, so use the first reference
             # (also ignore duplicate definitions, that's for semantic parse)
             available_context[var_name] = available_statement
@@ -391,13 +377,12 @@ def get_context(
         return available_context
 
     # filter to used context only
-    # TODO @Cleanup: improve context visibility filters (not just string matching)
+    # TODO @Cleanup: improve context visibility filters (beyond just string matching)
     if isinstance(statement.content, Code):
         used_keys = {key for key in available_context if key in statement.content.code}
-    elif isinstance(statement.content, Type):
-        used_keys = {key for key in available_context if key in statement.content.btl}
     else:
         used_keys = set()
+
     used_context = OrderedDict()
     for key in available_context:  # preserve order
         if key in used_keys:

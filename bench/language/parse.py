@@ -12,7 +12,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
-from bench.language.types import (
+from bench.language.type import (
     Capability,
     Code,
     Compilation,
@@ -702,7 +702,7 @@ def parse_type_element_type(
     if not tokens.peek_separator(" "):  # type is done
         return TypeElement(name=name, type=type, reference=reference)
 
-    tokens.eat_separator(" ")
+    tokens.eat_space()
     if tokens.peek_description():  # description completes type
         description = tokens.eat_description().value
         return TypeElement(name=name, type=type, reference=reference, description=description)
@@ -726,9 +726,9 @@ def parse_type_element_type(
                 break
             # otherwise, try to parse another element
             if tokens.peek_separator(" "):
-                tokens.eat_separator(" ")
+                tokens.eat_space()
                 tokens.eat_separator(packing_separator)
-                tokens.eat_separator(" ")
+                tokens.eat_space()
             else:
                 break
         return packed_element
@@ -753,7 +753,7 @@ def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
 def parse_type_element_struct_inline(tokens: TokenParser, name: str) -> TypeElement:
     tokens.eat_bracket("(")
     element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
-    while True:
+    while not tokens.peek_bracket(")"):
         tuple = parse_type_element_tuple(tokens)
         element.elements.append(tuple)
         if not tokens.peek_separator(","):
@@ -768,9 +768,9 @@ def parse_type_element_func(tokens: TokenParser, name: str) -> TypeElement:
     # parse signature like (<tuple1>, <tuple2>, ...) -> <return_tuple>
     input = parse_type_element_struct_inline(tokens, "input")
     if tokens.peek_separator(" "):
-        tokens.eat_separator(" ")
+        tokens.eat_space()
         tokens.eat_separator("->")
-        tokens.eat_separator(" ")
+        tokens.eat_space()
         output = parse_type_element_type(tokens, "output")
     else:
         output = TypeElement(name="output", type=TypeTag.NULL)
@@ -781,9 +781,9 @@ def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a redefinition statement."""
     modifier = _parse_modifier_slot(tokens)
     name, symbol_type = _parse_reference_slot(tokens)
-    tokens.eat_separator(" ")
+    tokens.eat_space()
     tokens.eat_separator("=")
-    tokens.eat_separator(" ")
+    tokens.eat_space()
     reference_name, other_symbol_type = _parse_reference_slot(tokens)
     # defined symbol type and referenced symbol type must match
     if symbol_type.value != other_symbol_type.value:

@@ -13,7 +13,7 @@ import django_choices_field.fields
 from django.conf import settings
 from django.db import migrations, models
 
-import bench.language.types
+import bench.language.type
 import bench.models.data
 import bench.models.model
 import bench.models.project
@@ -304,7 +304,7 @@ class Migration(migrations.Migration):
                             ("comment", "Comment"),
                             ("blank", "Blank"),
                         ],
-                        choices_enum=bench.language.types.StatementType,
+                        choices_enum=bench.language.type.StatementType,
                         max_length=7,
                     ),
                 ),
@@ -319,7 +319,7 @@ class Migration(migrations.Migration):
                             ("unlike", "Unlike"),
                             ("verify", "Verify"),
                         ],
-                        choices_enum=bench.language.types.StatementModifier,
+                        choices_enum=bench.language.type.StatementModifier,
                         max_length=6,
                         null=True,
                     ),
@@ -348,7 +348,7 @@ class Migration(migrations.Migration):
                             ("compile", "Compilation"),
                             ("run", "Runconfig"),
                         ],
-                        choices_enum=bench.language.types.SymbolType,
+                        choices_enum=bench.language.type.SymbolType,
                         max_length=10,
                         null=True,
                     ),
