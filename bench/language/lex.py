@@ -192,7 +192,9 @@ LINE_COMMENT_REGEX = re.compile(r"^# (?P<value>.*)$", re.MULTILINE)
 MULTILINE_COMMENT_REGEX = re.compile(r"###\n(?P<value>.+?)\n[ \t]*###", re.DOTALL | re.MULTILINE)
 # keywords from set
 # (must have end/whitespace after, but that is not considered part of the token)
-KEYWORD_REGEX = re.compile(r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")(?=:|,| |$)")
+KEYWORD_REGEX = re.compile(
+    r"(?P<value>" + "|".join(KEYWORDS.keys()) + r")(?=:|,| |$)", re.MULTILINE
+)
 # separator from set
 SEPARATOR_REGEX = re.compile(r"(?P<value>" + "|".join(SEPARATORS) + r")")
 # identifier like <12na_me-> or <name_.name> or '<name name name>'

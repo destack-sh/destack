@@ -53,3 +53,10 @@ task 'count fruits' :: (input: string) -> number:
 # ## @generated
 # ## @deprecated
 
+# # value types syntax
+
+# ## map
+# [string: number]
+
+# ## tuple
+# string, number

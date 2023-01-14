@@ -33,7 +33,7 @@ from bench.backend.type import (
     TypeInstance,
     ValueInstance,
 )
-from bench.language.parse import IndexedModule
+from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Code,
     Dataset,
@@ -327,7 +327,7 @@ def _instantiate_code_callable(
 
 
 def instantiate(
-    statement: Statement, idx: IndexedModule, proxy: Proxy | None = None
+    statement: Statement, idx: ModuleIndex, proxy: Proxy | None = None
 ) -> StatementInstance:
     """Instantiate a statement, its context and children (recursively)."""
     context = get_context(statement, idx, used_only=True)
@@ -355,7 +355,7 @@ def instantiate(
 
 
 def get_context(
-    statement: Statement, idx: IndexedModule, used_only: bool
+    statement: Statement, idx: ModuleIndex, used_only: bool
 ) -> OrderedDict[str, Statement]:
     # gather all available statements: everything above and next to the statement
     available_statements = []

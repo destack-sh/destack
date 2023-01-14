@@ -60,6 +60,7 @@ class TypeTag(Enum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     ARRAY = "array"
+    TUPLE = "tuple"
     MAP = "map"
     STRUCT = "struct"
     FUNCTION = "function"
@@ -122,13 +123,13 @@ StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
 
 
 def statement_path_as_str(statement_path: StatementPath) -> str:
-    return f"{statement_path.path}::{statement_path.name}"
+    return f"{statement_path.path}:{statement_path.name}"
 
 
 def parse_statement_path(statement_path: str) -> StatementPath:
-    if "::" not in statement_path:
+    if ":" not in statement_path:
         raise ValueError(f"invalid statement path: {statement_path}")
-    path, name = statement_path.split("::")
+    path, name = statement_path.split(":")
     return StatementPath(path, name)
 
 
