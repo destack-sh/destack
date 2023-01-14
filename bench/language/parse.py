@@ -12,7 +12,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
-from bench.language.type import (
+from bench.language.types import (
     Capability,
     Code,
     Compilation,

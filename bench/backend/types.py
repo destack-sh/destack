@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from bench.backend.provider import ModelHandle
 from bench.language.parse import IndexedModule
-from bench.language.type import (
+from bench.language.types import (
     Code,
     Dataset,
     Expectation,

@@ -6,7 +6,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
-import bench.language.type
+import bench.language.types
 from bench import language, models
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class Type:
     btl: str
 
 
-ValueType = gql.enum(bench.language.type.TypeTag)
+ValueType = gql.enum(bench.language.types.TypeTag)
 
 
 @gql.type

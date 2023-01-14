@@ -14,7 +14,7 @@ from django.db import transaction
 
 from bench import language, models
 from bench.language.parse import index_module
-from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.types import StatementPath, StatementType, SymbolType
 from bench.models.project import FileType, Project, ProjectVersion
 from bench.utils.record import RecordList
 

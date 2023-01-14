@@ -22,7 +22,7 @@ from bench.backend.builtins import CODE_BUILTINS
 from bench.backend.openai import OpenAIProvider
 from bench.backend.provider import Completion, ModelHandle, ModelProvider
 from bench.backend.tracing import Tracer
-from bench.backend.type import (
+from bench.backend.types import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
@@ -34,7 +34,7 @@ from bench.backend.type import (
     ValueInstance,
 )
 from bench.language.parse import IndexedModule
-from bench.language.type import (
+from bench.language.types import (
     Code,
     Dataset,
     LiteralValue,
