@@ -1178,7 +1178,11 @@ def impute_type_references(element: TypeElement, keep_references: bool) -> None:
     if not isinstance(element.reference, TypeElement):
         raise ValueError(f"type reference is not resolved: {element}")
 
-    element.name = element.reference.name
+    # error? if reference is an unresolved reference
+    if element.reference.type == TypeTag.TYPE_REFERENCE:
+        # TODO @Incomplete: could just impute that as well? but then we'd need to break circles?
+        raise ValueError(f"reference is unresolved type reference: {element}")
+
     element.type = element.reference.type
     element.elements = element.reference.elements
     if element.elements is not None:
