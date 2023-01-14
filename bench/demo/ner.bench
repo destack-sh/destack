@@ -10,7 +10,7 @@
 type Entity:
 "A named entity in a text"
 name: string "Canonical name of the entity"
-'type': string | null
+'type': string
 confidence: number | null "Confidence in the detected type"
 
 task 'extract entities' :: (input: string) -> [EntityT]:

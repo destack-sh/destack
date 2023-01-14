@@ -195,6 +195,15 @@ class TokenParser:
             self._peek_pos = self._marks.pop(mark_token)
         self._advance()
 
+    def advance(self, count: int = 1):
+        """Advance the peek window by the given number of tokens (skipping indents appropriately)."""
+        if count < 0:
+            for _ in range(-count):
+                self._advance(-1)
+        else:
+            for _ in range(count):
+                self._advance(1)
+
     def eaten(self, mark_token: object | None) -> list[Token]:
         start_pos = self._marks[mark_token] if mark_token else self._start_pos
         return self._tokens[start_pos : max(0, self.current_pos)]
@@ -209,18 +218,18 @@ class TokenParser:
             return None
         return self._tokens[self.current_pos - 1]
 
-    def _advance(self):
+    def _advance(self, inc: int = 1):
         """Advances the peek position, skipping matching indentation."""
 
         # advance to next token (current pos is based on peek pos)
-        self._peek_pos += 1
+        self._peek_pos += inc
 
         # get next indent level
         self._peek_indent_level = 0
         for token in self._tokens[self.current_pos :]:
             if token.type != TT.INDENT:
                 break
-            self._peek_indent_level += 1
+            self._peek_indent_level += inc
 
         # skip indentation if matching
         if self._peek_indent_level == self.indent_level:
@@ -666,15 +675,22 @@ def parse_type_element_tuple(tokens: TokenParser) -> TypeElement:
     return parse_type_element_type(tokens, name.value)
 
 
-def parse_type_element_type(tokens: TokenParser, name: str | None) -> TypeElement:
-    # parse array like [<type>]
+def parse_type_element_type(
+    tokens: TokenParser, name: str | None, packing: bool = False
+) -> TypeElement:
+    """Parse a type element type including description, handling nested types."""
+    # TODO @Cleanup: parse_type_element_type seems more complex than it should be,
+    #  especially the nested back-tracking for unions/intersections
+
+    # parse array like [<type>] with recursive descent
     if tokens.peek_bracket("["):
         tokens.eat_bracket("[")
         element = parse_type_element_type(tokens, name=None)
         tokens.eat_bracket("]")
         return TypeElement(name=name, type=TypeTag.ARRAY, elements=[element])
 
-    # otherwise parse type either primitive or type reference
+    start_mark = tokens.mark()  # for back-tracking
+    # parse actual type as either primitive or type reference
     if tokens.peek_keyword_like(TypeTag):
         # not all value types are keywords, but only the valid ones are in KEYWORDS
         type = tokens.eat_keyword_like(TypeTag).value
@@ -683,21 +699,41 @@ def parse_type_element_type(tokens: TokenParser, name: str | None) -> TypeElemen
         type = TypeTag.TYPE_REFERENCE
         reference = tokens.eat_identifier().value
 
-    # pack into type element (either directly or as union/intersection type)
-    packing_mode: typing.Union[None, TypeTag.UNION, TypeTag.INTERSECTION] = None
-    while tokens.peek_separator(" "):
-        tokens.eat_separator(" ")
-        if tokens.peek_description():
-            tokens.eat_description()
-    # nocheckin
+    if not tokens.peek_separator(" "):  # type is done
+        return TypeElement(name=name, type=type, reference=reference)
 
-    # end with optional description, end or irrelevant token
-    if tokens.peek_separator(" "):
-        tokens.eat_separator(" ")
+    tokens.eat_separator(" ")
+    if tokens.peek_description():  # description completes type
         description = tokens.eat_description().value
+        return TypeElement(name=name, type=type, reference=reference, description=description)
+    # parse post-packed types like unions and intersection with back-tracking
+    elif tokens.peek_separator("|") or tokens.peek_separator("&"):
+        if packing:  # inner type is done, so this must refer to parent packing
+            tokens.advance(-1)  # go back one token to leave whitespace separator
+            return TypeElement(name=name, type=type, reference=reference)
+        # otherwise we're starting to pack a new union/intersection
+        packing_separator = tokens.eat().value
+        packing_type = TypeTag.UNION if packing_separator == "|" else TypeTag.INTERSECTION
+        tokens.reset(start_mark)  # back-track and reparse
+        packed_element = TypeElement(name=name, type=packing_type, elements=[])
+        while True:
+            element = parse_type_element_type(tokens, name=None, packing=True)
+            packed_element.elements.append(element)
+            # if we got a description, we are done
+            if element.description is not None:  # hoist description to parent
+                packed_element.description = element.description
+                element.description = None
+                break
+            # otherwise, try to parse another element
+            if tokens.peek_separator(" "):
+                tokens.eat_separator(" ")
+                tokens.eat_separator(packing_separator)
+                tokens.eat_separator(" ")
+            else:
+                break
+        return packed_element
     else:
-        description = None
-    return TypeElement(name=name, type=type, reference=reference, description=description)
+        raise ParseError(PE.UNEXPECTED_TOKEN_TYPE, tokens.peek(), type="| or &")
 
 
 def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
