@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Optional
 
-from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
+from bench.language.types import StatementModifier, StatementType, SymbolType, TypeTag
 
 
 @dataclass(repr=False)

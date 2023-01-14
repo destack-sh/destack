@@ -5,7 +5,7 @@ import typing
 from collections import OrderedDict
 from typing import Union
 
-from bench.language.type import TypeElement, TypeTag
+from bench.language.types import TypeElement, TypeTag
 
 PyValueType = Union[int, float, bool, str, dict, list]
 

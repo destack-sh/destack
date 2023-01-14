@@ -4,7 +4,7 @@ import abc
 from typing import TYPE_CHECKING, Any, Optional, TypedDict, Union
 
 if TYPE_CHECKING:
-    from bench.language.type import Model, ModelInferenceSettings
+    from bench.language.types import Model, ModelInferenceSettings
 else:
     ResolvedModel = Any
 
