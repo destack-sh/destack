@@ -11,7 +11,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.lex import SourceFile, Token, TokenType, get_location_range_pointer, lex
+from bench.language.lex import Token, TokenType, get_location_range_pointer, lex_string
 from bench.language.type import (
     Capability,
     Code,
@@ -166,7 +166,7 @@ def parse_string(
     lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
-    tokens = lex(SourceFile(path="<string>", content=string))
+    tokens = lex_string(string)
     return parse(tokens, module=module, lookup_module=lookup_module, on_error=on_error)
 
 
@@ -352,6 +352,10 @@ class TokenParser:
 
     def eat_description(self) -> Token:
         return self.eat_type(TT.DESCRIPTION)
+
+
+def parser_from_string(string: str) -> TokenParser:
+    return TokenParser(lex_string(string), start_pos=0, indent_level=0)
 
 
 def _clean_literal_indent(text: str, indent_level: int) -> str:
@@ -590,7 +594,9 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
+        tokens.eat_bracket("(")
         element_type = parse_type_node_struct_inline(tokens, name="element")
+        tokens.eat_bracket(")")
         tokens.eat_separator(":")
         tokens.eat_newline()
         literal = tokens.eat_literal()
@@ -763,8 +769,7 @@ def parse_type_node_struct(tokens: TokenParser, name: str) -> TypeNode:
     return struct
 
 
-def parse_type_node_struct_inline(tokens: TokenParser, name: str) -> TypeNode:
-    tokens.eat_bracket("(")
+def parse_type_node_struct_inline(tokens: TokenParser, name: str | None) -> TypeNode:
     struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
     while not tokens.peek_bracket(")"):
         tuple = parse_type_node_named(tokens)
@@ -773,13 +778,14 @@ def parse_type_node_struct_inline(tokens: TokenParser, name: str) -> TypeNode:
             break
         tokens.eat_separator(",")
         tokens.eat_space()
-    tokens.eat_bracket(")")
     return struct
 
 
-def parse_type_node_func(tokens: TokenParser, name: str) -> TypeNode:
+def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeNode:
     # parse signature like (<tuple1>, <tuple2>, ...) -> <return_tuple>
+    tokens.eat_bracket("(")
     input = parse_type_node_struct_inline(tokens, "input")
+    tokens.eat_bracket(")")
     if tokens.peek_separator(" "):
         tokens.eat_space()
         tokens.eat_separator("->")

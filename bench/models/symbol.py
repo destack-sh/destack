@@ -131,7 +131,7 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     value = models.JSONField(null=True, blank=True)  # for value
-    btl = models.TextField(null=True, blank=True)  # for type content and any other types
+    btl = models.TextField(null=True, blank=True)  # for any type nodes
     # ... other contents currently via DatasetContentMixin and ModelContentMixin
 
     def __str__(self):
@@ -174,10 +174,6 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
             Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
         )
 
-    @gql.model_property(
-        only=["symbol_type", *SYMBOL_CONTENT_VALUE_FIELDS],
-        select_related=list(SYMBOL_CONTENT_RELATION_1TOM_FIELDS),
-    )
     def content(self) -> Optional[language.SymbolContent]:
         from bench.models.mapper import rmap_statement  # avoid circular import
 
@@ -186,7 +182,7 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         try:
             lang_statement = rmap_statement(self, MOCK_FILE)
             return lang_statement.content
-        except ValueError:  # invalid/partial content
+        except ValueError as e:  # invalid/partial content
             return None
 
     def content_(self) -> language.SymbolContent:

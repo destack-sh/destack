@@ -13,7 +13,14 @@ from uuid import UUID
 from django.db import transaction
 
 from bench import language, models
-from bench.language.parse import index_module
+from bench.language.parse import (
+    index_module,
+    parse_type_node,
+    parse_type_node_func,
+    parse_type_node_struct_inline,
+    parser_from_string,
+)
+from bench.language.reconstruct import render_type_node
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.models.project import FileType, Project, ProjectVersion
 from bench.utils.record import RecordList
@@ -50,8 +57,6 @@ def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
         lang_statement = rmap_statement(statement, file=lang_files[statement.file_id])
         lang_statements[statement.id] = lang_statement
         lang_statement.file.statements.append(lang_statement)
-        if statement.type == StatementType.DEFINITION:
-            lang_statement.content = rmap_symbol(statement, lang_statement)
 
     # map references (incl. parent)
     for statement in project_v.statements.all():
@@ -76,6 +81,8 @@ def rmap_statement(statement: models.Statement, file: language.File):
         symbol_type=statement.symbol_type,
         reference=None,
     )
+    if statement.type == StatementType.DEFINITION:
+        lang_statement.content = rmap_symbol(statement, lang_statement)
     return lang_statement
 
 
@@ -141,13 +148,14 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
     """Maps language symbol content to database models."""
     if isinstance(content, language.Type):
         statement.description = content.description
-        statement.element = content.node
+        statement.btl = render_type_node(content.node)
         return []
     elif isinstance(content, language.Capability):
         statement.description = content.description
         return []
     elif isinstance(content, language.Task):
         statement.description = content.description
+        statement.btl = render_type_node(content.func_type)
         return []
     elif isinstance(content, language.Expectation):
         statement.description = content.description
@@ -159,8 +167,10 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
         return []
     elif isinstance(content, language.Code):
         statement.code = content.code
+        statement.btl = render_type_node(content.func_type)
         return []
     elif isinstance(content, language.Dataset):
+        statement.btl = render_type_node(content.element_type)
         model_records = [
             models.DatasetRecord(dataset=statement, index=i, data=data)
             for i, data in enumerate(content.records)
@@ -173,10 +183,10 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
         source_mappings = [
             models.SourceMapping(
                 compilation=statement,
-                source_id=m.source.id,
+                source_id=m.source_id,
                 source_path=m.source_path,
                 source_revision=m.source_revision,
-                target_id=m.target.id,
+                target_id=m.target_id,
                 target_path=m.target_path,
                 target_revision=m.target_revision,
             )
@@ -197,11 +207,15 @@ def rmap_symbol(
 ) -> language.SymbolContent:
     """Maps database symbol content to language models."""
     if statement.symbol_type == SymbolType.TYPE:
-        return language.Type(definition, description=statement.description, node=statement.element)
+        btl_parser = parser_from_string(statement.btl)
+        type_node = parse_type_node(btl_parser, name=None)
+        return language.Type(definition, description=statement.description, node=type_node)
     elif statement.symbol_type == SymbolType.CAPABILITY:
         return language.Capability(definition, description=statement.description)
     elif statement.symbol_type == SymbolType.TASK:
-        return language.Task(definition, description=statement.description)
+        btl_parser = parser_from_string(statement.btl)
+        func_type = parse_type_node_func(btl_parser, name=statement.name)
+        return language.Task(definition, description=statement.description, func_type=func_type)
     elif statement.symbol_type == SymbolType.EXPECTATION:
         return language.Expectation(definition, description=statement.description)
     elif statement.symbol_type == SymbolType.MODEL:
@@ -212,28 +226,33 @@ def rmap_symbol(
             settings=statement.default_settings,
         )
     elif statement.symbol_type == SymbolType.CODE:
-        # only python is supported for now
+        btl_parser = parser_from_string(statement.btl)
+        func_type = parse_type_node_func(btl_parser, name=statement.name)
         return language.Code(
             definition=definition,
+            # only python is supported for now
             language="python",
             code=statement.code,
             builtin_id=statement.code_builtin_id,
+            func_type=func_type,
         )
     elif statement.symbol_type == SymbolType.DATASET:
+        btl_parser = parser_from_string(statement.btl)
+        element_type = parse_type_node_struct_inline(btl_parser, name=statement.name)
         return language.Dataset(
             definition=definition,
             records=RecordList([record.data for record in statement.records.all()]),
+            element_type=element_type,
         )
     elif statement.symbol_type == SymbolType.VALUE:
         return language.Value(definition=definition, value=statement.value)
     elif statement.symbol_type == SymbolType.COMPILATION:
         source_mappings = [
-            # TODO @Broken: rmap compilation is broken as source/target isn't mapped
             language.SourceMapping(
-                source=m.source,
+                source_id=m.source.id,
                 source_path=m.source_path,
                 source_revision=m.source_revision,
-                target=m.target,
+                target_id=m.target.id,
                 target_path=m.target_path,
                 target_revision=m.target_revision,
             )

@@ -178,6 +178,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         from bench.models.mapper import wmap_symbol  # avoid circular import
 
         # TODO @Performance: copy project version on commit server-side (in SQL)
+        #  (generally good, but also especially for dataset records, mappings and other relations)
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
         # 1. copy project files
         new_files: dict[UUID, File] = {}

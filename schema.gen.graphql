@@ -1,22 +1,3 @@
-input AddCompilationInput {
-  taskSymbolId: GlobalID!
-  name: String!
-  backends: [String!]!
-}
-
-type AddCompilationPayload {
-  compilation: Compilation!
-}
-
-type Capability {
-  description: String!
-}
-
-type Code {
-  builtinId: String!
-  code: String!
-}
-
 input CodeUpdateContentCode {
   statementId: GlobalID!
   builtinId: String = null
@@ -35,29 +16,15 @@ type CommitPayload {
   newWorkingVersion: ProjectVersion!
 }
 
-type Compilation {
-  mappings: [SourceMapping!]!
-}
-
 input CompileInput {
   compilationId: GlobalID!
 }
 
 type CompilePayload {
-  compilation: Compilation!
+  compilation: Statement!
 }
 
 union CreateFilePayload = File | OperationInfo
-
-type Dataset {
-  records: [DatasetRecord!]!
-}
-
-type DatasetRecord implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
-  data: JSON!
-}
 
 """Date with time (isoformat)"""
 scalar DateTime
@@ -79,12 +46,8 @@ type Execution implements Node {
   error: JSON
   parent: Execution
   children: [Execution!]!
-  code: Code!
-  model: Model
-}
-
-type Expectation {
-  description: String!
+  code: Statement!
+  model: Statement
 }
 
 input ExpectationUpdateContentDescription {
@@ -147,11 +110,6 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
-type Model {
-  provider: String!
-  externalName: String!
-}
-
 type MorphStatementPayload {
   statement: Statement!
 }
@@ -175,7 +133,6 @@ type Mutation {
   updateExpectationContent(input: ExpectationUpdateContentDescription!): Statement!
   updateCodeContent(input: CodeUpdateContentCode!): Statement!
   run(input: RunCodeInput!): RunCodePayload!
-  addCompilationTarget(input: AddCompilationInput!): AddCompilationPayload!
   compile(input: CompileInput!): CompilePayload!
   commit(input: CommitInput!): CommitPayload!
 }
@@ -363,10 +320,6 @@ union RenameFilePayload = File | OperationInfo
 
 union RenameStatementPayload = Statement | OperationInfo
 
-type Requirement {
-  projectVersion: ProjectVersion!
-}
-
 input RunCodeInput {
   codeId: GlobalID!
   arguments: [RunCodeValueArgumentInput!]!
@@ -378,7 +331,7 @@ type RunCodeOutput {
 }
 
 type RunCodePayload {
-  code: Code!
+  code: Statement!
   execution: Execution!
   outputs: [RunCodeOutput!]
 }
@@ -389,15 +342,6 @@ input RunCodeValueArgumentInput {
 }
 
 union SetModifierStatementPayload = Statement | OperationInfo
-
-type SourceMapping {
-  source: Statement!
-  sourcePath: JSON!
-  sourceRevision: Int!
-  target: Statement!
-  targetPath: JSON!
-  targetRevision: Int!
-}
 
 type Statement implements Node {
   id: GlobalID!
@@ -415,14 +359,19 @@ type Statement implements Node {
   children: [Statement!]!
   descendants: [Statement!]!
   index: Int
-  symbolType: SymbolType
-  text: String
+  reference: Statement
+  referencedBy: [Statement!]!
 
   """Traverses references to get the source definition."""
   sourceDefinition(pk: ID): Statement
-  reference: Statement
-  referencedBy: [Statement!]!
-  content: TypeCapabilityTaskExpectationCodeDatasetModelValueRequirement
+  symbolType: SymbolType
+  text: String
+  code: String
+  codeBuiltinId: String
+  description: String
+  referenceProjectVersion: ProjectVersion
+  value: JSON
+  btl: String
 }
 
 input StatementCommentedInput {
@@ -540,10 +489,6 @@ enum SymbolType {
   RUNCONFIG
 }
 
-type Task {
-  description: String!
-}
-
 input TaskUpdateContentDescription {
   statementId: GlobalID!
   description: String!
@@ -554,8 +499,6 @@ type Type {
   btl: String!
   node: TypeNode!
 }
-
-union TypeCapabilityTaskExpectationCodeDatasetModelValueRequirement = Type | Capability | Task | Expectation | Code | Dataset | Model | Value | Requirement
 
 type TypeNode {
   name: String
@@ -619,8 +562,4 @@ type UserEdge {
 
   """The item at the end of the edge"""
   node: User!
-}
-
-type Value {
-  value: JSON!
 }
