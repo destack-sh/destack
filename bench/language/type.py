@@ -54,7 +54,7 @@ class SymbolType(models.TextChoices):
 
 
 class TypeTag(Enum):
-    """The type of type element."""
+    """The type of type node."""
 
     STRING = "string"
     NUMBER = "number"
@@ -249,11 +249,11 @@ class SymbolContent:
 
 @dataclass(repr=False)
 class Type(SymbolContent):
-    element: TypeElement
+    node: TypeNode
     description: str = ""
 
     def __str__(self):
-        return str(self.element)
+        return str(self.node)
 
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
@@ -261,39 +261,38 @@ PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING
 
 
 @dataclass
-class TypeElement:
+class TypeNode:
     name: Optional[str]
     type: TypeTag
     required: bool = True
     description: Optional[str] = None
-    reference: Optional[str | "TypeElement"] = None
-    elements: Optional[list["TypeElement"]] = None
+    reference: Optional[str | "TypeNode"] = None
+    children: Optional[list["TypeNode"]] = None
 
     def __str__(self):
         return f"{self.name}: {self.type}"
 
     @property
     def keys(self) -> list[str]:
-        if self.elements is None:
+        if self.children is None:
             return []
         else:
-            return [e.name for e in self.elements]
+            return [e.name for e in self.children]
 
     @property
-    def input(self) -> TypeElement:
-        return self.element("input")
+    def input(self) -> TypeNode:
+        return self.child("input")
 
     @property
-    def output(self) -> TypeElement:
-        return self.element("output")
+    def output(self) -> TypeNode:
+        return self.child("output")
 
-    def element(self, key: str) -> TypeElement:
-        """Find a schema element by key (only works for objects)."""
-        if self.elements is None:
+    def child(self, key: str) -> TypeNode:
+        if self.children is None:
             raise ValueError(f"find cannot be used on {self}")
-        for e in self.elements:
-            if e.name == key:
-                return e
+        for node in self.children:
+            if node.name == key:
+                return node
         raise KeyError(f"key {key} not found in {self}")
 
 
@@ -308,7 +307,7 @@ class Capability(SymbolContent):
 @dataclass(repr=False)
 class Task(SymbolContent):
     description: str
-    func_type: TypeElement
+    func_type: TypeNode
 
     def __str__(self):
         return f"({self.description})"
@@ -325,7 +324,7 @@ class Expectation(SymbolContent):
 @dataclass(repr=False)
 class Dataset(SymbolContent):
     records: RecordBatch
-    element_type: TypeElement
+    element_type: TypeNode
 
     def __str__(self):
         return f"({len(self.records)})"
@@ -370,7 +369,7 @@ class Code(SymbolContent):
     language: Literal["python"]
     code: Optional[str]
     builtin_id: Optional[str]
-    func_type: TypeElement
+    func_type: TypeNode
 
     def __content_str__(self):
         # copied almost verbatim from Code.__str__
@@ -417,7 +416,7 @@ class SourceMapping:
 
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
     if symbol_type == SymbolType.TYPE:
-        return Type(definition, TypeElement(None, TypeTag.STRUCT, elements=[]))
+        return Type(definition, TypeNode(None, TypeTag.STRUCT, children=[]))
     elif symbol_type == SymbolType.TASK:
         return Task(definition, description="")
     elif symbol_type == SymbolType.CAPABILITY:

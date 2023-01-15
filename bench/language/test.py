@@ -60,11 +60,11 @@ name: string
     )
     idx = index_module(module)
 
-    type_entity_type = idx.symbol(".test:EntityType", Type).element
+    type_entity_type = idx.symbol(".test:EntityType", Type).node
     assert type_entity_type.type == TypeTag.STRING
 
-    type_entity = idx.symbol(".test:Entity", Type).element
-    assert type_entity.element("type").type == TypeTag.STRING
+    type_entity = idx.symbol(".test:Entity", Type).node
+    assert type_entity.child("type").type == TypeTag.STRING
 
 
 def test_resolve_circular_type():
@@ -82,8 +82,8 @@ entities: [Entity]
     )
     idx = index_module(module)
 
-    type_event = idx.symbol(".test:Event", Type).element
-    assert type_event.element("entities").type == TypeTag.ARRAY
+    type_event = idx.symbol(".test:Event", Type).node
+    assert type_event.child("entities").type == TypeTag.ARRAY
 
-    type_entity = idx.symbol(".test:Entity", Type).element
-    assert type_entity.element("first_event").elements[0].name == type_event.name
+    type_entity = idx.symbol(".test:Entity", Type).node
+    assert type_entity.child("first_event").children[0].name == type_event.name

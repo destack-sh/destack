@@ -71,7 +71,7 @@ SYMBOL_CONTENT_VALUE_FIELDS = {
     "code",
     "code_builtin_id",
     "description",
-    "element",
+    "btl",
     "value",
 }
 SYMBOL_CONTENT_RELATION_FIELDS = {
