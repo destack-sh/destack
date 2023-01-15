@@ -107,33 +107,22 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const SchemaElementContentDeepType = graphql(/* GraphQL */ `
-  fragment SchemaElementContentDeep on SchemaElement {
+export const TypeNodeContentDeepType = graphql(/* GraphQL */ `
+  fragment TypeNodeContentDeep on TypeNode {
     name
     type
     required
-    schemaId
-    elements {
+    children {
       name
       type
       required
-      schemaId
-      elements {
-        name
-        type
-        required
-        schemaId
-      }
     }
   }
 `);
 
-export const SchemaContentType = graphql(/* GraphQL */ `
-  fragment SchemaContent on Schema {
+export const TypeContentType = graphql(/* GraphQL */ `
+  fragment TypeContent on Type {
     description
-    element {
-      ...SchemaElementContentDeep
-    }
     btl
   }
 `);
@@ -155,6 +144,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
       id
     }
     content {
+      ... on Capability {
+        description
+      }
       ... on Code {
         ...CodeContent
       }
@@ -167,8 +159,8 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ... on Task {
         description
       }
-      ... on Schema {
-        ...SchemaContent
+      ... on Type {
+        ...TypeContent
       }
     }
     reference {

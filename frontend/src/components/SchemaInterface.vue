@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { SchemaContentType, StatementHeaderType } from "@/state/fragments";
+import { TypeContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{
   statement: FragmentType<typeof StatementHeaderType>;
-  content: FragmentType<typeof SchemaContentType>;
+  content: FragmentType<typeof TypeContentType>;
   focused: boolean;
   editing: boolean;
   readonly: boolean;
@@ -21,7 +21,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
 }>();
 const statement = computed(() => useFragment(StatementHeaderType, props.statement));
-const content = computed(() => useFragment(SchemaContentType, props.content));
+const content = computed(() => useFragment(TypeContentType, props.content));
 
 const operations = useOperations();
 const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
@@ -30,7 +30,7 @@ const btl: Ref<string | null> = ref(null);
 function saveBtl(btl: string) {
   const oldBtl = content.value.btl ?? "";
   if (oldBtl !== btl) {
-    operations.content.updateSchemaContent(statement.value.id, oldBtl, btl);
+    operations.content.update_type_content(statement.value.id, oldBtl, btl);
   }
 }
 const saveBtlDebounced = useDebounceFn(saveBtl, 200, { maxWait: 500 });

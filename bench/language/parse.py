@@ -709,7 +709,7 @@ def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False
         return TypeNode(name=name, type=type, reference=reference, source_reference=reference)
 
     tokens.eat_space()
-    if tokens.peek_description():  # description completes type
+    if tokens.peek_description():  # description completes type declaration
         description = tokens.eat_description().value
         return TypeNode(
             name=name,

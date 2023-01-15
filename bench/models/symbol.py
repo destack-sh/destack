@@ -74,10 +74,12 @@ SYMBOL_CONTENT_VALUE_FIELDS = {
     "btl",
     "value",
 }
-SYMBOL_CONTENT_RELATION_FIELDS = {
+SYMBOL_CONTENT_RELATION_1TOM_FIELDS = {
     "reference_project_version",
+}
+SYMBOL_CONTENT_RELATION_MTOM_FIELDS = {
     "mappings",
-    "records",
+    "compilations",
 }
 
 
@@ -174,7 +176,7 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
 
     @gql.model_property(
         only=["symbol_type", *SYMBOL_CONTENT_VALUE_FIELDS],
-        select_related=list(SYMBOL_CONTENT_RELATION_FIELDS),
+        select_related=list(SYMBOL_CONTENT_RELATION_1TOM_FIELDS),
     )
     def content(self) -> Optional[language.SymbolContent]:
         from bench.models.mapper import rmap_statement  # avoid circular import

@@ -170,7 +170,7 @@ type Mutation {
   renameFile(input: FileRenameInput!): RenameFilePayload!
   softDeleteFile(input: FileSoftDeleteInput!): File!
   restoreFile(input: FileRestoreInput!): File!
-  updateSchemaContent(input: TypeUpdateContentBtl!): Statement!
+  updateTypeContent(input: TypeUpdateContentBtl!): Statement!
   updateTaskContent(input: TaskUpdateContentDescription!): Statement!
   updateExpectationContent(input: ExpectationUpdateContentDescription!): Statement!
   updateCodeContent(input: CodeUpdateContentCode!): Statement!
@@ -551,18 +551,35 @@ input TaskUpdateContentDescription {
 
 type Type {
   description: String!
-  element: TypeElement!
   btl: String!
+  node: TypeNode!
 }
 
 union TypeCapabilityTaskExpectationCodeDatasetModelValueRequirement = Type | Capability | Task | Expectation | Code | Dataset | Model | Value | Requirement
 
-type TypeElement {
+type TypeNode {
   name: String
-  type: ValueType!
+  type: TypeTag!
   required: Boolean!
-  schemaId: String
-  elements: [TypeElement!]
+  description: String
+  reference: String
+  children: [TypeNode!]
+}
+
+"""The type of type node."""
+enum TypeTag {
+  STRING
+  NUMBER
+  BOOLEAN
+  ARRAY
+  TUPLE
+  MAP
+  STRUCT
+  FUNCTION
+  UNION
+  INTERSECTION
+  NULL
+  TYPE_REFERENCE
 }
 
 input TypeUpdateContentBtl {
@@ -606,16 +623,4 @@ type UserEdge {
 
 type Value {
   value: JSON!
-}
-
-"""An enumeration."""
-enum ValueType {
-  STRING
-  NUMBER
-  BOOLEAN
-  STRUCT
-  ARRAY
-  UNION
-  NULL
-  TYPE_REFERENCE
 }

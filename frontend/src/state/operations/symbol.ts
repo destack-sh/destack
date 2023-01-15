@@ -7,27 +7,27 @@ export function useSymbolContentOps() {
 
   // schema mutations
 
-  const { mutate: updateSchemaContentMut } = useMutation(
+  const { mutate: updateTypeContentMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateSchemaContent($id: GlobalID!, $btl: String!) {
-        updateSchemaContent(input: { statementId: $id, btl: $btl }) {
+      mutation update_type_content($id: GlobalID!, $btl: String!) {
+        updateTypeContent(input: { statementId: $id, btl: $btl }) {
           id
           content {
-            ...SchemaContent
+            ...TypeContent
           }
         }
       }
     `)
   );
 
-  async function updateSchemaContent(id: string, oldBtl: string, newBtl: string) {
+  async function update_type_content(id: string, oldBtl: string, newBtl: string) {
     await operations.perform({
       type: "symbol.schema.updateContent",
       do: async () => {
-        await updateSchemaContentMut({ id: id, btl: newBtl });
+        await updateTypeContentMut({ id: id, btl: newBtl });
       },
       undo: async () => {
-        await updateSchemaContentMut({ id: id, btl: oldBtl });
+        await updateTypeContentMut({ id: id, btl: oldBtl });
       },
     });
   }
@@ -132,5 +132,5 @@ export function useSymbolContentOps() {
     });
   }
 
-  return { updateSchemaContent, updateTaskContent, updateExpectationContent, updateCodeContent };
+  return { update_type_content, updateTaskContent, updateExpectationContent, updateCodeContent };
 }
