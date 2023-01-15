@@ -1,6 +1,4 @@
---- main.instruct ---
-# Describe what to do
-
+--- lib.instruct ---
 # type EntityType = enum:
 # PER "Person"
 # LOC "Location"
@@ -8,12 +6,16 @@
 # MISC "Miscellaneous"
 
 type EntityType = string
-
 type Entity:
 "A named entity in a text"
 name: string "Canonical name of the entity"
 'type': EntityType
 confidence: number | null "Confidence in the detected type"
+
+--- main.instruct ---
+# Describe what to do
+import type Entity from .lib
+import type EntityType from .lib
 
 task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
