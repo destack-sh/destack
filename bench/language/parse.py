@@ -1168,8 +1168,11 @@ def resolve_type_references(
     impute_type_references(node, keep_references=True)
 
 
-def impute_type_references(node: TypeNode, keep_references: bool) -> None:
-    """Replace all references with their definitions."""
+def impute_type_references(node: TypeNode, keep_references: bool = True) -> None:
+    """
+    Replace all references with their definitions.
+    Note that without references, perfect source reconstruction is impossible.
+    """
     if node.type != TypeTag.TYPE_REFERENCE:
         return
 

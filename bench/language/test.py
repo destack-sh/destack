@@ -86,4 +86,4 @@ entities: [Entity]
     assert type_event.child("entities").type == TypeTag.ARRAY
 
     type_entity = idx.symbol(".test:Entity", Type).node
-    assert type_entity.child("first_event").children[0].name == type_event.name
+    assert type_entity.child("first_event").children[0].type == type_event.type

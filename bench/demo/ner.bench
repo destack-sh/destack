@@ -13,7 +13,7 @@ name: string "Canonical name of the entity"
 'type': string
 confidence: number | null "Confidence in the detected type"
 
-task 'extract entities' :: (input: string) -> [EntityT]:
+task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
 #    var type EntityT :: Entity
 
