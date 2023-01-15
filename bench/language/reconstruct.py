@@ -29,6 +29,9 @@ from bench.language.type import (
     Value,
 )
 
+StmT = StatementType
+SymT = SymbolType
+
 
 def render(files: list[File]) -> str:
     lines = []
@@ -60,7 +63,7 @@ def render_file(file: File) -> str:
     root_statements = statements_by_parent.get(None, [])
     for i, root_statement in enumerate(root_statements):
         for statement, indent in walk_dfs(root_statement, 0):
-            lines.append(render_statement(statement, indent, render_indent=True))
+            lines.append(render_statement_indented(statement, indent))
         # add extra blank line between ungrouped root statements
         if root_statement.ungrouped and i != (len(root_statements) - 1):
             lines.append("")
@@ -68,55 +71,63 @@ def render_file(file: File) -> str:
     return "\n".join(lines)
 
 
-def render_statement(statement: Statement, indent: int, render_indent: bool) -> str:
-    content_str = render_statement_content(statement)
-
-    if render_indent:
+def render_statement_indented(statement: Statement, indent: int) -> str:
+    content_str = render_statement(statement)
+    if indent > 0:
         content_lines = content_str.splitlines()
         indent_str = " " * 4 * indent  # use 4 spaces
         content_lines = [f"{indent_str}{line}" for line in content_lines]
         content_str = "\n".join(content_lines)
-
     return content_str
 
 
-def render_statement_content(statement: Statement) -> str:
-    if statement.type == StatementType.BLANK:
+def render_statement(statement: Statement) -> str:
+    """Renders the statement itself without indentation"""
+    if statement.type == StmT.BLANK:
         return ""
-    elif statement.type == StatementType.COMMENT:
+    elif statement.type == StmT.COMMENT:
         return render_comment(statement.text)
-    elif statement.type == StatementType.IMPORT:
+    elif statement.type == StmT.IMPORT:
         alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""
         reference_name = escape_identifier(get_reference_name(statement.reference))
         import_source = render_import_source(statement.reference, via=statement)
         return f"import {statement.symbol_type} {reference_name}{alias_str} from {import_source}"
-    elif statement.type == StatementType.DEFINITION:
-        content_str = render_symbol_content(statement.content)
+    elif statement.type == StmT.DEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
-        if statement.symbol_type == SymbolType.REQUIREMENT:
+
+        # special case: inline type node "redefinitions" as definitions
+        if (
+            statement.symbol_type == SymT.TYPE
+            and cast(Type, statement.content).node.type != TypeTag.STRUCT
+        ):
+            type_str = render_type_node(cast(Type, statement.content).node)
+            return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
+
+        content_str = render_symbol_content(statement.content)
+        if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(Requirement, statement.content).version}"
-        elif statement.symbol_type == SymbolType.TASK:
+        elif statement.symbol_type == SymT.TASK:
             type_str = render_type_node(cast(Task, statement.content).func_type)
             postfix = f" :: {type_str}:"
-        elif statement.symbol_type == SymbolType.CODE:
+        elif statement.symbol_type == SymT.CODE:
             type_str = render_type_node(cast(Code, statement.content).func_type)
             postfix = f" :: {type_str}:"
-        elif statement.symbol_type == SymbolType.DATASET:
+        elif statement.symbol_type == SymT.DATASET:
             content = cast(Dataset, statement.content)
-            type_str = render_type_node_struct(content.element_type, ",")
-            postfix = f" :: {type_str}:"
+            type_str = render_type_node_struct(content.element_type, ", ")
+            postfix = f" :: ({type_str}):"
         else:
             postfix = ":"
         def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}{postfix}"
         return f"{def_str}\n{content_str}" if content_str else def_str
-    elif statement.type == StatementType.REDEFINITION:
+    elif statement.type == StmT.REDEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
         reference_name = escape_identifier(get_reference_name(statement.reference))
         return f"{modifier_str}{statement.symbol_type} {identifier_str} = {statement.symbol_type} {reference_name}"
-    elif statement.type == StatementType.REFERENCE:
+    elif statement.type == StmT.REFERENCE:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
         return f"{modifier_str}{statement.symbol_type} {identifier_str}"
@@ -164,12 +175,9 @@ def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
     else:
         identifier_str = ""
     description_str = f' "{node.description}"' if node.description else ""
-    if node.type == TypeTag.TYPE_REFERENCE or node.reference is not None:
+    if node.type == TypeTag.TYPE_REFERENCE or node.source_reference is not None:
         # if it's a reference _or_ used to be a reference, we want the type reference
-        reference_str = (
-            node.reference.name if isinstance(node.reference, TypeNode) else node.reference
-        )
-        reference_str = escape_identifier(reference_str)
+        reference_str = escape_identifier(node.source_reference)
         return f"{identifier_str}{reference_str}{description_str}"
     elif node.type == TypeTag.FUNCTION:
         input_str = render_type_node_struct(node.input, seperator=", ")

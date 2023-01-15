@@ -612,7 +612,7 @@ def _parse_definition_content(
             value = json.loads(literal.value)
             return Value(value=value, definition=definition)
         except json.JSONDecodeError as e:
-            raise ParseError(PE.INVALID_TOKEN_VALUE, value, error=e)
+            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.COMPILATION:
         tokens.eat_separator(":")
         return Compilation(definition=definition)
@@ -667,15 +667,15 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     return definition
 
 
-def parse_type_node(tokens: TokenParser) -> TypeNode:
-    # parse single tuple like <name>: <type>[ "<description>"]
+def parse_type_node_named(tokens: TokenParser) -> TypeNode:
+    """parse single tuple like <name>: <type>[ "<description>"]"""
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     tokens.eat_space()
-    return parse_type_node_type(tokens, name.value)
+    return parse_type_node(tokens, name.value)
 
 
-def parse_type_node_type(tokens: TokenParser, name: str | None, packing: bool = False) -> TypeNode:
+def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False) -> TypeNode:
     """Parse a type node type including description, handling nested types."""
     # TODO @Cleanup: parse_type_node_type seems more complex than it should be,
     #  especially the nested back-tracking for unions/intersections
@@ -683,7 +683,7 @@ def parse_type_node_type(tokens: TokenParser, name: str | None, packing: bool = 
     # parse array like [<type>] with recursive descent
     if tokens.peek_bracket("["):
         tokens.eat_bracket("[")
-        node = parse_type_node_type(tokens, name=None)
+        node = parse_type_node(tokens, name=None)
         tokens.eat_bracket("]")
         return TypeNode(name=name, type=TypeTag.ARRAY, children=[node])
 
@@ -698,24 +698,30 @@ def parse_type_node_type(tokens: TokenParser, name: str | None, packing: bool = 
         reference = tokens.eat_identifier().value
 
     if not tokens.peek_separator(" "):  # type is done
-        return TypeNode(name=name, type=type, reference=reference)
+        return TypeNode(name=name, type=type, reference=reference, source_reference=reference)
 
     tokens.eat_space()
     if tokens.peek_description():  # description completes type
         description = tokens.eat_description().value
-        return TypeNode(name=name, type=type, reference=reference, description=description)
+        return TypeNode(
+            name=name,
+            type=type,
+            reference=reference,
+            source_reference=reference,
+            description=description,
+        )
     # parse post-packed types like unions and intersection with back-tracking
     elif tokens.peek_separator("|") or tokens.peek_separator("&"):
         if packing:  # inner type is done, so this must refer to parent packing
             tokens.advance(-1)  # go back one token to leave whitespace separator
-            return TypeNode(name=name, type=type, reference=reference)
+            return TypeNode(name=name, type=type, reference=reference, source_reference=reference)
         # otherwise we're starting to pack a new union/intersection
         packing_separator = tokens.eat().value
         packing_type = TypeTag.UNION if packing_separator == "|" else TypeTag.INTERSECTION
-        tokens.reset(start_mark)  # back-track and reparse
+        tokens.reset(start_mark)  # back-track and reparse all children in one go
         parent = TypeNode(name=name, type=packing_type, children=[])
         while True:
-            node = parse_type_node_type(tokens, name=None, packing=True)
+            node = parse_type_node(tokens, name=None, packing=True)
             parent.children.append(node)
             # if we got a description, we are done
             if node.description is not None:  # hoist description to parent
@@ -738,7 +744,7 @@ def parse_type_node_struct(tokens: TokenParser, name: str) -> TypeNode:
     # parse tuples like <tuple1>\n<tuple2>\n...
     struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
     while True:
-        tuple = parse_type_node(tokens)
+        tuple = parse_type_node_named(tokens)
         struct.children.append(tuple)
         if not tokens.peek_type(TokenType.NEWLINE):
             break
@@ -752,7 +758,7 @@ def parse_type_node_struct_inline(tokens: TokenParser, name: str) -> TypeNode:
     tokens.eat_bracket("(")
     struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
     while not tokens.peek_bracket(")"):
-        tuple = parse_type_node(tokens)
+        tuple = parse_type_node_named(tokens)
         struct.children.append(tuple)
         if not tokens.peek_separator(","):
             break
@@ -769,7 +775,8 @@ def parse_type_node_func(tokens: TokenParser, name: str) -> TypeNode:
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
-        output = parse_type_node_type(tokens, "output")
+        output = parse_type_node(tokens, "output")
+        # nocheckin somehow this doesn't err if output is empty
     else:
         output = TypeNode(name="output", type=TypeTag.NULL)
     return TypeNode(name=name, type=TypeTag.FUNCTION, children=[input, output])
@@ -813,7 +820,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
     tokens.eat_space()
     tokens.eat_separator("=")
     tokens.eat_space()
-    node = parse_type_node_type(tokens, name.value)
+    node = parse_type_node(tokens, name=None)  # name corresponds to statement, not type node
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
     statement = Statement(

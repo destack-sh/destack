@@ -7,15 +7,16 @@
 # ORG "Organization"
 # MISC "Miscellaneous"
 
+type EntityType = string
+
 type Entity:
 "A named entity in a text"
 name: string "Canonical name of the entity"
-'type': string
+'type': EntityType
 confidence: number | null "Confidence in the detected type"
 
 task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
-#    var type EntityT :: Entity
 
 # Build
 require openai.stdlib@latest
