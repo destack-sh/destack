@@ -13,7 +13,7 @@ import structlog
 
 from bench.backend.provider import Completion
 from bench.backend.type import CodeInstance, ModelInstance
-from bench.language.type import TypeElement
+from bench.language.type import TypeNode
 from bench.language.typing_ import derive_type_from_value
 
 logger = structlog.get_logger(__name__)
@@ -199,7 +199,7 @@ class ValidationTracer(Tracer):
     def code_enter(self, code: CodeInstance, args, kwargs):
         # validate kwargs
         for name, value in kwargs.items():
-            parameter = code.func_type.input.element(name)
+            parameter = code.func_type.input.child(name)
             if parameter is None:
                 # TODO @Typing: error on unknown parameters?
                 #  Currently we ignore this because schema elements don't include non-value types.
@@ -210,7 +210,7 @@ class ValidationTracer(Tracer):
     def code_exit(self, code: CodeInstance, args, kwargs, result):
         self._check_output(code, result, code.func_type.output)
 
-    def _check_output(self, code: CodeInstance, value: Any, type: TypeElement):
+    def _check_output(self, code: CodeInstance, value: Any, type: TypeNode):
         # TODO @Typing: recursive schema validation
         value_type = derive_type_from_value(value)
         if not type.required and value is None:
@@ -218,6 +218,6 @@ class ValidationTracer(Tracer):
         elif value_type != type.type:
             raise ValidationError(f"return from {code} expected {type}, got {value_type}")
 
-    def _check_argument(self, code: CodeInstance, argument: Any, parameter: TypeElement):
+    def _check_argument(self, code: CodeInstance, argument: Any, parameter: TypeNode):
         # TODO @Typing: check that the argument has a compatible schema
         raise NotImplementedError

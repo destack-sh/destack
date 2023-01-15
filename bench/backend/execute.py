@@ -41,7 +41,6 @@ from bench.language.type import (
     Model,
     ModelInferenceSettings,
     Statement,
-    TypeElement,
     Value,
 )
 from bench.settings import DEBUG, TEST
@@ -270,18 +269,6 @@ def unwrap(value: StatementInstance):
 
 def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
-
-
-def _instantiate_type_element(
-    element: TypeElement, context: OrderedDict[str, StatementInstance]
-) -> TypeElement:
-    context_types = {
-        key: value.element for key, value in context.items() if isinstance(value, TypeInstance)
-    }
-    resolved_type = element.resolve(context_types)
-    if not resolved_type.is_resolved:
-        raise ValueError(f"type {type} is not fully resolved")
-    return resolved_type
 
 
 def _instantiate_model_handle(model) -> ModelHandle:

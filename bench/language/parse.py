@@ -30,7 +30,7 @@ from bench.language.type import (
     SymbolType,
     Task,
     Type,
-    TypeElement,
+    TypeNode,
     TypeTag,
     Value,
     parse_statement_path,
@@ -548,7 +548,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        func_type = parse_type_element_func(tokens, name=name.value)
+        func_type = parse_type_node_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
@@ -562,7 +562,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        func_type = parse_type_element_func(tokens, name=name.value)
+        func_type = parse_type_node_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
         literal = tokens.eat_literal()
@@ -583,7 +583,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        element_type = parse_type_element_struct_inline(tokens, name="element")
+        element_type = parse_type_node_struct_inline(tokens, name="element")
         tokens.eat_separator(":")
         tokens.eat_newline()
         literal = tokens.eat_literal()
@@ -658,36 +658,34 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     if description is not None:
         tokens.eat_description()
         tokens.eat_newline()
-    element = parse_type_element_struct(tokens, name=definition.name)
+    struct = parse_type_node_struct(tokens, name=definition.name)
     definition.content = Type(
         definition=definition,
-        element=element,
+        node=struct,
         description=description.value if description else None,
     )
     return definition
 
 
-def parse_type_element(tokens: TokenParser) -> TypeElement:
+def parse_type_node(tokens: TokenParser) -> TypeNode:
     # parse single tuple like <name>: <type>[ "<description>"]
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     tokens.eat_space()
-    return parse_type_element_type(tokens, name.value)
+    return parse_type_node_type(tokens, name.value)
 
 
-def parse_type_element_type(
-    tokens: TokenParser, name: str | None, packing: bool = False
-) -> TypeElement:
-    """Parse a type element type including description, handling nested types."""
-    # TODO @Cleanup: parse_type_element_type seems more complex than it should be,
+def parse_type_node_type(tokens: TokenParser, name: str | None, packing: bool = False) -> TypeNode:
+    """Parse a type node type including description, handling nested types."""
+    # TODO @Cleanup: parse_type_node_type seems more complex than it should be,
     #  especially the nested back-tracking for unions/intersections
 
     # parse array like [<type>] with recursive descent
     if tokens.peek_bracket("["):
         tokens.eat_bracket("[")
-        element = parse_type_element_type(tokens, name=None)
+        node = parse_type_node_type(tokens, name=None)
         tokens.eat_bracket("]")
-        return TypeElement(name=name, type=TypeTag.ARRAY, elements=[element])
+        return TypeNode(name=name, type=TypeTag.ARRAY, children=[node])
 
     start_mark = tokens.mark()  # for back-tracking
     # parse actual type as either primitive or type reference
@@ -700,81 +698,81 @@ def parse_type_element_type(
         reference = tokens.eat_identifier().value
 
     if not tokens.peek_separator(" "):  # type is done
-        return TypeElement(name=name, type=type, reference=reference)
+        return TypeNode(name=name, type=type, reference=reference)
 
     tokens.eat_space()
     if tokens.peek_description():  # description completes type
         description = tokens.eat_description().value
-        return TypeElement(name=name, type=type, reference=reference, description=description)
+        return TypeNode(name=name, type=type, reference=reference, description=description)
     # parse post-packed types like unions and intersection with back-tracking
     elif tokens.peek_separator("|") or tokens.peek_separator("&"):
         if packing:  # inner type is done, so this must refer to parent packing
             tokens.advance(-1)  # go back one token to leave whitespace separator
-            return TypeElement(name=name, type=type, reference=reference)
+            return TypeNode(name=name, type=type, reference=reference)
         # otherwise we're starting to pack a new union/intersection
         packing_separator = tokens.eat().value
         packing_type = TypeTag.UNION if packing_separator == "|" else TypeTag.INTERSECTION
         tokens.reset(start_mark)  # back-track and reparse
-        packed_element = TypeElement(name=name, type=packing_type, elements=[])
+        parent = TypeNode(name=name, type=packing_type, children=[])
         while True:
-            element = parse_type_element_type(tokens, name=None, packing=True)
-            packed_element.elements.append(element)
+            node = parse_type_node_type(tokens, name=None, packing=True)
+            parent.children.append(node)
             # if we got a description, we are done
-            if element.description is not None:  # hoist description to parent
-                packed_element.description = element.description
-                element.description = None
+            if node.description is not None:  # hoist description to parent
+                parent.description = node.description
+                node.description = None
                 break
-            # otherwise, try to parse another element
+            # otherwise, try to parse another node
             if tokens.peek_separator(" "):
                 tokens.eat_space()
                 tokens.eat_separator(packing_separator)
                 tokens.eat_space()
             else:
                 break
-        return packed_element
+        return parent
     else:
         raise ParseError(PE.UNEXPECTED_TOKEN_TYPE, tokens.peek(), type="| or &")
 
 
-def parse_type_element_struct(tokens: TokenParser, name: str) -> TypeElement:
+def parse_type_node_struct(tokens: TokenParser, name: str) -> TypeNode:
     # parse tuples like <tuple1>\n<tuple2>\n...
-    element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
+    struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
     while True:
-        tuple = parse_type_element(tokens)
-        element.elements.append(tuple)
+        tuple = parse_type_node(tokens)
+        struct.children.append(tuple)
         if not tokens.peek_type(TokenType.NEWLINE):
             break
         tokens.eat_newline_or_eof()
         if not tokens.peek_type(TokenType.IDENTIFIER):
             break
-    return element
+    return struct
 
 
-def parse_type_element_struct_inline(tokens: TokenParser, name: str) -> TypeElement:
+def parse_type_node_struct_inline(tokens: TokenParser, name: str) -> TypeNode:
     tokens.eat_bracket("(")
-    element = TypeElement(name=name, type=TypeTag.STRUCT, elements=[])
+    struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
     while not tokens.peek_bracket(")"):
-        tuple = parse_type_element(tokens)
-        element.elements.append(tuple)
+        tuple = parse_type_node(tokens)
+        struct.children.append(tuple)
         if not tokens.peek_separator(","):
             break
         tokens.eat_separator(",")
         tokens.eat_space()
     tokens.eat_bracket(")")
-    return element
+    return struct
 
 
-def parse_type_element_func(tokens: TokenParser, name: str) -> TypeElement:
+def parse_type_node_func(tokens: TokenParser, name: str) -> TypeNode:
     # parse signature like (<tuple1>, <tuple2>, ...) -> <return_tuple>
-    input = parse_type_element_struct_inline(tokens, "input")
+    input = parse_type_node_struct_inline(tokens, "input")
     if tokens.peek_separator(" "):
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
-        output = parse_type_element_type(tokens, "output")
+        output = parse_type_node_type(tokens, "output")
     else:
-        output = TypeElement(name="output", type=TypeTag.NULL)
-    return TypeElement(name=name, type=TypeTag.FUNCTION, elements=[input, output])
+        output = TypeNode(name="output", type=TypeTag.NULL)
+    return TypeNode(name=name, type=TypeTag.FUNCTION, children=[input, output])
 
 
 def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
@@ -815,7 +813,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
     tokens.eat_space()
     tokens.eat_separator("=")
     tokens.eat_space()
-    element = parse_type_element_type(tokens, name.value)
+    node = parse_type_node_type(tokens, name.value)
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
     statement = Statement(
@@ -825,7 +823,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         modifier=modifier,
         **kwargs,
     )
-    statement.content = Type(definition=statement, element=element)
+    statement.content = Type(definition=statement, node=node)
     return statement
 
 
@@ -1037,7 +1035,7 @@ def resolve(
     for statement in idx.statements_by_id.values():
         # (on all statements that have types in their content)
         if isinstance(statement.content, Type):
-            resolve_type_references(statement, statement.content.element, idx, on_error)
+            resolve_type_references(statement, statement.content.node, idx, on_error)
         elif isinstance(statement.content, Dataset):
             resolve_type_references(statement, statement.content.element_type, idx, on_error)
         elif isinstance(statement.content, Task):
@@ -1135,23 +1133,23 @@ def resolve_statement_reference(
 
 def resolve_type_references(
     statement: Statement,
-    element: TypeElement,
+    node: TypeNode,
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
 ) -> None:
     def _error(_t: SemanticErrorType, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
-    # walk through child elements
-    if element.elements is not None:
-        for child in element.elements:
+    # walk through child nodes
+    if node.children is not None:
+        for child in node.children:
             resolve_type_references(statement, child, idx, on_error)
 
-    if not isinstance(element.reference, str):
+    if not isinstance(node.reference, str):
         return  # nothing to resolve
 
     # normalize path to statement
-    normalized_path = StatementPath("." + statement.file.path_without_extension, element.reference)
+    normalized_path = StatementPath("." + statement.file.path_without_extension, node.reference)
     resolved_stmt = idx.statements_by_path.get(normalized_path)
     if resolved_stmt is None:
         _error(SE.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
@@ -1160,36 +1158,36 @@ def resolve_type_references(
         _error(SE.REFERENCE_TYPE_MISMATCH, type=SymT.TYPE, resolved=resolved_stmt)
         return
 
-    # turn statement into type element
+    # get type node from statement
     if resolved_stmt.content is None:
         raise RuntimeError(f"expected type statement {resolved_stmt} to have content")
     resolved_type = typing.cast(Type, resolved_stmt.content)
-    element.reference = resolved_type.element
+    node.reference = resolved_type.node
 
     # impute type references (also in place)
-    impute_type_references(element, keep_references=True)
+    impute_type_references(node, keep_references=True)
 
 
-def impute_type_references(element: TypeElement, keep_references: bool) -> None:
+def impute_type_references(node: TypeNode, keep_references: bool) -> None:
     """Replace all references with their definitions."""
-    if element.type != TypeTag.TYPE_REFERENCE:
+    if node.type != TypeTag.TYPE_REFERENCE:
         return
 
-    if not isinstance(element.reference, TypeElement):
-        raise ValueError(f"type reference is not resolved: {element}")
+    if not isinstance(node.reference, TypeNode):
+        raise ValueError(f"type reference is not resolved: {node}")
 
     # error? if reference is an unresolved reference
-    if element.reference.type == TypeTag.TYPE_REFERENCE:
+    if node.reference.type == TypeTag.TYPE_REFERENCE:
         # TODO @Incomplete: could just impute that as well? but then we'd need to break circles?
-        raise ValueError(f"reference is unresolved type reference: {element}")
+        raise ValueError(f"reference is unresolved type reference: {node}")
 
-    element.type = element.reference.type
-    element.elements = element.reference.elements
-    if element.elements is not None:
-        for element in element.elements:
-            impute_type_references(element, keep_references)
+    node.type = node.reference.type
+    node.children = node.reference.children
+    if node.children is not None:
+        for node in node.children:
+            impute_type_references(node, keep_references)
     if not keep_references:
-        element.reference = None
+        node.reference = None
 
 
 def index_module(

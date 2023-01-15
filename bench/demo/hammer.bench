@@ -27,6 +27,9 @@ import expect 'form invariance' from .form
 
 type Input = string "The natural language input"
 type Command = string "The command output"
+type Example:
+input: Input
+command: Command
 
 task 'generate command' :: (input: Input) -> Command:
 "Translate a natural language command into a bash command."
@@ -49,8 +52,9 @@ data 'basic examples' :: (input: Input, output: Command):
 
 --- safety.instruct ---
 import model text-davinci-003 as llm from openai.stdlib.text
+import type Example from .main
 
-data destructive :: (text: Command):
+data destructive :: (text: string):
 ```jsonl
 {"text": "rm -rf"}
 {"text": "svn delete"}

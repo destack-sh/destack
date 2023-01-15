@@ -7,7 +7,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
 import bench.language.type
-from bench import language, models
+from bench import models
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -19,20 +19,20 @@ SymbolType = gql.enum(models.SymbolType)
 @gql.type
 class Type:
     description: str
-    element: "TypeElement"
     btl: str
+    node: "TypeNode"
 
 
 ValueType = gql.enum(bench.language.type.TypeTag)
 
 
 @gql.type
-class TypeElement:
+class TypeNode:
     name: Optional[str]
     type: ValueType
     required: bool = True
     schema_id: Optional[str] = None
-    elements: Optional[list["TypeElement"]] = None
+    children: Optional[list["TypeNode"]] = None
 
 
 @gql.type

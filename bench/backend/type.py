@@ -14,7 +14,7 @@ from bench.language.type import (
     StatementPath,
     Task,
     Type,
-    TypeElement,
+    TypeNode,
     Value,
 )
 from bench.utils.record import RecordBatch
@@ -45,8 +45,8 @@ class SymbolInstance(StatementInstance):
 @dataclass(repr=False)
 class TypeInstance(Type, SymbolInstance):
     @property
-    def py_handle(self) -> TypeElement:
-        return self.element
+    def py_handle(self) -> TypeNode:
+        return self.node
 
 
 @dataclass(repr=False)

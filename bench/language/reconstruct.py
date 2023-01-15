@@ -24,7 +24,7 @@ from bench.language.type import (
     SymbolType,
     Task,
     Type,
-    TypeElement,
+    TypeNode,
     TypeTag,
     Value,
 )
@@ -98,14 +98,14 @@ def render_statement_content(statement: Statement) -> str:
         if statement.symbol_type == SymbolType.REQUIREMENT:
             postfix = f"@{cast(Requirement, statement.content).version}"
         elif statement.symbol_type == SymbolType.TASK:
-            type_str = render_type_element(cast(Task, statement.content).func_type)
+            type_str = render_type_node(cast(Task, statement.content).func_type)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymbolType.CODE:
-            type_str = render_type_element(cast(Code, statement.content).func_type)
+            type_str = render_type_node(cast(Code, statement.content).func_type)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymbolType.DATASET:
             content = cast(Dataset, statement.content)
-            type_str = render_type_element_struct(content.element_type, ",")
+            type_str = render_type_node_struct(content.element_type, ",")
             postfix = f" :: {type_str}:"
         else:
             postfix = ":"
@@ -127,11 +127,9 @@ def render_statement_content(statement: Statement) -> str:
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
     if isinstance(content, Type):
         if content.description is not None:
-            return (
-                f"{render_description(content.description)}\n{render_type_element(content.element)}"
-            )
+            return f"{render_description(content.description)}\n{render_type_node(content.node)}"
         else:
-            return render_type_element(content.element)
+            return render_type_node(content.node)
     elif isinstance(content, Capability):
         return render_description(content.description)
     elif isinstance(content, Task):
@@ -160,42 +158,42 @@ def escape_identifier(identifier: str) -> str:
         return f"'{identifier}'"
 
 
-def render_type_element(element: TypeElement, ignore_name: bool = False) -> str:
-    if element.name and not ignore_name:
-        identifier_str = escape_identifier(element.name) + ": "
+def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
+    if node.name and not ignore_name:
+        identifier_str = escape_identifier(node.name) + ": "
     else:
         identifier_str = ""
-    description_str = f' "{element.description}"' if element.description else ""
-    if element.type == TypeTag.FUNCTION:
-        input_str = render_type_element_struct(element.input, seperator=", ")
-        if element.output.type != TypeTag.NULL:
-            output_str = render_type_element(element.output, ignore_name=True)
+    description_str = f' "{node.description}"' if node.description else ""
+    if node.type == TypeTag.FUNCTION:
+        input_str = render_type_node_struct(node.input, seperator=", ")
+        if node.output.type != TypeTag.NULL:
+            output_str = render_type_node(node.output, ignore_name=True)
             return f"({input_str}) -> {output_str}"
         else:
             return f"({input_str})"
-    elif element.type == TypeTag.STRUCT:
-        return render_type_element_struct(element, seperator="\n")
-    elif element.type == TypeTag.ARRAY:
-        type_str = f"[{render_type_element(element.elements[0])}]"
+    elif node.type == TypeTag.STRUCT:
+        return render_type_node_struct(node, seperator="\n")
+    elif node.type == TypeTag.ARRAY:
+        type_str = f"[{render_type_node(node.children[0])}]"
         return f"{identifier_str}{type_str}{description_str}"
-    elif element.type == TypeTag.UNION:
-        type_str = " | ".join(render_type_element(e) for e in element.elements)
+    elif node.type == TypeTag.UNION:
+        type_str = " | ".join(render_type_node(e) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
-    elif element.type == TypeTag.INTERSECTION:
-        type_str = " & ".join(render_type_element(e) for e in element.elements)
+    elif node.type == TypeTag.INTERSECTION:
+        type_str = " & ".join(render_type_node(e) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
-    elif element.type == TypeTag.TYPE_REFERENCE:
-        return f"{identifier_str}{element.reference}{description_str}"
-    elif element.type in PRIMITIVE_TYPES:
-        return f"{identifier_str}{element.type.value}{description_str}"
+    elif node.type == TypeTag.TYPE_REFERENCE:
+        return f"{identifier_str}{node.reference}{description_str}"
+    elif node.type in PRIMITIVE_TYPES:
+        return f"{identifier_str}{node.type.value}{description_str}"
     else:
-        raise ValueError(f"unexpected type: {element.type}")
+        raise ValueError(f"unexpected type: {node.type}")
 
 
-def render_type_element_struct(element: TypeElement, seperator: str) -> str:
-    if element.elements is None:
-        raise ValueError(f"expected type with elements: {element}")
-    field_strs = [render_type_element(field) for field in element.elements]
+def render_type_node_struct(node: TypeNode, seperator: str) -> str:
+    if node.children is None:
+        raise ValueError(f"expected type with elements: {node}")
+    field_strs = [render_type_node(field) for field in node.children]
     return seperator.join(field_strs)
 
 
