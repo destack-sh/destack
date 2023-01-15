@@ -3,10 +3,10 @@ import CodeInterface from "@/components/CodeInterface.vue";
 import CodeInterfaceMeta from "@/components/CodeInterfaceMeta.vue";
 import DatasetInterface from "@/components/DatasetInterface.vue";
 import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
+import DescriptionInterface from "@/components/DescriptionInterface.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import TypeInterface from "@/components/TypeInterface.vue";
-import DescriptionInterface from "@/components/DescriptionInterface.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
@@ -35,7 +35,6 @@ const props = defineProps<{
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const content = computed(() => statement.value.content);
 const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
 
 const symbolTypeShortname = computed(() =>
@@ -58,11 +57,11 @@ type MetaInterface = {
 };
 
 const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
-  [SymbolType.Dataset]: {
-    component: DatasetInterface,
+  [SymbolType.Type]: {
+    component: TypeInterface,
   },
-  [SymbolType.Code]: {
-    component: CodeInterface,
+  [SymbolType.Capability]: {
+    component: DescriptionInterface,
   },
   [SymbolType.Task]: {
     component: DescriptionInterface,
@@ -70,11 +69,16 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Expectation]: {
     component: DescriptionInterface,
   },
-  [SymbolType.Type]: {
-    component: TypeInterface,
+  [SymbolType.Dataset]: {
+    component: DatasetInterface,
   },
-  // not yet defined symbol interfaces
+  [SymbolType.Code]: {
+    component: CodeInterface,
+  },
   [SymbolType.Model]: undefined,
+  [SymbolType.Requirement]: undefined,
+  [SymbolType.Runconfig]: undefined,
+  [SymbolType.Compilation]: undefined,
 };
 const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Dataset]: {
@@ -107,7 +111,7 @@ const isFamilyFocused = computed(
   () => isFocused.value || sense.family(statement.value.id).find((s) => s.id == editorState.focusedElementId) != null
 );
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
-const readonly = computed(() => editorState.readonly || statement.value?.compiled);
+const readonly = computed(() => editorState.readonly || statement.value.compiled);
 
 type MetaAction = {
   icon: Component;
@@ -149,8 +153,7 @@ function onClickContainer() {
     // ignore click while selecting reference
   } else if (!isFocused.value) {
     focus();
-  } else {
-    startEditing();
+    startEditing(); // immediately start editing
   }
 }
 
@@ -232,7 +235,7 @@ function navigateUp() {
 function navigateDown() {
   if (selectingReference.value) {
     // ignore
-  } else if (declarationFocused.value && content.value) {
+  } else if (declarationFocused.value && contentRef.value) {
     // declaration is focused, go to content
     (contentRef.value as FocusableComponent).focus?.();
   } else if (containerFocused.value) {
@@ -419,11 +422,7 @@ function deleteLeftOnMain() {
       morphToBlank();
     }
   } else if (statement.value.symbolType != null) {
-    if (content.value != null) {
-      console.log("cannot delete, already have content");
-    } else {
-      morphToBlank();
-    }
+    morphToBlank();
   } else if (statement.value.modifier != null) {
     setModifier(null);
   }
@@ -712,11 +711,10 @@ async function morphToBlank() {
       >
         <!-- Custom meta -->
         <component
-          v-if="content != null && statement.symbolType != null && metaInterfaces[statement.symbolType] != null"
+          v-if="statement.symbolType != null && metaInterfaces[statement.symbolType] != null"
           :is="metaInterfaces[statement.symbolType]?.component"
           :file="file"
           :statement="statement"
-          :content="content"
           class="mr-1"
         />
         <!-- Statement meta info -->
@@ -747,14 +745,13 @@ async function morphToBlank() {
       </span>
     </div>
     <!-- Symbol content (if statement defines a symbol) -->
-    <div v-if="content != null && statement.symbolType != null" class="mx-3">
+    <div v-if="statement.symbolType != null && statement.type == StatementType.Definition" class="mx-3">
       <component
         ref="contentRef"
         v-if="interfaces[statement.symbolType] != undefined"
         :is="interfaces[statement.symbolType]?.component"
         :file="file"
         :statement="statement"
-        :content="content"
         :lineNumberBase="lineNumberBase"
         :xOffset="depthOffsetX"
         :focused="isFocused"

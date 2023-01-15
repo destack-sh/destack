@@ -1,20 +1,13 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/EditableSpan.vue";
-import { graphql, useFragment, type FragmentType } from "@/gql";
+import { useFragment, type FragmentType } from "@/gql";
 import { StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watchEffect, type Ref } from "vue";
 
-const TaskContentType = graphql(/* GraphQL */ `
-  fragment TaskContent on Task {
-    description
-  }
-`);
-
 const props = defineProps<{
   statement: FragmentType<typeof StatementContentType>;
-  content: FragmentType<typeof TaskContentType>;
   focused: boolean;
   editing: boolean;
   readonly: boolean;
@@ -28,15 +21,18 @@ const emit = defineEmits<{
 }>();
 
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const content = computed(() => useFragment(TaskContentType, props.content));
 
 const operations = useOperations();
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const description: Ref<string | null> = ref(null);
 
 async function saveDescription() {
-  if (description.value != null && description.value.length > 0 && description.value != content.value.description) {
-    await operations.content.updateTaskContent(statement.value.id, content.value.description, description.value);
+  if (description.value != null && description.value.length > 0 && description.value != statement.value.description) {
+    await operations.content.updateTaskContent(
+      statement.value.id,
+      statement.value.description || "",
+      description.value
+    );
   }
 }
 const saveDescriptionDebounced = useDebounceFn(saveDescription, 200, { maxWait: 500 });
@@ -44,7 +40,7 @@ const saveDescriptionDebounced = useDebounceFn(saveDescription, 200, { maxWait: 
 // sync description to local if not editing
 watchEffect(() => {
   if (!props.editing || description.value == null) {
-    description.value = content.value.description;
+    description.value = statement.value.description;
   }
 });
 

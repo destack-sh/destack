@@ -3,7 +3,7 @@ import { useSymbolInterfaceState, type StatementHeader } from "@/state/editor";
 import type { Ref } from "vue";
 
 export const DatasetContentType = graphql(/* GraphQL */ `
-  fragment DatasetContent on Dataset {
+  fragment DatasetContent on Statement {
     records {
       data
     }

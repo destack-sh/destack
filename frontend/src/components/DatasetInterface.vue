@@ -1,15 +1,13 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import type { DatasetContentFragment } from "@/gql/graphql";
-import { DatasetContentType, useDatasetInterfaceState } from "@/state/dataset";
+import { useDatasetInterfaceState } from "@/state/dataset";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { computed } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
-  content: FragmentType<typeof DatasetContentType>;
   focused: boolean;
   readonly: boolean;
   editing: boolean;
@@ -22,15 +20,9 @@ const emit = defineEmits<{
   (e: "escape"): void;
 }>();
 
-const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const content = computed(() => useFragment(DatasetContentType, props.content));
 
-function datasetToJsonObj(content: DatasetContentFragment) {
-  return content.records.map((r) => r.data);
-}
-
-const contentAsJsonObj = computed(() => datasetToJsonObj(content.value));
+const contentAsJsonObj = computed(() => statement.value.records.map((r) => r.data));
 const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, null, 2));
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
 
@@ -53,7 +45,7 @@ const state = useDatasetInterfaceState(statement);
       :model-value="state.view == 'jsonl' ? contentAsJsonlText : contentAsJsonText"
       language="json"
       :focused="focused"
-      :readonly="readonly"
+      :readonly="props.readonly"
       @navigateUp="emit('navigateUp')"
       @navigateDown="emit('navigateDown')"
       @escape="emit('escape')"
@@ -71,7 +63,7 @@ const state = useDatasetInterfaceState(statement);
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-200">
-        <tr class="relative" v-for="(i, record) in content.records" :key="i">
+        <tr class="relative" v-for="(record, i) in statement.records" :key="i">
           <template v-if="typeAvailable">
             <td
               v-for="node in typeNodes"

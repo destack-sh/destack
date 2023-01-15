@@ -26,6 +26,11 @@ type CompilePayload {
 
 union CreateFilePayload = File | OperationInfo
 
+type DatasetRecord {
+  index: Int!
+  data: JSON!
+}
+
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -343,6 +348,15 @@ input RunCodeValueArgumentInput {
 
 union SetModifierStatementPayload = Statement | OperationInfo
 
+type SourceMapping {
+  sourceId: UUID!
+  sourcePath: JSON!
+  sourceRevision: Int!
+  targetId: UUID!
+  targetPath: JSON!
+  targetRevision: Int!
+}
+
 type Statement implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
@@ -372,6 +386,8 @@ type Statement implements Node {
   referenceProjectVersion: ProjectVersion
   value: JSON
   btl: String
+  records: [DatasetRecord!]!
+  mappings: [SourceMapping!]!
 }
 
 input StatementCommentedInput {
@@ -529,6 +545,8 @@ input TypeUpdateContentBtl {
   statementId: GlobalID!
   btl: String!
 }
+
+scalar UUID
 
 type User implements Node {
   id: GlobalID!

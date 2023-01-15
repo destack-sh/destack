@@ -147,29 +147,21 @@ export const StatementContentType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    content {
-      ... on Capability {
-        description
-      }
-      ... on Code {
-        ...CodeContent
-      }
-      ... on Dataset {
-        ...DatasetContent
-      }
-      ... on Expectation {
-        description
-      }
-      ... on Task {
-        description
-      }
-      ... on Type {
-        ...TypeContent
-      }
-    }
     reference {
       ...StatementHeader
     }
     text
+    # symbol contents
+    code
+    codeBuiltinId
+    description
+    referenceProjectVersion {
+      id
+    }
+    value
+    btl
+    records {
+      data
+    }
   }
 `);

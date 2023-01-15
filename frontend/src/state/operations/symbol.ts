@@ -9,12 +9,10 @@ export function useSymbolContentOps() {
 
   const { mutate: updateTypeContentMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation update_type_content($id: GlobalID!, $btl: String!) {
+      mutation updateTypeContent($id: GlobalID!, $btl: String!) {
         updateTypeContent(input: { statementId: $id, btl: $btl }) {
           id
-          content {
-            ...TypeContent
-          }
+          btl
         }
       }
     `)
@@ -39,11 +37,7 @@ export function useSymbolContentOps() {
       mutation updateTaskContent($id: GlobalID!, $description: String!) {
         updateTaskContent(input: { statementId: $id, description: $description }) {
           id
-          content {
-            ... on Task {
-              description
-            }
-          }
+          description
         }
       }
     `)
@@ -68,11 +62,7 @@ export function useSymbolContentOps() {
       mutation updateExpectationContent($id: GlobalID!, $description: String!) {
         updateExpectationContent(input: { statementId: $id, description: $description }) {
           id
-          content {
-            ... on Expectation {
-              description
-            }
-          }
+          description
         }
       }
     `)
@@ -97,12 +87,8 @@ export function useSymbolContentOps() {
       mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {
         updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {
           id
-          content {
-            ... on Code {
-              builtinId
-              code
-            }
-          }
+          code
+          codeBuiltinId
         }
       }
     `)
