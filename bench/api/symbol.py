@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Optional
+from uuid import UUID
 
 from strawberry import lazy
 from strawberry.scalars import JSON
@@ -23,13 +24,13 @@ class Type:
     node: "TypeNode"
 
 
-ValueType = gql.enum(bench.language.type.TypeTag)
+TypeTag = gql.enum(bench.language.type.TypeTag)
 
 
 @gql.type
 class TypeNode:
     name: Optional[str]
-    type: ValueType
+    type: TypeTag
     required: bool = True
     description: Optional[str]
     reference: Optional[str] = None
@@ -37,68 +38,13 @@ class TypeNode:
 
 
 @gql.type
-class Capability:
-    description: str
-
-
-@gql.type
-class Task:
-    description: str
-
-
-@gql.type
-class Expectation:
-    description: str
-
-
-@gql.type
-class Code:
-    builtin_id: str
-    code: str
-
-
-@gql.type
-class Model:
-    provider: str
-    external_name: str
-
-
-@gql.type
-class Dataset:
-    records: list["DatasetRecord"]
-
-
-@gql.type
-class DatasetRecord(gql.Node):
-    data: JSON
-
-
-@gql.type
-class Value:
-    value: JSON
-
-
-@gql.type
-class Requirement:
-    project_version: Annotated["ProjectVersion", lazy(".project")]
-
-
-@gql.type
-class Compilation:
-    mappings: list["SourceMapping"]
-
-
-@gql.type
 class SourceMapping:
-    source: Annotated["Statement", lazy(".symbol")]
+    source_id: UUID
     source_path: JSON
     source_revision: int
-    target: Annotated["Statement", lazy(".symbol")]
+    target_id: UUID
     target_path: JSON
     target_revision: int
-
-
-SymbolContent = Union[Type, Capability, Task, Expectation, Code, Dataset, Model, Value, Requirement]
 
 
 @gql.django.type(models.Statement)
@@ -117,12 +63,18 @@ class Statement(gql.relay.Node):
     children: list["Statement"]
     descendants: list["Statement"]
     index: auto
-    symbol_type: Optional[SymbolType]
-    text: auto
-    source_definition: Optional["Statement"]
     reference: Optional["Statement"]
     referenced_by: list["Statement"]
-    content: Optional[SymbolContent]
+    source_definition: Optional["Statement"]
+    symbol_type: Optional[SymbolType]
+    text: auto
+    # symbol contents
+    code: auto
+    code_builtin_id: auto
+    description: auto
+    reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
+    value: auto
+    btl: auto
 
 
 @gql.input

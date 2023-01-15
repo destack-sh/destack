@@ -2,8 +2,7 @@ import strawberry
 from asgiref.sync import async_to_sync
 from strawberry_django_plus.relay import GlobalID
 
-from bench import models
-from bench.api.symbol import Compilation
+from bench.api.symbol import Statement
 
 
 @strawberry.input
@@ -13,7 +12,7 @@ class CompileInput:
 
 @strawberry.type
 class CompilePayload:
-    compilation: Compilation
+    compilation: Statement
 
 
 @strawberry.input
@@ -24,19 +23,7 @@ class AddCompilationInput:
 
 
 @strawberry.type
-class AddCompilationPayload:
-    compilation: Compilation
-
-
-@strawberry.type
 class CompilationMutation:
-    @strawberry.mutation
-    def add_compilation_target(self, input: AddCompilationInput) -> AddCompilationPayload:
-        task = models.Symbol.objects.get(id=input.task_symbol_id.node_id).task_
-        backends = [get_stdlib_model(backend) for backend in input.backends]
-        compilation = task.add_compilation(input.name, backends)
-        return AddCompilationPayload(compilation=compilation)
-
     @strawberry.mutation
     def compile(self, input: CompileInput) -> CompilePayload:
         compilation = (

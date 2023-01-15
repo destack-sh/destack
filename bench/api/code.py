@@ -7,7 +7,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.symbol import Code, Model, Statement
+from bench.api.symbol import Statement
 from bench.backend.tracing import ExecutionTrace
 
 
@@ -24,8 +24,8 @@ class Execution(gql.Node):
     error: auto
     parent: Optional["Execution"]
     children: list["Execution"]
-    code: Code
-    model: Optional[Model]
+    code: Statement
+    model: Optional[Statement]
 
 
 @gql.input
@@ -66,7 +66,7 @@ class RunCodeOutput:
 
 @strawberry.type
 class RunCodePayload:
-    code: Code
+    code: Statement
     execution: Execution
     outputs: Optional[list[RunCodeOutput]]
 

@@ -18,6 +18,7 @@ export type Scalars = {
   GlobalID: any;
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
+  UUID: any;
 };
 
 export type AddCompilationInput = {
@@ -521,10 +522,10 @@ export type SetModifierStatementPayload = OperationInfo | Statement;
 
 export type SourceMapping = {
   __typename?: "SourceMapping";
-  source: Statement;
+  sourceId: Scalars["UUID"];
   sourcePath: Scalars["JSON"];
   sourceRevision: Scalars["Int"];
-  target: Statement;
+  targetId: Scalars["UUID"];
   targetPath: Scalars["JSON"];
   targetRevision: Scalars["Int"];
 };
@@ -683,6 +684,7 @@ export enum SymbolType {
 export type Task = {
   __typename?: "Task";
   description: Scalars["String"];
+  funcType: TypeNode;
 };
 
 export type TaskUpdateContentDescription = {

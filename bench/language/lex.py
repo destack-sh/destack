@@ -254,6 +254,13 @@ def lex(source: SourceFile) -> list[Token]:
     return tokens
 
 
+def lex_string(source: str) -> list[Token]:
+    """Lex a string into a list of tokens."""
+    if source is None:
+        raise ValueError("source must not be None")
+    return lex(SourceFile("<string>", content=source))
+
+
 def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
     """Lex a single token from a source file."""
     # try to match a pattern (once at current position)
