@@ -1157,7 +1157,7 @@ def resolve_type_references(
     # normalize path to statement
     normalized_path = StatementPath("." + statement.file.path_without_extension, node.reference)
     resolved_stmt = idx.statements_by_path.get(normalized_path)
-    if resolved_stmt is None:
+    if resolved_stmt is None or resolved_stmt.underlying_definition is None:
         _error(SE.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
         return
     if resolved_stmt.symbol_type != SymT.TYPE:
@@ -1165,9 +1165,8 @@ def resolve_type_references(
         return
 
     # get type node from statement
-    if resolved_stmt.content is None:
-        raise RuntimeError(f"expected type statement {resolved_stmt} to have content")
-    resolved_type = typing.cast(Type, resolved_stmt.content)
+    # right now we get the underlying definition directly, ignoring intermediate arguments
+    resolved_type = typing.cast(Type, resolved_stmt.underlying_definition.content)
     node.reference = resolved_type.node
 
     # impute type references (also in place)
