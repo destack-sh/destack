@@ -64,9 +64,6 @@ def render_file(file: File) -> str:
     for i, root_statement in enumerate(root_statements):
         for statement, indent in walk_dfs(root_statement, 0):
             lines.append(render_statement_indented(statement, indent))
-        # add extra blank line between ungrouped root statements
-        if root_statement.ungrouped and i != (len(root_statements) - 1):
-            lines.append("")
 
     return "\n".join(lines)
 

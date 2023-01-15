@@ -26,7 +26,7 @@ class Command(BaseCommand):
     def handle(self, path: str, reconstruct: bool, database: bool, *args, **options):
         console = Console()
         if path == "-":
-            # read until EOF
+            # read until EOS
             string = sys.stdin.read()
         else:
             with open(path, "r") as f:
