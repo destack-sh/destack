@@ -20,7 +20,7 @@ export function useSymbolContentOps() {
     `)
   );
 
-  async function update_type_content(id: string, oldBtl: string, newBtl: string) {
+  async function updateTypeContent(id: string, oldBtl: string, newBtl: string) {
     await operations.perform({
       type: "symbol.schema.updateContent",
       do: async () => {
@@ -132,5 +132,5 @@ export function useSymbolContentOps() {
     });
   }
 
-  return { update_type_content, updateTaskContent, updateExpectationContent, updateCodeContent };
+  return { updateTypeContent, updateTaskContent, updateExpectationContent, updateCodeContent };
 }

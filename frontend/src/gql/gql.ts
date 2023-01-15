@@ -22,7 +22,7 @@ const documents = {
     types.OperationInfoContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
-  "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n":
+  "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
   "\n  fragment ProjectVersionAsDependency on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n":
     types.ProjectVersionAsDependencyFragmentDoc,
@@ -113,8 +113,8 @@ export function graphql(
   source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n  }\n"];
+  source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment ProjectVersionAsDependency on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectVersionAsDependency on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"];

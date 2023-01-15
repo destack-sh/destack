@@ -39,16 +39,19 @@ export type StatementHeader = Pick<
 export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
   [FileType.Directory]: "",
   [FileType.Instruct]: "instruct",
-  [FileType.Project]: "bench",
 };
 export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
-  [SymbolType.Schema]: "schema",
+  [SymbolType.Type]: "type",
   [SymbolType.Code]: "code",
   [SymbolType.Dataset]: "data",
   [SymbolType.Model]: "model",
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
   [SymbolType.Value]: "value",
+  [SymbolType.Capability]: "capability",
+  [SymbolType.Requirement]: "require",
+  [SymbolType.Runconfig]: "run",
+  [SymbolType.Compilation]: "compile",
 };
 export const SYMBOL_TYPE_BY_SHORTNAME: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_SHORTNAME);
 export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
@@ -56,6 +59,7 @@ export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
   [StatementModifier.Unlike]: "unlike",
   [StatementModifier.Verify]: "verify",
   [StatementModifier.With]: "with",
+  [StatementModifier.Var]: "var",
 };
 export const MODIFIER_BY_SHORTNAME: Record<string, StatementModifier> = reverseRecord(MODIFIER_SHORTNAME);
 

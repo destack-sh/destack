@@ -4,7 +4,6 @@ import { useFragment, type FragmentType } from "@/gql";
 import type { DatasetContentFragment } from "@/gql/graphql";
 import { DatasetContentType, useDatasetInterfaceState } from "@/state/dataset";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useSchemadSymbolSchema } from "@/state/intellisense";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -35,10 +34,9 @@ const contentAsJsonObj = computed(() => datasetToJsonObj(content.value));
 const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, null, 2));
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
 
-// sense derived state
-const { TypeContent } = useSchemadSymbolSchema(file, statement);
-const TypeNodes = computed(() => TypeContent.value?.element?.elements ?? []);
-const schemaAvailable = computed(() => TypeNodes.value.length > 0);
+// TODO @Incomplete: data type info
+const typeAvailable = computed(() => false);
+const typeNodes = computed(() => []);
 
 // local interface state
 const state = useDatasetInterfaceState(statement);
@@ -65,26 +63,22 @@ const state = useDatasetInterfaceState(statement);
       class="h-full w-full rounded-sm"
       :class="{ ' divide-y divide-gray-300': state.showTableHeader }"
     >
-      <thead class="bg-gray-50" v-show="state.showTableHeader && schemaAvailable">
+      <thead class="bg-gray-50" v-show="state.showTableHeader && typeAvailable">
         <tr>
-          <th
-            v-for="element in TypeNodes"
-            :key="element.name"
-            class="py-1.5 pr-2 text-left text-sm font-normal text-black"
-          >
-            {{ element.name }}
+          <th v-for="node in typeNodes" :key="node.name" class="py-1.5 pr-2 text-left text-sm font-normal text-black">
+            {{ node.name }}
           </th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-200">
-        <tr class="relative" v-for="record in content.records" :key="record.index">
-          <template v-if="schemaAvailable">
+        <tr class="relative" v-for="(i, record) in content.records" :key="i">
+          <template v-if="typeAvailable">
             <td
-              v-for="element in TypeNodes"
-              :key="element.name"
+              v-for="node in typeNodes"
+              :key="node.name"
               class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-black"
             >
-              {{ record.data[element.name] || "" }}
+              {{ record.data[node.name] || "" }}
             </td>
           </template>
           <td
@@ -99,7 +93,7 @@ const state = useDatasetInterfaceState(statement);
             class="absolute top-1 w-6 select-none text-right font-mono text-sm"
             :style="{ left: -xOffset - 42 + 'px' }"
             :class="{ 'text-orange-200': !focused, 'text-orange-400': focused }"
-            >{{ lineNumberBase + 1 + record.index + 1 }}</span
+            >{{ lineNumberBase + 1 + record + 1 }}</span
           >
         </tr>
       </tbody>

@@ -30,7 +30,7 @@ const btl: Ref<string | null> = ref(null);
 function saveBtl(btl: string) {
   const oldBtl = content.value.btl ?? "";
   if (oldBtl !== btl) {
-    operations.content.update_type_content(statement.value.id, oldBtl, btl);
+    operations.content.updateTypeContent(statement.value.id, oldBtl, btl);
   }
 }
 const saveBtlDebounced = useDebounceFn(saveBtl, 200, { maxWait: 500 });
