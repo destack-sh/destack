@@ -65,14 +65,15 @@ class ErrorCollector(typing.Generic[ErrorT]):
 
 
 class ParseErrorType(enum.Enum):
-    MISSING_TOKEN = enum.auto(), "expected another token"
-    UNEXPECTED_TOKEN_TYPE = enum.auto(), "expected token type {type}"
-    UNEXPECTED_TOKEN_VALUE = enum.auto(), "expected token value {value}"
-    UNEXPECTED_INDENT = enum.auto(), "expected indent <= {indent}"
-    MISSING_EXTRA = enum.auto(), "expected token value extra {extra}"
-    UNEXPECTED_EXTRA = enum.auto(), "unexpected token value extra {extra}={value}"
-    INVALID_TOKEN_VALUE = enum.auto(), "invalid token value {value} {error}"
-    INVALID_STATEMENT = enum.auto(), "invalid statement"
+    MISSING_TOKEN = 0, "expected another token"
+    UNEXPECTED_TOKEN_TYPE = 1, "expected token type {type}"
+    UNEXPECTED_TOKEN_VALUE = 2, "expected token value {value}"
+    UNEXPECTED_INDENT = 3, "expected indent <= {indent}"
+    EXPECTED_BLANK = 4, "expected blank line"
+    MISSING_EXTRA = 5, "expected token value extra {extra}"
+    UNEXPECTED_EXTRA = 6, "unexpected token value extra {extra}={value}"
+    INVALID_TOKEN_VALUE = 6, "invalid token value {value} {error}"
+    INVALID_STATEMENT = 7, "invalid statement"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
@@ -269,10 +270,15 @@ class TokenParser:
     def eat_newline(self) -> Token:
         return self.eat_type(TT.NEWLINE)
 
-    def eat_newline_or_eof(self) -> Optional[Token]:
+    def eat_newline_or_eos(self) -> Optional[Token]:
         if self.peek() is None or self.peek_type(TT.NEWFILE) is not None:
             return
         return self.eat_newline()
+
+    def peek_has_newline_or_eos(self) -> bool:
+        if self.peek() is None or self.peek_type(TT.NEWFILE) is not None:
+            return True
+        return self.peek_type(TokenType.NEWLINE) is not None
 
     def peek_indent(self) -> Optional[Token]:
         return self.peek_type(TT.INDENT)
@@ -470,7 +476,7 @@ def preparse(
 
 def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
     token = tokens.eat_type(TT.COMMENT)
-    tokens.eat_newline_or_eof()
+    tokens.eat_newline_or_eos()
     return Statement(type=StatementType.COMMENT, text=token.value, **kwargs)
 
 
@@ -508,7 +514,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     source = tokens.eat_identifier()
     if not is_valid_import_source(source.value):
         raise ParseError(PE.INVALID_TOKEN_VALUE, source, value=source.value, error="invalid")
-    tokens.eat_newline_or_eof()
+    tokens.eat_newline_or_eos()
     return Statement(
         type=StatementType.IMPORT,
         name=alias,
@@ -533,6 +539,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         **kwargs,
     )
     definition.content = _parse_definition_content(tokens, symbol_type, name, definition)
+    tokens.eat_newline_or_eos()
     return definition
 
 
@@ -631,7 +638,7 @@ def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
     dependency = tokens.eat_identifier()
     tokens.eat_separator("@")
     version = tokens.eat_identifier()
-    tokens.eat_newline_or_eof()
+    tokens.eat_newline_or_eos()
     definition = Statement(
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.REQUIREMENT,
@@ -659,6 +666,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
         tokens.eat_description()
         tokens.eat_newline()
     struct = parse_type_node_struct(tokens, name=definition.name)
+    tokens.eat_newline_or_eos()
     definition.content = Type(
         definition=definition,
         node=struct,
@@ -748,8 +756,9 @@ def parse_type_node_struct(tokens: TokenParser, name: str) -> TypeNode:
         struct.children.append(tuple)
         if not tokens.peek_type(TokenType.NEWLINE):
             break
-        tokens.eat_newline_or_eof()
+        tokens.eat_newline_or_eos()
         if not tokens.peek_type(TokenType.IDENTIFIER):
+            tokens.advance(-1)  # go back one token to leave newline separator
             break
     return struct
 
@@ -799,7 +808,7 @@ def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
         # this isn't great since it forbids re-aliasing but much easier to implement
         # since we would need to track the 'defining with contents' flag independently.
         tokens.eat_separator(":")
-
+    tokens.eat_newline_or_eos()
     return Statement(
         type=StatementType.REDEFINITION,
         modifier=modifier,
@@ -820,6 +829,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
     tokens.eat_separator("=")
     tokens.eat_space()
     node = parse_type_node(tokens, name=None)  # name corresponds to statement, not type node
+    tokens.eat_newline_or_eos()
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
     statement = Statement(
@@ -837,7 +847,7 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a reference statement."""
     modifier = _parse_modifier_slot(tokens)
     name, symbol_type = _parse_reference_slot(tokens)
-    tokens.eat_newline_or_eof()
+    tokens.eat_newline_or_eos()
     return Statement(
         type=StatementType.REFERENCE,
         modifier=modifier,
@@ -898,7 +908,8 @@ def _parse_statement(
             could_be_group_end = (is_root and statement.ungrouped) or not is_root
             # we're at the end if there is an unintended token next
             if could_be_group_end and parser.peek_indent_level == 0:
-                parser.eat_newline_or_eof()
+                if not parser.peek_has_newline_or_eos():
+                    on_error(ParseError(PE.EXPECTED_BLANK, parser.peek()))
             return statement
         except ParseError as e:
             e.parser = _parse.__name__
@@ -909,26 +920,20 @@ def _parse_statement(
 
 
 class SemanticErrorType(enum.Enum):
-    UNKNOWN_IMPORT_SOURCE = enum.auto(), "unspecified import module source {source}"
-    UNDEFINED_LOCAL_REFERENCE = enum.auto(), "undefined reference {path}"
-    UNDEFINED_EXTERNAL_REFERENCE = (
-        enum.auto(),
-        "undefined external reference {path} in module {module}",
-    )
-    EXTERNAL_LOOKUP_FAILED = (
-        enum.auto(),
-        "failed to lookup reference {path} in module {module}: {error}",
-    )
-    REFERENCE_TYPE_MISMATCH = enum.auto(), "reference {resolved} is not of type {resolved}"
-    AMBIGUOUS_DEFINITION = enum.auto(), "multiple definitions for {path}"
-    AMBIGUOUS_REQUIREMENT = enum.auto(), "multiple requirements for {name}"
-    UNEXPECTED_PARENT = enum.auto(), "unexpected parent {parent}"
-    EXPECTED_PARENT = enum.auto(), "expected a parent"
-    EXPECTED_PROPER_CHILDREN = enum.auto(), "expected proper children"
-    UNEXPECTED_CHILDREN = enum.auto(), "unexpected children"
-    EXPECTED_PARAMETERS = enum.auto(), "expected parameters of type {type}"
-    UNEXPECTED_PARAMETERS = enum.auto(), "unexpected parameters"
-    EXPECTED_ARGUMENTS = enum.auto(), "expected arguments of type {type}"
+    UNKNOWN_IMPORT_SOURCE = 0, "unspecified import module source {source}"
+    UNDEFINED_LOCAL_REFERENCE = 1, "undefined reference {path}"
+    UNDEFINED_EXTERNAL_REFERENCE = 2, "undefined external reference {path} in module {module}"
+    EXTERNAL_LOOKUP_FAILED = 3, "failed to lookup reference {path} in module {module}: {error}"
+    REFERENCE_TYPE_MISMATCH = 4, "reference {resolved} is not of type {resolved}"
+    AMBIGUOUS_DEFINITION = 5, "multiple definitions for {path}"
+    AMBIGUOUS_REQUIREMENT = 6, "multiple requirements for {name}"
+    UNEXPECTED_PARENT = 7, "unexpected parent {parent}"
+    EXPECTED_PARENT = 8, "expected a parent"
+    EXPECTED_PROPER_CHILDREN = 9, "expected proper children"
+    UNEXPECTED_CHILDREN = 10, "unexpected children"
+    EXPECTED_PARAMETERS = 11, "expected parameters of type {type}"
+    UNEXPECTED_PARAMETERS = 12, "unexpected parameters"
+    EXPECTED_ARGUMENTS = 13, "expected arguments of type {type}"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)

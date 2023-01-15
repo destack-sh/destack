@@ -398,12 +398,16 @@ class Requirement(SymbolContent):
 
 @dataclass(repr=False)
 class Runconfig(SymbolContent):
-    pass
+    def __str__(self):
+        return ""
 
 
 @dataclass(repr=False)
 class Compilation(SymbolContent):
     source_mappings: list["SourceMapping"] = field(default_factory=list)
+
+    def __str__(self):
+        return ""
 
 
 @dataclass(repr=False)

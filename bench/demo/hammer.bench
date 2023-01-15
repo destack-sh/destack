@@ -85,7 +85,7 @@ expect 'valid bash':
 --- form.instruct ---
 import model text-davinci-003 as llm from openai.stdlib.text
 
-data misspellings :: (input: Input, misspelt: Input "The input misspelt"):
+data misspellings :: (input: string, misspelt: string "The input misspelt"):
 ```jsonl
 {"input": "list files", "misspelt": "lis files"}
 {"input": "commit", "misspelt": "comit"}
