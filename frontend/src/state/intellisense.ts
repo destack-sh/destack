@@ -6,7 +6,7 @@ import {
   FileHeaderType,
   StatementContentType,
   StatementHeaderType,
-  SchemaContentType,
+  TypeContentType,
 } from "@/state/fragments";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -362,7 +362,7 @@ export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<Sta
   // get schema content from gql
   const { result: schemaQuery } = useQuery(
     graphql(/* GraphQL */ `
-      query schemaContentById($statementId: GlobalID!) {
+      query TypeContentById($statementId: GlobalID!) {
         statement(id: $statementId) {
           id
           ...StatementContent
@@ -373,7 +373,7 @@ export function useSchemadSymbolSchema(file: Ref<FileHeader>, statement: Ref<Sta
     () => ({ enabled: !!schemaHeader.value })
   );
   const schema = computed(() => useFragment(StatementContentType, schemaQuery.value?.statement));
-  const schemaContent = computed(() => useFragment(SchemaContentType, schema.value?.content));
+  const TypeContent = computed(() => useFragment(TypeContentType, schema.value?.content));
 
-  return { schemaHeader, schema, schemaContent };
+  return { schemaHeader, schema, TypeContent };
 }

@@ -31,7 +31,8 @@ class TypeNode:
     name: Optional[str]
     type: ValueType
     required: bool = True
-    schema_id: Optional[str] = None
+    description: Optional[str]
+    reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
 
 

@@ -36,9 +36,9 @@ const contentAsJsonText = computed(() => JSON.stringify(contentAsJsonObj.value, 
 const contentAsJsonlText = computed(() => contentAsJsonObj.value.map((r) => JSON.stringify(r)).join("\n"));
 
 // sense derived state
-const { schemaContent } = useSchemadSymbolSchema(file, statement);
-const schemaElements = computed(() => schemaContent.value?.element?.elements ?? []);
-const schemaAvailable = computed(() => schemaElements.value.length > 0);
+const { TypeContent } = useSchemadSymbolSchema(file, statement);
+const TypeNodes = computed(() => TypeContent.value?.element?.elements ?? []);
+const schemaAvailable = computed(() => TypeNodes.value.length > 0);
 
 // local interface state
 const state = useDatasetInterfaceState(statement);
@@ -68,7 +68,7 @@ const state = useDatasetInterfaceState(statement);
       <thead class="bg-gray-50" v-show="state.showTableHeader && schemaAvailable">
         <tr>
           <th
-            v-for="element in schemaElements"
+            v-for="element in TypeNodes"
             :key="element.name"
             class="py-1.5 pr-2 text-left text-sm font-normal text-black"
           >
@@ -80,7 +80,7 @@ const state = useDatasetInterfaceState(statement);
         <tr class="relative" v-for="record in content.records" :key="record.index">
           <template v-if="schemaAvailable">
             <td
-              v-for="element in schemaElements"
+              v-for="element in TypeNodes"
               :key="element.name"
               class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-black"
             >

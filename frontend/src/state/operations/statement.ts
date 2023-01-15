@@ -61,8 +61,8 @@ export function useStatementOps() {
               ... on Task {
                 description
               }
-              ... on Schema {
-                ...SchemaContent
+              ... on Type {
+                ...TypeContent
               }
             }
           }

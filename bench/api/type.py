@@ -14,6 +14,6 @@ class TypeUpdateContentBtl:
 @gql.type
 class TypeMutation:
     @gql.mutation
-    def update_schema_content(self, input: TypeUpdateContentBtl) -> Statement:
+    def update_type_content(self, input: TypeUpdateContentBtl) -> Statement:
         statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
         raise NotImplementedError
