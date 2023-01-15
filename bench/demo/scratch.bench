@@ -57,6 +57,7 @@ task 'count fruits' :: (input: string) -> number:
 
 # ## map
 # [string: number]
+# {string: number}
 
 # ## tuple
 # string, number

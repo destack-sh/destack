@@ -267,6 +267,8 @@ class TypeNode:
     required: bool = True
     description: Optional[str] = None
     reference: Optional[str | "TypeNode"] = None
+    # source reference is separate as the resolved TypeNode may not contain the name
+    source_reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
 
     def __str__(self):
