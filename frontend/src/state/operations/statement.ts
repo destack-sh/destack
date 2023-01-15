@@ -47,24 +47,10 @@ export function useStatementOps() {
             id
             ...StatementHeader
             text
-            content {
-              # not re-using symbol content fragment because that led to weird apollo errors
-              ... on Code {
-                ...CodeContent
-              }
-              ... on Dataset {
-                ...DatasetContent
-              }
-              ... on Expectation {
-                description
-              }
-              ... on Task {
-                description
-              }
-              ... on Type {
-                ...TypeContent
-              }
-            }
+            code
+            codeBuiltinId
+            description
+            btl
           }
         }
       }

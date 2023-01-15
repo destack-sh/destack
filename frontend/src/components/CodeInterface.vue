@@ -1,15 +1,13 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { CodeContentType } from "@/state/code";
-import { StatementHeaderType } from "@/state/fragments";
+import { StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref, watchEffect, type Ref } from "vue";
+import { computed, readonly, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{
-  statement: FragmentType<typeof StatementHeaderType>;
-  content: FragmentType<typeof CodeContentType>;
+  statement: FragmentType<typeof StatementContentType>;
   focused: boolean;
   editing: boolean;
   readonly: boolean;
@@ -21,15 +19,14 @@ const emit = defineEmits<{
   (e: "navigateDown", position?: number): void;
   (e: "escape"): void;
 }>();
-const statement = computed(() => useFragment(StatementHeaderType, props.statement));
-const content = computed(() => useFragment(CodeContentType, props.content));
+const statement = computed(() => useFragment(StatementContentType, props.statement));
 
 const operations = useOperations();
 const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
 const code: Ref<string | null> = ref(null);
 
 function saveCode(code: string) {
-  const oldCode = content.value.code ?? "";
+  const oldCode = statement.value.code ?? "";
   if (oldCode !== code) {
     operations.content.updateCodeContent(statement.value.id, { code: oldCode }, { code });
   }
@@ -39,7 +36,7 @@ const saveCodeDebounced = useDebounceFn(saveCode, 200, { maxWait: 500 });
 // sync code to local if not editing
 watchEffect(() => {
   if (!props.editing || code.value == null) {
-    code.value = content.value.code ?? "";
+    code.value = statement.value.code ?? "";
   }
 });
 
@@ -62,6 +59,6 @@ defineExpose({
     @escape="emit('escape')"
     language="python"
     :focused="focused"
-    :readonly="readonly"
+    :readonly="props.readonly"
   />
 </template>

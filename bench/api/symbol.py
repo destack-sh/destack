@@ -47,6 +47,12 @@ class SourceMapping:
     target_revision: int
 
 
+@gql.django.type(models.DatasetRecord)
+class DatasetRecord:
+    index: int
+    data: JSON
+
+
 @gql.django.type(models.Statement)
 class Statement(gql.relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
@@ -75,6 +81,8 @@ class Statement(gql.relay.Node):
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
     btl: auto
+    records: list[DatasetRecord]
+    mappings: list[SourceMapping]
 
 
 @gql.input
