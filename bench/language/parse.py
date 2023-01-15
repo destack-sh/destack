@@ -776,7 +776,6 @@ def parse_type_node_func(tokens: TokenParser, name: str) -> TypeNode:
         tokens.eat_separator("->")
         tokens.eat_space()
         output = parse_type_node(tokens, "output")
-        # nocheckin somehow this doesn't err if output is empty
     else:
         output = TypeNode(name="output", type=TypeTag.NULL)
     return TypeNode(name=name, type=TypeTag.FUNCTION, children=[input, output])
