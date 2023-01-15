@@ -83,8 +83,7 @@ const positionedStatements = computed(() => {
     if (
       positioned.statement.type == StatementType.Import ||
       positioned.statement.type == StatementType.Comment ||
-      positioned.statement.type == StatementType.Blank ||
-      positioned.statement.type == StatementType.Requirement
+      positioned.statement.type == StatementType.Blank
     ) {
       const next = positionedStatements[i + 1];
       if (next && next.depth == 0 && next.statement.type == positioned.statement.type) {
@@ -99,14 +98,9 @@ const positionedStatements = computed(() => {
 </script>
 
 <template>
-  <div class="my-3 mx-7 flex h-full flex-col" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+  <div class="flex h-full flex-col bg-white py-3 px-7" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+    <StatementDivider class="mx-auto max-w-[1030px]" :file="fileHeader" :index="0" />
     <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
-      <StatementDivider
-        class="mx-auto max-w-[1030px]"
-        :file="fileHeader"
-        :index="positioned.statement.index ?? 0"
-        v-if="positioned.isFirstInGroup"
-      />
       <StatementInterface
         :file="fileHeader"
         :statement="positioned.statement"
@@ -114,7 +108,7 @@ const positionedStatements = computed(() => {
         :isFirstInGroup="positioned.isFirstInGroup"
         :isLastInGroup="positioned.isLastInGroup"
         :lineNumberBase="positioned.lineNumberBase"
-        class="mx-auto w-full max-w-[1000px] bg-white"
+        class="mx-auto w-full max-w-[1000px]"
       />
     </template>
     <StatementDivider class="mx-auto max-w-[1050px] px-2" :file="fileHeader" :index="rootStatements.length" />

@@ -5,9 +5,8 @@ import DatasetInterface from "@/components/DatasetInterface.vue";
 import DatasetInterfaceMeta from "@/components/DatasetInterfaceMeta.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import SchemaInterface from "@/components/SchemaInterface.vue";
+import TypeInterface from "@/components/TypeInterface.vue";
 import DescriptionInterface from "@/components/DescriptionInterface.vue";
-import TaskInterfaceMeta from "@/components/TaskInterfaceMeta.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
@@ -71,11 +70,10 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Expectation]: {
     component: DescriptionInterface,
   },
-  [SymbolType.Schema]: {
-    component: SchemaInterface,
+  [SymbolType.Type]: {
+    component: TypeInterface,
   },
   // not yet defined symbol interfaces
-  [SymbolType.Value]: undefined,
   [SymbolType.Model]: undefined,
 };
 const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
@@ -85,14 +83,16 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Code]: {
     component: CodeInterfaceMeta,
   },
-  [SymbolType.Task]: {
-    component: TaskInterfaceMeta,
-  },
   // not yet defined symbol interfaces
-  [SymbolType.Schema]: undefined,
+  [SymbolType.Type]: undefined,
+  [SymbolType.Capability]: undefined,
+  [SymbolType.Task]: undefined,
   [SymbolType.Value]: undefined,
   [SymbolType.Expectation]: undefined,
   [SymbolType.Model]: undefined,
+  [SymbolType.Requirement]: undefined,
+  [SymbolType.Runconfig]: undefined,
+  [SymbolType.Compilation]: undefined,
 };
 
 const editorState = useEditorState();
@@ -374,7 +374,7 @@ watchEffect(() => {
       declarationContent.value = statement.value.name ?? "";
       aliasContent.value = "";
     }
-  } else if (statement.value.type == StatementType.Requirement) {
+  } else if (statement.value.symbolType == SymbolType.Requirement) {
     declarationContent.value = meta.requirementPath ?? "";
   }
 });
@@ -527,12 +527,12 @@ async function morphToBlank() {
     ref="containerRef"
     class="group relative border-x border-gray-200 transition-colors"
     :class="{
-      'border-gray-200 ': !isFocused,
+      // 'border-gray-200 ': !isFocused,
       'border-l-orange-500': isFamilyFocused,
       'hover:border-l-orange-300': !isFocused,
-      'rounded-t-sm border-t border-gray-200': isFirstInGroup, // group top
+      // 'rounded-t-sm border-t border-gray-200': isFirstInGroup, // group top
       'pb-1': depth > 0, // inside group
-      'rounded-b-sm border-b border-gray-200': isLastInGroup, // group bottom
+      // 'rounded-b-sm border-b border-gray-200': isLastInGroup, // group bottom
       'pb-2.5': isLastInGroup && !isFirstInGroup, // group bottom with other top
       'pb-1.5': isLastInGroup && isFirstInGroup, // group top and bottom
       'font-mono': !meta.isComment, // not sure if everything should be mono, but it's more consistent..
@@ -589,19 +589,6 @@ async function morphToBlank() {
         v-if="!meta.isComment"
         class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
       >
-        <!-- Blank statement dots -->
-        <span
-          v-if="
-            statement.type == StatementType.Blank &&
-            statement.modifier == null &&
-            statement.symbolType == null &&
-            declarationContent.length == 0
-          "
-          class="absolute select-none text-gray-500"
-          :class="{ 'opacity-100': isFocused, 'opacity-20 group-hover:opacity-100': !isFocused }"
-        >
-          ...
-        </span>
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
         <span class="mr-1 text-orange-600" v-if="meta.isRequirement">require</span>

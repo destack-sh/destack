@@ -6,7 +6,7 @@ import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
-import { useOperations, useOperationsStore } from "@/state/operations";
+import { useOperationsStore } from "@/state/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -18,7 +18,9 @@ import {
   WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
+import { useTitle } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { useMeta } from "vue-meta";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -87,6 +89,15 @@ const { result: projectHeaderQuery } = useQuery(
 const projectHeader = computed(() => useFragment(ProjectHeaderType, projectHeaderQuery.value?.projectBySlug));
 const projectHead = computed(() => useFragment(ProjectVersionHeaderType, projectHeader.value?.head));
 
+// sync title bar with project head
+const title = useTitle();
+watchEffect(
+  () =>
+    (title.value = `${props.organization}/${props.project}${
+      projectHeader.value ? ": " + projectHeader.value.name : ""
+    }`)
+);
+
 const ProjectVersionContent = graphql(/* GraphQL */ `
   fragment ProjectVersionContent on ProjectVersion {
     id
@@ -115,9 +126,10 @@ const { result: contentQuery } = useQuery(
   () => ({ enabled: !!projectHead.value?.id })
 );
 const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
+// filter deletedAt to increase responsiveness
 const files = computed(
   () => content.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
-); // filter deletedAt to increase responsiveness
+);
 
 // actions (ensure global actions are available)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -178,6 +190,8 @@ watchEffect(() => {
 });
 
 const { load } = useEditorPersistence();
+
+// migration logic on version change
 const migrating = ref(false);
 const {
   load: getProjectMigrationRefs,

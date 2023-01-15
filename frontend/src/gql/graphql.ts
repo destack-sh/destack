@@ -904,11 +904,13 @@ export type ProjectHeaderFragment = {
   __typename?: "Project";
   id: any;
   name: string;
+  slug: string;
   createdAt: any;
   updatedAt: any;
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
   };
+  organization: { __typename?: "Organization"; slug: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
 export type ProjectVersionAsDependencyFragment = {
@@ -1603,6 +1605,7 @@ export const ProjectHeaderFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           {
@@ -1611,6 +1614,14 @@ export const ProjectHeaderFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "organization" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "slug" } }],
             },
           },
         ],

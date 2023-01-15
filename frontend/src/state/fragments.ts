@@ -30,10 +30,14 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
     id
     name
+    slug
     createdAt
     updatedAt
     head {
       ...ProjectVersionHeader
+    }
+    organization {
+      slug
     }
   }
 `);
