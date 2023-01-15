@@ -164,7 +164,14 @@ def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
     else:
         identifier_str = ""
     description_str = f' "{node.description}"' if node.description else ""
-    if node.type == TypeTag.FUNCTION:
+    if node.type == TypeTag.TYPE_REFERENCE or node.reference is not None:
+        # if it's a reference _or_ used to be a reference, we want the type reference
+        reference_str = (
+            node.reference.name if isinstance(node.reference, TypeNode) else node.reference
+        )
+        reference_str = escape_identifier(reference_str)
+        return f"{identifier_str}{reference_str}{description_str}"
+    elif node.type == TypeTag.FUNCTION:
         input_str = render_type_node_struct(node.input, seperator=", ")
         if node.output.type != TypeTag.NULL:
             output_str = render_type_node(node.output, ignore_name=True)
@@ -182,8 +189,6 @@ def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
     elif node.type == TypeTag.INTERSECTION:
         type_str = " & ".join(render_type_node(e) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
-    elif node.type == TypeTag.TYPE_REFERENCE:
-        return f"{identifier_str}{node.reference}{description_str}"
     elif node.type in PRIMITIVE_TYPES:
         return f"{identifier_str}{node.type.value}{description_str}"
     else:
