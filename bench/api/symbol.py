@@ -1,6 +1,9 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
+from django import db
+from django.db.models import F, Q, Value
+from django.db.models.functions import Concat
 from strawberry import lazy
 from strawberry.scalars import JSON
 from strawberry_django_plus import gql
@@ -84,9 +87,36 @@ class Statement(gql.relay.Node):
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
 
-    @gql.model_property()
-    def reference_path(self):
-        pass
+    @gql.field
+    def import_path(self) -> Optional[str]:
+        if self.type != StatementType.IMPORT:
+            return None
+        # TODO @Performance: statement import path should be batch loaded (DataLoader?)
+        #  We try to only load the reference information required for the frontend,
+        #  so we do some ugly SQL-side joins and concats.
+        #  But maybe this is just the wrong approach overall, and we should just bake
+        #  the import path into each project_version or even file already.
+        is_local = Q(project_version_id=F("reference__project_version_id"))
+        local_path = Concat(Value("."), F("reference__file__name"))
+        absolute_path = Concat(
+            F("reference__project_version__project__organization__slug"),
+            Value("."),
+            F("reference__project_version__project__slug"),
+            local_path,
+            output_field=db.models.CharField(),
+        )
+        import_path = db.models.Case(
+            db.models.When(is_local, then=local_path),
+            default=absolute_path,
+            output_field=db.models.CharField(),
+        )
+        result = (
+            models.Statement.objects.filter(id=self.id)
+            .annotate(import_path=import_path)
+            .values_list("import_path", flat=True)
+            .first()
+        )
+        return result
 
 
 @gql.input

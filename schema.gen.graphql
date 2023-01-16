@@ -387,6 +387,7 @@ type Statement implements Node {
   btl: String
   records: [DatasetRecord!]!
   mappings: [SourceMapping!]!
+  importPath: String
 }
 
 input StatementCommentedInput {
