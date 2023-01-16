@@ -13,6 +13,9 @@ export function useFileOps() {
           ... on File {
             id
             ...FileHeader
+            statements {
+              ...StatementHeader
+            }
           }
           ...OperationInfoContent
         }

@@ -99,7 +99,6 @@ input FileSoftDeleteInput {
   id: GlobalID!
 }
 
-"""An enumeration."""
 enum FileType {
   DIRECTORY
   INSTRUCT

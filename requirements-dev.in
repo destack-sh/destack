@@ -1,15 +1,15 @@
 # To add, delete or modify a dependency, please update
 # the reference .in file and then execute the following to
 # update the corresponding locked .txt file:
-#  `pip-compile --rebuild requirements-dev.in`
+#  `python -m piptools compile requirements-dev.in --rebuild requirements-dev.in`
 # Then - optionally - update your installed packages:
-#  `pip-sync requirements.txt requirements-dev.txt requirements-compute.txt`
+#  `python -m piptools sync requirements-dev.in requirements.txt requirements-dev.txt requirements-compute.txt`
 
 -c requirements.txt
 
 black==22.10.0
-django-stubs==1.13.0
-djangorestframework-stubs==1.7.0
+django-stubs==1.13.1
+djangorestframework-stubs==1.8.0
 flake8-import-order==0.18.1
 flake8==5.0.4
 isort==5.10.1
