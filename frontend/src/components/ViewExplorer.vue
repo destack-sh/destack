@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { FileType } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { FILE_TYPE_SHORTNAME, useEditorState, type FileHeader } from "@/state/editor";
+import { FILE_TYPE_KEYWORD, useEditorState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside } from "@vueuse/core";
@@ -79,8 +79,8 @@ const filesActions: Action[] = [
   },
 ];
 
-function getFileTypeShortname(file: FileHeader) {
-  return FILE_TYPE_SHORTNAME[file.type as FileType];
+function getFileTypeKeyword(file: FileHeader) {
+  return FILE_TYPE_KEYWORD[file.type as FileType];
 }
 </script>
 <template>
@@ -127,7 +127,7 @@ function getFileTypeShortname(file: FileHeader) {
           >
             {{ file.name }}
           </span>
-          <span>.{{ getFileTypeShortname(file) }}</span>
+          <span>.{{ getFileTypeKeyword(file) }}</span>
         </li>
       </ul>
     </div>

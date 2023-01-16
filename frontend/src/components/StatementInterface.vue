@@ -11,10 +11,10 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import {
-  MODIFIER_BY_SHORTNAME,
-  MODIFIER_SHORTNAME,
-  SYMBOL_TYPE_BY_SHORTNAME,
-  SYMBOL_TYPE_SHORTNAME,
+  MODIFIER_BY_KEYWORD,
+  MODIFIER_KEYWORD,
+  SYMBOL_TYPE_BY_KEYWORD,
+  SYMBOL_TYPE_KEYWORD,
   useEditorState,
   type StatementHeader,
 } from "@/state/editor";
@@ -38,11 +38,11 @@ const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
 
-const symbolTypeShortname = computed(() =>
-  statement.value.symbolType ? SYMBOL_TYPE_SHORTNAME[statement.value.symbolType] : null
+const symbolTypeKeyword = computed(() =>
+  statement.value.symbolType ? SYMBOL_TYPE_KEYWORD[statement.value.symbolType] : null
 );
-const modifierShortname = computed(() =>
-  statement.value.modifier ? MODIFIER_SHORTNAME[statement.value.modifier] : null
+const modifierKeyword = computed(() =>
+  statement.value.modifier ? MODIFIER_KEYWORD[statement.value.modifier] : null
 );
 const depthOffsetX = computed(() => props.depth * 20);
 
@@ -334,17 +334,17 @@ watch(
       if (input == "import") {
         await morphToImport();
       }
-      if (MODIFIER_BY_SHORTNAME[input] != null) {
-        await setModifier(MODIFIER_BY_SHORTNAME[input]);
+      if (MODIFIER_BY_KEYWORD[input] != null) {
+        await setModifier(MODIFIER_BY_KEYWORD[input]);
         declarationContent.value = "";
       }
     }
-    if (statement.value.symbolType == null && SYMBOL_TYPE_BY_SHORTNAME[input] != null) {
+    if (statement.value.symbolType == null && SYMBOL_TYPE_BY_KEYWORD[input] != null) {
       // if it's an import, keep it an import
       if (statement.value.type == StatementType.Import) {
-        await morphTo(StatementType.Import, SYMBOL_TYPE_BY_SHORTNAME[input]);
+        await morphTo(StatementType.Import, SYMBOL_TYPE_BY_KEYWORD[input]);
       } else {
-        await morphTo(StatementType.Reference, SYMBOL_TYPE_BY_SHORTNAME[input]);
+        await morphTo(StatementType.Reference, SYMBOL_TYPE_BY_KEYWORD[input]);
       }
     }
   }
@@ -523,7 +523,7 @@ async function morphToBlank() {
 <template>
   <div
     ref="containerRef"
-    class="group relative border-x-0 border-gray-200 transition-colors"
+    class="relative transition-colors border-gray-200 group border-x-0"
     :class="{
       // 'border-gray-200 ': !isFocused,
       'border-l-orange-500': isFamilyFocused,
@@ -542,7 +542,7 @@ async function morphToBlank() {
     <!-- Debug info -->
     <span
       v-if="editorState.debug"
-      class="absolute -top-1 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm lowercase"
+      class="absolute z-20 font-sans text-sm lowercase bg-red-200 bg-opacity-50 rounded-sm -top-1 -right-1"
     >
       <template v-if="isFocused">f({{ declarationFocused ? "d" : "" }}{{ contentFocused ? "c" : "" }}) </template>
       <template v-if="isEditing">e</template>
@@ -573,14 +573,14 @@ async function morphToBlank() {
     >
     <!-- Statement focus indicator (left side if not editing) -->
     <div
-      class="absolute top-0 left-0 h-full w-1"
+      class="absolute top-0 left-0 w-1 h-full"
       :class="isFocused && !isEditing ? 'bg-orange-100' : 'bg-transparent'"
     />
     <!-- Statement focus indicator (top and bottom if editing) -->
     <div class="absolute top-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <!-- Statement header & controls -->
-    <div class="mx-3 flex flex-row items-center justify-between pt-1">
+    <div class="flex flex-row items-center justify-between pt-1 mx-3">
       <!--  Declaration -->
       <!-- TODO @Cleanup: factor out statement declaration component (the mess is above) -->
       <div
@@ -589,8 +589,8 @@ async function morphToBlank() {
       >
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
-        <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
-        <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
+        <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierKeyword }}</span>
+        <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeKeyword }}</span>
         <!-- Editable statement main part -->
         <div class="relative inline-flex">
           <EditableSpan
@@ -620,7 +620,7 @@ async function morphToBlank() {
               ref="declarationComboboxOptionsRef"
               static
               as="ul"
-              class="absolute top-4 z-10 mt-1 max-h-60 w-96 overflow-auto border border-orange-400 bg-white text-sm shadow-md"
+              class="absolute z-10 mt-1 overflow-auto text-sm bg-white border border-orange-400 shadow-md top-4 max-h-60 w-96"
               v-show="selectingReference"
             >
               <!-- References to select -->
@@ -632,25 +632,25 @@ async function morphToBlank() {
                 v-slot="{ active, selected }"
               >
                 <li
-                  class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
+                  class="relative flex flex-row justify-between p-1 decoration-none group/li hover:cursor-pointer"
                   :class="{ 'bg-orange-100': selected }"
                 >
                   <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
                     <template v-if="statement.symbolType == null && symbol.symbolType != null">
                       <!-- specify type of reference if we haven't narrowed down yet -->
-                      {{ SYMBOL_TYPE_SHORTNAME[symbol.symbolType] }}
+                      {{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}
                     </template>
                     {{ symbol.name }}
                   </span>
-                  <span class="truncate text-gray-500">
+                  <span class="text-gray-500 truncate">
                     {{ getImportSourcePath(symbol) || symbol.file.pathWithoutExtension }}
                   </span>
                 </li>
               </ComboboxOption>
               <!-- Nothing found -->
               <ComboboxOption key=":none" value=":none" as="template" v-if="filteredSymbols.length == 0" disabled>
-                <li class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer">
-                  <span class="group-hover/li:text-orange-600 text-gray-500">{{ declarationContent }} not found</span>
+                <li class="relative flex flex-row justify-between p-1 decoration-none group/li hover:cursor-pointer">
+                  <span class="text-gray-500 group-hover/li:text-orange-600">{{ declarationContent }} not found</span>
                 </li>
               </ComboboxOption>
               <!-- Define locally (if not an import) -->
@@ -662,7 +662,7 @@ async function morphToBlank() {
                 v-slot="{ active, selected }"
               >
                 <li
-                  class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
+                  class="relative flex flex-row justify-between p-1 decoration-none group/li hover:cursor-pointer"
                   :class="{ 'bg-orange-100': selected }"
                 >
                   <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
@@ -682,7 +682,7 @@ async function morphToBlank() {
           v-if="meta.isAlias"
           ref="aliasRef"
           maxlength="100"
-          class="text-inherit outline-none"
+          class="outline-none text-inherit"
           :readonly="readonly"
           v-model="aliasContent"
           @deleteLeft="deleteLeftOnAlias"
@@ -724,7 +724,7 @@ async function morphToBlank() {
             :class="isFocused ? 'text-gray-500' : 'text-gray-400'"
             @click.prevent="action.action"
           >
-            <component :is="action.icon" class="h-4 w-4" />
+            <component :is="action.icon" class="w-4 h-4" />
           </button>
         </span>
       </span>
