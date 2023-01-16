@@ -38,11 +38,12 @@ export type StatementHeader = Pick<
   | "parent"
 >;
 
-export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
+// sync with language in backend
+export const FILE_TYPE_KEYWORD: Record<FileType, string> = {
   [FileType.Directory]: "",
   [FileType.Instruct]: "instruct",
 };
-export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
+export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Type]: "type",
   [SymbolType.Code]: "code",
   [SymbolType.Dataset]: "data",
@@ -55,15 +56,15 @@ export const SYMBOL_TYPE_SHORTNAME: Record<SymbolType, string> = {
   [SymbolType.Runconfig]: "run",
   [SymbolType.Compilation]: "compile",
 };
-export const SYMBOL_TYPE_BY_SHORTNAME: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_SHORTNAME);
-export const MODIFIER_SHORTNAME: Record<StatementModifier, string> = {
+export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
+export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",
   [StatementModifier.Unlike]: "unlike",
   [StatementModifier.Verify]: "verify",
   [StatementModifier.With]: "with",
   [StatementModifier.Var]: "var",
 };
-export const MODIFIER_BY_SHORTNAME: Record<string, StatementModifier> = reverseRecord(MODIFIER_SHORTNAME);
+export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
 
 export type RunConfiguration = {
   name: string;
