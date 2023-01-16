@@ -123,6 +123,7 @@ const isRunnable = computed(
 const isAlias = computed(
   () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
 );
+const importPath = computed(() => statement.value.importPath);
 
 type InlineAction = {
   icon: Component;
@@ -331,13 +332,6 @@ const filteredSymbols = computed(() => {
     symbols = symbols.filter((symbol) => symbol.symbolType == statement.value.symbolType);
   }
   return symbols;
-});
-const importPath = computed(() => {
-  if (statement.value.type == StatementType.Import && reference.value != null) {
-    return "...";
-  } else {
-    return undefined;
-  }
 });
 
 // react to declaration content input
@@ -549,11 +543,7 @@ async function morphToBlank() {
       // 'border-gray-200 ': !isFocused,
       // 'border-l-orange-500': isFamilyFocused,
       'hover:border-l-orange-300': !isFocused,
-      // 'rounded-t-sm border-t border-gray-200': isFirstInGroup, // group top
-      'pb-1': depth > 0, // inside group
-      // 'rounded-b-sm border-b border-gray-200': isLastInGroup, // group bottom
-      'pb-2.5': isLastInGroup && !isFirstInGroup, // group bottom with other top
-      'pb-1.5': isLastInGroup && isFirstInGroup, // group top and bottom
+      'pt-0.5': true,
       'font-mono': !isComment, // not sure if everything should be mono, but it's more consistent..
       italic: isCommented,
     }"
@@ -720,12 +710,7 @@ async function morphToBlank() {
         />
         <!-- Import postfix (not editable since derived from selected main) -->
         <span v-if="isImport" class="mx-1 text-orange-600">from</span>
-        <span v-if="isImport && reference != null && importPath != null">{{ importPath }}</span>
-        <span
-          v-if="isImport && (reference == null || importPath == null)"
-          class="text-gray-400 group-focus:animate-pulse"
-          >...</span
-        >
+        <span v-if="isImport && importPath != null">{{ importPath }}</span>
       </div>
       <!-- Meta & controls (top right) -->
       <span

@@ -489,6 +489,7 @@ export type Statement = Node & {
   description?: Maybe<Scalars["String"]>;
   file: File;
   id: Scalars["GlobalID"];
+  importPath?: Maybe<Scalars["String"]>;
   index?: Maybe<Scalars["Int"]>;
   mappings: Array<SourceMapping>;
   modifier?: Maybe<StatementModifier>;
@@ -909,6 +910,7 @@ export type StatementContentFragment = {
   compiled: boolean;
   modifier?: StatementModifier | null;
   index?: number | null;
+  importPath?: string | null;
   text?: string | null;
   code?: string | null;
   codeBuiltinId?: string | null;
@@ -1621,6 +1623,7 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "importPath" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
