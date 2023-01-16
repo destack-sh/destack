@@ -16,14 +16,15 @@ import {
   SYMBOL_TYPE_BY_SHORTNAME,
   SYMBOL_TYPE_SHORTNAME,
   useEditorState,
+  type StatementHeader,
 } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { useIntelliSense, useStatementMetadata, type LocalStatementHeader } from "@/state/intellisense";
+import { useStatementMetadata } from "@/state/intellisense";
 import { useOperations } from "@/state/operations";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
-import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -79,6 +80,7 @@ const interfaces: Record<SymbolType, SymbolInterface | undefined> = {
   [SymbolType.Requirement]: undefined,
   [SymbolType.Runconfig]: undefined,
   [SymbolType.Compilation]: undefined,
+  [SymbolType.Value]: undefined,
 };
 const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
   [SymbolType.Dataset]: {
@@ -102,14 +104,11 @@ const metaInterfaces: Record<SymbolType, MetaInterface | undefined> = {
 const editorState = useEditorState();
 const actions = useActions();
 const operations = useOperations();
-const sense = useIntelliSense();
 
 const meta = useStatementMetadata(toRef(props, "file"), toRef(props, "statement"));
 
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
-const isFamilyFocused = computed(
-  () => isFocused.value || sense.family(statement.value.id).find((s) => s.id == editorState.focusedElementId) != null
-);
+const isFamilyFocused = computed(() => isFocused.value || false); // nocheckin incomplete
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value.compiled);
 
@@ -140,11 +139,11 @@ const contentRef = ref<Component | InstanceType<typeof MonacoEditor> | null>(nul
 const { focused: containerFocused } = useFocusWithin(containerRef);
 const { focused: declarationFocused } = useFocus(declarationRef);
 const { focused: aliasFocused } = useFocus(aliasRef);
-const { focused: contentFocused } = useFocusWithin(contentRef);
+const { focused: contentFocused } = useFocusWithin(contentRef as any);
 
 function focus() {
   editorState.focusFile(file.value);
-  editorState.focusElement(statement.value);
+  editorState.focusElement(statement.value as StatementHeader);
 }
 
 function onClickContainer() {
@@ -211,13 +210,13 @@ watch(
 );
 
 function startEditing() {
-  editorState.editElement(statement.value);
+  editorState.editElement(statement.value as StatementHeader);
 }
 function cancelCurrentEditing() {
   if (selectingReference.value) {
     selectingReference.value = false;
   } else {
-    editorState.stopEditingElement(statement.value);
+    editorState.stopEditingElement(statement.value as StatementHeader);
   }
 }
 
@@ -225,7 +224,7 @@ function navigateUp() {
   if (declarationFocused.value) {
     // declaration is focused, go to previous statement
     declarationFocused.value = false;
-    actions.statement.moveFocusUp.value.apply();
+    actions.apply("statement.moveFocusUp");
   } else if (containerFocused.value) {
     // content is focused, go to declaration
     declarationFocused.value = true;
@@ -240,7 +239,7 @@ function navigateDown() {
     (contentRef.value as FocusableComponent).focus?.();
   } else if (containerFocused.value) {
     // content is focused already or not available, go to next statement
-    actions.statement.moveFocusDown.value.apply();
+    actions.apply("statement.moveFocusDown");
   }
 }
 
@@ -283,21 +282,18 @@ function onSelectReference(referenceId: string | ":define") {
 }
 
 // stop selecting if editing is cancelled
-watch(
-  () => isEditing.value,
-  (isEditing) => {
-    if (!isEditing) {
-      selectingReference.value = false;
-    }
+watchEffect(() => {
+  if (!isEditing.value) {
+    selectingReference.value = false;
   }
-);
+});
 
 // possible reference targets & filters
-const availableSymbols = computed(() => {
+const availableSymbols: Ref<StatementHeader[]> = computed(() => {
   if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Definition) {
-    return sense.availableSymbols(file.value.id, statement.value.id).filter((s) => s.name != null);
+    return [];
   } else if (statement.value.type == StatementType.Import) {
-    return sense.allSymbols().filter((s) => s.file.id != file.value.id && s.name != null);
+    return [];
   } else {
     return [];
   }
@@ -323,8 +319,8 @@ const filteredSymbols = computed(() => {
   }
   return symbols;
 });
-function getImportSource(statement: LocalStatementHeader): LocalStatementHeader | undefined {
-  return sense.registry.statementsById[statement.reference?.id ?? ""];
+function getImportSourcePath(statement: StatementHeader): string | undefined {
+  return "???"; // nocheckin
 }
 
 // react to declaration content input
@@ -395,10 +391,9 @@ async function onDeclarationKeydown(event: KeyboardEvent) {
 
 async function onDeclarationEnter() {
   if (declarationContent.value.length == 0) {
-    return;
-  }
-
-  if (statement.value.type == StatementType.Definition || meta.isParameter) {
+    // create blank statement and navigate down
+    actions.apply("statement.insertBelowCurrent");
+  } else if (statement.value.type == StatementType.Definition || meta.isParameter) {
     // rename and focus content
     await operations.statement.rename(statement.value.id, statement.value.name ?? "", declarationContent.value);
     (contentRef.value as FocusableComponent)?.focus?.();
@@ -425,6 +420,10 @@ function deleteLeftOnMain() {
     morphToBlank();
   } else if (statement.value.modifier != null) {
     setModifier(null);
+  } else if (statement.value.type == StatementType.Blank) {
+    // delete self, move focus up
+    actions.apply("statement.moveFocusUp");
+    operations.statement.delete(statement.value.id);
   }
 }
 
@@ -478,7 +477,7 @@ async function morphToDefinition() {
   (contentRef.value as FocusableComponent)?.focus?.();
 }
 
-async function morphSetReference(to: LocalStatementHeader) {
+async function morphSetReference(to: StatementHeader) {
   let targetType = statement.value.type == StatementType.Definition ? StatementType.Reference : statement.value.type;
   // TODO @Robustness: should morphs be atomic (rename + setReference + morph type)
   if (statement.value.type != targetType || to.symbolType != statement.value.symbolType) {
@@ -590,7 +589,6 @@ async function morphToBlank() {
       >
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
-        <span class="mr-1 text-orange-600" v-if="meta.isRequirement">require</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierShortname }}</span>
         <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeShortname }}</span>
         <!-- Editable statement main part -->
@@ -645,7 +643,7 @@ async function morphToBlank() {
                     {{ symbol.name }}
                   </span>
                   <span class="truncate text-gray-500">
-                    {{ getImportSource(symbol)?.file?.pathWithoutExtension || symbol.file.pathWithoutExtension }}
+                    {{ getImportSourcePath(symbol) || symbol.file.pathWithoutExtension }}
                   </span>
                 </li>
               </ComboboxOption>
@@ -717,19 +715,6 @@ async function morphToBlank() {
           :statement="statement"
           class="mr-1"
         />
-        <!-- Statement meta info -->
-        <span class="inline-flex flex-row items-baseline gap-2 px-1 text-xs">
-          <!-- <span> {{ getTimeFromNowString(statement.updatedAt) }} </span> -->
-          <span v-if="statement.compiled">compiled</span>
-          <!-- Basic parameters info -->
-          <span v-if="meta.parameters?.length ?? 0 > 0">
-            (
-            <span v-for="param in meta.parameters" :key="param.id">
-              {{ param.name }}
-            </span>
-            )
-          </span>
-        </span>
         <!-- Symbol meta controls -->
         <span class="inline-flex flex-row gap-1">
           <button

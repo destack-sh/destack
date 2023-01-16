@@ -1,7 +1,6 @@
 import { useEditorActions } from "@/state/actions/editor";
 import { useFileActions } from "@/state/actions/file";
 import { useOperationsActions } from "@/state/actions/operations";
-import { useStatementActions } from "@/state/actions/statement";
 import { useVersionActions } from "@/state/actions/version";
 import { defineStore } from "pinia";
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
@@ -92,6 +91,10 @@ export function provideGlobalAction(action: RegisteredAction): Ref<Action> {
   return provideAction(action, "global");
 }
 
+export function provideSingletonAction(action: RegisteredAction): Ref<Action> {
+  return provideAction(action, "singleton");
+}
+
 export function provideAction(action: RegisteredAction, mode: "global" | "singleton" = "singleton"): Ref<Action> {
   const actionsStore = useActionsStore();
 
@@ -145,11 +148,26 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
 }
 
 export function useActions() {
+  function get(id: string): Action | null {
+    const actionsStore = useActionsStore();
+    if (!actionsStore.has(id)) {
+      return null;
+    }
+    return actionsStore.action(id);
+  }
+
+  function apply(id: string) {
+    const actionsStore = useActionsStore();
+    const action = actionsStore.action(id);
+    action.apply();
+  }
+
   return {
     editor: useEditorActions(),
     operations: useOperationsActions(),
     version: useVersionActions(),
     file: useFileActions(),
-    statement: useStatementActions(),
+    get,
+    apply,
   };
 }

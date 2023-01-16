@@ -19,10 +19,11 @@ export type ProjectVersionHeader = Pick<
 >;
 export type FileHeader = Pick<
   File,
-  "id" | "type" | "name" | "path" | "pathWithoutExtension" | "createdAt" | "updatedAt"
+  "__typename" | "id" | "type" | "name" | "path" | "pathWithoutExtension" | "createdAt" | "updatedAt"
 >;
 export type StatementHeader = Pick<
   Statement,
+  | "__typename"
   | "id"
   | "modifier"
   | "type"
@@ -34,6 +35,7 @@ export type StatementHeader = Pick<
   | "index"
   | "compiled"
   | "commented"
+  | "parent"
 >;
 
 export const FILE_TYPE_SHORTNAME: Record<FileType, string> = {
@@ -157,6 +159,7 @@ export const useEditorState = defineStore("editor", {
       right: makeEditorGroup("right", "Right"),
       focusedEditor: null as Editor | null,
       focusedElementId: null as string | null,
+      focusedElementType: null as string | null,
       editingElement: false,
       readonly: false,
       debug: false,
@@ -320,11 +323,12 @@ export const useEditorState = defineStore("editor", {
       return editor;
     },
 
-    focusElement(element: StatementHeader | FileHeader) {
+    focusElement(element: StatementHeader | FileHeader, retainEditing = false) {
       if (this.focusedElementId == element.id) return;
       console.log(`focus element ${element.id}`);
       this.focusedElementId = element.id;
-      this.editingElement = false;
+      this.focusedElementType = element.__typename || null;
+      this.editingElement = this.editingElement && retainEditing;
     },
 
     editElement(element: StatementHeader | FileHeader) {

@@ -1,15 +1,12 @@
 import { getRandomName } from "@/composables/useRandomName";
-import { FileType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
-import { useIntelliSense } from "@/state/intellisense";
 import { useOperations } from "@/state/operations";
 import { computed } from "vue";
 
 export function useFileActions() {
   const editor = useEditorState();
   const operations = useOperations();
-  const sense = useIntelliSense();
 
   const create = provideGlobalAction({
     id: "file.new",
@@ -23,17 +20,16 @@ export function useFileActions() {
     },
   });
 
-  // actions for currently focused file (as element)
-  const file = computed(() => sense.registry.filesById[editor.focusedElementId as string]);
-
   // delete
   const delete_ = provideGlobalAction({
     id: "file.delete",
     label: "Delete file",
     shortcuts: ["backspace", "delete"],
-    enabled: computed(() => !editor.editingElement && !!file.value && file.value?.type == FileType.Instruct),
+    enabled: computed(() => !editor.editingElement && editor.focusedElementTypename == "File"),
     apply: async () => {
-      await operations.file.delete(file.value.id);
+      if (editor.focusedElementId) {
+        await operations.file.delete(editor.focusedElementId);
+      }
     },
   });
 
