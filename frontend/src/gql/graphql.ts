@@ -126,7 +126,6 @@ export type FileSoftDeleteInput = {
   id: Scalars["GlobalID"];
 };
 
-/** An enumeration. */
 export enum FileType {
   Directory = "DIRECTORY",
   Instruct = "INSTRUCT",
@@ -988,7 +987,13 @@ export type CreateFileMutationVariables = Exact<{
 export type CreateFileMutation = {
   __typename?: "Mutation";
   createFile:
-    | ({ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
+    | ({
+        __typename?: "File";
+        id: any;
+        statements: Array<
+          { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } }
+        >;
+      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -2243,6 +2248,14 @@ export const CreateFileDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
+                        },
+                      },
                     ],
                   },
                 },
@@ -2254,6 +2267,7 @@ export const CreateFileDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...StatementHeaderFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateFileMutation, CreateFileMutationVariables>;
