@@ -94,14 +94,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     compiled
     commented
     index
-    file {
-      id
-      path
-      pathWithoutExtension
-      projectVersion {
-        id
-      }
-    }
     parent {
       id
     }
@@ -148,7 +140,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
       id
     }
     reference {
-      ...StatementHeader
+      id
     }
     text
     # symbol contents

@@ -19,16 +19,16 @@ import {
   type StatementHeader,
 } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { useStatementMetadata } from "@/state/intellisense";
 import { useOperations } from "@/state/operations";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
-import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
+import { computed, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
+  reference: FragmentType<typeof StatementHeaderType> | null;
   depth: number;
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
@@ -36,7 +36,7 @@ const props = defineProps<{
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const reference = computed(() => useFragment(StatementHeaderType, statement.value?.reference));
+const reference = computed(() => useFragment(StatementHeaderType, props.reference));
 
 const symbolTypeKeyword = computed(() =>
   statement.value.symbolType ? SYMBOL_TYPE_KEYWORD[statement.value.symbolType] : null
@@ -120,7 +120,6 @@ const isRunnable = computed(
     !isImport.value &&
     (statement.value?.symbolType == SymbolType.Code || statement.value?.symbolType == SymbolType.Task)
 );
-const isDeleted = computed(() => statement.value?.deletedAt != null);
 const isAlias = computed(
   () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
 );
@@ -333,12 +332,9 @@ const filteredSymbols = computed(() => {
   }
   return symbols;
 });
-function getImportSourcePath(statement: StatementHeader): string | undefined {
-  return "." + statement.file.pathWithoutExtension;
-}
 const importPath = computed(() => {
   if (statement.value.type == StatementType.Import && reference.value != null) {
-    return getImportSourcePath(reference.value as StatementHeader);
+    return "...";
   } else {
     return undefined;
   }
@@ -676,7 +672,7 @@ async function morphToBlank() {
                     {{ symbol.name }}
                   </span>
                   <span class="truncate text-gray-500">
-                    {{ getImportSourcePath(symbol) || symbol.file.pathWithoutExtension }}
+                    {{ symbol.path || symbol.file.pathWithoutExtension }}
                   </span>
                 </li>
               </ComboboxOption>

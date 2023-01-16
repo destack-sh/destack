@@ -5,12 +5,13 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { provideStatementActions as provideStatementActions } from "@/state/actions/statement";
+import { provideStatementActions } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
+import type { FileContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
-import { computed } from "vue";
+import { computed, reactive } from "vue";
 
 const props = defineProps<{ fileId: string }>();
 
@@ -40,6 +41,13 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
+const statementsById = computed(() => {
+  const statementsById: Record<string, StatementContentFragment> = {};
+  statements.value.forEach((statement) => {
+    statementsById[statement.id] = statement;
+  });
+  return statementsById;
+});
 
 const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
 
@@ -147,6 +155,7 @@ async function insertOrFocusStatementEnd() {
       <StatementInterface
         :file="(fileHeader as any)"
         :statement="(positioned.statement as any)"
+        :reference="(statementsById[positioned.statement.reference?.id] as any)"
         :depth="positioned.depth"
         :isFirstInGroup="positioned.isFirstInGroup"
         :isLastInGroup="positioned.isLastInGroup"
