@@ -85,7 +85,7 @@ const state = useDatasetInterfaceState(statement);
             class="absolute top-1 w-6 select-none text-right font-mono text-sm"
             :style="{ left: -xOffset - 42 + 'px' }"
             :class="{ 'text-orange-200': !focused, 'text-orange-400': focused }"
-            >{{ lineNumberBase + 1 + record + 1 }}</span
+            >{{ lineNumberBase + 1 + i + 1 }}</span
           >
         </tr>
       </tbody>

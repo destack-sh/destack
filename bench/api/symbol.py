@@ -84,6 +84,10 @@ class Statement(gql.relay.Node):
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
 
+    @gql.model_property()
+    def reference_path(self):
+        pass
+
 
 @gql.input
 class StatementCreateInput:

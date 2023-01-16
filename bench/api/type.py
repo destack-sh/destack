@@ -16,4 +16,6 @@ class TypeMutation:
     @gql.mutation
     def update_type_content(self, input: TypeUpdateContentBtl) -> Statement:
         statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        raise NotImplementedError
+        statement.btl = input.btl
+        statement.save()
+        return statement
