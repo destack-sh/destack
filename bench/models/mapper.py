@@ -260,11 +260,13 @@ def rmap_symbol(
         ]
         return language.Compilation(definition=definition, source_mappings=source_mappings)
     elif statement.symbol_type == SymbolType.REQUIREMENT:
-        if statement.reference_project_version:
+        ref_project_v = statement.reference_project_version
+        if ref_project_v is not None:
+            requirement_name = (
+                f"{ref_project_v.project.organization.slug}.{ref_project_v.project.slug}"
+            )
             return language.Requirement(
-                definition=definition,
-                name=statement.reference_project_version.project.name,
-                version=statement.reference_project_version.name,
+                definition=definition, name=requirement_name, version=ref_project_v.name
             )
         else:
             return language.Requirement(definition=definition, name=statement.name)

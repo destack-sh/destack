@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytz
 import structlog
-from django.db import models, transaction
+from django.db import connection, models, transaction
 from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
@@ -174,6 +174,7 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
             Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
         )
 
+    @property
     def content(self) -> Optional[language.SymbolContent]:
         from bench.models.mapper import rmap_statement  # avoid circular import
 
@@ -182,7 +183,7 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         try:
             lang_statement = rmap_statement(self, MOCK_FILE)
             return lang_statement.content
-        except ValueError as e:  # invalid/partial content
+        except ValueError:  # invalid/partial content
             return None
 
     def content_(self) -> language.SymbolContent:
@@ -212,7 +213,15 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
 
     @transaction.atomic
     def move_to(self, file: File, parent: Optional[Statement], index: Optional[int] = None) -> None:
-        """Moves this statement to a new file and/or parent statement. Updates children at both the old and new locations."""
+        """
+        Moves this statement to a new file and/or parent statement.
+        Updates children at both the old and new locations.
+        """
+        # use repeatable read isolation to avoid concurrent state changes
+        # (statement index swaps must be atomic to prevent duplicates)
+        cursor = connection.cursor()
+        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+
         # check that we're keeping import semantics: can only refer to statements in the same file
         if (
             self.type == StatementType.REFERENCE
@@ -224,24 +233,24 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         # reload self to get the latest location within transaction
         self.refresh_from_db(fields=["file", "parent", "index"])
 
-        old_siblings = self.siblings
-        siblings = parent.children if parent else file.root_statements
+        old_siblings = self.parent.children if self.parent else self.file.root_statements
+        new_siblings = parent.children if parent else file.root_statements
         if index is None:
             # if index not passed then insert at the end
-            index = siblings.count()
+            index = new_siblings.count()
 
         if self.file == file and self.parent == parent:
             # if file and parent are the same just swap
             if self.index == index:
                 # if index is the same then do nothing
                 return
-            other_statement = siblings.get(index=index)
+            other_statement = new_siblings.get(index=index)
             self.index, other_statement.index = other_statement.index, self.index
             self.save()
             other_statement.save()
         else:  # remove from old location and insert at new location
             # make space at new location
-            siblings.filter(index__gte=index).update(index=models.F("index") + 1)
+            new_siblings.filter(index__gte=index).update(index=models.F("index") + 1)
             # fill space at old location
             old_siblings.filter(index__gt=self.index).update(index=models.F("index") - 1)
             # update self

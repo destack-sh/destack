@@ -206,7 +206,13 @@ export function useStatementOps() {
     `)
   );
 
-  async function create(fileId: string, parentId: string | null, index: number, type: StatementType, name?: string) {
+  async function create(
+    fileId: string,
+    parentId: string | null,
+    index: number | null,
+    type: StatementType,
+    name?: string
+  ) {
     return await operations.perform({
       type: "statement.create",
       do: async () => {

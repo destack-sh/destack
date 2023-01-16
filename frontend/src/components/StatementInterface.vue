@@ -41,9 +41,7 @@ const reference = computed(() => useFragment(StatementHeaderType, statement.valu
 const symbolTypeKeyword = computed(() =>
   statement.value.symbolType ? SYMBOL_TYPE_KEYWORD[statement.value.symbolType] : null
 );
-const modifierKeyword = computed(() =>
-  statement.value.modifier ? MODIFIER_KEYWORD[statement.value.modifier] : null
-);
+const modifierKeyword = computed(() => (statement.value.modifier ? MODIFIER_KEYWORD[statement.value.modifier] : null));
 const depthOffsetX = computed(() => props.depth * 20);
 
 type FocusableComponent = Component & {
@@ -105,29 +103,44 @@ const editorState = useEditorState();
 const actions = useActions();
 const operations = useOperations();
 
-const meta = useStatementMetadata(toRef(props, "file"), toRef(props, "statement"));
-
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
-const isFamilyFocused = computed(() => isFocused.value || false); // nocheckin incomplete
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
 const readonly = computed(() => editorState.readonly || statement.value.compiled);
 
-type MetaAction = {
+const isRedefinition = computed(() => statement.value?.type == StatementType.Redefinition);
+const isDefinition = computed(() => statement.value?.type == StatementType.Definition || isRedefinition.value);
+const isReference = computed(() => statement.value?.type == StatementType.Reference || isRedefinition.value);
+const isParameter = computed(() => isReference.value && statement.value.modifier == StatementModifier.With);
+const isArgument = computed(() => isDefinition.value && statement.value.modifier == StatementModifier.With);
+const isImport = computed(() => statement.value?.type == StatementType.Import);
+const isComment = computed(() => statement.value?.type == StatementType.Comment);
+const isCommented = computed(() => statement.value?.commented);
+const isRunnable = computed(
+  () =>
+    !isImport.value &&
+    (statement.value?.symbolType == SymbolType.Code || statement.value?.symbolType == SymbolType.Task)
+);
+const isDeleted = computed(() => statement.value?.deletedAt != null);
+const isAlias = computed(
+  () => isImport.value && reference.value != null && reference.value?.name != statement.value.name
+);
+
+type InlineAction = {
   icon: Component;
   label: string;
   action: () => void;
 };
 
-const metaActions: ComputedRef<MetaAction[]> = computed(() => {
-  const metaActions = [];
-  if (meta.isRunnable) {
-    metaActions.push({
+const inlineActions: ComputedRef<InlineAction[]> = computed(() => {
+  const actions = [];
+  if (isRunnable.value) {
+    actions.push({
       icon: PlayIcon,
       label: "Run",
       action: () => ({}),
     });
   }
-  return metaActions;
+  return actions;
 });
 
 // manage focus, declaration and navigation
@@ -221,7 +234,8 @@ function cancelCurrentEditing() {
 }
 
 function navigateUp() {
-  if (declarationFocused.value) {
+  const hasDeclaration = statement.value.type != StatementType.Comment;
+  if (declarationFocused.value || (!hasDeclaration && containerFocused.value)) {
     // declaration is focused, go to previous statement
     declarationFocused.value = false;
     actions.apply("statement.moveFocusUp");
@@ -252,8 +266,8 @@ const aliasContent = ref("");
 const canCreateRef = computed(
   () =>
     statement.value.type != StatementType.Blank &&
-    !meta.isArgument &&
-    (meta.isImport || statement.value.parent?.id != null)
+    !isArgument.value &&
+    (isImport.value || statement.value.parent?.id != null)
 );
 const selectingReference = ref(false);
 const declarationSelection = useTextSelection();
@@ -265,7 +279,7 @@ whenever(keys["ctrl+space"], () => {
     selectingReference.value = true;
     // select first option
     // TODO @Feature: select option in reference selection (open combo box)
-    declarationComboboxOptionsRef.value?.focus?.(); // (this doesn')
+    declarationComboboxOptionsRef.value?.focus?.(); // (this doesn't work right now?)
   }
 });
 
@@ -320,8 +334,15 @@ const filteredSymbols = computed(() => {
   return symbols;
 });
 function getImportSourcePath(statement: StatementHeader): string | undefined {
-  return "???"; // nocheckin
+  return "." + statement.file.pathWithoutExtension;
 }
+const importPath = computed(() => {
+  if (statement.value.type == StatementType.Import && reference.value != null) {
+    return getImportSourcePath(reference.value as StatementHeader);
+  } else {
+    return undefined;
+  }
+});
 
 // react to declaration content input
 watch(
@@ -355,7 +376,7 @@ watchEffect(() => {
     return;
   }
   // reset/init declaration content
-  if (statement.value.type == StatementType.Definition || meta.isParameter) {
+  if (statement.value.type == StatementType.Definition || isParameter.value) {
     declarationContent.value = statement.value.name ?? "";
   } else if (statement.value.type == StatementType.Import || statement.value.type == StatementType.Reference) {
     if (reference.value != null) {
@@ -374,7 +395,7 @@ watchEffect(() => {
       aliasContent.value = "";
     }
   } else if (statement.value.symbolType == SymbolType.Requirement) {
-    declarationContent.value = meta.requirementPath ?? "";
+    declarationContent.value = ""; // should be requirement path
   }
 });
 
@@ -393,7 +414,7 @@ async function onDeclarationEnter() {
   if (declarationContent.value.length == 0) {
     // create blank statement and navigate down
     actions.apply("statement.insertBelowCurrent");
-  } else if (statement.value.type == StatementType.Definition || meta.isParameter) {
+  } else if (statement.value.type == StatementType.Definition || isParameter.value) {
     // rename and focus content
     await operations.statement.rename(statement.value.id, statement.value.name ?? "", declarationContent.value);
     (contentRef.value as FocusableComponent)?.focus?.();
@@ -421,10 +442,14 @@ function deleteLeftOnMain() {
   } else if (statement.value.modifier != null) {
     setModifier(null);
   } else if (statement.value.type == StatementType.Blank) {
-    // delete self, move focus up
-    actions.apply("statement.moveFocusUp");
-    operations.statement.delete(statement.value.id);
+    deleteSelf();
   }
+}
+
+function deleteSelf() {
+  // delete self, move focus up
+  actions.apply("statement.moveFocusUp");
+  operations.statement.delete(statement.value.id);
 }
 
 function deleteRightOnMain() {
@@ -477,22 +502,22 @@ async function morphToDefinition() {
   (contentRef.value as FocusableComponent)?.focus?.();
 }
 
-async function morphSetReference(to: StatementHeader) {
+async function morphSetReference(newReference: StatementHeader) {
   let targetType = statement.value.type == StatementType.Definition ? StatementType.Reference : statement.value.type;
   // TODO @Robustness: should morphs be atomic (rename + setReference + morph type)
-  if (statement.value.type != targetType || to.symbolType != statement.value.symbolType) {
+  if (statement.value.type != targetType || newReference.symbolType != statement.value.symbolType) {
     await operations.statement.morph(
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
-      { type: targetType, symbolType: to.symbolType ?? undefined }
+      { type: targetType, symbolType: newReference.symbolType ?? undefined }
     );
   }
-  if (to.name != statement.value.name) {
-    await operations.statement.rename(statement.value.id, statement.value.name ?? null, to.name ?? null);
-    declarationContent.value = to.name ?? "";
+  if (newReference.name != statement.value.name) {
+    await operations.statement.rename(statement.value.id, statement.value.name ?? null, newReference.name ?? null);
+    declarationContent.value = newReference.name ?? "";
   }
-  if (to.id != reference.value?.id) {
-    await operations.statement.setReference(statement.value.id, reference.value?.id, to.id);
+  if (newReference.id != reference.value?.id) {
+    await operations.statement.setReference(statement.value.id, reference.value?.id, newReference.id);
   }
 }
 
@@ -523,18 +548,18 @@ async function morphToBlank() {
 <template>
   <div
     ref="containerRef"
-    class="relative transition-colors border-gray-200 group border-x-0"
+    class="group relative border-x-0 border-gray-200 transition-colors"
     :class="{
       // 'border-gray-200 ': !isFocused,
-      'border-l-orange-500': isFamilyFocused,
+      // 'border-l-orange-500': isFamilyFocused,
       'hover:border-l-orange-300': !isFocused,
       // 'rounded-t-sm border-t border-gray-200': isFirstInGroup, // group top
       'pb-1': depth > 0, // inside group
       // 'rounded-b-sm border-b border-gray-200': isLastInGroup, // group bottom
       'pb-2.5': isLastInGroup && !isFirstInGroup, // group bottom with other top
       'pb-1.5': isLastInGroup && isFirstInGroup, // group top and bottom
-      'font-mono': !meta.isComment, // not sure if everything should be mono, but it's more consistent..
-      italic: meta.isCommented,
+      'font-mono': !isComment, // not sure if everything should be mono, but it's more consistent..
+      italic: isCommented,
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @click="onClickContainer"
@@ -542,13 +567,13 @@ async function morphToBlank() {
     <!-- Debug info -->
     <span
       v-if="editorState.debug"
-      class="absolute z-20 font-sans text-sm lowercase bg-red-200 bg-opacity-50 rounded-sm -top-1 -right-1"
+      class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm lowercase"
     >
       <template v-if="isFocused">f({{ declarationFocused ? "d" : "" }}{{ contentFocused ? "c" : "" }}) </template>
       <template v-if="isEditing">e</template>
       <template v-if="isFirstInGroup">[</template>
       <template v-if="isLastInGroup">]</template>
-      <template v-if="meta.isCommented">#</template>
+      <template v-if="isCommented">#</template>
       {{ statement.modifier }}
       {{ statement.type }}
       <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
@@ -556,39 +581,47 @@ async function morphToBlank() {
       i:{{ statement.index }} d:{{ depth }}
     </span>
     <!-- Commented overlay -->
-    <div v-if="meta.isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
+    <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
       class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
       :style="{ left: -30 + 'px' }"
       :class="{
-        'text-orange-200': !isFocused && !meta.isComment,
-        'text-gray-200': !isFocused && meta.isComment,
-        'text-orange-400': isFamilyFocused && !meta.isComment,
-        'text-gray-300': isFamilyFocused && meta.isComment,
-        'font-bold text-orange-600': isFocused && !meta.isComment,
-        'font-bold text-gray-400': isFocused && meta.isComment,
+        'text-orange-200': !isFocused && !isComment,
+        'text-gray-200': !isFocused && isComment,
+        // 'text-orange-400': isFamilyFocused && !isComment,
+        // 'text-gray-300': isFamilyFocused && isComment,
+        'font-bold text-orange-600': isFocused && !isComment,
+        'font-bold text-gray-400': isFocused && isComment,
       }"
       >{{ lineNumberBase + 1 }}</span
     >
     <!-- Statement focus indicator (left side if not editing) -->
     <div
-      class="absolute top-0 left-0 w-1 h-full"
+      class="absolute top-0 left-0 h-full w-1"
       :class="isFocused && !isEditing ? 'bg-orange-100' : 'bg-transparent'"
     />
     <!-- Statement focus indicator (top and bottom if editing) -->
     <div class="absolute top-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
+    <!-- Blank statement dots -->
+    <div
+      v-if="statement.type == StatementType.Blank && declarationContent == ''"
+      class="absolute top-0 mx-3 h-full w-full text-gray-300 group-hover:opacity-100"
+      :class="{ 'opacity-100': isFocused, 'opacity-0': !isFocused }"
+    >
+      ...
+    </div>
     <!-- Statement header & controls -->
-    <div class="flex flex-row items-center justify-between pt-1 mx-3">
+    <div class="mx-3 flex flex-row items-center justify-between pt-1">
       <!--  Declaration -->
       <!-- TODO @Cleanup: factor out statement declaration component (the mess is above) -->
       <div
-        v-if="!meta.isComment"
+        v-if="!isComment"
         class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
       >
         <!-- Statement prefixxes (types & modifiers) -->
-        <span class="mr-1 text-orange-600" v-if="meta.isImport">import</span>
+        <span class="mr-1 text-orange-600" v-if="isImport">import</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierKeyword }}</span>
         <span class="mr-1 text-orange-600" v-if="statement.symbolType">{{ symbolTypeKeyword }}</span>
         <!-- Editable statement main part -->
@@ -620,7 +653,7 @@ async function morphToBlank() {
               ref="declarationComboboxOptionsRef"
               static
               as="ul"
-              class="absolute z-10 mt-1 overflow-auto text-sm bg-white border border-orange-400 shadow-md top-4 max-h-60 w-96"
+              class="absolute top-4 z-10 mt-1 max-h-60 w-96 overflow-auto border border-orange-400 bg-white text-sm shadow-md"
               v-show="selectingReference"
             >
               <!-- References to select -->
@@ -632,7 +665,7 @@ async function morphToBlank() {
                 v-slot="{ active, selected }"
               >
                 <li
-                  class="relative flex flex-row justify-between p-1 decoration-none group/li hover:cursor-pointer"
+                  class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
                   :class="{ 'bg-orange-100': selected }"
                 >
                   <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
@@ -642,15 +675,15 @@ async function morphToBlank() {
                     </template>
                     {{ symbol.name }}
                   </span>
-                  <span class="text-gray-500 truncate">
+                  <span class="truncate text-gray-500">
                     {{ getImportSourcePath(symbol) || symbol.file.pathWithoutExtension }}
                   </span>
                 </li>
               </ComboboxOption>
               <!-- Nothing found -->
               <ComboboxOption key=":none" value=":none" as="template" v-if="filteredSymbols.length == 0" disabled>
-                <li class="relative flex flex-row justify-between p-1 decoration-none group/li hover:cursor-pointer">
-                  <span class="text-gray-500 group-hover/li:text-orange-600">{{ declarationContent }} not found</span>
+                <li class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer">
+                  <span class="group-hover/li:text-orange-600 text-gray-500">{{ declarationContent }} not found</span>
                 </li>
               </ComboboxOption>
               <!-- Define locally (if not an import) -->
@@ -662,7 +695,7 @@ async function morphToBlank() {
                 v-slot="{ active, selected }"
               >
                 <li
-                  class="relative flex flex-row justify-between p-1 decoration-none group/li hover:cursor-pointer"
+                  class="decoration-none group/li relative flex flex-row justify-between p-1 hover:cursor-pointer"
                   :class="{ 'bg-orange-100': selected }"
                 >
                   <span class="group-hover/li:text-orange-600" :class="{ 'text-orange-600': active }">
@@ -675,14 +708,14 @@ async function morphToBlank() {
           </Combobox>
         </div>
         <!-- Statement postfixes (alias & import location) -->
-        <span v-if="meta.isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
-        <span v-if="meta.isAlias" class="mx-1 text-orange-600">as</span>
+        <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
+        <span v-if="isAlias" class="mx-1 text-orange-600">as</span>
         <!-- Editable alias -->
         <EditableSpan
-          v-if="meta.isAlias"
+          v-if="isAlias"
           ref="aliasRef"
           maxlength="100"
-          class="outline-none text-inherit"
+          class="text-inherit outline-none"
           :readonly="readonly"
           v-model="aliasContent"
           @deleteLeft="deleteLeftOnAlias"
@@ -690,10 +723,10 @@ async function morphToBlank() {
           @click="startEditing"
         />
         <!-- Import postfix (not editable since derived from selected main) -->
-        <span v-if="meta.isImport" class="mx-1 text-orange-600">from</span>
-        <span v-if="meta.isImport && reference != null && meta.importPath != null">{{ meta.importPath }}</span>
+        <span v-if="isImport" class="mx-1 text-orange-600">from</span>
+        <span v-if="isImport && reference != null && importPath != null">{{ importPath }}</span>
         <span
-          v-if="meta.isImport && (reference == null || meta.importPath == null)"
+          v-if="isImport && (reference == null || importPath == null)"
           class="text-gray-400 group-focus:animate-pulse"
           >...</span
         >
@@ -702,7 +735,7 @@ async function morphToBlank() {
       <span
         class="inline-flex flex-row items-center font-sans"
         :class="{
-          'opacity-0 group-hover:opacity-100': !meta.isDefinition && !isFocused,
+          'opacity-0 group-hover:opacity-100': !isDefinition && !isFocused,
           'text-gray-400': !isFocused,
           'text-gray-500': isFocused,
         }"
@@ -718,13 +751,13 @@ async function morphToBlank() {
         <!-- Symbol meta controls -->
         <span class="inline-flex flex-row gap-1">
           <button
-            v-for="action in metaActions"
+            v-for="action in inlineActions"
             :key="action.label"
             class="rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
             :class="isFocused ? 'text-gray-500' : 'text-gray-400'"
             @click.prevent="action.action"
           >
-            <component :is="action.icon" class="w-4 h-4" />
+            <component :is="action.icon" class="h-4 w-4" />
           </button>
         </span>
       </span>
@@ -746,12 +779,11 @@ async function morphToBlank() {
         @navigateDown="navigateDown"
         @escape="cancelCurrentEditing"
       />
-      <span class="text-red-500" v-else> cannot render {{ statement.symbolType }} </span>
     </div>
     <!-- Comment content -->
     <!-- TODO @Cleanup: comment content should probably be just another component -->
     <!-- TODO @Cleanup: use proper comment styling instead of opacity -->
-    <div v-else-if="meta.isComment" class="mx-3 my-1 py-[0.5px]">
+    <div v-else-if="isComment" class="mx-3 my-1 py-[0.5px]">
       <MonacoEditor
         ref="contentRef"
         :modelValue="statement.text || ''"

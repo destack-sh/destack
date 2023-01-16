@@ -51,8 +51,8 @@ defineExpose({
     <MonacoEditor
       ref="monacoEditor"
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
-      hide-line-numbers
-      :style="{ marginLeft: -23 + 'px' }"
+      :line-number-shift-px="xOffset + 20"
+      :style="{ marginLeft: -xOffset - 43 + 'px' }"
       :model-value="btl"
       @update:model-value="saveBtlDebounced"
       language="btl"

@@ -4,8 +4,9 @@ import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
-import { useStatementActions } from "@/state/actions/statement";
-import { useEditorState } from "@/state/editor";
+import { useActions } from "@/state/actions";
+import { provideStatementActions as provideStatementActions } from "@/state/actions/statement";
+import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
@@ -29,7 +30,7 @@ const { result: file } = useQuery(
     fileId: props.fileId,
   })
 );
-const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file));
+const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) ?? undefined);
 const isDeleted = computed(() => fileHeader.value?.deletedAt != null);
 const { getTimeFromNowString } = useTimeFromNow(fileHeader.value?.deletedAt);
 const statements = computed(() => {
@@ -48,6 +49,16 @@ function restore() {
 }
 
 function getStatementContentLength(statement: StatementContentFragment) {
+  // TODO @UX: statement content length is only updated after its representation is debounced
+  if (statement.type == StatementType.Definition) {
+    if (statement.symbolType == SymbolType.Code && statement.code != null) {
+      return statement.code.split("\n").length;
+    } else if (statement.symbolType == SymbolType.Type && statement.btl != null) {
+      return statement.btl.split("\n").length;
+    } else if (statement.symbolType == SymbolType.Dataset && statement.records != null) {
+      return statement.records.length;
+    }
+  }
   return 0;
 }
 
@@ -105,15 +116,32 @@ const positionedStatements = computed(() => {
 
 const editor = useEditorState();
 const orderedStatements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
+const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
 const focused = computed(() => editor.focusedFileId == fileHeader.value?.id);
+const actions = useActions();
 
-useStatementActions(focused, fileHeader, orderedStatements);
+provideStatementActions(focused, fileHeader, orderedStatements, depths);
+
+async function insertStatementStart() {
+  actions.apply("statement.insertStart");
+}
+
+async function insertOrFocusStatementEnd() {
+  // focus last statement if it's a blank
+  const lastStatement = positionedStatements.value[positionedStatements.value.length - 1];
+  if (lastStatement?.statement.type == StatementType.Blank) {
+    editor.editElement(lastStatement.statement as StatementHeader);
+    return;
+  } else {
+    actions.apply("statement.insertEnd");
+  }
+}
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-white py-3 px-7" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+  <div class="flex h-full flex-col bg-white py-3 px-8" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
     <!-- Add statement to start -->
-    <StatementAddArea class="mx-auto max-w-[1050px]" :file="fileHeader" :index="0" />
+    <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
     <!-- File's statements -->
     <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
       <StatementInterface
@@ -127,7 +155,7 @@ useStatementActions(focused, fileHeader, orderedStatements);
       />
     </template>
     <!-- Add statement to end -->
-    <StatementAddArea class="mx-auto max-w-[1050px] flex-1" :file="fileHeader" :index="rootStatements.length" />
+    <StatementAddArea class="mx-auto max-w-[1050px] flex-1" @click="insertOrFocusStatementEnd" />
     <!-- Deleted overlay with restore button -->
     <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">
       <div class="flex flex-col items-center gap-2">

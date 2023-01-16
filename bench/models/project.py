@@ -206,14 +206,15 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statement.parent = new_statements.get(statement.parent_id)
             new_statements[old_id] = statement
             # if statement is a definition, add relations to save in batch later
-            new_content_relations = wmap_symbol(statement, old_content)
-            new_contents.extend(new_content_relations)
+            if old_content is not None:
+                new_content_relations = wmap_symbol(statement, old_content)
+                new_contents.extend(new_content_relations)
             statement.save()
         # 3. re-assign references
         for old in source.statements.filter(deleted_at=None):
             new = new_statements[old.id]
+            new.parent = new_statements.get(old.parent_id)  # may be null
             # replace ref (default to same ref if not in refs since library refs are not copied)
-            new.parent = new_statements[old.parent_id]
             new.reference = new_statements.get(old.reference_id, old.reference)
         Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
         # 4. save content relations
