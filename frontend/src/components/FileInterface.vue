@@ -1,9 +1,11 @@
 <script lang="ts" setup>
-import StatementDivider from "@/components/StatementDivider.vue";
+import StatementAddArea from "@/components/StatementAddArea.vue";
 import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import { StatementType, type StatementContentFragment } from "@/gql/graphql";
+import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
+import { useStatementActions } from "@/state/actions/statement";
+import { useEditorState } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
@@ -45,6 +47,10 @@ function restore() {
   operations.file.restore(fileHeader.value?.id);
 }
 
+function getStatementContentLength(statement: StatementContentFragment) {
+  return 0;
+}
+
 /* Statements are hierarchical but laid out linearly (in one column) */
 /* Certain statements may be grouped outside the hierarchy */
 type PositionedStatement = {
@@ -66,7 +72,7 @@ const positionedStatements = computed(() => {
     const isLastInRoot = isLast && children.length == 0;
 
     positionedStatements.push({ depth, lineNumberBase, statement, isFirstInGroup, isLastInGroup: isLastInRoot });
-    lineNumberBase += 1 + ((statement.content as { length?: number })?.length || 0);
+    lineNumberBase += 1 + getStatementContentLength(statement);
 
     // sort by index
     children.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -78,15 +84,16 @@ const positionedStatements = computed(() => {
   roots.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
   roots.forEach((root) => walkDfs(root, 0, true));
 
-  // group sibling import & comment statements at root
+  // group groupable sibling statements at root
   for (const [i, positioned] of positionedStatements.entries()) {
     if (
       positioned.statement.type == StatementType.Import ||
       positioned.statement.type == StatementType.Comment ||
-      positioned.statement.type == StatementType.Blank
+      positioned.statement.type == StatementType.Blank ||
+      positioned.statement.symbolType == SymbolType.Requirement
     ) {
       const next = positionedStatements[i + 1];
-      if (next && next.depth == 0 && next.statement.type == positioned.statement.type) {
+      if (next && next.depth == 0 && next?.statement.type == positioned.statement.type) {
         positioned.isLastInGroup = false;
         next.isFirstInGroup = false;
       }
@@ -95,15 +102,23 @@ const positionedStatements = computed(() => {
 
   return positionedStatements;
 });
+
+const editor = useEditorState();
+const orderedStatements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
+const focused = computed(() => editor.focusedFileId == fileHeader.value?.id);
+
+useStatementActions(focused, fileHeader, orderedStatements);
 </script>
 
 <template>
   <div class="flex h-full flex-col bg-white py-3 px-7" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
-    <StatementDivider class="mx-auto max-w-[1030px]" :file="fileHeader" :index="0" />
+    <!-- Add statement to start -->
+    <StatementAddArea class="mx-auto max-w-[1050px]" :file="fileHeader" :index="0" />
+    <!-- File's statements -->
     <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
       <StatementInterface
-        :file="fileHeader"
-        :statement="positioned.statement"
+        :file="(fileHeader as any)"
+        :statement="(positioned.statement as any)"
         :depth="positioned.depth"
         :isFirstInGroup="positioned.isFirstInGroup"
         :isLastInGroup="positioned.isLastInGroup"
@@ -111,7 +126,8 @@ const positionedStatements = computed(() => {
         class="mx-auto w-full max-w-[1000px]"
       />
     </template>
-    <StatementDivider class="mx-auto max-w-[1050px] px-2" :file="fileHeader" :index="rootStatements.length" />
+    <!-- Add statement to end -->
+    <StatementAddArea class="mx-auto max-w-[1050px] flex-1" :file="fileHeader" :index="rootStatements.length" />
     <!-- Deleted overlay with restore button -->
     <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">
       <div class="flex flex-col items-center gap-2">

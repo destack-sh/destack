@@ -1,46 +1,69 @@
 import { StatementType } from "@/gql/graphql";
-import { provideGlobalAction } from "@/state/actions";
-import { useEditorState } from "@/state/editor";
-import { useIntelliSense } from "@/state/intellisense";
+import { provideGlobalAction, provideSingletonAction } from "@/state/actions";
+import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { computed } from "vue";
+import { computed, type Ref } from "vue";
 
-export function useStatementActions() {
+export function useStatementActions(
+  enabled: Ref<boolean>,
+  file: Ref<FileHeader>,
+  orderedStatements: Ref<StatementHeader[]>
+) {
   const editor = useEditorState();
   const operations = useOperations();
-  const sense = useIntelliSense();
+
+  function getLocation(statement: StatementHeader) {
+    return {
+      fileId: file.value.id,
+      parentId: statement.parent?.id,
+      index: index.value,
+    };
+  }
+
+  const statementsById: Ref<Record<string, StatementHeader>> = computed(() => {
+    if (!enabled.value) return {};
+    const result: Record<string, StatementHeader> = {};
+    for (const statement of orderedStatements.value) {
+      result[statement.id] = statement;
+    }
+    return result;
+  });
+
+  const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(() => {
+    if (!enabled.value) return {};
+    const result: Record<string, StatementHeader[]> = {};
+    for (const statement of orderedStatements.value) {
+      const parentId = statement.parent?.id ?? "";
+      if (!result[parentId]) result[parentId] = [];
+      result[parentId].push(statement);
+    }
+    return result;
+  });
 
   // actions for currently focused statement
-  // maybe these actions should be provided by FileInterface? (which has the relevant state)
-  const statement = computed(() => sense.registry.statementsById[editor.focusedElementId as string]);
+  const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
   const index = computed(() => statement.value?.index ?? -1);
-  const siblings = computed(
-    () =>
-      sense.registry.statementsByParentId[statement.value?.parent?.id ?? ""] ||
-      sense.rootStatements(statement.value?.file.id ?? "")
-  );
-  const children = computed(() => sense.registry.statementsByParentId[statement.value.id] ?? []);
-  const parent = computed(() => sense.registry.statementsById[statement.value?.parent?.id ?? ""]);
-  const parentIndex = computed(() => parent.value?.index);
-  const grandparent = computed(() => sense.registry.statementsById[statement.value?.parent?.id ?? ""]?.parent);
-  const currentLocation = computed(() => ({
-    fileId: statement.value.file.id,
-    parentId: statement.value.parent?.id,
-    index: index.value,
-  }));
+  const siblings = computed(() => statementsByParentId.value[statement.value?.parent?.id ?? ""]);
+  const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
+  const position = computed(() => orderedStatements.value.findIndex((s) => s.id === statement.value?.id));
+  const location = computed(() => getLocation(statement.value));
+
+  const statementAbove = computed(() => orderedStatements.value[position.value - 1]);
+  const statementBelow = computed(() => orderedStatements.value[position.value + 1]);
 
   // move statement
-  const moveCurrentIn = provideGlobalAction({
+  const moveCurrentIn = provideSingletonAction({
     id: "statement.moveCurrentIn",
     label: "Move statement in",
     shortcuts: ["tab"],
     // we can only indent if there is a sibling above
     enabled: computed(() => !editor.editingElement && !!statement.value && index.value > 0),
+    registered: enabled,
     apply: async () => {
       // insert at end of previous sibling children (leave index undefined)
       const previousSibling = siblings.value[index.value - 1];
-      await operations.statement.move(statement.value.id, currentLocation.value, {
-        fileId: statement.value.file.id,
+      await operations.statement.move(statement.value.id, location.value, {
+        fileId: file.value.id,
         parentId: previousSibling.id,
         index: undefined,
       });
@@ -53,12 +76,15 @@ export function useStatementActions() {
     shortcuts: ["shift+tab"],
     // we can only outdent if there is a parent
     enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
+    registered: enabled,
     apply: async () => {
+      const parent = statementsById.value[statement.value.parent?.id];
+      const grandparent = statementsById.value[parent.parent?.id];
       // insert after parent (leave index undefined)
-      await operations.statement.move(statement.value.id, currentLocation.value, {
-        fileId: statement.value.file.id,
-        parentId: grandparent.value?.id,
-        index: (parentIndex.value ?? 0) + 1,
+      await operations.statement.move(statement.value.id, location.value, {
+        fileId: file.value.id,
+        parentId: grandparent.id,
+        index: (grandparent?.index ?? 0) + 1,
       });
     },
   });
@@ -67,16 +93,10 @@ export function useStatementActions() {
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => !!statement.value && (statement.value.parent != null || index.value > 0)),
+    enabled: computed(() => !!statement.value && statementAbove.value != null),
+    registered: enabled,
     apply: async () => {
-      // if index is > 0, move up within siblings
-      if (index.value > 0) {
-        await operations.statement.move(statement.value.id, currentLocation.value, {
-          fileId: statement.value.file.id,
-          parentId: statement.value.parent?.id,
-          index: index.value - 1,
-        });
-      }
+      await operations.statement.move(statement.value.id, location.value, getLocation(statementAbove.value));
     },
   });
 
@@ -84,54 +104,27 @@ export function useStatementActions() {
     id: "statement.moveCurrentDown",
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
-    enabled: computed(() => !!statement.value),
+    enabled: computed(() => !!statement.value && statementBelow.value != null),
+    registered: enabled,
     apply: async () => {
-      // if index is not last of its siblings, move down within parent
-      if (index.value < siblings.value.length - 1) {
-        await operations.statement.move(statement.value.id, currentLocation.value, {
-          fileId: statement.value.file.id,
-          parentId: statement.value.parent?.id,
-          index: index.value + 1,
-        });
+      if (statementBelow.value) {
+        await operations.statement.move(statement.value.id, location.value, getLocation(statementBelow.value));
       }
     },
   });
 
-  const statementAbove = computed(() => {
-    // if index is > 0, move up within siblings
-    if (index.value > 0) {
-      return siblings.value[index.value - 1];
-    } else if (parent.value) {
-      // if index is 0, move to parent
-      return parent.value;
-    }
-    return null;
-  });
-  const statementBelow = computed(() => {
-    // if index is not last of its siblings, move down within parent
-    if (index.value < siblings.value.length - 1) {
-      return siblings.value[index.value + 1];
-    } else if (parent.value) {
-      // if index is last, move to next sibling of parent
-      const parentSiblings = parent.value.parent
-        ? sense.registry.statementsByParentId[parent.value.parent.id]
-        : sense.rootStatements(statement.value.file.id);
-      if (parentSiblings != null && parentIndex.value != null && parentIndex.value < parentSiblings.length - 1) {
-        return parentSiblings[parentIndex.value + 1];
-      }
-    }
-    return null;
-  });
-
-  // move focus (if not editing element)
+  // move focus
   const moveFocusUp = provideGlobalAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
-    enabled: computed(() => !editor.editingElement && statementAbove.value != null),
+    registered: enabled,
     apply: () => {
       if (statementAbove.value != null) {
-        editor.focusElement(statementAbove.value);
+        editor.focusElement(statementAbove.value, true);
+      } else if (statement.value == null && orderedStatements.value.length > 0) {
+        // nothing focused, focus last statement
+        editor.focusElement(orderedStatements.value[orderedStatements.value.length - 1], true);
       }
     },
   });
@@ -139,21 +132,26 @@ export function useStatementActions() {
     id: "statement.moveFocusDown",
     label: "Move focus down",
     shortcuts: ["down"],
-    enabled: computed(() => !editor.editingElement && statementBelow.value != null),
+    registered: enabled,
     apply: () => {
+      console.log("move focus down");
       if (statementBelow.value != null) {
-        editor.focusElement(statementBelow.value);
+        editor.focusElement(statementBelow.value, true);
+      } else if (statement.value == null && orderedStatements.value.length > 0) {
+        // nothing focused, focus first statement
+        editor.focusElement(orderedStatements.value[0], true);
       }
     },
   });
-  // move focus in/out (if not editing element)
+  // move focus in/out
   const moveFocusIn = provideGlobalAction({
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
-    enabled: computed(() => !editor.editingElement && !!statement.value && children.value.length > 0),
+    enabled: computed(() => !editor.editingElement && !!statement.value && children.value?.length > 0),
+    registered: enabled,
     apply: () => {
-      editor.focusElement(children.value[0]);
+      editor.focusElement(children.value[0], true);
     },
   });
   const moveFocusOut = provideGlobalAction({
@@ -161,8 +159,10 @@ export function useStatementActions() {
     label: "Move focus out",
     shortcuts: ["left"],
     enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
+    registered: enabled,
     apply: () => {
-      editor.focusElement(parent.value);
+      const parent = statementsById.value[statement.value.parent?.id];
+      editor.focusElement(parent, true);
     },
   });
 
@@ -172,6 +172,7 @@ export function useStatementActions() {
     label: "Edit current statement",
     shortcuts: ["enter"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
+    registered: enabled,
     apply: () => {
       editor.editElement(statement.value);
     },
@@ -181,6 +182,7 @@ export function useStatementActions() {
     label: "Stop editing current statement",
     shortcuts: ["escape"],
     enabled: computed(() => !!statement.value && editor.editingElement),
+    registered: enabled,
     apply: () => {
       editor.stopEditingElement();
     },
@@ -192,6 +194,7 @@ export function useStatementActions() {
     label: "Delete current statement",
     shortcuts: ["d", "backspace", "delete"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
+    registered: enabled,
     apply: async () => {
       const below = statementBelow.value;
       await operations.statement.delete(statement.value.id);
@@ -207,15 +210,15 @@ export function useStatementActions() {
     label: "Insert statement above current",
     shortcuts: ["a"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
+    registered: enabled,
     apply: async () => {
-      const current = statement.value;
       const newStatement = await operations.statement.create(
-        current.file.id,
-        current.parent?.id ?? null,
-        current.index ?? 0,
+        file.value.id,
+        statement.value.parent?.id ?? null,
+        statement.value.index ?? 0,
         StatementType.Blank
       );
-      editor.editElement(newStatement);
+      editor.editElement(newStatement as StatementHeader);
     },
   });
   const insertAfterCurrent = provideGlobalAction({
@@ -223,15 +226,15 @@ export function useStatementActions() {
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
+    registered: enabled,
     apply: async () => {
-      const current = statement.value;
       const newStatement = await operations.statement.create(
-        current.file.id,
-        current.parent?.id ?? null,
-        (current.index ?? 0) + 1,
+        file.value.id,
+        statement.value.parent?.id ?? null,
+        (statement.value.index ?? 0) + 1,
         StatementType.Blank
       );
-      editor.editElement(newStatement);
+      editor.editElement(newStatement as StatementHeader);
     },
   });
   const insertChildCurrent = provideGlobalAction({
@@ -239,15 +242,15 @@ export function useStatementActions() {
     label: "Insert statement as child of current",
     shortcuts: ["shift+i", "shift+b", "shift+plus"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
+    registered: enabled,
     apply: async () => {
-      const current = statement.value;
       const newStatement = await operations.statement.create(
-        current.file.id,
-        current.id,
-        sense.registry.statementsByParentId[current.id]?.length ?? 0,
+        file.value.id,
+        statement.value.id,
+        statementsByParentId.value[statement.value.id]?.length ?? 0,
         StatementType.Blank
       );
-      editor.editElement(newStatement);
+      editor.editElement(newStatement as StatementHeader);
     },
   });
 
@@ -263,6 +266,7 @@ export function useStatementActions() {
         statement.value.type != StatementType.Blank &&
         statement.value.type != StatementType.Comment
     ),
+    registered: enabled,
     apply: async () => {
       await operations.statement.comment(statement.value.id, !statement.value.commented);
     },
