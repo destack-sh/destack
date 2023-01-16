@@ -1,22 +1,23 @@
 import { StatementType } from "@/gql/graphql";
-import { provideGlobalAction, provideSingletonAction } from "@/state/actions";
+import { provideSingletonAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { computed, type Ref } from "vue";
 
-export function useStatementActions(
+export function provideStatementActions(
   enabled: Ref<boolean>,
-  file: Ref<FileHeader>,
-  orderedStatements: Ref<StatementHeader[]>
+  file: Ref<FileHeader | undefined>,
+  orderedStatements: Ref<StatementHeader[]>,
+  depths: Ref<number[]>
 ) {
   const editor = useEditorState();
   const operations = useOperations();
 
   function getLocation(statement: StatementHeader) {
     return {
-      fileId: file.value.id,
+      fileId: file.value?.id,
       parentId: statement.parent?.id,
-      index: index.value,
+      index: statement.index ?? 0,
     };
   }
 
@@ -48,8 +49,15 @@ export function useStatementActions(
   const position = computed(() => orderedStatements.value.findIndex((s) => s.id === statement.value?.id));
   const location = computed(() => getLocation(statement.value));
 
-  const statementAbove = computed(() => orderedStatements.value[position.value - 1]);
-  const statementBelow = computed(() => orderedStatements.value[position.value + 1]);
+  const above = computed(() => orderedStatements.value[position.value - 1]);
+  const below = computed(() => orderedStatements.value[position.value + 1]);
+  const belowCurGroup = computed(() => {
+    // next statement after this with depth <= this depth
+    for (let i = position.value + 1; i < orderedStatements.value.length; i++) {
+      if (depths.value[i] <= depths.value[position.value]) return orderedStatements.value[i];
+    }
+    return undefined;
+  });
 
   // move statement
   const moveCurrentIn = provideSingletonAction({
@@ -60,17 +68,18 @@ export function useStatementActions(
     enabled: computed(() => !editor.editingElement && !!statement.value && index.value > 0),
     registered: enabled,
     apply: async () => {
-      // insert at end of previous sibling children (leave index undefined)
+      // insert at end of previous sibling's children (leave index undefined)
       const previousSibling = siblings.value[index.value - 1];
+      console.log(siblings.value);
       await operations.statement.move(statement.value.id, location.value, {
-        fileId: file.value.id,
+        fileId: file.value?.id,
         parentId: previousSibling.id,
         index: undefined,
       });
     },
   });
 
-  const moveCurrentOut = provideGlobalAction({
+  const moveCurrentOut = provideSingletonAction({
     id: "statement.moveCurrentOut",
     label: "Move statement out",
     shortcuts: ["shift+tab"],
@@ -82,61 +91,59 @@ export function useStatementActions(
       const grandparent = statementsById.value[parent.parent?.id];
       // insert after parent (leave index undefined)
       await operations.statement.move(statement.value.id, location.value, {
-        fileId: file.value.id,
-        parentId: grandparent.id,
-        index: (grandparent?.index ?? 0) + 1,
+        fileId: file.value?.id,
+        parentId: grandparent?.id,
+        index: (parent.index ?? 0) + 1,
       });
     },
   });
 
-  const moveCurrentUp = provideGlobalAction({
+  const moveCurrentUp = provideSingletonAction({
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => !!statement.value && statementAbove.value != null),
+    enabled: computed(() => !!statement.value && above.value != null),
     registered: enabled,
     apply: async () => {
-      await operations.statement.move(statement.value.id, location.value, getLocation(statementAbove.value));
+      await operations.statement.move(statement.value.id, location.value, getLocation(above.value));
     },
   });
 
-  const moveCurrentDown = provideGlobalAction({
+  const moveCurrentDown = provideSingletonAction({
     id: "statement.moveCurrentDown",
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
-    enabled: computed(() => !!statement.value && statementBelow.value != null),
+    enabled: computed(() => !!statement.value && belowCurGroup.value != null),
     registered: enabled,
     apply: async () => {
-      if (statementBelow.value) {
-        await operations.statement.move(statement.value.id, location.value, getLocation(statementBelow.value));
-      }
+      if (belowCurGroup.value == null) return;
+      await operations.statement.move(statement.value.id, location.value, getLocation(belowCurGroup.value));
     },
   });
 
   // move focus
-  const moveFocusUp = provideGlobalAction({
+  const moveFocusUp = provideSingletonAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
     registered: enabled,
     apply: () => {
-      if (statementAbove.value != null) {
-        editor.focusElement(statementAbove.value, true);
+      if (above.value != null) {
+        editor.focusElement(above.value, true);
       } else if (statement.value == null && orderedStatements.value.length > 0) {
         // nothing focused, focus last statement
         editor.focusElement(orderedStatements.value[orderedStatements.value.length - 1], true);
       }
     },
   });
-  const moveFocusDown = provideGlobalAction({
+  const moveFocusDown = provideSingletonAction({
     id: "statement.moveFocusDown",
     label: "Move focus down",
     shortcuts: ["down"],
     registered: enabled,
     apply: () => {
-      console.log("move focus down");
-      if (statementBelow.value != null) {
-        editor.focusElement(statementBelow.value, true);
+      if (below.value != null) {
+        editor.focusElement(below.value, true);
       } else if (statement.value == null && orderedStatements.value.length > 0) {
         // nothing focused, focus first statement
         editor.focusElement(orderedStatements.value[0], true);
@@ -144,7 +151,7 @@ export function useStatementActions(
     },
   });
   // move focus in/out
-  const moveFocusIn = provideGlobalAction({
+  const moveFocusIn = provideSingletonAction({
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
@@ -154,7 +161,7 @@ export function useStatementActions(
       editor.focusElement(children.value[0], true);
     },
   });
-  const moveFocusOut = provideGlobalAction({
+  const moveFocusOut = provideSingletonAction({
     id: "statement.moveFocusOut",
     label: "Move focus out",
     shortcuts: ["left"],
@@ -167,7 +174,7 @@ export function useStatementActions(
   });
 
   // start / stop editing current statement
-  const editCurrent = provideGlobalAction({
+  const editCurrent = provideSingletonAction({
     id: "statement.editCurrent",
     label: "Edit current statement",
     shortcuts: ["enter"],
@@ -177,7 +184,7 @@ export function useStatementActions(
       editor.editElement(statement.value);
     },
   });
-  const stopEditingCurrent = provideGlobalAction({
+  const stopEditingCurrent = provideSingletonAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing current statement",
     shortcuts: ["escape"],
@@ -189,23 +196,23 @@ export function useStatementActions(
   });
 
   // delete statement
-  const deleteCurrent = provideGlobalAction({
+  const deleteCurrent = provideSingletonAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["d", "backspace", "delete"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     registered: enabled,
     apply: async () => {
-      const below = statementBelow.value;
+      const above_ = above.value;
       await operations.statement.delete(statement.value.id);
-      if (below) {
-        editor.focusElement(below);
+      if (above_) {
+        editor.focusElement(above_);
       }
     },
   });
 
   // insert statement (as a sibling)
-  const insertBeforeCurrent = provideGlobalAction({
+  const insertBeforeCurrent = provideSingletonAction({
     id: "statement.insertAboveCurrent",
     label: "Insert statement above current",
     shortcuts: ["a"],
@@ -213,7 +220,7 @@ export function useStatementActions(
     registered: enabled,
     apply: async () => {
       const newStatement = await operations.statement.create(
-        file.value.id,
+        file.value?.id,
         statement.value.parent?.id ?? null,
         statement.value.index ?? 0,
         StatementType.Blank
@@ -221,7 +228,36 @@ export function useStatementActions(
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertAfterCurrent = provideGlobalAction({
+  const insertStart = provideSingletonAction({
+    id: "statement.insertStart",
+    label: "Insert statement at start of file",
+    shortcuts: [],
+    enabled: computed(() => !!file.value && !editor.editingElement),
+    registered: enabled,
+    apply: async () => {
+      const newStatement = await operations.statement.create(file.value?.id, null, 0, StatementType.Blank);
+      editor.editElement(newStatement as StatementHeader);
+    },
+  });
+  const insertEnd = provideSingletonAction({
+    id: "statement.insertEnd",
+    label: "Insert statement at end of file",
+    shortcuts: [],
+    enabled: computed(() => !!file.value && !editor.editingElement),
+    registered: enabled,
+    apply: async () => {
+      const roots = statementsByParentId.value[""];
+      const lastRootIndex = roots?.[roots.length - 1]?.index ?? -1;
+      const newStatement = await operations.statement.create(
+        file.value?.id,
+        null,
+        lastRootIndex + 1,
+        StatementType.Blank
+      );
+      editor.editElement(newStatement as StatementHeader);
+    },
+  });
+  const insertAfterCurrent = provideSingletonAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
@@ -229,7 +265,7 @@ export function useStatementActions(
     registered: enabled,
     apply: async () => {
       const newStatement = await operations.statement.create(
-        file.value.id,
+        file.value?.id,
         statement.value.parent?.id ?? null,
         (statement.value.index ?? 0) + 1,
         StatementType.Blank
@@ -237,7 +273,7 @@ export function useStatementActions(
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertChildCurrent = provideGlobalAction({
+  const insertChildCurrent = provideSingletonAction({
     id: "statement.insertChildCurrent",
     label: "Insert statement as child of current",
     shortcuts: ["shift+i", "shift+b", "shift+plus"],
@@ -245,7 +281,7 @@ export function useStatementActions(
     registered: enabled,
     apply: async () => {
       const newStatement = await operations.statement.create(
-        file.value.id,
+        file.value?.id,
         statement.value.id,
         statementsByParentId.value[statement.value.id]?.length ?? 0,
         StatementType.Blank
@@ -255,7 +291,7 @@ export function useStatementActions(
   });
 
   // toggle comment statement
-  const toggleCommentedCurrent = provideGlobalAction({
+  const toggleCommentedCurrent = provideSingletonAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
     shortcuts: ["t", "shift+t"],
@@ -284,6 +320,8 @@ export function useStatementActions(
     editCurrent,
     stopEditingCurrent,
     deleteCurrent,
+    insertStart,
+    insertEnd,
     insertBeforeCurrent,
     insertAfterCurrent,
     insertChildCurrent,

@@ -2,7 +2,6 @@ import { getRandomName } from "@/composables/useRandomName";
 import { provideGlobalAction } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { computed } from "vue";
 
 export function useFileActions() {
   const editor = useEditorState();
@@ -20,18 +19,5 @@ export function useFileActions() {
     },
   });
 
-  // delete
-  const delete_ = provideGlobalAction({
-    id: "file.delete",
-    label: "Delete file",
-    shortcuts: ["backspace", "delete"],
-    enabled: computed(() => !editor.editingElement && editor.focusedElementTypename == "File"),
-    apply: async () => {
-      if (editor.focusedElementId) {
-        await operations.file.delete(editor.focusedElementId);
-      }
-    },
-  });
-
-  return { create, delete: delete_ };
+  return { create };
 }

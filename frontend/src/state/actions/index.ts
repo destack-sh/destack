@@ -134,14 +134,19 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
         resolvedAction.value = toResolvedAction();
         actionsStore.upsert(resolvedAction.value);
       } else {
-        actionsStore.remove(action.id);
+        actionsStore.remove(resolvedAction.value);
       }
     },
     { deep: true }
   );
   onBeforeUnmount(() => {
     mounted.value = false;
-    actionsStore.remove(action.id);
+    if (mode == "singleton") {
+      // remove by instance, not id (in case of singleton actions)
+      actionsStore.remove(resolvedAction.value);
+    } else {
+      actionsStore.remove(action.id);
+    }
   });
 
   return resolvedAction;

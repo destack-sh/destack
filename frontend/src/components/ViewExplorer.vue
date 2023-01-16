@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { FileType } from "@/gql/graphql";
-import { provideAction, useActions } from "@/state/actions";
+import { provideAction, provideGlobalAction, useActions } from "@/state/actions";
 import { FILE_TYPE_KEYWORD, useEditorState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
@@ -82,6 +82,19 @@ const filesActions: Action[] = [
 function getFileTypeKeyword(file: FileHeader) {
   return FILE_TYPE_KEYWORD[file.type as FileType];
 }
+
+// focused file actions
+provideGlobalAction({
+  id: "file.delete",
+  label: "Delete file",
+  shortcuts: ["backspace", "delete"],
+  enabled: computed(() => !editor.editingElement && editor.focusedElementType == "File"),
+  apply: async () => {
+    if (editor.focusedElementId) {
+      await operations.file.delete(editor.focusedElementId);
+    }
+  },
+});
 </script>
 <template>
   <div ref="container">
@@ -103,7 +116,7 @@ function getFileTypeKeyword(file: FileHeader) {
     </div>
     <!-- View contents -->
     <div class="flex flex-1 flex-col">
-      <!-- View: explorer -->
+      <!-- View: file explorer -->
       <ul role="list" class="flex flex-col gap-1 py-1 text-sm">
         <li
           v-for="file in filesSorted"
