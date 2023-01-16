@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import FadeTransition from "@/components/basic/FadeTransition.vue";
+import FatHeader from "@/components/basic/FatHeader.vue";
+import HomeButton from "@/components/basic/HomeButton.vue";
+import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewHistory from "@/components/ViewHistory.vue";
@@ -20,7 +24,6 @@ import {
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
-import { useMeta } from "vue-meta";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -28,16 +31,7 @@ const props = defineProps<{
   project: string;
 }>();
 
-// fake data
-const user = {
-  name: "Florian Cäsar",
-  email: "yatima@symbolx.com",
-};
 const projectNavigation = [{ name: "Rename", href: "#" }];
-const userNavigation = [
-  { name: "Settings", href: "#" },
-  { name: "Sign out", href: "#" },
-];
 
 // views for the sidebar
 type View = {
@@ -136,20 +130,6 @@ const files = computed(
 const actions = useActions();
 const operationsStore = useOperationsStore();
 const anyInflightOps = computed(() => operationsStore.hasInflight);
-
-const canCompile = computed(() => false);
-async function createDefaultCompilation() {
-  throw new Error("not implemented");
-}
-
-const compileNavigation = computed(() => [
-  { name: "Compile all", action: () => ({}), disabled: true },
-  { name: "Compile optimized", action: () => ({}), disabled: true },
-  { name: "Add default target", action: createDefaultCompilation },
-]);
-
-// execute
-const canRun = false;
 
 // set up editor state
 const state = useEditorState();
@@ -284,177 +264,68 @@ watchEffect(async () => {
   <!-- Root -->
   <div class="flex h-full flex-col">
     <!-- Header with controls and auth -->
-    <header class="static mx-auto w-full flex-shrink-0 overflow-y-visible border-b border-gray-200 bg-white shadow-sm">
-      <div class="relative flex justify-between gap-8">
-        <!-- Left side: organizational & status -->
-        <div class="static flex items-center">
-          <!-- Home -->
-          <div class="flex flex-shrink-0 items-center px-4 py-2 hover:bg-gray-50">
-            <a href="#">
-              <svg viewBox="0 0 100 100" class="h-8 w-8 text-orange-600">
-                <!-- A workbench -->
-                <path
-                  d="M 50 0 L 100 25 L 100 75 L 50 100 L 0 75 L 0 25 Z"
-                  fill="currentColor"
-                  stroke="currentColor"
-                  stroke-width="2"
-                />
-                <!-- With an X across edge to edge -->
-                <path d="M 0 20 L 100 80" stroke="white" stroke-width="6" />
-                <path d="M 100 20 L 0 80" stroke="white" stroke-width="6" />
-              </svg>
-            </a>
-          </div>
-          <!-- Current project menu -->
-          <Menu as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
-            <div class="h-full">
-              <MenuButton
-                class="flex h-full items-center justify-between bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
-              >
-                <span class="sr-only">Open project menu</span>
-                <span class="text-sm">
-                  {{ organization }}
-                  /
-                  <span class="font-bold">{{ project }}</span>
-                </span>
-                <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5 text-gray-300" aria-hidden="true" />
-              </MenuButton>
-            </div>
-            <transition
-              enter-active-class="transition duration-100 ease-out"
-              enter-from-class="transform opacity-0"
-              enter-to-class="transform opacity-100"
-              leave-active-class="transition duration-75 ease-in"
-              leave-from-class="transform opacity-100"
-              leave-to-class="transform opacity-0"
+    <FatHeader>
+      <!-- Left side: organizational & status -->
+      <template v-slot:left>
+        <!-- Home -->
+        <HomeButton />
+        <!-- Current project menu -->
+        <Menu as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
+          <div class="h-full">
+            <MenuButton
+              class="flex h-full items-center justify-between bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
             >
-              <MenuItems
-                class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-              >
-                <MenuItem v-for="item in projectNavigation" :key="item.name" v-slot="{ active }">
-                  <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
-                    {{ item.name }}
-                  </a>
-                </MenuItem>
-              </MenuItems>
-            </transition>
-          </Menu>
-          <!-- Status -->
-          <div class="ml-2 flex items-center">
-            <!-- Sync indicator -->
-            <span class="p-1 transition-all">
-              <svg
-                viewBox="0 0 100 100"
-                class="h-1 w-1"
-                :class="{ 'text-gray-400': anyInflightOps, 'text-orange-400': !anyInflightOps }"
-              >
-                <circle cx="50" cy="50" r="40" fill="currentColor" />
-              </svg>
-            </span>
+              <span class="sr-only">Open project menu</span>
+              <span class="text-sm">
+                {{ organization }}
+                /
+                <span class="font-bold">{{ project }}</span>
+              </span>
+              <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5 text-gray-300" aria-hidden="true" />
+            </MenuButton>
           </div>
+          <FadeTransition>
+            <MenuItems
+              class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+            >
+              <MenuItem v-for="item in projectNavigation" :key="item.name" v-slot="{ active }">
+                <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
+                  {{ item.name }}
+                </a>
+              </MenuItem>
+            </MenuItems>
+          </FadeTransition>
+        </Menu>
+        <!-- Status -->
+        <div class="ml-2 flex items-center">
+          <span class="p-1 transition-all" v-if="state.debug">
+            <svg
+              viewBox="0 0 100 100"
+              class="h-1 w-1"
+              :class="{ 'text-gray-400': !anyInflightOps, 'text-orange-400': anyInflightOps }"
+            >
+              <circle cx="50" cy="50" r="40" fill="currentColor" />
+            </svg>
+          </span>
         </div>
-        <!-- Right side: controls (and profile) -->
-        <div class="flex min-w-fit flex-shrink-0 items-center justify-end">
-          <!-- Controls -->
-          <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
-            <!-- Compile menu -->
-            <div class="flex flex-row">
-              <button
-                :class="[
-                  'group inline-flex items-center justify-center rounded-l-sm py-2 px-3 text-sm font-semibold focus:outline-none',
-                  'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
-                  !canCompile ? 'cursor-not-allowed opacity-50' : '',
-                ]"
-                :disabled="!canCompile"
-              >
-                <WrenchIcon class="h-5 w-5" aria-hidden="true" />
-                <span class="ml-1">Compile</span>
-              </button>
-              <Menu as="div" class="relative h-full flex-shrink-0">
-                <MenuButton
-                  :class="[
-                    'flex h-full rounded-r-sm px-2 py-2 text-left',
-                    'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
-                    'border-l border-orange-200',
-                  ]"
-                >
-                  <ChevronDownIcon class="h-5 w-5" aria-hidden="true" />
-                </MenuButton>
-                <transition
-                  enter-active-class="transition duration-100 ease-out"
-                  enter-from-class="transform opacity-0"
-                  enter-to-class="transform opacity-100"
-                  leave-active-class="transition duration-75 ease-in"
-                  leave-from-class="transform opacity-100"
-                  leave-to-class="transform opacity-0"
-                >
-                  <MenuItems
-                    class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-                  >
-                    <MenuItem v-for="item in compileNavigation" :key="item.name" v-slot="{ active }">
-                      <button
-                        :class="[
-                          active ? 'bg-gray-100' : '',
-                          item.disabled ? 'cursor-not-allowed text-gray-500' : 'text-gray-700',
-                          'w-full py-2 px-4 text-left text-sm',
-                        ]"
-                        @click="item.action"
-                        :disabled="item.disabled"
-                      >
-                        {{ item.name }}
-                      </button>
-                    </MenuItem>
-                  </MenuItems>
-                </transition>
-              </Menu>
-            </div>
-            <!-- Run menu -->
-            <button
-              :class="[
-                'group inline-flex items-center justify-center rounded-sm py-2 px-3 text-sm font-semibold focus:outline-none',
-                'bg-orange-600 text-white hover:bg-orange-700 hover:text-slate-100',
-                !canRun ? 'cursor-not-allowed opacity-50' : '',
-              ]"
-              :disabled="!canRun"
-            >
-              <PlayIcon class="h-5 w-5" aria-hidden="true" />
-              <span class="ml-1">Run</span>
-            </button>
-          </div>
+      </template>
+      <!-- Right side: controls & profile -->
+      <template v-slot:right>
+        <!-- Controls -->
+        <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+          <!-- Compile -->
 
-          <!-- Profile dropdown -->
-          <Menu as="div" class="relative flex-shrink-0">
-            <div>
-              <MenuButton
-                class="flex flex-col bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
-              >
-                <span class="sr-only">Open user menu</span>
-                <span class="text-xs font-bold text-gray-900">{{ user.name }}</span>
-                <span class="text-xs text-gray-500">Personal</span>
-              </MenuButton>
-            </div>
-            <transition
-              enter-active-class="transition duration-100 ease-out"
-              enter-from-class="transform opacity-0"
-              enter-to-class="transform opacity-100"
-              leave-active-class="transition duration-75 ease-in"
-              leave-from-class="transform opacity-100"
-              leave-to-class="transform opacity-0"
-            >
-              <MenuItems
-                class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-              >
-                <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-                  <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
-                    {{ item.name }}
-                  </a>
-                </MenuItem>
-              </MenuItems>
-            </transition>
-          </Menu>
+          <!-- Run (and compile deps if needed) -->
+
+          <!-- Deploy run(s) -->
+
+          <!-- Share -->
         </div>
-      </div>
-    </header>
+
+        <!-- Profile dropdown -->
+        <ProfileMenuButton />
+      </template>
+    </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
@@ -485,7 +356,7 @@ watchEffect(async () => {
         </div>
         <!-- View content -->
         <div class="relative flex-1 flex-col">
-          <div class="absolute left-0 top-0 h-full w-full overflow-y-hidden">
+          <div class="absolute top-0 left-0 h-full w-full overflow-y-hidden">
             <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
             <ViewHistory
               v-show="activeView.id == 'history'"
@@ -500,13 +371,13 @@ watchEffect(async () => {
       <main class="flex h-full w-full flex-1 divide-x divide-gray-200 bg-gray-50">
         <!-- Left editor group -->
         <div class="relative flex-1">
-          <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
+          <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
             <EditorGroupInterface :group="state.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
         <div class="relative flex-1" v-if="state.right.editors.length > 0">
-          <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
+          <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
             <EditorGroupInterface :group="state.right" class="h-full w-full" />
           </div>
         </div>

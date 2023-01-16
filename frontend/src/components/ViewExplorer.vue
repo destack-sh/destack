@@ -92,6 +92,10 @@ provideGlobalAction({
   apply: async () => {
     if (editor.focusedElementId) {
       await operations.file.delete(editor.focusedElementId);
+      if (editor.focusedFileId == editor.focusedElementId && editor.focusedEditor) {
+        // close editor if focused file was deleted
+        editor.closeEditor(editor.focusedEditor);
+      }
     }
   },
 });
@@ -109,8 +113,8 @@ provideGlobalAction({
           class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
           @click.prevent="action.action"
         >
-          <component :is="action.icon" class="h-4 w-4 text-gray-600" />
-          <span class="pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
+          <component :is="action.icon" class="h-4 w-4 text-gray-500" />
+          <span class="sr-only pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
         </button>
       </span>
     </div>
