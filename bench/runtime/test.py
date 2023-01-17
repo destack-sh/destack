@@ -1,5 +1,5 @@
-from bench.backend.execute import execute, instantiate
 from bench.language.parse import index_module, parse_string
+from bench.runtime.execute import execute, instantiate
 
 
 def test_execute_single_code():

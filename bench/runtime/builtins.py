@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
-from bench.backend.provider import Completion, ModelHandle
+from bench.runtime.provider import Completion, ModelHandle
 from bench.utils.record import RecordBatch
 
 # Builtins are only called with trusted strings or in a sandbox.

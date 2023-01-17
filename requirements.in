@@ -8,9 +8,9 @@
 aiohttp==3.8.3
 asgiref==3.5.2
 cachetools==5.2.0
-catalogue==2.0.7
 channels==4.0.0
 dataclasses_json==0.5.7
+daphne==4.0.0
 dj-database-url==1.0.0
 django-axes==5.39.0
 django-cors-headers==3.13.0
@@ -32,9 +32,9 @@ gunicorn==20.1.0
 more-itertools==9.0.0
 posthoganalytics==2.1.2
 psycopg2==2.9.5
-pydantic==1.10.2
 python-dotenv==0.21.0
 pytz==2022.1
+pyzmq==25.0.0
 sentry-sdk==1.10.1
 social-auth-app-django==5.0.0
 strawberry-django-plus==1.29

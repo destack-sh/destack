@@ -1,25 +1,28 @@
 import asyncio
+from queue import Queue
 
-from bench.backend.tracing import ExecutionFrame
 from bench.models import Execution, ExecutionStatus
+from bench.runtime.tracing import ExecutionFrame
+
+# TODO @Cleanup: runtime.server should probably live in django-side of the backend
 
 
-class ModelExecutionTracker:
+class DbExecutionTracker:
     """Server-side execution tracker that stores execution frames in the database."""
 
     def __init__(self):
-        self.pending_frames_queue: asyncio.Queue[ExecutionFrame] = asyncio.Queue()
+        self.pending_frames_queue: Queue[ExecutionFrame] = asyncio.Queue()
 
     def receive_frame(self, frame: ExecutionFrame):
         self.pending_frames_queue.put_nowait(frame)
 
-    async def process_until_empty(self):
+    def process_until_empty(self):
         # TODO @Performance: batch execution tracker updates
         while not self.pending_frames_queue.empty():
-            await self.process_one()
+            self.process_one()
 
-    async def process_one(self):
-        frame = await self.pending_frames_queue.get()
+    def process_one(self):
+        frame = self.pending_frames_queue.get()
         if frame.exited_at:
             status = ExecutionStatus.Completed
         elif frame.exception:
@@ -51,5 +54,5 @@ class ModelExecutionTracker:
         )
         self.pending_frames_queue.task_done()
 
-    async def join(self):
-        await self.pending_frames_queue.join()
+    def join(self):
+        self.pending_frames_queue.join()

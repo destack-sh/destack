@@ -11,10 +11,10 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.backend.provider import Completion
-from bench.backend.type import CodeInstance, ModelInstance
 from bench.language.type import TypeNode
 from bench.language.typer import derive_type_from_value
+from bench.runtime.provider import Completion
+from bench.runtime.type import CodeInstance, ModelInstance
 
 logger = structlog.get_logger(__name__)
 

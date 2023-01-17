@@ -53,37 +53,19 @@ def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
         lang_module.files.append(lang_file)
 
     # map statements
-    for statement in project_v.statements.all():
+    statements = list(project_v.statements.all())
+    for statement in statements:
         lang_statement = rmap_statement(statement, file=lang_files[statement.file_id])
         lang_statements[statement.id] = lang_statement
         lang_statement.file.statements.append(lang_statement)
 
     # map references (incl. parent)
-    for statement in project_v.statements.all():
+    for statement in statements:
         lang_statement = lang_statements[statement.id]
         lang_statement.parent = lang_statements.get(statement.parent_id)
         lang_statement.reference = lang_statements.get(statement.reference_id)
 
     return lang_module
-
-
-def rmap_statement(statement: models.Statement, file: language.File):
-    """Reads a database statement into a language statement (without references)."""
-    lang_statement = language.Statement(
-        id=statement.id,
-        file=file,
-        parent=None,
-        index=statement.index,
-        type=statement.type,
-        modifier=statement.modifier,
-        name=statement.name,
-        text=statement.text,
-        symbol_type=statement.symbol_type,
-        reference=None,
-    )
-    if statement.type == StatementType.DEFINITION:
-        lang_statement.content = rmap_symbol(statement, lang_statement)
-    return lang_statement
 
 
 @transaction.atomic
@@ -136,6 +118,25 @@ def write(files: list[language.File], project_version: models.ProjectVersion) ->
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     return list(model_files.values())
+
+
+def rmap_statement(statement: models.Statement, file: language.File):
+    """Reads a database statement into a language statement (without references)."""
+    lang_statement = language.Statement(
+        id=statement.id,
+        file=file,
+        parent=None,
+        index=statement.index,
+        type=statement.type,
+        modifier=statement.modifier,
+        name=statement.name,
+        text=statement.text,
+        symbol_type=statement.symbol_type,
+        reference=None,
+    )
+    if statement.type == StatementType.DEFINITION:
+        lang_statement.content = rmap_symbol(statement, lang_statement)
+    return lang_statement
 
 
 def rmap_module(project_v: ProjectVersion) -> language.Module:
