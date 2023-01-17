@@ -8,7 +8,6 @@ https://docs.djangoproject.com/en/4.1/howto/deployment/asgi/
 and
 https://channels.readthedocs.io/en/latest/deploying.html
 """
-
 import os
 
 from channels.auth import AuthMiddlewareStack
@@ -18,6 +17,18 @@ from django.core.asgi import get_asgi_application
 from django.urls import re_path
 from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
+from twisted.internet import reactor
+
+from bench.settings import (
+    RUN_INTERNAL_SERVER,
+    RUN_RUNTIME_WORKER,
+    ZMQ_API_SERVER_ADDR,
+    ZMQ_INTERNAL_SERVER_ADDR,
+    ZMQ_INTERNAL_SERVER_PORT,
+    ZMQ_RUNTIME_WORKER_ADDR,
+    ZMQ_RUNTIME_WORKER_PORT,
+)
+from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
 django_asgi_app = get_asgi_application()
@@ -45,3 +56,26 @@ application = ProtocolTypeRouter(
         ),
     }
 )
+
+# TODO @Cleanup: move internal server & worker startup to proper daphne startup hook
+#  For now I just couldn't find the appropriate place to run this, so we rely
+#  on the fact that Daphne uses reactor's _asyncioEventLoop to create tasks there.
+if RUN_INTERNAL_SERVER:
+    from bench.runtime.dbserver import InternalServer
+
+    server = InternalServer()
+    coro = server.start(internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR)
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro))
+    reactor.addSystemEventTrigger("before", "shutdown", server.stop)
+
+if RUN_RUNTIME_WORKER:
+    from bench.runtime.worker import RuntimeWorker
+
+    worker = RuntimeWorker(worker_id="local")
+    coro = worker.start(
+        runtime_worker_addr=ZMQ_RUNTIME_WORKER_ADDR,
+        internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR,
+        api_server_addr=ZMQ_API_SERVER_ADDR,
+    )
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro))
+    reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

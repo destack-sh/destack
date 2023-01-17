@@ -22,9 +22,3 @@ class BenchConfig(AppConfig):
             from bench.management.commands.exportschema import write_schema
 
             write_schema("schema.gen.graphql", schema)
-
-        if DEBUG:
-            # run internal server
-            from bench.runtime.dbserver import InternalServer
-
-            # asyncio.get_running_loop().create_task(InternalServer().serve()) # nocheckin start server & worker

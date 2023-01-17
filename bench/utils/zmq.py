@@ -1,8 +1,14 @@
 import dataclasses
+import uuid
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
+from uuid import UUID
 
+import structlog
 import zmq.asyncio
+
+logger = structlog.get_logger(__name__)
 
 # increment when making backwards-incompatible changes to messages
 PROTOCOL_VERSION = 1
@@ -32,11 +38,15 @@ class ZMessageType(StrEnum):
     MODULE_STATE_CHANGED = "module_state_changed"
 
 
-@dataclass
+@dataclass(repr=False)
 class ZMessage:
     _type: ZMessageType
+    _id: UUID = dataclasses.field(default_factory=uuid.uuid4)
     _version: int = PROTOCOL_VERSION
-    # TODO @Performance: use envelope key to filter subs in zmq
+    # TODO @Performance: expose & use zmq envelope key to filter in zmq
+
+    def __str__(self):
+        return f"{self._type} {self._id}"
 
 
 def serialize_message(message: ZMessage) -> dict:
@@ -51,10 +61,13 @@ def parse_message(message_json: dict) -> ZMessage:
 
 def send_message(sock, message: ZMessage):
     sock.send_json(serialize_message(message))
+    logger.debug("send_message", msg=message)
 
 
 async def recv_message(sock) -> ZMessage:
-    return parse_message(await sock.recv_json())
+    msg = parse_message(await sock.recv_json())
+    logger.debug("recv_message", msg=msg)
+    return msg
 
 
 zmq_ctx_sync = zmq.Context()
