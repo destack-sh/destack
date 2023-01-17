@@ -166,10 +166,14 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
         statement.default_settings = content.settings
         return []
     elif isinstance(content, language.Code):
+        statement.description = content.description
+        statement.lang = content.language
         statement.code = content.code
         statement.btl = render_type_node(content.func_type)
         return []
     elif isinstance(content, language.Dataset):
+        statement.description = content.description
+        statement.lang = content.language
         statement.btl = render_type_node(content.element_type)
         model_records = [
             models.DatasetRecord(dataset=statement, index=i, data=data)
@@ -177,6 +181,7 @@ def wmap_symbol(statement: models.Statement, content: language.SymbolContent) ->
         ]
         return model_records
     elif isinstance(content, language.Value):
+        statement.description = content.description
         statement.value = content.value
         return []
     elif isinstance(content, language.Compilation):
@@ -230,8 +235,8 @@ def rmap_symbol(
         func_type = parse_type_node_func(btl_parser, name=statement.name)
         return language.Code(
             definition=definition,
-            # only python is supported for now
-            language="python",
+            description=statement.description,
+            language=statement.lang,
             code=statement.code,
             builtin_id=statement.code_builtin_id,
             func_type=func_type,
@@ -241,11 +246,15 @@ def rmap_symbol(
         element_type = parse_type_node_struct_inline(btl_parser, name=statement.name)
         return language.Dataset(
             definition=definition,
-            records=RecordList([record.data for record in statement.records.all()]),
+            description=statement.description,
+            language=statement.lang,
+            records=RecordList(statement.records.all().values_list("data", flat=True)),
             element_type=element_type,
         )
     elif statement.symbol_type == SymbolType.VALUE:
-        return language.Value(definition=definition, value=statement.value)
+        return language.Value(
+            definition=definition, description=statement.description, value=statement.value
+        )
     elif statement.symbol_type == SymbolType.COMPILATION:
         source_mappings = [
             language.SourceMapping(

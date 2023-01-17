@@ -250,7 +250,7 @@ class SymbolContent:
 @dataclass(repr=False)
 class Type(SymbolContent):
     node: TypeNode
-    description: str = ""
+    description: Optional[str]
 
     def __str__(self):
         return str(self.node)
@@ -325,8 +325,10 @@ class Expectation(SymbolContent):
 
 @dataclass(repr=False)
 class Dataset(SymbolContent):
+    language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
     records: RecordBatch
     element_type: TypeNode
+    description: Optional[str]
 
     def __str__(self):
         return f"({len(self.records)})"
@@ -335,6 +337,7 @@ class Dataset(SymbolContent):
 @dataclass(repr=False)
 class Value(SymbolContent):
     value: LiteralValue
+    description: Optional[str]
 
     def __content_str__(self):
         return f"{self.value}"
@@ -368,6 +371,7 @@ class ModelInferenceSettings:
 
 @dataclass(repr=False)
 class Code(SymbolContent):
+    description: Optional[str]
     language: Literal["python"]
     code: Optional[str]
     builtin_id: Optional[str]
@@ -433,7 +437,7 @@ EMPTY_ELEMENT_TYPE = TypeNode(None, TypeTag.STRUCT, children=[])
 
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
     if symbol_type == SymbolType.TYPE:
-        return Type(definition, TypeNode(None, TypeTag.STRUCT, children=[]))
+        return Type(definition, description="", node=TypeNode(None, TypeTag.STRUCT, children=[]))
     elif symbol_type == SymbolType.TASK:
         return Task(definition, description="", func_type=EMPTY_FUNC_TYPE)
     elif symbol_type == SymbolType.CAPABILITY:
@@ -441,12 +445,23 @@ def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -
     elif symbol_type == SymbolType.EXPECTATION:
         return Expectation(definition, description="")
     elif symbol_type == SymbolType.DATASET:
-        return Dataset(definition, records=RecordList([]), element_type=EMPTY_ELEMENT_TYPE)
+        return Dataset(
+            definition,
+            description="",
+            language="jsonl",
+            records=RecordList([]),
+            element_type=EMPTY_ELEMENT_TYPE,
+        )
     elif symbol_type == SymbolType.VALUE:
-        return Value(definition, value=None)
+        return Value(definition, value=None, description="")
     elif symbol_type == SymbolType.CODE:
         return Code(
-            definition, language="python", code="", builtin_id=None, func_type=EMPTY_FUNC_TYPE
+            definition,
+            description="",
+            language="python",
+            code="",
+            builtin_id=None,
+            func_type=EMPTY_FUNC_TYPE,
         )
     elif symbol_type == SymbolType.REQUIREMENT:
         return Requirement(definition, name="", version="")

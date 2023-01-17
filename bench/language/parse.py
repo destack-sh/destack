@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import enum
 import json
 import re
@@ -576,6 +577,7 @@ def _parse_definition_content(
         func_type = parse_type_node_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
+        description = _parse_description_optional(tokens)
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         if lang is None:
@@ -584,6 +586,7 @@ def _parse_definition_content(
             raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         return Code(
+            description=description,
             language=lang,
             builtin_id=None,
             code=code_text,
@@ -599,31 +602,44 @@ def _parse_definition_content(
         tokens.eat_bracket(")")
         tokens.eat_separator(":")
         tokens.eat_newline()
+        description = _parse_description_optional(tokens)
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         try:
+            value_str = _clean_literal_indent(literal.value, tokens.indent_level)
             if lang is None:
                 raise ParseError(PE.MISSING_EXTRA, literal, extra="lang")
             elif lang == "jsonl":
-                records = []
-                for value_line in literal.value.strip().splitlines():
-                    records.append(json.loads(value_line.strip()))
+                records = [json.loads(line) for line in value_str.splitlines()]
             elif lang == "json":
-                records = json.loads(literal.value)
+                records = json.loads(value_str)
+            elif lang == "csv":
+                field_names = [element.name for element in element_type.children]
+                csv_reader = csv.DictReader(
+                    value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
+                )
+                records = list(csv_reader)
             else:
                 raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
             return Dataset(
-                records=RecordList(records), element_type=element_type, definition=definition
+                description=description,
+                language=lang,
+                records=RecordList(records),
+                element_type=element_type,
+                definition=definition,
             )
-        except json.JSONDecodeError as e:
+        except ParseError:
+            raise  # re-raise since we don't want to catch our own errors
+        except ValueError as e:
             raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.VALUE:
         tokens.eat_separator(":")
         tokens.eat_newline()
+        description = _parse_description_optional(tokens)
         literal = tokens.eat_literal()
-        try:  # parse as json
+        try:  # parse as json?
             value = json.loads(literal.value)
-            return Value(value=value, definition=definition)
+            return Value(description=description, value=value, definition=definition)
         except json.JSONDecodeError as e:
             raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.COMPILATION:
@@ -667,16 +683,13 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.DEFINITION, symbol_type=SymbolType.TYPE, name=name.value, **kwargs
     )
     tokens.eat_newline()
-    description = tokens.peek_description()
-    if description is not None:
-        tokens.eat_description()
-        tokens.eat_newline()
+    description = _parse_description_optional(tokens)
     struct = parse_type_node_struct(tokens, name=definition.name)
     tokens.eat_newline_or_eos()
     definition.content = Type(
         definition=definition,
         node=struct,
-        description=description.value if description else None,
+        description=description,
     )
     return definition
 
@@ -845,7 +858,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         modifier=modifier,
         **kwargs,
     )
-    statement.content = Type(definition=statement, node=node)
+    statement.content = Type(definition=statement, description=None, node=node)
     return statement
 
 
@@ -862,6 +875,16 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
         symbol_type=symbol_type.value,
         **kwargs,
     )
+
+
+def _parse_description_optional(tokens: TokenParser) -> Optional[str]:
+    """Parse an optional description line"""
+    description = tokens.peek_description()
+    if description is not None:
+        tokens.eat_description()
+        tokens.eat_newline()
+    description = description.value if description else None
+    return description
 
 
 def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:

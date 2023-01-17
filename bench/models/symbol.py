@@ -68,11 +68,12 @@ class StatementManager(models.Manager["Statement"]):
 
 # sync with actual symbol content fields of Statement
 SYMBOL_CONTENT_VALUE_FIELDS = {
+    "language",
     "code",
     "code_builtin_id",
     "description",
-    "btl",
     "value",
+    "btl",
 }
 SYMBOL_CONTENT_RELATION_1TOM_FIELDS = {
     "reference_project_version",
@@ -121,12 +122,11 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     text = models.TextField(null=True, blank=True)  # for comment
-    # symbol contents (sync with SYMBOL_CONTENT_FIELDS)
-    code = models.TextField(null=True, blank=True)  # for code content
-    code_builtin_id = models.CharField(
-        max_length=MAX_NAME_LENGTH, null=True, blank=True
-    )  # for code content
-    description = models.TextField(null=True, blank=True)  # for task and expectation content
+    # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
+    lang = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    code = models.TextField(null=True, blank=True)
+    code_builtin_id = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)  # for any descriptions
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
