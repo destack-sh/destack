@@ -19,21 +19,6 @@ from uuid import UUID
 import structlog
 from django.db import models
 
-from bench.backend.builtins import CODE_BUILTINS
-from bench.backend.openai import OpenAIProvider
-from bench.backend.provider import Completion, ModelHandle, ModelProvider
-from bench.backend.tracing import Tracer
-from bench.backend.type import (
-    AsyncCodeCallable,
-    CodeInstance,
-    DatasetInstance,
-    ModelInstance,
-    StatementInstance,
-    SymbolInstance,
-    SyncCodeCallable,
-    TypeInstance,
-    ValueInstance,
-)
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Code,
@@ -43,6 +28,21 @@ from bench.language.type import (
     ModelInferenceSettings,
     Statement,
     Value,
+)
+from bench.runtime.builtins import CODE_BUILTINS
+from bench.runtime.openai import OpenAIProvider
+from bench.runtime.provider import Completion, ModelHandle, ModelProvider
+from bench.runtime.tracing import Tracer
+from bench.runtime.type import (
+    AsyncCodeCallable,
+    CodeInstance,
+    DatasetInstance,
+    ModelInstance,
+    StatementInstance,
+    SymbolInstance,
+    SyncCodeCallable,
+    TypeInstance,
+    ValueInstance,
 )
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordBatch

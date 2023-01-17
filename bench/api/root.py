@@ -12,9 +12,10 @@ from bench import models
 from bench.api.code import CodeMutation, CodeRunMutation
 from bench.api.compile import CompilationMutation
 from bench.api.expectation import ExpectationMutation
+from bench.api.live import ModuleStateSubscription
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
-from bench.api.symbol import Statement, StatementMutation, Type
+from bench.api.symbol import Statement, StatementMutation
 from bench.api.task import TaskMutation
 from bench.api.type import TypeMutation
 from bench.api.user import User
@@ -54,6 +55,11 @@ class Mutation(
     pass
 
 
+@strawberry.type
+class Subscription(ModuleStateSubscription):
+    pass
+
+
 default_extensions: list[Union[PyType[Extension], Extension]] = [
     DjangoOptimizerExtension,
     QueryDepthLimiter(max_depth=10),
@@ -71,7 +77,8 @@ else:
 schema = strawberry.Schema(
     Query,
     Mutation,
+    Subscription,
     extensions=extensions,
     # add interface implementation types explicitly
-    types=[Type],
+    types=[],
 )

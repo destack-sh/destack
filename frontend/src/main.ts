@@ -1,22 +1,48 @@
 /* eslint-disable no-console */
 
+import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createApp, h, provide } from "vue";
 import { version } from "../../package.json";
 
+import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
-import { ApolloClient, InMemoryCache } from "@apollo/client/core";
+import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
+import { getMainDefinition } from "@apollo/client/utilities";
 import { DefaultApolloClient } from "@vue/apollo-composable";
+import { createClient } from "graphql-ws";
 import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
-import { TYPE_POLICIES } from "@/utils/policies";
 
-async function init() {
-  const apolloClient = new ApolloClient({
+function createApolloClient() {
+  // split requests between http and ws
+  // see https://www.apollographql.com/docs/react/data/subscriptions
+  const httpLink = new HttpLink({
     uri: "http://localhost:8000/graphql",
+  });
+  const wsLink = new GraphQLWsLink(
+    createClient({
+      url: "ws://localhost:8000/graphql",
+    })
+  );
+  const splitLink = split(
+    ({ query }) => {
+      const definition = getMainDefinition(query);
+      return definition.kind === "OperationDefinition" && definition.operation === "subscription";
+    },
+    wsLink,
+    httpLink
+  );
+
+  return new ApolloClient({
+    link: splitLink,
     cache: new InMemoryCache({ typePolicies: TYPE_POLICIES }),
   });
+}
+
+async function init() {
+  const apolloClient = createApolloClient();
   const pinia = createPinia();
 
   const app = createApp({

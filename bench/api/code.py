@@ -8,7 +8,7 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.symbol import Statement
-from bench.backend.tracing import ExecutionTrace
+from bench.runtime.tracing import ExecutionTrace
 
 
 @gql.django.type(models.Execution)

@@ -3,7 +3,6 @@ from __future__ import annotations
 import typing
 from dataclasses import dataclass
 
-from bench.backend.provider import ModelHandle
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Code,
@@ -17,6 +16,7 @@ from bench.language.type import (
     TypeNode,
     Value,
 )
+from bench.runtime.provider import ModelHandle
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]

@@ -18,6 +18,7 @@ class ModelProvider(abc.ABC):
         raise NotImplementedError
 
 
+# TODO @Cleanup: Completion should be a Bench Type
 Completion = TypedDict(
     "Completion",
     {"text": str, "logits": Union[None, list[float]], "tokens": Union[None, list[str]]},

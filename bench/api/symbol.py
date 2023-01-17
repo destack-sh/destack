@@ -20,13 +20,6 @@ StatementType = gql.enum(models.StatementType)
 SymbolType = gql.enum(models.SymbolType)
 
 
-@gql.type
-class Type:
-    description: Optional[str]
-    btl: str
-    node: "TypeNode"
-
-
 TypeTag = gql.enum(bench.language.type.TypeTag)
 
 
@@ -38,6 +31,12 @@ class TypeNode:
     description: Optional[str]
     reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
+
+
+@gql.type
+class Type:
+    description: Optional[str]
+    btl: str
 
 
 @gql.type

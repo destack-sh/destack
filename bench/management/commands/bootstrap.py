@@ -7,13 +7,13 @@ from django.core.management import BaseCommand
 from django.db import transaction
 
 from bench import language
-from bench.backend.execute import ProviderKey
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.language.type import MOCK_STATEMENT, StatementType, SymbolType
 from bench.models import Organization, Project, Statement
 from bench.models.mapper import lookup_module_in_db, wmap_symbol, write
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
+from bench.runtime.execute import ProviderKey
 
 logger = structlog.get_logger(__name__)
 

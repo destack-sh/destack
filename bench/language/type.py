@@ -24,7 +24,7 @@ class StatementType(models.TextChoices):
     REDEFINITION = "redef"  # =
     # non-symbol statements
     COMMENT = "comment"  # #
-    BLANK = "blank"  #
+    BLANK = "blank"  # ...
 
 
 class StatementModifier(models.TextChoices):

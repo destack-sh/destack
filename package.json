@@ -32,6 +32,7 @@
     "axios": "^0.27.2",
     "graphql": "^16.6.0",
     "graphql-config": "^4.3.6",
+    "graphql-ws": "^5.11.2",
     "luxon": "^3.0.1",
     "mande": "^2.0.2",
     "monaco-editor": "^0.34.1",
