@@ -1,5 +1,3 @@
-import asyncio
-
 import structlog
 import zmq
 
@@ -16,28 +14,34 @@ logger = structlog.get_logger(__name__)
 class WorkerOrchestrator:
     """Worker orchestrator manages workers lifecycles (incl. heartbeats)"""
 
-    async def orchestrate(self):
+    async def start(self, port: int):
         raise NotImplementedError
 
 
 class InternalServer:
     """Server-side Bench language server for reading and writing modules in DB."""
 
+    def __init__(self):
+        self.rep_sock = zmq_ctx.socket(zmq.REP)
+
+    async def start(self, internal_server_addr: str):
+        logger.info("internal_server.start", internal_server_addr=internal_server_addr)
+        # request/reply for read/write modules
+        self.rep_sock.bind(internal_server_addr)
+
+        while True:
+            request = await recv_message(self.rep_sock)
+
+            response = await self.handle_request(request)
+            await send_message(self.rep_sock, response)
+
     async def handle_request(self, request: ZMessage) -> ZMessage:
+        logger.debug("internal_server.handle", request=request)
         raise NotImplementedError
 
-    async def serve(self, port=5555):
-        logger.info("start_internal_server", port=port)
-        # request/reply for read/write modules
-        async with zmq_ctx.socket(zmq.REP) as sock:
-            sock.bind(f"tcp://*:{port}")
-
-            while True:
-                request = await recv_message(sock)
-                logger.info("received request", request=request)
-
-                response = await self.handle_request(request)
-                await send_message(sock, response)
+    async def stop(self):
+        logger.info("internal_server.stop")
+        self.rep_sock.close()
 
 
 async def store_inbound_execution_frames():

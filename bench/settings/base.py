@@ -15,3 +15,6 @@ TEST: bool = (
 PROMETHEUS_EXPORT_MIGRATIONS: bool = get_from_env(
     "PROMETHEUS_EXPORT_MIGRATIONS", False, type_cast=str_to_bool
 )
+
+RUN_INTERNAL_SERVER = get_from_env("RUN_INTERNAL_SERVER", DEBUG, type_cast=str_to_bool)
+RUN_RUNTIME_WORKER = get_from_env("RUN_WORKER", DEBUG, type_cast=str_to_bool)
