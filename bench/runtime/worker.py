@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
 from strawberry_django_plus import gql
 
 from bench.api.symbol import Statement, TypeNode
+from bench.language import Module
 
 
 @gql.type
@@ -16,7 +19,7 @@ class Task:
 
 @gql.type
 class InterpStatement(Statement):
-    type: TypeNode
+    type: Optional[TypeNode]
 
 
 @gql.type
@@ -36,14 +39,18 @@ class ModuleError:
     statement: Statement
 
 
-class ModuleLanguageWorker:
-    def __init__(self, module_id: UUID):
-        self.module_id = module_id
+@dataclass
+class ModuleWorkerState:
+    module_id: UUID
+    module_state: ModuleState
+    module: Module
 
-    async def start(self):
-        # TODO @Incomplete: get initial module state from zmq server, subscribe to changes
 
-        # TODO @Incomplete: trigger and tasks and send out updated module state
+async def start_worker(worker_id: UUID):
+    # TODO @Incomplete: get initial module state from zmq server, subscribe to changes
+    module = None
 
-        # TODO @Incomplete: write back compilation results to zmq server
-        pass
+    # TODO @Incomplete: trigger and tasks and send out updated module state
+
+    # TODO @Incomplete: write back compilation results to zmq server
+    pass

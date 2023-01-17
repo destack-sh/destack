@@ -12,9 +12,9 @@ from bench import models
 from bench.api.code import CodeMutation, CodeRunMutation
 from bench.api.compile import CompilationMutation
 from bench.api.expectation import ExpectationMutation
-from bench.api.live import ModuleStateSubscription
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
+from bench.api.realtime import ModuleStateSubscription
 from bench.api.symbol import Statement, StatementMutation
 from bench.api.task import TaskMutation
 from bench.api.type import TypeMutation
