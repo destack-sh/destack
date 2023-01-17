@@ -1,11 +1,20 @@
 --- lib.instruct ---
 # EntityType should really be an enum
 type EntityType = string
+
 type Entity:
 "A named entity in a text"
 name: string "Canonical name of the entity"
 'type': EntityType
 confidence: number | null "Confidence in the detected type"
+
+    like data samples :: (name: string, 'type': EntityType):
+    "Common uses of [Entity]"
+    ```csv
+    "Barack Obama","PER"
+    "London","LOC"
+    "Google","ORG"
+    ```
 
 --- main.instruct ---
 # Describe what to do

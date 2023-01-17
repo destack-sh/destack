@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from collections import defaultdict
 from typing import Iterable, Optional, cast
@@ -134,10 +136,11 @@ def render_statement(statement: Statement) -> str:
 
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
     if isinstance(content, Type):
+        rendered_type = render_type_node(content.node)
         if content.description is not None:
-            return f"{render_description(content.description)}\n{render_type_node(content.node)}"
+            return f"{render_description(content.description)}\n{rendered_type}"
         else:
-            return render_type_node(content.node)
+            return rendered_type
     elif isinstance(content, Capability):
         return render_description(content.description)
     elif isinstance(content, Task):
@@ -145,13 +148,37 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
     elif isinstance(content, Expectation):
         return render_description(content.description)
     elif isinstance(content, Code):
-        return render_literal(content.code, lang=content.language)
+        rendered_code = render_literal(content.code, lang=content.language)
+        if content.description is not None:
+            return f"{render_description(content.description)}\n{rendered_code}"
+        else:
+            return rendered_code
     elif isinstance(content, Dataset):
-        records_as_jsonl = "\n".join(json.dumps(record) for record in content.records)
-        return render_literal(records_as_jsonl, lang="jsonl")
+        if content.language == "jsonl":
+            records_as_jsonl = "\n".join(json.dumps(record) for record in content.records)
+            rendered_data = render_literal(records_as_jsonl, lang="jsonl")
+        elif content.language == "json":
+            rendered_data = render_literal(json.dumps(content.records), lang="json")
+        elif content.language == "csv":
+            field_names = [field.name for field in content.element_type.children]
+            csv_output = io.StringIO()
+            csv_writer = csv.DictWriter(
+                csv_output, quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
+            )
+            csv_writer.writerows(content.records)
+            rendered_data = render_literal(csv_output.getvalue().strip(), lang="csv")
+        else:
+            raise ValueError(f"unexpected data language: {content.language}")
+        if content.description is not None:
+            return f"{render_description(content.description)}\n{rendered_data}"
+        else:
+            return rendered_data
     elif isinstance(content, Value):
-        value_as_json = json.dumps(content.value)
-        return render_literal(value_as_json)
+        rendered_value = render_literal(json.dumps(content.value))
+        if content.description is not None:
+            return f"{render_description(content.description)}\n{rendered_value}"
+        else:
+            return rendered_value
     elif isinstance(content, (Compilation, Runconfig, Requirement)):
         return None
     else:
