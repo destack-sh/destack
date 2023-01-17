@@ -511,7 +511,7 @@ input TaskUpdateContentDescription {
 }
 
 type Type {
-  description: String!
+  description: String
   btl: String!
   node: TypeNode!
 }
