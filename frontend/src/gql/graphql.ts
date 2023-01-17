@@ -642,7 +642,7 @@ export type TaskUpdateContentDescription = {
 export type Type = {
   __typename?: "Type";
   btl: Scalars["String"];
-  description: Scalars["String"];
+  description?: Maybe<Scalars["String"]>;
   node: TypeNode;
 };
 
@@ -893,7 +893,7 @@ export type TypeNodeContentDeepFragment = {
   children?: Array<{ __typename?: "TypeNode"; name?: string | null; type: TypeTag; required: boolean }> | null;
 } & { " $fragmentName"?: "TypeNodeContentDeepFragment" };
 
-export type TypeContentFragment = { __typename?: "Type"; description: string; btl: string } & {
+export type TypeContentFragment = { __typename?: "Type"; description?: string | null; btl: string } & {
   " $fragmentName"?: "TypeContentFragment";
 };
 

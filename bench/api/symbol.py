@@ -22,7 +22,7 @@ SymbolType = gql.enum(models.SymbolType)
 
 @gql.type
 class Type:
-    description: str
+    description: Optional[str]
     btl: str
     node: "TypeNode"
 

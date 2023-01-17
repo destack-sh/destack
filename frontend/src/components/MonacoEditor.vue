@@ -135,6 +135,11 @@ function initMonaco(monaco: Monaco) {
       horizontal: "hidden",
       handleMouseWheel: false,
     },
+    // disable indent highlighting
+    guides: {
+      indentation: false,
+      highlightActiveIndentation: false,
+    },
     theme: "bench",
   });
 
