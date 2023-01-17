@@ -570,15 +570,13 @@ async function morphToBlank() {
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
-      class="absolute top-[7px] w-6 select-none text-right font-mono text-sm"
+      class="absolute top-[7px] w-6 select-none text-right font-mono text-sm not-italic"
       :style="{ left: -30 + 'px' }"
       :class="{
-        'text-orange-200': !isFocused && !isComment,
-        'text-gray-200': !isFocused && isComment,
-        // 'text-orange-400': isFamilyFocused && !isComment,
-        // 'text-gray-300': isFamilyFocused && isComment,
-        'font-bold text-orange-600': isFocused && !isComment,
-        'font-bold text-gray-400': isFocused && isComment,
+        'text-orange-200': !isFocused && !(isComment || isCommented),
+        'text-gray-200': !isFocused && (isComment || isCommented),
+        'font-bold text-orange-600': isFocused && !(isComment || isCommented),
+        'font-bold text-gray-400': isFocused && (isComment || isCommented),
       }"
       >{{ lineNumberBase + 1 }}</span
     >

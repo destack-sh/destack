@@ -39,7 +39,7 @@ const dataAsCsvText = computed(() => {
 
 // TODO @Incomplete: data type info
 const typeAvailable = computed(() => false);
-const typeNodes = computed(() => []);
+const typeNodes = computed(() => []); // could stub names only until type info is available
 
 // local interface state
 const state = useDatasetInterfaceState(statement);
