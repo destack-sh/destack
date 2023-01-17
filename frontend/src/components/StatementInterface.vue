@@ -434,6 +434,8 @@ function deleteLeftOnMain() {
   } else if (statement.value.type == StatementType.Blank) {
     deleteSelf();
   }
+  // TODO @Robustness: delete and insert new blank statement instead of morphing to blank
+  //  If we have content, delete & swap is the easiest way to get proper undo/redo.
 }
 
 function deleteSelf() {
@@ -543,7 +545,7 @@ async function morphToBlank() {
       // 'border-gray-200 ': !isFocused,
       // 'border-l-orange-500': isFamilyFocused,
       'hover:border-l-orange-300': !isFocused,
-      'pt-0.5': true,
+      'pb-0.5': true,
       'font-mono': !isComment, // not sure if everything should be mono, but it's more consistent..
       italic: isCommented,
     }"
@@ -570,7 +572,7 @@ async function morphToBlank() {
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
-      class="absolute top-[7px] w-6 select-none text-right font-mono text-sm not-italic"
+      class="absolute top-[6px] w-6 select-none text-right font-mono text-sm not-italic"
       :style="{ left: -30 + 'px' }"
       :class="{
         'text-orange-200': !isFocused && !(isComment || isCommented),

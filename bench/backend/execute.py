@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import enum
 import hashlib
 import json
 import os
@@ -67,8 +68,30 @@ CAN_EXEC = DEBUG or TEST
 logger = structlog.stdlib.get_logger()
 
 
-class ExecutionError(Exception):
-    pass
+class RunErrorType(enum.Enum):
+    INTERNAL = 0, "Internal error"
+    PARSE = 1, "Parse error"
+    VALIDATION = 2, "Validation error"
+    RUNTIME = 3, "Runtime code error"
+
+    def __new__(cls, value, description):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.description = description
+        return obj
+
+
+class RunError(Exception):
+    def __init__(
+        self,
+        _t: RunErrorType,
+        statement: typing.Optional[Statement],
+        cause: typing.Optional[Exception] = None,
+    ):
+        self.type = _t
+        self.statement = statement
+        self.cause = cause
+        super().__init__(self.type.description)
 
 
 ModelInference = typing.NamedTuple("ModelInference", [("id", UUID), ("output", dict)])
@@ -306,10 +329,14 @@ def _instantiate_code_callable(
         func_name = f"_anon_{code.definition.id.hex}"
         async_str = "async " if code.is_async else ""
         func_params = ", ".join(input_keys)
-        indented_code = textwrap.indent(code.code, "    ")
+        indented_code = textwrap.indent(code.code, " " * 4)
         code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
         local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
-        code_callable = _execute_code(code_str, local_globals)[func_name]
+        try:
+            code_callable = _execute_code(code_str, local_globals)[func_name]
+        except Exception as e:
+            # shouldn't error unless it's a python parse issue since we're just defining a function
+            raise RunError(RunErrorType.PARSE, code.definition, cause=e) from e
     return code_callable
 
 
@@ -382,7 +409,7 @@ def execute(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
     try:
         return code.py_handle(**arguments)
     except Exception as e:
-        raise ExecutionError(f"error executing {code} with {_summarize_args(arguments)}: {e}", e)
+        raise RunError(RunErrorType.USER, code.definition, cause=e) from e
 
 
 def _summarize_args(arguments: Any) -> str:
@@ -414,7 +441,4 @@ def _do_execute(code: str, globals: dict):
     if not CAN_EXEC:
         raise RuntimeError("exec outside sandbox is not allowed")
 
-    try:
-        exec(code, globals)
-    except Exception as e:
-        raise ExecutionError(f"error running code with globals {globals}: {e}", e) from e
+    exec(code, globals)
