@@ -12,6 +12,7 @@ from strawberry_django_plus.relay import GlobalID
 
 import bench.language.type
 from bench import models
+from bench.api.common import async_safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -220,7 +221,7 @@ class StatementMutation:
     rename_statement: Statement = gql.django.update_mutation(StatementRenameInput)
     set_modifier_statement: Statement = gql.django.update_mutation(StatementSetModifierInput)
 
-    @gql.mutation
+    @async_safe_mutation
     def create_statement(self, input: StatementCreateInput) -> StatementCreatePayload:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
@@ -237,7 +238,7 @@ class StatementMutation:
         )
         return StatementCreatePayload(statement=statement)
 
-    @gql.mutation
+    @async_safe_mutation
     def set_reference_statement(
         self, input: StatementSetReferenceInput
     ) -> StatementSetReferencePayload:
@@ -251,19 +252,19 @@ class StatementMutation:
         statement.save()
         return StatementSetReferencePayload(statement=statement)
 
-    @gql.mutation
+    @async_safe_mutation
     def morph_statement(self, input: StatementMorphInput) -> MorphStatementPayload:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         statement.morph_to(input.type, input.symbol_type)
         return MorphStatementPayload(statement=statement)
 
-    @gql.mutation
+    @async_safe_mutation
     def comment_statement(self, input: StatementCommentedInput) -> StatementCommentedPayload:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.set_commented(input.commented)
         return StatementCommentedPayload(statement=statement)
 
-    @gql.mutation
+    @async_safe_mutation
     def move_statement(self, input: StatementMoveInput) -> StatementMovePayload:
         statement = models.Statement.objects.get(id=input.id.node_id)
         file = models.File.objects.get(id=input.file_id.node_id)
@@ -274,13 +275,13 @@ class StatementMutation:
         statement.move_to(file, parent, input.index)
         return StatementMovePayload(statement=statement, old_file=old_file, new_file=file)
 
-    @gql.mutation
+    @async_safe_mutation
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> StatementSoftDeletePayload:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.soft_delete()
         return StatementSoftDeletePayload(statement=statement)
 
-    @gql.mutation
+    @async_safe_mutation
     def restore_statement(self, input: StatementRestoreInput) -> StatementRestorePayload:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)

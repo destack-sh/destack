@@ -6,6 +6,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.api.common import async_safe_mutation
 from bench.models import StatementType
 from bench.models.project import RefDict
 
@@ -137,7 +138,7 @@ class CommitPayload:
 
 @gql.type
 class ProjectVersionMutation:
-    @gql.mutation
+    @async_safe_mutation
     def commit(self, input: CommitInput) -> CommitPayload:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
@@ -197,13 +198,13 @@ class FileMutation:
     create_file: File = gql.django.create_mutation(FileCreateInput)
     rename_file: File = gql.django.update_mutation(FileRenameInput)
 
-    @gql.mutation
+    @async_safe_mutation
     def soft_delete_file(self, input: FileSoftDeleteInput) -> File:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
-    @gql.mutation
+    @async_safe_mutation
     def restore_file(self, input: FileRestoreInput) -> File:
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()

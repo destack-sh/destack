@@ -7,6 +7,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.api.common import async_safe_mutation
 from bench.api.symbol import Statement
 from bench.runtime.tracing import ExecutionTrace
 
@@ -37,7 +38,7 @@ class CodeUpdateContentCode:
 
 @gql.type
 class CodeMutation:
-    @gql.mutation
+    @async_safe_mutation
     def update_code_content(self, input: CodeUpdateContentCode) -> Statement:
         statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
         statement.code_builtin_id = input.builtin_id

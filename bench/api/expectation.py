@@ -2,6 +2,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.api.common import async_safe_mutation
 from bench.api.symbol import Statement
 
 
@@ -13,7 +14,7 @@ class ExpectationUpdateContentDescription:
 
 @gql.type
 class ExpectationMutation:
-    @gql.mutation
+    @async_safe_mutation
     def update_expectation_content(self, input: ExpectationUpdateContentDescription) -> Statement:
         statement: models.Statement = models.Statement.objects.get(id=input.statement_id.node_id)
         statement.description = input.description

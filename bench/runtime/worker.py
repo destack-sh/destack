@@ -47,7 +47,7 @@ class RuntimeWorker:
         if module_id not in self.working_modules:
             req_read_module = ZMessage(ZMessageType.REQ_READ_MODULE)
             send_message(self.int_req_sock, req_read_module)
-            rep_read_module = recv_message(self.int_req_sock)
+            rep_read_module = await recv_message(self.int_req_sock)
 
         return self.working_modules[module_id]
 
