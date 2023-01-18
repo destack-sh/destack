@@ -11,7 +11,7 @@ from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.language.type import MOCK_STATEMENT, StatementType, SymbolType
 from bench.models import Organization, Project, Statement
-from bench.models.mapper import lookup_module_in_db, wmap_symbol, write
+from bench.models.mapper import lookup_module_in_db, wmap_symbol, write_module
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 from bench.runtime.execute import ProviderKey
 
@@ -82,7 +82,7 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     source_file = SourceFile(path=path, content=Path(path).read_text())
     module = parse(lex(source_file), lookup_module=lookup_module_in_db, on_error="raise")
     language_files = module.files
-    write(language_files, stdlib_v)
+    write_module(language_files, stdlib_v)
 
     # advance head
     stdlib_v.commit(name=version_id)

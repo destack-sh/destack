@@ -23,7 +23,6 @@ from bench.language.parse import (
 from bench.language.reconstruct import render_type_node
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.models.project import FileType, Project, ProjectVersion
-from bench.utils.record import RecordList
 
 
 def lookup_module_in_db(
@@ -34,13 +33,13 @@ def lookup_module_in_db(
         raise ValueError(f"could not find module {requirement}")
 
     # TODO @Performance: cache indexed module for lookup by version
-    module: language.Module = read(version, path)
+    module: language.Module = read_module(version, path)
     idx = index_module(module)
     return idx.statements_by_path.get(path)
 
 
 @transaction.atomic(savepoint=False)  # read-only
-def read(project_v: ProjectVersion, path: StatementPath | None = None) -> language.Module:
+def read_module(project_v: ProjectVersion, path: StatementPath | None = None) -> language.Module:
     """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
     lang_module = rmap_module(project_v)
     lang_files: dict[UUID, language.File] = {}
@@ -69,7 +68,9 @@ def read(project_v: ProjectVersion, path: StatementPath | None = None) -> langua
 
 
 @transaction.atomic
-def write(files: list[language.File], project_version: models.ProjectVersion) -> list[models.File]:
+def write_module(
+    files: list[language.File], project_version: models.ProjectVersion
+) -> list[models.File]:
     """Write the language files (and their contents) as models to the database."""
     lang_statements: dict[UUID, language.Statement] = {}
     model_files: dict[UUID, models.File] = {}
@@ -249,7 +250,7 @@ def rmap_symbol(
             definition=definition,
             description=statement.description,
             language=statement.lang,
-            records=RecordList(statement.records.all().values_list("data", flat=True)),
+            records=list(statement.records.all().values_list("data", flat=True)),
             element_type=element_type,
         )
     elif statement.symbol_type == SymbolType.VALUE:

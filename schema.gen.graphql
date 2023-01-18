@@ -157,7 +157,7 @@ type ModuleError {
 type ModuleState {
   id: UUID!
   tasks: [Task!]!
-  allSymbols: [InterpStatement!]!
+  symbols: [InterpStatement!]!
   errors: [ModuleError!]!
 }
 

@@ -94,7 +94,6 @@ class SyntaxError(ValueError):
         file: SourceFile,
         line_number: int,
         column: int,
-        extra_message: str | None = None,
     ) -> str:
         context = get_location_pointer(file, line_number, column)
         return f"{type.value} at {file.path}:{line_number}:{column}:\n{context}"

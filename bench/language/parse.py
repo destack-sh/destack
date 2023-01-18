@@ -39,7 +39,6 @@ from bench.language.type import (
     Value,
     parse_statement_path,
 )
-from bench.utils.record import RecordList
 
 logger = structlog.get_logger(__name__)
 
@@ -564,7 +563,7 @@ def _parse_definition_content(
             return Dataset(
                 description=description,
                 language=lang,
-                records=RecordList(records),
+                records=records,
                 element_type=element_type,
                 definition=definition,
             )
