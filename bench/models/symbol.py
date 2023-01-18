@@ -12,9 +12,8 @@ from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench import language
+from bench.language import wire
 from bench.language.type import (
-    MOCK_FILE,
     MOCK_STATEMENT,
     StatementModifier,
     StatementType,
@@ -23,11 +22,10 @@ from bench.language.type import (
 )
 from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
-from bench.models.model import ModelContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import File, ProjectVersion
+    from bench.models import File, ProjectVersion, mapper
 
 logger = structlog.get_logger(__name__)
 
@@ -85,7 +83,7 @@ SYMBOL_CONTENT_RELATION_MTOM_FIELDS = {
 }
 
 
-class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin, CompilationContentMixin):
+class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     """
     A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
@@ -133,12 +131,14 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin, CompilationCo
     )
     value = models.JSONField(null=True, blank=True)  # for value
     btl = models.TextField(null=True, blank=True)  # for any type nodes
-    # ... other contents currently via DatasetContentMixin and ModelContentMixin
+    external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
+    provider = models.CharField(max_length=64, null=True, blank=True)  # for model
+    default_settings = models.JSONField(null=True, blank=True)  # for model
 
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)
         if self.type == StatementType.DEFINITION:
-            content_str = f"{self.content}"
+            content_str = "()"  # should have some nice __str__ here
         elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
             content_str = f"{self.reference}"
         elif self.type == StatementType.COMMENT:
@@ -174,18 +174,6 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin, CompilationCo
         return Statement._base_manager.filter(
             Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
         )
-
-    @property
-    def content(self) -> Optional[language.SymbolContent]:
-        from bench.models.mapper import rmap_statement  # avoid circular import
-
-        if self.symbol_type is None:
-            return None
-        try:
-            lang_statement = rmap_statement(self, MOCK_FILE)
-            return lang_statement.content
-        except ValueError:  # invalid/partial content
-            return None
 
     @gql.model_property(only=["type", "reference"], select_related=["reference"])
     def source_definition(self) -> Statement:
@@ -251,20 +239,16 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin, CompilationCo
         symbol_type: SymbolType | None,
     ):
         """Changes the type of the statement (new default content fields may overwrite old ones)."""
-        from bench.models.mapper import wmap_symbol  # avoid circular import
 
         self.type = type
         # set default content if not already set
         self.symbol_type = symbol_type
         # create default content for the given type if not already set
-        if (
-            self.symbol_type is not None
-            and self.type == StatementType.DEFINITION
-            and self.content is None  # 'content' is dynamically created on symbol_type
-        ):
+        if self.symbol_type is not None and self.type == StatementType.DEFINITION:
             lang_symbol = get_default_symbol_content(MOCK_STATEMENT, symbol_type)
-            # ignore created relations since defaults are empty
-            _ = wmap_symbol(self, lang_symbol)
+            wire_statement = wire.rmap_statement(self)
+            wire.rmap_symbol(lang_symbol, wire_statement)
+            _ = mapper.wmap_symbol(self, wire_statement)
         self.save()
 
     @transaction.atomic
