@@ -6,7 +6,7 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.language import lex, parse
+from bench.language import lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
@@ -80,8 +80,8 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     stdlib_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
     module = parse(lex(source_file), lookup_module=lookup_module_in_db, on_error="raise")
-    language_files = module.files
-    write_module(language_files, stdlib_v)
+    wire_module = wire.rmap_module(module)
+    write_module(wire_module.files, stdlib_v)
 
     # advance head
     stdlib_v.commit(name=version_id)
@@ -119,9 +119,9 @@ def create_model_providers():
                 type=StatementType.DEFINITION,
                 symbol_type=SymbolType.MODEL,
                 name=model_id,
-                provider=provider_key,
-                external_name=model_id,
             )
+            statement.provider = provider_key
+            statement.external_name = model_id
             statement.save()
 
         # advance head

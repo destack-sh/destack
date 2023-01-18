@@ -176,6 +176,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         )
 
     def copy(self, source: ProjectVersion, target: ProjectVersion) -> dict[UUID, File | Statement]:
+        if not source.committed:
+            raise ValueError(f"source version must be committed: {source}")
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  (generally good, but also especially for dataset records, mappings and other relations)
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
@@ -205,15 +207,14 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statement.pk = new_statements_ids[old_id]
             statement._state.adding = True
             statement.revision = 0  # reset revision
-            statement.source_file = new_files[statement.file_id]
+            statement.file = new_files[statement.file_id]
             statement.project_version = target
             statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
-            new_statements[old_id] = statement
             # if statement is a definition, add relations to save in batch later
             # all other symbol contents are value fields (copied automatically above)
             if statement.type == StatementType.DEFINITION:
-                # the relations are saved below in step 3 (after statement creation)
+                # the relations are saved below in step 4 (after statement creation)
                 if statement.symbol_type == SymbolType.DATASET:
                     for record in statement.records.all():
                         record.pk = None
@@ -229,6 +230,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                         mapping.target_revision = 0
                         new_contents.append(mapping)
             statement.save()
+            new_statements[old_id] = statement
 
         # 3. re-assign references
         for old in source.statements.filter(deleted_at=None):
@@ -237,6 +239,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             # replace ref (default to same ref if not in refs since library refs are not copied)
             new.reference = new_statements.get(old.reference_id, old.reference)
         Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
+
         # 4. save content relations
         for relation_cls, relations in groupby(new_contents, key=type):
             relation_cls.objects.bulk_create(relations)

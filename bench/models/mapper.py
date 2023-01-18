@@ -115,7 +115,7 @@ def write_module(
         model_statements[stmt_data.id] = model_statement
 
         if stmt_data.type == StatementType.DEFINITION:
-            new_relations = wmap_symbol(stmt_data, model_statement)
+            new_relations = wmap_symbol(model_statement, stmt_data)
             model_contents_relations.extend(new_relations)
 
     # create statements
@@ -182,30 +182,28 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         ]
 
 
-def wmap_symbol(
-    model_statement: models.Statement, statement: wire.StatementData
-) -> list[typing.Any]:
+def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[typing.Any]:
     """Writes a wire statement's symbol into a database statement."""
-    model_statement.description = statement.description
-    model_statement.lang = statement.lang
-    model_statement.code = statement.code
-    model_statement.code_builtin_id = statement.code_builtin_id
-    model_statement.provider = statement.provider
-    model_statement.external_name = statement.external_name
-    if isinstance(statement.type_node, language.TypeNode):
+    statement.description = data.description
+    statement.lang = data.lang
+    statement.code = data.code
+    statement.code_builtin_id = data.code_builtin_id
+    statement.provider = data.provider
+    statement.external_name = data.external_name
+    if isinstance(data.type_node, language.TypeNode):
         # render type node to string
-        model_statement.type_node = render_type_node(statement.type_node)
+        statement.type_node = render_type_node(data.type_node)
     else:
-        model_statement.type_node = statement.type_node
+        statement.type_node = data.type_node
 
     # copy relational data
-    if statement.records:
+    if data.records:
         model_records = [
             models.DatasetRecord(dataset=statement, index=i, data=data)
-            for i, data in enumerate(statement.records)
+            for i, data in enumerate(data.records)
         ]
         return model_records
-    elif statement.mappings:
+    elif data.mappings:
         mappings = [
             models.SourceMapping(
                 source_id=m.source_id,
@@ -215,6 +213,8 @@ def wmap_symbol(
                 target_path=m.target_path,
                 target_revision=m.target_revision,
             )
-            for m in statement.mappings
+            for m in data.mappings
         ]
         return mappings
+    else:
+        return []

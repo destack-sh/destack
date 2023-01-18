@@ -8,10 +8,11 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.language import lex, parse
+from bench import language
+from bench.language import lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.models import Organization, Project
-from bench.models.mapper import lookup_module_in_db, rmap_module, write_module
+from bench.models.mapper import lookup_module_in_db, write_module
 from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)
@@ -44,10 +45,11 @@ class Command(BaseCommand):
 
         project_v = project.create_version(name=version_id)
         project_v.reset()
-        module = rmap_module(project_v)
+        module = language.Module(id=project_v.id, name=project_v.project.path)
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        language_files = parse(lex(source_file), module, lookup_module_in_db).files
-        write_module(language_files, project_v)
+        module = parse(lex(source_file), module, lookup_module_in_db)
+        wire_module = wire.rmap_module(module)
+        write_module(wire_module.files, project_v)
 
         # advance head to new version
         project.head = project_v

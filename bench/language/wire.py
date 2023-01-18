@@ -102,7 +102,7 @@ def wmap_file(data: FileData, module: language.Module) -> language.File:
         module=module,
         path=data.path,
     )
-    file.statement = [wmap_statement(statement, file) for statement in data.statements]
+    file.statements = [wmap_statement(statement, file) for statement in data.statements]
     return file
 
 
@@ -121,7 +121,8 @@ def rmap_statement(statement: language.Statement) -> StatementData:
         text=statement.text,
         symbol_type=statement.symbol_type,
     )
-    rmap_symbol(statement.content, data)
+    if statement.content is not None:
+        rmap_symbol(statement.content, data)
     return data
 
 
@@ -200,6 +201,7 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
             definition=statement,
             provider=data.provider,
             external_name=data.external_name,
+            settings=None,
         )
     elif data.value is not None:
         return language.Value(definition=statement, description=data.description, value=data.value)
