@@ -47,13 +47,12 @@ class ZMessageType(StrEnum):
 
     # Bench module runtime state sync
     # API <-> Worker
-    REQ_MODULE_STATE = "req_module_state"
-    REP_MODULE_STATE = "rep_module_state"
-    MODULE_STATE_CHANGED = "module_state_changed"
+    REQ_MODULE_RUNTIME = "req_module_runtime"
+    REP_MODULE_RUNTIME = "rep_module_runtime"
+    MODULE_RUNTIME_CHANGED = "module_runtime_changed"
 
 
-# TODO @Performance @Robustness: use custom message types & format that don't refer to other systems
-#  Right now we carry uncontrolled baggage from anything that tags along our language dataclasses.
+# TODO @Performance @Robustness: use custom message types & format beyond JSON?
 
 
 @_register_payload(ZMessageType.REQ_READ_MODULE)
@@ -66,13 +65,13 @@ class RepReadModulePayload:
     module: wire.ModuleData
 
 
-@_register_payload(ZMessageType.REQ_MODULE_STATE)
-class ReqModuleStatePayload:
+@_register_payload(ZMessageType.REQ_MODULE_RUNTIME)
+class ReqModuleRuntimePayload:
     module_id: UUID
 
 
-@_register_payload(ZMessageType.REP_MODULE_STATE)
-class RepModuleStatePayload:
+@_register_payload(ZMessageType.REP_MODULE_RUNTIME)
+class RepModuleRuntimePayload:
     module_id: UUID
     files: list[wire.FileData]
     symbols: list[wire.StatementData]

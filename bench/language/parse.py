@@ -57,13 +57,14 @@ ErrorT = typing.TypeVar("ErrorT", bound=ValueError)
 
 
 class ErrorCollector(typing.Generic[ErrorT]):
-    def __init__(self, on_error: Callable[[ErrorT], None]):
+    def __init__(self, on_error: Callable[[ErrorT], None] | None = None):
         self.on_error = on_error
         self.errors: list[ErrorT] = []
 
     def __call__(self, error: ErrorT):
         self.errors.append(error)
-        self.on_error(error)
+        if self.on_error:
+            self.on_error(error)
 
 
 ET = ErrorType
@@ -706,7 +707,7 @@ def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False
         raise ParseError(ET.UNEXPECTED_TOKEN_TYPE, tokens.peek(), type="| or &")
 
 
-def parse_type_node_struct(tokens: TokenParser, name: str) -> TypeNode:
+def parse_type_node_struct(tokens: TokenParser, name: str | None) -> TypeNode:
     # parse tuples like <tuple1>\n<tuple2>\n...
     struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
     while True:

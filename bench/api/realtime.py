@@ -6,14 +6,14 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench.api.symbol import Statement, TypeNode
-from bench.runtime.worker import ReqModuleStatePayload
+from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_ADDR
 from bench.zmq import ZMessage, ZMessageType, recv_message_with, send_message, zmq_ctx
-from bench.zmq.messages import RepModuleStatePayload
+from bench.zmq.messages import RepModuleRuntimePayload
 
 
 @gql.type
-class Task:
+class Job:
     id: UUID
     name: str
 
@@ -24,9 +24,9 @@ class InterpStatement(Statement):
 
 
 @gql.type
-class ModuleState:
+class ModuleRuntime:
     id: UUID
-    tasks: list[Task]
+    jobs: list[Job]
     symbols: list[InterpStatement]
     errors: list["ModuleError"]
 
@@ -39,28 +39,28 @@ class ModuleError:
 
 
 @gql.type
-class ModuleStateSubscription:
+class ModuleRuntimeSubscription:
     @gql.subscription
-    async def module_state_changed(
+    async def module_runtime_changed(
         self, project_version_id: GlobalID
-    ) -> AsyncGenerator[ModuleState, None]:
+    ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_RUNTIME_WORKER_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
         worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_ADDR)
 
-        req_module_state_msg = ZMessage(
-            ZMessageType.REQ_MODULE_STATE, ReqModuleStatePayload(module_id=project_version_id)
+        req_module_runtime_msg = ZMessage(
+            ZMessageType.REQ_MODULE_RUNTIME, ReqModuleRuntimePayload(module_id=project_version_id)
         )
-        send_message(worker_req_sock, req_module_state_msg)
-        reply, module_state = await recv_message_with(worker_req_sock, RepModuleStatePayload)
-        yield ModuleState(module_id=module_state.module_id, tasks=[], symbols=[], errors=[])
+        send_message(worker_req_sock, req_module_runtime_msg)
+        reply, module_runtime = await recv_message_with(worker_req_sock, RepModuleRuntimePayload)
+        yield ModuleRuntime(module_id=module_runtime.module_id, tasks=[], symbols=[], errors=[])
 
         # TODO @Incomplete: get module state updates from the worker via zmq server/client then pub/sub
         try:
-            for module_state in []:
-                yield module_state
+            for module_runtime in []:
+                yield module_runtime
         finally:
             worker_req_sock.close()
             worker_sub_sock.close()

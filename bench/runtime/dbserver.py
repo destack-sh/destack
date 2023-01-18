@@ -35,11 +35,12 @@ class InternalServer:
         while True:
             request = await recv_message(self.rep_sock)
             response = await self.process_request(request)
-            await send_message(self.rep_sock, response)
+            send_message(self.rep_sock, response)
 
     async def process_request(self, request: ZMessage) -> ZMessage:
         logger.debug("internal_server.process", request=request)
         if request.type == ZMessageType.REQ_READ_MODULE:
+            # read module from DB
             module_id = request.payload_as(ReqReadModulePayload).module_id
             project_v = await ProjectVersion.objects.aget(id=module_id)
             module = await sync_to_async(read_module)(project_v)
