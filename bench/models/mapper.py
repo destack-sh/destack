@@ -92,8 +92,10 @@ def write_module(
     # create files
     for file_data in files:
         file_type = FileType(FileType.INSTRUCT)
+        # remove extension from file path (assumed to be .instruct, but not stored in DB)
+        file_path_wo_extension = file_data.path.rsplit(".", 1)[0]
         model_files[file_data.id] = project_version.create_file_from_path(
-            file_data.path, file_type, id=file_data.id
+            file_path_wo_extension, file_type, id=file_data.id
         )
 
     # map statements

@@ -148,15 +148,20 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
+type Job {
+  id: UUID!
+  name: String!
+}
+
 type ModuleError {
   type: String!
   message: String!
   statement: Statement!
 }
 
-type ModuleState {
+type ModuleRuntime {
   id: UUID!
-  tasks: [Task!]!
+  jobs: [Job!]!
   symbols: [InterpStatement!]!
   errors: [ModuleError!]!
 }
@@ -538,7 +543,7 @@ enum StatementType {
 }
 
 type Subscription {
-  moduleStateChanged(projectVersionId: GlobalID!): ModuleState!
+  moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
 }
 
 """The type of symbol content."""
@@ -554,11 +559,6 @@ enum SymbolType {
   REQUIREMENT
   COMPILATION
   RUNCONFIG
-}
-
-type Task {
-  id: UUID!
-  name: String!
 }
 
 input TaskUpdateContentDescription {

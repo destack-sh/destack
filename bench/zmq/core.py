@@ -60,7 +60,7 @@ def parse_message(message_json: str) -> ZMessage:
         )
 
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
-    if payload_cls and message_dict["payload"] is not None:
+    if payload_cls and message_dict.get("payload") is not None:
         message_dict["payload"] = from_dict(payload_cls, message_dict["payload"], {})
     message_dict["type"] = ZMessageType(message_dict["type"])
     message_dict["id"] = UUID(message_dict["id"])
@@ -73,6 +73,9 @@ def parse_message(message_json: str) -> ZMessage:
 
 
 def send_message(sock: zmq.Socket, message: ZMessage):
+    payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message.type)
+    if payload_cls and message.payload is None:
+        raise ValueError(f"missing payload for {message}")
     sock.send_string(serialize_message(message))
     logger.debug("send_message", msg=message)
 

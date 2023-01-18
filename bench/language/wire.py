@@ -73,6 +73,14 @@ class ErrorData:
     message: str
 
 
+def rmap_error(error: language.Error) -> ErrorData:
+    return ErrorData(
+        type=error.type,
+        statement_id=error.statement.id if error.statement is not None else None,
+        message=error.message,
+    )
+
+
 def rmap_module(module: language.Module) -> ModuleData:
     return ModuleData(
         id=module.id,
@@ -179,15 +187,17 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
 
 
 def wmap_symbol(data: StatementData, statement: language.Statement) -> language.SymbolContent:
-    if data.type_node is not None:
+    if data.symbol_type == SymbolType.TYPE:
         return language.Type(
             definition=statement, description=data.description, type_node=data.type_node
         )
-    elif data.description is not None:
+    elif data.symbol_type == SymbolType.TASK:
         return language.Task(
             definition=statement, type_node=data.type_node, description=data.description
         )
-    elif data.lang is not None:
+    elif data.symbol_type == SymbolType.EXPECTATION:
+        return language.Expectation(definition=statement, description=data.description)
+    elif data.symbol_type == SymbolType.CODE:
         return language.Code(
             definition=statement,
             description=data.description,
@@ -196,18 +206,18 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
             type_node=data.type_node,
             builtin_id=data.code_builtin_id,
         )
-    elif data.provider is not None:
+    elif data.symbol_type == SymbolType.MODEL:
         return language.Model(
             definition=statement,
             provider=data.provider,
             external_name=data.external_name,
             settings=None,
         )
-    elif data.value is not None:
+    elif data.symbol_type == SymbolType.VALUE:
         return language.Value(definition=statement, description=data.description, value=data.value)
-    elif data.description is not None:
+    elif data.symbol_type == SymbolType.CAPABILITY:
         return language.Capability(definition=statement, description=data.description)
-    elif data.records is not None:
+    elif data.symbol_type == SymbolType.DATASET:
         return language.Dataset(
             definition=statement,
             description=data.description,
@@ -215,14 +225,16 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
             type_node=data.type_node,
             records=data.records,
         )
-    elif data.mappings is not None:
+    elif data.symbol_type == SymbolType.COMPILATION:
         return language.Compilation(definition=statement, source_mappings=data.mappings)
-    elif data.reference_module is not None:
+    elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.Requirement(
             definition=statement,
-            name=data.reference_module[0],
-            version=data.reference_module[1],
+            name=data.reference_module[0] if data.reference_module else None,
+            version=data.reference_module[1] if data.reference_module else None,
         )
+    elif data.symbol_type == SymbolType.RUNCONFIG:
+        return language.Runconfig(definition=statement)
     else:
         raise ValueError(
             f"unexpected symbol type {statement.symbol_type} for statement {statement}"
