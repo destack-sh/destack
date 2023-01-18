@@ -46,7 +46,7 @@ class SymbolInstance(StatementInstance):
 class TypeInstance(Type, SymbolInstance):
     @property
     def py_handle(self) -> TypeNode:
-        return self.node
+        return self.type_node
 
 
 @dataclass(repr=False)

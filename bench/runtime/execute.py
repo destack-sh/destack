@@ -324,7 +324,7 @@ def _instantiate_code_callable(
             "__module__": code.definition.file.module,
         }
 
-        input_keys = code.func_type.input.keys
+        input_keys = code.type_node.input.keys
         # create python function from code
         func_name = f"_anon_{code.definition.id.hex}"
         async_str = "async " if code.is_async else ""

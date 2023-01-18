@@ -347,18 +347,14 @@ MOCK_STATEMENT = Statement(file=MOCK_FILE, parent=None, index=0, type=StatementT
 class SymbolContent:
     definition: Statement
 
-    @property
-    def type(self) -> SymbolType:
-        return self.definition.symbol_type
-
 
 @dataclass(repr=False)
 class Type(SymbolContent):
-    node: TypeNode
+    type_node: TypeNode
     description: Optional[str]
 
     def __str__(self):
-        return str(self.node)
+        return str(self.type_node)
 
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
@@ -414,7 +410,7 @@ class Capability(SymbolContent):
 @dataclass(repr=False)
 class Task(SymbolContent):
     description: str
-    func_type: TypeNode
+    type_node: TypeNode
 
     def __str__(self):
         return f"({self.description})"
@@ -432,7 +428,7 @@ class Expectation(SymbolContent):
 class Dataset(SymbolContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
     records: list[dict[str, LiteralValue]]
-    element_type: TypeNode
+    type_node: TypeNode
     description: Optional[str]
 
     def __str__(self):
@@ -480,7 +476,7 @@ class Code(SymbolContent):
     language: Literal["python"]
     code: Optional[str]
     builtin_id: Optional[str]
-    func_type: TypeNode
+    type_node: TypeNode
 
     def __content_str__(self):
         # copied almost verbatim from Code.__str__
@@ -537,14 +533,16 @@ EMPTY_FUNC_TYPE = TypeNode(
         TypeNode("output", TypeTag.NULL),
     ],
 )
-EMPTY_ELEMENT_TYPE = TypeNode(None, TypeTag.STRUCT, children=[])
+EMPTY_STRUCT_TYPE = TypeNode(None, TypeTag.STRUCT, children=[])
 
 
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
     if symbol_type == SymbolType.TYPE:
-        return Type(definition, description="", node=TypeNode(None, TypeTag.STRUCT, children=[]))
+        return Type(
+            definition, description="", type_node=TypeNode(None, TypeTag.STRUCT, children=[])
+        )
     elif symbol_type == SymbolType.TASK:
-        return Task(definition, description="", func_type=EMPTY_FUNC_TYPE)
+        return Task(definition, description="", type_node=EMPTY_FUNC_TYPE)
     elif symbol_type == SymbolType.CAPABILITY:
         return Capability(definition, description="")
     elif symbol_type == SymbolType.EXPECTATION:
@@ -555,7 +553,7 @@ def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -
             description="",
             language="jsonl",
             records=[],
-            element_type=EMPTY_ELEMENT_TYPE,
+            type_node=EMPTY_STRUCT_TYPE,
         )
     elif symbol_type == SymbolType.VALUE:
         return Value(definition, value=None, description="")
@@ -566,7 +564,7 @@ def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -
             language="python",
             code="",
             builtin_id=None,
-            func_type=EMPTY_FUNC_TYPE,
+            type_node=EMPTY_FUNC_TYPE,
         )
     elif symbol_type == SymbolType.REQUIREMENT:
         return Requirement(definition, name="", version="")

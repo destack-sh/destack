@@ -99,23 +99,23 @@ def render_statement(statement: Statement) -> str:
         # special case: inline type node "redefinitions" as definitions
         if (
             statement.symbol_type == SymT.TYPE
-            and cast(Type, statement.content).node.type != TypeTag.STRUCT
+            and cast(Type, statement.content).type_node.type != TypeTag.STRUCT
         ):
-            type_str = render_type_node(cast(Type, statement.content).node)
+            type_str = render_type_node(cast(Type, statement.content).type_node)
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
         content_str = render_symbol_content(statement.content)
         if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(Requirement, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
-            type_str = render_type_node(cast(Task, statement.content).func_type)
+            type_str = render_type_node(cast(Task, statement.content).type_node)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.CODE:
-            type_str = render_type_node(cast(Code, statement.content).func_type)
+            type_str = render_type_node(cast(Code, statement.content).type_node)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATASET:
             content = cast(Dataset, statement.content)
-            type_str = render_type_node_struct(content.element_type, ", ")
+            type_str = render_type_node_struct(content.type_node, ", ")
             postfix = f" :: ({type_str}):"
         else:
             postfix = ":"
@@ -136,7 +136,7 @@ def render_statement(statement: Statement) -> str:
 
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
     if isinstance(content, Type):
-        rendered_type = render_type_node(content.node)
+        rendered_type = render_type_node(content.type_node)
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_type}"
         else:
@@ -160,7 +160,7 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
         elif content.language == "json":
             rendered_data = render_literal(json.dumps(content.records), lang="json")
         elif content.language == "csv":
-            field_names = [field.name for field in content.element_type.children]
+            field_names = [field.name for field in content.type_node.children]
             csv_output = io.StringIO()
             csv_writer = csv.DictWriter(
                 csv_output, quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names

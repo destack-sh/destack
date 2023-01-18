@@ -199,7 +199,7 @@ class ValidationTracer(Tracer):
     def code_enter(self, code: CodeInstance, args, kwargs):
         # validate kwargs
         for name, value in kwargs.items():
-            parameter = code.func_type.input.child(name)
+            parameter = code.type_node.input.child(name)
             if parameter is None:
                 # TODO @Typing: error on unknown parameters?
                 #  Currently we ignore this because schema elements don't include non-value types.
@@ -208,7 +208,7 @@ class ValidationTracer(Tracer):
             self._check_argument(code, value, parameter)
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
-        self._check_output(code, result, code.func_type.output)
+        self._check_output(code, result, code.type_node.output)
 
     def _check_output(self, code: CodeInstance, value: Any, type: TypeNode):
         # TODO @Typing: recursive schema validation
