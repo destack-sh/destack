@@ -1,9 +1,11 @@
 import structlog
 import zmq
 
-from bench.models import Execution, ExecutionStatus
+from bench.models import Execution, ExecutionStatus, ProjectVersion
+from bench.models.mapper import read
 from bench.runtime.tracing import ExecutionFrame
-from bench.utils.zmq import ZMessage, recv_message, send_message, zmq_ctx
+from bench.zmq import ZMessage, ZMessageType, recv_message, send_message, zmq_ctx
+from bench.zmq.messages import RepReadModulePayload, ReqReadModulePayload
 
 # TODO @Cleanup: dbservers should probably live in django-side of the backend?
 #  (not general language runtime)
@@ -31,13 +33,18 @@ class InternalServer:
 
         while True:
             request = await recv_message(self.rep_sock)
-
             response = await self.handle_request(request)
             await send_message(self.rep_sock, response)
 
     async def handle_request(self, request: ZMessage) -> ZMessage:
         logger.debug("internal_server.handle", request=request)
-        raise NotImplementedError
+        if request.type == ZMessageType.REQ_READ_MODULE:
+            module_id = request.payload_as(ReqReadModulePayload).module_id
+            project_v = await ProjectVersion.objects.get(id=module_id)
+            module = read(project_v)
+            return ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module))
+        else:
+            raise ValueError(f"unknown request type: {request}")
 
     async def stop(self):
         logger.info("internal_server.stop")

@@ -200,7 +200,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             old_id = statement.id
             statement.pk = None
             statement.revision = 0  # reset revision
-            statement.file = new_files[statement.file_id]
+            statement.source_file = new_files[statement.file_id]
             statement.project_version = target
             statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
