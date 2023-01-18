@@ -64,7 +64,7 @@ if RUN_INTERNAL_SERVER:
 
     server = InternalServer()
     coro = server.start(internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR)
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro))
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "internal_server"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 
 if RUN_RUNTIME_WORKER:
@@ -77,5 +77,5 @@ if RUN_RUNTIME_WORKER:
         internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR,
         api_server_addr=ZMQ_API_SERVER_ADDR,
     )
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro))
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "runtime_worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

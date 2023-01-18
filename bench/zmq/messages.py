@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from bench import language
+from bench.language import wire
 
 PROTOCOL_VERSION = 1
 
@@ -63,7 +63,7 @@ class ReqReadModulePayload:
 
 @_register_payload(ZMessageType.REP_READ_MODULE)
 class RepReadModulePayload:
-    module: language.Module
+    module: wire.ModuleData
 
 
 @_register_payload(ZMessageType.REQ_MODULE_STATE)
@@ -74,9 +74,9 @@ class ReqModuleStatePayload:
 @_register_payload(ZMessageType.REP_MODULE_STATE)
 class RepModuleStatePayload:
     module_id: UUID
-    files: list[language.File]
-    symbols: list[language.Statement]
-    errors: list[language.Error]
+    files: list[wire.FileData]
+    symbols: list[wire.StatementData]
+    errors: list[wire.ErrorData]
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS

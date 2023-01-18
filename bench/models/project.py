@@ -4,7 +4,7 @@ from collections import deque
 from datetime import datetime
 from itertools import groupby
 from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypedDict, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytz
 from django import db
@@ -13,6 +13,7 @@ from django.db import models, transaction
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
+from bench.language import SymbolType
 from bench.models.symbol import Statement, StatementType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
@@ -175,8 +176,6 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         )
 
     def copy(self, source: ProjectVersion, target: ProjectVersion) -> dict[UUID, File | Statement]:
-        from bench.models.mapper import wmap_symbol  # avoid circular import
-
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  (generally good, but also especially for dataset records, mappings and other relations)
         # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
@@ -189,16 +188,22 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             file.parent = new_files.get(file.parent_id)
             file.save()
             new_files[old_id] = file
+
         # 2. copy statements and their contents
+        # (pre-determine new statement ids to re-create source mappings in one go)
+        statements_bfs = list(
+            walk_children_bfs(source.statements.filter(deleted_at=None, parent=None), "children")
+        )
+        new_statements_ids: dict[UUID, UUID] = {
+            statement.id: uuid4() for statement in statements_bfs
+        }
         new_statements: dict[UUID, Statement] = {}
         new_contents: list[db.models.Model] = []
-        for statement in walk_children_bfs(
-            source.statements.filter(deleted_at=None, parent=None), "children"
-        ):
-            old_content = statement.content if statement.type == StatementType.DEFINITION else None
+        for statement in statements_bfs:
             # copy statement
             old_id = statement.id
-            statement.pk = None
+            statement.pk = new_statements_ids[old_id]
+            statement._state.adding = True
             statement.revision = 0  # reset revision
             statement.source_file = new_files[statement.file_id]
             statement.project_version = target
@@ -206,10 +211,25 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statement.parent = new_statements.get(statement.parent_id)
             new_statements[old_id] = statement
             # if statement is a definition, add relations to save in batch later
-            if old_content is not None:
-                new_content_relations = wmap_symbol(statement, old_content)
-                new_contents.extend(new_content_relations)
+            # all other symbol contents are value fields (copied automatically above)
+            if statement.type == StatementType.DEFINITION:
+                # the relations are saved below in step 3 (after statement creation)
+                if statement.symbol_type == SymbolType.DATASET:
+                    for record in statement.records.all():
+                        record.pk = None
+                        record.dataset = statement
+                        new_contents.append(record)
+                elif statement.symbol_type == SymbolType.COMPILATION:
+                    for mapping in statement.mappings.all():
+                        mapping.pk = None
+                        mapping.compilation = statement
+                        mapping.source_id = new_statements_ids[mapping.source_id]
+                        mapping.target_id = new_statements_ids[mapping.target_id]
+                        mapping.source_revision = 0
+                        mapping.target_revision = 0
+                        new_contents.append(mapping)
             statement.save()
+
         # 3. re-assign references
         for old in source.statements.filter(deleted_at=None):
             new = new_statements[old.id]

@@ -21,6 +21,7 @@ from bench.language.type import (
     SymbolType,
     get_default_symbol_content,
 )
+from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
 from bench.models.model import ModelContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
@@ -84,7 +85,7 @@ SYMBOL_CONTENT_RELATION_MTOM_FIELDS = {
 }
 
 
-class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
+class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin, CompilationContentMixin):
     """
     A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
@@ -186,21 +187,6 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         except ValueError:  # invalid/partial content
             return None
 
-    def content_(self) -> language.SymbolContent:
-        content = self.content
-        if content is None:
-            raise ValueError(f"{self} has no content for {self.symbol_type}")
-        return content
-
-    def set_content(self, content: language.SymbolContent | None):
-        from bench.models.mapper import wmap_symbol  # avoid circular import
-
-        if content is None:
-            self.symbol_type = None
-        else:
-            self.symbol_type = content.type
-            wmap_symbol(self, content)
-
     @gql.model_property(only=["type", "reference"], select_related=["reference"])
     def source_definition(self) -> Statement:
         """Traverses references to get the source definition."""
@@ -264,9 +250,9 @@ class Statement(UUIDModel, DatasetContentMixin, ModelContentMixin):
         type: StatementType,
         symbol_type: SymbolType | None,
     ):
+        """Changes the type of the statement (new default content fields may overwrite old ones)."""
         from bench.models.mapper import wmap_symbol  # avoid circular import
 
-        """Changes the type of the statement without clearing any old content fields."""
         self.type = type
         # set default content if not already set
         self.symbol_type = symbol_type

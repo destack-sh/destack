@@ -499,11 +499,11 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        func_type = parse_type_node_func(tokens, name=name.value)
+        type = parse_type_node_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return Task(description=description.value, func_type=func_type, definition=definition)
+        return Task(description=description.value, type_node=type, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
         tokens.eat_separator(":")
         tokens.eat_newline()
@@ -513,7 +513,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        func_type = parse_type_node_func(tokens, name=name.value)
+        type = parse_type_node_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = _parse_description_optional(tokens)
@@ -529,7 +529,7 @@ def _parse_definition_content(
             language=lang,
             builtin_id=None,
             code=code_text,
-            func_type=func_type,
+            type_node=type,
             definition=definition,
         )
     elif symbol_type.value == SymbolType.DATASET:
@@ -537,7 +537,7 @@ def _parse_definition_content(
         tokens.eat_separator("::")
         tokens.eat_space()
         tokens.eat_bracket("(")
-        element_type = parse_type_node_struct_inline(tokens, name="element")
+        type = parse_type_node_struct_inline(tokens, name="element")
         tokens.eat_bracket(")")
         tokens.eat_separator(":")
         tokens.eat_newline()
@@ -553,7 +553,7 @@ def _parse_definition_content(
             elif lang == "json":
                 records = json.loads(value_str)
             elif lang == "csv":
-                field_names = [element.name for element in element_type.children]
+                field_names = [element.name for element in type.children]
                 csv_reader = csv.DictReader(
                     value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
                 )
@@ -564,7 +564,7 @@ def _parse_definition_content(
                 description=description,
                 language=lang,
                 records=records,
-                element_type=element_type,
+                type_node=type,
                 definition=definition,
             )
         except ParseError:
@@ -627,7 +627,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_newline_or_eos()
     definition.content = Type(
         definition=definition,
-        node=struct,
+        type_node=struct,
         description=description,
     )
     return definition
@@ -797,7 +797,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         modifier=modifier,
         **kwargs,
     )
-    statement.content = Type(definition=statement, description=None, node=node)
+    statement.content = Type(definition=statement, description=None, type_node=node)
     return statement
 
 
@@ -939,13 +939,13 @@ def resolve(
     for statement in idx.statements_by_id.values():
         # (on all statements that have types in their content)
         if isinstance(statement.content, Type):
-            resolve_type_references(statement, statement.content.node, idx, on_error)
+            resolve_type_references(statement, statement.content.type_node, idx, on_error)
         elif isinstance(statement.content, Dataset):
-            resolve_type_references(statement, statement.content.element_type, idx, on_error)
+            resolve_type_references(statement, statement.content.type_node, idx, on_error)
         elif isinstance(statement.content, Task):
-            resolve_type_references(statement, statement.content.func_type, idx, on_error)
+            resolve_type_references(statement, statement.content.type_node, idx, on_error)
         elif isinstance(statement.content, Code):
-            resolve_type_references(statement, statement.content.func_type, idx, on_error)
+            resolve_type_references(statement, statement.content.type_node, idx, on_error)
 
     # check other semantic issues
     # TODO @Cleanup: not sure where to put non-resolution semantic checking
@@ -1061,7 +1061,7 @@ def resolve_type_references(
     # get type node from statement
     # right now we get the underlying definition directly, ignoring intermediate arguments
     resolved_type = typing.cast(Type, resolved_stmt.underlying_definition.content)
-    node.reference = resolved_type.node
+    node.reference = resolved_type.type_node
 
     # impute type references (also in place)
     impute_type_references(node, keep_references=True)

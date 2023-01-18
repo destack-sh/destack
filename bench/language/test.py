@@ -9,13 +9,7 @@ import pytest
 
 from bench.language import Type, TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import (
-    ParseError,
-    SemanticError,
-    SemanticErrorType,
-    index_module,
-    parse_string,
-)
+from bench.language.parse import ErrorType, ParseError, SemanticError, index_module, parse_string
 from bench.language.reconstruct import render
 
 # all .instruct files in bench/demo
@@ -34,7 +28,7 @@ def _raise_if(test: Callable):
 
 
 def _raise_if_not_external():
-    return _raise_if(lambda e: e.type != SemanticErrorType.EXTERNAL_LOOKUP_FAILED)
+    return _raise_if(lambda e: e.type != ErrorType.EXTERNAL_LOOKUP_FAILED)
 
 
 @pytest.mark.parametrize("path", demo_paths)
@@ -60,10 +54,10 @@ name: string
     )
     idx = index_module(module)
 
-    type_entity_type = idx.symbol(".test:EntityType", Type).node
+    type_entity_type = idx.symbol(".test:EntityType", Type).type_node
     assert type_entity_type.type == TypeTag.STRING
 
-    type_entity = idx.symbol(".test:Entity", Type).node
+    type_entity = idx.symbol(".test:Entity", Type).type_node
     assert type_entity.child("type").type == TypeTag.STRING
 
 
@@ -82,8 +76,8 @@ entities: [Entity]
     )
     idx = index_module(module)
 
-    type_event = idx.symbol(".test:Event", Type).node
+    type_event = idx.symbol(".test:Event", Type).type_node
     assert type_event.child("entities").type == TypeTag.ARRAY
 
-    type_entity = idx.symbol(".test:Entity", Type).node
+    type_entity = idx.symbol(".test:Entity", Type).type_node
     assert type_entity.child("first_event").children[0].type == type_event.type

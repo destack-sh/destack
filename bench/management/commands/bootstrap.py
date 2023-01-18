@@ -6,12 +6,11 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench import language
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
-from bench.language.type import MOCK_STATEMENT, StatementType, SymbolType
+from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
-from bench.models.mapper import lookup_module_in_db, wmap_symbol, write_module
+from bench.models.mapper import lookup_module_in_db, write_module
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 from bench.runtime.execute import ProviderKey
 
@@ -112,12 +111,6 @@ def create_model_providers():
         models_file = stdlib_v.create_file(name="text", type=FileType.INSTRUCT)
         for model_id in provider.models:
             provider_key = ProviderKey[provider.slug.upper()]
-            model = language.Model(
-                definition=MOCK_STATEMENT,
-                external_name=model_id,
-                provider=provider_key,
-                settings=None,
-            )
             statement = Statement.objects.create_statement(
                 project_version=stdlib_v,
                 file=models_file,
@@ -126,8 +119,9 @@ def create_model_providers():
                 type=StatementType.DEFINITION,
                 symbol_type=SymbolType.MODEL,
                 name=model_id,
+                provider=provider_key,
+                external_name=model_id,
             )
-            wmap_symbol(statement, model)
             statement.save()
 
         # advance head
