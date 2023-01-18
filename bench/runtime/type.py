@@ -61,9 +61,11 @@ class ExpectationInstance(Expectation, SymbolInstance):
 
 @dataclass(repr=False)
 class DatasetInstance(Dataset, SymbolInstance):
+    records_batch: RecordBatch
+
     @property
     def py_handle(self) -> RecordBatch:
-        return self.records
+        return self.records_batch
 
 
 @dataclass(repr=False)

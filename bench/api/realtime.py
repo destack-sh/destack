@@ -8,7 +8,8 @@ from strawberry_django_plus.relay import GlobalID
 from bench.api.symbol import Statement, TypeNode
 from bench.runtime.worker import ReqModuleStatePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_ADDR
-from bench.zmq import ZMessage, ZMessageType, recv_message, send_message, zmq_ctx
+from bench.zmq import ZMessage, ZMessageType, recv_message_with, send_message, zmq_ctx
+from bench.zmq.messages import RepModuleStatePayload
 
 
 @gql.type
@@ -26,7 +27,7 @@ class InterpStatement(Statement):
 class ModuleState:
     id: UUID
     tasks: list[Task]
-    all_symbols: list[InterpStatement]
+    symbols: list[InterpStatement]
     errors: list["ModuleError"]
 
 
@@ -53,7 +54,8 @@ class ModuleStateSubscription:
             ZMessageType.REQ_MODULE_STATE, ReqModuleStatePayload(module_id=project_version_id)
         )
         send_message(worker_req_sock, req_module_state_msg)
-        rep_module_state = recv_message(worker_req_sock)
+        reply, module_state = await recv_message_with(worker_req_sock, RepModuleStatePayload)
+        yield ModuleState(module_id=module_state.module_id, tasks=[], symbols=[], errors=[])
 
         # TODO @Incomplete: get module state updates from the worker via zmq server/client then pub/sub
         try:

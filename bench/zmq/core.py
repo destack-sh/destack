@@ -4,14 +4,18 @@ import typing
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from uuid import UUID
 
 import structlog
 import zmq.asyncio
-from dacite import Config, from_dict
 
-from bench.zmq.messages import PROTOCOL_VERSION, REGISTERED_MESSAGE_PAYLOADS, ZMessageType
+from bench.zmq.messages import (
+    MESSAGE_TYPE_BY_PAYLOAD_CLASS,
+    PROTOCOL_VERSION,
+    REGISTERED_MESSAGE_PAYLOADS,
+    ZMessageType,
+)
+from bench.zmq.serialize import from_dict, to_dict
 
 logger = structlog.get_logger(__name__)
 
@@ -23,12 +27,12 @@ PayloadT = typing.TypeVar("PayloadT", bound=typing.Any)
 class ZMessage:
     type: ZMessageType
     payload: typing.Any = None
-    _id: UUID = dataclasses.field(default_factory=uuid.uuid4)
-    _version: int = PROTOCOL_VERSION
+    id: UUID = dataclasses.field(default_factory=uuid.uuid4)
+    version: int = PROTOCOL_VERSION
     # TODO @Performance: expose & use zmq envelope key to filter in zmq
 
     def __str__(self):
-        return f"{self.type} {self._id}"
+        return f"{self.type} {self.id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -41,22 +45,31 @@ class ZMessage:
 
 def serialize_message(message: ZMessage) -> str:
     # serialize any dataclass as something jsonable
-    message_dict = dataclasses.asdict(message)
+    message_dict = {"type": message.type, "id": str(message.id), "version": message.version}
+    if message.payload is not None:
+        # use custom dict encoder for speed and to handle recursive loops
+        message_dict["payload"] = to_dict(message.payload, set())
     return json.dumps(message_dict, cls=MessageJSONEncoder)
 
 
 def parse_message(message_json: str) -> ZMessage:
     message_dict = json.loads(message_json)
-    if message_dict["_version"] != PROTOCOL_VERSION:
+    if message_dict["version"] != PROTOCOL_VERSION:
         raise RuntimeError(
             f"message version mismatch: {message_dict['_version']} != {PROTOCOL_VERSION}"
         )
 
-    dacite_config = Config(cast=[UUID, datetime, Enum])
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
-    if payload_cls:
-        message_dict["payload"] = from_dict(payload_cls, message_dict["payload"], dacite_config)
-    return from_dict(ZMessage, message_dict, config=dacite_config)
+    if payload_cls and message_dict["payload"] is not None:
+        message_dict["payload"] = from_dict(payload_cls, message_dict["payload"], {})
+    message_dict["type"] = ZMessageType(message_dict["type"])
+    message_dict["id"] = UUID(message_dict["id"])
+
+    msg = ZMessage(**message_dict)
+    if payload_cls and msg.payload is None:
+        # check for missing payload after message is created to get other fields
+        raise ValueError(f"missing payload for {msg}")
+    return msg
 
 
 def send_message(sock: zmq.Socket, message: ZMessage):
@@ -68,6 +81,22 @@ async def recv_message(sock: zmq.asyncio.Socket) -> ZMessage:
     msg = parse_message(await sock.recv_string())
     logger.debug("recv_message", msg=msg)
     return msg
+
+
+async def recv_message_with(
+    sock: zmq.asyncio.Socket, typ: ZMessageType | typing.Type[PayloadT]
+) -> tuple[ZMessage, PayloadT]:
+    msg = await recv_message(sock)
+    if isinstance(typ, ZMessageType):
+        z_type = typ
+        payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(typ)
+    else:
+        z_type = MESSAGE_TYPE_BY_PAYLOAD_CLASS[typ]
+        payload_cls = typ
+    if msg.type != z_type:
+        raise ValueError(f"expected message type {z_type}, got {msg}")
+    payload = msg.payload_as(typ) if payload_cls else None
+    return msg, payload
 
 
 async def recv_message_poll(poller: zmq.asyncio.Poller, timeout: int | None = None) -> ZMessage:

@@ -1,8 +1,9 @@
 import structlog
 import zmq
+from asgiref.sync import sync_to_async
 
 from bench.models import Execution, ExecutionStatus, ProjectVersion
-from bench.models.mapper import read
+from bench.models.mapper import read_module
 from bench.runtime.tracing import ExecutionFrame
 from bench.zmq import ZMessage, ZMessageType, recv_message, send_message, zmq_ctx
 from bench.zmq.messages import RepReadModulePayload, ReqReadModulePayload
@@ -33,15 +34,15 @@ class InternalServer:
 
         while True:
             request = await recv_message(self.rep_sock)
-            response = await self.handle_request(request)
+            response = await self.process_request(request)
             await send_message(self.rep_sock, response)
 
-    async def handle_request(self, request: ZMessage) -> ZMessage:
-        logger.debug("internal_server.handle", request=request)
+    async def process_request(self, request: ZMessage) -> ZMessage:
+        logger.debug("internal_server.process", request=request)
         if request.type == ZMessageType.REQ_READ_MODULE:
             module_id = request.payload_as(ReqReadModulePayload).module_id
-            project_v = await ProjectVersion.objects.get(id=module_id)
-            module = read(project_v)
+            project_v = await ProjectVersion.objects.aget(id=module_id)
+            module = await sync_to_async(read_module)(project_v)
             return ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module))
         else:
             raise ValueError(f"unknown request type: {request}")

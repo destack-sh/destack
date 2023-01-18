@@ -7,7 +7,7 @@ import zmq.asyncio
 
 from bench.language import Module, Statement
 from bench.zmq import ZMessage, ZMessageType, recv_message, recv_message_poll, send_message, zmq_ctx
-from bench.zmq.messages import ReqModuleStatePayload
+from bench.zmq.messages import ReqModuleStatePayload, ReqReadModulePayload
 
 logger = structlog.get_logger(__name__)
 
@@ -43,9 +43,11 @@ class RuntimeWorker:
         self.change_sub_sock = zmq_ctx.socket(zmq.SUB)
         self.working_modules: dict[UUID, ModuleWorkerState] = {}
 
-    async def get_init_worker_state(self, module_id: UUID) -> ModuleWorkerState:
+    async def get_worker_state(self, module_id: UUID) -> ModuleWorkerState:
         if module_id not in self.working_modules:
-            req_read_module = ZMessage(ZMessageType.REQ_READ_MODULE)
+            req_read_module = ZMessage(
+                ZMessageType.REQ_READ_MODULE, ReqReadModulePayload(module_id)
+            )
             send_message(self.int_req_sock, req_read_module)
             rep_read_module = await recv_message(self.int_req_sock)
 
@@ -75,7 +77,7 @@ class RuntimeWorker:
 
             if msg.type == ZMessageType.REQ_MODULE_STATE:
                 module_id = msg.payload_as(ReqModuleStatePayload).module_id
-                state = await self.get_init_worker_state(module_id)
+                state = await self.get_worker_state(module_id)
 
             # TODO @Incomplete: get initial module state from zmq server, subscribe to changes
             # TODO @Incomplete: trigger and tasks and send out updated module state

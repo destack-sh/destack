@@ -11,8 +11,6 @@ from uuid import UUID
 
 from django.db import models
 
-from bench.utils.record import RecordBatch, RecordList
-
 
 @dataclass(repr=False)
 class SourceFile:
@@ -79,7 +77,7 @@ class Token:
     start_column: int
     end_column: int
     type: TokenType
-    value: Optional[str | enum.Enum]
+    value: Union[None, str, enum.Enum]
     value_extras: Optional[dict[str, str]]
 
     def __str__(self):
@@ -180,7 +178,7 @@ class TypeTag(Enum):
 @dataclass(repr=False)
 class Module:
     name: str
-    files: list[File]
+    files: list[File] = field(default_factory=list)
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __str__(self):
@@ -373,7 +371,7 @@ class TypeNode:
     type: TypeTag
     required: bool = True
     description: Optional[str] = None
-    reference: Optional[str | "TypeNode"] = None
+    reference: Union[None, str, "TypeNode"] = None
     # source reference is separate as the resolved TypeNode may not contain the name
     source_reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
@@ -433,7 +431,7 @@ class Expectation(SymbolContent):
 @dataclass(repr=False)
 class Dataset(SymbolContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
-    records: RecordBatch
+    records: list[dict[str, LiteralValue]]
     element_type: TypeNode
     description: Optional[str]
 
@@ -556,7 +554,7 @@ def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -
             definition,
             description="",
             language="jsonl",
-            records=RecordList([]),
+            records=[],
             element_type=EMPTY_ELEMENT_TYPE,
         )
     elif symbol_type == SymbolType.VALUE:

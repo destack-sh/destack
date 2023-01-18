@@ -11,7 +11,7 @@ from django.db import transaction
 from bench.language import lex, parse
 from bench.language.lex import SourceFile
 from bench.models import Organization, Project
-from bench.models.mapper import lookup_module_in_db, rmap_module, write
+from bench.models.mapper import lookup_module_in_db, rmap_module, write_module
 from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         module = rmap_module(project_v)
         source_file = SourceFile(path=path, content=Path(path).read_text())
         language_files = parse(lex(source_file), module, lookup_module_in_db).files
-        write(language_files, project_v)
+        write_module(language_files, project_v)
 
         # advance head to new version
         project.head = project_v

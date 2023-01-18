@@ -7,10 +7,11 @@ from uuid import UUID
 from bench import language
 
 PROTOCOL_VERSION = 1
+
 REGISTERED_MESSAGE_PAYLOADS: dict["ZMessageType", typing.Type] = {}
 
 
-def register_payload(message_type: "ZMessageType"):
+def _register_payload(message_type: "ZMessageType"):
     def wrapper(cls):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")
@@ -30,9 +31,15 @@ class ZMessageType(StrEnum):
     # Internal -> Worker
     MODULE_CHANGED = "module_changed"
 
+    # Bench commands
+    # API -> Worker
+    REQ_WORKER_COMPILE = "req_worker_compile"
+    REQ_WORKER_RUN = "req_worker_run"
+
     # Worker internal communication and orchestration
     # Worker <-> Internal
     WORKER_HEARTBEAT = "worker_heartbeat"
+    REQ_WORKER_SHUTDOWN = "req_worker_shutdown"
     REQ_READ_MODULE = "req_read_module"
     REP_READ_MODULE = "rep_read_module"
     REQ_WRITE_MODULE = "req_write_module"
@@ -45,23 +52,35 @@ class ZMessageType(StrEnum):
     MODULE_STATE_CHANGED = "module_state_changed"
 
 
-@register_payload(ZMessageType.REQ_READ_MODULE)
+# TODO @Performance @Robustness: use custom message types & format that don't refer to other systems
+#  Right now we carry uncontrolled baggage from anything that tags along our language dataclasses.
+
+
+@_register_payload(ZMessageType.REQ_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
 
 
-@register_payload(ZMessageType.REP_READ_MODULE)
+@_register_payload(ZMessageType.REP_READ_MODULE)
 class RepReadModulePayload:
     module: language.Module
 
 
-@register_payload(ZMessageType.REQ_MODULE_STATE)
+@_register_payload(ZMessageType.REQ_MODULE_STATE)
 class ReqModuleStatePayload:
     module_id: UUID
 
 
-@register_payload(ZMessageType.REP_MODULE_STATE)
+@_register_payload(ZMessageType.REP_MODULE_STATE)
 class RepModuleStatePayload:
     module_id: UUID
-    all_symbols: list[language.Statement]
+    files: list[language.File]
+    symbols: list[language.Statement]
     errors: list[language.Error]
+
+
+# invert REGISTERED_MESSAGE_PAYLOADS
+MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "ZMessageType"] = {
+    payload_class: message_type
+    for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
+}
