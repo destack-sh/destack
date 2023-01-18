@@ -40,7 +40,7 @@ def lookup_module_in_db(
 
 
 @transaction.atomic(savepoint=False)  # read-only
-def read(project_v: ProjectVersion, path: StatementPath) -> language.Module:
+def read(project_v: ProjectVersion, path: StatementPath | None = None) -> language.Module:
     """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
     lang_module = rmap_module(project_v)
     lang_files: dict[UUID, language.File] = {}
@@ -132,7 +132,7 @@ def rmap_statement(statement: models.Statement, file: language.File):
         name=statement.name,
         text=statement.text,
         symbol_type=statement.symbol_type,
-        reference=None,
+        reference=None,  # TODO @Incomplete: set reference as path
     )
     if statement.type == StatementType.DEFINITION:
         lang_statement.content = rmap_symbol(statement, lang_statement)

@@ -60,6 +60,8 @@ cryptography==38.0.1
     #   pyopenssl
     #   service-identity
     #   social-auth-core
+dacite==1.7.0
+    # via -r requirements.in
 daphne==4.0.0
     # via -r requirements.in
 dataclasses-json==0.5.7

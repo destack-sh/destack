@@ -9,6 +9,7 @@ aiohttp==3.8.3
 asgiref==3.5.2
 cachetools==5.2.0
 channels==4.0.0
+dacite==1.7.0
 dataclasses_json==0.5.7
 daphne==4.0.0
 dj-database-url==1.0.0

@@ -9,6 +9,7 @@ and
 https://channels.readthedocs.io/en/latest/deploying.html
 """
 import os
+import random
 
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -24,9 +25,7 @@ from bench.settings import (
     RUN_RUNTIME_WORKER,
     ZMQ_API_SERVER_ADDR,
     ZMQ_INTERNAL_SERVER_ADDR,
-    ZMQ_INTERNAL_SERVER_PORT,
     ZMQ_RUNTIME_WORKER_ADDR,
-    ZMQ_RUNTIME_WORKER_PORT,
 )
 from bench.utils.func import wrap_task
 
@@ -71,7 +70,8 @@ if RUN_INTERNAL_SERVER:
 if RUN_RUNTIME_WORKER:
     from bench.runtime.worker import RuntimeWorker
 
-    worker = RuntimeWorker(worker_id="local")
+    local_id = random.randint(0, 2 ** 32)  # just some random number
+    worker = RuntimeWorker(worker_id=f"local.{hex(local_id)[2:]}")
     coro = worker.start(
         runtime_worker_addr=ZMQ_RUNTIME_WORKER_ADDR,
         internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR,

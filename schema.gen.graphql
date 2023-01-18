@@ -156,8 +156,6 @@ type ModuleError {
 
 type ModuleState {
   id: UUID!
-  revisionHash: String!
-  name: String!
   tasks: [Task!]!
   allSymbols: [InterpStatement!]!
   errors: [ModuleError!]!
@@ -560,9 +558,7 @@ enum SymbolType {
 
 type Task {
   id: UUID!
-  type: String!
   name: String!
-  startedAt: DateTime!
 }
 
 input TaskUpdateContentDescription {

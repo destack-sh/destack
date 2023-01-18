@@ -1,153 +1,18 @@
 from __future__ import annotations
 
-import enum
 import re
-from dataclasses import dataclass
-from functools import cached_property
 from typing import Optional
 
-from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
-
-
-@dataclass(repr=False)
-class SourceFile:
-    path: str
-    content: str
-
-    def __str__(self):
-        return f"{self.path} ({len(self.linebreaks)} lines, {len(self.content)} characters)"
-
-    def __repr__(self):
-        # truncate content on both sides
-        max_length = 250
-        if len(self.content) > max_length:
-            prefix_content = self.content[: max_length // 2]
-            postfix_content = self.content[-max_length // 2 :]
-            lines_omitted = (
-                len(self.linebreaks)
-                - len(prefix_content.splitlines())
-                - len(postfix_content.splitlines())
-            )
-            content = (
-                f"{prefix_content}\n... ({lines_omitted} lines omitted) ...\n{postfix_content}"
-            )
-        else:
-            content = self.content
-        return f"<{self.__class__.__name__}: {str(self)}\n{content}\n>"
-
-    @cached_property
-    def linebreaks(self) -> list[int]:
-        # index start of each line
-        linebreaks = [0]
-        for match in re.finditer(r"\r?\n", self.content):
-            linebreaks.append(match.end())
-        return linebreaks
-
-    def line(self, index: int) -> str:
-        if index >= len(self.linebreaks):
-            raise IndexError(f"line {index} does not exist")
-        elif index == len(self.linebreaks) - 1:
-            return self.content[self.linebreaks[index] :]
-        else:
-            return self.content[self.linebreaks[index] : self.linebreaks[index + 1]]
-
-
-class TokenType(enum.Enum):
-    NEWFILE = "newfile"
-    INDENT = "indent"
-    NEWLINE = "newline"
-    COMMENT = "comment"
-    KEYWORD = "keyword"
-    SEPARATOR = "separator"
-    IDENTIFIER = "identifier"
-    LITERAL = "literal"
-    DESCRIPTION = "description"
-    MARK_OPTIONAL = "mark_optional"
-    BRACKET = "bracket"
-
-
-@dataclass
-class Token:
-    source_file: SourceFile
-    line_number: int
-    line_span: int
-    start_column: int
-    end_column: int
-    type: TokenType
-    value: Optional[str | enum.Enum]
-    value_extras: Optional[dict[str, str]]
-
-    def __str__(self):
-        if self.value_extras:
-            extras_str = ", ".join(f"{key}={value}" for key, value in self.value_extras.items())
-            extras_str = f" ({extras_str})"
-        else:
-            extras_str = ""
-        return f"{self.type.value} {self.value_truncated}{extras_str} ({self.source_file.path} {self.location_in_file})"
-
-    @cached_property
-    def value_truncated(self) -> str:
-        # truncate value if too long
-        max_length = 100
-        if self.value is None:
-            value = "<none>"
-        elif isinstance(self.value, str):
-            if len(self.value) > max_length:
-                value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2:]}"
-            else:
-                value = self.value
-        elif isinstance(self.value, enum.Enum):
-            value = self.value.value
-        else:
-            raise TypeError(f"unexpected value type {type(self.value)}")
-        # replace newlines with literal \n
-        value = value.replace("\n", "\\n")
-        return value
-
-    @cached_property
-    def location_in_file(self):
-        if self.line_span > 1:
-            loc = f"{self.line_number}:{self.start_column}-{self.line_number + self.line_span}:{self.end_column}"
-        else:
-            loc = f"{self.line_number}:{self.start_column}-{self.end_column}"
-        return loc
-
-
-class SyntaxErrorType(enum.Enum):
-    UNKNOWN_TOKEN = "unknown_token"
-
-
-class SyntaxError(ValueError):
-    def __int__(
-        self,
-        type: SyntaxErrorType,
-        file: SourceFile,
-        line_number: int,
-        column: int,
-        extra_message: str | None = None,
-    ):
-        super().__init__(SyntaxError.format_message(type, file, line_number, column, extra_message))
-        self.type = type
-        self.file = file
-        self.line_number = line_number
-        self.column = column
-        self.extra_message = extra_message
-
-    @staticmethod
-    def format_message(
-        type: SyntaxErrorType,
-        file: SourceFile,
-        line_number: int,
-        column: int,
-        extra_message: str | None = None,
-    ) -> str:
-        if extra_message:
-            extra_message = f": {extra_message}"
-        else:
-            extra_message = ""
-        context = get_location_pointer(file, line_number, column)
-        return f"{type.value} at {file.path}:{line_number}:{column}{extra_message}:\n{context}"
-
+from bench.language.error import ErrorType, SyntaxError
+from bench.language.type import (
+    SourceFile,
+    StatementModifier,
+    StatementType,
+    SymbolType,
+    Token,
+    TokenType,
+    TypeTag,
+)
 
 KEYWORDS = {
     # StatementModifier
@@ -178,7 +43,7 @@ KEYWORDS = {
     "as": None,
     "from": None,
 }
-SEPARATORS = [" ", "\|", "&", ",", "::", ":", "=", "@", "->"]  # order matters!
+SEPARATORS = [" ", r"\|", "&", ",", "::", ":", "=", "@", "->"]  # order matters!
 
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
@@ -247,7 +112,7 @@ def lex(source: SourceFile) -> list[Token]:
             if current_pos >= len(source.content):
                 break  # EOF, done
             # otherwise, we have an error
-            raise SyntaxError(SyntaxErrorType.UNKNOWN_TOKEN, source, line_number, start_column)
+            raise SyntaxError(ErrorType.UNKNOWN_TOKEN, source, line_number, start_column)
         tokens.append(token)
         prev_token = token
 
@@ -292,31 +157,3 @@ def _lex_token(source: SourceFile, current_pos: int) -> Optional[Token]:
         value=value,
         value_extras=value_extras,
     )
-
-
-def get_location_pointer(
-    source: SourceFile, line_number: int, start_column: int, prev_lines: int = 4
-) -> str:
-    prev_lines = "> ".join(source.line(line_number - i - 1) for i in reversed(range(0, prev_lines)))
-    if not prev_lines.endswith("\n"):
-        prev_lines = prev_lines + "\n"
-    context = f"> {prev_lines}> {'-' * start_column}^"
-    return context
-
-
-def get_location_range_pointer(
-    source: SourceFile,
-    start_line: int,
-    start_column: int,
-    end_line: int,
-    end_column: int,
-    prev_lines: int = 4,
-) -> str:
-    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, prev_lines)))
-    if not prev_lines.endswith("\n"):
-        prev_lines = prev_lines + "\n"
-    # does not handle multiline ranges yet, so if it's multiline, we extend until end of first line
-    if end_line > start_line:
-        end_column = len(source.line(start_line - 1))
-    context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
-    return context

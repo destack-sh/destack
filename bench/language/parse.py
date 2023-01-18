@@ -12,7 +12,8 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.lex import Token, TokenType, get_location_range_pointer, lex_string
+from bench.language.error import ErrorType, ParseError, SemanticError
+from bench.language.lex import lex_string
 from bench.language.type import (
     Capability,
     Code,
@@ -30,12 +31,13 @@ from bench.language.type import (
     SymbolContent,
     SymbolType,
     Task,
+    Token,
+    TokenType,
     Type,
     TypeNode,
     TypeTag,
     Value,
     parse_statement_path,
-    statement_path_as_str,
 )
 from bench.utils.record import RecordList
 
@@ -65,70 +67,8 @@ class ErrorCollector(typing.Generic[ErrorT]):
         self.on_error(error)
 
 
-class ParseErrorType(enum.Enum):
-    MISSING_TOKEN = 0, "expected another token"
-    UNEXPECTED_TOKEN_TYPE = 1, "expected token type {type}"
-    UNEXPECTED_TOKEN_VALUE = 2, "expected token value {value}"
-    UNEXPECTED_INDENT = 3, "expected indent <= {indent}"
-    EXPECTED_BLANK = 4, "expected blank line"
-    MISSING_EXTRA = 5, "expected token value extra {extra}"
-    UNEXPECTED_EXTRA = 6, "unexpected token value extra {extra}={value}"
-    INVALID_TOKEN_VALUE = 6, "invalid token value {value} {error}"
-    INVALID_STATEMENT = 7, "invalid statement"
-
-    def __new__(cls, value, description):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.description = description
-        return obj
-
-
-PE = ParseErrorType
+ET = ErrorType
 TT = TokenType
-
-
-class ParseError(ValueError):
-    def __init__(
-        self,
-        _t: ParseErrorType,
-        token: Optional[Token],
-        cause: Optional[Exception] = None,
-        parser: Optional[str] = None,
-        position: Optional[int] = -1,
-        **error_args,
-    ):
-        super().__init__(self._to_message(_t, error_args, token, cause))
-        self.type = _t
-        self.token = token
-        self.cause = cause
-        self.position = position
-        self.parser = parser
-        self.error_args = error_args
-
-    def _to_message(
-        self, type: ParseErrorType, error_args: dict, token: Optional[Token], cause: Optional[dict]
-    ):
-        # noinspection StrFormat
-        return "{0}: {1}{2}{3}".format(
-            type.name,
-            type.description.format(**error_args),
-            ParseError.token_context(token),
-            (f"\npossible cause: {cause}" if cause else ""),
-        )
-
-    @staticmethod
-    def token_context(token: Optional[Token]) -> str:
-        if token is None:
-            return ""
-        else:
-            context = get_location_range_pointer(
-                token.source_file,
-                token.line_number,
-                token.start_column,
-                token.line_number + token.line_span,
-                token.end_column,
-            )
-            return f" at {token}\n{context}"
 
 
 def ignore_module_lookup(*args, **kwargs):
@@ -250,7 +190,7 @@ class TokenParser:
     def eat(self) -> Token:
         """Eats the next token."""
         if self.peek() is None:
-            raise ParseError(PE.MISSING_TOKEN, self.previous)
+            raise ParseError(ET.MISSING_TOKEN, self.previous)
         peek_token = self.peek()
         self._advance()
         return peek_token
@@ -262,7 +202,7 @@ class TokenParser:
     def eat_type(self, type: TT) -> Token:
         token = self.eat()
         if token.type != type:
-            raise ParseError(PE.UNEXPECTED_TOKEN_TYPE, token, type=type)
+            raise ParseError(ET.UNEXPECTED_TOKEN_TYPE, token, type=type)
         return token
 
     def eat_newfile(self) -> Token:
@@ -296,7 +236,7 @@ class TokenParser:
     def eat_keyword(self, keyword: str | enum.Enum) -> Token:
         token = self.eat_type(TT.KEYWORD)
         if token.value != keyword:
-            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.KEYWORD, value=keyword)
+            raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, token, type=TT.KEYWORD, value=keyword)
         return token
 
     def peek_keyword_like(self, keyword_cls: typing.Type[enum.Enum]) -> Optional[Token]:
@@ -308,7 +248,7 @@ class TokenParser:
     def eat_keyword_like(self, keyword_cls: typing.Type[enum.Enum]) -> Token:
         token = self.eat_type(TT.KEYWORD)
         if not isinstance(token.value, keyword_cls):
-            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.KEYWORD, value=keyword_cls)
+            raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, token, type=TT.KEYWORD, value=keyword_cls)
         return token
 
     def eat_identifier(self) -> Token:
@@ -327,7 +267,7 @@ class TokenParser:
             separator = separator.value
         token = self.eat_type(TT.SEPARATOR)
         if token.value != separator:
-            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.SEPARATOR, value=separator)
+            raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, token, type=TT.SEPARATOR, value=separator)
         return token
 
     def peek_bracket(self, bracket: str) -> Optional[Token]:
@@ -339,7 +279,7 @@ class TokenParser:
     def eat_bracket(self, bracket: str) -> Token:
         token = self.eat_type(TT.BRACKET)
         if token is None or token.value != bracket:
-            raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, token, type=TT.BRACKET, value=bracket)
+            raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, token, type=TT.BRACKET, value=bracket)
         return token
 
     def eat_space(self) -> Token:
@@ -444,7 +384,7 @@ def preparse(
             local.indent += 1
         else:  # parse statement
             if len(local.ancestors) < local.indent:  # too much indentation
-                raise ParseError(ParseErrorType.UNEXPECTED_INDENT, parser.peek())
+                raise ParseError(ET.UNEXPECTED_INDENT, parser.peek())
 
             errors: list[ParseError] = []
             parser.indent_level = local.indent  # skip indent tokens at current level
@@ -469,7 +409,7 @@ def preparse(
                 cause = likely_error or (
                     local.previous_errors[-2] if len(local.previous_errors) > 1 else None
                 )
-                error = ParseError(PE.INVALID_STATEMENT, parser.peek(), cause=cause)
+                error = ParseError(ET.INVALID_STATEMENT, parser.peek(), cause=cause)
                 on_error(error)
                 continue
 
@@ -518,7 +458,7 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_space()
     source = tokens.eat_identifier()
     if not is_valid_import_source(source.value):
-        raise ParseError(PE.INVALID_TOKEN_VALUE, source, value=source.value, error="invalid")
+        raise ParseError(ET.INVALID_TOKEN_VALUE, source, value=source.value, error="invalid")
     tokens.eat_newline_or_eos()
     return Statement(
         type=StatementType.IMPORT,
@@ -581,9 +521,9 @@ def _parse_definition_content(
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         if lang is None:
-            raise ParseError(PE.MISSING_EXTRA, literal, extra="lang")
+            raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
         if lang != "python":
-            raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
+            raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
         return Code(
             description=description,
@@ -608,7 +548,7 @@ def _parse_definition_content(
         try:
             value_str = _clean_literal_indent(literal.value, tokens.indent_level)
             if lang is None:
-                raise ParseError(PE.MISSING_EXTRA, literal, extra="lang")
+                raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
             elif lang == "jsonl":
                 records = [json.loads(line) for line in value_str.splitlines()]
             elif lang == "json":
@@ -620,7 +560,7 @@ def _parse_definition_content(
                 )
                 records = list(csv_reader)
             else:
-                raise ParseError(PE.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
+                raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
             return Dataset(
                 description=description,
                 language=lang,
@@ -631,7 +571,7 @@ def _parse_definition_content(
         except ParseError:
             raise  # re-raise since we don't want to catch our own errors
         except ValueError as e:
-            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
+            raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.VALUE:
         tokens.eat_separator(":")
         tokens.eat_newline()
@@ -641,7 +581,7 @@ def _parse_definition_content(
             value = json.loads(literal.value)
             return Value(description=description, value=value, definition=definition)
         except json.JSONDecodeError as e:
-            raise ParseError(PE.INVALID_TOKEN_VALUE, literal, error=e)
+            raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.COMPILATION:
         tokens.eat_separator(":")
         return Compilation(definition=definition)
@@ -650,7 +590,7 @@ def _parse_definition_content(
         tokens.eat_separator(":")
         return Runconfig(definition=definition)
 
-    raise ParseError(PE.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
+    raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 
 
 def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
@@ -764,7 +704,7 @@ def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False
                 break
         return parent
     else:
-        raise ParseError(PE.UNEXPECTED_TOKEN_TYPE, tokens.peek(), type="| or &")
+        raise ParseError(ET.UNEXPECTED_TOKEN_TYPE, tokens.peek(), type="| or &")
 
 
 def parse_type_node_struct(tokens: TokenParser, name: str) -> TypeNode:
@@ -820,7 +760,7 @@ def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
     # defined symbol type and referenced symbol type must match
     if symbol_type.value != other_symbol_type.value:
         raise ParseError(
-            PE.UNEXPECTED_TOKEN_VALUE, reference_name, type=TT.IDENTIFIER, value=symbol_type
+            ET.UNEXPECTED_TOKEN_VALUE, reference_name, type=TT.IDENTIFIER, value=symbol_type
         )
     if modifier != StatementModifier.WITH:
         # only non-arg definitions can have children
@@ -892,7 +832,7 @@ def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:
         modifier = tokens.eat_keyword_like(StatementModifier).value
         if not isinstance(modifier, StatementModifier):
             raise ParseError(
-                PE.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=StatementModifier
+                ET.UNEXPECTED_TOKEN_VALUE, modifier, type=TT.KEYWORD, value=StatementModifier
             )
         tokens.eat_space()
     else:
@@ -938,7 +878,7 @@ def _parse_statement(
             # we're at the end if there is an unintended token next
             if could_be_group_end and parser.peek_indent_level == 0:
                 if not parser.peek_has_newline_or_eos():
-                    on_error(ParseError(PE.EXPECTED_BLANK, parser.peek()))
+                    on_error(ParseError(ET.EXPECTED_BLANK, parser.peek()))
             return statement
         except ParseError as e:
             e.parser = _parse.__name__
@@ -948,83 +888,8 @@ def _parse_statement(
     return None
 
 
-class SemanticErrorType(enum.Enum):
-    UNKNOWN_IMPORT_SOURCE = 0, "unspecified import module source {source}"
-    UNDEFINED_LOCAL_REFERENCE = 1, "undefined reference {path}"
-    UNDEFINED_EXTERNAL_REFERENCE = 2, "undefined external reference {path} in module {module}"
-    EXTERNAL_LOOKUP_FAILED = 3, "failed to lookup reference {path} in module {module}: {error}"
-    REFERENCE_TYPE_MISMATCH = 4, "reference {resolved} is not of type {resolved}"
-    AMBIGUOUS_DEFINITION = 5, "multiple definitions for {path}"
-    AMBIGUOUS_REQUIREMENT = 6, "multiple requirements for {name}"
-    UNEXPECTED_PARENT = 7, "unexpected parent {parent}"
-    EXPECTED_PARENT = 8, "expected a parent"
-    EXPECTED_PROPER_CHILDREN = 9, "expected proper children"
-    UNEXPECTED_CHILDREN = 10, "unexpected children"
-    EXPECTED_PARAMETERS = 11, "expected parameters of type {type}"
-    UNEXPECTED_PARAMETERS = 12, "unexpected parameters"
-    EXPECTED_ARGUMENTS = 13, "expected arguments of type {type}"
-
-    def __new__(cls, value, description):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.description = description
-        return obj
-
-
 StmT = StatementType
 SymT = SymbolType
-SE = SemanticErrorType
-
-
-class SemanticError(ValueError):
-    def __init__(
-        self,
-        _t: SemanticErrorType,
-        statement: Optional[Statement],
-        cause: Optional[Exception] = None,
-        **error_args,
-    ):
-        super().__init__(self._format_message(_t, error_args, statement, cause))
-        self.type = _t
-        self.statement = statement
-        self.related_statements = {k: v for k, v in error_args.items() if isinstance(v, Statement)}
-        self.cause = cause
-
-    def _format_message(
-        self,
-        error_type: SemanticErrorType,
-        error_args: dict,
-        statement: Statement,
-        cause: Exception | None,
-    ) -> str:
-        # convert error args as needed
-        # StatementPath with statement_path_as_str
-        error_args = {
-            k: statement_path_as_str(v) if isinstance(v, StatementPath) else v
-            for k, v in error_args.items()
-        }
-        # noinspection StrFormat
-        message = error_type.description.format(**error_args)
-        cause_context = f"\ncause: {cause.__class__.__name__} {cause}" if cause is not None else ""
-        return message + SemanticError.statement_context(statement) + cause_context
-
-    @staticmethod
-    def statement_context(statement: Optional[Statement]) -> str:
-        if statement is None:
-            return ""
-        elif statement._source is None:
-            return "<source unavailable>"
-        else:
-            source = typing.cast(list[Token], statement._source)
-            source_context = get_location_range_pointer(
-                source[0].source_file,
-                source[0].line_number,
-                source[0].start_column,
-                source[-1].line_number + source[-1].line_span,
-                source[-1].end_column,
-            )
-            return f" at\n> {statement}\n{source[0].source_file.path}:{source[0].line_number}\n{source_context}"
-
 
 SymbolContentT = typing.TypeVar("SymbolContentT", bound=SymbolContent)
 
@@ -1095,29 +960,25 @@ def resolve(
 def check_statement(
     statement: Statement, idx: ModuleIndex, on_error: Callable[[SemanticError], None]
 ):
-    def _error(
-        _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
-    ):
+    def _error(_t: ET, statement: Statement, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
     all_children = idx.statements_by_parent[statement.id]
-    parameters = [s for s in all_children if s.is_parameter]
-    arguments = [s for s in all_children if s.is_argument]
     proper_children = [s for s in all_children if not s.is_parameter and not s.is_argument]
 
     # check that arguments and parameters have a parent
     if (statement.is_argument or statement.is_parameter) and statement.parent is None:
-        _error(SE.EXPECTED_PARENT, statement)
+        _error(ET.EXPECTED_PARENT, statement)
 
     # check that compile definition has proper children and model parameters
     if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.COMPILATION:
         if len(proper_children) == 0:
-            _error(SE.EXPECTED_PROPER_CHILDREN, statement)
+            _error(ET.EXPECTED_PROPER_CHILDREN, statement)
 
     # check that runconfig has arguments
     if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.RUNCONFIG:
         if len(proper_children) == 0:
-            _error(SE.EXPECTED_PROPER_CHILDREN, statement, type="any")
+            _error(ET.EXPECTED_PROPER_CHILDREN, statement, type="any")
 
 
 def resolve_statement_reference(
@@ -1126,7 +987,7 @@ def resolve_statement_reference(
     lookup_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> None:
-    def _error(_t: SemanticErrorType, cause: Exception | None = None, **error_args):
+    def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
     if not isinstance(statement.reference, StatementPath) or statement.is_parameter:
@@ -1142,7 +1003,7 @@ def resolve_statement_reference(
     if normalized_path.path.startswith("."):  # resolve in local module
         resolved = idx.statements_by_path.get(normalized_path)
         if resolved is None:
-            _error(SE.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
+            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
             return
     else:  # resolve in external module
         # get source requirement
@@ -1152,23 +1013,23 @@ def resolve_statement_reference(
         requirement_name = f"{source.group('owner')}.{source.group('name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:
-            _error(SE.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
+            _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
             return
         # localize path to requirement module
         localized_path = StatementPath("." + source.group("path"), normalized_path.name)
         try:  # use module lookup to resolve
             resolved = lookup_module(requirement, localized_path)
         except Exception as e:
-            _error(SE.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
+            _error(ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
             return
         if resolved is None:
-            _error(SE.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement.name)
+            _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement.name)
             return
 
     statement.reference = resolved
     # check if the reference has the correct type
     if resolved.symbol_type != statement.symbol_type:
-        _error(SE.REFERENCE_TYPE_MISMATCH, type=statement.symbol_type, resolved=resolved)
+        _error(ET.REFERENCE_TYPE_MISMATCH, type=statement.symbol_type, resolved=resolved)
 
 
 def resolve_type_references(
@@ -1177,7 +1038,7 @@ def resolve_type_references(
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
 ) -> None:
-    def _error(_t: SemanticErrorType, cause: Exception | None = None, **error_args):
+    def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
     # walk through child nodes
@@ -1192,10 +1053,10 @@ def resolve_type_references(
     normalized_path = StatementPath("." + statement.file.path_without_extension, node.reference)
     resolved_stmt = idx.statements_by_path.get(normalized_path)
     if resolved_stmt is None or resolved_stmt.underlying_definition is None:
-        _error(SE.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
+        _error(ET.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
         return
     if resolved_stmt.symbol_type != SymT.TYPE:
-        _error(SE.REFERENCE_TYPE_MISMATCH, type=SymT.TYPE, resolved=resolved_stmt)
+        _error(ET.REFERENCE_TYPE_MISMATCH, type=SymT.TYPE, resolved=resolved_stmt)
         return
 
     # get type node from statement
@@ -1239,9 +1100,7 @@ def index_module(
     if on_error == "raise":
         on_error = raise_error
 
-    def _error(
-        _t: SemanticErrorType, statement: Statement, cause: Exception | None = None, **error_args
-    ):
+    def _error(_t: ET, statement: Statement, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
     idx = ModuleIndex(module=module)
@@ -1257,7 +1116,7 @@ def index_module(
                 #  Will need to change resolution with StatementPaths in indexed module.
                 statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
                 if statement_path in idx.statements_by_path:
-                    _error(SE.AMBIGUOUS_DEFINITION, statement, path=statement_path)
+                    _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_path)
                     continue
                 idx.statements_by_path[statement_path] = statement
     # sort statements by parent by index (for deterministic resolution)
@@ -1269,7 +1128,7 @@ def index_module(
         if statement.symbol_type == SymT.REQUIREMENT:
             requirement_name = statement.name
             if requirement_name in idx.requirements_by_name:
-                _error(SE.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
+                _error(ET.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
                 continue
             idx.requirements_by_name[requirement_name] = typing.cast(Requirement, statement.content)
 
