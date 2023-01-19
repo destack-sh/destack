@@ -7,7 +7,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import language
-from bench.api.symbol import Statement, StatementType, SymbolType, TypeNode
+from bench.api.symbol import StatementType, SymbolType, TypeNode
 from bench.language import wire
 from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_ADDR
@@ -53,7 +53,7 @@ ErrorType = gql.enum(language.ErrorType)
 class Error:
     type: ErrorType
     message: str
-    statement: Optional[Statement]
+    statement: Optional[InterpStatement]
 
 
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:

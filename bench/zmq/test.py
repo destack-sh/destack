@@ -1,6 +1,7 @@
 import dataclasses
 import random
 import uuid
+from typing import Optional, Union
 from uuid import UUID
 
 from bench.zmq.serialize import from_dict, to_dict
@@ -9,6 +10,8 @@ from bench.zmq.serialize import from_dict, to_dict
 @dataclasses.dataclass(eq=False)
 class Node:
     id: UUID
+    other_id: Optional[UUID]
+    reference: Union[None, tuple[str, str], UUID]
     name: str
     flags: list[bool]
     children: list["Node"] = dataclasses.field(default_factory=list)
@@ -27,6 +30,8 @@ class Node:
         # compare descending only into children and contents (not references)
         return (
             self.id == other.id
+            and self.other_id == other.other_id
+            and self.reference == other.reference
             and self.name == other.name
             and self.flags == other.flags
             and self.root_id == other.root_id
@@ -40,12 +45,20 @@ class Node:
 
 
 def random_flags() -> [bool]:
-    return [random.choice([True, False]) for _ in range(random.randint(1, 10))]
+    return [random.choice([True, False]) for _ in range(random.randint(1, 3))]
 
 
 def _add_children(node: Node, count: int) -> [Node]:
     for i in range(count):
-        child = Node(id=uuid.uuid4(), name=f"child_{i}", flags=random_flags())
+        other_id = random.choice([uuid.uuid4(), None])
+        reference = random.choice([None, (node.name, str(i)), other_id])
+        child = Node(
+            id=uuid.uuid4(),
+            other_id=other_id,
+            reference=reference,
+            name=f"child_{i}",
+            flags=random_flags(),
+        )
         child.root = node.root or node
         child.parent = node
         node.children.append(child)
@@ -54,7 +67,9 @@ def _add_children(node: Node, count: int) -> [Node]:
 
 def test_serialize_round_trip():
     # create three level
-    root = Node(id=uuid.uuid4(), name="root", flags=[True, False, True])
+    root = Node(
+        id=uuid.uuid4(), other_id=None, reference=None, name="root", flags=[True, False, True]
+    )
     _add_children(root, 3)
     for child in root.children:
         _add_children(child, 2)
