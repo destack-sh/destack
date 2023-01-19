@@ -72,9 +72,7 @@ class ReqModuleRuntimePayload:
 
 @_register_payload(ZMessageType.REP_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
-    module_id: UUID
-    files: list[wire.FileData]
-    symbols: list[wire.StatementData]
+    module: wire.ModuleData
     errors: list[wire.ErrorData]
 
 

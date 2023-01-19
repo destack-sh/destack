@@ -140,6 +140,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.type_node = content.type_node
     elif isinstance(content, language.Task):
         data.description = content.description
+        data.type_node = content.type_node
     elif isinstance(content, language.Expectation):
         data.description = content.description
     elif isinstance(content, language.Code):
@@ -147,6 +148,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.code = content.code
         data.code_builtin_id = content.builtin_id
+        data.type_node = content.type_node
     elif isinstance(content, language.Model):
         data.provider = content.provider
         data.external_name = content.external_name
@@ -159,6 +161,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.description = content.description
         data.records = content.records
+        data.type_node = content.type_node
     elif isinstance(content, language.Compilation):
         data.mappings = content.source_mappings
     elif isinstance(content, language.Requirement):

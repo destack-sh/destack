@@ -9,7 +9,9 @@ from bench.language.type import SourceFile, Statement, StatementPath, Token, sta
 def get_location_pointer(
     source: SourceFile, line_number: int, start_column: int, prev_lines: int = 4
 ) -> str:
-    prev_lines = "> ".join(source.line(line_number - i - 1) for i in reversed(range(0, prev_lines)))
+    prev_lines = "> ".join(
+        source.line(line_number - i) for i in reversed(range(0, min(line_number, prev_lines)))
+    )
     if not prev_lines.endswith("\n"):
         prev_lines = prev_lines + "\n"
     context = f"> {prev_lines}> {'-' * start_column}^"
@@ -24,12 +26,14 @@ def get_location_range_pointer(
     end_column: int,
     prev_lines: int = 4,
 ) -> str:
-    prev_lines = "> ".join(source.line(start_line - i - 1) for i in reversed(range(0, prev_lines)))
+    prev_lines = "> ".join(
+        source.line(start_line - i) for i in reversed(range(0, min(start_line, prev_lines)))
+    )
     if not prev_lines.endswith("\n"):
         prev_lines = prev_lines + "\n"
     # does not handle multiline ranges yet, so if it's multiline, we extend until end of first line
     if end_line > start_line:
-        end_column = len(source.line(start_line - 1))
+        end_column = len(source.line(start_line))
     context = f"> {prev_lines}> {'-' * start_column}{'^' * (end_column - start_column)}"
     return context
 

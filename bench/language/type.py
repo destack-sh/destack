@@ -46,7 +46,8 @@ class SourceFile:
             linebreaks.append(match.end())
         return linebreaks
 
-    def line(self, index: int) -> str:
+    def line(self, line_number: int) -> str:
+        index = line_number - 1
         if index >= len(self.linebreaks):
             raise IndexError(f"line {index} does not exist")
         elif index == len(self.linebreaks) - 1:

@@ -34,6 +34,12 @@ type DatasetRecord {
 """Date with time (isoformat)"""
 scalar DateTime
 
+type Error {
+  type: String!
+  message: String!
+  statement: Statement!
+}
+
 type Execution implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -109,38 +115,26 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
-type InterpStatement implements Node {
-  id: GlobalID!
-  projectVersion: ProjectVersion!
-  file: File!
-  type: TypeNode
-  modifier: StatementModifier
-  name: String
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  deletedAt: DateTime
-  commented: Boolean!
-  compiled: Boolean!
-  parent: Statement
-  children: [Statement!]!
-  descendants: [Statement!]!
-  index: Int
-  reference: Statement
-  referencedBy: [Statement!]!
+type InterpFile {
+  id: UUID!
+  module: InterpModule!
+  path: String!
+  statements: [InterpStatement!]!
+}
 
-  """Traverses references to get the source definition."""
-  sourceDefinition(pk: ID): Statement
+type InterpModule {
+  id: UUID!
+  name: String!
+  files: [InterpFile!]!
+}
+
+type InterpStatement {
+  id: UUID!
+  file: InterpFile!
+  name: String
+  type: StatementType!
   symbolType: SymbolType
-  text: String
-  code: String
-  codeBuiltinId: String
-  description: String
-  referenceProjectVersion: ProjectVersion
-  value: JSON
-  btl: String
-  records: [DatasetRecord!]!
-  mappings: [SourceMapping!]!
-  importPath: String
+  typeNode: TypeNode
 }
 
 """
@@ -148,22 +142,9 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
-type Job {
-  id: UUID!
-  name: String!
-}
-
-type ModuleError {
-  type: String!
-  message: String!
-  statement: Statement!
-}
-
 type ModuleRuntime {
-  id: UUID!
-  jobs: [Job!]!
-  symbols: [InterpStatement!]!
-  errors: [ModuleError!]!
+  module: InterpModule!
+  errors: [Error!]!
 }
 
 type MorphStatementPayload {
