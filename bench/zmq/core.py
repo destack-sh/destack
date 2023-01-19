@@ -48,7 +48,7 @@ def serialize_message(message: ZMessage) -> str:
     message_dict = {"type": message.type, "id": str(message.id), "version": message.version}
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
-        message_dict["payload"] = to_dict(message.payload, set())
+        message_dict["payload"] = to_dict(message.payload, refs=None)
     return json.dumps(message_dict, cls=MessageJSONEncoder)
 
 
@@ -61,7 +61,11 @@ def parse_message(message_json: str) -> ZMessage:
 
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
     if payload_cls and message_dict.get("payload") is not None:
-        message_dict["payload"] = from_dict(payload_cls, message_dict["payload"], {})
+        try:
+            message_dict["payload"] = from_dict(payload_cls, message_dict["payload"], {})
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.exception("parse_message_failed", exc_info=True, e=e)
+            raise
     message_dict["type"] = ZMessageType(message_dict["type"])
     message_dict["id"] = UUID(message_dict["id"])
 

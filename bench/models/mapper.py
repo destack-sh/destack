@@ -194,9 +194,9 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.external_name = data.external_name
     if isinstance(data.type_node, language.TypeNode):
         # render type node to string
-        statement.type_node = render_type_node(data.type_node)
+        statement.btl = render_type_node(data.type_node)
     else:
-        statement.type_node = data.type_node
+        statement.btl = data.type_node
 
     # copy relational data
     if data.records:
