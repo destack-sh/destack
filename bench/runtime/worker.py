@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import chain
 from uuid import UUID
 
@@ -9,7 +9,8 @@ import zmq.asyncio
 from bench import language
 from bench.language import wire
 from bench.language.error import ParseError
-from bench.language.parse import ErrorCollector, lookup_in_error, resolve
+from bench.language.parse import ErrorCollector, index_module, resolve
+from bench.language.type import StatementPath, SymbolType
 from bench.language.wire import parse_symbol_type_node
 from bench.zmq import (
     ZMessage,
@@ -32,12 +33,12 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class ModuleWorkerState:
     source: wire.ModuleData
-    name: str
     # interpreted state
     interp_dependencies: dict[UUID, language.Module]
     interp_module: language.Module | None
     errors: list[language.Error]
     # derived from interpreted
+    wire_dependencies: dict[UUID, wire.ModuleData] = field(default_factory=dict)
     wire_module: wire.ModuleData | None = None
     wire_errors: list[wire.ErrorData] | None = None
 
@@ -50,13 +51,37 @@ class ModuleWorkerState:
         self.wire_errors = [wire.rmap_error(e) for e in self.errors]
 
 
-def update_runtime(state: ModuleWorkerState) -> None:
-    state.errors = []
-    # TODO @Incomplete: lookup dependencies
-    #  and use for lookup_in_module and reference resolution in state.source via lookup_in_module
+def get_requirements(source: wire.ModuleData) -> set[UUID]:
+    """Returns the set of module ids required by the given module source (not transitive)"""
+    requirements_ids: set[UUID] = set()
+    for statement in chain.from_iterable(file.statements for file in source.files):
+        if statement.symbol_type == SymbolType.REQUIREMENT:
+            if not isinstance(statement.reference_module, UUID):
+                raise ValueError(f"requirement must specify reference module id: {statement}")
+            requirements_ids.add(statement.reference_module)
+    return requirements_ids
 
-    # parse (not resolve) type nodes in place since source can contain arbitrary btl strings
-    for statement in chain.from_iterable(file.statements for file in state.source.files):
+
+def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
+    # assumes no conflicting names
+    dependencies_by_name = {m.module.name: m for m in dependencies}
+
+    def lookup(requirement: language.Requirement, path: StatementPath) -> language.Statement | None:
+        idx: language.ModuleIndex = dependencies_by_name.get(requirement.name)
+        if not idx:
+            return None
+        return idx.statements_by_path.get(path)
+
+    return lookup
+
+
+def interp_runtime(
+    source: wire.ModuleData, dependencies: list[language.ModuleIndex]
+) -> tuple[language.Module | None, list[language.Error]]:
+    """Interprets the given module source with the given dependencies"""
+    errors = []
+    # parse (not resolve) type nodes in place as source contains btl strings
+    for statement in chain.from_iterable(file.statements for file in source.files):
         if not isinstance(statement.type_node, str):
             continue
         try:
@@ -64,24 +89,19 @@ def update_runtime(state: ModuleWorkerState) -> None:
         except ParseError as e:
             error = e.to_error()
             error.statement = statement  # technically not correct but we only need id
-            state.errors.append(error)
-
-    # bail if we have type errors (types must be valid for proper parse)
-    if state.errors:
-        state.interp_module = None
-        state.derive_wire()  # update wire state
-        return
-
-    # update language module (from wire format)
-    state.interp_module = wire.wmap_module(state.source)
+            errors.append(error)
+    if errors:  # types must be valid for proper parse
+        return None, errors
 
     # resolve
+    interp_module = wire.wmap_module(source)
     collector = ErrorCollector()
-    _ = resolve(state.interp_module, lookup_in_module=lookup_in_error, on_error=collector)
-    state.errors.extend([e.to_error() for e in collector.errors])
+    _ = resolve(
+        interp_module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
+    )
+    errors.extend([e.to_error() for e in collector.errors])
 
-    # update wire state
-    state.derive_wire()
+    return interp_module, errors
 
 
 class RuntimeWorker:
@@ -91,23 +111,54 @@ class RuntimeWorker:
         self.int_req_sock = zmq_ctx.socket(zmq.REQ)
         self.change_sub_sock = zmq_ctx.socket(zmq.SUB)
         self.change_pub_sock = zmq_ctx.socket(zmq.PUB)
+        self.modules_idx_cache: dict[UUID, language.ModuleIndex] = {}
         self.working_states: dict[UUID, ModuleWorkerState] = {}
 
-    async def init_worker_state(self, module_id):
-        # fetch module from internal server
+    async def get_wire_module(self, module_id: UUID) -> wire.ModuleData:
+        """Gets a module's wire data (uncached)."""
         req_read_module = ZMessage(ZMessageType.REQ_READ_MODULE, ReqReadModulePayload(module_id))
         send_message(self.int_req_sock, req_read_module)
         _, payload = await recv_message_with(self.int_req_sock, RepReadModulePayload)
+        return payload.module
 
+    async def get_dependency_module_idx(self, module_id: UUID) -> language.ModuleIndex:
+        """Gets a dependency's language module index (potentially cached)."""
+        if module_id in self.modules_idx_cache:
+            return self.modules_idx_cache[module_id]
+        # get, parse and index dependency module
+        wire_module = await self.get_wire_module(module_id)
+        # TODO @Incomplete: get dependencies of dependency
+        interp_module, errors = interp_runtime(wire_module, [])
+        if errors:
+            raise ValueError(f"dependency module has errors: {errors}")
+        idx = index_module(interp_module)
+        self.modules_idx_cache[module_id] = idx
+        return idx
+
+    async def update_runtime(self, state: ModuleWorkerState):
+        """Updates a module's runtime state by re-interpreting it with its dependencies."""
+        requirements = get_requirements(state.source)
+        dependencies = []
+        for requirement_id in requirements:
+            dependency = await self.get_dependency_module_idx(requirement_id)
+            dependencies.append(dependency)
+        interp_module, errors = interp_runtime(state.source, dependencies)
+        state.interp_dependencies = {d.module.id: d.module for d in dependencies}
+        state.interp_module = interp_module
+        state.errors = errors
+        state.derive_wire()
+
+    async def init_worker_state(self, module_id):
+        # fetch module from internal server
+        source_module = await self.get_wire_module(module_id)
         # initialise runtime state
         state = ModuleWorkerState(
-            source=payload.module,
-            name=payload.module.name,
+            source=source_module,
             interp_dependencies={},
             interp_module=None,
             errors=[],
         )
-        update_runtime(state)  # should probably happen in a thread?
+        await self.update_runtime(state)
         self.working_states[module_id] = state
 
     async def get_worker_state(self, module_id: UUID) -> ModuleWorkerState:
@@ -151,7 +202,7 @@ class RuntimeWorker:
         elif msg.type == ZMessageType.MODULE_CHANGED:
             module_id = msg.payload_as(ReqModuleRuntimePayload).module_id
             state = await self.get_worker_state(module_id)
-            update_runtime(state)  # always update for now with full everything
+            await self.update_runtime(state)
             rep_module_runtime = ZMessage(
                 type=ZMessageType.REP_MODULE_RUNTIME,
                 payload=RepModuleRuntimePayload(state.wire_module, state.wire_errors),
@@ -161,7 +212,8 @@ class RuntimeWorker:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
         # TODO @Incomplete: trigger jobs and send out consequent job and runtime changes
-        # TODO @Incomplete: write back compilation results to zmq server
+        # TODO @Incomplete: write back compilation results (to internal server)
+        # TODO @Incomplete: stream back runtime results & frames (to api server)
 
     async def stop(self):
         logger.info("runtime_worker.stop", worker_id=self.worker_id)

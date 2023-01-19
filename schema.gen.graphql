@@ -171,6 +171,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 
 type ModuleRuntime {
   module: InterpModule!
+  dependencies: [InterpModule!]!
   errors: [Error!]!
 }
 

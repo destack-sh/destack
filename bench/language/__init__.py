@@ -1,6 +1,6 @@
 from bench.language.error import Error, ErrorType
 from bench.language.lex import Token, TokenType, lex
-from bench.language.parse import parse
+from bench.language.parse import ModuleIndex, parse
 from bench.language.type import (
     Capability,
     Code,
@@ -35,6 +35,7 @@ __all__ = [
     "lex",
     "Model",
     "Module",
+    "ModuleIndex",
     "parse",
     "Requirement",
     "Runconfig",
