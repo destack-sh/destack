@@ -20,7 +20,7 @@ from bench.language.wire import render_symbol_type_node
 from bench.models.project import FileType, Project, ProjectVersion
 
 
-def lookup_module_in_db(
+def lookup_in_db_module(
     requirement: language.Requirement, path: StatementPath
 ) -> language.Statement:
     version = lookup_requirement(requirement)
@@ -69,12 +69,6 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
         wire_statement = rmap_statement(statement, file=wire_files[statement.file_id])
         wire_statements[statement.id] = wire_statement
         wire_files[statement.file_id].statements.append(wire_statement)
-
-    # map references (incl. parent)
-    for statement in statements:
-        wire_statement = wire_statements[statement.id]
-        wire_statement.parent = wire_statements.get(statement.parent_id)
-        wire_statement.reference = wire_statements.get(statement.reference_id)
 
     return wire_module
 
@@ -138,6 +132,19 @@ def write_module(
 
 def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.StatementData:
     """Reads a database statement into a wire statement."""
+    # map reference into wire-able reference (convert module-external ref to statement path)
+    if statement.reference is not None:
+        if statement.reference.project_version_id == statement.project_version_id:
+            reference = statement.reference_id
+        else:
+            # :StatementReferencePath
+            # create statement path as import path
+            module_name = statement.reference.project_version.project.path
+            import_source = f"{module_name}.{statement.reference.file.path_without_extension}"
+            reference = StatementPath(import_source, statement.reference.name)
+    else:
+        reference = None
+
     data = wire.StatementData(
         id=statement.id,
         module_id=file.module_id,
@@ -150,7 +157,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         name=statement.name,
         text=statement.text,
         symbol_type=statement.symbol_type,
-        reference=statement.reference_id,
+        reference=reference,
         reference_module=statement.reference_project_version_id,
     )
     if statement.type == StatementType.DEFINITION:

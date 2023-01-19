@@ -37,6 +37,12 @@ class ModuleData:
     name: str
     files: list["FileData"]
 
+    def __str__(self):
+        return f"{self.name}@{self.id} ({len(self.files)} files)"
+
+    def __repr__(self):
+        return f"<Module {str(self)}>"
+
 
 @dataclass(repr=False)
 class FileData:
@@ -44,6 +50,12 @@ class FileData:
     module_id: UUID
     path: str
     statements: list["StatementData"]
+
+    def __str__(self):
+        return f"{self.module_id}/{self.path}"
+
+    def __repr__(self):
+        return f"<File {str(self)}>"
 
 
 @dataclass(repr=False)
@@ -76,6 +88,14 @@ class StatementData:
     @property
     def reference_id(self) -> Optional[UUID]:
         return self.reference if isinstance(self.reference, UUID) else None
+
+    def __str__(self):
+        loc = str(self.file_id) + ":" + str(self.index)
+        symbol_type_str = self.symbol_type.name if self.symbol_type else ""
+        return f"{loc}: {self.type.name} {symbol_type_str} {self.name} (ref={self.reference})"
+
+    def __repr__(self):
+        return f"<Statement {str(self)}>"
 
 
 @dataclass(repr=False)

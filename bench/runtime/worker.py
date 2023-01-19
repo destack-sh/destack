@@ -9,8 +9,7 @@ import zmq.asyncio
 from bench import language
 from bench.language import wire
 from bench.language.error import ParseError
-from bench.language.parse import ErrorCollector, error_module_lookup, resolve
-from bench.language.reconstruct import render
+from bench.language.parse import ErrorCollector, lookup_in_error, resolve
 from bench.language.wire import parse_symbol_type_node
 from bench.zmq import (
     ZMessage,
@@ -35,6 +34,7 @@ class ModuleWorkerState:
     source: wire.ModuleData
     name: str
     # interpreted state
+    interp_dependencies: dict[UUID, language.Module]
     interp_module: language.Module | None
     errors: list[language.Error]
     # derived from interpreted
@@ -52,6 +52,9 @@ class ModuleWorkerState:
 
 def update_runtime(state: ModuleWorkerState) -> None:
     state.errors = []
+    # TODO @Incomplete: lookup dependencies
+    #  and use for lookup_in_module and reference resolution in state.source via lookup_in_module
+
     # parse (not resolve) type nodes in place since source can contain arbitrary btl strings
     for statement in chain.from_iterable(file.statements for file in state.source.files):
         if not isinstance(statement.type_node, str):
@@ -74,12 +77,8 @@ def update_runtime(state: ModuleWorkerState) -> None:
 
     # resolve
     collector = ErrorCollector()
-    # TODO @Incomplete: load requirement's modules (and cache in worker state)
-    _ = resolve(state.interp_module, lookup_module=error_module_lookup, on_error=collector)
+    _ = resolve(state.interp_module, lookup_in_module=lookup_in_error, on_error=collector)
     state.errors.extend([e.to_error() for e in collector.errors])
-
-    if state.errors:  # nocheckin dump file
-        print(render(state.interp_module.files))
 
     # update wire state
     state.derive_wire()
@@ -102,7 +101,11 @@ class RuntimeWorker:
 
         # initialise runtime state
         state = ModuleWorkerState(
-            source=payload.module, name=payload.module.name, interp_module=None, errors=[]
+            source=payload.module,
+            name=payload.module.name,
+            interp_dependencies={},
+            interp_module=None,
+            errors=[],
         )
         update_runtime(state)  # should probably happen in a thread?
         self.working_states[module_id] = state

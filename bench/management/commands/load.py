@@ -12,7 +12,7 @@ from bench import language
 from bench.language import lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.models import Organization, Project
-from bench.models.mapper import lookup_module_in_db, write_module
+from bench.models.mapper import lookup_in_db_module, write_module
 from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         project_v.reset()
         module = language.Module(id=project_v.id, name=project_v.project.path)
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        module = parse(lex(source_file), module, lookup_module_in_db)
+        module = parse(lex(source_file), module, lookup_in_db_module)
         wire_module = wire.rmap_module(module)
         write_module(wire_module.files, project_v)
 

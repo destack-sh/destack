@@ -10,7 +10,7 @@ from bench.language import File
 from bench.language.lex import SourceFile, Token, lex
 from bench.language.parse import parse
 from bench.language.reconstruct import render, render_file
-from bench.models.mapper import lookup_module_in_db
+from bench.models.mapper import lookup_in_db_module
 
 
 class Command(BaseCommand):
@@ -37,7 +37,7 @@ class Command(BaseCommand):
             console.print(pprint_tokens(tokens))
 
         if database:
-            module = parse(tokens, lookup_module=lookup_module_in_db)
+            module = parse(tokens, lookup_in_module=lookup_in_db_module)
         else:
             module = parse(tokens)
 

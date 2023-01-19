@@ -112,6 +112,8 @@ def from_dict(
             return [from_dict(inner_type, item, refs) for item in data]
         elif origin_cls is tuple:
             return tuple(from_dict(inner_type, item, refs) for item in data)
+        elif hasattr(cls, "_fields"):  # namedtuple
+            return cls(*[from_dict(inner_type, item, refs) for item in data])
     elif isinstance(data, dict):
         args = typing.get_args(cls)
         value_type = args[1] if len(args) > 1 else None
