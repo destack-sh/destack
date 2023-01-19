@@ -12,8 +12,8 @@ from bench.language.error import ParseError
 from bench.language.parse import (
     ErrorCollector,
     error_module_lookup,
+    parse_type_node,
     parse_type_node_func,
-    parse_type_node_struct,
     parse_type_node_struct_inline,
     parser_from_string,
     resolve,
@@ -70,7 +70,7 @@ def parse_statement_type_node(statement: wire.StatementData) -> None:
             statement.type_node = parse_type_node_struct_inline(btl_parser, name=None)
             btl_parser.eat_bracket(")")
         else:
-            statement.type_node = parse_type_node_struct(btl_parser, name=None)
+            statement.type_node = parse_type_node(btl_parser, name=None)
     else:
         raise ValueError(f"unexpected symbol type {statement.symbol_type}")
 
@@ -84,7 +84,6 @@ def update_runtime(state: ModuleWorkerState) -> None:
         try:
             parse_statement_type_node(statement)
         except ParseError as e:
-            statement.type_node = None  # clear type node
             error = e.to_error()
             error.statement = statement  # technically not correct but we only need id
             state.errors.append(error)
@@ -92,7 +91,7 @@ def update_runtime(state: ModuleWorkerState) -> None:
     # bail if we have type errors (types must be valid for proper parse)
     if state.errors:
         state.interp_module = None
-        state.derive_wire()
+        state.derive_wire()  # update wire state
         return
 
     # update language module (from wire format)
@@ -103,6 +102,8 @@ def update_runtime(state: ModuleWorkerState) -> None:
     # TODO @Incomplete: load requirement's modules (and cache in worker state)
     resolve(state.interp_module, lookup_module=error_module_lookup, on_error=collector)
     state.errors.extend([e.to_error() for e in collector.errors])
+
+    # update wire state
     state.derive_wire()
 
 

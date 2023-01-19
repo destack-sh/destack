@@ -26,11 +26,11 @@ def _prep_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
     return fields
 
 
-def to_dict(obj: typing.Any, refs: set[(str, UUID)]):
+def to_dict(obj: typing.Any, refs: set[(str, UUID)] | None):
     """Convert dataclass to dict, storing repeated objects in refs."""
     if dataclasses.is_dataclass(obj):
         fields = _prep_dataclass_fields(obj.__class__)
-        if "id" in fields:
+        if refs is not None and "id" in fields:
             node_id = f"{type(obj).__name__}:{getattr(obj, 'id')}"
             if node_id in refs:
                 return {"__ref__": node_id}
@@ -102,7 +102,7 @@ def from_dict(
                     continue
                 try:
                     return from_dict(arg, data, refs)
-                except (TypeError, ValueError):
+                except (TypeError, ValueError, AttributeError):
                     pass
     elif isinstance(data, list):
         args = typing.get_args(cls)

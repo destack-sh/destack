@@ -184,7 +184,8 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     elif isinstance(content, language.Compilation):
         data.mappings = content.source_mappings
     elif isinstance(content, language.Requirement):
-        data.reference_module = (content.name, content.version)
+        if content.name and content.version:
+            data.reference_module = (content.name, content.version)
     elif isinstance(content, language.Runconfig):
         pass
     else:
