@@ -116,7 +116,11 @@ def from_dict(
             return cls(*[from_dict(inner_type, item, refs) for item in data])
     elif isinstance(data, dict):
         args = typing.get_args(cls)
-        value_type = args[1] if len(args) > 1 else None
-        return {key: from_dict(value_type, value, refs) for key, value in data.items()}
+        key_type = args[0] if args else None
+        value_type = args[1] if args else None
+        return {
+            from_dict(key_type, key, refs): from_dict(value_type, value, refs)
+            for key, value in data.items()
+        }
 
     raise TypeError(f"unexpected type {cls} for {data}")

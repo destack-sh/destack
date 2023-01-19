@@ -43,6 +43,7 @@ class InterpStatement:
 @gql.type
 class ModuleRuntime:
     module: InterpModule
+    dependencies: list[InterpModule]
     errors: list["Error"]
 
 
@@ -108,14 +109,19 @@ class ModuleRuntimeSubscription:
         send_message(worker_req_sock, req_module_runtime_msg)
         _, payload = await recv_message_with(worker_req_sock, RepModuleRuntimePayload)
         module = rmap_module(payload.module)
-        yield ModuleRuntime(module=module, errors=rmap_errors(payload.errors, module))
+        dependencies = [rmap_module(dep) for dep in payload.dependencies]
+        errors = rmap_errors(payload.errors, module)
+        yield ModuleRuntime(module=module, dependencies=dependencies, errors=errors)
 
         # get runtime changes
         try:
             while True:
                 _, update = await recv_message_with(worker_sub_sock, RepModuleRuntimePayload)
+                # (this should definitely be partial updates)
                 module = rmap_module(update.module)
-                yield ModuleRuntime(module=module, errors=rmap_errors(update.errors, module))
+                dependencies = [rmap_module(dep) for dep in update.dependencies]
+                errors = rmap_errors(update.errors, module)
+                yield ModuleRuntime(module=module, dependencies=dependencies, errors=errors)
 
         finally:
             worker_req_sock.close()
