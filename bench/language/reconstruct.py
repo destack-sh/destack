@@ -203,16 +203,11 @@ def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
         identifier_str = ""
     description_str = f' "{node.description}"' if node.description else ""
     if node.type == TypeTag.TYPE_REFERENCE or node.source_reference is not None:
-        # if it's a reference _or_ used to be a reference, we want the type reference
+        # if it's a reference _or_ used to be a reference, keep the type reference
         reference_str = escape_identifier(node.source_reference)
         return f"{identifier_str}{reference_str}{description_str}"
     elif node.type == TypeTag.FUNCTION:
-        input_str = render_type_node_struct(node.input, seperator=", ")
-        if node.output.type != TypeTag.NULL:
-            output_str = render_type_node(node.output, ignore_name=True)
-            return f"({input_str}) -> {output_str}"
-        else:
-            return f"({input_str})"
+        return render_type_node_func(node)
     elif node.type == TypeTag.STRUCT:
         return render_type_node_struct(node, seperator="\n")
     elif node.type == TypeTag.ARRAY:
@@ -228,6 +223,15 @@ def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
         return f"{identifier_str}{node.type.value}{description_str}"
     else:
         raise ValueError(f"unexpected type: {node.type}")
+
+
+def render_type_node_func(node: TypeNode) -> str:
+    input_str = render_type_node_struct(node.input, seperator=", ")
+    if node.output.type != TypeTag.NULL:
+        output_str = render_type_node(node.output, ignore_name=True)
+        return f"({input_str}) -> {output_str}"
+    else:
+        return f"({input_str})"
 
 
 def render_type_node_struct(node: TypeNode, seperator: str) -> str:

@@ -15,8 +15,8 @@ from django.db import transaction
 from bench import language, models
 from bench.language import wire
 from bench.language.parse import index_module
-from bench.language.reconstruct import render_type_node
 from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.wire import render_symbol_type_node
 from bench.models.project import FileType, Project, ProjectVersion
 
 
@@ -194,7 +194,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.external_name = data.external_name
     if isinstance(data.type_node, language.TypeNode):
         # render type node to string
-        statement.btl = render_type_node(data.type_node)
+        statement.btl = render_symbol_type_node(data.symbol_type, data.type_node)
     else:
         statement.btl = data.type_node
 

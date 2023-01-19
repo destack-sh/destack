@@ -7,17 +7,11 @@ import zmq
 import zmq.asyncio
 
 from bench import language
-from bench.language import SymbolType, wire
+from bench.language import wire
 from bench.language.error import ParseError
-from bench.language.parse import (
-    ErrorCollector,
-    error_module_lookup,
-    parse_type_node,
-    parse_type_node_func,
-    parse_type_node_struct_inline,
-    parser_from_string,
-    resolve,
-)
+from bench.language.parse import ErrorCollector, error_module_lookup, resolve
+from bench.language.reconstruct import render
+from bench.language.wire import parse_symbol_type_node
 from bench.zmq import (
     ZMessage,
     ZMessageType,
@@ -56,25 +50,6 @@ class ModuleWorkerState:
         self.wire_errors = [wire.rmap_error(e) for e in self.errors]
 
 
-def parse_statement_type_node(statement: wire.StatementData) -> None:
-    # TODO @Cleanup: parse_statement_type_node should live in language/wire
-    btl_parser = parser_from_string(statement.type_node)
-    if statement.symbol_type in (SymbolType.TASK, SymbolType.CODE):
-        statement.type_node = parse_type_node_func(btl_parser, name=None)
-    elif statement.symbol_type == SymbolType.DATASET:
-        statement.type_node = parse_type_node_struct_inline(btl_parser, name=None)
-    elif statement.symbol_type == SymbolType.TYPE:
-        # hacky way to determine whether it's an inline redef or struct def
-        if statement.type_node.startswith("("):
-            btl_parser.eat_bracket("(")
-            statement.type_node = parse_type_node_struct_inline(btl_parser, name=None)
-            btl_parser.eat_bracket(")")
-        else:
-            statement.type_node = parse_type_node(btl_parser, name=None)
-    else:
-        raise ValueError(f"unexpected symbol type {statement.symbol_type}")
-
-
 def update_runtime(state: ModuleWorkerState) -> None:
     state.errors = []
     # parse (not resolve) type nodes in place since source can contain arbitrary btl strings
@@ -82,7 +57,7 @@ def update_runtime(state: ModuleWorkerState) -> None:
         if not isinstance(statement.type_node, str):
             continue
         try:
-            parse_statement_type_node(statement)
+            statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
         except ParseError as e:
             error = e.to_error()
             error.statement = statement  # technically not correct but we only need id
@@ -100,8 +75,11 @@ def update_runtime(state: ModuleWorkerState) -> None:
     # resolve
     collector = ErrorCollector()
     # TODO @Incomplete: load requirement's modules (and cache in worker state)
-    resolve(state.interp_module, lookup_module=error_module_lookup, on_error=collector)
+    _ = resolve(state.interp_module, lookup_module=error_module_lookup, on_error=collector)
     state.errors.extend([e.to_error() for e in collector.errors])
+
+    if state.errors:  # nocheckin dump file
+        print(render(state.interp_module.files))
 
     # update wire state
     state.derive_wire()
@@ -149,7 +127,7 @@ class RuntimeWorker:
         self.change_sub_sock.connect(internal_server_addr)
         self.change_sub_sock.connect(api_server_addr)
         self.change_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
-        # self.change_pub_sock.bind(runtime_worker_addr) TODO @Incomplete: doesn't work?
+        # self.change_pub_sock.bind(runtime_worker_addr) TODO @Incomplete: pub runtime changes
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
         poller.register(self.change_sub_sock, zmq.POLLIN)

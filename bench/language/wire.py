@@ -4,6 +4,17 @@ from uuid import UUID
 
 from bench import language
 from bench.language import ErrorType
+from bench.language.parse import (
+    parse_type_node,
+    parse_type_node_func,
+    parse_type_node_struct_inline,
+    parser_from_string,
+)
+from bench.language.reconstruct import (
+    render_type_node,
+    render_type_node_func,
+    render_type_node_struct,
+)
 from bench.language.type import (
     LiteralValue,
     SourceMapping,
@@ -12,6 +23,7 @@ from bench.language.type import (
     StatementType,
     SymbolType,
     TypeNode,
+    TypeTag,
 )
 
 #
@@ -266,3 +278,44 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
         raise ValueError(
             f"unexpected symbol type {statement.symbol_type} for statement {statement}"
         )
+
+
+def render_symbol_type_node(symbol_type: language.SymbolType, type_node: language.TypeNode) -> str:
+    """Renders a type node into a recoverable string."""
+    if symbol_type in (SymbolType.TASK, SymbolType.CODE):
+        return render_type_node_func(type_node)
+    elif symbol_type == SymbolType.DATASET:
+        return f"({render_type_node_struct(type_node, seperator=', ')})"
+    elif symbol_type == SymbolType.TYPE:
+        if type_node.type == TypeTag.STRUCT:
+            # unlike the others, this node is not rendered as it appears in Bench
+            # because we need to distinguish struct defs from inline redefs
+            # (and Bench structs don't have any special characters and may be empty)
+            return f"({render_type_node_struct(type_node, seperator=', ')})"
+        else:
+            return render_type_node(type_node)
+    else:
+        raise ValueError(f"unexpected symbol type {symbol_type}")
+
+
+def parse_symbol_type_node(symbol_type: language.SymbolType, type_node: str) -> language.TypeNode:
+    """Parses a type node from a recoverable string (serialized like above)."""
+    btl_parser = parser_from_string(type_node)
+    if symbol_type in (SymbolType.TASK, SymbolType.CODE):
+        parsed = parse_type_node_func(btl_parser, name=None)
+    elif symbol_type == SymbolType.DATASET:
+        btl_parser.eat_bracket("(")
+        parsed = parse_type_node_struct_inline(btl_parser, name=None)
+        btl_parser.eat_bracket(")")
+    elif symbol_type == SymbolType.TYPE:
+        # hacky way to determine whether it's an inline redef or struct def
+        if type_node.startswith("("):
+            btl_parser.eat_bracket("(")
+            parsed = parse_type_node_struct_inline(btl_parser, name=None)
+            btl_parser.eat_bracket(")")
+        else:
+            parsed = parse_type_node(btl_parser, name=None)
+    else:
+        raise ValueError(f"unexpected symbol type {symbol_type}")
+    btl_parser.eat_eos()  # must be full match
+    return parsed
