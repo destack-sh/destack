@@ -85,17 +85,36 @@ def from_dict(
             if key in data and key not in deserialized:
                 setattr(obj, key, from_dict(field.type, data[key], refs))
         return obj
-    elif isinstance(data, list):
-        args = typing.get_args(cls)
-        inner_type = args[0] if args else None
-        return [from_dict(inner_type, item, refs) for item in data]
-    elif isinstance(data, dict):
-        args = typing.get_args(cls)
-        value_type = args[1] if len(args) > 1 else None
-        return {key: from_dict(value_type, value, refs) for key, value in data.items()}
     elif cls in (str, int, float, bool, UUID, datetime):
         return cls(data)
     elif isinstance(cls, type) and issubclass(cls, enum.Enum):
         return cls(data)
-    else:
-        return data
+    elif typing.get_origin(cls) is typing.Union:
+        args = typing.get_args(cls)
+        if len(args) == 2 and args[1] is type(None):  # noqa
+            # optional
+            return from_dict(args[0], data, refs)
+        else:  # generic union
+            # try to deserialize as each type until one works
+            # (this isn't ideal, but we want to use a proper message format later anyway)
+            for arg in args:
+                if arg is type(None):  # noqa
+                    continue
+                try:
+                    return from_dict(arg, data, refs)
+                except (TypeError, ValueError):
+                    pass
+    elif isinstance(data, list):
+        args = typing.get_args(cls)
+        inner_type = args[0] if args else None
+        origin_cls = typing.get_origin(cls)
+        if origin_cls is list:
+            return [from_dict(inner_type, item, refs) for item in data]
+        elif origin_cls is tuple:
+            return tuple(from_dict(inner_type, item, refs) for item in data)
+    elif isinstance(data, dict):
+        args = typing.get_args(cls)
+        value_type = args[1] if len(args) > 1 else None
+        return {key: from_dict(value_type, value, refs) for key, value in data.items()}
+
+    raise TypeError(f"unexpected type {cls} for {data}")

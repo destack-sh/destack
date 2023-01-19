@@ -37,7 +37,7 @@ scalar DateTime
 type Error {
   type: ErrorType!
   message: String!
-  statement: Statement
+  statement: InterpStatement
 }
 
 enum ErrorType {
