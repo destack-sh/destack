@@ -12,7 +12,7 @@ from strawberry_django_plus.relay import GlobalID
 
 import bench.language.type
 from bench import models
-from bench.api.common import async_safe_mutation
+from bench.api.util import async_safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion

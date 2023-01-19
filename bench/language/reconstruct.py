@@ -80,7 +80,7 @@ def render_statement_indented(statement: Statement, indent: int) -> str:
     return content_str
 
 
-def render_statement(statement: Statement) -> str:
+def render_statement(statement: Statement, include_content: bool = True) -> str:
     """Renders the statement itself without indentation"""
     if statement.type == StmT.BLANK:
         return ""
@@ -104,7 +104,6 @@ def render_statement(statement: Statement) -> str:
             type_str = render_type_node(cast(Type, statement.content).type_node)
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
-        content_str = render_symbol_content(statement.content)
         if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(Requirement, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
@@ -120,6 +119,10 @@ def render_statement(statement: Statement) -> str:
         else:
             postfix = ":"
         def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}{postfix}"
+        if include_content:
+            content_str = render_symbol_content(statement.content)
+        else:
+            content_str = ""
         return f"{def_str}\n{content_str}" if content_str else def_str
     elif statement.type == StmT.REDEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""

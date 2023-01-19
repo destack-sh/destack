@@ -56,7 +56,7 @@ def from_dict(
     cls: typing.Type | None, data: typing.Any, refs: dict[(str, UUID), typing.Any]
 ) -> typing.Any:
     """Convert dict to dataclass, reusing repeated objects from refs."""
-    if not cls:
+    if not cls or not data:
         return data
     if dataclasses.is_dataclass(cls):
         if "__ref__" in data:  # must be previously seen
