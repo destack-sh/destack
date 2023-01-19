@@ -71,6 +71,7 @@ class ErrorData:
     type: ErrorType
     statement_id: Optional[UUID]
     message: str
+    verbose_message: Optional[str]
 
 
 def rmap_error(error: language.Error) -> ErrorData:
@@ -78,6 +79,7 @@ def rmap_error(error: language.Error) -> ErrorData:
         type=error.type,
         statement_id=error.statement.id if error.statement is not None else None,
         message=error.message,
+        verbose_message=error.verbose_message,
     )
 
 
@@ -92,6 +94,17 @@ def rmap_module(module: language.Module) -> ModuleData:
 def wmap_module(data: ModuleData) -> language.Module:
     module = language.Module(id=data.id, name=data.name)
     module.files = [wmap_file(file, module) for file in data.files]
+
+    # restore statement references
+    statements = {statement.id: statement for file in module.files for statement in file.statements}
+    for data_file, file in zip(data.files, module.files):
+        for data_statement, statement in zip(data_file.statements, file.statements):
+            if data_statement.parent_id is not None:
+                statement.parent = statements[data_statement.parent_id]
+            if isinstance(data_statement.reference, UUID):
+                # errors if it was a module-external reference (that's not a statement path)
+                statement.reference = statements[data_statement.reference_id]
+
     return module
 
 
@@ -115,6 +128,11 @@ def wmap_file(data: FileData, module: language.Module) -> language.File:
 
 
 def rmap_statement(statement: language.Statement) -> StatementData:
+    """Maps a language statement to a wire statement (incl. refs)."""
+    # use statement id if possible, else use statement path
+    reference = (
+        statement.reference_id if statement.reference_id is not None else statement.reference
+    )
     data = StatementData(
         module_id=statement.file.module.id,
         file_id=statement.file.id,
@@ -124,7 +142,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
         parent_id=statement.parent_id,
         type=statement.type,
         modifier=statement.modifier,
-        reference=statement.reference,
+        reference=reference,
         name=statement.name,
         text=statement.text,
         symbol_type=statement.symbol_type,
@@ -135,6 +153,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
 
 
 def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
+    """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
     if isinstance(content, language.Type):
         data.description = content.description
         data.type_node = content.type_node
@@ -173,10 +192,13 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
 
 
 def wmap_statement(data: StatementData, file: language.File) -> language.Statement:
+    """Maps a wire statement's _contents_ (excl. refs) to a language statement."""
+    reference = data.reference if isinstance(data.reference, StatementPath) else None
     statement = language.Statement(
         id=data.id,
         file=file,
-        parent=None,
+        parent=None,  # must be restored later
+        reference=reference,  # also restored later if it was an id
         index=data.index,
         type=data.type,
         modifier=data.modifier,
@@ -185,11 +207,12 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         symbol_type=data.symbol_type,
     )
     if statement.type == StatementType.DEFINITION:
-        wmap_symbol(data, statement)
+        statement.content = wmap_symbol(data, statement)
     return statement
 
 
 def wmap_symbol(data: StatementData, statement: language.Statement) -> language.SymbolContent:
+    """Maps a wire statement's symbol contents to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
         return language.Type(
             definition=statement, description=data.description, type_node=data.type_node

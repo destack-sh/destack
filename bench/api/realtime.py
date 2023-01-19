@@ -6,6 +6,7 @@ import zmq
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
+from bench import language
 from bench.api.symbol import Statement, StatementType, SymbolType, TypeNode
 from bench.language import wire
 from bench.runtime.worker import ReqModuleRuntimePayload
@@ -45,11 +46,14 @@ class ModuleRuntime:
     errors: list["Error"]
 
 
+ErrorType = gql.enum(language.ErrorType)
+
+
 @gql.type
 class Error:
-    type: str
+    type: ErrorType
     message: str
-    statement: Statement
+    statement: Optional[Statement]
 
 
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
@@ -80,7 +84,7 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     errors = []
     for error in wire_errors:
         statement = statements_by_id[error.statement_id] if error.statement_id else None
-        error = Error(type=error.type, message=error.message, statement=statement)
+        error = Error(type=ErrorType(error.type), message=error.message, statement=statement)
         errors.append(error)
     return errors
 
@@ -116,3 +120,19 @@ class ModuleRuntimeSubscription:
         finally:
             worker_req_sock.close()
             worker_sub_sock.close()
+
+
+@gql.type
+class ModuleExecutionSubscription:
+    @gql.subscription
+    async def model_execution_changed(
+        self, project_version_id: GlobalID
+    ) -> AsyncGenerator[None, None]:
+        raise NotImplementedError
+
+
+@gql.type
+class ProjectSubscription:
+    @gql.subscription
+    async def project_changed(self, project_id: GlobalID) -> AsyncGenerator[None, None]:
+        raise NotImplementedError

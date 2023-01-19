@@ -6,7 +6,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.common import async_safe_mutation
+from bench.api.util import async_safe_mutation
 from bench.models import StatementType
 from bench.models.project import RefDict
 

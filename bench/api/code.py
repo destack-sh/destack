@@ -7,8 +7,8 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.common import async_safe_mutation
 from bench.api.symbol import Statement
+from bench.api.util import async_safe_mutation
 from bench.runtime.tracing import ExecutionTrace
 
 

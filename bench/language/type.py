@@ -256,29 +256,14 @@ class Statement:
     _source: Optional[Any] = None
 
     def __str__(self):
-        # TODO @Cleanup: Statement.__str__ looks suspiciously like a worse reconstruct.render_statement
-        #  (also it's duplicated in models.Statement)
-        path = self.file.path + ":" + str(self.absolute_index)
-        if self.type == StatementType.DEFINITION:
-            content_str = str(self.content)
-        elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
-            if isinstance(self.reference, Statement):
-                content_str = f"{self.reference.file.path}::{self.reference.name}"
-            else:
-                content_str = statement_path_as_str(self.reference)
-        elif self.type == StatementType.REDEFINITION:
-            if isinstance(self.reference, Statement):
-                content_str = f"{self.name} = {self.reference.file.path}::{self.reference.name}"
-            else:
-                content_str = f"{self.name} = {statement_path_as_str(self.reference)}"
-        elif self.type == StatementType.COMMENT:
-            content_str = str(len(self.text))
-        elif self.type == StatementType.BLANK:
-            content_str = ""
-        else:
-            raise ValueError(f"unknown statement type {self.type}")
-        modifier_str = f" {self.modifier}" if self.modifier else ""
-        return f"{path}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
+        from bench.language.reconstruct import render_statement
+
+        loc = self.file.path + ":" + str(self.absolute_index)
+        try:
+            content = render_statement(self, include_content=False)
+        except ValueError:
+            content = "<invalid>"
+        return f"{loc} {content}"
 
     def __repr__(self):
         return f"<Statement {self}>"
@@ -539,9 +524,7 @@ EMPTY_STRUCT_TYPE = TypeNode(None, TypeTag.STRUCT, children=[])
 
 def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
     if symbol_type == SymbolType.TYPE:
-        return Type(
-            definition, description="", type_node=TypeNode(None, TypeTag.STRUCT, children=[])
-        )
+        return Type(definition, description="", type_node=EMPTY_STRUCT_TYPE)
     elif symbol_type == SymbolType.TASK:
         return Task(definition, description="", type_node=EMPTY_FUNC_TYPE)
     elif symbol_type == SymbolType.CAPABILITY:

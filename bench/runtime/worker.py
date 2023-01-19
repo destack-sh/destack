@@ -7,7 +7,7 @@ import zmq
 import zmq.asyncio
 
 from bench import language
-from bench.language import Module, SymbolType, wire
+from bench.language import SymbolType, wire
 from bench.language.error import ParseError
 from bench.language.parse import (
     ErrorCollector,
@@ -40,17 +40,20 @@ logger = structlog.get_logger(__name__)
 class ModuleWorkerState:
     source: wire.ModuleData
     name: str
-    module: Module | None
-    files: list[wire.FileData]
-    errors: list[wire.ErrorData]
+    # interpreted state
+    interp_module: language.Module | None
+    errors: list[language.Error]
+    # derived from interpreted
+    wire_module: wire.ModuleData | None = None
+    wire_errors: list[wire.ErrorData] | None = None
 
-
-def rmap_module(state: ModuleWorkerState) -> wire.ModuleData:
-    return wire.ModuleData(
-        id=state.source.id,
-        name=state.name,
-        files=state.files,
-    )
+    def derive_wire(self):
+        """Re-derives wire state from interpreted state"""
+        if self.interp_module:
+            self.wire_module = wire.rmap_module(self.interp_module)
+        else:  # re-use source
+            self.wire_module = self.source
+        self.wire_errors = [wire.rmap_error(e) for e in self.errors]
 
 
 def parse_statement_type_node(statement: wire.StatementData) -> None:
@@ -73,30 +76,34 @@ def parse_statement_type_node(statement: wire.StatementData) -> None:
 
 
 def update_runtime(state: ModuleWorkerState) -> None:
-    errors: list[language.Error] = []
+    state.errors = []
     # parse (not resolve) type nodes in place since source can contain arbitrary btl strings
-    source = state.source
-    for statement in chain.from_iterable(file.statements for file in source.files):
+    for statement in chain.from_iterable(file.statements for file in state.source.files):
         if not isinstance(statement.type_node, str):
             continue
         try:
             parse_statement_type_node(statement)
         except ParseError as e:
-            errors.append(e.to_error())
-    if errors:  # don't proceed resolving (need proper type nodes)
-        state.errors = [wire.rmap_error(e) for e in errors]
+            statement.type_node = None  # clear type node
+            error = e.to_error()
+            error.statement = statement  # technically not correct but we only need id
+            state.errors.append(error)
+
+    # bail if we have type errors (types must be valid for proper parse)
+    if state.errors:
+        state.interp_module = None
+        state.derive_wire()
         return
 
     # update language module (from wire format)
-    module = wire.wmap_module(source)
-    state.module = module
+    state.interp_module = wire.wmap_module(state.source)
 
     # resolve
     collector = ErrorCollector()
-    # TODO @Incomplete: load requirement's modules (and cache in state)
-    resolve(module, lookup_module=error_module_lookup, on_error=collector)
-    state.errors = [wire.rmap_error(e) for e in collector.errors]
-    state.files = [wire.rmap_file(file) for file in module.files]
+    # TODO @Incomplete: load requirement's modules (and cache in worker state)
+    resolve(state.interp_module, lookup_module=error_module_lookup, on_error=collector)
+    state.errors.extend([e.to_error() for e in collector.errors])
+    state.derive_wire()
 
 
 class RuntimeWorker:
@@ -116,7 +123,7 @@ class RuntimeWorker:
 
         # initialise runtime state
         state = ModuleWorkerState(
-            source=payload.module, name=payload.module.name, module=None, files=[], errors=[]
+            source=payload.module, name=payload.module.name, interp_module=None, errors=[]
         )
         update_runtime(state)  # should probably happen in a thread?
         self.working_states[module_id] = state
@@ -141,7 +148,7 @@ class RuntimeWorker:
         self.change_sub_sock.connect(internal_server_addr)
         self.change_sub_sock.connect(api_server_addr)
         self.change_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
-        # self.change_pub_sock.bind(runtime_worker_addr)
+        # self.change_pub_sock.bind(runtime_worker_addr) TODO @Incomplete: doesn't work?
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
         poller.register(self.change_sub_sock, zmq.POLLIN)
@@ -156,7 +163,7 @@ class RuntimeWorker:
             state = await self.get_worker_state(module_id)
             rep_module_runtime = ZMessage(
                 type=ZMessageType.REP_MODULE_RUNTIME,
-                payload=RepModuleRuntimePayload(rmap_module(state), state.errors),
+                payload=RepModuleRuntimePayload(state.wire_module, state.wire_errors),
             )
             send_message(self.rep_sock, rep_module_runtime)
         elif msg.type == ZMessageType.MODULE_CHANGED:
@@ -165,7 +172,7 @@ class RuntimeWorker:
             update_runtime(state)  # always update for now with full everything
             rep_module_runtime = ZMessage(
                 type=ZMessageType.REP_MODULE_RUNTIME,
-                payload=RepModuleRuntimePayload(rmap_module(state), state.errors),
+                payload=RepModuleRuntimePayload(state.wire_module, state.wire_errors),
             )
             send_message(self.change_pub_sock, rep_module_runtime)
         else:

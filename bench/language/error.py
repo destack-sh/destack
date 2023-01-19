@@ -40,9 +40,9 @@ def get_location_range_pointer(
 
 class ErrorType(enum.Enum):
     # syntax errors
-    UNKNOWN_TOKEN = 0, "Unknown token"
+    UNKNOWN_TOKEN = 0, "unknown token"
     # parser errors
-    MISSING_TOKEN = 20, "expected another token"
+    MISSING_TOKEN = 20, "expected a token"
     UNEXPECTED_TOKEN_TYPE = 21, "expected token type {type}"
     UNEXPECTED_TOKEN_VALUE = 22, "expected token value {value}"
     UNEXPECTED_INDENT = 23, "expected indent <= {indent}"
@@ -86,14 +86,14 @@ class SyntaxError(ValueError):
         line_number: int,
         column: int,
     ):
-        super().__init__(SyntaxError.format_message(type, source_file, line_number, column))
+        super().__init__(self._format_message(type, source_file, line_number, column))
         self.type = type
         self.source_file = source_file
         self.line_number = line_number
         self.column = column
 
-    @staticmethod
-    def format_message(
+    def _format_message(
+        self,
         type: ErrorType,
         file: SourceFile,
         line_number: int,
@@ -105,7 +105,8 @@ class SyntaxError(ValueError):
     def to_error(self) -> "Error":
         return Error(
             type=self.type,
-            message=self.args[0],
+            message=self.type.description,
+            verbose_message=self.args[0],
             source_file=self.source_file,
             line_number=self.line_number,
             column=self.column,
@@ -122,7 +123,8 @@ class ParseError(ValueError):
         position: Optional[int] = -1,
         **error_args,
     ):
-        super().__init__(self._to_message(_t, error_args, token, cause))
+        self.short_message, message = self._format_message(_t, error_args, token, cause)
+        super().__init__(message)
         self.type = _t
         self.token = token
         self.cause = cause
@@ -130,16 +132,18 @@ class ParseError(ValueError):
         self.parser = parser
         self.error_args = error_args
 
-    def _to_message(
+    def _format_message(
         self, type: ErrorType, error_args: dict, token: Optional[Token], cause: Optional[dict]
-    ):
+    ) -> tuple[str, str]:
         # noinspection StrFormat
-        return "{0}: {1}{2}{3}".format(
+        short_message = type.description.format(**error_args)
+        message = "{0}: {1}{2}{3}".format(
             type.name,
-            type.description.format(**error_args),
+            short_message,
             ParseError.token_context(token),
             (f"\npossible cause: {cause}" if cause else ""),
         )
+        return short_message, message
 
     @staticmethod
     def token_context(token: Optional[Token]) -> str:
@@ -158,7 +162,8 @@ class ParseError(ValueError):
     def to_error(self) -> "Error":
         return Error(
             type=self.type,
-            message=self.args[0],
+            message=self.short_message,
+            verbose_message=self.args[0],
             source_file=self.token.source_file,
             line_number=self.token.line_number,
             column=self.token.start_column,
@@ -173,7 +178,8 @@ class SemanticError(ValueError):
         cause: Optional[Exception] = None,
         **error_args,
     ):
-        super().__init__(self._format_message(_t, error_args, statement, cause))
+        self.short_message, message = self._format_message(_t, error_args, statement, cause)
+        super().__init__(message)
         self.type = _t
         self.statement = statement
         self.related_statements = {k: v for k, v in error_args.items() if isinstance(v, Statement)}
@@ -185,7 +191,7 @@ class SemanticError(ValueError):
         error_args: dict,
         statement: Statement,
         cause: Exception | None,
-    ) -> str:
+    ) -> tuple[str, str]:
         # convert error args as needed
         # StatementPath with statement_path_as_str
         error_args = {
@@ -195,7 +201,7 @@ class SemanticError(ValueError):
         # noinspection StrFormat
         message = error_type.description.format(**error_args)
         cause_context = f"\ncause: {cause.__class__.__name__} {cause}" if cause is not None else ""
-        return message + SemanticError.statement_context(statement) + cause_context
+        return message, message + SemanticError.statement_context(statement) + cause_context
 
     @staticmethod
     def statement_context(statement: Optional[Statement]) -> str:
@@ -226,7 +232,8 @@ class SemanticError(ValueError):
             extras = {}
         return Error(
             type=self.type,
-            message=self.args[0],
+            message=self.short_message,
+            verbose_message=self.args[0],
             statement=self.statement,
             **extras,
         )
@@ -236,6 +243,7 @@ class SemanticError(ValueError):
 class Error:
     type: ErrorType
     message: str
+    verbose_message: Optional[str] = None
     source_file: Optional[SourceFile] = None
     line_number: Optional[int] = None
     column: Optional[int] = None
