@@ -10,7 +10,7 @@ from bench.language import lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
-from bench.models.mapper import lookup_module_in_db, write_module
+from bench.models.mapper import lookup_in_db_module, write_module
 from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
 from bench.runtime.execute import ProviderKey
 
@@ -79,7 +79,7 @@ def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
     stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
     stdlib_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    module = parse(lex(source_file), lookup_module=lookup_module_in_db, on_error="raise")
+    module = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
     wire_module = wire.rmap_module(module)
     write_module(wire_module.files, stdlib_v)
 

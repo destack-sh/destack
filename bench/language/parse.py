@@ -75,14 +75,14 @@ def ignore_module_lookup(*args, **kwargs):
     return None
 
 
-def error_module_lookup(*args, **kwargs):
+def lookup_in_error(*args, **kwargs):
     raise NotImplementedError("external module lookup disabled")
 
 
 def parse(
     tokens: list[Token],
     module: Optional[Module] = None,
-    lookup_module: Callable[[Requirement, StatementPath], Statement | None] = error_module_lookup,
+    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None] = lookup_in_error,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
     """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
@@ -96,7 +96,7 @@ def parse(
     module.files.extend(files)
 
     # second pass: resolve statements into AST
-    resolve(module, lookup_module=lookup_module, on_error=on_error)
+    resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
 
     return module
 
@@ -104,11 +104,13 @@ def parse(
 def parse_string(
     string: str,
     module: Optional[Module] = None,
-    lookup_module: Callable[[Requirement, StatementPath], Statement | None] = ignore_module_lookup,
+    lookup_in_module: Callable[
+        [Requirement, StatementPath], Statement | None
+    ] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
     tokens = lex_string(string)
-    return parse(tokens, module=module, lookup_module=lookup_module, on_error=on_error)
+    return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
 
 
 class TokenParser:
@@ -930,7 +932,7 @@ class ModuleIndex:
 
 def resolve(
     module: Module,
-    lookup_module: Callable[[Requirement, StatementPath], Statement | None],
+    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> ModuleIndex:
     """Resolve unresolved references in the given module."""
@@ -939,7 +941,7 @@ def resolve(
 
     # resolve references to other statements
     for statement in idx.statements_by_id.values():
-        resolve_statement_reference(statement, idx, lookup_module, on_error)
+        resolve_statement_reference(statement, idx, lookup_in_module, on_error)
 
     # resolve references in types (to other statements)
     for statement in idx.statements_by_id.values():
@@ -989,7 +991,7 @@ def check_statement(
 def resolve_statement_reference(
     statement: Statement,
     idx: ModuleIndex,
-    lookup_module: Callable[[Requirement, StatementPath], Statement | None],
+    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> None:
     def _error(_t: ET, cause: Exception | None = None, **error_args):
@@ -1005,6 +1007,7 @@ def resolve_statement_reference(
             f".{statement.file.path_without_extension}", statement.reference.name
         )
 
+    # :StatementReferencePath
     if normalized_path.path.startswith("."):  # resolve in local module
         resolved = idx.statements_by_path.get(normalized_path)
         if resolved is None:
@@ -1023,7 +1026,7 @@ def resolve_statement_reference(
         # localize path to requirement module
         localized_path = StatementPath("." + source.group("path"), normalized_path.name)
         try:  # use module lookup to resolve
-            resolved = lookup_module(requirement, localized_path)
+            resolved = lookup_in_module(requirement, localized_path)
         except Exception as e:
             _error(ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
             return

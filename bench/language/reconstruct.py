@@ -276,6 +276,7 @@ def get_reference_name(reference: Statement | StatementPath) -> str:
 
 
 def render_import_source(reference: Statement | StatementPath, via: Statement) -> str:
+    # :StatementReferencePath
     if isinstance(reference, StatementPath):
         return reference[0]
     elif isinstance(reference, Statement):
