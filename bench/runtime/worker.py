@@ -1,5 +1,7 @@
+import typing
 from dataclasses import dataclass, field
 from itertools import chain
+from typing import Optional
 from uuid import UUID
 
 import structlog
@@ -9,7 +11,7 @@ import zmq.asyncio
 from bench import language
 from bench.language import wire
 from bench.language.error import ParseError
-from bench.language.parse import ErrorCollector, index_module, resolve
+from bench.language.parse import ErrorCollector, resolve
 from bench.language.type import StatementPath, SymbolType
 from bench.language.wire import ModuleReference, parse_symbol_type_node
 from bench.zmq import (
@@ -29,26 +31,34 @@ from bench.zmq.messages import (
 
 logger = structlog.get_logger(__name__)
 
+InterpModule = typing.NamedTuple(
+    "InterpModule",
+    module_idx=Optional[language.ModuleIndex],
+    errors=list[language.Error],
+    dependencies=list[language.ModuleIndex],
+)
+
 
 @dataclass
 class ModuleWorkerState:
     source: wire.ModuleData
     # interpreted state
-    interp_dependencies: dict[UUID, language.Module]
-    interp_module: language.Module | None
-    errors: list[language.Error]
+    interp = InterpModule(module_idx=None, errors=[], dependencies=[])
     # derived from interpreted
-    wire_dependencies: dict[UUID, wire.ModuleData] = field(default_factory=dict)
     wire_module: wire.ModuleData | None = None
     wire_errors: list[wire.ErrorData] | None = None
+    wire_dependencies: dict[UUID, wire.ModuleData] = field(default_factory=dict)
 
     def derive_wire(self):
         """Re-derives wire state from interpreted state"""
-        if self.interp_module:
-            self.wire_module = wire.rmap_module(self.interp_module)
+        if self.interp.module_idx:
+            self.wire_module = wire.rmap_module(self.interp.module_idx.module)
         else:  # re-use source
             self.wire_module = self.source
-        self.wire_errors = [wire.rmap_error(e) for e in self.errors]
+        self.wire_errors = [wire.rmap_error(e) for e in self.interp.errors]
+        self.wire_dependencies = {
+            m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
+        }
 
 
 def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
@@ -63,7 +73,7 @@ def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
 
 
 def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
-    # assumes no conflicting names (checked in index_module)
+    # assumes no conflicting names (checked in resolve)
     dependencies_by_name = {m.module.name: m for m in dependencies}
 
     def lookup(requirement: language.Requirement, path: StatementPath) -> language.Statement | None:
@@ -77,8 +87,9 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
 
 def interp_runtime(
     source: wire.ModuleData, dependencies: list[language.ModuleIndex]
-) -> tuple[language.Module | None, list[language.Error]]:
+) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
+    # TODO @Performance: interp and exec jobs should probably happen in a separate thread
     errors = []
     # parse (not resolve) type nodes in place as source contains btl strings
     for statement in chain.from_iterable(file.statements for file in source.files):
@@ -91,17 +102,17 @@ def interp_runtime(
             error.statement = statement  # technically not correct but we only need id
             errors.append(error)
     if errors:  # types must be valid for proper parse
-        return None, errors
+        return InterpModule(module_idx=None, errors=errors, dependencies=dependencies)
 
     # resolve
     interp_module = wire.wmap_module(source)
     collector = ErrorCollector()
-    _ = resolve(
+    module_idx = resolve(
         interp_module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
     )
     errors.extend([e.to_error() for e in collector.errors])
 
-    return interp_module, errors
+    return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
 
 
 class RuntimeWorker:
@@ -111,7 +122,7 @@ class RuntimeWorker:
         self.int_req_sock = zmq_ctx.socket(zmq.REQ)
         self.change_sub_sock = zmq_ctx.socket(zmq.SUB)
         self.change_pub_sock = zmq_ctx.socket(zmq.PUB)
-        self.modules_idx_cache: dict[UUID, language.ModuleIndex] = {}
+        self.modules_interp_cache: dict[UUID, InterpModule] = {}
         self.working_states: dict[UUID, ModuleWorkerState] = {}
 
     async def get_wire_module(self, module_id: UUID) -> wire.ModuleData:
@@ -121,43 +132,39 @@ class RuntimeWorker:
         _, payload = await recv_message_with(self.int_req_sock, RepReadModulePayload)
         return payload.module
 
-    async def get_dependency_module_idx(self, module_id: UUID) -> language.ModuleIndex:
-        """Gets a dependency's language module index (caching)."""
-        if module_id in self.modules_idx_cache:
-            return self.modules_idx_cache[module_id]
-        # get, parse and index dependency module
+    async def get_interp_module(self, module_id: UUID, cache: bool) -> InterpModule:
+        """Gets a complete interpreted module incl. dependencies (optional caching)"""
+        if cache and module_id in self.modules_interp_cache:
+            return self.modules_interp_cache[module_id]
         wire_module = await self.get_wire_module(module_id)
-        interp_module, errors = interp_runtime(wire_module, [])
-        if errors:
-            raise ValueError(f"dependency module has errors: {errors}")
-        idx = index_module(interp_module, on_error="raise")
-        self.modules_idx_cache[module_id] = idx
-        return idx
+        dependencies = await self.get_dependencies(wire_module)
+        interp = interp_runtime(wire_module, dependencies)
+        if cache and interp.module_idx is not None:  # only cache if we got a valid index
+            self.modules_interp_cache[module_id] = interp
+        return interp
 
-    async def update_runtime(self, state: ModuleWorkerState):
-        """Updates a module's runtime state by re-interpreting it with its dependencies."""
-        requirements = get_requirements(state.source)
-        # TODO @Incomplete: get dependencies of dependency
+    async def get_dependencies(self, source: wire.ModuleData) -> list[language.ModuleIndex]:
+        """Resolves the source's requirements into dependencies (transitively)."""
+        requirements = get_requirements(source)
         dependencies = []
         for module_reference in requirements:
-            dependency = await self.get_dependency_module_idx(module_reference.id)
-            dependencies.append(dependency)
-        interp_module, errors = interp_runtime(state.source, dependencies)
-        state.interp_dependencies = {d.module.id: d.module for d in dependencies}
-        state.interp_module = interp_module
-        state.errors = errors
+            # dependencies are always cached?
+            interp = await self.get_interp_module(module_reference.id, cache=True)
+            if interp.errors:
+                raise ValueError(f"dependency {module_reference} has errors: {interp.errors}")
+            dependencies.append(interp.module_idx)
+        return dependencies
+
+    async def update_runtime(self, state: ModuleWorkerState) -> None:
+        """Updates a module's runtime state by re-interpreting it with its dependencies."""
+        dependencies = await self.get_dependencies(state.source)
+        state.interp = interp_runtime(state.source, dependencies)
         state.derive_wire()
 
-    async def init_worker_state(self, module_id):
-        # fetch module from internal server
+    async def init_worker_state(self, module_id: UUID) -> None:
+        """Initializes a module-specific worker state (loading and indexing)"""
         source_module = await self.get_wire_module(module_id)
-        # initialise runtime state
-        state = ModuleWorkerState(
-            source=source_module,
-            interp_dependencies={},
-            interp_module=None,
-            errors=[],
-        )
+        state = ModuleWorkerState(source=source_module)
         await self.update_runtime(state)
         self.working_states[module_id] = state
 
