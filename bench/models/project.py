@@ -353,6 +353,7 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         ordering = ["-created_at"]
 
 
+# TODO @Cleanup: remove FileType? (no longer needed since we only have .instruct and is_directory)
 class FileType(models.TextChoices):
     DIRECTORY = "directory", "Directory"  # contains sub-directories and files
     INSTRUCT = "instruct", "Instructions"  # actual instructions
@@ -374,6 +375,7 @@ class File(UUIDModel):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
+    revision = models.IntegerField(default=1)
     type = TextChoicesField(FileType, default=FileType.INSTRUCT)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)

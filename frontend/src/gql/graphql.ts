@@ -572,6 +572,7 @@ export type Statement = Node & {
   reference?: Maybe<Statement>;
   referenceProjectVersion?: Maybe<ProjectVersion>;
   referencedBy: Array<Statement>;
+  revision: Scalars["Int"];
   /** Traverses references to get the source definition. */
   sourceDefinition?: Maybe<Statement>;
   symbolType?: Maybe<SymbolType>;
@@ -940,6 +941,7 @@ export type StatementHeaderFragment = {
   __typename?: "Statement";
   id: any;
   type: StatementType;
+  revision: number;
   symbolType?: SymbolType | null;
   createdAt: any;
   updatedAt: any;
@@ -961,6 +963,7 @@ export type StatementContentFragment = {
   __typename?: "Statement";
   id: any;
   type: StatementType;
+  revision: number;
   symbolType?: SymbolType | null;
   createdAt: any;
   updatedAt: any;
@@ -1611,6 +1614,7 @@ export const StatementHeaderFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -1670,6 +1674,7 @@ export const StatementContentFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },

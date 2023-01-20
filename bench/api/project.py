@@ -7,12 +7,13 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.util import async_safe_mutation
-from bench.models import StatementType
 from bench.models.project import RefDict
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
-    from bench.api.symbol import Statement
+    from bench.api.statement import Statement
+
+StatementType = gql.enum(models.StatementType)
 
 
 @gql.django.filter(models.ProjectVersion)
@@ -86,9 +87,9 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     dependencies: list["ProjectVersion"]
-    main_program: Optional[Annotated["Statement", lazy(".symbol")]]
+    main_program: Optional[Annotated["Statement", lazy(".statement")]]
     files: list["File", FileFilter] = gql.django.field(filters=FileFilter)
-    statements: list[Annotated["Statement", lazy(".symbol")]] = gql.django.field(
+    statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )
 
@@ -117,7 +118,7 @@ class File(gql.Node):
     deleted_at: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
-    statements: list[Annotated["Statement", lazy(".symbol")]] = gql.django.field(
+    statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )
 
@@ -166,6 +167,7 @@ class FileCreateInput:
     type: auto
     name: auto
     parent: auto
+    is_directory: auto
 
 
 @gql.django.partial(models.File)

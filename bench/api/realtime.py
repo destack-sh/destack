@@ -8,7 +8,7 @@ from strawberry_django_plus.relay import GlobalID
 
 import bench
 from bench import language
-from bench.api.symbol import StatementType, SymbolType
+from bench.api.statement import StatementType, SymbolType
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.runtime.worker import ReqModuleRuntimePayload
@@ -161,7 +161,6 @@ class ModuleRuntimeSubscription:
                 dependencies = [rmap_module(dep) for dep in update.dependencies]
                 errors = rmap_errors(update.errors, module)
                 yield ModuleRuntime(module=module, dependencies=dependencies, errors=errors)
-
         finally:
             worker_req_sock.close()
             worker_sub_sock.close()
