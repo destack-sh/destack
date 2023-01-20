@@ -23,7 +23,7 @@ from bench.models.project import FileType, Project, ProjectVersion
 def lookup_in_db_module(
     requirement: language.Requirement, path: StatementPath
 ) -> language.Statement:
-    version = lookup_requirement(requirement)
+    version = lookup_module(requirement.name, requirement.version)
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
@@ -34,17 +34,17 @@ def lookup_in_db_module(
     return idx.statements_by_path.get(path)
 
 
-def lookup_requirement(requirement: language.Requirement) -> typing.Optional[ProjectVersion]:
+def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
     # requirement names are organization.library
-    organization_slug, library_slug = requirement.name.split(".")
+    organization_slug, library_slug = name.split(".")
     try:
         library = Project.objects.get_by_slug(organization_slug, library_slug)
     except Project.DoesNotExist:
         return None
-    if requirement.version == "latest":
+    if version == "latest":
         return library.head_
     else:
-        return ProjectVersion.objects.filter(project=library, name=requirement.version).first()
+        return ProjectVersion.objects.filter(project=library, name=version).first()
 
 
 @transaction.atomic(savepoint=False)  # read-only
@@ -189,6 +189,12 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
             )
             for m in statement.mappings.all()
         ]
+    elif statement.symbol_type == SymbolType.REQUIREMENT:
+        data.reference_module = wire.ModuleReference(
+            name=statement.reference_project_version.project.path,
+            version=statement.reference_project_version.name,
+            id=statement.reference_project_version_id,
+        )
 
 
 def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[typing.Any]:
@@ -225,5 +231,10 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             for m in data.mappings
         ]
         return mappings
-    else:
-        return []
+    elif data.reference_module:
+        if isinstance(data.reference_module, UUID):
+            statement.reference_project_version_id = data.reference_module
+        else:  # lookup by (name, version)
+            statement.reference_project_version = lookup_module(*data.reference_module)
+
+    return []

@@ -106,14 +106,21 @@ def from_dict(
                     pass
     elif isinstance(data, list):
         args = typing.get_args(cls)
-        inner_type = args[0] if args else None
         origin_cls = typing.get_origin(cls)
         if origin_cls is list:
+            inner_type = args[0] if args else None
             return [from_dict(inner_type, item, refs) for item in data]
         elif origin_cls is tuple:
-            return tuple(from_dict(inner_type, item, refs) for item in data)
+            if len(args) != len(data):
+                raise TypeError(f"tuple length mismatch: {args} vs {data}")
+            return tuple(from_dict(inner_type, item, refs) for inner_type, item in zip(args, data))
         elif hasattr(cls, "_fields"):  # namedtuple
-            return cls(*[from_dict(inner_type, item, refs) for item in data])
+            # get types from annotations
+            fields = [
+                from_dict(cls.__annotations__[field], item, refs)
+                for field, item in zip(cls._fields, data)
+            ]
+            return cls(*fields)
     elif isinstance(data, dict):
         args = typing.get_args(cls)
         key_type = args[0] if args else None

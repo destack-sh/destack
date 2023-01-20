@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import enum
 import re
+import typing
 import uuid
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import Any, Literal, NamedTuple, Optional, Union
+from typing import Any, Literal, Optional, Union
 from uuid import UUID
 
 from django.db import models
@@ -225,7 +226,7 @@ class File:
 
 MOCK_FILE = File(MOCK_MODULE, "<mock>")
 
-StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
+StatementPath = typing.NamedTuple("StatementPath", [("path", str), ("name", str)])
 
 
 def statement_path_as_str(statement_path: StatementPath) -> str:
