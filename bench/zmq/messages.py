@@ -73,6 +73,7 @@ class ReqModuleRuntimePayload:
 @_register_payload(ZMessageType.REP_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
     module: wire.ModuleData
+    dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
 
 

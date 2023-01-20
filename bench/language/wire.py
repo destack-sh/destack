@@ -1,3 +1,4 @@
+import typing
 from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
@@ -58,6 +59,11 @@ class FileData:
         return f"<File {str(self)}>"
 
 
+ModuleReference = typing.NamedTuple(
+    "ModuleReference", [("name", str), ("version", str), ("id", Optional[UUID])]
+)
+
+
 @dataclass(repr=False)
 class StatementData:
     id: UUID
@@ -83,7 +89,7 @@ class StatementData:
     records: Optional[list[dict]] = None
     mappings: Optional[list[SourceMapping]] = None
     value: LiteralValue = None
-    reference_module: Union[None, UUID, tuple[str, str]] = None
+    reference_module: Optional[ModuleReference] = None
 
     @property
     def reference_id(self) -> Optional[UUID]:
@@ -92,7 +98,10 @@ class StatementData:
     def __str__(self):
         loc = str(self.file_id) + ":" + str(self.index)
         symbol_type_str = self.symbol_type.name if self.symbol_type else ""
-        return f"{loc}: {self.type.name} {symbol_type_str} {self.name} (ref={self.reference})"
+        ref_str = f"ref={self.reference}" if self.reference else ""
+        ref_module_str = f"ref_module={self.reference_module}" if self.reference_module else ""
+        content_str = ", ".join((s for s in (ref_str, ref_module_str) if s))
+        return f"{loc}: {self.type.name} {symbol_type_str} {self.name} ({content_str})"
 
     def __repr__(self):
         return f"<Statement {str(self)}>"
@@ -217,7 +226,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.mappings = content.source_mappings
     elif isinstance(content, language.Requirement):
         if content.name and content.version:
-            data.reference_module = (content.name, content.version)
+            data.reference_module = ModuleReference(content.name, content.version, id=None)
     elif isinstance(content, language.Runconfig):
         pass
     else:
@@ -289,8 +298,8 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.Requirement(
             definition=statement,
-            name=data.reference_module[0] if data.reference_module else None,
-            version=data.reference_module[1] if data.reference_module else None,
+            name=data.reference_module.name if data.reference_module else None,
+            version=data.reference_module.version if data.reference_module else None,
         )
     elif data.symbol_type == SymbolType.RUNCONFIG:
         return language.Runconfig(definition=statement)

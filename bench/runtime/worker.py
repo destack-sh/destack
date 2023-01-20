@@ -11,7 +11,7 @@ from bench.language import wire
 from bench.language.error import ParseError
 from bench.language.parse import ErrorCollector, index_module, resolve
 from bench.language.type import StatementPath, SymbolType
-from bench.language.wire import parse_symbol_type_node
+from bench.language.wire import ModuleReference, parse_symbol_type_node
 from bench.zmq import (
     ZMessage,
     ZMessageType,
@@ -51,19 +51,19 @@ class ModuleWorkerState:
         self.wire_errors = [wire.rmap_error(e) for e in self.errors]
 
 
-def get_requirements(source: wire.ModuleData) -> set[UUID]:
+def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
     """Returns the set of module ids required by the given module source (not transitive)"""
-    requirements_ids: set[UUID] = set()
+    requirements_ids: set[ModuleReference] = set()
     for statement in chain.from_iterable(file.statements for file in source.files):
         if statement.symbol_type == SymbolType.REQUIREMENT:
-            if not isinstance(statement.reference_module, UUID):
+            if not isinstance(statement.reference_module.id, UUID):
                 raise ValueError(f"requirement must specify reference module id: {statement}")
             requirements_ids.add(statement.reference_module)
     return requirements_ids
 
 
 def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
-    # assumes no conflicting names
+    # assumes no conflicting names (checked in index_module)
     dependencies_by_name = {m.module.name: m for m in dependencies}
 
     def lookup(requirement: language.Requirement, path: StatementPath) -> language.Statement | None:
@@ -122,25 +122,25 @@ class RuntimeWorker:
         return payload.module
 
     async def get_dependency_module_idx(self, module_id: UUID) -> language.ModuleIndex:
-        """Gets a dependency's language module index (potentially cached)."""
+        """Gets a dependency's language module index (caching)."""
         if module_id in self.modules_idx_cache:
             return self.modules_idx_cache[module_id]
         # get, parse and index dependency module
         wire_module = await self.get_wire_module(module_id)
-        # TODO @Incomplete: get dependencies of dependency
         interp_module, errors = interp_runtime(wire_module, [])
         if errors:
             raise ValueError(f"dependency module has errors: {errors}")
-        idx = index_module(interp_module)
+        idx = index_module(interp_module, on_error="raise")
         self.modules_idx_cache[module_id] = idx
         return idx
 
     async def update_runtime(self, state: ModuleWorkerState):
         """Updates a module's runtime state by re-interpreting it with its dependencies."""
         requirements = get_requirements(state.source)
+        # TODO @Incomplete: get dependencies of dependency
         dependencies = []
-        for requirement_id in requirements:
-            dependency = await self.get_dependency_module_idx(requirement_id)
+        for module_reference in requirements:
+            dependency = await self.get_dependency_module_idx(module_reference.id)
             dependencies.append(dependency)
         interp_module, errors = interp_runtime(state.source, dependencies)
         state.interp_dependencies = {d.module.id: d.module for d in dependencies}
@@ -188,7 +188,10 @@ class RuntimeWorker:
 
         while True:
             msg = await recv_message_poll(poller)
-            await self.process_message(msg)
+            try:
+                await self.process_message(msg)
+            except Exception as e:
+                logger.exception("runtime_worker.process_message", exc_info=e, msg=msg)
 
     async def process_message(self, msg: ZMessage):
         if msg.type == ZMessageType.REQ_MODULE_RUNTIME:
@@ -196,7 +199,9 @@ class RuntimeWorker:
             state = await self.get_worker_state(module_id)
             rep_module_runtime = ZMessage(
                 type=ZMessageType.REP_MODULE_RUNTIME,
-                payload=RepModuleRuntimePayload(state.wire_module, state.wire_errors),
+                payload=RepModuleRuntimePayload(
+                    state.wire_module, list(state.wire_dependencies.values()), state.wire_errors
+                ),
             )
             send_message(self.rep_sock, rep_module_runtime)
         elif msg.type == ZMessageType.MODULE_CHANGED:
@@ -205,7 +210,9 @@ class RuntimeWorker:
             await self.update_runtime(state)
             rep_module_runtime = ZMessage(
                 type=ZMessageType.REP_MODULE_RUNTIME,
-                payload=RepModuleRuntimePayload(state.wire_module, state.wire_errors),
+                payload=RepModuleRuntimePayload(
+                    state.wire_module, list(state.wire_dependencies.values()), state.wire_errors
+                ),
             )
             send_message(self.change_pub_sock, rep_module_runtime)
         else:

@@ -28,6 +28,7 @@ class ZMessage:
     type: ZMessageType
     payload: typing.Any = None
     id: UUID = dataclasses.field(default_factory=uuid.uuid4)
+    sent_at: datetime | None = None
     version: int = PROTOCOL_VERSION
     # TODO @Performance: expose & use zmq envelope key to filter in zmq
 
@@ -35,7 +36,7 @@ class ZMessage:
         return f"{self.type} {self.id}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
+        return f"<{self.__class__.__name__} {self} {self.sent_at}>"
 
     def payload_as(self, cls: typing.Type[PayloadT]) -> PayloadT:
         if not isinstance(self.payload, cls):
@@ -45,7 +46,12 @@ class ZMessage:
 
 def serialize_message(message: ZMessage) -> str:
     # serialize any dataclass as something jsonable
-    message_dict = {"type": message.type, "id": str(message.id), "version": message.version}
+    message_dict = {
+        "type": message.type,
+        "id": str(message.id),
+        "sent_at": str(message.sent_at),
+        "version": message.version,
+    }
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
         message_dict["payload"] = to_dict(message.payload, refs=None)
@@ -67,6 +73,7 @@ def parse_message(message_json: str) -> ZMessage:
             logger.exception("parse_message_failed", exc_info=True, e=e)
             raise
     message_dict["type"] = ZMessageType(message_dict["type"])
+    message_dict["sent_at"] = datetime.fromisoformat(message_dict["sent_at"])
     message_dict["id"] = UUID(message_dict["id"])
 
     msg = ZMessage(**message_dict)
@@ -80,6 +87,8 @@ def send_message(sock: zmq.Socket, message: ZMessage):
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message.type)
     if payload_cls and message.payload is None:
         raise ValueError(f"missing payload for {message}")
+    if message.sent_at is None:
+        message.sent_at = datetime.utcnow()
     sock.send_string(serialize_message(message))
     logger.debug("send_message", msg=message)
 
