@@ -3,7 +3,8 @@ import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { useDatasetInterfaceState } from "@/state/dataset";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { computed, ref } from "vue";
+import { useCurrentModuleRuntime, useRuntimeTypeOf } from "@/state/runtime";
+import { computed, ref, toRef } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -37,9 +38,7 @@ const dataAsCsvText = computed(() => {
   return lines.join("\n");
 });
 
-// TODO @Incomplete: data type info
-const typeAvailable = computed(() => false);
-const typeNodes = computed(() => []); // could stub names only until type info is available
+const typeNode = useRuntimeTypeOf(statement);
 
 // local interface state
 const state = useDatasetInterfaceState(statement);
@@ -71,18 +70,22 @@ defineExpose({
     class="h-full w-full rounded-sm"
     :class="{ ' divide-y divide-gray-300': state.showTableHeader }"
   >
-    <thead class="bg-gray-50" v-show="state.showTableHeader && typeAvailable">
+    <thead class="bg-gray-50" v-if="state.showTableHeader && typeNode != null">
       <tr>
-        <th v-for="node in typeNodes" :key="node.name" class="py-1.5 pr-2 text-left text-sm font-normal text-black">
+        <th
+          v-for="node in typeNode.children"
+          :key="node.name"
+          class="py-1.5 pr-2 text-left text-sm font-normal text-black"
+        >
           {{ node.name }}
         </th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-200">
       <tr class="relative" v-for="(record, i) in statement.records" :key="i">
-        <template v-if="typeAvailable">
+        <template v-if="typeNode != null">
           <td
-            v-for="node in typeNodes"
+            v-for="node in typeNode.children"
             :key="node.name"
             class="whitespace-pre-wrap py-1 pr-2 align-top text-sm text-black"
           >

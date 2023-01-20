@@ -15,7 +15,7 @@ from bench.api.expectation import ExpectationMutation
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.realtime import ModuleRuntimeSubscription
-from bench.api.symbol import Statement, StatementMutation
+from bench.api.symbol import Statement, StatementMutation, Type
 from bench.api.task import TaskMutation
 from bench.api.type import TypeMutation
 from bench.api.user import User
@@ -80,5 +80,5 @@ schema = strawberry.Schema(
     Subscription,
     extensions=extensions,
     # add interface implementation types explicitly
-    types=[],
+    types=[Type],
 )
