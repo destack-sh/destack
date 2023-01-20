@@ -46,6 +46,7 @@ class DatasetRecord:
 class Statement(gql.relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
+    revision: auto
     type: StatementType
     modifier: auto
     name: auto
@@ -59,8 +60,6 @@ class Statement(gql.relay.Node):
     descendants: list["Statement"]
     index: auto
     reference: Optional["Statement"]
-    referenced_by: list["Statement"]
-    source_definition: Optional["Statement"]
     symbol_type: Optional[SymbolType]
     text: auto
     # symbol contents
@@ -152,11 +151,6 @@ class StatementRenameInput(gql.NodeInput):
     name: auto
 
 
-@gql.django.partial(models.Statement)
-class StatementTextInput(gql.NodeInput):
-    text: auto
-
-
 @gql.input
 class StatementMoveInput:
     id: GlobalID
@@ -205,7 +199,7 @@ class StatementCommentedPayload:
 @gql.type
 class StatementMutation:
     rename_statement: Statement = gql.django.update_mutation(StatementRenameInput)
-    set_modifier_statement: Statement = gql.django.update_mutation(StatementSetModifierInput)
+    update_statement_modifier: Statement = gql.django.update_mutation(StatementSetModifierInput)
 
     @async_safe_mutation
     def create_statement(self, input: StatementCreateInput) -> StatementCreatePayload:
@@ -225,7 +219,7 @@ class StatementMutation:
         return StatementCreatePayload(statement=statement)
 
     @async_safe_mutation
-    def set_reference_statement(
+    def update_statement_reference(
         self, input: StatementSetReferenceInput
     ) -> StatementSetReferencePayload:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
@@ -273,3 +267,37 @@ class StatementMutation:
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
         return StatementRestorePayload(statement=statement)
+
+
+#
+# Statement content / symbol mutations
+#
+
+
+@gql.django.partial(models.Statement)
+class StatementTextInput(gql.NodeInput):
+    text: auto
+
+
+@gql.django.partial(models.Statement)
+class StatementUpdateDescription(gql.NodeInput):
+    description: str
+
+
+@gql.django.partial(models.Statement)
+class StatementUpdateCode(gql.NodeInput):
+    code_builtin_id: Optional[str] = None
+    code: Optional[str] = None
+
+
+@gql.django.partial(models.Statement)
+class StatementUpdateTypeNode(gql.NodeInput):
+    btl: str
+
+
+@gql.type
+class SymbolMutation:
+    update_statement_text: Statement = gql.django.update_mutation(StatementTextInput)
+    update_statement_description: Statement = gql.django.update_mutation(StatementUpdateDescription)
+    update_statement_code: Statement = gql.django.update_mutation(StatementUpdateCode)
+    update_statement_type_node: Statement = gql.django.update_mutation(StatementUpdateTypeNode)

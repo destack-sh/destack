@@ -77,6 +77,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   fragment StatementHeader on Statement {
     id
     type
+    revision
     symbolType
     createdAt
     updatedAt
@@ -106,6 +107,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
   fragment StatementContent on Statement {
     id
     type
+    revision
     symbolType
     createdAt
     updatedAt

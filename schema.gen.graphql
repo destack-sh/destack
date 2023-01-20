@@ -1,9 +1,3 @@
-input CodeUpdateContentCode {
-  statementId: GlobalID!
-  builtinId: String = null
-  code: String = null
-}
-
 input CommitInput {
   projectVersionId: GlobalID!
   name: String!
@@ -14,14 +8,6 @@ type CommitPayload {
   project: Project!
   committedVersion: ProjectVersion!
   newWorkingVersion: ProjectVersion!
-}
-
-input CompileInput {
-  compilationId: GlobalID!
-}
-
-type CompilePayload {
-  compilation: Statement!
 }
 
 union CreateFilePayload = File | OperationInfo
@@ -61,32 +47,6 @@ enum ErrorType {
   EXPECTED_ARGUMENTS
 }
 
-type Execution implements Node {
-  id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-
-  """Time of transition to RUNNING status."""
-  startedAt: DateTime
-
-  """Time of transition to a terminal status."""
-  terminatedAt: DateTime
-  durationMillis: Float
-  status: String!
-  inputs: JSON
-  outputs: JSON
-  error: JSON
-  parent: Execution
-  children: [Execution!]!
-  code: Statement!
-  model: Statement
-}
-
-input ExpectationUpdateContentDescription {
-  statementId: GlobalID!
-  description: String!
-}
-
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
@@ -107,6 +67,7 @@ input FileCreateInput {
   type: FileType
   name: String!
   parent: NodeInput
+  isDirectory: Boolean
 }
 
 input FileFilter {
@@ -185,24 +146,22 @@ type MorphStatementPayload {
 
 type Mutation {
   renameStatement(input: StatementRenameInput!): RenameStatementPayload!
-  setModifierStatement(input: StatementSetModifierInput!): SetModifierStatementPayload!
+  updateStatementModifier(input: StatementSetModifierInput!): UpdateStatementModifierPayload!
   createStatement(input: StatementCreateInput!): StatementCreatePayload!
-  setReferenceStatement(input: StatementSetReferenceInput!): StatementSetReferencePayload!
+  updateStatementReference(input: StatementSetReferenceInput!): StatementSetReferencePayload!
   morphStatement(input: StatementMorphInput!): MorphStatementPayload!
   commentStatement(input: StatementCommentedInput!): StatementCommentedPayload!
   moveStatement(input: StatementMoveInput!): StatementMovePayload!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementSoftDeletePayload!
   restoreStatement(input: StatementRestoreInput!): StatementRestorePayload!
+  updateStatementText(input: StatementTextInput!): UpdateStatementTextPayload!
+  updateStatementDescription(input: StatementUpdateDescription!): UpdateStatementDescriptionPayload!
+  updateStatementCode(input: StatementUpdateCode!): UpdateStatementCodePayload!
+  updateStatementTypeNode(input: StatementUpdateTypeNode!): UpdateStatementTypeNodePayload!
   createFile(input: FileCreateInput!): CreateFilePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
   softDeleteFile(input: FileSoftDeleteInput!): File!
   restoreFile(input: FileRestoreInput!): File!
-  updateTypeContent(input: TypeUpdateContentBtl!): Statement!
-  updateTaskContent(input: TaskUpdateContentDescription!): Statement!
-  updateExpectationContent(input: ExpectationUpdateContentDescription!): Statement!
-  updateCodeContent(input: CodeUpdateContentCode!): Statement!
-  run(input: RunCodeInput!): RunCodePayload!
-  compile(input: CompileInput!): CompilePayload!
   commit(input: CommitInput!): CommitPayload!
 }
 
@@ -389,29 +348,6 @@ union RenameFilePayload = File | OperationInfo
 
 union RenameStatementPayload = Statement | OperationInfo
 
-input RunCodeInput {
-  codeId: GlobalID!
-  arguments: [RunCodeValueArgumentInput!]!
-}
-
-type RunCodeOutput {
-  name: String!
-  value: String!
-}
-
-type RunCodePayload {
-  code: Statement!
-  execution: Execution!
-  outputs: [RunCodeOutput!]
-}
-
-input RunCodeValueArgumentInput {
-  name: String!
-  value: String!
-}
-
-union SetModifierStatementPayload = Statement | OperationInfo
-
 type SourceMapping {
   sourceId: UUID!
   sourcePath: JSON!
@@ -425,6 +361,7 @@ type Statement implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
   file: File!
+  revision: Int!
   type: StatementType!
   modifier: StatementModifier
   name: String
@@ -438,10 +375,6 @@ type Statement implements Node {
   descendants: [Statement!]!
   index: Int
   reference: Statement
-  referencedBy: [Statement!]!
-
-  """Traverses references to get the source definition."""
-  sourceDefinition(pk: ID): Statement
   symbolType: SymbolType
   text: String
   code: String
@@ -545,6 +478,11 @@ type StatementSoftDeletePayload {
   statement: Statement!
 }
 
+input StatementTextInput {
+  id: GlobalID!
+  text: String
+}
+
 """The type of Bench statement."""
 enum StatementType {
   IMPORT
@@ -553,6 +491,22 @@ enum StatementType {
   REDEFINITION
   COMMENT
   BLANK
+}
+
+input StatementUpdateCode {
+  id: GlobalID!
+  codeBuiltinId: String = null
+  code: String = null
+}
+
+input StatementUpdateDescription {
+  id: GlobalID!
+  description: String!
+}
+
+input StatementUpdateTypeNode {
+  id: GlobalID!
+  btl: String!
 }
 
 type Subscription {
@@ -573,11 +527,6 @@ enum SymbolType {
   REQUIREMENT
   COMPILATION
   RUNCONFIG
-}
-
-input TaskUpdateContentDescription {
-  statementId: GlobalID!
-  description: String!
 }
 
 type Type {
@@ -610,12 +559,17 @@ enum TypeTag {
   TYPE_REFERENCE
 }
 
-input TypeUpdateContentBtl {
-  statementId: GlobalID!
-  btl: String!
-}
-
 scalar UUID
+
+union UpdateStatementCodePayload = Statement | OperationInfo
+
+union UpdateStatementDescriptionPayload = Statement | OperationInfo
+
+union UpdateStatementModifierPayload = Statement | OperationInfo
+
+union UpdateStatementTextPayload = Statement | OperationInfo
+
+union UpdateStatementTypeNodePayload = Statement | OperationInfo
 
 type User implements Node {
   id: GlobalID!
