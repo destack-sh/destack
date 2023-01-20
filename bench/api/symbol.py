@@ -10,7 +10,6 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 
-import bench.language.type
 from bench import models
 from bench.api.util import async_safe_mutation
 
@@ -19,19 +18,6 @@ if TYPE_CHECKING:
 
 StatementType = gql.enum(models.StatementType)
 SymbolType = gql.enum(models.SymbolType)
-
-
-TypeTag = gql.enum(bench.language.type.TypeTag)
-
-
-@gql.type
-class TypeNode:
-    name: Optional[str]
-    type: TypeTag
-    required: bool = True
-    description: Optional[str]
-    reference: Optional[str] = None
-    children: Optional[list["TypeNode"]] = None
 
 
 @gql.type

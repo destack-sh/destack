@@ -93,8 +93,11 @@ def interp_runtime(
     errors = []
     # parse (not resolve) type nodes in place as source contains btl strings
     for statement in chain.from_iterable(file.statements for file in source.files):
-        if not isinstance(statement.type_node, str):
+        if statement.type_node is None:
             continue
+        elif not isinstance(statement.type_node, str):
+            # we must parse the type node, it shouldn't come pre-parsed
+            raise ValueError(f"unexpected type node in {statement}: {statement.type_node}")
         try:
             statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
         except ParseError as e:

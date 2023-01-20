@@ -28,7 +28,7 @@ from bench.language.type import (
 )
 
 #
-# Stable, optimized and flat language data structures for transit and storage.
+# Stable, concise and flat language data structures for transit and storage.
 #
 
 
