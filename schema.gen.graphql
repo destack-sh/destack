@@ -34,12 +34,6 @@ type DatasetRecord {
 """Date with time (isoformat)"""
 scalar DateTime
 
-type Error {
-  type: ErrorType!
-  message: String!
-  statement: InterpStatement
-}
-
 enum ErrorType {
   UNKNOWN_TOKEN
   MISSING_TOKEN
@@ -142,8 +136,15 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
+type InterpError {
+  type: ErrorType!
+  message: String!
+  statement: InterpStatement
+}
+
 type InterpFile {
   id: UUID!
+  sourceId: GlobalID!
   module: InterpModule!
   path: String!
   statements: [InterpStatement!]!
@@ -151,15 +152,18 @@ type InterpFile {
 
 type InterpModule {
   id: UUID!
+  sourceId: GlobalID!
   name: String!
   files: [InterpFile!]!
 }
 
 type InterpStatement {
   id: UUID!
+  sourceId: GlobalID!
   file: InterpFile!
   name: String
   type: StatementType!
+  modifier: StatementModifier
   symbolType: SymbolType
   typeNode: TypeNode
 }
@@ -172,7 +176,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 type ModuleRuntime {
   module: InterpModule!
   dependencies: [InterpModule!]!
-  errors: [Error!]!
+  errors: [InterpError!]!
 }
 
 type MorphStatementPayload {
@@ -553,6 +557,7 @@ enum StatementType {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
+  modelExecutionChanged(projectVersionId: GlobalID!): Void
 }
 
 """The type of symbol content."""
@@ -573,6 +578,11 @@ enum SymbolType {
 input TaskUpdateContentDescription {
   statementId: GlobalID!
   description: String!
+}
+
+type Type {
+  description: String
+  btl: String!
 }
 
 type TypeNode {
@@ -640,3 +650,6 @@ type UserEdge {
   """The item at the end of the edge"""
   node: User!
 }
+
+"""Represents NULL values"""
+scalar Void

@@ -10,6 +10,7 @@ import bench
 from bench import language
 from bench.api.symbol import StatementType, SymbolType
 from bench.language import wire
+from bench.language.type import StatementModifier
 from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_ADDR
 from bench.zmq import ZMessage, ZMessageType, recv_message_with, send_message, zmq_ctx
@@ -31,6 +32,7 @@ class TypeNode:
 @gql.type
 class InterpModule:
     id: UUID
+    source_id: GlobalID
     name: str
     files: list["InterpFile"]
 
@@ -38,6 +40,7 @@ class InterpModule:
 @gql.type
 class InterpFile:
     id: UUID
+    source_id: GlobalID
     module: InterpModule
     path: str
     statements: list["InterpStatement"]
@@ -46,35 +49,50 @@ class InterpFile:
 @gql.type
 class InterpStatement:
     id: UUID
+    source_id: GlobalID
     file: InterpFile
     name: Optional[str]
     type: StatementType
+    modifier: Optional[StatementModifier]
     symbol_type: Optional[SymbolType]
     type_node: Optional[TypeNode]
 
 
-@gql.type
-class ModuleRuntime:
-    module: InterpModule
-    dependencies: list[InterpModule]
-    errors: list["Error"]
-
-
-ErrorType = gql.enum(language.ErrorType)
+InterpErrorType = gql.enum(language.ErrorType)
 
 
 @gql.type
-class Error:
-    type: ErrorType
+class InterpError:
+    type: InterpErrorType
     message: str
     statement: Optional[InterpStatement]
 
 
+# TODO @Cleanup: distinguish project change, module static analysis, module jobs and module runtime
+#  Right now it's all intermingled.
+@gql.type
+class ModuleRuntime:
+    module: InterpModule
+    dependencies: list[InterpModule]
+    errors: list["InterpError"]
+
+
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
     """Maps a wire module into a GQL interpreted module"""
-    interp_module = InterpModule(id=wire_module.id, name=wire_module.name, files=[])
+    interp_module = InterpModule(
+        id=wire_module.id,
+        source_id=GlobalID("ProjectVersion", str(wire_module.id)),
+        name=wire_module.name,
+        files=[],
+    )
     for file in wire_module.files:
-        interp_file = InterpFile(id=file.id, module=interp_module, path=file.path, statements=[])
+        interp_file = InterpFile(
+            id=file.id,
+            source_id=GlobalID("File", str(file.id)),
+            module=interp_module,
+            path=file.path,
+            statements=[],
+        )
         interp_module.files.append(interp_file)
         for statement in file.statements:
             # only include type node if it's been parsed
@@ -83,8 +101,10 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
             )
             interp_statement = InterpStatement(
                 id=statement.id,
+                source_id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
                 name=statement.name,
+                modifier=statement.modifier,
                 type=statement.type,
                 symbol_type=statement.symbol_type,
                 type_node=type_node,  # no need to map since lang and api types match
@@ -93,7 +113,7 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
     return interp_module
 
 
-def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list[Error]:
+def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list[InterpError]:
     """Maps a wire error into a GQL error"""
     statements_by_id = {}
     for statement in chain.from_iterable(file.statements for file in module.files):
@@ -102,7 +122,9 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     errors = []
     for error in wire_errors:
         statement = statements_by_id[error.statement_id] if error.statement_id else None
-        error = Error(type=ErrorType(error.type), message=error.message, statement=statement)
+        error = InterpError(
+            type=InterpErrorType(error.type), message=error.message, statement=statement
+        )
         errors.append(error)
     return errors
 
@@ -144,9 +166,6 @@ class ModuleRuntimeSubscription:
             worker_req_sock.close()
             worker_sub_sock.close()
 
-
-@gql.type
-class ModuleExecutionSubscription:
     @gql.subscription
     async def model_execution_changed(
         self, project_version_id: GlobalID

@@ -42,25 +42,17 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const ProjectVersionAsDependencyType = graphql(/* GraphQL */ `
-  fragment ProjectVersionAsDependency on ProjectVersion {
+export const ProjectVersionContentType = graphql(/* GraphQL */ `
+  fragment ProjectVersionContent on ProjectVersion {
     id
-    createdAt
-    committedAt
     name
-    files {
-      ...FileHeader
-    }
-    project {
+    description
+    createdAt
+    committed
+    committedAt
+    files(filters: { isVisible: true }) {
       id
-      name
-      slug
-      path
-      organization {
-        id
-        name
-        slug
-      }
+      ...FileHeader
     }
   }
 `);
@@ -99,19 +91,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     }
     reference {
       id
-    }
-  }
-`);
-
-export const TypeNodeContentDeepType = graphql(/* GraphQL */ `
-  fragment TypeNodeContentDeep on TypeNode {
-    name
-    type
-    required
-    children {
-      name
-      type
-      required
     }
   }
 `);

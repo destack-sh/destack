@@ -19,6 +19,8 @@ export type Scalars = {
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
   UUID: any;
+  /** Represents NULL values */
+  Void: any;
 };
 
 export type CodeUpdateContentCode = {
@@ -56,6 +58,33 @@ export type DatasetRecord = {
   data: Scalars["JSON"];
   index: Scalars["Int"];
 };
+
+export enum ErrorType {
+  AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
+  AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
+  ExpectedArguments = "EXPECTED_ARGUMENTS",
+  ExpectedBlank = "EXPECTED_BLANK",
+  ExpectedParameters = "EXPECTED_PARAMETERS",
+  ExpectedParent = "EXPECTED_PARENT",
+  ExpectedProperChildren = "EXPECTED_PROPER_CHILDREN",
+  ExternalLookupFailed = "EXTERNAL_LOOKUP_FAILED",
+  InvalidStatement = "INVALID_STATEMENT",
+  InvalidTokenValue = "INVALID_TOKEN_VALUE",
+  MissingExtra = "MISSING_EXTRA",
+  MissingToken = "MISSING_TOKEN",
+  ReferenceTypeMismatch = "REFERENCE_TYPE_MISMATCH",
+  UndefinedExternalReference = "UNDEFINED_EXTERNAL_REFERENCE",
+  UndefinedLocalReference = "UNDEFINED_LOCAL_REFERENCE",
+  UnexpectedChildren = "UNEXPECTED_CHILDREN",
+  UnexpectedExtra = "UNEXPECTED_EXTRA",
+  UnexpectedIndent = "UNEXPECTED_INDENT",
+  UnexpectedParameters = "UNEXPECTED_PARAMETERS",
+  UnexpectedParent = "UNEXPECTED_PARENT",
+  UnexpectedTokenType = "UNEXPECTED_TOKEN_TYPE",
+  UnexpectedTokenValue = "UNEXPECTED_TOKEN_VALUE",
+  UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
+  UnknownToken = "UNKNOWN_TOKEN",
+}
 
 export type Execution = Node & {
   __typename?: "Execution";
@@ -130,6 +159,49 @@ export enum FileType {
   Directory = "DIRECTORY",
   Instruct = "INSTRUCT",
 }
+
+export type InterpError = {
+  __typename?: "InterpError";
+  message: Scalars["String"];
+  statement?: Maybe<InterpStatement>;
+  type: ErrorType;
+};
+
+export type InterpFile = {
+  __typename?: "InterpFile";
+  id: Scalars["UUID"];
+  module: InterpModule;
+  path: Scalars["String"];
+  sourceId: Scalars["GlobalID"];
+  statements: Array<InterpStatement>;
+};
+
+export type InterpModule = {
+  __typename?: "InterpModule";
+  files: Array<InterpFile>;
+  id: Scalars["UUID"];
+  name: Scalars["String"];
+  sourceId: Scalars["GlobalID"];
+};
+
+export type InterpStatement = {
+  __typename?: "InterpStatement";
+  file: InterpFile;
+  id: Scalars["UUID"];
+  modifier?: Maybe<StatementModifier>;
+  name?: Maybe<Scalars["String"]>;
+  sourceId: Scalars["GlobalID"];
+  symbolType?: Maybe<SymbolType>;
+  type: StatementType;
+  typeNode?: Maybe<TypeNode>;
+};
+
+export type ModuleRuntime = {
+  __typename?: "ModuleRuntime";
+  dependencies: Array<InterpModule>;
+  errors: Array<InterpError>;
+  module: InterpModule;
+};
 
 export type MorphStatementPayload = {
   __typename?: "MorphStatementPayload";
@@ -619,6 +691,20 @@ export enum StatementType {
   Reference = "REFERENCE",
 }
 
+export type Subscription = {
+  __typename?: "Subscription";
+  modelExecutionChanged?: Maybe<Scalars["Void"]>;
+  moduleRuntimeChanged: ModuleRuntime;
+};
+
+export type SubscriptionModelExecutionChangedArgs = {
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type SubscriptionModuleRuntimeChangedArgs = {
+  projectVersionId: Scalars["GlobalID"];
+};
+
 /** The type of symbol content. */
 export enum SymbolType {
   Capability = "CAPABILITY",
@@ -643,7 +729,6 @@ export type Type = {
   __typename?: "Type";
   btl: Scalars["String"];
   description?: Maybe<Scalars["String"]>;
-  node: TypeNode;
 };
 
 export type TypeNode = {
@@ -756,17 +841,6 @@ export type ProjectBySlugQuery = {
     | null;
 };
 
-export type ProjectVersionContentFragment = {
-  __typename?: "ProjectVersion";
-  id: any;
-  name?: string | null;
-  description?: string | null;
-  createdAt: any;
-  committed: boolean;
-  committedAt?: any | null;
-  files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
-} & { " $fragmentName"?: "ProjectVersionContentFragment" };
-
 export type ProjectVersionContentQueryVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
@@ -838,22 +912,16 @@ export type ProjectHeaderFragment = {
   organization: { __typename?: "Organization"; slug: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
-export type ProjectVersionAsDependencyFragment = {
+export type ProjectVersionContentFragment = {
   __typename?: "ProjectVersion";
   id: any;
-  createdAt: any;
-  committedAt?: any | null;
   name?: string | null;
-  files: Array<{ __typename?: "File" } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
-  project: {
-    __typename?: "Project";
-    id: any;
-    name: string;
-    slug: string;
-    path: string;
-    organization: { __typename?: "Organization"; id: any; name: string; slug: string };
-  };
-} & { " $fragmentName"?: "ProjectVersionAsDependencyFragment" };
+  description?: string | null;
+  createdAt: any;
+  committed: boolean;
+  committedAt?: any | null;
+  files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
+} & { " $fragmentName"?: "ProjectVersionContentFragment" };
 
 export type FileHeaderFragment = {
   __typename?: "File";
@@ -884,14 +952,6 @@ export type StatementHeaderFragment = {
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
-
-export type TypeNodeContentDeepFragment = {
-  __typename?: "TypeNode";
-  name?: string | null;
-  type: TypeTag;
-  required: boolean;
-  children?: Array<{ __typename?: "TypeNode"; name?: string | null; type: TypeTag; required: boolean }> | null;
-} & { " $fragmentName"?: "TypeNodeContentDeepFragment" };
 
 export type TypeContentFragment = { __typename?: "Type"; description?: string | null; btl: string } & {
   " $fragmentName"?: "TypeContentFragment";
@@ -1242,85 +1302,100 @@ export type CommitMutation = {
   };
 };
 
-export const FileHeaderFragmentDoc = {
-  kind: "Document",
-  definitions: [
+export type TypeNodeContentInnerFragment = {
+  __typename?: "TypeNode";
+  name?: string | null;
+  type: TypeTag;
+  description?: string | null;
+  required: boolean;
+  reference?: string | null;
+} & { " $fragmentName"?: "TypeNodeContentInnerFragment" };
+
+export type TypeNodeContentFragment = ({
+  __typename?: "TypeNode";
+  children?: Array<
     {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "FileHeader" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "path" } },
-          { kind: "Field", name: { kind: "Name", value: "pathWithoutExtension" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<FileHeaderFragment, unknown>;
-export const ProjectVersionContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ProjectVersionContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "description" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "committed" } },
-          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "files" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isVisible" },
-                      value: { kind: "BooleanValue", value: true },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ProjectVersionContentFragment, unknown>;
+      __typename?: "TypeNode";
+      children?: Array<
+        {
+          __typename?: "TypeNode";
+          children?: Array<
+            { __typename?: "TypeNode" } & {
+              " $fragmentRefs"?: { TypeNodeContentInnerFragment: TypeNodeContentInnerFragment };
+            }
+          > | null;
+        } & { " $fragmentRefs"?: { TypeNodeContentInnerFragment: TypeNodeContentInnerFragment } }
+      > | null;
+    } & { " $fragmentRefs"?: { TypeNodeContentInnerFragment: TypeNodeContentInnerFragment } }
+  > | null;
+} & { " $fragmentRefs"?: { TypeNodeContentInnerFragment: TypeNodeContentInnerFragment } }) & {
+  " $fragmentName"?: "TypeNodeContentFragment";
+};
+
+export type InterpStatementContentFragment = {
+  __typename?: "InterpStatement";
+  id: any;
+  sourceId: any;
+  name?: string | null;
+  type: StatementType;
+  modifier?: StatementModifier | null;
+  symbolType?: SymbolType | null;
+  typeNode?:
+    | ({ __typename?: "TypeNode" } & { " $fragmentRefs"?: { TypeNodeContentFragment: TypeNodeContentFragment } })
+    | null;
+} & { " $fragmentName"?: "InterpStatementContentFragment" };
+
+export type InterpModuleContentFragment = {
+  __typename?: "InterpModule";
+  id: any;
+  sourceId: any;
+  name: string;
+  files: Array<{
+    __typename?: "InterpFile";
+    id: any;
+    sourceId: any;
+    path: string;
+    statements: Array<
+      { __typename?: "InterpStatement" } & {
+        " $fragmentRefs"?: { InterpStatementContentFragment: InterpStatementContentFragment };
+      }
+    >;
+  }>;
+} & { " $fragmentName"?: "InterpModuleContentFragment" };
+
+export type InterpErrorContentFragment = {
+  __typename?: "InterpError";
+  type: ErrorType;
+  message: string;
+  statement?:
+    | ({ __typename?: "InterpStatement" } & {
+        " $fragmentRefs"?: { InterpStatementContentFragment: InterpStatementContentFragment };
+      })
+    | null;
+} & { " $fragmentName"?: "InterpErrorContentFragment" };
+
+export type ModuleRuntimeChangedSubscriptionVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type ModuleRuntimeChangedSubscription = {
+  __typename?: "Subscription";
+  moduleRuntimeChanged: {
+    __typename?: "ModuleRuntime";
+    module: { __typename?: "InterpModule" } & {
+      " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
+    };
+    dependencies: Array<
+      { __typename?: "InterpModule" } & {
+        " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
+      }
+    >;
+    errors: Array<
+      { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
+    >;
+  };
+};
+
 export const DatasetContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1445,50 +1520,77 @@ export const ProjectHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ProjectHeaderFragment, unknown>;
-export const ProjectVersionAsDependencyFragmentDoc = {
+export const FileHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ProjectVersionAsDependency" },
+      name: { kind: "Name", value: "FileHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "path" } },
+          { kind: "Field", name: { kind: "Name", value: "pathWithoutExtension" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<FileHeaderFragment, unknown>;
+export const ProjectVersionContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionContent" },
       typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "files" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "project" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "slug" } },
-                { kind: "Field", name: { kind: "Name", value: "path" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "organization" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "slug" } },
-                    ],
-                  },
-                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
               ],
             },
           },
@@ -1496,7 +1598,7 @@ export const ProjectVersionAsDependencyFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<ProjectVersionAsDependencyFragment, unknown>;
+} as unknown as DocumentNode<ProjectVersionContentFragment, unknown>;
 export const StatementHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1539,36 +1641,6 @@ export const StatementHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementHeaderFragment, unknown>;
-export const TypeNodeContentDeepFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "TypeNodeContentDeep" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "TypeNode" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "required" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "children" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "required" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<TypeNodeContentDeepFragment, unknown>;
 export const TypeContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1651,6 +1723,164 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
+export const TypeNodeContentInnerFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TypeNodeContentInner" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "TypeNode" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "required" } },
+          { kind: "Field", name: { kind: "Name", value: "reference" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TypeNodeContentInnerFragment, unknown>;
+export const TypeNodeContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TypeNodeContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "TypeNode" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeContentInner" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeContentInner" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "children" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeContentInner" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "children" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeContentInner" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TypeNodeContentFragment, unknown>;
+export const InterpStatementContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpStatementContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpStatement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "modifier" } },
+          { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "typeNode" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeContent" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InterpStatementContentFragment, unknown>;
+export const InterpModuleContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpModuleContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpModule" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "files" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+                { kind: "Field", name: { kind: "Name", value: "path" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statements" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatementContent" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InterpModuleContentFragment, unknown>;
+export const InterpErrorContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpErrorContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpError" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatementContent" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InterpErrorContentFragment, unknown>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
@@ -3453,3 +3683,70 @@ export const CommitDocument = {
     ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CommitMutation, CommitMutationVariables>;
+export const ModuleRuntimeChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "moduleRuntimeChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "moduleRuntimeChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "module" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "dependencies" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "errors" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpErrorContent" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...InterpModuleContentFragmentDoc.definitions,
+    ...InterpStatementContentFragmentDoc.definitions,
+    ...TypeNodeContentFragmentDoc.definitions,
+    ...TypeNodeContentInnerFragmentDoc.definitions,
+    ...InterpErrorContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ModuleRuntimeChangedSubscription, ModuleRuntimeChangedSubscriptionVariables>;

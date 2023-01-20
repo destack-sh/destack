@@ -9,8 +9,6 @@ const documents = {
     types.ProjectVersionsDocument,
   "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
-  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n":
-    types.ProjectVersionContentFragmentDoc,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
   "\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  ":
@@ -23,14 +21,12 @@ const documents = {
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
-  "\n  fragment ProjectVersionAsDependency on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n":
-    types.ProjectVersionAsDependencyFragmentDoc,
+  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n":
+    types.ProjectVersionContentFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    type\n    name\n    path\n    pathWithoutExtension\n    createdAt\n    updatedAt\n    deletedAt\n    projectVersion {\n      id\n    }\n  }\n":
     types.FileHeaderFragmentDoc,
   "\n  fragment StatementHeader on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    compiled\n    commented\n    index\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n  }\n":
     types.StatementHeaderFragmentDoc,
-  "\n  fragment TypeNodeContentDeep on TypeNode {\n    name\n    type\n    required\n    children {\n      name\n      type\n      required\n    }\n  }\n":
-    types.TypeNodeContentDeepFragmentDoc,
   "\n  fragment TypeContent on Type {\n    description\n    btl\n  }\n": types.TypeContentFragmentDoc,
   "\n  fragment StatementContent on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    compiled\n    modifier\n    index\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    importPath\n    text\n    # symbol contents\n    code\n    codeBuiltinId\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    btl\n    records {\n      data\n    }\n  }\n":
     types.StatementContentFragmentDoc,
@@ -70,6 +66,18 @@ const documents = {
     types.UpdateCodeContentDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
     types.CommitDocument,
+  "\n  fragment TypeNodeContentInner on TypeNode {\n    name\n    type\n    description\n    required\n    reference\n  }\n":
+    types.TypeNodeContentInnerFragmentDoc,
+  "\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n":
+    types.TypeNodeContentFragmentDoc,
+  "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    sourceId\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n":
+    types.InterpStatementContentFragmentDoc,
+  "\n  fragment InterpModuleContent on InterpModule {\n    id\n    sourceId\n    name\n    files {\n      id\n      sourceId\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n":
+    types.InterpModuleContentFragmentDoc,
+  "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n":
+    types.InterpErrorContentFragmentDoc,
+  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    ":
+    types.ModuleRuntimeChangedDocument,
 };
 
 export function graphql(
@@ -81,9 +89,6 @@ export function graphql(
 export function graphql(
   source: "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
 ): typeof documents["\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
-export function graphql(
-  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
@@ -103,17 +108,14 @@ export function graphql(
   source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment ProjectVersionAsDependency on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectVersionAsDependency on ProjectVersion {\n    id\n    createdAt\n    committedAt\n    name\n    files {\n      ...FileHeader\n    }\n    project {\n      id\n      name\n      slug\n      path\n      organization {\n        id\n        name\n        slug\n      }\n    }\n  }\n"];
+  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    type\n    name\n    path\n    pathWithoutExtension\n    createdAt\n    updatedAt\n    deletedAt\n    projectVersion {\n      id\n    }\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    type\n    name\n    path\n    pathWithoutExtension\n    createdAt\n    updatedAt\n    deletedAt\n    projectVersion {\n      id\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment StatementHeader on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    compiled\n    commented\n    index\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n  }\n"
 ): typeof documents["\n  fragment StatementHeader on Statement {\n    id\n    type\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    compiled\n    commented\n    index\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n  }\n"];
-export function graphql(
-  source: "\n  fragment TypeNodeContentDeep on TypeNode {\n    name\n    type\n    required\n    children {\n      name\n      type\n      required\n    }\n  }\n"
-): typeof documents["\n  fragment TypeNodeContentDeep on TypeNode {\n    name\n    type\n    required\n    children {\n      name\n      type\n      required\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment TypeContent on Type {\n    description\n    btl\n  }\n"
 ): typeof documents["\n  fragment TypeContent on Type {\n    description\n    btl\n  }\n"];
@@ -174,6 +176,24 @@ export function graphql(
 export function graphql(
   source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n  fragment TypeNodeContentInner on TypeNode {\n    name\n    type\n    description\n    required\n    reference\n  }\n"
+): typeof documents["\n  fragment TypeNodeContentInner on TypeNode {\n    name\n    type\n    description\n    required\n    reference\n  }\n"];
+export function graphql(
+  source: "\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n"];
+export function graphql(
+  source: "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    sourceId\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpStatementContent on InterpStatement {\n    id\n    sourceId\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"];
+export function graphql(
+  source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    sourceId\n    name\n    files {\n      id\n      sourceId\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    sourceId\n    name\n    files {\n      id\n      sourceId\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"];
+export function graphql(
+  source: "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n"];
+export function graphql(
+  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "];
 
 export function graphql(source: string): unknown;
 export function graphql(source: string) {

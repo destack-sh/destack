@@ -9,18 +9,16 @@ import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
-import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import {
+  FileHeaderType,
+  ProjectHeaderType,
+  ProjectVersionContentType,
+  ProjectVersionHeaderType,
+} from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
-import {
-  ClipboardDocumentIcon,
-  ClockIcon,
-  Cog8ToothIcon,
-  PlayIcon,
-  QuestionMarkCircleIcon,
-  WrenchIcon,
-} from "@heroicons/vue/24/outline";
+import { ClipboardDocumentIcon, ClockIcon, Cog8ToothIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
@@ -66,7 +64,7 @@ provideAction({
   apply: () => state.setActiveView("history"),
 });
 
-// real data
+// get project header
 const { result: projectHeaderQuery } = useQuery(
   graphql(/* GraphQL */ `
     query projectBySlug($organization: String!, $project: String!) {
@@ -92,21 +90,7 @@ watchEffect(
     }`)
 );
 
-const ProjectVersionContent = graphql(/* GraphQL */ `
-  fragment ProjectVersionContent on ProjectVersion {
-    id
-    name
-    description
-    createdAt
-    committed
-    committedAt
-    files(filters: { isVisible: true }) {
-      id
-      ...FileHeader
-    }
-  }
-`);
-
+// get project content
 const { result: contentQuery } = useQuery(
   graphql(/* GraphQL */ `
     query projectVersionContent($id: GlobalID!) {
@@ -119,7 +103,7 @@ const { result: contentQuery } = useQuery(
   () => ({ id: projectHead.value?.id }),
   () => ({ enabled: !!projectHead.value?.id })
 );
-const content = computed(() => useFragment(ProjectVersionContent, contentQuery.value?.projectVersion));
+const content = computed(() => useFragment(ProjectVersionContentType, contentQuery.value?.projectVersion));
 // filter deletedAt to increase responsiveness
 const files = computed(
   () => content.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
