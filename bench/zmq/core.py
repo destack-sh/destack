@@ -54,13 +54,13 @@ def serialize_message(message: ZMessage) -> str:
     }
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
-        message_dict["payload"] = to_dict(message.payload, refs=None)
+        message_dict["payload"] = to_dict(message.payload)
     return json.dumps(message_dict, cls=MessageJSONEncoder)
 
 
 def parse_message(message_json: str) -> ZMessage:
     message_dict = json.loads(message_json)
-    if message_dict["version"] != PROTOCOL_VERSION:
+    if message_dict["version"] != PROTOCOL_VERSION:  # inelegant exit for now
         raise RuntimeError(
             f"message version mismatch: {message_dict['_version']} != {PROTOCOL_VERSION}"
         )
@@ -68,7 +68,7 @@ def parse_message(message_json: str) -> ZMessage:
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
     if payload_cls and message_dict.get("payload") is not None:
         try:
-            message_dict["payload"] = from_dict(payload_cls, message_dict["payload"], {})
+            message_dict["payload"] = from_dict(payload_cls, message_dict["payload"])
         except (ValueError, TypeError, AttributeError) as e:
             logger.exception("parse_message_failed", exc_info=True, e=e)
             raise

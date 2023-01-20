@@ -235,6 +235,8 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         if isinstance(data.reference_module, UUID):
             statement.reference_project_version_id = data.reference_module
         else:  # lookup by (name, version)
-            statement.reference_project_version = lookup_module(*data.reference_module)
+            statement.reference_project_version = lookup_module(
+                data.reference_module.name, data.reference_module.version
+            )
 
     return []

@@ -6,13 +6,26 @@ import zmq
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
+import bench
 from bench import language
-from bench.api.symbol import StatementType, SymbolType, TypeNode
+from bench.api.symbol import StatementType, SymbolType
 from bench.language import wire
 from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_ADDR
 from bench.zmq import ZMessage, ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.zmq.messages import RepModuleRuntimePayload
+
+TypeTag = gql.enum(bench.language.type.TypeTag)
+
+
+@gql.type
+class TypeNode:
+    name: Optional[str]
+    type: TypeTag
+    required: bool = True
+    description: Optional[str]
+    reference: Optional[str] = None
+    children: Optional[list["TypeNode"]] = None
 
 
 @gql.type
@@ -64,13 +77,17 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         interp_file = InterpFile(id=file.id, module=interp_module, path=file.path, statements=[])
         interp_module.files.append(interp_file)
         for statement in file.statements:
+            # only include type node if it's been parsed
+            type_node = (
+                statement.type_node if isinstance(statement.type_node, wire.TypeNode) else None
+            )
             interp_statement = InterpStatement(
                 id=statement.id,
                 file=interp_file,
                 name=statement.name,
                 type=statement.type,
                 symbol_type=statement.symbol_type,
-                type_node=statement.type_node,
+                type_node=type_node,  # no need to map since lang and api types match
             )
             interp_file.statements.append(interp_statement)
     return interp_module
