@@ -10,8 +10,6 @@ type CommitPayload {
   newWorkingVersion: ProjectVersion!
 }
 
-union CreateFilePayload = File | OperationInfo
-
 type DatasetRecord {
   index: Int!
   data: JSON!
@@ -74,17 +72,14 @@ input FileFilter {
   isVisible: Boolean = true
 }
 
+input FileMoveInput {
+  id: GlobalID!
+  parentId: GlobalID = null
+}
+
 input FileRenameInput {
   id: GlobalID!
   name: String
-}
-
-input FileRestoreInput {
-  id: GlobalID!
-}
-
-input FileSoftDeleteInput {
-  id: GlobalID!
 }
 
 enum FileType {
@@ -140,28 +135,25 @@ type ModuleRuntime {
   errors: [InterpError!]!
 }
 
-type MorphStatementPayload {
-  statement: Statement!
-}
-
 type Mutation {
   renameStatement(input: StatementRenameInput!): RenameStatementPayload!
   updateStatementModifier(input: StatementSetModifierInput!): UpdateStatementModifierPayload!
-  createStatement(input: StatementCreateInput!): StatementCreatePayload!
-  updateStatementReference(input: StatementSetReferenceInput!): StatementSetReferencePayload!
-  morphStatement(input: StatementMorphInput!): MorphStatementPayload!
-  commentStatement(input: StatementCommentedInput!): StatementCommentedPayload!
-  moveStatement(input: StatementMoveInput!): StatementMovePayload!
-  softDeleteStatement(input: StatementSoftDeleteInput!): StatementSoftDeletePayload!
-  restoreStatement(input: StatementRestoreInput!): StatementRestorePayload!
+  createStatement(input: StatementCreateInput!): StatementPayload!
+  softDeleteStatement(input: StatementSoftDeleteInput!): StatementPayload!
+  restoreStatement(input: StatementRestoreInput!): StatementPayload!
+  updateStatementReference(input: StatementSetReferenceInput!): StatementPayload!
+  morphStatement(input: StatementMorphInput!): StatementPayload!
+  commentStatement(input: StatementCommentedInput!): StatementPayload!
+  moveStatement(input: StatementMoveInput!): StatementPayload!
   updateStatementText(input: StatementTextInput!): UpdateStatementTextPayload!
-  updateStatementDescription(input: StatementUpdateDescription!): UpdateStatementDescriptionPayload!
-  updateStatementCode(input: StatementUpdateCode!): UpdateStatementCodePayload!
-  updateStatementTypeNode(input: StatementUpdateTypeNode!): UpdateStatementTypeNodePayload!
-  createFile(input: FileCreateInput!): CreateFilePayload!
+  updateStatementDescription(input: StatementUpdateDescriptionInput!): UpdateStatementDescriptionPayload!
+  updateStatementCode(input: StatementUpdateCodeInput!): UpdateStatementCodePayload!
+  updateStatementTypeNode(input: StatementUpdateTypeInput!): UpdateStatementTypeNodePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
-  softDeleteFile(input: FileSoftDeleteInput!): File!
-  restoreFile(input: FileRestoreInput!): File!
+  createFile(data: FileCreateInput!): File!
+  moveFile(input: FileMoveInput!): File!
+  softDeleteFile(input: NodeInput!): File!
+  restoreFile(input: NodeInput!): File!
   commit(input: CommitInput!): CommitPayload!
 }
 
@@ -333,10 +325,6 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
-  statement(
-    """The ID of the object."""
-    id: GlobalID!
-  ): Statement
 }
 
 type RefMapping {
@@ -393,20 +381,12 @@ input StatementCommentedInput {
   commented: Boolean!
 }
 
-type StatementCommentedPayload {
-  statement: Statement!
-}
-
 input StatementCreateInput {
   fileId: GlobalID!
   type: StatementType!
   name: String = null
   parentId: GlobalID = null
   index: Int = null
-}
-
-type StatementCreatePayload {
-  statement: Statement!
 }
 
 input StatementFilter {
@@ -437,10 +417,8 @@ input StatementMoveInput {
   index: Int = null
 }
 
-type StatementMovePayload {
+type StatementPayload {
   statement: Statement!
-  oldFile: File!
-  newFile: File!
 }
 
 input StatementRenameInput {
@@ -452,30 +430,18 @@ input StatementRestoreInput {
   id: GlobalID!
 }
 
-type StatementRestorePayload {
-  statement: Statement!
-}
-
 input StatementSetModifierInput {
   id: GlobalID!
   modifier: StatementModifier
 }
 
 input StatementSetReferenceInput {
-  statementId: GlobalID!
+  id: GlobalID!
   referenceId: GlobalID = null
-}
-
-type StatementSetReferencePayload {
-  statement: Statement!
 }
 
 input StatementSoftDeleteInput {
   id: GlobalID!
-}
-
-type StatementSoftDeletePayload {
-  statement: Statement!
 }
 
 input StatementTextInput {
@@ -493,18 +459,18 @@ enum StatementType {
   BLANK
 }
 
-input StatementUpdateCode {
+input StatementUpdateCodeInput {
   id: GlobalID!
   codeBuiltinId: String = null
   code: String = null
 }
 
-input StatementUpdateDescription {
+input StatementUpdateDescriptionInput {
   id: GlobalID!
   description: String!
 }
 
-input StatementUpdateTypeNode {
+input StatementUpdateTypeInput {
   id: GlobalID!
   btl: String!
 }

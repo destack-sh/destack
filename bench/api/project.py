@@ -3,11 +3,15 @@ from typing import TYPE_CHECKING, Annotated, Optional
 from strawberry import UNSET, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
+from strawberry_django_plus.mutations import resolvers
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.api.sync import project_change_pub
 from bench.api.util import async_safe_mutation
 from bench.models.project import RefDict
+from bench.zmq import ZMessage, ZMessageType, send_message
+from bench.zmq.messages import ProjectVersionChangedPayload
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -161,6 +165,17 @@ class ProjectVersionMutation:
         )
 
 
+#
+# Project contents: files
+#
+# For synchronizing file contents, to edit a file:
+#  1. Check whether the containing project version is not committed
+#  2. Increment 'revision' on the file
+#  [.. actual update ..]
+#  3. Send zmq pub message
+#
+
+
 @gql.django.input(models.File)
 class FileCreateInput:
     project_version: auto
@@ -176,38 +191,43 @@ class FileRenameInput(gql.NodeInput):
 
 
 @gql.input
-class FileSoftDeleteInput(gql.NodeInput):
-    pass
-
-
-@gql.type
-class FileSoftDeletePayload:
-    file: File
-
-
-@gql.input
-class FileRestoreInput(gql.NodeInput):
-    pass
-
-
-@gql.type
-class FileRestorePayload:
-    file: File
+class FileMoveInput(gql.NodeInput):
+    parent_id: Optional[GlobalID] = None
 
 
 @gql.type
 class FileMutation:
-    create_file: File = gql.django.create_mutation(FileCreateInput)
+    @async_safe_mutation
+    def create_file(self, info, data: FileCreateInput) -> File:
+        input = vars(data)
+        project_version_id = input["project_version"].node_id
+        ret = resolvers.create(info, self.model, resolvers.parse_input(info, input))
+        if isinstance(ret, File):  # broadcast change on success
+            send_message(
+                project_change_pub,
+                ZMessage(
+                    ZMessageType.PROJECT_VERSION_CHANGED,
+                    ProjectVersionChangedPayload(project_version_id),
+                ),
+            )
+        return ret
+
     rename_file: File = gql.django.update_mutation(FileRenameInput)
 
     @async_safe_mutation
-    def soft_delete_file(self, input: FileSoftDeleteInput) -> File:
+    def move_file(self, info, input: FileMoveInput) -> File:
+        file = models.File.objects.get(id=input.id.node_id)
+        # TODO @Incomplete: implement
+        return resolvers.update(info, self.model, resolvers.parse_input(info, input))
+
+    @async_safe_mutation
+    def soft_delete_file(self, input: gql.NodeInput) -> File:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
     @async_safe_mutation
-    def restore_file(self, input: FileRestoreInput) -> File:
+    def restore_file(self, input: gql.NodeInput) -> File:
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()
         return file

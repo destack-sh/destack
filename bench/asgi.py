@@ -63,7 +63,9 @@ if RUN_INTERNAL_SERVER:
     from bench.runtime.dbserver import InternalServer
 
     server = InternalServer()
-    coro = server.start(internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR)
+    coro = server.start(
+        internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR, api_server_addr=ZMQ_API_SERVER_ADDR
+    )
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "internal_server"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 

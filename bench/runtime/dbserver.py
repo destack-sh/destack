@@ -5,8 +5,12 @@ from asgiref.sync import sync_to_async
 from bench.models import Execution, ExecutionStatus, ProjectVersion
 from bench.models.mapper import read_module
 from bench.runtime.tracing import ExecutionFrame
-from bench.zmq import ZMessage, ZMessageType, recv_message, send_message, zmq_ctx
-from bench.zmq.messages import RepReadModulePayload, ReqReadModulePayload
+from bench.zmq import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
+from bench.zmq.messages import (
+    ProjectVersionChangedPayload,
+    RepReadModulePayload,
+    ReqReadModulePayload,
+)
 
 # TODO @Cleanup: dbservers should probably live in django-side of the backend?
 #  (not general language runtime)
@@ -26,27 +30,50 @@ class InternalServer:
 
     def __init__(self):
         self.rep_sock = zmq_ctx.socket(zmq.REP)
+        self.change_sub_sock = zmq_ctx.socket(zmq.SUB)
+        self.change_pub_sock = zmq_ctx.socket(zmq.PUB)
 
-    async def start(self, internal_server_addr: str):
-        logger.info("internal_server.start", internal_server_addr=internal_server_addr)
-        # request/reply for read/write modules
+    async def start(self, internal_server_addr: str, api_server_addr: str):
+        logger.info(
+            "internal_server.start",
+            internal_server_addr=internal_server_addr,
+            api_server_addr=api_server_addr,
+        )
         self.rep_sock.bind(internal_server_addr)
+        self.change_sub_sock.connect(api_server_addr)
+        # self.change_pub_sock.bind(internal_server_addr)
+
+        poller = zmq.Poller()
+        poller.register(self.rep_sock, zmq.POLLIN)
+        poller.register(self.change_sub_sock, zmq.POLLIN)
 
         while True:
-            request = await recv_message(self.rep_sock)
-            response = await self.process_request(request)
-            send_message(self.rep_sock, response)
+            msg = await recv_message_poll(poller)
+            await self.process_message(msg)
 
-    async def process_request(self, request: ZMessage) -> ZMessage:
-        logger.debug("internal_server.process", request=request)
-        if request.type == ZMessageType.REQ_READ_MODULE:
-            # read module from DB
-            module_id = request.payload_as(ReqReadModulePayload).module_id
+    async def process_message(self, msg: ZMessage) -> None:
+        logger.debug("internal_server.process", request=msg)
+        if msg.type == ZMessageType.REQ_READ_MODULE:
+            # get module from DB
+            module_id = msg.payload_as(ReqReadModulePayload).module_id
             project_v = await ProjectVersion.objects.aget(id=module_id)
             module = await sync_to_async(read_module)(project_v)
-            return ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module))
+            send_message(
+                self.rep_sock,
+                ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module)),
+            )
+        elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
+            # reload project version as module
+            # TODO @Performance: send partial module updates instead of full reloads
+            module_id = msg.payload_as(ProjectVersionChangedPayload).project_version_id
+            project_v = await ProjectVersion.objects.aget(id=module_id)
+            module = await sync_to_async(read_module)(project_v)
+            send_message(
+                self.change_pub_sock,
+                ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module)),
+            )
         else:
-            raise ValueError(f"unknown request type: {request}")
+            raise ValueError(f"unexpected message: {msg}")
 
     async def stop(self):
         logger.info("internal_server.stop")
