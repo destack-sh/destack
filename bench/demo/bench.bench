@@ -1,7 +1,7 @@
 --- project.instruct ---
 # Requirements
-require symbolx.stdlib@latest
-require openai.stdlib@latest
+require symbolx.std@latest
+require openai.std@latest
 
 --- lints.instruct ---
 # AI support for linting Bench files
@@ -14,6 +14,6 @@ This is a multi-line markdown comment.
 With
  - headings:
  - Try some markdown like **bold** or *italic* or `code`
- - Can even "link" to symbols like the [stdlib](symbolx.stdlib)
+ - Can even "link" to symbols like the [std library](symbolx.std)
 It works!
 ###

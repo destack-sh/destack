@@ -1,5 +1,5 @@
 --- math.instruct ---
-require symbolx.stdlib@latest
+require symbolx.std@latest
 
 task calculate :: (input: string) -> number:
 "Compute a mathematical value from any expression"
