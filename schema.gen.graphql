@@ -48,6 +48,7 @@ enum ErrorType {
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
+  revision: Int!
   name: String!
   path: String!
   createdAt: DateTime!
@@ -130,21 +131,22 @@ type ModuleRuntime {
 }
 
 type Mutation {
-  renameStatement(input: StatementRenameInput!): RenameStatementPayload!
-  updateStatementModifier(input: StatementSetModifierInput!): UpdateStatementModifierPayload!
-  createStatement(input: StatementCreateInput!): StatementPayload!
-  softDeleteStatement(input: StatementSoftDeleteInput!): StatementPayload!
-  restoreStatement(input: StatementRestoreInput!): StatementPayload!
-  updateStatementReference(input: StatementSetReferenceInput!): StatementPayload!
-  morphStatement(input: StatementMorphInput!): StatementPayload!
-  commentStatement(input: StatementCommentedInput!): StatementPayload!
-  moveStatement(input: StatementMoveInput!): StatementPayload!
-  updateStatementText(input: StatementTextInput!): UpdateStatementTextPayload!
-  updateStatementDescription(input: StatementUpdateDescriptionInput!): UpdateStatementDescriptionPayload!
-  updateStatementCode(input: StatementUpdateCodeInput!): UpdateStatementCodePayload!
-  updateStatementTypeNode(input: StatementUpdateTypeInput!): UpdateStatementTypeNodePayload!
-  renameFile(input: FileRenameInput!): RenameFilePayload!
+  createStatement(input: StatementCreateInput!): StatementOperationInfo!
+  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
+  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
+  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo!
+  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo!
+  morphStatement(input: StatementMorphInput!): StatementOperationInfo!
+  commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
+  moveStatement(input: StatementMoveInput!): StatementOperationInfo!
+  renameStatement(input: StatementRenameInput!): StatementOperationInfo!
+  updateStatementText(input: StatementTextInput!): StatementOperationInfo!
+  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
+  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
+  updateStatementTypeNode(input: StatementUpdateTypeInput!): StatementOperationInfo!
+  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
+  renameFile(input: FileRenameInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!
@@ -260,7 +262,6 @@ type ProjectVersion implements Node {
   committed: Boolean!
   committedAt: DateTime
   dependencies: [ProjectVersion!]!
-  mainProgram: Statement
   files(filters: FileFilter): [File!]!
   statements(filters: StatementFilter): [Statement!]!
   parentsRefs: [RefMapping!]!
@@ -326,10 +327,6 @@ type RefMapping {
   target: GlobalID!
 }
 
-union RenameFilePayload = File | OperationInfo
-
-union RenameStatementPayload = Statement | OperationInfo
-
 type SourceMapping {
   sourceId: UUID!
   sourcePath: JSON!
@@ -357,6 +354,7 @@ type Statement implements Node {
   descendants: [Statement!]!
   index: Int
   reference: Statement
+  referencedBy: [Statement!]!
   symbolType: SymbolType
   text: String
   code: String
@@ -399,7 +397,7 @@ enum StatementModifier {
 }
 
 input StatementMorphInput {
-  statementId: GlobalID!
+  id: GlobalID!
   type: StatementType!
   symbolType: SymbolType = null
 }
@@ -411,9 +409,7 @@ input StatementMoveInput {
   index: Int = null
 }
 
-type StatementPayload {
-  statement: Statement!
-}
+union StatementOperationInfo = Statement | OperationInfo
 
 input StatementRenameInput {
   id: GlobalID!
@@ -440,7 +436,7 @@ input StatementSoftDeleteInput {
 
 input StatementTextInput {
   id: GlobalID!
-  text: String
+  text: String!
 }
 
 """The type of Bench statement."""
@@ -462,6 +458,11 @@ input StatementUpdateCodeInput {
 input StatementUpdateDescriptionInput {
   id: GlobalID!
   description: String!
+}
+
+input StatementUpdateLanguageInput {
+  id: GlobalID!
+  language: String!
 }
 
 input StatementUpdateTypeInput {
@@ -520,16 +521,6 @@ enum TypeTag {
 }
 
 scalar UUID
-
-union UpdateStatementCodePayload = Statement | OperationInfo
-
-union UpdateStatementDescriptionPayload = Statement | OperationInfo
-
-union UpdateStatementModifierPayload = Statement | OperationInfo
-
-union UpdateStatementTextPayload = Statement | OperationInfo
-
-union UpdateStatementTypeNodePayload = Statement | OperationInfo
 
 type User implements Node {
   id: GlobalID!

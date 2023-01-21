@@ -43,11 +43,13 @@ export function useFileOps() {
     graphql(/* GraphQL */ `
       mutation deleteFile($id: GlobalID!) {
         softDeleteFile(input: { id: $id }) {
-          id
-          ...FileHeader
-          statements {
-            ...StatementHeader
+          ... on File {
+            ...FileHeader
+            statements {
+              ...StatementHeader
+            }
           }
+          ...OperationInfoContent
         }
       }
     `),
@@ -58,11 +60,14 @@ export function useFileOps() {
     graphql(/* GraphQL */ `
       mutation restoreFile($id: GlobalID!) {
         restoreFile(input: { id: $id }) {
-          id
-          ...FileHeader
-          statements {
-            ...StatementHeader
+          ... on File {
+            id
+            ...FileHeader
+            statements {
+              ...StatementHeader
+            }
           }
+          ...OperationInfoContent
         }
       }
     `),

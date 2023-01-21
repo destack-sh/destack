@@ -7,116 +7,98 @@ export function useSymbolContentOps() {
 
   // schema mutations
 
-  const { mutate: updateTypeContentMut } = useMutation(
+  const { mutate: updateStatementTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateTypeContent($id: GlobalID!, $btl: String!) {
-        updateTypeContent(input: { statementId: $id, btl: $btl }) {
-          id
-          btl
+      mutation updateStatementTypeNode($id: GlobalID!, $btl: String!) {
+        updateStatementTypeNode(input: { id: $id, btl: $btl }) {
+          ... on Statement {
+            id
+            btl
+          }
+          ...OperationInfoContent
         }
       }
     `)
   );
 
-  async function updateTypeContent(id: string, oldBtl: string, newBtl: string) {
+  async function updateStatementTypeNode(id: string, oldBtl: string, newBtl: string) {
     await operations.perform({
       type: "symbol.schema.updateContent",
       do: async () => {
-        await updateTypeContentMut({ id: id, btl: newBtl });
+        await updateStatementTypeNodeMut({ id: id, btl: newBtl });
       },
       undo: async () => {
-        await updateTypeContentMut({ id: id, btl: oldBtl });
+        await updateStatementTypeNodeMut({ id: id, btl: oldBtl });
       },
     });
   }
 
-  // task mutations
-
-  const { mutate: updateTaskContentMut } = useMutation(
+  const { mutate: updateStatementDescriptionMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateTaskContent($id: GlobalID!, $description: String!) {
-        updateTaskContent(input: { statementId: $id, description: $description }) {
-          id
-          description
+      mutation updateStatementDescription($id: GlobalID!, $description: String!) {
+        updateStatementDescription(input: { id: $id, description: $description }) {
+          ... on Statement {
+            id
+            description
+          }
+          ...OperationInfoContent
         }
       }
     `)
   );
 
-  async function updateTaskContent(id: string, oldDescription: string, newDescription: string) {
-    await operations.perform({
-      type: "symbol.task.updateContent",
-      do: async () => {
-        await updateTaskContentMut({ id: id, description: newDescription });
-      },
-      undo: async () => {
-        await updateTaskContentMut({ id: id, description: oldDescription });
-      },
-    });
-  }
-
-  // expectation mutations
-
-  const { mutate: updateExpectationContentMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation updateExpectationContent($id: GlobalID!, $description: String!) {
-        updateExpectationContent(input: { statementId: $id, description: $description }) {
-          id
-          description
-        }
-      }
-    `)
-  );
-
-  async function updateExpectationContent(id: string, oldDescription: string, newDescription: string) {
+  async function updateStatementDescription(id: string, oldDescription: string, newDescription: string) {
     await operations.perform({
       type: "symbol.expectation.updateContent",
       do: async () => {
-        await updateExpectationContentMut({ id: id, description: newDescription });
+        await updateStatementDescriptionMut({ id: id, description: newDescription });
       },
       undo: async () => {
-        await updateExpectationContentMut({ id: id, description: oldDescription });
+        await updateStatementDescriptionMut({ id: id, description: oldDescription });
       },
     });
   }
 
   // code mutations
 
-  const { mutate: updateCodeContentMut } = useMutation(
+  const { mutate: updateStatementCodeMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateCodeContent($id: GlobalID!, $code: String, $builtinId: String) {
-        updateCodeContent(input: { statementId: $id, code: $code, builtinId: $builtinId }) {
-          id
-          code
-          codeBuiltinId
+      mutation updateStatementCode($id: GlobalID!, $code: String, $codeBuiltinId: String) {
+        updateStatementCode(input: { id: $id, code: $code, codeBuiltinId: $codeBuiltinId }) {
+          ... on Statement {
+            id
+            code
+            codeBuiltinId
+          }
+          ...OperationInfoContent
         }
       }
     `)
   );
 
-  async function updateCodeContent(
+  async function updateStatementCode(
     id: string,
-    oldContent: { code?: string; builtinId?: string },
-    newContent: { code?: string; builtinId?: string }
+    oldContent: { code?: string; codeBuiltinId?: string },
+    newContent: { code?: string; codeBuiltinId?: string }
   ) {
     await operations.perform({
       type: "symbol.code.updateContent",
       do: async () => {
-        await updateCodeContentMut({
+        await updateStatementCodeMut({
           id: id,
           code: newContent.code,
-          builtinId: newContent.builtinId,
+          codeBuiltinId: newContent.codeBuiltinId,
         });
       },
       undo: async () => {
-        await updateCodeContentMut({
+        await updateStatementCodeMut({
           id: id,
           code: oldContent.code,
-          builtinId: oldContent.builtinId,
+          codeBuiltinId: oldContent.codeBuiltinId,
         });
       },
     });
   }
 
-  return { updateTypeContent, updateTaskContent, updateExpectationContent, updateCodeContent };
+  return { updateStatementTypeNode, updateStatementDescription, updateStatementCode };
 }

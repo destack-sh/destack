@@ -662,7 +662,7 @@ async function morphToBlank() {
                     {{ symbol.name }}
                   </span>
                   <span class="truncate text-gray-500">
-                    {{ symbol.path || symbol.file.pathWithoutExtension }}
+                    {{ symbol.path || symbol.file.path }}
                   </span>
                 </li>
               </ComboboxOption>

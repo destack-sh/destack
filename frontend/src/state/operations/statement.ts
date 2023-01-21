@@ -17,7 +17,7 @@ export function useStatementOps() {
         $name: String
       ) {
         createStatement(input: { fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }) {
-          statement {
+          ... on Statement {
             id
             ...StatementHeader
             text
@@ -42,8 +42,8 @@ export function useStatementOps() {
   const { mutate: morphStatementMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation morphStatement($id: GlobalID!, $type: StatementType!, $symbolType: SymbolType) {
-        morphStatement(input: { statementId: $id, type: $type, symbolType: $symbolType }) {
-          statement {
+        morphStatement(input: { id: $id, type: $type, symbolType: $symbolType }) {
+          ... on Statement {
             id
             ...StatementHeader
             text
@@ -52,19 +52,21 @@ export function useStatementOps() {
             description
             btl
           }
+          ...OperationInfoContent
         }
       }
     `)
   );
 
-  const { mutate: setModifierStatement } = useMutation(
+  const { mutate: updateStatementModifier } = useMutation(
     graphql(/* GraphQL */ `
-      mutation setModifierStatement($id: GlobalID!, $modifier: StatementModifier) {
-        setModifierStatement(input: { id: $id, modifier: $modifier }) {
+      mutation updateStatementModifier($id: GlobalID!, $modifier: StatementModifier) {
+        updateStatementModifier(input: { id: $id, modifier: $modifier }) {
           ... on Statement {
             id
             modifier
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -74,33 +76,23 @@ export function useStatementOps() {
     graphql(/* GraphQL */ `
       mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {
         moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index }) {
-          statement {
+          ... on Statement {
             id
             index
             file {
               id
               path
+              # should match FileInterface query
+              statements(filters: { isVisible: true }) {
+                id
+                index
+              }
             }
             parent {
               id
             }
           }
-          oldFile {
-            id
-            path
-            statements {
-              id
-              index
-            }
-          }
-          newFile {
-            id
-            path
-            statements {
-              id
-              index
-            }
-          }
+          ...OperationInfoContent
         }
       }
     `)
@@ -128,7 +120,7 @@ export function useStatementOps() {
     graphql(/* GraphQL */ `
       mutation deleteStatement($id: GlobalID!) {
         softDeleteStatement(input: { id: $id }) {
-          statement {
+          ... on Statement {
             id
             deletedAt
             descendants {
@@ -144,6 +136,7 @@ export function useStatementOps() {
               }
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -153,7 +146,7 @@ export function useStatementOps() {
     graphql(/* GraphQL */ `
       mutation restoreStatement($id: GlobalID!) {
         restoreStatement(input: { id: $id }) {
-          statement {
+          ... on Statement {
             id
             deletedAt
             descendants {
@@ -169,6 +162,7 @@ export function useStatementOps() {
               }
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -178,7 +172,7 @@ export function useStatementOps() {
     graphql(/* GraphQL */ `
       mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
         commentStatement(input: { id: $id, commented: $commented }) {
-          statement {
+          ... on Statement {
             id
             commented
             descendants {
@@ -186,6 +180,7 @@ export function useStatementOps() {
               commented
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -194,13 +189,14 @@ export function useStatementOps() {
   const { mutate: setReferenceMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation setReference($id: GlobalID!, $referenceId: GlobalID) {
-        setReferenceStatement(input: { statementId: $id, referenceId: $referenceId }) {
-          statement {
+        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
+          ... on Statement {
             id
             reference {
               ...StatementHeader
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -263,10 +259,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.modify",
       do: async () => {
-        await setModifierStatement({ id: id, modifier: newModifier });
+        await updateStatementModifier({ id: id, modifier: newModifier });
       },
       undo: async () => {
-        await setModifierStatement({ id: id, modifier: oldModifier });
+        await updateStatementModifier({ id: id, modifier: oldModifier });
       },
     });
   }

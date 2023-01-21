@@ -7,7 +7,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.sync import MT, project_mutation
+from bench.api.sync import PMT, project_mutation
 from bench.api.util import async_safe_mutation
 from bench.models.project import RefDict
 
@@ -89,7 +89,6 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     dependencies: list["ProjectVersion"]
-    main_program: Optional[Annotated["Statement", lazy(".statement")]]
     files: list["File", FileFilter] = gql.django.field(filters=FileFilter)
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
@@ -111,6 +110,7 @@ class ProjectVersion(gql.Node):
 @gql.django.type(models.File)
 class File(gql.Node):
     project_version: ProjectVersion
+    revision: auto
     name: auto
     path: auto
     created_at: auto
@@ -193,7 +193,7 @@ class FileMoveInput(gql.NodeInput):
 
 @gql.type
 class FileMutation:
-    @project_mutation(MT.CREATE_FILE)
+    @project_mutation(PMT.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
         return models.File(
             project_version_id=input.project_version_id.node_id,
@@ -202,23 +202,25 @@ class FileMutation:
             is_directory=input.is_directory,
         )
 
-    rename_file: File = gql.django.update_mutation(FileRenameInput)
+    @project_mutation(PMT.RENAME_FILE)
+    def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.name = input.name
+        return file
 
-    @project_mutation(MT.MOVE_FILE)
+    @project_mutation(PMT.MOVE_FILE)
     def move_file(self, input: FileMoveInput) -> File | OperationInfo:
-        file = File.objects.get(id=input.id.node_id)
-        if file.project_version.committed:
-            raise PermissionError("cannot edit committed project version")
+        file = models.File.objects.get(id=input.id.node_id)
         file.parent_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @project_mutation(MT.SOFT_DELETE_FILE, atomic=True)
+    @project_mutation(PMT.SOFT_DELETE_FILE, atomic=True)
     def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
-    @project_mutation(MT.RESTORE_FILE, atomic=True)
+    @project_mutation(PMT.RESTORE_FILE, atomic=True)
     def restore_file(self, input: gql.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
