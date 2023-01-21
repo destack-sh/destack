@@ -1,5 +1,4 @@
 import {
-  FileType,
   StatementModifier,
   SymbolType,
   type File,
@@ -17,10 +16,7 @@ export type ProjectVersionHeader = Pick<
   ProjectVersion,
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
-export type FileHeader = Pick<
-  File,
-  "__typename" | "id" | "name" | "path" | "pathWithoutExtension" | "createdAt" | "updatedAt"
->;
+export type FileHeader = Pick<File, "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt">;
 export type StatementHeader = Pick<
   Statement,
   | "__typename"
@@ -39,10 +35,6 @@ export type StatementHeader = Pick<
 >;
 
 // sync with language in backend
-export const FILE_TYPE_KEYWORD: Record<FileType, string> = {
-  [FileType.Directory]: "",
-  [FileType.Instruct]: "instruct",
-};
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Type]: "type",
   [SymbolType.Code]: "code",

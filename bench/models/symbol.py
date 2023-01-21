@@ -238,7 +238,11 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         type: StatementType,
         symbol_type: SymbolType | None,
     ):
-        """Changes the type of the statement (new default content fields may overwrite old ones)."""
+        """
+        Changes the type of the statement (new default content fields may overwrite old ones).
+        Since this overwrites overlapping fields, we only want to morph from blank statements to
+        preserve undo-ability. As this only applies in the UI, we don't check it here.
+        """
 
         self.type = type
         # set default content if not already set

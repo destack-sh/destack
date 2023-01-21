@@ -23,7 +23,7 @@ project_change_pub_sync = zmq_ctx_sync.socket(zmq.PUB)
 project_change_pub_sync.bind(ZMQ_API_SERVER_ADDR)
 
 
-MT = ProjectMutationType
+PMT = ProjectMutationType
 
 
 def map_exception(e: Exception) -> Union[OperationInfo, Exception]:
@@ -48,11 +48,12 @@ def _wrap_exceptions(func):
 
 
 def project_mutation(
-    type: MT, *, atomic: bool = False, directives: Optional[Sequence[object]] = ()
+    type: PMT, *, atomic: bool = False, directives: Optional[Sequence[object]] = ()
 ):
     """
     A project content mutation (CUD) of a specific type.
     Handles revision bumping and mutation publishing. Must be used as a decorator.
+    :ProjectContentSync
 
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
     """
@@ -111,7 +112,7 @@ def project_mutation(
 
 
 def pub_project_mutation(
-    type: MT,
+    type: PMT,
     thing: Union[models.File, models.Statement],
     revision: Optional[int] = None,
 ):
