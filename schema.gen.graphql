@@ -48,10 +48,8 @@ enum ErrorType {
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
-  type: FileType!
   name: String!
   path: String!
-  pathWithoutExtension: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
@@ -61,11 +59,10 @@ type File implements Node {
 }
 
 input FileCreateInput {
-  projectVersion: NodeInput!
-  type: FileType
+  projectVersionId: GlobalID!
   name: String!
-  parent: NodeInput
-  isDirectory: Boolean
+  parentId: GlobalID = null
+  isDirectory: Boolean! = false
 }
 
 input FileFilter {
@@ -77,14 +74,11 @@ input FileMoveInput {
   parentId: GlobalID = null
 }
 
+union FileOperationInfo = File | OperationInfo
+
 input FileRenameInput {
   id: GlobalID!
-  name: String
-}
-
-enum FileType {
-  DIRECTORY
-  INSTRUCT
+  name: String!
 }
 
 """
@@ -150,7 +144,7 @@ type Mutation {
   updateStatementCode(input: StatementUpdateCodeInput!): UpdateStatementCodePayload!
   updateStatementTypeNode(input: StatementUpdateTypeInput!): UpdateStatementTypeNodePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
-  createFile(data: FileCreateInput!): File!
+  createFile(input: FileCreateInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): File!
   softDeleteFile(input: NodeInput!): File!
   restoreFile(input: NodeInput!): File!

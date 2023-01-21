@@ -17,7 +17,7 @@ from bench.language import wire
 from bench.language.parse import index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.language.wire import render_symbol_type_node
-from bench.models.project import FileType, Project, ProjectVersion
+from bench.models.project import Project, ProjectVersion
 
 
 def lookup_in_db_module(
@@ -85,12 +85,11 @@ def write_module(
 
     # create files
     for file_data in files:
-        file_type = FileType(FileType.INSTRUCT)
-        # remove extension from file path (assumed to be .instruct, but not stored in DB)
-        file_path_wo_extension = file_data.path.rsplit(".", 1)[0]
-        model_files[file_data.id] = project_version.create_file_from_path(
-            file_path_wo_extension, file_type, id=file_data.id
-        )
+        # remove extension from file path (assumed to be .instruct, but ignored/not stored)
+        path = file_data.path
+        if "." in path:
+            path = file_data.path.rsplit(".", 1)[0]
+        model_files[file_data.id] = project_version.create_file_from_path(path, id=file_data.id)
 
     # map statements
     for stmt_data in chain.from_iterable(file.statements for file in files):
@@ -140,7 +139,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
             # :StatementReferencePath
             # create statement path as import path
             module_name = statement.reference.project_version.project.path
-            import_source = f"{module_name}.{statement.reference.file.path_without_extension}"
+            import_source = f"{module_name}.{statement.reference.file.path}"
             reference = StatementPath(import_source, statement.reference.name)
     else:
         reference = None
