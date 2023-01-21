@@ -11,8 +11,8 @@ from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 from bench import models
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
-from bench.api.realtime import ModuleRuntimeSubscription
-from bench.api.statement import Statement, StatementMutation, SymbolMutation, Type
+from bench.api.runtime import ModuleRuntimeSubscription
+from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.user import User
 from bench.settings import DEBUG, TEST
 
@@ -32,7 +32,6 @@ class Query:
     projects: gql.relay.Connection[Project] = gql.relay.connection()
     projectVersion: Optional[ProjectVersion] = gql.relay.node()
     file: Optional[File] = gql.relay.node()
-    statement: Optional[Statement] = gql.relay.node()
 
 
 @strawberry.type

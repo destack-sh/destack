@@ -55,6 +55,17 @@ class ZMessageType(StrEnum):
 # TODO @Performance @Robustness: use custom message types & format beyond JSON?
 
 
+@_register_payload(ZMessageType.PROJECT_VERSION_CHANGED)
+class ProjectVersionChangedPayload:
+    project_version_id: UUID
+
+
+@_register_payload(ZMessageType.MODULE_CHANGED)
+class ModuleChangedPayload:
+    module_id: UUID
+    mutations: list[wire.ModuleMutation]
+
+
 @_register_payload(ZMessageType.REQ_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID

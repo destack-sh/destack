@@ -114,7 +114,7 @@ class StatementCreateInput:
 
 
 @gql.type
-class StatementCreatePayload:
+class StatementPayload:
     statement: Statement
 
 
@@ -131,19 +131,8 @@ class StatementSetModifierInput(gql.NodeInput):
 
 
 @gql.input
-class StatementSetReferenceInput:
-    statement_id: GlobalID
+class StatementSetReferenceInput(gql.NodeInput):
     reference_id: Optional[GlobalID] = None
-
-
-@gql.type
-class StatementSetReferencePayload:
-    statement: Statement
-
-
-@gql.type
-class MorphStatementPayload:
-    statement: Statement
 
 
 @gql.django.partial(models.Statement)
@@ -159,31 +148,14 @@ class StatementMoveInput:
     index: Optional[int] = None
 
 
-@gql.type
-class StatementMovePayload:
-    statement: Statement
-    old_file: Annotated["File", lazy(".project")]
-    new_file: Annotated["File", lazy(".project")]
-
-
 @gql.input
 class StatementSoftDeleteInput(gql.NodeInput):
     pass
 
 
-@gql.type
-class StatementSoftDeletePayload:
-    statement: Statement
-
-
 @gql.input
 class StatementRestoreInput(gql.NodeInput):
     pass
-
-
-@gql.type
-class StatementRestorePayload:
-    statement: Statement
 
 
 @gql.input
@@ -192,17 +164,12 @@ class StatementCommentedInput(gql.NodeInput):
 
 
 @gql.type
-class StatementCommentedPayload:
-    statement: Statement
-
-
-@gql.type
 class StatementMutation:
     rename_statement: Statement = gql.django.update_mutation(StatementRenameInput)
     update_statement_modifier: Statement = gql.django.update_mutation(StatementSetModifierInput)
 
     @async_safe_mutation
-    def create_statement(self, input: StatementCreateInput) -> StatementCreatePayload:
+    def create_statement(self, input: StatementCreateInput) -> StatementPayload:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
         parent = (
@@ -216,13 +183,24 @@ class StatementMutation:
             parent=parent,
             index=input.index,
         )
-        return StatementCreatePayload(statement=statement)
+        return StatementPayload(statement=statement)
 
     @async_safe_mutation
-    def update_statement_reference(
-        self, input: StatementSetReferenceInput
-    ) -> StatementSetReferencePayload:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+    def soft_delete_statement(self, input: StatementSoftDeleteInput) -> StatementPayload:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.soft_delete()
+        return StatementPayload(statement=statement)
+
+    @async_safe_mutation
+    def restore_statement(self, input: StatementRestoreInput) -> StatementPayload:
+        # use base manager since default manager excludes soft deleted statements
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
+        statement.restore()
+        return StatementPayload(statement=statement)
+
+    @async_safe_mutation
+    def update_statement_reference(self, input: StatementSetReferenceInput) -> StatementPayload:
+        statement = models.Statement.objects.get(id=input.id.node_id)
         reference = (
             models.Statement.objects.get(id=input.reference_id.node_id)
             if input.reference_id
@@ -230,22 +208,22 @@ class StatementMutation:
         )
         statement.reference = reference
         statement.save()
-        return StatementSetReferencePayload(statement=statement)
+        return StatementPayload(statement=statement)
 
     @async_safe_mutation
-    def morph_statement(self, input: StatementMorphInput) -> MorphStatementPayload:
+    def morph_statement(self, input: StatementMorphInput) -> StatementPayload:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         statement.morph_to(input.type, input.symbol_type)
-        return MorphStatementPayload(statement=statement)
+        return StatementPayload(statement=statement)
 
     @async_safe_mutation
-    def comment_statement(self, input: StatementCommentedInput) -> StatementCommentedPayload:
+    def comment_statement(self, input: StatementCommentedInput) -> StatementPayload:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.set_commented(input.commented)
-        return StatementCommentedPayload(statement=statement)
+        return StatementPayload(statement=statement)
 
     @async_safe_mutation
-    def move_statement(self, input: StatementMoveInput) -> StatementMovePayload:
+    def move_statement(self, input: StatementMoveInput) -> StatementPayload:
         statement = models.Statement.objects.get(id=input.id.node_id)
         file = models.File.objects.get(id=input.file_id.node_id)
         parent = (
@@ -253,20 +231,7 @@ class StatementMutation:
         )
         old_file = statement.file
         statement.move_to(file, parent, input.index)
-        return StatementMovePayload(statement=statement, old_file=old_file, new_file=file)
-
-    @async_safe_mutation
-    def soft_delete_statement(self, input: StatementSoftDeleteInput) -> StatementSoftDeletePayload:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.soft_delete()
-        return StatementSoftDeletePayload(statement=statement)
-
-    @async_safe_mutation
-    def restore_statement(self, input: StatementRestoreInput) -> StatementRestorePayload:
-        # use base manager since default manager excludes soft deleted statements
-        statement = models.Statement._base_manager.get(id=input.id.node_id)
-        statement.restore()
-        return StatementRestorePayload(statement=statement)
+        return StatementPayload(statement=statement, old_file=old_file, new_file=file)
 
 
 #
@@ -280,24 +245,31 @@ class StatementTextInput(gql.NodeInput):
 
 
 @gql.django.partial(models.Statement)
-class StatementUpdateDescription(gql.NodeInput):
+class StatementUpdateDescriptionInput(gql.NodeInput):
     description: str
 
 
 @gql.django.partial(models.Statement)
-class StatementUpdateCode(gql.NodeInput):
+class StatementUpdateCodeInput(gql.NodeInput):
     code_builtin_id: Optional[str] = None
     code: Optional[str] = None
 
 
 @gql.django.partial(models.Statement)
-class StatementUpdateTypeNode(gql.NodeInput):
+class StatementUpdateTypeInput(gql.NodeInput):
     btl: str
+
+
+@gql.input
+class StatementUpdateRecordsInput(gql.NodeInput):
+    records: list[JSON]
 
 
 @gql.type
 class SymbolMutation:
     update_statement_text: Statement = gql.django.update_mutation(StatementTextInput)
-    update_statement_description: Statement = gql.django.update_mutation(StatementUpdateDescription)
-    update_statement_code: Statement = gql.django.update_mutation(StatementUpdateCode)
-    update_statement_type_node: Statement = gql.django.update_mutation(StatementUpdateTypeNode)
+    update_statement_description: Statement = gql.django.update_mutation(
+        StatementUpdateDescriptionInput
+    )
+    update_statement_code: Statement = gql.django.update_mutation(StatementUpdateCodeInput)
+    update_statement_type_node: Statement = gql.django.update_mutation(StatementUpdateTypeInput)

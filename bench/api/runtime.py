@@ -170,10 +170,3 @@ class ModuleRuntimeSubscription:
         self, project_version_id: GlobalID
     ) -> AsyncGenerator[None, None]:
         raise NotImplementedError
-
-
-@gql.type
-class ProjectSubscription:
-    @gql.subscription
-    async def project_changed(self, project_id: GlobalID) -> AsyncGenerator[None, None]:
-        raise NotImplementedError

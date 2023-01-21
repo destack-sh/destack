@@ -1,3 +1,4 @@
+import enum
 import typing
 from dataclasses import dataclass
 from typing import Optional, Union
@@ -348,3 +349,25 @@ def parse_symbol_type_node(symbol_type: language.SymbolType, type_node: str) -> 
         raise ValueError(f"unexpected symbol type {symbol_type}")
     btl_parser.eat_eos()  # must be full match
     return parsed
+
+
+#
+# Change tracking
+#
+
+
+class ModuleMutationType(enum.Enum):
+    CREATE_FILE = "CREATE_FILE"
+    UPDATE_FILE = "UPDATE_FILE"
+    DELETE_FILE = "DELETE_FILE"
+    CREATE_STATEMENT = "CREATE_STATEMENT"
+    UPDATE_STATEMENT = "UPDATE_STATEMENT"
+    DELETE_STATEMENT = "DELETE_STATEMENT"
+
+
+@dataclass(repr=False)
+class ModuleMutation:
+    module_id: UUID
+    type: ModuleMutationType
+    file: Optional[FileData]
+    statement: Optional[StatementData]
