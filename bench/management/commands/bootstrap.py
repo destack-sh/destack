@@ -56,63 +56,63 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, force: bool, *args, **options):
         create_model_providers()
-        create_symbolx_stdlib("bench/demo/stdlib.bench", overwrite=force)
+        create_symbolx_std("bench/demo/stdlib.bench", overwrite=force)
 
 
 @transaction.atomic
-def create_symbolx_stdlib(path: str, overwrite: bool) -> None:
-    stdlib = get_or_create_stdlib("SymbolX", "symbolx")
+def create_symbolx_std(path: str, overwrite: bool) -> None:
+    stdlib = get_or_create_std("SymbolX", "symbolx")
 
     # get last modified date from file at path
     last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
     # format version name as YYYY.MM.DD-ts
     version_id = last_modified.strftime("%Y.%m.%d") + "-" + str(int(last_modified.timestamp()))
-    stdlib_v: ProjectVersion = stdlib.head_
-    exists = stdlib_v.name == version_id
+    std_v: ProjectVersion = stdlib.head_
+    exists = std_v.name == version_id
     if exists and not overwrite:
         # skip if version already exists
-        logger.info(f"Skip updating library {stdlib_v} to {version_id} (already exists)")
+        logger.info(f"Skip updating library {std_v} to {version_id} (already exists)")
         return
     if exists:
-        logger.warn(f"Overwriting library {stdlib_v} at {version_id}")
+        logger.warn(f"Overwriting library {std_v} at {version_id}")
 
-    stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
-    stdlib_v.reset()
+    std_v = stdlib.create_version(name=version_id, parent=std_v)
+    std_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
     module = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
     wire_module = wire.rmap_module(module)
-    write_module(wire_module.files, stdlib_v)
+    write_module(wire_module.files, std_v)
 
     # advance head
-    stdlib_v.commit(name=version_id)
-    stdlib.head = stdlib_v
+    std_v.commit(name=version_id)
+    stdlib.head = std_v
     stdlib.save()
 
-    logger.info(f"Created library {stdlib_v} from {path}")
+    logger.info(f"Created library {std_v} from {path}")
 
 
 @transaction.atomic
 def create_model_providers():
     for provider in providers:
-        stdlib = get_or_create_stdlib(provider.name, provider.slug)
-        stdlib_v: ProjectVersion = stdlib.head_
+        stdlib = get_or_create_std(provider.name, provider.slug)
+        std_v: ProjectVersion = stdlib.head_
         # version with date format like 2022.11.29
         version_id = datetime.datetime.now().strftime("%Y.%m.%d")
-        if stdlib_v.name == version_id:
+        if std_v.name == version_id:
             # skip if version already exists
-            logger.info(f"Skip updating library {stdlib_v} to {version_id} (already exists)")
+            logger.info(f"Skip updating library {std_v} to {version_id} (already exists)")
             continue
-        stdlib_v = stdlib.create_version(name=version_id, parent=stdlib_v)
-        stdlib_v.reset()
+        std_v = stdlib.create_version(name=version_id, parent=std_v)
+        std_v.reset()
 
         # add models to library
         # TODO @Cleanup: use bench string instead of DB models to bootstrap model providers
         #  (not yet possible since models can't be expressed in bench yet)
-        models_file = stdlib_v.create_file(name="text", type=FileType.INSTRUCT)
+        models_file = std_v.create_file(name="text", type=FileType.INSTRUCT)
         for model_id in provider.models:
             provider_key = ProviderKey[provider.slug.upper()]
             statement = Statement.objects.create_statement(
-                project_version=stdlib_v,
+                project_version=std_v,
                 file=models_file,
                 parent=None,
                 index=None,
@@ -125,14 +125,14 @@ def create_model_providers():
             statement.save()
 
         # advance head
-        stdlib_v.commit(version_id)
-        stdlib.head = stdlib_v
+        std_v.commit(version_id)
+        stdlib.head = std_v
         stdlib.save()
 
-        logger.info(f"Created provider library {stdlib_v} with models: {provider.models}")
+        logger.info(f"Created provider library {std_v} with models: {provider.models}")
 
 
-def get_or_create_stdlib(organization_name: str, organization_slug: str) -> Project:
+def get_or_create_std(organization_name: str, organization_slug: str) -> Project:
     organization = Organization.objects.filter(slug=organization_slug).first()
     if organization is None:
         organization = Organization.objects.create(name=organization_name, slug=organization_slug)

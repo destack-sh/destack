@@ -25,8 +25,8 @@ task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
 
 # Build
-require openai.stdlib@latest
-import model 'text-davinci-003' from openai.stdlib.text
+require openai.std@latest
+import model 'text-davinci-003' from openai.std.text
 
 compile prod:
     task 'extract entities'

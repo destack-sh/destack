@@ -1,10 +1,10 @@
 --- project.instruct ---
 # Requirements
-require openai.stdlib@latest
+require openai.std@latest
 
 # Compilations
 import task 'generate command' from .main
-import model text-davinci-003 from openai.stdlib.text
+import model text-davinci-003 from openai.std.text
 
 # compile test-codegen:
 #    with model codegen
@@ -51,7 +51,7 @@ data 'basic examples' :: (input: Input, output: Command):
 ```
 
 --- safety.instruct ---
-import model text-davinci-003 as llm from openai.stdlib.text
+import model text-davinci-003 as llm from openai.std.text
 import type Example from .main
 
 data destructive :: (text: string):
@@ -83,7 +83,7 @@ expect 'valid bash':
     ```
 
 --- form.instruct ---
-import model text-davinci-003 as llm from openai.stdlib.text
+import model text-davinci-003 as llm from openai.std.text
 
 data misspellings :: (input: string, misspelt: string "The input misspelt"):
 ```jsonl
