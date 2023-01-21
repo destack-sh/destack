@@ -1,10 +1,12 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
+from django.db.models import F
 from strawberry import UNSET, lazy
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
-from strawberry_django_plus.mutations import resolvers
 from strawberry_django_plus.relay import GlobalID
+from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.sync import project_change_pub
@@ -113,10 +115,8 @@ class ProjectVersion(gql.Node):
 @gql.django.type(models.File)
 class File(gql.Node):
     project_version: ProjectVersion
-    type: auto
     name: auto
     path: auto
-    path_without_extension: auto
     created_at: auto
     updated_at: auto
     deleted_at: auto
@@ -176,18 +176,17 @@ class ProjectVersionMutation:
 #
 
 
-@gql.django.input(models.File)
+@gql.input
 class FileCreateInput:
-    project_version: auto
-    type: auto
-    name: auto
-    parent: auto
-    is_directory: auto
+    project_version_id: GlobalID
+    name: str
+    parent_id: Optional[GlobalID] = None
+    is_directory: bool = False
 
 
-@gql.django.partial(models.File)
+@gql.input
 class FileRenameInput(gql.NodeInput):
-    name: auto
+    name: str
 
 
 @gql.input
@@ -198,27 +197,48 @@ class FileMoveInput(gql.NodeInput):
 @gql.type
 class FileMutation:
     @async_safe_mutation
-    def create_file(self, info, data: FileCreateInput) -> File:
-        input = vars(data)
-        project_version_id = input["project_version"].node_id
-        ret = resolvers.create(info, self.model, resolvers.parse_input(info, input))
-        if isinstance(ret, File):  # broadcast change on success
-            send_message(
-                project_change_pub,
-                ZMessage(
-                    ZMessageType.PROJECT_VERSION_CHANGED,
-                    ProjectVersionChangedPayload(project_version_id),
-                ),
-            )
-        return ret
+    def create_file(self, info: Info, input: FileCreateInput) -> File | OperationInfo:
+        project_version_id = input.project_version.id.node_id
+        project_version = models.ProjectVersion.objects.only("committed_at").get(
+            id=project_version_id
+        )
+        if project_version.committed:
+            raise PermissionError("cannot edit committed project version")
+
+        file = models.File(
+            project_version=project_version,
+            type=input.type,
+            name=input.name,
+            parent=input.parent,
+            is_directory=input.is_directory,
+        )
+        file.full_clean()
+        file.save()
+
+        send_message(
+            project_change_pub,
+            ZMessage(
+                ZMessageType.PROJECT_VERSION_CHANGED,
+                ProjectVersionChangedPayload(project_version_id),
+            ),
+        )
+        return file
 
     rename_file: File = gql.django.update_mutation(FileRenameInput)
 
     @async_safe_mutation
-    def move_file(self, info, input: FileMoveInput) -> File:
-        file = models.File.objects.get(id=input.id.node_id)
-        # TODO @Incomplete: implement
-        return resolvers.update(info, self.model, resolvers.parse_input(info, input))
+    def move_file(self, info: Info, input: FileMoveInput) -> File:
+        file = File.objects.get(id=input.id.node_id)
+        if file.project_version.committed:
+            raise PermissionError("cannot edit committed project version")
+
+        parent = File.objects.filter(id=input.parent_id.node_id).first()
+        file.parent = parent
+        file.revision = F("revision") + 1
+        file.full_clean()
+        file.save()
+
+        return file
 
     @async_safe_mutation
     def soft_delete_file(self, input: gql.NodeInput) -> File:

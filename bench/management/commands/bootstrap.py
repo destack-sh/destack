@@ -11,7 +11,7 @@ from bench.language.lex import SourceFile
 from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
 from bench.models.mapper import lookup_in_db_module, write_module
-from bench.models.project import FileType, ProjectType, ProjectVersion, ProjectVisibility
+from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
 from bench.runtime.execute import ProviderKey
 
 logger = structlog.get_logger(__name__)
@@ -56,18 +56,18 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, force: bool, *args, **options):
         create_model_providers()
-        create_symbolx_std("bench/demo/stdlib.bench", overwrite=force)
+        create_symbolx_std("bench/demo/std.bench", overwrite=force)
 
 
 @transaction.atomic
 def create_symbolx_std(path: str, overwrite: bool) -> None:
-    stdlib = get_or_create_std("SymbolX", "symbolx")
+    std = get_or_create_std("SymbolX", "symbolx")
 
     # get last modified date from file at path
     last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
     # format version name as YYYY.MM.DD-ts
     version_id = last_modified.strftime("%Y.%m.%d") + "-" + str(int(last_modified.timestamp()))
-    std_v: ProjectVersion = stdlib.head_
+    std_v: ProjectVersion = std.head_
     exists = std_v.name == version_id
     if exists and not overwrite:
         # skip if version already exists
@@ -76,7 +76,7 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
     if exists:
         logger.warn(f"Overwriting library {std_v} at {version_id}")
 
-    std_v = stdlib.create_version(name=version_id, parent=std_v)
+    std_v = std.create_version(name=version_id, parent=std_v)
     std_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
     module = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
@@ -85,8 +85,8 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
 
     # advance head
     std_v.commit(name=version_id)
-    stdlib.head = std_v
-    stdlib.save()
+    std.head = std_v
+    std.save()
 
     logger.info(f"Created library {std_v} from {path}")
 
@@ -94,21 +94,21 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
 @transaction.atomic
 def create_model_providers():
     for provider in providers:
-        stdlib = get_or_create_std(provider.name, provider.slug)
-        std_v: ProjectVersion = stdlib.head_
+        std = get_or_create_std(provider.name, provider.slug)
+        std_v: ProjectVersion = std.head_
         # version with date format like 2022.11.29
         version_id = datetime.datetime.now().strftime("%Y.%m.%d")
         if std_v.name == version_id:
             # skip if version already exists
             logger.info(f"Skip updating library {std_v} to {version_id} (already exists)")
             continue
-        std_v = stdlib.create_version(name=version_id, parent=std_v)
+        std_v = std.create_version(name=version_id, parent=std_v)
         std_v.reset()
 
         # add models to library
         # TODO @Cleanup: use bench string instead of DB models to bootstrap model providers
         #  (not yet possible since models can't be expressed in bench yet)
-        models_file = std_v.create_file(name="text", type=FileType.INSTRUCT)
+        models_file = std_v.create_file(name="text")
         for model_id in provider.models:
             provider_key = ProviderKey[provider.slug.upper()]
             statement = Statement.objects.create_statement(
@@ -126,8 +126,8 @@ def create_model_providers():
 
         # advance head
         std_v.commit(version_id)
-        stdlib.head = std_v
-        stdlib.save()
+        std.head = std_v
+        std.save()
 
         logger.info(f"Created provider library {std_v} with models: {provider.models}")
 
@@ -139,11 +139,11 @@ def get_or_create_std(organization_name: str, organization_slug: str) -> Project
         library = Project.objects.create_project(
             organization,
             f"{organization_name} standard library",
-            "stdlib",
+            "std",
             type=ProjectType.LIBRARY,
             visibility=ProjectVisibility.PUBLIC,
         )
         logger.info(f"Created provider: {organization}")
     else:
-        library = Project.objects.get(organization=organization, slug="stdlib")
+        library = Project.objects.get(organization=organization, slug="std")
     return library

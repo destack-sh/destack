@@ -68,7 +68,6 @@ if RUN_INTERNAL_SERVER:
     )
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "internal_server"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
-
 if RUN_RUNTIME_WORKER:
     from bench.runtime.worker import RuntimeWorker
 

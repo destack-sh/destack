@@ -295,19 +295,12 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return self.project.organization
 
     @transaction.atomic
-    def create_file(
-        self,
-        name: str,
-        type: FileType,
-        parent: Optional[File] = None,
-    ) -> "File":
-        file = File.objects.create(project_version=self, parent=parent, name=name, type=type)
+    def create_file(self, name: str, parent: Optional[File] = None) -> "File":
+        file = File.objects.create(project_version=self, parent=parent, name=name)
         return file
 
     @transaction.atomic
-    def create_path(
-        self, path: str, type: FileType, exists_ok: bool = False, id: Optional[UUID] = None
-    ) -> "File":
+    def create_path(self, path: str, exists_ok: bool = False, id: Optional[UUID] = None) -> "File":
         """
         Create a file or directory at the given path, automatically creating parent directories.
         """
@@ -316,14 +309,13 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         parent = None
         for directory in file_parts[:-1]:
             parent, _ = File.objects.get_or_create(
-                project_version=self, parent=parent, name=directory, type=type
+                project_version=self, parent=parent, name=directory
             )
         # create file
         file, created = File.objects.get_or_create(
             project_version=self,
             parent=parent,
             name=file_parts[-1],
-            type=type,
             defaults={"id": id} if id is not None else {},
         )
         if not created and not exists_ok:
@@ -331,19 +323,17 @@ class ProjectVersion(TaggableMixin, UUIDModel):
         return file
 
     def create_file_from_path(
-        self, path: str, type: FileType, exists_ok: bool = False, id: Optional[UUID] = None
+        self, path: str, exists_ok: bool = False, id: Optional[UUID] = None
     ) -> "File":
-        return self.create_path(path, type, exists_ok=exists_ok, id=id)
+        return self.create_path(path, exists_ok=exists_ok, id=id)
 
-    def get_file(self, path: str, type: FileType) -> "File":
+    def get_file(self, path: str) -> "File":
         try:
             file_parts = path.split("/")
             parent = None
             for directory in file_parts[:-1]:
                 parent = File.objects.get(project_version=self, parent=parent, name=directory)
-            return File.objects.get(
-                project_version=self, parent=parent, name=file_parts[-1], type=type
-            )
+            return File.objects.get(project_version=self, parent=parent, name=file_parts[-1])
         except File.DoesNotExist:
             raise ValueError(f"project {self} does not contain {path}.{type}")
 
@@ -351,12 +341,6 @@ class ProjectVersion(TaggableMixin, UUIDModel):
 
     class Meta:
         ordering = ["-created_at"]
-
-
-# TODO @Cleanup: remove FileType? (no longer needed since we only have .instruct and is_directory)
-class FileType(models.TextChoices):
-    DIRECTORY = "directory", "Directory"  # contains sub-directories and files
-    INSTRUCT = "instruct", "Instructions"  # actual instructions
 
 
 class FileManager(models.Manager):
@@ -369,14 +353,13 @@ class File(UUIDModel):
     """
     A file containing statements, potentially containing other files if it's a directory.
     A file - and the statements it contains - may be soft-deleted.
-    Nothing is actually deleted, but soft deleted objects are not visible and not copied on commit.
+    Nothing is actually deleted, but soft deleted objects are not visible and not copied across versions.
     """
 
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
     revision = models.IntegerField(default=1)
-    type = TextChoicesField(FileType, default=FileType.INSTRUCT)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -392,23 +375,14 @@ class File(UUIDModel):
 
     def __str__(self):
         if self.parent:
-            return f"{self.parent}/{self.name}.{self.type}"
+            return f"{self.parent}/{self.name}"
         else:
-            return f"{self.project_version}/{self.name}.{self.type}"
+            return f"{self.project_version}/{self.name}"
 
     @gql.model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
-        return (
-            f"{self.parent.path}/{self.name}.{self.type}"
-            if self.parent
-            else f"{self.name}.{self.type}"
-        )
+        return f"{self.parent.path}/{self.name}" if self.parent else f"{self.name}"
 
-    @gql.model_property(only=["name", "parent"], select_related=["parent"])
-    def path_without_extension(self) -> str:
-        return f"{self.parent.path_without_extension}/{self.name}" if self.parent else self.name
-
-    @property
     def is_root(self) -> bool:
         return self.parent is None
 
@@ -423,13 +397,13 @@ class File(UUIDModel):
     @transaction.atomic
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        self.statements.update(deleted_at=self.deleted_at)
+        self.statements.filter(deleted_at=None).update(deleted_at=self.deleted_at)
         self.save()
 
     @transaction.atomic
     def restore(self):
         self.deleted_at = None
-        self.statements.update(deleted_at=None)
+        self.statements.filter(deleted_at=self.deleted_at).update(deleted_at=None)
         self.save()
 
     objects = FileManager()

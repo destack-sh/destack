@@ -1,5 +1,5 @@
 import structlog
-import zmq
+import zmq.asyncio
 from asgiref.sync import sync_to_async
 
 from bench.models import Execution, ExecutionStatus, ProjectVersion
@@ -41,9 +41,9 @@ class InternalServer:
         )
         self.rep_sock.bind(internal_server_addr)
         self.change_sub_sock.connect(api_server_addr)
-        # self.change_pub_sock.bind(internal_server_addr)
+        self.change_pub_sock.bind(internal_server_addr)
 
-        poller = zmq.Poller()
+        poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
         poller.register(self.change_sub_sock, zmq.POLLIN)
 
