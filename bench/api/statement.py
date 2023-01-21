@@ -104,6 +104,18 @@ class Statement(gql.relay.Node):
         return result
 
 
+#
+# Project contents: statements (in files)
+# :ProjectContentSync
+#
+# For synchronizing statements, to edit a statement:
+#  1. Check that the containing project version is not committed
+#  2. Increment 'revision' on the statement
+#  [.. actual update ..]
+#  3. Send zmq pub message
+#
+
+
 @gql.input
 class StatementCreateInput:
     file_id: GlobalID

@@ -19,7 +19,7 @@ export type ProjectVersionHeader = Pick<
 >;
 export type FileHeader = Pick<
   File,
-  "__typename" | "id" | "type" | "name" | "path" | "pathWithoutExtension" | "createdAt" | "updatedAt"
+  "__typename" | "id" | "name" | "path" | "pathWithoutExtension" | "createdAt" | "updatedAt"
 >;
 export type StatementHeader = Pick<
   Statement,

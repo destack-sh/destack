@@ -145,9 +145,9 @@ type Mutation {
   updateStatementTypeNode(input: StatementUpdateTypeInput!): UpdateStatementTypeNodePayload!
   renameFile(input: FileRenameInput!): RenameFilePayload!
   createFile(input: FileCreateInput!): FileOperationInfo!
-  moveFile(input: FileMoveInput!): File!
-  softDeleteFile(input: NodeInput!): File!
-  restoreFile(input: NodeInput!): File!
+  moveFile(input: FileMoveInput!): FileOperationInfo!
+  softDeleteFile(input: NodeInput!): FileOperationInfo!
+  restoreFile(input: NodeInput!): FileOperationInfo!
   commit(input: CommitInput!): CommitPayload!
 }
 

@@ -9,7 +9,7 @@ export function useFileOps() {
   const { mutate: createFileMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createFile($projectVersionId: GlobalID!, $name: String!) {
-        createFile(input: { projectVersion: { id: $projectVersionId }, name: $name }) {
+        createFile(input: { projectVersionId: $projectVersionId, name: $name }) {
           ... on File {
             id
             ...FileHeader
