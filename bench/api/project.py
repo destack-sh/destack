@@ -1,19 +1,15 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from django.db.models import F
 from strawberry import UNSET, lazy
-from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.sync import project_change_pub
+from bench.api.sync import MT, project_mutation
 from bench.api.util import async_safe_mutation
 from bench.models.project import RefDict
-from bench.zmq import ZMessage, ZMessageType, send_message
-from bench.zmq.messages import ProjectVersionChangedPayload
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -167,9 +163,10 @@ class ProjectVersionMutation:
 
 #
 # Project contents: files
-#
+# :ProjectContentSync
+
 # For synchronizing file contents, to edit a file:
-#  1. Check whether the containing project version is not committed
+#  1. Check that the containing project version is not committed
 #  2. Increment 'revision' on the file
 #  [.. actual update ..]
 #  3. Send zmq pub message
@@ -196,58 +193,34 @@ class FileMoveInput(gql.NodeInput):
 
 @gql.type
 class FileMutation:
-    @async_safe_mutation
-    def create_file(self, info: Info, input: FileCreateInput) -> File | OperationInfo:
-        project_version_id = input.project_version.id.node_id
-        project_version = models.ProjectVersion.objects.only("committed_at").get(
-            id=project_version_id
-        )
-        if project_version.committed:
-            raise PermissionError("cannot edit committed project version")
-
-        file = models.File(
-            project_version=project_version,
-            type=input.type,
+    @project_mutation(MT.CREATE_FILE)
+    def create_file(self, input: FileCreateInput) -> File | OperationInfo:
+        return models.File(
+            project_version_id=input.project_version_id.node_id,
             name=input.name,
-            parent=input.parent,
+            parent_id=input.parent_id.node_id if input.parent_id else None,
             is_directory=input.is_directory,
         )
-        file.full_clean()
-        file.save()
-
-        send_message(
-            project_change_pub,
-            ZMessage(
-                ZMessageType.PROJECT_VERSION_CHANGED,
-                ProjectVersionChangedPayload(project_version_id),
-            ),
-        )
-        return file
 
     rename_file: File = gql.django.update_mutation(FileRenameInput)
 
-    @async_safe_mutation
-    def move_file(self, info: Info, input: FileMoveInput) -> File:
+    @project_mutation(MT.MOVE_FILE)
+    def move_file(self, input: FileMoveInput) -> File | OperationInfo:
         file = File.objects.get(id=input.id.node_id)
         if file.project_version.committed:
             raise PermissionError("cannot edit committed project version")
-
-        parent = File.objects.filter(id=input.parent_id.node_id).first()
-        file.parent = parent
-        file.revision = F("revision") + 1
-        file.full_clean()
-        file.save()
-
+        file.parent_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @async_safe_mutation
-    def soft_delete_file(self, input: gql.NodeInput) -> File:
+    @project_mutation(MT.SOFT_DELETE_FILE, atomic=True)
+    def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
-    @async_safe_mutation
-    def restore_file(self, input: gql.NodeInput) -> File:
+    @project_mutation(MT.RESTORE_FILE, atomic=True)
+    def restore_file(self, input: gql.NodeInput) -> File | OperationInfo:
+        # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()
         return file

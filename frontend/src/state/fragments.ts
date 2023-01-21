@@ -60,10 +60,8 @@ export const ProjectVersionContentType = graphql(/* GraphQL */ `
 export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
-    type
     name
     path
-    pathWithoutExtension
     createdAt
     updatedAt
     deletedAt

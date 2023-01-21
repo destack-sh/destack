@@ -394,17 +394,13 @@ class File(UUIDModel):
     def active_root_statements(self):
         return self.root_statements.filter(deleted_at__isnull=True, commented=False)
 
-    @transaction.atomic
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.statements.filter(deleted_at=None).update(deleted_at=self.deleted_at)
-        self.save()
 
-    @transaction.atomic
     def restore(self):
         self.deleted_at = None
         self.statements.filter(deleted_at=self.deleted_at).update(deleted_at=None)
-        self.save()
 
     objects = FileManager()
 

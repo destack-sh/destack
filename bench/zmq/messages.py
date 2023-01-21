@@ -5,6 +5,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from bench.language import wire
+from bench.zmq import sync
 
 PROTOCOL_VERSION = 1
 
@@ -58,6 +59,7 @@ class ZMessageType(StrEnum):
 @_register_payload(ZMessageType.PROJECT_VERSION_CHANGED)
 class ProjectVersionChangedPayload:
     project_version_id: UUID
+    mutations: list[sync.ProjectMutation]
 
 
 @_register_payload(ZMessageType.MODULE_CHANGED)
