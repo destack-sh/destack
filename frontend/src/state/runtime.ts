@@ -1,5 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import type { InterpModule, InterpStatement } from "@/gql/graphql";
+import type { InterpModule, InterpStatement, StatementType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -140,6 +140,17 @@ export function useCurrentModuleRuntime() {
 }
 
 export const useModuleRuntime = createSharedComposable(_useModuleRuntime);
+
+export function statementsOfType(type: StatementType) {
+  const { moduleIndex } = useCurrentModuleRuntime();
+  const statements = computed(() => {
+    if (!moduleIndex.value) {
+      return [];
+    }
+    return Object.values(moduleIndex.value.statementsBySourceId).filter((s) => s.type === type);
+  });
+  return statements;
+}
 
 export function useRuntimeTypeOf(statement: Ref<{ id: string }>) {
   const { moduleIndex } = useCurrentModuleRuntime();

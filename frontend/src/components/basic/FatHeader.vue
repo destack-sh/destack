@@ -2,7 +2,7 @@
 <template>
   <!-- Standard fat header -->
   <header
-    class="static mx-auto flex w-full flex-shrink-0 justify-between gap-8 overflow-y-visible border-b border-gray-200 bg-white shadow-sm"
+    class="static mx-auto flex w-full flex-shrink-0 justify-between gap-8 overflow-y-visible border-b border-gray-200 bg-white"
   >
     <!-- Left side -->
     <div class="static flex items-center">

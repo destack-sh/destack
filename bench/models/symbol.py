@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytz
 import structlog
-from django.db import connection, models, transaction
+from django.db import models, transaction
 from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
@@ -182,10 +182,12 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         Moves this statement to a new file and/or parent statement.
         Updates children at both the old and new locations.
         """
-        # use repeatable read isolation to avoid concurrent state changes
+        # should use repeatable read isolation to avoid concurrent state changes
         # (statement index swaps must be atomic to prevent duplicates)
-        cursor = connection.cursor()
-        cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        # but it doesn't work with new mutations because they read before the tx starts
+        # but we will switch to fractional indices anyway so this doesn't matter for long
+        # cursor = connection.cursor()
+        # cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
 
         # check that we're keeping import semantics: can only refer to statements in the same file
         if (
