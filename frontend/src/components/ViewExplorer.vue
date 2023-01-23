@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { FileType } from "@/gql/graphql";
 import { provideAction, provideGlobalAction, useActions } from "@/state/actions";
-import { FILE_TYPE_KEYWORD, useEditorState, type FileHeader } from "@/state/editor";
+import { useEditorState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside } from "@vueuse/core";
@@ -12,11 +11,7 @@ const props = defineProps<{ files: FileHeader[] }>();
 const filesSorted = computed(() => {
   const files = [...props.files];
   return files.sort((a, b) => {
-    if (a.type == b.type) {
-      return a.path.localeCompare(b.path);
-    } else {
-      return a.type == FileType.Directory ? -1 : 1;
-    }
+    return a.path.localeCompare(b.path);
   });
 });
 
@@ -79,10 +74,6 @@ const filesActions: Action[] = [
   },
 ];
 
-function getFileTypeKeyword(file: FileHeader) {
-  return FILE_TYPE_KEYWORD[file.type as FileType];
-}
-
 // focused file actions
 provideGlobalAction({
   id: "file.delete",
@@ -144,7 +135,7 @@ provideGlobalAction({
           >
             {{ file.name }}
           </span>
-          <span>.{{ getFileTypeKeyword(file) }}</span>
+          <span>.instruct</span>
         </li>
       </ul>
     </div>
