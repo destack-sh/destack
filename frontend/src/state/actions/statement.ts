@@ -2,6 +2,7 @@ import { StatementType } from "@/gql/graphql";
 import { provideSingletonAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
+import { newStatementId } from "@/state/operations/statement";
 import { computed, type Ref } from "vue";
 
 export function provideStatementActions(
@@ -220,6 +221,7 @@ export function provideStatementActions(
     registered: enabled,
     apply: async () => {
       const newStatement = await operations.statement.create(
+        newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
         statement.value.index ?? 0,
@@ -235,7 +237,13 @@ export function provideStatementActions(
     enabled: computed(() => !!file.value && !editor.editingElement),
     registered: enabled,
     apply: async () => {
-      const newStatement = await operations.statement.create(file.value?.id, null, 0, StatementType.Blank);
+      const newStatement = await operations.statement.create(
+        newStatementId(),
+        file.value?.id,
+        null,
+        0,
+        StatementType.Blank
+      );
       editor.editElement(newStatement as StatementHeader);
     },
   });
@@ -249,6 +257,7 @@ export function provideStatementActions(
       const roots = statementsByParentId.value[""];
       const lastRootIndex = roots?.[roots.length - 1]?.index ?? -1;
       const newStatement = await operations.statement.create(
+        newStatementId(),
         file.value?.id,
         null,
         lastRootIndex + 1,
@@ -265,6 +274,7 @@ export function provideStatementActions(
     registered: enabled,
     apply: async () => {
       const newStatement = await operations.statement.create(
+        newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
         (statement.value.index ?? 0) + 1,
@@ -281,6 +291,7 @@ export function provideStatementActions(
     registered: enabled,
     apply: async () => {
       const newStatement = await operations.statement.create(
+        newStatementId(),
         file.value?.id,
         statement.value.id,
         statementsByParentId.value[statement.value.id]?.length ?? 0,

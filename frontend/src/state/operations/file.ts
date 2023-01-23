@@ -8,8 +8,8 @@ export function useFileOps() {
 
   const { mutate: createFileMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation createFile($projectVersionId: GlobalID!, $name: String!) {
-        createFile(input: { projectVersionId: $projectVersionId, name: $name }) {
+      mutation createFile($id: GlobalID, $projectVersionId: GlobalID!, $name: String!) {
+        createFile(input: { id: $id, projectVersionId: $projectVersionId, name: $name }) {
           ... on File {
             id
             ...FileHeader
@@ -74,18 +74,18 @@ export function useFileOps() {
     { refetchQueries: ["projectVersionContent"] }
   );
 
-  async function create(projectVersionId: string, name: string) {
+  async function create(id: string, projectVersionId: string, name: string) {
     return await operations.perform({
       type: "file.create",
       do: async () => {
-        const create = await createFileMut({ projectVersionId: projectVersionId, name });
+        const create = await createFileMut({ id, projectVersionId, name });
         if (create?.data?.createFile == null || create?.data?.createFile.__typename !== "File") {
           throw new Error("invalid response");
         }
         return useFragment(FileHeaderType, create.data.createFile);
       },
-      undo: async (file) => {
-        await deleteFileMut({ id: file.id });
+      undo: async () => {
+        await deleteFileMut({ id });
       },
     });
   }

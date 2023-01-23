@@ -121,6 +121,7 @@ class Statement(gql.Node):
 
 @gql.input
 class StatementCreateInput:
+    id: Optional[GlobalID] = None
     file_id: GlobalID
     type: StatementType
     name: Optional[str] = None
@@ -180,7 +181,9 @@ class StatementMutation:
         parent = (
             models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
         )
+        id = input.id.node_id if input.id else None
         statement = models.Statement.objects.create_statement(
+            id=id,
             project_version=project_version,
             file=file,
             type=input.type,
@@ -221,7 +224,7 @@ class StatementMutation:
 
     @project_mutation(PMT.MOVE_STATEMENT)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        statement = models.Statement.objects.get(id=input.id.node_id)
         statement.morph_to(input.type, input.symbol_type)
         return statement
 

@@ -41,7 +41,7 @@ class InternalServer:
         )
         self.rep_sock.bind(internal_server_addr)
         self.change_sub_sock.connect(api_server_addr)
-        self.change_pub_sock.bind(internal_server_addr)
+        # self.change_pub_sock.bind(internal_server_addr)
 
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
@@ -70,7 +70,7 @@ class InternalServer:
             module = await sync_to_async(read_module)(project_v)
             send_message(
                 self.change_pub_sock,
-                ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module)),
+                ZMessage(ZMessageType.MODULE_CHANGED, RepReadModulePayload(module=module)),
             )
         else:
             raise ValueError(f"unexpected message: {msg}")

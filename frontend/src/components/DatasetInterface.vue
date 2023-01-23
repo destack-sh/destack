@@ -52,16 +52,15 @@ defineExpose({
   <!-- Data view -->
   <MonacoEditor
     ref="monacoEditor"
-    v-if="state.view == 'jsonl' || state.view == 'csv' || state.view == 'json'"
+    v-if="state.view == 'jsonl' || state.view == 'csv'"
     :line-number-offset="lineNumberBase + 1 /* for statement itself */"
     :line-number-shift-px="xOffset + 20"
-    :hide-line-numbers="state.view == 'json' /* json has inaccurate line numbers */"
-    :style="{ marginLeft: -xOffset - (20 + (state.view != 'json' ? 23 : 0)) + 'px' }"
+    :style="{ marginLeft: -xOffset - 43 + 'px' }"
     :model-value="{ json: dataAsJsonText, jsonl: dataAsJsonlText, csv: dataAsCsvText }[state.view]"
     @navigateUp="emit('navigateUp')"
     @navigateDown="emit('navigateDown')"
     @escape="emit('escape')"
-    :language="{ json: 'json', jsonl: 'json', csv: 'csv' }[state.view]"
+    :language="{ jsonl: 'json', csv: 'csv' }[state.view]"
     :focused="focused"
     :readonly="props.readonly"
   />
