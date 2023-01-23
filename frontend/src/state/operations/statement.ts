@@ -3,6 +3,13 @@ import type { StatementModifier, StatementType, SymbolType } from "@/gql/graphql
 import { StatementHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
+import { v4 as uuidv4 } from "uuid";
+
+export function newStatementId(): string {
+  /* Generates a new statement global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`Statement:${nodeId}`);
+}
 
 export function useStatementOps() {
   const operations = useOperationsStore();
@@ -10,13 +17,16 @@ export function useStatementOps() {
   const { mutate: createStatementMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createStatement(
+        $id: GlobalID
         $fileId: GlobalID!
         $parentId: GlobalID
         $index: Int
         $type: StatementType!
         $name: String
       ) {
-        createStatement(input: { fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }) {
+        createStatement(
+          input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }
+        ) {
           ... on Statement {
             id
             ...StatementHeader
@@ -203,6 +213,7 @@ export function useStatementOps() {
   );
 
   async function create(
+    id: string,
     fileId: string,
     parentId: string | null,
     index: number | null,
@@ -213,20 +224,17 @@ export function useStatementOps() {
       type: "statement.create",
       do: async () => {
         const create = await createStatementMut({
-          fileId: fileId,
-          parentId: parentId,
-          index: index,
-          type: type,
-          name: name,
+          id,
+          fileId,
+          parentId,
+          index,
+          type,
+          name,
         });
-        const statement = create?.data?.createStatement.statement;
-        if (statement == null) {
-          throw new Error("invalid response");
-        }
-        return useFragment(StatementHeaderType, statement);
+        return useFragment(StatementHeaderType, create?.data?.createStatement);
       },
-      undo: async (statement) => {
-        await deleteStatementMut({ id: statement.id });
+      undo: async () => {
+        await deleteStatementMut({ id });
       },
     });
   }

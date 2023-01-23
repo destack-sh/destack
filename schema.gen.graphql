@@ -60,6 +60,7 @@ type File implements Node {
 }
 
 input FileCreateInput {
+  id: GlobalID = null
   projectVersionId: GlobalID!
   name: String!
   parentId: GlobalID = null
@@ -374,6 +375,7 @@ input StatementCommentedInput {
 }
 
 input StatementCreateInput {
+  id: GlobalID = null
   fileId: GlobalID!
   type: StatementType!
   name: String = null

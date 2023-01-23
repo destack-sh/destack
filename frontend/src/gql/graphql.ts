@@ -89,6 +89,7 @@ export type FileStatementsArgs = {
 };
 
 export type FileCreateInput = {
+  id?: InputMaybe<Scalars["GlobalID"]>;
   isDirectory?: Scalars["Boolean"];
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
@@ -498,6 +499,7 @@ export type StatementCommentedInput = {
 
 export type StatementCreateInput = {
   fileId: Scalars["GlobalID"];
+  id?: InputMaybe<Scalars["GlobalID"]>;
   index?: InputMaybe<Scalars["Int"]>;
   name?: InputMaybe<Scalars["String"]>;
   parentId?: InputMaybe<Scalars["GlobalID"]>;
@@ -876,6 +878,7 @@ export type StatementContentFragment = {
 } & { " $fragmentName"?: "StatementContentFragment" };
 
 export type CreateFileMutationVariables = Exact<{
+  id?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   name: Scalars["String"];
 }>;
@@ -947,6 +950,7 @@ export type RestoreFileMutation = {
 };
 
 export type CreateStatementMutationVariables = Exact<{
+  id?: InputMaybe<Scalars["GlobalID"]>;
   fileId: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   index?: InputMaybe<Scalars["Int"]>;
@@ -2079,6 +2083,11 @@ export const CreateFileDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -2101,6 +2110,11 @@ export const CreateFileDocument = {
                 value: {
                   kind: "ObjectValue",
                   fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
                     {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "projectVersionId" },
@@ -2369,6 +2383,11 @@ export const CreateStatementDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -2406,6 +2425,11 @@ export const CreateStatementDocument = {
                 value: {
                   kind: "ObjectValue",
                   fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
                     {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "fileId" },

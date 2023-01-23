@@ -175,6 +175,7 @@ class ProjectVersionMutation:
 
 @gql.input
 class FileCreateInput:
+    id: Optional[GlobalID] = None
     project_version_id: GlobalID
     name: str
     parent_id: Optional[GlobalID] = None
@@ -195,7 +196,9 @@ class FileMoveInput(gql.NodeInput):
 class FileMutation:
     @project_mutation(PMT.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
+        id = input.id.node_id if input.id else None
         return models.File(
+            id=id,
             project_version_id=input.project_version_id.node_id,
             name=input.name,
             parent_id=input.parent_id.node_id if input.parent_id else None,

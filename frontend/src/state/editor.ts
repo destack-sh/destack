@@ -117,7 +117,7 @@ export function makeFileEditor(file: FileHeader): FileEditor {
     id: file.id + "-" + Math.random().toString(16).substring(2, 8),
     type: "file",
     fileId: file.id,
-    path: file.path,
+    path: file.path + ".instruct",
     localState: {},
     groupId: null,
   } as FileEditor;

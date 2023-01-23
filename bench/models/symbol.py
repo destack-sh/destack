@@ -12,20 +12,13 @@ from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.language import wire
-from bench.language.type import (
-    MOCK_STATEMENT,
-    StatementModifier,
-    StatementType,
-    SymbolType,
-    get_default_symbol_content,
-)
+from bench.language.type import StatementModifier, StatementType, SymbolType
 from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import File, ProjectVersion, mapper
+    from bench.models import File, ProjectVersion
 
 logger = structlog.get_logger(__name__)
 
@@ -35,7 +28,6 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
-    @transaction.atomic
     def create_statement(
         self,
         project_version: ProjectVersion,
@@ -185,7 +177,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         else:
             return self.reference.source_definition
 
-    @transaction.atomic
     def move_to(self, file: File, parent: Optional[Statement], index: Optional[int] = None) -> None:
         """
         Moves this statement to a new file and/or parent statement.
@@ -249,13 +240,13 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         self.symbol_type = symbol_type
         # create default content for the given type if not already set
         if self.symbol_type is not None and self.type == StatementType.DEFINITION:
-            lang_symbol = get_default_symbol_content(MOCK_STATEMENT, symbol_type)
-            wire_statement = wire.rmap_statement(self)
-            wire.rmap_symbol(lang_symbol, wire_statement)
-            _ = mapper.wmap_symbol(self, wire_statement)
+            raise NotImplementedError  # nocheckin set defaults (and sync with frontend optimism?)
+            # lang_symbol = get_default_symbol_content(MOCK_STATEMENT, symbol_type)
+            # wire_statement = mapper.wmap_statement(self)
+            # wire.rmap_symbol(lang_symbol, wire_statement)
+            # _ = mapper.wmap_symbol(self, wire_statement)
         self.save()
 
-    @transaction.atomic
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         # soft delete descendants (that aren't yet deleted)
@@ -264,7 +255,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         self.siblings.filter(index__gt=self.index).update(index=models.F("index") - 1)
         self.save()
 
-    @transaction.atomic
     def restore(self):
         self.refresh_from_db(fields=["deleted_at", "file"])
         if self.file.deleted_at:
@@ -277,7 +267,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         self.siblings.filter(index__gte=self.index).update(index=models.F("index") + 1)
         self.save()
 
-    @transaction.atomic
     def set_commented(self, commented: bool):
         """Sets the commented flag on this statement and all descendants."""
         self.commented = commented

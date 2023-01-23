@@ -28,7 +28,7 @@ const description: Ref<string | null> = ref(null);
 
 async function saveDescription() {
   if (description.value != null && description.value.length > 0 && description.value != statement.value.description) {
-    await operations.content.updateTaskContent(
+    await operations.content.updateStatementDescription(
       statement.value.id,
       statement.value.description || "",
       description.value

@@ -10,8 +10,8 @@ export const DatasetContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export type ViewMode = "table" | "csv" | "json" | "jsonl";
-export const viewModes: ViewMode[] = ["table", "csv", "jsonl", "json"];
+export type ViewMode = "table" | "csv" | "jsonl";
+export const viewModes: ViewMode[] = ["table", "csv", "jsonl"];
 export type DatasetInterfaceState = {
   view: ViewMode;
   showTableHeader: boolean;

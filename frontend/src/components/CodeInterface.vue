@@ -4,7 +4,7 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, readonly, ref, watchEffect, type Ref } from "vue";
+import { computed, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{
   statement: FragmentType<typeof StatementContentType>;
@@ -28,7 +28,7 @@ const code: Ref<string | null> = ref(null);
 function saveCode(code: string) {
   const oldCode = statement.value.code ?? "";
   if (oldCode !== code) {
-    operations.content.updateCodeContent(statement.value.id, { code: oldCode }, { code });
+    operations.content.updateStatementCode(statement.value.id, { code: oldCode }, { code });
   }
 }
 const saveCodeDebounced = useDebounceFn(saveCode, 200, { maxWait: 500 });
