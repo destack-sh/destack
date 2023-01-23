@@ -231,6 +231,10 @@ export function useStatementOps() {
           type,
           name,
         });
+        if (create?.data?.createStatement == null || create?.data?.createStatement.__typename !== "Statement") {
+          // TODO @Robustness: unify error response handling
+          throw new Error("invalid response");
+        }
         return useFragment(StatementHeaderType, create?.data?.createStatement);
       },
       undo: async () => {

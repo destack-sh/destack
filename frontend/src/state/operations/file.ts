@@ -2,6 +2,13 @@ import { graphql, useFragment } from "@/gql";
 import { FileHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
+import { v4 as uuidv4 } from "uuid";
+
+export function newFileId(): string {
+  /* Generates a new statement global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`File:${nodeId}`);
+}
 
 export function useFileOps() {
   const operations = useOperationsStore();
