@@ -104,9 +104,11 @@ def project_mutation(
                 with transaction.atomic():
                     return wrapped(*args, **kwargs)
 
-            wrapped = wrapped_atomic
+            rewrapped = wrapped_atomic
+        else:
+            rewrapped = wrapped
 
-        return gql.mutation(async_safe(_wrap_exceptions(wrapped)), directives=directives)
+        return gql.mutation(async_safe(_wrap_exceptions(rewrapped)), directives=directives)
 
     return make_resolver
 
