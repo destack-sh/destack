@@ -2,6 +2,7 @@ from itertools import chain
 from typing import AsyncGenerator, Optional
 from uuid import UUID
 
+import structlog
 import zmq
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
@@ -12,10 +13,11 @@ from bench.api.statement import StatementType, SymbolType
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.runtime.worker import ReqModuleRuntimePayload
-from bench.settings import ZMQ_RUNTIME_WORKER_REP_ADDR
+from bench.settings import ZMQ_RUNTIME_WORKER_PUB_ADDR, ZMQ_RUNTIME_WORKER_REP_ADDR
 from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
-from bench.zmq.messages import RepModuleRuntimePayload
+from bench.zmq.messages import ModuleRuntimeChangedPayload, RepModuleRuntimePayload
 
+logger = structlog.get_logger(__name__)
 TypeTag = gql.enum(bench.language.type.TypeTag)
 
 
@@ -136,10 +138,13 @@ class ModuleRuntimeSubscription:
         self, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
+        logger.info("subscribe", project_version_id=project_version_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
+        worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_PUB_ADDR)
+        # TODO @Performance: filter subscription messages properly (in all sites)
+        worker_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
 
         # get initial runtime
         send_message(
@@ -155,14 +160,18 @@ class ModuleRuntimeSubscription:
 
         # get runtime changes
         try:
+            logger.info("listen", project_version_id=project_version_id)
             while True:
-                _, update = await recv_message_with(worker_sub_sock, RepModuleRuntimePayload)
-                # (this should definitely be partial updates)
+                _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
+                logger.debug("update", project_version_id=project_version_id)
+                # TODO @Performance: this should definitely be partial updates
+                #  :PartialModuleUpdates
                 module = rmap_module(update.module)
                 dependencies = [rmap_module(dep) for dep in update.dependencies]
                 errors = rmap_errors(update.errors, module)
                 yield ModuleRuntime(module=module, dependencies=dependencies, errors=errors)
         finally:
+            logger.info("close", project_version_id=project_version_id)
             worker_req_sock.close()
             worker_sub_sock.close()
 

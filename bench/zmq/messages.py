@@ -65,6 +65,7 @@ class ProjectVersionChangedPayload:
 @_register_payload(ZMessageType.MODULE_CHANGED)
 class ModuleChangedPayload:
     module_id: UUID
+    #  :PartialModuleUpdates
     # mutations: list[wire.ModuleMutation]
     module: wire.ModuleData
 
@@ -86,6 +87,15 @@ class ReqModuleRuntimePayload:
 
 @_register_payload(ZMessageType.REP_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
+    module: wire.ModuleData
+    dependencies: list[wire.ModuleData]
+    errors: list[wire.ErrorData]
+
+
+@_register_payload(ZMessageType.MODULE_RUNTIME_CHANGED)
+class ModuleRuntimeChangedPayload:
+    module_id: UUID
+    #  :PartialModuleUpdates
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]

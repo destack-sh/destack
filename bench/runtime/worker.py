@@ -24,6 +24,7 @@ from bench.zmq import (
 )
 from bench.zmq.messages import (
     ModuleChangedPayload,
+    ModuleRuntimeChangedPayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
     ReqModuleRuntimePayload,
@@ -97,8 +98,8 @@ def interp_runtime(
         if statement.type_node is None:
             continue
         elif not isinstance(statement.type_node, str):
-            # we must parse the type node, it shouldn't come pre-parsed (?)
-            raise ValueError(f"unexpected type node in {statement}: {statement.type_node}")
+            # type node may already be parsed (either from wire or from a previous interp if partial changes)
+            continue
         try:
             statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
         except ParseError as e:
@@ -173,13 +174,14 @@ class RuntimeWorker:
 
     async def init_worker_state(
         self, module_id: UUID, source_module: wire.ModuleData | None = None
-    ) -> None:
+    ) -> ModuleWorkerState:
         """Initializes a module-specific worker state (loading and indexing)"""
         if not source_module:
             source_module = await self.fetch_wire_module(module_id)
         state = ModuleWorkerState(source=source_module)
         await self.update_runtime(state)
         self.working_states[module_id] = state
+        return state
 
     async def get_worker_state(self, module_id: UUID) -> ModuleWorkerState:
         if module_id not in self.working_states:
@@ -232,16 +234,21 @@ class RuntimeWorker:
         elif msg.type == ZMessageType.MODULE_CHANGED:
             change = msg.payload_as(ModuleChangedPayload)
             if change.module_id not in self.working_states:
-                await self.init_worker_state(change.module_id, change.module)
-            state = await self.get_worker_state(change.module_id)
-            # TODO @Robustness: hacky way of setting module state source
-            state.source = change.module
-            await self.update_runtime(state)
+                state = await self.init_worker_state(change.module_id, change.module)
+            else:
+                state = await self.get_worker_state(change.module_id)
+                # TODO @Robustness: hacky way of setting module state source
+                #  :PartialModuleUpdates
+                state.source = change.module
+                await self.update_runtime(state)
             send_message(
                 self.pub_sock,
-                ZMessageType.REP_MODULE_RUNTIME,
-                RepModuleRuntimePayload(
-                    state.wire_module, list(state.wire_dependencies.values()), state.wire_errors
+                ZMessageType.MODULE_RUNTIME_CHANGED,
+                ModuleRuntimeChangedPayload(
+                    state.source.id,
+                    state.wire_module,
+                    list(state.wire_dependencies.values()),
+                    state.wire_errors,
                 ),
             )
         else:
