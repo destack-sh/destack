@@ -48,11 +48,11 @@ logger = structlog.get_logger(__name__)
 async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
     task_id = task_id or coro.__name__
     try:
-        logger.debug("task.start", task_id=task_id)
+        logger.debug("start_task", task_id=task_id)
         return await coro
     except CancelledError as e:
-        logger.exception("task.cancelled", task_id=task_id, exc_info=e)
+        logger.exception("cancelled_task", task_id=task_id, exc_info=e)
         raise
     except Exception as e:
-        logger.exception("task.error", task_id=task_id, exc_info=e)
+        logger.exception("errored_task", task_id=task_id, exc_info=e)
         raise

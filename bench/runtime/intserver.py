@@ -7,12 +7,13 @@ from bench.models.mapper import read_module
 from bench.runtime.tracing import ExecutionFrame
 from bench.zmq import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
 from bench.zmq.messages import (
+    ModuleChangedPayload,
     ProjectVersionChangedPayload,
     RepReadModulePayload,
     ReqReadModulePayload,
 )
 
-# TODO @Cleanup: dbservers should probably live in django-side of the backend?
+# TODO @Cleanup: intservers should probably live in django-side of the backend?
 #  (not general language runtime)
 
 logger = structlog.get_logger(__name__)
@@ -30,29 +31,33 @@ class InternalServer:
 
     def __init__(self):
         self.rep_sock = zmq_ctx.socket(zmq.REP)
-        self.change_sub_sock = zmq_ctx.socket(zmq.SUB)
-        self.change_pub_sock = zmq_ctx.socket(zmq.PUB)
+        self.sub_sock = zmq_ctx.socket(zmq.SUB)
+        self.pub_sock = zmq_ctx.socket(zmq.PUB)
 
-    async def start(self, internal_server_addr: str, api_server_addr: str):
+    async def run(
+        self, internal_server_rep_addr: str, internal_server_pub_addr: str, api_server_pub_addr: str
+    ):
         logger.info(
-            "internal_server.start",
-            internal_server_addr=internal_server_addr,
-            api_server_addr=api_server_addr,
+            "start",
+            internal_server_rep_addr=internal_server_rep_addr,
+            internal_server_pub_addr=internal_server_pub_addr,
+            api_server_pub_addr=api_server_pub_addr,
         )
-        self.rep_sock.bind(internal_server_addr)
-        self.change_sub_sock.connect(api_server_addr)
-        # self.change_pub_sock.bind(internal_server_addr)
+        self.rep_sock.bind(internal_server_rep_addr)
+        self.sub_sock.connect(api_server_pub_addr)
+        self.sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
+        self.pub_sock.bind(internal_server_pub_addr)
 
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
-        poller.register(self.change_sub_sock, zmq.POLLIN)
+        poller.register(self.sub_sock, zmq.POLLIN)
 
         while True:
             msg = await recv_message_poll(poller)
             await self.process_message(msg)
 
     async def process_message(self, msg: ZMessage) -> None:
-        logger.debug("internal_server.process", request=msg)
+        logger.debug("process_message", request=msg)
         if msg.type == ZMessageType.REQ_READ_MODULE:
             # get module from DB
             module_id = msg.payload_as(ReqReadModulePayload).module_id
@@ -60,7 +65,8 @@ class InternalServer:
             module = await sync_to_async(read_module)(project_v)
             send_message(
                 self.rep_sock,
-                ZMessage(ZMessageType.REP_READ_MODULE, RepReadModulePayload(module=module)),
+                ZMessageType.REP_READ_MODULE,
+                RepReadModulePayload(module=module),
             )
         elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
             # reload project version as module
@@ -69,14 +75,15 @@ class InternalServer:
             project_v = await ProjectVersion.objects.aget(id=module_id)
             module = await sync_to_async(read_module)(project_v)
             send_message(
-                self.change_pub_sock,
-                ZMessage(ZMessageType.MODULE_CHANGED, RepReadModulePayload(module=module)),
+                self.pub_sock,
+                ZMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(module_id=module.id, module=module),
             )
         else:
             raise ValueError(f"unexpected message: {msg}")
 
     async def stop(self):
-        logger.info("internal_server.stop")
+        logger.info("stop")
         self.rep_sock.close()
 
 

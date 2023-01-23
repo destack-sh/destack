@@ -12,8 +12,8 @@ from bench.api.statement import StatementType, SymbolType
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.runtime.worker import ReqModuleRuntimePayload
-from bench.settings import ZMQ_RUNTIME_WORKER_ADDR
-from bench.zmq import ZMessage, ZMessageType, recv_message_with, send_message, zmq_ctx
+from bench.settings import ZMQ_RUNTIME_WORKER_REP_ADDR
+from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.zmq.messages import RepModuleRuntimePayload
 
 TypeTag = gql.enum(bench.language.type.TypeTag)
@@ -137,15 +137,16 @@ class ModuleRuntimeSubscription:
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_RUNTIME_WORKER_ADDR)
+        worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_ADDR)
+        worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
 
         # get initial runtime
-        req_module_runtime_msg = ZMessage(
-            ZMessageType.REQ_MODULE_RUNTIME, ReqModuleRuntimePayload(module_id=project_version_id)
+        send_message(
+            worker_req_sock,
+            ZMessageType.REQ_MODULE_RUNTIME,
+            ReqModuleRuntimePayload(module_id=project_version_id),
         )
-        send_message(worker_req_sock, req_module_runtime_msg)
         _, payload = await recv_message_with(worker_req_sock, RepModuleRuntimePayload)
         module = rmap_module(payload.module)
         dependencies = [rmap_module(dep) for dep in payload.dependencies]

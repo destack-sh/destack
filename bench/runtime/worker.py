@@ -23,6 +23,7 @@ from bench.zmq import (
     zmq_ctx,
 )
 from bench.zmq.messages import (
+    ModuleChangedPayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
     ReqModuleRuntimePayload,
@@ -44,7 +45,7 @@ class ModuleWorkerState:
     source: wire.ModuleData
     # interpreted state
     interp = InterpModule(module_idx=None, errors=[], dependencies=[])
-    # derived from interpreted
+    # cached wire representations (derived from interpreted)
     wire_module: wire.ModuleData | None = None
     wire_errors: list[wire.ErrorData] | None = None
     wire_dependencies: dict[UUID, wire.ModuleData] = field(default_factory=dict)
@@ -53,7 +54,7 @@ class ModuleWorkerState:
         """Re-derives wire state from interpreted state"""
         if self.interp.module_idx:
             self.wire_module = wire.rmap_module(self.interp.module_idx.module)
-        else:  # re-use source
+        else:  # re-use source (if failed to parse or not yet parsed)
             self.wire_module = self.source
         self.wire_errors = [wire.rmap_error(e) for e in self.interp.errors]
         self.wire_dependencies = {
@@ -96,7 +97,7 @@ def interp_runtime(
         if statement.type_node is None:
             continue
         elif not isinstance(statement.type_node, str):
-            # we must parse the type node, it shouldn't come pre-parsed
+            # we must parse the type node, it shouldn't come pre-parsed (?)
             raise ValueError(f"unexpected type node in {statement}: {statement.type_node}")
         try:
             statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
@@ -122,24 +123,29 @@ class RuntimeWorker:
     def __init__(self, worker_id: str | UUID):
         self.worker_id = worker_id
         self.rep_sock = zmq_ctx.socket(zmq.REP)
-        self.int_req_sock = zmq_ctx.socket(zmq.REQ)
-        self.change_sub_sock = zmq_ctx.socket(zmq.SUB)
-        self.change_pub_sock = zmq_ctx.socket(zmq.PUB)
+        self.intserver_req_sock = zmq_ctx.socket(zmq.REQ)
+        self.sub_sock = zmq_ctx.socket(zmq.SUB)
+        self.pub_sock = zmq_ctx.socket(zmq.PUB)
         self.modules_interp_cache: dict[UUID, InterpModule] = {}
         self.working_states: dict[UUID, ModuleWorkerState] = {}
 
-    async def get_wire_module(self, module_id: UUID) -> wire.ModuleData:
+    async def fetch_wire_module(self, module_id: UUID) -> wire.ModuleData:
         """Gets a module's wire data (uncached)."""
-        req_read_module = ZMessage(ZMessageType.REQ_READ_MODULE, ReqReadModulePayload(module_id))
-        send_message(self.int_req_sock, req_read_module)
-        _, payload = await recv_message_with(self.int_req_sock, RepReadModulePayload)
+        logger.info("fetch_wire_module", module_id=module_id)
+        send_message(
+            self.intserver_req_sock,
+            ZMessageType.REQ_READ_MODULE,
+            ReqReadModulePayload(module_id),
+        )
+        _, payload = await recv_message_with(self.intserver_req_sock, RepReadModulePayload)
         return payload.module
 
     async def get_interp_module(self, module_id: UUID, cache: bool) -> InterpModule:
         """Gets a complete interpreted module incl. dependencies (optional caching)"""
+        logger.info("interp_module", module_id=module_id, cache=cache)
         if cache and module_id in self.modules_interp_cache:
             return self.modules_interp_cache[module_id]
-        wire_module = await self.get_wire_module(module_id)
+        wire_module = await self.fetch_wire_module(module_id)
         dependencies = await self.get_dependencies(wire_module)
         interp = interp_runtime(wire_module, dependencies)
         if cache and interp.module_idx is not None:  # only cache if we got a valid index
@@ -160,13 +166,17 @@ class RuntimeWorker:
 
     async def update_runtime(self, state: ModuleWorkerState) -> None:
         """Updates a module's runtime state by re-interpreting it with its dependencies."""
+        logger.info("update_runtime", source=state.source)
         dependencies = await self.get_dependencies(state.source)
         state.interp = interp_runtime(state.source, dependencies)
         state.derive_wire()
 
-    async def init_worker_state(self, module_id: UUID) -> None:
+    async def init_worker_state(
+        self, module_id: UUID, source_module: wire.ModuleData | None = None
+    ) -> None:
         """Initializes a module-specific worker state (loading and indexing)"""
-        source_module = await self.get_wire_module(module_id)
+        if not source_module:
+            source_module = await self.fetch_wire_module(module_id)
         state = ModuleWorkerState(source=source_module)
         await self.update_runtime(state)
         self.working_states[module_id] = state
@@ -176,25 +186,29 @@ class RuntimeWorker:
             await self.init_worker_state(module_id)
         return self.working_states[module_id]
 
-    async def start(
-        self, runtime_worker_addr: str, internal_server_addr: str, api_server_addr: str
+    async def run(
+        self,
+        runtime_worker_rep_addr: str,
+        runtime_worker_pub_addr: str,
+        internal_server_rep_addr: str,
+        internal_server_pub_addr: str,
     ):
         logger.info(
-            "runtime_worker.start",
+            "start",
             worker_id=self.worker_id,
-            runtime_worker_addr=runtime_worker_addr,
-            internal_server_addr=internal_server_addr,
-            api_server_addr=api_server_addr,
+            runtime_worker_addr=runtime_worker_rep_addr,
+            runtime_worker_pub_addr=runtime_worker_pub_addr,
+            internal_server_rep_addr=internal_server_rep_addr,
+            internal_server_pub_addr=internal_server_pub_addr,
         )
-        self.rep_sock.bind(runtime_worker_addr)
-        self.int_req_sock.connect(internal_server_addr)
-        self.change_sub_sock.connect(internal_server_addr)
-        self.change_sub_sock.connect(api_server_addr)
-        self.change_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
-        # self.change_pub_sock.bind(runtime_worker_addr) TODO @Incomplete: pub runtime changes
+        self.rep_sock.bind(runtime_worker_rep_addr)
+        self.intserver_req_sock.connect(internal_server_rep_addr)
+        self.sub_sock.connect(internal_server_pub_addr)
+        self.sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
+        self.pub_sock.bind(runtime_worker_pub_addr)
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
-        poller.register(self.change_sub_sock, zmq.POLLIN)
+        poller.register(self.sub_sock, zmq.POLLIN)
 
         while True:
             msg = await recv_message_poll(poller)
@@ -204,27 +218,32 @@ class RuntimeWorker:
                 logger.exception("runtime_worker.process_message", exc_info=e, msg=msg)
 
     async def process_message(self, msg: ZMessage):
+        logger.debug("process_message", request=msg)
         if msg.type == ZMessageType.REQ_MODULE_RUNTIME:
             module_id = msg.payload_as(ReqModuleRuntimePayload).module_id
             state = await self.get_worker_state(module_id)
-            rep_module_runtime = ZMessage(
-                type=ZMessageType.REP_MODULE_RUNTIME,
-                payload=RepModuleRuntimePayload(
+            send_message(
+                self.rep_sock,
+                ZMessageType.REP_MODULE_RUNTIME,
+                RepModuleRuntimePayload(
                     state.wire_module, list(state.wire_dependencies.values()), state.wire_errors
                 ),
             )
-            send_message(self.rep_sock, rep_module_runtime)
         elif msg.type == ZMessageType.MODULE_CHANGED:
-            module_id = msg.payload_as(ReqModuleRuntimePayload).module_id
-            state = await self.get_worker_state(module_id)
+            change = msg.payload_as(ModuleChangedPayload)
+            if change.module_id not in self.working_states:
+                await self.init_worker_state(change.module_id, change.module)
+            state = await self.get_worker_state(change.module_id)
+            # TODO @Robustness: hacky way of setting module state source
+            state.source = change.module
             await self.update_runtime(state)
-            rep_module_runtime = ZMessage(
-                type=ZMessageType.REP_MODULE_RUNTIME,
-                payload=RepModuleRuntimePayload(
+            send_message(
+                self.pub_sock,
+                ZMessageType.REP_MODULE_RUNTIME,
+                RepModuleRuntimePayload(
                     state.wire_module, list(state.wire_dependencies.values()), state.wire_errors
                 ),
             )
-            send_message(self.change_pub_sock, rep_module_runtime)
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
@@ -233,8 +252,8 @@ class RuntimeWorker:
         # TODO @Incomplete: stream back runtime results & frames (to api server)
 
     async def stop(self):
-        logger.info("runtime_worker.stop", worker_id=self.worker_id)
+        logger.info("stop", worker_id=self.worker_id)
         self.rep_sock.close()
-        self.int_req_sock.close()
-        self.change_sub_sock.close()
-        self.change_pub_sock.close()
+        self.intserver_req_sock.close()
+        self.sub_sock.close()
+        self.pub_sock.close()

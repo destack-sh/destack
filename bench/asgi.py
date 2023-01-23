@@ -23,9 +23,11 @@ from twisted.internet import reactor
 from bench.settings import (
     RUN_INTERNAL_SERVER,
     RUN_RUNTIME_WORKER,
-    ZMQ_API_SERVER_ADDR,
-    ZMQ_INTERNAL_SERVER_ADDR,
-    ZMQ_RUNTIME_WORKER_ADDR,
+    ZMQ_API_SERVER_PUB_ADDR,
+    ZMQ_INTERNAL_SERVER_PUB_ADDR,
+    ZMQ_INTERNAL_SERVER_REP_ADDR,
+    ZMQ_RUNTIME_WORKER_PUB_ADDR,
+    ZMQ_RUNTIME_WORKER_REP_ADDR,
 )
 from bench.utils.func import wrap_task
 
@@ -60,11 +62,13 @@ application = ProtocolTypeRouter(
 #  For now I just couldn't find the appropriate place to run this, so we rely
 #  on the fact that Daphne uses reactor's _asyncioEventLoop to create tasks there.
 if RUN_INTERNAL_SERVER:
-    from bench.runtime.dbserver import InternalServer
+    from bench.runtime.intserver import InternalServer
 
     server = InternalServer()
-    coro = server.start(
-        internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR, api_server_addr=ZMQ_API_SERVER_ADDR
+    coro = server.run(
+        internal_server_rep_addr=ZMQ_INTERNAL_SERVER_REP_ADDR,
+        internal_server_pub_addr=ZMQ_INTERNAL_SERVER_PUB_ADDR,
+        api_server_pub_addr=ZMQ_API_SERVER_PUB_ADDR,
     )
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "internal_server"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
@@ -73,10 +77,11 @@ if RUN_RUNTIME_WORKER:
 
     local_id = random.randint(0, 2 ** 32)  # just some random number
     worker = RuntimeWorker(worker_id=f"local.{hex(local_id)[2:]}")
-    coro = worker.start(
-        runtime_worker_addr=ZMQ_RUNTIME_WORKER_ADDR,
-        internal_server_addr=ZMQ_INTERNAL_SERVER_ADDR,
-        api_server_addr=ZMQ_API_SERVER_ADDR,
+    coro = worker.run(
+        runtime_worker_rep_addr=ZMQ_RUNTIME_WORKER_REP_ADDR,
+        runtime_worker_pub_addr=ZMQ_RUNTIME_WORKER_PUB_ADDR,
+        internal_server_rep_addr=ZMQ_INTERNAL_SERVER_REP_ADDR,
+        internal_server_pub_addr=ZMQ_INTERNAL_SERVER_PUB_ADDR,
     )
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "runtime_worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)
