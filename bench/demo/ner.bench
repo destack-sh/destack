@@ -26,11 +26,11 @@ task 'extract entities' :: (input: string) -> [Entity]:
 
 # Build
 require openai.std@latest
-import model 'text-davinci-003' from openai.std.text
+import model text-davinci-003 from openai.std.text
 
 compile prod:
     task 'extract entities'
-    with model 'text-davinci-003'
+    with model text-davinci-003
 
 run ner-prod:
     with compile target = compile prod
