@@ -4,7 +4,8 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 
 // fake data
 const user = {
-  name: "Florian Cäsar",
+  fullname: "Florian Cäsar",
+  username: "flotothemoon",
   email: "yatima@symbolx.com",
 };
 const userNavigation = [
@@ -15,10 +16,10 @@ const userNavigation = [
 <template>
   <Menu as="div" class="relative flex-shrink-0">
     <div>
-      <MenuButton class="flex flex-col px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
+      <MenuButton class="flex flex-col px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
         <span class="sr-only">Open user menu</span>
-        <span class="text-xs font-bold text-gray-900">{{ user.name }}</span>
-        <span class="text-xs text-gray-500">Personal</span>
+        <span class="text-xs font-bold text-gray-900">{{ user.username }}</span>
+        <span class="text-xs text-gray-500">{{ user.fullname }}</span>
       </MenuButton>
     </div>
     <FadeTransition>

@@ -16,9 +16,11 @@ import {
   ProjectVersionHeaderType,
 } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
+import { useCurrentModuleRuntime } from "@/state/runtime";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import { ClipboardDocumentIcon, ClockIcon, Cog8ToothIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
+import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
@@ -152,6 +154,9 @@ watchEffect(() => {
   }
 });
 
+// current warnings & errors
+const runtime = useCurrentModuleRuntime();
+
 const { load } = useEditorPersistence();
 
 // migration logic on version change
@@ -252,11 +257,11 @@ watchEffect(async () => {
       <template v-slot:left>
         <!-- Home -->
         <HomeButton />
-        <!-- Current project menu -->
+        <!-- Project menu -->
         <Menu as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
           <div class="h-full">
             <MenuButton
-              class="flex h-full items-center justify-between bg-white px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+              class="flex h-full items-center justify-between bg-white px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
             >
               <span class="sr-only">Open project menu</span>
               <span class="text-sm">
@@ -291,21 +296,38 @@ watchEffect(async () => {
             </svg>
           </span>
         </div>
+        <!-- Comments/issues, warnings/lints, errors -->
+        <div class="flex items-center">
+          <!-- Errors -->
+          <div class="flex items-center gap-0.5" v-if="runtime.errors.value?.length || 0 > 0">
+            <ExclamationCircleIcon class="h-4 w-4 text-red-700" />
+            <span class="text-sm text-gray-700">{{ runtime.errors.value?.length }}</span>
+          </div>
+        </div>
+        <!-- Current worker tasks -->
+        <!-- ... -->
       </template>
       <!-- Right side: controls & profile -->
       <template v-slot:right>
-        <!-- Controls -->
+        <!-- Current "main" statement controls -->
         <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <!-- Compile -->
-
+          <!-- ... -->
           <!-- Run (and compile deps if needed) -->
-
-          <!-- Deploy run(s) -->
-
-          <!-- Share -->
+          <!-- ... -->
+          <!-- Test -->
+          <!-- ... -->
         </div>
 
-        <!-- Profile dropdown -->
+        <!-- Global controls -->
+        <div>
+          <!-- Share -->
+          <!-- ... -->
+          <!-- Deploy -->
+          <!-- ... -->
+        </div>
+
+        <!-- Profile -->
         <ProfileMenuButton />
       </template>
     </FatHeader>
