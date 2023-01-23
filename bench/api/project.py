@@ -205,18 +205,6 @@ class FileMutation:
             is_directory=input.is_directory,
         )
 
-    @project_mutation(PMT.RENAME_FILE)
-    def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.name = input.name
-        return file
-
-    @project_mutation(PMT.MOVE_FILE)
-    def move_file(self, input: FileMoveInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.parent_id = input.parent_id.node_id if input.parent_id else None
-        return file
-
     @project_mutation(PMT.SOFT_DELETE_FILE, atomic=True)
     def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
@@ -228,4 +216,16 @@ class FileMutation:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()
+        return file
+
+    @project_mutation(PMT.MOVE_FILE)
+    def move_file(self, input: FileMoveInput) -> File | OperationInfo:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.parent_id = input.parent_id.node_id if input.parent_id else None
+        return file
+
+    @project_mutation(PMT.RENAME_FILE)
+    def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.name = input.name
         return file

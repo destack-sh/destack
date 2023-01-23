@@ -147,10 +147,10 @@ type Mutation {
   updateStatementTypeNode(input: StatementUpdateTypeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
-  renameFile(input: FileRenameInput!): FileOperationInfo!
-  moveFile(input: FileMoveInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!
+  moveFile(input: FileMoveInput!): FileOperationInfo!
+  renameFile(input: FileRenameInput!): FileOperationInfo!
   commit(input: CommitInput!): CommitPayload!
 }
 

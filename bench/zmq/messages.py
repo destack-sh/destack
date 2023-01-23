@@ -26,7 +26,7 @@ def _register_payload(message_type: "ZMessageType"):
 class ZMessageType(StrEnum):
     """All messages types"""
 
-    # Bench project version sync
+    # Bench project version content sync
     # API <-> API, API -> Worker, API <-> Internal
     PROJECT_VERSION_CHANGED = "project_version_changed"
     # Internal -> Worker
@@ -65,7 +65,8 @@ class ProjectVersionChangedPayload:
 @_register_payload(ZMessageType.MODULE_CHANGED)
 class ModuleChangedPayload:
     module_id: UUID
-    mutations: list[wire.ModuleMutation]
+    # mutations: list[wire.ModuleMutation]
+    module: wire.ModuleData
 
 
 @_register_payload(ZMessageType.REQ_READ_MODULE)

@@ -83,19 +83,21 @@ def parse_message(message_json: str) -> ZMessage:
     return msg
 
 
-def send_message(sock: zmq.Socket, message: ZMessage):
+def send_message(sock: zmq.Socket, message: ZMessage | ZMessageType, payload: typing.Any = None):
+    if isinstance(message, ZMessageType):
+        message = ZMessage(message, payload)
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message.type)
     if payload_cls and message.payload is None:
         raise ValueError(f"missing payload for {message}")
     if message.sent_at is None:
         message.sent_at = datetime.utcnow()
     sock.send_string(serialize_message(message))
-    logger.debug("send_message", msg=message)
+    logger.debug("send_message", msg=message, sock=sock)
 
 
 async def recv_message(sock: zmq.asyncio.Socket) -> ZMessage:
     msg = parse_message(await sock.recv_string())
-    logger.debug("recv_message", msg=msg)
+    logger.debug("recv_message", msg=msg, sock=sock)
     return msg
 
 
