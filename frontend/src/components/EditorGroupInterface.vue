@@ -3,6 +3,7 @@ import EditorInterface from "@/components/EditorInterface.vue";
 import { getRandomName } from "@/composables/useRandomName";
 import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { useOperations } from "@/state/operations";
+import { newFileId } from "@/state/operations/file";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch } from "vue";
@@ -41,7 +42,7 @@ const operations = useOperations();
 const editor = useEditorState();
 async function createFileInEditorGroup() {
   const randomName = getRandomName();
-  const file = await operations.file.create(editor.currentProjectVersionId as string, randomName);
+  const file = await operations.file.create(newFileId(), editor.currentProjectVersionId as string, randomName);
   editor.focusFile(file, props.group);
 }
 </script>

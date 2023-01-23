@@ -118,8 +118,7 @@ const anyInflightOps = computed(() => operationsStore.hasInflight);
 // set up editor state
 const state = useEditorState();
 
-// editors paths sync
-// TODO @Cleanup:
+// sync editor paths
 watchEffect(() => {
   if (!files.value) return;
   state.editors.forEach((editor) => {
@@ -127,7 +126,7 @@ watchEffect(() => {
       const fileEditor = editor as FileEditor;
       const file = files.value.find((f) => f.id == fileEditor.fileId);
       if (!file) return; // ignore
-      editor.path = file.path;
+      editor.path = file.path + ".instruct";
     }
   });
 });

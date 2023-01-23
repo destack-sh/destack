@@ -2,6 +2,7 @@ import { getRandomName } from "@/composables/useRandomName";
 import { provideGlobalAction } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
+import { newFileId } from "@/state/operations/file";
 
 export function useFileActions() {
   const editor = useEditorState();
@@ -13,7 +14,7 @@ export function useFileActions() {
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async () => {
       const randomName = getRandomName();
-      const file = await operations.file.create(editor.currentProjectVersionId as string, randomName);
+      const file = await operations.file.create(newFileId(), editor.currentProjectVersionId as string, randomName);
       editor.focusFile(file);
       editor.focusElement(file);
     },
