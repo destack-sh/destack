@@ -178,7 +178,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
     data = StatementData(
         module_id=statement.file.module.id,
         file_id=statement.file.id,
-        revision=0,
+        revision=1,
         id=statement.id,
         index=statement.index,
         parent_id=statement.parent_id,

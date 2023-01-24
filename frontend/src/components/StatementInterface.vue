@@ -566,7 +566,7 @@ async function morphToBlank() {
       {{ statement.type }}
       <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
       <template v-if="statement.name != null">{{ statement.name }}</template>
-      i:{{ statement.index }} d:{{ depth }}
+      r:{{ statement.revision }} i:{{ statement.index }} d:{{ depth }}
     </span>
     <!-- Commented overlay -->
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />

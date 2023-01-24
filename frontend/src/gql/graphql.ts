@@ -820,6 +820,7 @@ export type ProjectVersionContentFragment = {
 export type FileHeaderFragment = {
   __typename?: "File";
   id: any;
+  revision: number;
   name: string;
   path: string;
   createdAt: any;
@@ -966,6 +967,7 @@ export type CreateStatementMutation = {
         __typename?: "Statement";
         id: any;
         text?: string | null;
+        revision: number;
         file: {
           __typename?: "File";
           id: any;
@@ -996,6 +998,7 @@ export type MorphStatementMutation = {
         codeBuiltinId?: string | null;
         description?: string | null;
         btl?: string | null;
+        revision: number;
       } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } });
 };
 
@@ -1010,7 +1013,7 @@ export type UpdateStatementModifierMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; modifier?: StatementModifier | null };
+    | { __typename?: "Statement"; id: any; modifier?: StatementModifier | null; revision: number };
 };
 
 export type MoveStatementMutationVariables = Exact<{
@@ -1030,6 +1033,7 @@ export type MoveStatementMutation = {
         __typename?: "Statement";
         id: any;
         index?: number | null;
+        revision: number;
         file: {
           __typename?: "File";
           id: any;
@@ -1055,6 +1059,7 @@ export type RenameStatementMutation = {
         __typename?: "Statement";
         id: any;
         name?: string | null;
+        revision: number;
         referencedBy: Array<{ __typename?: "Statement"; id: any; name?: string | null }>;
       };
 };
@@ -1073,6 +1078,7 @@ export type DeleteStatementMutation = {
         __typename?: "Statement";
         id: any;
         deletedAt?: any | null;
+        revision: number;
         descendants: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
         file: {
           __typename?: "File";
@@ -1096,6 +1102,7 @@ export type RestoreStatementMutation = {
         __typename?: "Statement";
         id: any;
         deletedAt?: any | null;
+        revision: number;
         descendants: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
         file: {
           __typename?: "File";
@@ -1120,6 +1127,7 @@ export type CommentStatementMutation = {
         __typename?: "Statement";
         id: any;
         commented: boolean;
+        revision: number;
         descendants: Array<{ __typename?: "Statement"; id: any; commented: boolean }>;
       };
 };
@@ -1138,6 +1146,7 @@ export type SetReferenceMutation = {
     | {
         __typename?: "Statement";
         id: any;
+        revision: number;
         reference?:
           | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
           | null;
@@ -1436,6 +1445,7 @@ export const FileHeaderFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "path" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -2471,6 +2481,7 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "file" },
@@ -2601,6 +2612,7 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "btl" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },
@@ -2672,6 +2684,7 @@ export const UpdateStatementModifierDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "modifier" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },
@@ -2762,6 +2775,7 @@ export const MoveStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "index" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "file" },
@@ -2878,6 +2892,7 @@ export const RenameStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "referencedBy" },
@@ -2949,6 +2964,7 @@ export const DeleteStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "descendants" },
@@ -3057,6 +3073,7 @@ export const RestoreStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "descendants" },
@@ -3175,6 +3192,7 @@ export const CommentStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "commented" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "descendants" },
@@ -3255,6 +3273,7 @@ export const SetReferenceDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "reference" },

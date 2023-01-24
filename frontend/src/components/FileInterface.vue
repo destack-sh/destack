@@ -7,11 +7,10 @@ import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/
 import { useActions } from "@/state/actions";
 import { provideStatementActions } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
-import type { FileContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, reactive } from "vue";
+import { computed } from "vue";
 
 const props = defineProps<{ fileId: string }>();
 
