@@ -130,7 +130,6 @@ export type InterpFile = {
 export type InterpModule = {
   __typename?: "InterpModule";
   files: Array<InterpFile>;
-  globalId: Scalars["GlobalID"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 };
@@ -1162,7 +1161,7 @@ export type UpdateStatementTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; btl?: string | null };
+    | { __typename?: "Statement"; id: any; btl?: string | null; revision: number };
 };
 
 export type UpdateStatementDescriptionMutationVariables = Exact<{
@@ -1176,7 +1175,7 @@ export type UpdateStatementDescriptionMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; description?: string | null };
+    | { __typename?: "Statement"; id: any; description?: string | null; revision: number };
 };
 
 export type UpdateStatementCodeMutationVariables = Exact<{
@@ -1191,7 +1190,7 @@ export type UpdateStatementCodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; code?: string | null; codeBuiltinId?: string | null };
+    | { __typename?: "Statement"; id: any; code?: string | null; codeBuiltinId?: string | null; revision: number };
 };
 
 export type CommitMutationVariables = Exact<{
@@ -3345,6 +3344,7 @@ export const UpdateStatementTypeNodeDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "btl" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },
@@ -3415,6 +3415,7 @@ export const UpdateStatementDescriptionDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },
@@ -3496,6 +3497,7 @@ export const UpdateStatementCodeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
                       { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },

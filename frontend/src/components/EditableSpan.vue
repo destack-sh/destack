@@ -37,6 +37,7 @@ defineExpose({ focus: () => span.value?.focus(), defocus: () => span.value?.blur
 </script>
 <template>
   <span
+    spellcheck="false"
     ref="span"
     class="w-full"
     :contenteditable="!readonly"

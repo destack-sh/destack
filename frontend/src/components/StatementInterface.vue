@@ -23,7 +23,15 @@ import { useOperations } from "@/state/operations";
 import { relativePath, InterpStatementContentType, localErrorsOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
+import {
+  onClickOutside,
+  useDebounceFn,
+  useFocus,
+  useFocusWithin,
+  useMagicKeys,
+  useTextSelection,
+  whenever,
+} from "@vueuse/core";
 import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 
 const props = defineProps<{
@@ -554,6 +562,29 @@ async function morphToBlank() {
   }
 }
 
+// type node save/load (will be factored out soon)
+// sync btl to local if not editing
+const btl: Ref<string | null> = ref(null);
+watchEffect(() => {
+  if (!isEditing.value || btl.value == null) {
+    btl.value = statement.value.btl ?? "";
+  }
+});
+const hasInlineTypeNode = computed(
+  () =>
+    statement.value.type == StatementType.Definition &&
+    (statement.value.symbolType == SymbolType.Task ||
+      statement.value.symbolType == SymbolType.Code ||
+      statement.value.symbolType == SymbolType.Dataset)
+);
+function saveBtl(btl: string) {
+  const oldBtl = statement.value.btl ?? "";
+  if (oldBtl !== btl) {
+    operations.content.updateStatementTypeNode(statement.value.id, oldBtl, btl);
+  }
+}
+const saveBtlDebounced = useDebounceFn(saveBtl, 200, { maxWait: 500 });
+
 // errors
 const localErrors = localErrorsOf(toRef(props, "statement"));
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
@@ -731,6 +762,16 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
             </ComboboxOptions>
           </Combobox>
         </div>
+        <!-- inline type node -->
+        <span v-if="hasInlineTypeNode" class="mx-1 tracking-tighter text-gray-700">::</span>
+        <EditableSpan
+          v-if="hasInlineTypeNode"
+          maxlength="100"
+          class="text-inherit !text-gray-700 outline-none"
+          :readonly="readonly"
+          :model-value="btl"
+          @update:model-value="saveBtlDebounced"
+        />
         <!-- Statement postfixes (alias & import location) -->
         <span v-if="isDefinition" class="-ml-0.5 font-bold text-orange-600">:</span>
         <span v-if="isAlias" class="mx-1 text-orange-600">as</span>
