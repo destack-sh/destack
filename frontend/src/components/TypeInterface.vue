@@ -68,7 +68,7 @@ defineExpose({
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       :line-number-shift-px="xOffset + 20"
       :style="{ marginLeft: -xOffset - 43 + 'px' }"
-      :model-value="unwrapBtl(btl)"
+      :model-value="unwrapBtl(btl) ?? ''"
       @update:model-value="saveBtlDebounced"
       language="btl"
       :focused="focused"
