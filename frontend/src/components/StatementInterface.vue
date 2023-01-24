@@ -20,10 +20,11 @@ import {
 } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
+import { localErrorsOf } from "@/state/runtime";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
-import { computed, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
+import { computed, ref, toRef, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -536,6 +537,10 @@ async function morphToBlank() {
     throw new Error("cannot morph definition to blank");
   }
 }
+
+// errors
+const localErrors = localErrorsOf(toRef(props, "statement"));
+const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 </script>
 <template>
   <div
@@ -582,6 +587,16 @@ async function morphToBlank() {
       }"
       >{{ lineNumberBase + 1 }}</span
     >
+    <!-- Gutter indicators on the right margin -->
+    <span
+      class="absolute right-0 top-[6px] select-none text-left text-sm font-bold not-italic"
+      :style="{ right: -12 + 'px' }"
+    >
+      <span class="text-red-700" v-if="hasLocalErrors">
+        {{ localErrors?.length }}
+      </span>
+    </span>
+
     <!-- Statement focus indicator (left side if not editing) -->
     <div
       class="absolute top-0 left-0 h-full w-1"
@@ -606,6 +621,13 @@ async function morphToBlank() {
         v-if="!isComment"
         class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
       >
+        <!-- Decorations for statement (on declaration) -->
+        <!-- Squiggly error line -->
+        <span v-if="hasLocalErrors" class="absolute -bottom-1 left-0 h-2 w-full text-red-700">
+          <svg viewBox="0 0 100 1" preserveAspectRatio="none">
+            <path d="M0 0h100v100h-100z" fill="currentColor" />
+          </svg>
+        </span>
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="isImport">import</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierKeyword }}</span>

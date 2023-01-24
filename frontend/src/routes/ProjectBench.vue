@@ -25,8 +25,8 @@ import {
   ClipboardDocumentIcon,
   ClockIcon,
   Cog8ToothIcon,
-  ExclamationCircleIcon,
   QuestionMarkCircleIcon,
+  XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
@@ -310,7 +310,7 @@ watchEffect(async () => {
             class="flex items-center gap-1 rounded-sm p-1 hover:bg-orange-50"
             v-if="runtime.errors.value?.length || 0 > 0"
           >
-            <ExclamationCircleIcon class="h-4 w-4 text-red-700" />
+            <XCircleIcon class="h-5 w-5 text-red-700" />
             <span class="text-sm text-gray-700">{{ runtime.errors.value?.length }}</span>
           </button>
         </div>

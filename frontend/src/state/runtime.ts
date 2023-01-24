@@ -149,6 +149,11 @@ export function fileOf(statement: InterpStatement) {
   return moduleIndex.value?.fileByStatementId[statement.id];
 }
 
+export function localErrorsOf(statement: Ref<{ id: string }>) {
+  const { errors } = useCurrentModuleRuntime();
+  return computed(() => errors.value?.filter((e) => e.statement?.globalId == statement.value.id));
+}
+
 export function statementsLike(filter: { types?: StatementType[]; symbolTypes?: SymbolType[] }) {
   const { moduleIndex } = useCurrentModuleRuntime();
   const statements = computed(() => {
