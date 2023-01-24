@@ -121,28 +121,28 @@ export type InterpError = {
 
 export type InterpFile = {
   __typename?: "InterpFile";
+  globalId: Scalars["GlobalID"];
   id: Scalars["UUID"];
   module: InterpModule;
   path: Scalars["String"];
-  sourceId: Scalars["GlobalID"];
   statements: Array<InterpStatement>;
 };
 
 export type InterpModule = {
   __typename?: "InterpModule";
   files: Array<InterpFile>;
+  globalId: Scalars["GlobalID"];
   id: Scalars["UUID"];
   name: Scalars["String"];
-  sourceId: Scalars["GlobalID"];
 };
 
 export type InterpStatement = {
   __typename?: "InterpStatement";
   file: InterpFile;
+  globalId: Scalars["GlobalID"];
   id: Scalars["UUID"];
   modifier?: Maybe<StatementModifier>;
   name?: Maybe<Scalars["String"]>;
-  sourceId: Scalars["GlobalID"];
   symbolType?: Maybe<SymbolType>;
   type: StatementType;
   typeNode?: Maybe<TypeNode>;
@@ -1240,7 +1240,7 @@ export type TypeNodeContentFragment = ({
 export type InterpStatementContentFragment = {
   __typename?: "InterpStatement";
   id: any;
-  sourceId: any;
+  globalId: any;
   name?: string | null;
   type: StatementType;
   modifier?: StatementModifier | null;
@@ -1253,12 +1253,12 @@ export type InterpStatementContentFragment = {
 export type InterpModuleContentFragment = {
   __typename?: "InterpModule";
   id: any;
-  sourceId: any;
+  globalId: any;
   name: string;
   files: Array<{
     __typename?: "InterpFile";
     id: any;
-    sourceId: any;
+    globalId: any;
     path: string;
     statements: Array<
       { __typename?: "InterpStatement" } & {
@@ -1705,7 +1705,7 @@ export const InterpStatementContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+          { kind: "Field", name: { kind: "Name", value: "globalId" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
@@ -1734,7 +1734,7 @@ export const InterpModuleContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+          { kind: "Field", name: { kind: "Name", value: "globalId" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           {
             kind: "Field",
@@ -1743,7 +1743,7 @@ export const InterpModuleContentFragmentDoc = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+                { kind: "Field", name: { kind: "Name", value: "globalId" } },
                 { kind: "Field", name: { kind: "Name", value: "path" } },
                 {
                   kind: "Field",

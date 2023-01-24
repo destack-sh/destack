@@ -4,6 +4,8 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
+import GlobalControls from "@/components/GlobalControls.vue";
+import MainStatementControls from "@/components/MainStatementControls.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
@@ -19,8 +21,13 @@ import { useOperationsStore } from "@/state/operations";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
-import { ClipboardDocumentIcon, ClockIcon, Cog8ToothIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/outline";
+import {
+  ClipboardDocumentIcon,
+  ClockIcon,
+  Cog8ToothIcon,
+  ExclamationCircleIcon,
+  QuestionMarkCircleIcon,
+} from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
@@ -311,20 +318,12 @@ watchEffect(async () => {
       <template v-slot:right>
         <!-- Current "main" statement controls -->
         <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
-          <!-- Compile -->
-          <!-- ... -->
-          <!-- Run (and compile deps if needed) -->
-          <!-- ... -->
-          <!-- Test -->
-          <!-- ... -->
+          <MainStatementControls />
         </div>
 
         <!-- Global controls -->
-        <div>
-          <!-- Share -->
-          <!-- ... -->
-          <!-- Deploy -->
-          <!-- ... -->
+        <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+          <GlobalControls />
         </div>
 
         <!-- Profile -->

@@ -1,9 +1,9 @@
 import { graphql, useFragment } from "@/gql";
-import type { InterpModule, InterpStatement, StatementType } from "@/gql/graphql";
+import type { InterpFile, InterpModule, InterpStatement, StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, type Ref, toRef, watch, reactive } from "vue";
+import { computed, toRef, type Ref } from "vue";
 
 export const TypeNodeContentInnerType = graphql(/* GraphQL */ `
   fragment TypeNodeContentInner on TypeNode {
@@ -34,7 +34,7 @@ export const TypeNodeContent = graphql(/* GraphQL */ `
 export const InterpStatementContentType = graphql(/* GraphQL */ `
   fragment InterpStatementContent on InterpStatement {
     id
-    sourceId
+    globalId
     name
     type
     modifier
@@ -48,11 +48,11 @@ export const InterpStatementContentType = graphql(/* GraphQL */ `
 export const InterpModuleContentType = graphql(/* GraphQL */ `
   fragment InterpModuleContent on InterpModule {
     id
-    sourceId
+    globalId
     name
     files {
       id
-      sourceId
+      globalId
       path
       statements {
         ...InterpStatementContent
@@ -73,17 +73,20 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
 
 type ModuleIndex = {
   id: string;
-  statementsBySourceId: Record<string, InterpStatement>;
+  statementsByGlobalId: Record<string, InterpStatement>;
+  fileByStatementId: Record<string, InterpFile>;
 };
 
 function indexModule(module: InterpModule): ModuleIndex {
-  const statementsBySourceId: Record<string, InterpStatement> = {};
+  const statementsByGlobalId: Record<string, InterpStatement> = {};
+  const fileByStatementId: Record<string, InterpFile> = {};
   for (const file of module.files) {
     for (const statement of file.statements) {
-      statementsBySourceId[statement.sourceId] = statement;
+      statementsByGlobalId[statement.globalId] = statement;
+      fileByStatementId[statement.id] = file;
     }
   }
-  return { id: module.id, statementsBySourceId };
+  return { id: module.id, statementsByGlobalId, fileByStatementId };
 }
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates
@@ -134,20 +137,34 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   };
 }
 
-export function useCurrentModuleRuntime() {
-  const editor = useEditorState();
-  return _useModuleRuntime(toRef(editor, "currentProjectVersionId"));
-}
-
 export const useModuleRuntime = createSharedComposable(_useModuleRuntime);
 
-export function statementsOfType(type: StatementType) {
+export function useCurrentModuleRuntime() {
+  const editor = useEditorState();
+  return useModuleRuntime(toRef(editor, "currentProjectVersionId"));
+}
+
+export function fileOf(statement: InterpStatement) {
+  const { moduleIndex } = useCurrentModuleRuntime();
+  return moduleIndex.value?.fileByStatementId[statement.id];
+}
+
+export function statementsLike(filter: { types?: StatementType[]; symbolTypes?: SymbolType[] }) {
   const { moduleIndex } = useCurrentModuleRuntime();
   const statements = computed(() => {
     if (!moduleIndex.value) {
       return [];
     }
-    return Object.values(moduleIndex.value.statementsBySourceId).filter((s) => s.type === type);
+    return Object.values(moduleIndex.value.statementsByGlobalId).filter((s) => {
+      if (filter.types != null && !filter.types.includes(s.type)) {
+        return false;
+      }
+      if (filter.symbolTypes != null && (s.symbolType == null || !filter.symbolTypes.includes(s.symbolType))) {
+        return false;
+      }
+
+      return true;
+    });
   });
   return statements;
 }
@@ -156,7 +173,7 @@ export function useRuntimeTypeOf(statement: Ref<{ id: string }>) {
   const { moduleIndex } = useCurrentModuleRuntime();
   const typeNode = computed(() => {
     if (moduleIndex.value) {
-      return moduleIndex.value.statementsBySourceId[statement.value.id]?.typeNode;
+      return moduleIndex.value.statementsByGlobalId[statement.value.id]?.typeNode;
     }
     return null;
   });

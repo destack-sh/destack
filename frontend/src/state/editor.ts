@@ -153,6 +153,7 @@ export const useEditorState = defineStore("editor", {
       focusedEditor: null as Editor | null,
       focusedElementId: null as string | null,
       focusedElementType: null as string | null,
+      mainStatementId: null as string | null,
       editingElement: false,
       readonly: false,
       debug: false,
@@ -343,6 +344,11 @@ export const useEditorState = defineStore("editor", {
       console.log("defocus element");
       this.focusedElementId = null;
       this.editingElement = false;
+    },
+
+    setMainStatement(statement?: { id: string }): void {
+      console.log("set main statement", statement);
+      this.mainStatementId = statement?.id ?? null;
     },
   },
 });
