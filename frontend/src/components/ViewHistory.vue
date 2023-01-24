@@ -56,7 +56,7 @@ const globalActions: Action[] = [
 <template>
   <div>
     <!-- View header -->
-    <div class="flex flex-row items-center justify-between border-b border-gray-200 px-3 py-4">
+    <div class="flex flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
       <span class="text-xs font-bold uppercase">History</span>
       <!-- Version controls -->
       <span class="inline-flex flex-row gap-1">
