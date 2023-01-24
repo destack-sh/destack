@@ -31,6 +31,7 @@ export function useStatementOps() {
             id
             ...StatementHeader
             text
+            revision
             file {
               id
               path
@@ -61,6 +62,7 @@ export function useStatementOps() {
             codeBuiltinId
             description
             btl
+            revision
           }
           ...OperationInfoContent
         }
@@ -75,6 +77,7 @@ export function useStatementOps() {
           ... on Statement {
             id
             modifier
+            revision
           }
           ...OperationInfoContent
         }
@@ -89,6 +92,7 @@ export function useStatementOps() {
           ... on Statement {
             id
             index
+            revision
             file {
               id
               path
@@ -115,6 +119,7 @@ export function useStatementOps() {
           ... on Statement {
             id
             name
+            revision
             referencedBy {
               id
               name
@@ -133,6 +138,7 @@ export function useStatementOps() {
           ... on Statement {
             id
             deletedAt
+            revision
             descendants {
               id
               deletedAt
@@ -159,6 +165,7 @@ export function useStatementOps() {
           ... on Statement {
             id
             deletedAt
+            revision
             descendants {
               id
               deletedAt
@@ -185,6 +192,7 @@ export function useStatementOps() {
           ... on Statement {
             id
             commented
+            revision
             descendants {
               id
               commented
@@ -202,6 +210,7 @@ export function useStatementOps() {
         updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
           ... on Statement {
             id
+            revision
             reference {
               ...StatementHeader
             }
