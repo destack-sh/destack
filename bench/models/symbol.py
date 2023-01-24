@@ -241,12 +241,17 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         # set default content if not already set
         self.symbol_type = symbol_type
         # create default content for the given type if not already set
-        if self.symbol_type is not None and self.type == StatementType.DEFINITION:
-            raise NotImplementedError  # TODO @Incomplete set defaults (and sync with frontend optimism?)
-            # lang_symbol = get_default_symbol_content(MOCK_STATEMENT, symbol_type)
-            # wire_statement = mapper.wmap_statement(self)
-            # wire.rmap_symbol(lang_symbol, wire_statement)
-            # _ = mapper.wmap_symbol(self, wire_statement)
+        if symbol_type is not None and self.type == StatementType.DEFINITION:
+            self.description = ""
+            if symbol_type == SymbolType.DATASET:
+                self.language = "jsonl"
+                self.btl = "()"
+            elif symbol_type == SymbolType.CODE or symbol_type == SymbolType.TASK:
+                self.language = "python"
+                self.btl = "()"
+                self.code = ""
+            elif symbol_type == SymbolType.TYPE:
+                self.btl = ""
         self.save()
 
     def soft_delete(self):
