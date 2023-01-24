@@ -9,7 +9,7 @@ import { computed, ref, type Ref } from "vue";
 // statement selection
 const editor = useEditorState();
 const runtime = useCurrentModuleRuntime();
-const mainStatement = computed(() => runtime.moduleIndex.value?.statementsByGlobalId[editor.mainStatementId ?? ""]);
+const mainStatement = computed(() => runtime.moduleIndex.value?.statementsById[editor.mainStatementId ?? ""]);
 
 const availableStatements = statementsLike({
   types: [StatementType.Definition],
@@ -60,7 +60,7 @@ const mainActions = [
     as="div"
     class="relative"
     :model-value="mainStatement"
-    @update:model-value="(stmt) => editor.setMainStatement({ id: stmt.globalId })"
+    @update:model-value="(stmt) => editor.setMainStatement(stmt)"
     nullable
   >
     <ComboboxInput

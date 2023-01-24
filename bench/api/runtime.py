@@ -33,16 +33,14 @@ class TypeNode:
 
 @gql.type
 class InterpModule:
-    id: UUID
-    global_id: GlobalID
+    id: GlobalID
     name: str
     files: list["InterpFile"]
 
 
 @gql.type
 class InterpFile:
-    id: UUID
-    global_id: GlobalID
+    id: GlobalID
     module: InterpModule
     path: str
     statements: list["InterpStatement"]
@@ -50,8 +48,7 @@ class InterpFile:
 
 @gql.type
 class InterpStatement:
-    id: UUID
-    global_id: GlobalID
+    id: GlobalID
     file: InterpFile
     name: Optional[str]
     type: StatementType
@@ -82,15 +79,13 @@ class ModuleRuntime:
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
     """Maps a wire module into a GQL interpreted module"""
     interp_module = InterpModule(
-        id=wire_module.id,
-        global_id=GlobalID("ProjectVersion", str(wire_module.id)),
+        id=GlobalID("ProjectVersion", str(wire_module.id)),
         name=wire_module.name,
         files=[],
     )
     for file in wire_module.files:
         interp_file = InterpFile(
-            id=file.id,
-            global_id=GlobalID("File", str(file.id)),
+            id=GlobalID("File", str(file.id)),
             module=interp_module,
             path=file.path,
             statements=[],
@@ -102,8 +97,7 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
                 statement.type_node if isinstance(statement.type_node, wire.TypeNode) else None
             )
             interp_statement = InterpStatement(
-                id=statement.id,
-                global_id=GlobalID("Statement", str(statement.id)),
+                id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
                 name=statement.name,
                 modifier=statement.modifier,

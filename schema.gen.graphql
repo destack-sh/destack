@@ -95,23 +95,20 @@ type InterpError {
 }
 
 type InterpFile {
-  id: UUID!
-  globalId: GlobalID!
+  id: GlobalID!
   module: InterpModule!
   path: String!
   statements: [InterpStatement!]!
 }
 
 type InterpModule {
-  id: UUID!
-  globalId: GlobalID!
+  id: GlobalID!
   name: String!
   files: [InterpFile!]!
 }
 
 type InterpStatement {
-  id: UUID!
-  globalId: GlobalID!
+  id: GlobalID!
   file: InterpFile!
   name: String
   type: StatementType!
