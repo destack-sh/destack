@@ -117,8 +117,8 @@ const mainActions = [
     :key="action.label"
     class="rounded-sm p-1 text-sm"
     :class="{
-      'cursor-default': !action.enabled,
-      'animate-pulse': action.active,
+      'hover:bg-orange-50': action.enabled,
+      'animate-pulse ': action.active,
     }"
     :disabled="!action.enabled || action.active"
     @click="action.action"
@@ -127,7 +127,7 @@ const mainActions = [
       :is="action.icon"
       class="h-5 w-5"
       :class="{
-        'text-orange-500  hover:bg-orange-50': action.enabled,
+        'text-orange-500  ': action.enabled,
         'text-gray-500': !action.enabled,
       }"
     />
