@@ -763,7 +763,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
           </Combobox>
         </div>
         <!-- inline type node -->
-        <span v-if="hasInlineTypeNode" class="mx-1 tracking-tighter text-gray-700">::</span>
+        <span v-if="hasInlineTypeNode" class="mx-1 text-gray-700">::</span>
         <EditableSpan
           v-if="hasInlineTypeNode"
           maxlength="100"
