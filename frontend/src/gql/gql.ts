@@ -68,9 +68,9 @@ const documents = {
     types.TypeNodeContentInnerFragmentDoc,
   "\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n":
     types.TypeNodeContentFragmentDoc,
-  "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    globalId\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n":
+  "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n":
     types.InterpStatementContentFragmentDoc,
-  "\n  fragment InterpModuleContent on InterpModule {\n    id\n    globalId\n    name\n    files {\n      id\n      globalId\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n":
+  "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n":
     types.InterpModuleContentFragmentDoc,
   "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n":
     types.InterpErrorContentFragmentDoc,
@@ -178,11 +178,11 @@ export function graphql(
   source: "\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    globalId\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpStatementContent on InterpStatement {\n    id\n    globalId\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"];
+  source: "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpStatementContent on InterpStatement {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    globalId\n    name\n    files {\n      id\n      globalId\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    globalId\n    name\n    files {\n      id\n      globalId\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"];
+  source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n"
 ): typeof documents["\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n"];

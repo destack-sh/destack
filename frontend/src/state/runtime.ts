@@ -34,7 +34,6 @@ export const TypeNodeContent = graphql(/* GraphQL */ `
 export const InterpStatementContentType = graphql(/* GraphQL */ `
   fragment InterpStatementContent on InterpStatement {
     id
-    globalId
     name
     type
     modifier
@@ -48,11 +47,9 @@ export const InterpStatementContentType = graphql(/* GraphQL */ `
 export const InterpModuleContentType = graphql(/* GraphQL */ `
   fragment InterpModuleContent on InterpModule {
     id
-    globalId
     name
     files {
       id
-      globalId
       path
       statements {
         ...InterpStatementContent
@@ -74,20 +71,20 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
 type ModuleIndex = {
   id: string;
   module: InterpModule;
-  statementsByGlobalId: Record<string, InterpStatement>;
+  statementsById: Record<string, InterpStatement>;
   fileByStatementId: Record<string, InterpFile>;
 };
 
 function indexModule(module: InterpModule): ModuleIndex {
-  const statementsByGlobalId: Record<string, InterpStatement> = {};
+  const statementsById: Record<string, InterpStatement> = {};
   const fileByStatementId: Record<string, InterpFile> = {};
   for (const file of module.files) {
     for (const statement of file.statements) {
-      statementsByGlobalId[statement.globalId] = statement;
+      statementsById[statement.id] = statement;
       fileByStatementId[statement.id] = file;
     }
   }
-  return { id: module.id, module, statementsByGlobalId, fileByStatementId };
+  return { id: module.id, module, statementsById, fileByStatementId };
 }
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates
@@ -177,7 +174,7 @@ export function relativePath(fromStmt: InterpStatement, toStmt: InterpStatement)
 
 export function localErrorsOf(statement: Ref<{ id: string }>) {
   const { errors } = useCurrentModuleRuntime();
-  return computed(() => errors.value?.filter((e) => e.statement?.globalId == statement.value.id));
+  return computed(() => errors.value?.filter((e) => e.statement?.id == statement.value.id));
 }
 
 export function statementsLike(filter: { types?: StatementType[]; symbolTypes?: SymbolType[] }) {
@@ -186,7 +183,7 @@ export function statementsLike(filter: { types?: StatementType[]; symbolTypes?: 
     if (!moduleIndex.value) {
       return [];
     }
-    return Object.values(moduleIndex.value.statementsByGlobalId).filter((s) => {
+    return Object.values(moduleIndex.value.statementsById).filter((s) => {
       if (filter.types != null && !filter.types.includes(s.type)) {
         return false;
       }
@@ -204,7 +201,7 @@ export function useRuntimeTypeOf(statement: Ref<{ id: string }>) {
   const { moduleIndex } = useCurrentModuleRuntime();
   const typeNode = computed(() => {
     if (moduleIndex.value) {
-      return moduleIndex.value.statementsByGlobalId[statement.value.id]?.typeNode;
+      return moduleIndex.value.statementsById[statement.value.id]?.typeNode;
     }
     return null;
   });

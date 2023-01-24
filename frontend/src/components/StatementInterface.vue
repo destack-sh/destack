@@ -309,16 +309,16 @@ const availableSymbols: Ref<InterpStatement[]> = computed(() => {
   if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Definition) {
     // for references & definitions all definitions & imports within the file are available
     return runtime.module.value?.files
-      .find((f) => f.globalId == file.value.id)
+      .find((f) => f.id == file.value.id)
       ?.statements.map((s) => useFragment(InterpStatementContentType, s))
       .filter((s) => s.type == StatementType.Definition || s.type == StatementType.Import);
   } else if (statement.value.type == StatementType.Import) {
     // for imports all definitions outside this file are available (incl. deps)
     const dependenciesDefinitions = runtime.dependenciesIndex.value?.flatMap((d) =>
-      Object.values(d.statementsByGlobalId).filter((s) => s.type == StatementType.Definition)
+      Object.values(d.statementsById).filter((s) => s.type == StatementType.Definition)
     );
     const otherFileDefinitions = (runtime.module.value?.files ?? [])
-      .filter((f) => f.globalId != file.value.id)
+      .filter((f) => f.id != file.value.id)
       .flatMap((f) =>
         f.statements
           .map((s) => useFragment(InterpStatementContentType, s))

@@ -182,7 +182,7 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         Moves this statement to a new file and/or parent statement.
         Updates children at both the old and new locations.
         """
-        # should use repeatable read isolation to avoid concurrent state changes
+        # TODO @Robustness: use repeatable read isolation to avoid concurrent moves
         # (statement index swaps must be atomic to prevent duplicates)
         # but it doesn't work with new mutations because they read before the tx starts
         # but we will switch to fractional indices anyway so this doesn't matter for long
@@ -242,7 +242,7 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         self.symbol_type = symbol_type
         # create default content for the given type if not already set
         if self.symbol_type is not None and self.type == StatementType.DEFINITION:
-            raise NotImplementedError  # nocheckin set defaults (and sync with frontend optimism?)
+            raise NotImplementedError  # TODO @Incomplete set defaults (and sync with frontend optimism?)
             # lang_symbol = get_default_symbol_content(MOCK_STATEMENT, symbol_type)
             # wire_statement = mapper.wmap_statement(self)
             # wire.rmap_symbol(lang_symbol, wire_statement)
