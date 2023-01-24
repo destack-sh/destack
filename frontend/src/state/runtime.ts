@@ -73,6 +73,7 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
 
 type ModuleIndex = {
   id: string;
+  module: InterpModule;
   statementsByGlobalId: Record<string, InterpStatement>;
   fileByStatementId: Record<string, InterpFile>;
 };
@@ -86,7 +87,7 @@ function indexModule(module: InterpModule): ModuleIndex {
       fileByStatementId[statement.id] = file;
     }
   }
-  return { id: module.id, statementsByGlobalId, fileByStatementId };
+  return { id: module.id, module, statementsByGlobalId, fileByStatementId };
 }
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates
@@ -125,7 +126,7 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     return null;
   });
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() => {
-    return dependencies.value?.map(indexModule) ?? [];
+    return dependencies.value?.map((idx) => indexModule(idx as InterpModule)) ?? [];
   });
 
   return {
@@ -147,6 +148,31 @@ export function useCurrentModuleRuntime() {
 export function fileOf(statement: InterpStatement) {
   const { moduleIndex } = useCurrentModuleRuntime();
   return moduleIndex.value?.fileByStatementId[statement.id];
+}
+
+export function moduleAndFileOf(statement: InterpStatement) {
+  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
+  for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
+    if (idx && statement.id in idx.fileByStatementId) {
+      return {
+        module: idx.module,
+        file: idx.fileByStatementId[statement.id],
+      };
+    }
+  }
+  return undefined;
+}
+
+export function relativePath(fromStmt: InterpStatement, toStmt: InterpStatement) {
+  const from = moduleAndFileOf(fromStmt);
+  const to = moduleAndFileOf(toStmt);
+  if (!from || !to) {
+    return undefined;
+  } else if (from.module.id == to.module.id) {
+    return `.${to.file.path}`;
+  } else {
+    return `${to.module.name}.${to.file.path}`;
+  }
 }
 
 export function localErrorsOf(statement: Ref<{ id: string }>) {
