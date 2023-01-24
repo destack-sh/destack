@@ -14,6 +14,7 @@ export function useSymbolContentOps() {
           ... on Statement {
             id
             btl
+            revision
           }
           ...OperationInfoContent
         }
@@ -40,6 +41,7 @@ export function useSymbolContentOps() {
           ... on Statement {
             id
             description
+            revision
           }
           ...OperationInfoContent
         }
@@ -69,6 +71,7 @@ export function useSymbolContentOps() {
             id
             code
             codeBuiltinId
+            revision
           }
           ...OperationInfoContent
         }

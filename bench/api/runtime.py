@@ -113,7 +113,7 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     """Maps a wire error into a GQL error"""
     statements_by_id = {}
     for statement in chain.from_iterable(file.statements for file in module.files):
-        statements_by_id[statement.id] = statement
+        statements_by_id[UUID(statement.id.node_id)] = statement
 
     errors = []
     for error in wire_errors:
