@@ -304,12 +304,15 @@ watchEffect(async () => {
           </span>
         </div>
         <!-- Comments/issues, warnings/lints, errors -->
-        <div class="flex items-center">
+        <div class="flex items-center gap-2">
           <!-- Errors -->
-          <div class="flex items-center gap-0.5" v-if="runtime.errors.value?.length || 0 > 0">
+          <button
+            class="flex items-center gap-1 rounded-sm p-1 hover:bg-orange-50"
+            v-if="runtime.errors.value?.length || 0 > 0"
+          >
             <ExclamationCircleIcon class="h-4 w-4 text-red-700" />
             <span class="text-sm text-gray-700">{{ runtime.errors.value?.length }}</span>
-          </div>
+          </button>
         </div>
         <!-- Current worker tasks -->
         <!-- ... -->
