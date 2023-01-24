@@ -521,39 +521,3 @@ EMPTY_FUNC_TYPE = TypeNode(
     ],
 )
 EMPTY_STRUCT_TYPE = TypeNode(None, TypeTag.STRUCT, children=[])
-
-
-def get_default_symbol_content(definition: Statement, symbol_type: SymbolType) -> SymbolContent:
-    if symbol_type == SymbolType.TYPE:
-        return Type(definition, description="", type_node=EMPTY_STRUCT_TYPE)
-    elif symbol_type == SymbolType.TASK:
-        return Task(definition, description="", type_node=EMPTY_FUNC_TYPE)
-    elif symbol_type == SymbolType.CAPABILITY:
-        return Capability(definition, description="")
-    elif symbol_type == SymbolType.EXPECTATION:
-        return Expectation(definition, description="")
-    elif symbol_type == SymbolType.DATASET:
-        return Dataset(
-            definition,
-            description="",
-            language="jsonl",
-            records=[],
-            type_node=EMPTY_STRUCT_TYPE,
-        )
-    elif symbol_type == SymbolType.VALUE:
-        return Value(definition, value=None, description="")
-    elif symbol_type == SymbolType.CODE:
-        return Code(
-            definition,
-            description="",
-            language="python",
-            code="",
-            builtin_id=None,
-            type_node=EMPTY_FUNC_TYPE,
-        )
-    elif symbol_type == SymbolType.REQUIREMENT:
-        return Requirement(definition, name="", version="")
-    elif symbol_type == SymbolType.RUNCONFIG:
-        return Runconfig(definition)
-    elif symbol_type == SymbolType.COMPILATION:
-        return Compilation(definition)
