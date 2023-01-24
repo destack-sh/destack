@@ -171,6 +171,7 @@ export type Mutation = {
   updateStatementDescription: StatementOperationInfo;
   updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
+  updateStatementRecords: StatementOperationInfo;
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
@@ -242,6 +243,10 @@ export type MutationUpdateStatementLanguageArgs = {
 
 export type MutationUpdateStatementModifierArgs = {
   input: StatementSetModifierInput;
+};
+
+export type MutationUpdateStatementRecordsArgs = {
+  input: StatementUpdateRecordsInput;
 };
 
 export type MutationUpdateStatementReferenceArgs = {
@@ -585,6 +590,11 @@ export type StatementUpdateDescriptionInput = {
 export type StatementUpdateLanguageInput = {
   id: Scalars["GlobalID"];
   language: Scalars["String"];
+};
+
+export type StatementUpdateRecordsInput = {
+  id: Scalars["GlobalID"];
+  records: Array<Scalars["JSON"]>;
 };
 
 export type StatementUpdateTypeInput = {
@@ -1191,6 +1201,25 @@ export type UpdateStatementCodeMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Statement"; id: any; code?: string | null; codeBuiltinId?: string | null; revision: number };
+};
+
+export type UpdateStatementRecordsMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  records: Array<Scalars["JSON"]> | Scalars["JSON"];
+}>;
+
+export type UpdateStatementRecordsMutation = {
+  __typename?: "Mutation";
+  updateStatementRecords:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Statement";
+        id: any;
+        revision: number;
+        records: Array<{ __typename?: "DatasetRecord"; data: any }>;
+      };
 };
 
 export type CommitMutationVariables = Exact<{
@@ -3511,6 +3540,90 @@ export const UpdateStatementCodeDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateStatementCodeMutation, UpdateStatementCodeMutationVariables>;
+export const UpdateStatementRecordsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateStatementRecords" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "records" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateStatementRecords" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "records" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "records" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "records" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "data" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateStatementRecordsMutation, UpdateStatementRecordsMutationVariables>;
 export const CommitDocument = {
   kind: "Document",
   definitions: [

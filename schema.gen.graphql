@@ -143,6 +143,7 @@ type Mutation {
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementTypeNode(input: StatementUpdateTypeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
+  updateStatementRecords(input: StatementUpdateRecordsInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!
@@ -462,6 +463,11 @@ input StatementUpdateDescriptionInput {
 input StatementUpdateLanguageInput {
   id: GlobalID!
   language: String!
+}
+
+input StatementUpdateRecordsInput {
+  id: GlobalID!
+  records: [JSON!]!
 }
 
 input StatementUpdateTypeInput {

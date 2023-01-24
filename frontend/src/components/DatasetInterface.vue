@@ -3,8 +3,10 @@ import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { useDatasetInterfaceState } from "@/state/dataset";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModuleRuntime, useRuntimeTypeOf } from "@/state/runtime";
-import { computed, ref, toRef } from "vue";
+import { useOperations } from "@/state/operations";
+import { useRuntimeTypeOf } from "@/state/runtime";
+import { useDebounce, useDebounceFn } from "@vueuse/core";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -24,10 +26,9 @@ const emit = defineEmits<{
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
 
-const dataAsJson = computed(() => statement.value.records.map((r) => r.data));
-const dataAsJsonText = computed(() => JSON.stringify(dataAsJson.value, null, 2));
-const dataAsJsonlText = computed(() => dataAsJson.value.map((r) => JSON.stringify(r)).join("\n"));
-const dataAsCsvText = computed(() => {
+const recordsData = computed(() => statement.value.records.map((r) => r.data));
+const recordsAsJsonlText = computed(() => recordsData.value.map((r) => JSON.stringify(r)).join("\n"));
+const recordsAsCsvText = computed(() => {
   const records = statement.value.records;
   const keys = Object.keys(records[0].data);
   const lines = [];
@@ -39,6 +40,29 @@ const dataAsCsvText = computed(() => {
 });
 
 const typeNode = useRuntimeTypeOf(statement);
+
+const operations = useOperations();
+async function saveRecords(records: Array<JSON>) {
+  await operations.content.updateStatementRecords(
+    statement.value.id,
+    statement.value.records.map((r) => r.data) ?? [],
+    records
+  );
+}
+
+function saveRecordsFromString(records: string) {
+  if (state.value.view == "csv") {
+    throw new Error("csv save not implemented");
+  } else if (state.value.view == "jsonl") {
+    // parse each line the jsonl string to form a json array
+    const lines = records.split("\n");
+    saveRecords(lines.map((line) => JSON.parse(line)));
+  } else {
+    throw new Error("unexpected view in save: " + state.value.view);
+  }
+}
+
+const saveRecordsFromStringDebounced = useDebounceFn(saveRecordsFromString, 200, { maxWait: 500 });
 
 // local interface state
 const state = useDatasetInterfaceState(statement);
@@ -56,7 +80,8 @@ defineExpose({
     :line-number-offset="lineNumberBase + 1 /* for statement itself */"
     :line-number-shift-px="xOffset + 20"
     :style="{ marginLeft: -xOffset - 43 + 'px' }"
-    :model-value="{ json: dataAsJsonText, jsonl: dataAsJsonlText, csv: dataAsCsvText }[state.view]"
+    :model-value="{ jsonl: recordsAsJsonlText, csv: recordsAsCsvText }[state.view]"
+    @update:model-value="saveRecordsFromStringDebounced"
     @navigateUp="emit('navigateUp')"
     @navigateDown="emit('navigateDown')"
     @escape="emit('escape')"

@@ -24,7 +24,7 @@ export function useSymbolContentOps() {
 
   async function updateStatementTypeNode(id: string, oldBtl: string, newBtl: string) {
     await operations.perform({
-      type: "symbol.schema.updateContent",
+      type: "statement.updateTypeNode",
       do: async () => {
         await updateStatementTypeNodeMut({ id: id, btl: newBtl });
       },
@@ -51,7 +51,7 @@ export function useSymbolContentOps() {
 
   async function updateStatementDescription(id: string, oldDescription: string, newDescription: string) {
     await operations.perform({
-      type: "symbol.expectation.updateContent",
+      type: "statement.updateDescription",
       do: async () => {
         await updateStatementDescriptionMut({ id: id, description: newDescription });
       },
@@ -85,7 +85,7 @@ export function useSymbolContentOps() {
     newContent: { code?: string; codeBuiltinId?: string }
   ) {
     await operations.perform({
-      type: "symbol.code.updateContent",
+      type: "statement.updateCode",
       do: async () => {
         await updateStatementCodeMut({
           id: id,
@@ -103,5 +103,36 @@ export function useSymbolContentOps() {
     });
   }
 
-  return { updateStatementTypeNode, updateStatementDescription, updateStatementCode };
+  // dataset mutations (aka records)
+
+  const { mutate: updateStatementRecordsMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateStatementRecords($id: GlobalID!, $records: [JSON!]!) {
+        updateStatementRecords(input: { id: $id, records: $records }) {
+          ... on Statement {
+            id
+            revision
+            records {
+              data
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function updateStatementRecords(id: string, oldRecords: Array<JSON>, newRecords: Array<JSON>) {
+    await operations.perform({
+      type: "statement.updateRecords",
+      do: async () => {
+        await updateStatementRecordsMut({ id: id, records: newRecords });
+      },
+      undo: async () => {
+        await updateStatementRecordsMut({ id: id, records: oldRecords });
+      },
+    });
+  }
+
+  return { updateStatementTypeNode, updateStatementDescription, updateStatementCode, updateStatementRecords };
 }

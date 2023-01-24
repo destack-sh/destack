@@ -326,3 +326,13 @@ class SymbolMutation:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.language = input.language
         return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
+    def update_statement_records(
+        self, input: StatementUpdateRecordsInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.records.all().delete()
+        db_records = [models.DatasetRecord(dataset=statement, data=data) for data in input.records]
+        models.DatasetRecord.objects.bulk_create(db_records)
+        return statement
