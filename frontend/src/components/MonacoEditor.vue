@@ -141,6 +141,8 @@ function initMonaco(monaco: Monaco) {
       highlightActiveIndentation: false,
     },
     theme: "bench",
+    occurrencesHighlight: false, // should be yellow but can't figure out how
+    contextmenu: false,
   });
 
   editor.value.onDidChangeModelContent(() => {
@@ -241,5 +243,10 @@ defineExpose({ focus, defocus });
 .focused .active-line-number {
   color: #ea580c !important;
   font-weight: 600;
+}
+
+/* disable blue square dot from tailwind */
+.monaco-editor textarea:focus {
+  box-shadow: none !important;
 }
 </style>
