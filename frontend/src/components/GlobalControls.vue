@@ -31,7 +31,7 @@ function deploy() {
   <button
     class="rounded-sm p-1 text-sm"
     :class="{
-      'text-gray-900 hover:bg-orange-50': canDeploy,
+      'text-green-900 hover:bg-green-50': canDeploy,
       'text-gray-500': !canDeploy,
     }"
     :disabled="!canDeploy"

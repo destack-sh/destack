@@ -8,7 +8,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import TypeInterface from "@/components/TypeInterface.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
+import { StatementModifier, StatementType, SymbolType, type InterpStatement } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import {
   MODIFIER_BY_KEYWORD,
@@ -20,7 +20,7 @@ import {
 } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
-import { localErrorsOf } from "@/state/runtime";
+import { relativePath, InterpStatementContentType, localErrorsOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useMagicKeys, useTextSelection, whenever } from "@vueuse/core";
@@ -304,11 +304,27 @@ watchEffect(() => {
 });
 
 // possible reference targets & filters
-const availableSymbols: Ref<StatementHeader[]> = computed(() => {
+const runtime = useCurrentModuleRuntime();
+const availableSymbols: Ref<InterpStatement[]> = computed(() => {
   if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Definition) {
-    return [];
+    // for references & definitions all definitions & imports within the file are available
+    return runtime.module.value?.files
+      .find((f) => f.globalId == file.value.id)
+      ?.statements.map((s) => useFragment(InterpStatementContentType, s))
+      .filter((s) => s.type == StatementType.Definition || s.type == StatementType.Import);
   } else if (statement.value.type == StatementType.Import) {
-    return [];
+    // for imports all definitions outside this file are available (incl. deps)
+    const dependenciesDefinitions = runtime.dependenciesIndex.value?.flatMap((d) =>
+      Object.values(d.statementsByGlobalId).filter((s) => s.type == StatementType.Definition)
+    );
+    const otherFileDefinitions = (runtime.module.value?.files ?? [])
+      .filter((f) => f.globalId != file.value.id)
+      .flatMap((f) =>
+        f.statements
+          .map((s) => useFragment(InterpStatementContentType, s))
+          .filter((s) => s.type == StatementType.Definition)
+      );
+    return [...dependenciesDefinitions, ...otherFileDefinitions];
   } else {
     return [];
   }
@@ -495,7 +511,7 @@ async function morphToDefinition() {
   (contentRef.value as FocusableComponent)?.focus?.();
 }
 
-async function morphSetReference(newReference: StatementHeader) {
+async function morphSetReference(newReference: { id: string; name: string; symbolType: SymbolType }) {
   let targetType = statement.value.type == StatementType.Definition ? StatementType.Reference : statement.value.type;
   // TODO @Robustness: should morphs be atomic (rename + setReference + morph type)
   if (statement.value.type != targetType || newReference.symbolType != statement.value.symbolType) {
@@ -684,7 +700,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
                     {{ symbol.name }}
                   </span>
                   <span class="truncate text-gray-500">
-                    {{ symbol.path || symbol.file.path }}
+                    {{ relativePath(statement, symbol) }}
                   </span>
                 </li>
               </ComboboxOption>
