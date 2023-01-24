@@ -9,6 +9,7 @@ from bench.language import ErrorType
 from bench.language.parse import (
     parse_type_node,
     parse_type_node_func,
+    parse_type_node_struct,
     parse_type_node_struct_inline,
     parser_from_string,
 )
@@ -311,17 +312,16 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
 
 
 def render_symbol_type_node(symbol_type: language.SymbolType, type_node: language.TypeNode) -> str:
-    """Renders a type node into a recoverable string."""
+    """Renders a type node into a recoverable string (parsed as below)."""
     if symbol_type in (SymbolType.TASK, SymbolType.CODE):
         return render_type_node_func(type_node)
     elif symbol_type == SymbolType.DATASET:
         return f"({render_type_node_struct(type_node, seperator=', ')})"
     elif symbol_type == SymbolType.TYPE:
         if type_node.type == TypeTag.STRUCT:
-            # unlike the others, this node is not rendered as it appears in Bench
-            # because we need to distinguish struct defs from inline redefs
+            # to distinguish struct defs from inline redefs we put a newline at the end
             # (and Bench structs don't have any special characters and may be empty)
-            return f"({render_type_node_struct(type_node, seperator=', ')})"
+            return render_type_node_struct(type_node, seperator="\n") + "\n"
         else:
             return render_type_node(type_node)
     else:
@@ -329,7 +329,7 @@ def render_symbol_type_node(symbol_type: language.SymbolType, type_node: languag
 
 
 def parse_symbol_type_node(symbol_type: language.SymbolType, type_node: str) -> language.TypeNode:
-    """Parses a type node from a recoverable string (serialized like above)."""
+    """Parses a type node from a recoverable string (rendered as above)."""
     btl_parser = parser_from_string(type_node)
     if symbol_type in (SymbolType.TASK, SymbolType.CODE):
         parsed = parse_type_node_func(btl_parser, name=None)
@@ -338,11 +338,10 @@ def parse_symbol_type_node(symbol_type: language.SymbolType, type_node: str) -> 
         parsed = parse_type_node_struct_inline(btl_parser, name=None)
         btl_parser.eat_bracket(")")
     elif symbol_type == SymbolType.TYPE:
-        # hacky way to determine whether it's an inline redef or struct def
-        if type_node.startswith("("):
-            btl_parser.eat_bracket("(")
-            parsed = parse_type_node_struct_inline(btl_parser, name=None)
-            btl_parser.eat_bracket(")")
+        # determine whether it's an inline redef or struct def (check for newline, see note in render above)
+        if "\n" in type_node:
+            parsed = parse_type_node_struct(btl_parser, name=None)
+            btl_parser.eat_newline()
         else:
             parsed = parse_type_node(btl_parser, name=None)
     else:

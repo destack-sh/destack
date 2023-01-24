@@ -25,10 +25,25 @@ const operations = useOperations();
 const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
 const btl: Ref<string | null> = ref(null);
 
+function unwrapBtl(btl: string | null): string | null {
+  // remove final newline if it exists
+  // we use newline internally to denote type structs
+  if (btl && btl.endsWith("\n")) {
+    btl = btl.slice(0, -1);
+  }
+  return btl;
+}
+
+function wrapBtl(btl: string) {
+  // add final newline for storing
+  return btl + "\n";
+}
+
 function saveBtl(btl: string) {
+  btl = wrapBtl(btl);
   const oldBtl = statement.value.btl ?? "";
   if (oldBtl !== btl) {
-    operations.content.updateTypeContent(statement.value.id, oldBtl, btl);
+    operations.content.updateStatementTypeNode(statement.value.id, oldBtl, btl);
   }
 }
 const saveBtlDebounced = useDebounceFn(saveBtl, 200, { maxWait: 500 });
@@ -53,7 +68,7 @@ defineExpose({
       :line-number-offset="lineNumberBase + 1 /* for statement itself */"
       :line-number-shift-px="xOffset + 20"
       :style="{ marginLeft: -xOffset - 43 + 'px' }"
-      :model-value="btl"
+      :model-value="unwrapBtl(btl)"
       @update:model-value="saveBtlDebounced"
       language="btl"
       :focused="focused"

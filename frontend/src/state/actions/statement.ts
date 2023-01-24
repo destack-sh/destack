@@ -71,7 +71,6 @@ export function provideStatementActions(
     apply: async () => {
       // insert at end of previous sibling's children (leave index undefined)
       const previousSibling = siblings.value[index.value - 1];
-      console.log(siblings.value);
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
         parentId: previousSibling.id,
