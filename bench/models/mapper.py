@@ -176,7 +176,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     if statement.symbol_type == SymbolType.DATASET:
         data.records = list(statement.records.all().values_list("data", flat=True))
     elif statement.symbol_type == SymbolType.COMPILATION:
-        data.mappings = [
+        data.generated_mappings = [
             models.SourceMapping(
                 compilation=statement,
                 source_id=m.source_id,
@@ -186,7 +186,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
                 target_path=m.target_path,
                 target_revision=m.target_revision,
             )
-            for m in statement.mappings.all()
+            for m in statement.generated_mappings.all()
         ]
     elif statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
@@ -217,7 +217,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             for i, data in enumerate(data.records)
         ]
         return model_records
-    elif data.mappings:
+    elif data.generated_mappings:
         mappings = [
             models.SourceMapping(
                 source_id=m.source_id,
@@ -227,7 +227,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
                 target_path=m.target_path,
                 target_revision=m.target_revision,
             )
-            for m in data.mappings
+            for m in data.generated_mappings
         ]
         return mappings
     elif data.reference_module:

@@ -66,6 +66,7 @@ class Statement(gql.Node):
     symbol_type: Optional[SymbolType]
     text: auto
     # symbol contents
+    lang: auto
     code: auto
     code_builtin_id: auto
     description: auto

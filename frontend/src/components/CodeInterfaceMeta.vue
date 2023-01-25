@@ -13,6 +13,6 @@ const statement = computed(() => useFragment(StatementContentType, props.stateme
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-2 text-xs">
-    <span class="text-gray-500">{{ statement.codeBuiltinId || "python" }}</span>
+    <span class="text-gray-500">{{ statement.language }}</span>
   </div>
 </template>

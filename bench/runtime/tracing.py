@@ -111,7 +111,7 @@ class ExecutionTrace(Trace):
 
 class ExecutionTracer(Tracer):
     """
-    A worker-side tracer that records the execution of a code.
+    A worker-side tracer that records code (and model) execution.
     """
 
     def __init__(self, tracker: ExecutionTracker, trace: ExecutionTrace):

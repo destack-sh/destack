@@ -356,6 +356,7 @@ type Statement implements Node {
   referencedBy: [Statement!]!
   symbolType: SymbolType
   text: String
+  lang: String
   code: String
   codeBuiltinId: String
   description: String

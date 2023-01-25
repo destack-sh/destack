@@ -108,7 +108,7 @@ class StatementData:
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[dict]] = None
-    mappings: Optional[list[SourceMapping]] = None
+    generated_mappings: Optional[list[SourceMapping]] = None
     value: LiteralValue = None
     reference_module: Optional[ModuleReference] = None
 
@@ -244,7 +244,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.records = content.records
         data.type_node = content.type_node
     elif isinstance(content, language.Compilation):
-        data.mappings = content.source_mappings
+        data.generated_mappings = content.source_mappings
     elif isinstance(content, language.Requirement):
         if content.name and content.version:
             data.reference_module = ModuleReference(content.name, content.version, id=None)
@@ -315,7 +315,7 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
             records=data.records,
         )
     elif data.symbol_type == SymbolType.COMPILATION:
-        return language.Compilation(definition=statement, source_mappings=data.mappings)
+        return language.Compilation(definition=statement, source_mappings=data.generated_mappings)
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.Requirement(
             definition=statement,

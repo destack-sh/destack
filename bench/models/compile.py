@@ -8,7 +8,7 @@ from bench.models.utils import UUIDModel
 class CompilationContentMixin:
     """Compilation content of mappings."""
 
-    mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
+    generated_mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
 
 
 class SourceMapping(UUIDModel):
