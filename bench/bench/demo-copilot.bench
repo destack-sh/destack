@@ -86,6 +86,7 @@ pragma(model=c['codegen'])
 "Preceding code:\n"
 "{context.preceding_code}\n"
 "Completion:---[completion: string]---"
-"Reasons this code may be unsafe:\n"
-
+"Why this code may be unsafe:\n[unsafe_reason: string | null]\n
+if unsafe_reason:
+    
 ```

@@ -30,3 +30,5 @@ entities: [Entity] "The entities involved in the event"
 
 task 'extract events' :: (input: string) -> [Event]:
 "Extract events from the given text"
+    expect 'event follows from text':
+    "The text should contain the event"
