@@ -37,6 +37,7 @@ from bench.language.type import (
 @dataclass(repr=False)
 class TypeNodeData:
     # TODO @Cleanup: use TypeNodeData instead of TypeNode in wire
+    id: UUID
     name: Optional[str]
     type: TypeTag
     required: bool = True
