@@ -1,0 +1,32 @@
+--- events.x ---
+enum EntityType :: string:
+ASSET = `"asset"`
+ORGANIZATION = `"organization"`
+PERSON = `"person"`
+LOCATION = `"location"`
+
+type Entity:
+name: string "The canonical name of the entity"
+mentioned_as: [string] "The entity's name as it appears in the text"
+'type': EntityType
+
+enum EventType :: string:
+LISTING = `"listing"` "A new entity is listed on the exchange"
+FILING = `"filing"` "Some regulatory filing is made"
+
+enum EventPriority :: number:
+BREAKING = `0`
+HIGH = `1`
+MEDIUM = `2`
+LOW = `3`
+
+type Event:
+title: string | null "The title of the event (if relevant)"
+summary: string "What happened"
+datetime: string | null "The date and time of the event"
+'type': EventType
+priority: EventPriority
+entities: [Entity] "The entities involved in the event"
+
+task 'extract events' :: (input: string) -> [Event]:
+"Extract events from the given text"

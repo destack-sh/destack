@@ -27,7 +27,7 @@ import type EntityType from .lib
 
 task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
-    expect 'no duplicates':
+    expect 'no duplicates' on output:
     "The entities are distinct"
         verify code check_no_duplicates on output :: (entities: [Entity]) -> bool:
         "Check that the entities are distinct (very crudely)"
@@ -53,21 +53,28 @@ import type EntityType from .lib
 
 # do we need to copy all deps?
 
+data 'Entity_best samples' :: (name: string, 'type': EntityType):
+```csv
+"Barack Obama","PER"
+"London","LOC"
+"Google","ORG"
+... additional generated samples
+```
+
 code 'extract_entities' :: (input: string) -> [Entity]:
 ```bpl
-pragma(max_length=2048)
+pragma(max_length=2048, decoder='argmax')
 pragma(model=c['text-davinci-003'])
-pragma(decoder='argmax')
-"Extract the distinct entities from the text\n"
+# prompt
+"Extract the distinct entities from the text. Be precise and follow the format exactly.\n"
 "Example entities:\n"
 ...
-"{input}"
+"Input: \n{input}\n"
 entities = []
-"The entities are:\n"
+"The contained distinct entities as jsonl:\n"
 for _ in range(MAX_ENTITIES)
-    "[entity: Entity]\n"
-    or "\{'type': [type: EntityType], 'name': \"[name: string]\", 'confidence': [confidence: number | null]\}\n"
-    or "\{'type': [type: EntityType], 'name': \"[name: string]\"\}\n"
+    # "[entity: Entity]\n"
+    "\{'type': [type: EntityType], 'name': \"[name: string]\"\}\n"
     confidence = ... get confidence from token reads (holes and entire span)
     entity = Entity(name=name, type=type, confidence=confidence)
     entities.append(entity)
