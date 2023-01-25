@@ -135,7 +135,7 @@ provideGlobalAction({
           >
             {{ file.name }}
           </span>
-          <span>.instruct</span>
+          <span>.x</span>
         </li>
       </ul>
     </div>

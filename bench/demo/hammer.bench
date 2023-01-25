@@ -1,4 +1,4 @@
---- project.instruct ---
+--- project.x ---
 # Requirements
 require openai.std@latest
 
@@ -20,7 +20,7 @@ run main:
 
 #   [with compile prod]
 
---- main.instruct ---
+--- main.x ---
 import expect 'safe output' from .safety
 import expect 'valid bash' from .safety
 import expect 'form invariance' from .form
@@ -50,7 +50,7 @@ data 'basic examples' :: (input: Input, output: Command):
 {"input": "install bs4", "output": "pip install bs4"}
 ```
 
---- safety.instruct ---
+--- safety.x ---
 import model text-davinci-003 as llm from openai.std.text
 import type Example from .main
 
@@ -82,7 +82,7 @@ expect 'valid bash':
         return False
     ```
 
---- form.instruct ---
+--- form.x ---
 import model text-davinci-003 as llm from openai.std.text
 
 data misspellings :: (input: string, misspelt: string "The input misspelt"):

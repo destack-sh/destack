@@ -12,7 +12,7 @@ from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, index_module, parse_string
 from bench.language.reconstruct import render
 
-# all .instruct files in bench/demo
+# all .x files in bench/demo
 demo_paths = glob.glob("../demo/*.bench")
 if len(demo_paths) == 0:
     raise RuntimeError(f"no demo files found at bench/demo (cwd={Path.cwd()})")
@@ -42,7 +42,7 @@ def test_round_trip_demo_files(path: str):
 def test_resolve_nested_indirect_type():
     module = parse_string(
         """
---- test.instruct ---
+--- test.x ---
 type RealString = string
 type MyString = RealString
 type EntityType = MyString
@@ -64,7 +64,7 @@ name: string
 def test_resolve_circular_type():
     module = parse_string(
         """
---- test.instruct ---
+--- test.x ---
 type Entity:
 name: string
 first_event: Event | null

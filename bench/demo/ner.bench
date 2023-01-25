@@ -1,4 +1,4 @@
---- lib.instruct ---
+--- lib.x ---
 # EntityType should really be an enum
 type EntityType = string
 
@@ -16,7 +16,7 @@ confidence: number | null "Confidence in the detected type"
     "Google","ORG"
     ```
 
---- main.instruct ---
+--- main.x ---
 # Describe what to do
 import type Entity from .lib
 import type EntityType from .lib

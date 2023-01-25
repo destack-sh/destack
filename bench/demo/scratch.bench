@@ -1,4 +1,4 @@
---- math.instruct ---
+--- math.x ---
 require symbolx.std@latest
 
 task calculate :: (input: string) -> number:
@@ -12,7 +12,7 @@ capability 'basic math':
     task calculate
     task 'solve equation'
 
---- scratchpad.instruct ---
+--- scratchpad.x ---
 import capability 'basic math' from .math
 
 # 'using' applies a symbol to the current scope
@@ -28,36 +28,70 @@ task 'count fruits' :: (input: string) -> number:
 
 # # meta statements
 # Transform/generate new bench (as text with eval or as AST)
-# ## meta
-# meta code generate:
-# ```python
-# ...?
-# ```
+## meta
+meta code generate:
+```python
+...?
+```
 
 # ## raw/source
 # interpret the statement as source text
 # (where raw is basically a meta code block like `return eval(value)`)
-# raw some_weird_thing:
-# ```bench
-# ...
-# ```
+source some_weird_thing:
+```bench
+...
+```
 
 # or just anonymous statement
-# source:
-# ```bench
-# ...
-# ```
+source:
+```bench
+...
+```
 
 
 # # annotations
-# ## @generated
-# ## @deprecated
+@generated
+@deprecated
+
+# ## annotations with arguments
+@view(table)
+@id('some_id')
 
 # # value types syntax
 
 # ## map
-# [string: number]
-# {string: number}
+[string: number]
+{string: number}
 
 # ## tuple
-# string, number
+string, number
+
+# # Enums
+enum Behavior:
+"Enums as symbolic constants"
+Basic
+Advanced
+Extended
+
+enum EntityType :: (string):
+"Enums as value unions (usual style)"
+PER = 'person'
+ORG = 'organization' "The organization entity type"
+LOC = 'location' "The location entity type"
+MISC = 'miscellaneous' "The miscellaneous entity type"
+
+enum Fruit :: (number, string | null):
+"Enums as flexible value unions (Python style)"
+Apple = (1, null)
+Banana = (2, 'yellow')
+Orange = (3, 'orange')
+Pineapple = (4)
+
+enum Entity:
+"Enums as type unions (Rust-style)"
+Person :: (name: string, age: number)
+Organization :: (name: string, location: Entity)
+Location :: (name: string, country: string)
+Miscellaneous :: (info: string)
+# this could also be a different thing, like "type enum Entity"
+# or just an internal type tag for TYPE_ENUM and VALUE_ENUM (or just ENUM)

@@ -85,7 +85,7 @@ def write_module(
 
     # create files
     for file_data in files:
-        # remove extension from file path (assumed to be .instruct, but ignored/not stored)
+        # remove extension from file path (assumed to be .x, but ignored/not stored)
         path = file_data.path
         if "." in path:
             path = file_data.path.rsplit(".", 1)[0]

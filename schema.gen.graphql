@@ -522,6 +522,7 @@ enum TypeTag {
   UNION
   INTERSECTION
   NULL
+  ANY
   TYPE_REFERENCE
 }
 

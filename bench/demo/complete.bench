@@ -1,4 +1,4 @@
---- complete.instruct ---
+--- complete.x ---
 
 code check_repetition :: (input: string) -> boolean:
 ```python
