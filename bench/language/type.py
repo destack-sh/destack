@@ -174,6 +174,7 @@ class TypeTag(Enum):
     UNION = "union"
     INTERSECTION = "intersection"
     NULL = "null"
+    ANY = "any"
     TYPE_REFERENCE = "ref"
 
 

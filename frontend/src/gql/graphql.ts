@@ -649,6 +649,7 @@ export type TypeNode = {
 
 /** The type of type node. */
 export enum TypeTag {
+  Any = "ANY",
   Array = "ARRAY",
   Boolean = "BOOLEAN",
   Function = "FUNCTION",

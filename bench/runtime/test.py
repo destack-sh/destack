@@ -5,7 +5,7 @@ from bench.runtime.execute import execute, instantiate
 def test_execute_single_code():
     module = parse_string(
         """
---- test.instruct ---
+--- test.x ---
 code function :: () -> number:
 ```python
 return 5
@@ -20,7 +20,7 @@ return 5
 def test_execute_single_code_with_context():
     module = parse_string(
         """
---- test.instruct ---
+--- test.x ---
 value val:
 `5`
 
@@ -41,7 +41,7 @@ return val * context['unwieldy name']
 def test_execute_single_code_with_args():
     module = parse_string(
         """
---- test.instruct ---
+--- test.x ---
 code function :: (val: number) -> number:
 ```python
 return 5 * val

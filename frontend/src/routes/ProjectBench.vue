@@ -135,7 +135,7 @@ watchEffect(() => {
       const fileEditor = editor as FileEditor;
       const file = files.value.find((f) => f.id == fileEditor.fileId);
       if (!file) return; // ignore
-      editor.path = file.path + ".instruct";
+      editor.path = file.path + ".x";
     }
   });
 });
@@ -146,7 +146,7 @@ const router = useRouter();
 watchEffect(() => {
   const hash = router.currentRoute.value.hash;
   if (hash && files.value) {
-    const path = hash.slice(1).slice(0, -"instruct".length - 1);
+    const path = hash.slice(1).slice(0, -"x".length - 1);
     const file = files.value.find((file) => file.path === path);
     if (file && state.focusedEditor == null) {
       state.focusFile(file);

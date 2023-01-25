@@ -1,12 +1,12 @@
---- project.instruct ---
+--- project.x ---
 # Requirements
 require symbolx.std@latest
 require openai.std@latest
 
---- lints.instruct ---
+--- lints.x ---
 # AI support for linting Bench files
 
---- suggest.instruct ---
+--- suggest.x ---
 
 ###
 This is a multi-line markdown comment.

@@ -1,8 +1,8 @@
---- project.instruct ---
+--- project.x ---
 # Bench's std
 require openai.std@latest
 
---- temperature.instruct ---
+--- temperature.x ---
 import model text-davinci-003 as llm from openai.std.text
 
 type Temperature = string
