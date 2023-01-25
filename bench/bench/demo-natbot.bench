@@ -1,0 +1,36 @@
+--- natbot.x ---
+# Bench port of [natbot](https://github.com/nat/natbot/blob/main/natbot.py)
+
+enum CommandType :: string:
+ScrollUp = `"scroll up"`
+ScrollDown = `"scroll down"`
+ClickX = `"click"` "click on the given element"
+TypeX = `"type"` "type the given text"
+TypeSubmitX = `"type submit"` "type the given text and submit"
+
+type Command:
+"An action to take in the browser"
+'type': CommandType
+element_id: number | null
+content: string | null
+
+enum BrowserElementType :: string:
+Link = `"link"`
+Button = `"button"`
+Input = `"input"`
+Image = `"img"`
+Text = `"text"`
+
+type BrowserElement:
+"One simplified element from a real web page"
+'type': BrowserElementType
+id: number
+text: string | null "Text content / alt text"
+
+type BrowserContext:
+elements: [BrowserElement]
+current_url: string
+
+task 'browse to goal' :: (objective: string, max_steps: number | null) -> boolean "Success?":
+"Use a web browser to achieve the given objective"
+    task 'suggest action' ::

@@ -1,0 +1,27 @@
+--- lib.x ---
+# # Bench port of [ReAct](https://arxiv.org/pdf/2210.03629.pdf) as a library
+
+enum ReactStepType :: string:
+Thought = `"tho"`
+Observation = `"obs"`
+Action = `"act"`
+
+task 'react' ::
+
+--- wiki-react.x ---
+
+enum WikiActionType :: string:
+Search = `"search"` "Get paragraph from wikipedia page"
+Lookup = `"lookup"` "Get next sentence mentioning the string"
+Finish = `"finish"` "Finish the question"
+
+type WikiAction:
+'type': WikiActionType
+content: string | null
+
+task 'answer with react' :: (question: string) -> string | null "Answer":
+"Answer the given query with the tools at hand"
+    code loop:
+    ```python
+
+    ```
