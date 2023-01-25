@@ -125,6 +125,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     importPath
     text
     # symbol contents
+    lang
     code
     codeBuiltinId
     description

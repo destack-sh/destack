@@ -1,0 +1,75 @@
+--- lib.x ---
+enum EntityType :: string:
+"Type of an entity"
+Person = `"PER"`
+Location = `"LOC"`
+Organization = `"ORG"`
+Misc = `"MISC"`
+
+type Entity:
+"A named entity in a text"
+name: string "Canonical name of the entity"
+'type': EntityType
+confidence: number | null "Confidence in the detected type"
+
+    like data samples :: (name: string, 'type': EntityType):
+    "Common uses of {Entity}"
+    ```csv
+    "Barack Obama","PER"
+    "London","LOC"
+    "Google","ORG"
+    ```
+
+--- main.x ---
+# Describe what to do
+import type Entity from .lib
+import type EntityType from .lib
+
+task 'extract entities' :: (input: string) -> [Entity]:
+"Extract the distinct entities from the text"
+    expect 'no duplicates':
+    "The entities are distinct"
+        verify code check_no_duplicates on output :: (entities: [Entity]) -> bool:
+        "Check that the entities are distinct (very crudely)"
+        entities_by_name = {e.name: e for e in entities}
+        return len(entities_by_name) == len(entities)
+
+# Build
+require openai.std@latest
+import model text-davinci-003 from openai.std.text
+
+compile prod:
+    task 'extract entities'
+    with model text-davinci-003
+
+run ner-prod:
+    with compile target = compile prod
+    task 'extract entities'
+
+--- compiled.x ---
+import model text-davinci-003 from openai.std.text
+import type Entity from .lib
+import type EntityType from .lib
+
+# do we need to copy all deps?
+
+code 'extract_entities' :: (input: string) -> [Entity]:
+```bpl
+pragma(max_length=2048)
+pragma(model=c['text-davinci-003'])
+pragma(decoder='argmax')
+"Extract the distinct entities from the text\n"
+"Example entities:\n"
+...
+"{input}"
+entities = []
+"The entities are:\n"
+for _ in range(MAX_ENTITIES)
+    "[entity: Entity]\n"
+    or "\{'type': [type: EntityType], 'name': \"[name: string]\", 'confidence': [confidence: number | null]\}\n"
+    or "\{'type': [type: EntityType], 'name': \"[name: string]\"\}\n"
+    confidence = ... get confidence from token reads (holes and entire span)
+    entity = Entity(name=name, type=type, confidence=confidence)
+    entities.append(entity)
+return entities
+```

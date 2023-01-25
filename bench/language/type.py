@@ -472,7 +472,7 @@ class ModelInferenceSettings:
 @dataclass(repr=False)
 class Code(SymbolContent):
     description: Optional[str]
-    language: Literal["python"]
+    language: Literal["python"] | Literal["bpl"]
     code: Optional[str]
     builtin_id: Optional[str]
     type_node: TypeNode

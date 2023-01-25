@@ -221,7 +221,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                         record.dataset = statement
                         new_contents.append(record)
                 elif statement.symbol_type == SymbolType.COMPILATION:
-                    for mapping in statement.mappings.all():
+                    for mapping in statement.generated_mappings.all():
                         mapping.pk = None
                         mapping.compilation = statement
                         mapping.source_id = new_statements_ids[mapping.source_id]

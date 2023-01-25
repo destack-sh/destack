@@ -1,6 +1,0 @@
---- complete.x ---
-
-code check_repetition :: (input: string) -> boolean:
-```python
-return True
-```

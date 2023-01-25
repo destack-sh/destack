@@ -1,0 +1,43 @@
+--- complete.x ---
+
+enum CodeLanguage :: string:
+PYTHON = `"python"`
+SQL = `"sql"`
+
+type CodeContext:
+primary_language: CodeLanguage | null
+preceding_code: string
+current_line: string
+current_column: number
+
+type CodeCompletion = string
+
+task complete_code :: (context: CodeContext) -> CodeCompletion:
+"Complete the code in the most useful way possible."
+    expect 'idiomatic code' on output:
+    "The code should be idiomatic for the language."
+        like data 'idiomatic code'
+
+    expect 'safe code' on output:
+    "The code should be safe for the language."
+        like data 'safe code'
+
+    expect 'useful code':
+    "The code should be useful in the context"
+        expect 'no repetition':
+        "The code should not repeat itself unnecessarily"
+            verify code check_repetition
+
+    task 'lookup docs' :: ??? -> ???:
+    "Lookup the docs for the language and context (if needed)"
+        with code lookup_docs :: (term: string) -> string | null:
+        ...
+
+code check_repetition :: (prev_code: string, completion: str) -> boolean:
+```python
+# very simple and stupid check for repetition
+return input not in prev_code
+```
+
+--- compiled.x ---
+
