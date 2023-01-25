@@ -39,6 +39,7 @@ KEYWORDS = {
     "number": TypeTag.NUMBER,
     "boolean": TypeTag.BOOLEAN,
     "null": TypeTag.NULL,
+    "enum": TypeTag.ENUM,
     # Other
     "as": None,
     "from": None,
