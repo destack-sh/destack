@@ -87,7 +87,7 @@ defineExpose({
     @escape="emit('escape')"
     :language="{ jsonl: 'json', csv: 'csv' }[state.view]"
     :focused="focused"
-    :readonly="props.readonly"
+    :readonly="props.readonly || state.view == 'csv'"
   />
   <table
     v-else-if="state.view == 'table'"
