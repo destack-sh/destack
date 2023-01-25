@@ -7,8 +7,8 @@ from uuid import UUID
 from bench import language
 from bench.language import ErrorType
 from bench.language.parse import (
-    parse_type_node,
     parse_type_node_func,
+    parse_type_node_inline,
     parse_type_node_struct,
     parse_type_node_struct_inline,
     parser_from_string,
@@ -32,6 +32,25 @@ from bench.language.type import (
 #
 # Stable, concise and flat language data structures for transit and storage.
 #
+
+
+@dataclass(repr=False)
+class TypeNodeData:
+    # TODO @Cleanup: use TypeNodeData instead of TypeNode in wire
+    name: Optional[str]
+    type: TypeTag
+    required: bool = True
+    description: Optional[str] = None
+    reference: Optional[str] = None
+    value: Optional[LiteralValue] = None
+    source_reference: Optional[str] = None
+    children: Optional[list["TypeNodeData"]] = None
+
+    def __str__(self):
+        return f"{self.name or '<unnamed>'} {self.type.name}"
+
+    def __repr__(self):
+        return f"<TypeNode {str(self)}>"
 
 
 @dataclass(repr=False)
@@ -343,7 +362,7 @@ def parse_symbol_type_node(symbol_type: language.SymbolType, type_node: str) -> 
             parsed = parse_type_node_struct(btl_parser, name=None)
             btl_parser.eat_newline()
         else:
-            parsed = parse_type_node(btl_parser, name=None)
+            parsed = parse_type_node_inline(btl_parser, name=None)
     else:
         raise ValueError(f"unexpected symbol type {symbol_type}")
     btl_parser.eat_eos()  # must be full match

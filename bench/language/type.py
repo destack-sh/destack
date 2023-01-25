@@ -173,6 +173,8 @@ class TypeTag(Enum):
     FUNCTION = "function"
     UNION = "union"
     INTERSECTION = "intersection"
+    ENUM = "enum"
+    LITERAL = "literal"
     NULL = "null"
     ANY = "any"
     TYPE_REFERENCE = "ref"
@@ -356,6 +358,7 @@ class TypeNode:
     required: bool = True
     description: Optional[str] = None
     reference: Union[None, str, "TypeNode"] = None
+    value: Optional[LiteralValue] = None  # for literal types
     # source reference is separate as the resolved TypeNode may not contain the name
     source_reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
@@ -368,15 +371,23 @@ class TypeNode:
         if self.children is None:
             return []
         else:
-            return [e.name for e in self.children]
+            return [e.name for e in self.children if e.name is not None]
 
     @property
-    def input(self) -> TypeNode:
+    def input(self) -> TypeNode:  # for function types
         return self.child("input")
 
     @property
-    def output(self) -> TypeNode:
+    def output(self) -> TypeNode:  # for function types
         return self.child("output")
+
+    @property
+    def head_type(self) -> TypeNode:  # for enum types
+        return self.children[0]
+
+    @property
+    def members(self) -> list[TypeNode]:  # for enum types
+        return self.children[1:]
 
     def child(self, key: str) -> TypeNode:
         if self.children is None:

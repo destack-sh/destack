@@ -97,13 +97,13 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         identifier_str = escape_identifier(statement.name)
 
         # special case: inline type node "redefinitions" as definitions
-        if (
-            statement.symbol_type == SymT.TYPE
-            and cast(Type, statement.content).type_node.type != TypeTag.STRUCT
-        ):
+        if statement.symbol_type == SymT.TYPE and cast(
+            Type, statement.content
+        ).type_node.type not in (TypeTag.STRUCT, TypeTag.ENUM):
             type_str = render_type_node(cast(Type, statement.content).type_node)
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
+        symt_str = statement.symbol_type
         if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(Requirement, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
@@ -116,9 +116,18 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             content = cast(Dataset, statement.content)
             type_str = render_type_node_struct(content.type_node, ", ")
             postfix = f" :: ({type_str}):"
+        elif (
+            statement.symbol_type == SymT.TYPE
+            and cast(Type, statement.content).type_node.type == TypeTag.ENUM
+        ):
+            # special case for enum types
+            content = cast(Type, statement.content)
+            type_str = render_type_node(content.type_node.head_type)
+            symt_str = "enum"
+            postfix = f" :: {type_str}:"
         else:
             postfix = ":"
-        def_str = f"{modifier_str}{statement.symbol_type} {identifier_str}{postfix}"
+        def_str = f"{modifier_str}{symt_str} {identifier_str}{postfix}"
         if include_content:
             content_str = render_symbol_content(statement.content)
         else:
@@ -219,6 +228,14 @@ def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
     elif node.type == TypeTag.INTERSECTION:
         type_str = " & ".join(render_type_node(e) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
+    elif node.type == TypeTag.ENUM:
+        members_strs = []
+        for m in node.members:
+            member_str = f"{escape_identifier(m.name)} = {render_literal(json.dumps(m.value))}"
+            if m.description:
+                member_str += f' "{m.description}"'
+            members_strs.append(member_str)
+        return "\n".join(members_strs)
     elif node.type in PRIMITIVE_TYPES:
         return f"{identifier_str}{node.type.value}{description_str}"
     else:

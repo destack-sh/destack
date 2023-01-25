@@ -21,6 +21,7 @@ from bench.language.type import (
     Dataset,
     Expectation,
     File,
+    LiteralValue,
     Module,
     Requirement,
     Runconfig,
@@ -524,7 +525,7 @@ def _parse_definition_content(
         type = parse_type_node_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
-        description = _parse_description_optional(tokens)
+        description = _parse_description_line_optional(tokens)
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         if lang is None:
@@ -549,40 +550,21 @@ def _parse_definition_content(
         tokens.eat_bracket(")")
         tokens.eat_separator(":")
         tokens.eat_newline()
-        description = _parse_description_optional(tokens)
+        description = _parse_description_line_optional(tokens)
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
-        try:
-            value_str = _clean_literal_indent(literal.value, tokens.indent_level)
-            if lang is None:
-                raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
-            elif lang == "jsonl":
-                records = [json.loads(line) for line in value_str.splitlines()]
-            elif lang == "json":
-                records = json.loads(value_str)
-            elif lang == "csv":
-                field_names = [element.name for element in type.children]
-                csv_reader = csv.DictReader(
-                    value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
-                )
-                records = list(csv_reader)
-            else:
-                raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
-            return Dataset(
-                description=description,
-                language=lang,
-                records=records,
-                type_node=type,
-                definition=definition,
-            )
-        except ParseError:
-            raise  # re-raise since we don't want to catch our own errors
-        except ValueError as e:
-            raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
+        records = _parse_dataset_records(tokens, type, lang, literal)
+        return Dataset(
+            description=description,
+            language=lang,
+            records=records,
+            type_node=type,
+            definition=definition,
+        )
     elif symbol_type.value == SymbolType.VALUE:
         tokens.eat_separator(":")
         tokens.eat_newline()
-        description = _parse_description_optional(tokens)
+        description = _parse_description_line_optional(tokens)
         literal = tokens.eat_literal()
         try:  # parse as json?
             value = json.loads(literal.value)
@@ -598,6 +580,33 @@ def _parse_definition_content(
         return Runconfig(definition=definition)
 
     raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
+
+
+def _parse_dataset_records(
+    tokens: TokenParser, type: TypeNode, lang: str | None, literal: Token
+) -> list[dict[str, LiteralValue]]:
+    """Parses the language and records from a dataset literal."""
+    try:
+        value_str = _clean_literal_indent(literal.value, tokens.indent_level)
+        if lang is None:
+            raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
+        elif lang == "jsonl":
+            records = [json.loads(line) for line in value_str.splitlines()]
+        elif lang == "json":
+            records = json.loads(value_str)
+        elif lang == "csv":
+            field_names = [element.name for element in type.children]
+            csv_reader = csv.DictReader(
+                value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
+            )
+            records = list(csv_reader)
+        else:
+            raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
+    except ParseError:
+        raise  # re-raise since we don't want to catch our own errors
+    except ValueError as e:
+        raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
+    return records
 
 
 def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
@@ -630,7 +639,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.DEFINITION, symbol_type=SymbolType.TYPE, name=name.value, **kwargs
     )
     tokens.eat_newline()
-    description = _parse_description_optional(tokens)
+    description = _parse_description_line_optional(tokens)
     struct = parse_type_node_struct(tokens, name=definition.name)
     tokens.eat_newline_or_eos()
     definition.content = Type(
@@ -641,15 +650,85 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     return definition
 
 
+def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
+    """Parse a value enum statement (special path because of special syntax)"""
+    tokens.eat_keyword(TypeTag.ENUM)
+    tokens.eat_space()
+    name = tokens.eat_identifier()
+    tokens.eat_space()
+    tokens.eat_separator("::")
+    tokens.eat_space()
+    if tokens.peek_bracket("("):
+        tokens.eat_bracket("(")
+        member_type_node = parse_type_node_struct_inline(tokens, name=None)
+        tokens.eat_bracket(")")
+    else:
+        member_type_node = parse_type_node_inline(tokens, name=None)
+    tokens.eat_separator(":")
+    tokens.eat_newline()
+    description = _parse_description_line_optional(tokens)
+
+    # parse members (assumes literal members only)
+    members: list[TypeNode] = []
+    while True:
+        member_name = tokens.eat_identifier().value
+        tokens.eat_space()
+        tokens.eat_separator("=")
+        tokens.eat_space()
+        member_literal = tokens.eat_literal()
+        try:
+            member_value = json.loads(member_literal.value)
+        except ValueError as e:
+            raise ParseError(
+                ET.INVALID_TOKEN_VALUE, member_literal, error=e, value=member_literal.value
+            )
+
+        if tokens.peek_description():
+            member_description = tokens.eat_description().value
+        else:
+            member_description = None
+        member = TypeNode(
+            name=member_name,
+            type=TypeTag.LITERAL,
+            value=member_value,
+            description=member_description,
+        )
+        members.append(member)
+        if not tokens.peek_type(TokenType.NEWLINE):
+            break
+        tokens.eat_newline_or_eos()
+        if not tokens.peek_type(TokenType.IDENTIFIER):
+            tokens.advance(-1)  # go back one token to leave newline separator
+            break
+
+    tokens.eat_newline_or_eos()
+    enum_type_node = TypeNode(name=None, type=TypeTag.ENUM, children=[member_type_node, *members])
+
+    definition = Statement(
+        type=StatementType.DEFINITION,
+        symbol_type=SymbolType.TYPE,
+        name=name.value,
+        **kwargs,
+    )
+    definition.content = Type(
+        definition=definition,
+        type_node=enum_type_node,
+        description=description,
+    )
+    return definition
+
+
 def parse_type_node_named(tokens: TokenParser) -> TypeNode:
     """parse single tuple like <name>: <type>[ "<description>"]"""
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     tokens.eat_space()
-    return parse_type_node(tokens, name.value)
+    return parse_type_node_inline(tokens, name.value)
 
 
-def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False) -> TypeNode:
+def parse_type_node_inline(
+    tokens: TokenParser, name: str | None, packing: bool = False
+) -> TypeNode:
     """Parse a type node type including description, handling nested types."""
     # TODO @Cleanup: parse_type_node_type seems more complex than it should be,
     #  especially the nested back-tracking for unions/intersections
@@ -657,7 +736,7 @@ def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False
     # parse array like [<type>] with recursive descent
     if tokens.peek_bracket("["):
         tokens.eat_bracket("[")
-        node = parse_type_node(tokens, name=None)
+        node = parse_type_node_inline(tokens, name=None)
         tokens.eat_bracket("]")
         return TypeNode(name=name, type=TypeTag.ARRAY, children=[node])
 
@@ -695,7 +774,7 @@ def parse_type_node(tokens: TokenParser, name: str | None, packing: bool = False
         tokens.reset(start_mark)  # back-track and reparse all children in one go
         parent = TypeNode(name=name, type=packing_type, children=[])
         while True:
-            node = parse_type_node(tokens, name=None, packing=True)
+            node = parse_type_node_inline(tokens, name=None, packing=True)
             parent.children.append(node)
             # if we got a description, we are done
             if node.description is not None:  # hoist description to parent
@@ -750,7 +829,7 @@ def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeNode:
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
-        output = parse_type_node(tokens, "output")
+        output = parse_type_node_inline(tokens, "output")
     else:
         output = TypeNode(name="output", type=TypeTag.NULL)
     return TypeNode(name=name, type=TypeTag.FUNCTION, children=[input, output])
@@ -794,7 +873,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
     tokens.eat_space()
     tokens.eat_separator("=")
     tokens.eat_space()
-    node = parse_type_node(tokens, name=None)  # name corresponds to statement, not type node
+    node = parse_type_node_inline(tokens, name=None)  # name corresponds to statement, not type node
     tokens.eat_newline_or_eos()
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
@@ -824,7 +903,7 @@ def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     )
 
 
-def _parse_description_optional(tokens: TokenParser) -> Optional[str]:
+def _parse_description_line_optional(tokens: TokenParser) -> Optional[str]:
     """Parse an optional description line"""
     description = tokens.peek_description()
     if description is not None:
@@ -870,6 +949,7 @@ def _parse_statement(
         _parse_comment,
         _parse_definition_requirement,
         _parse_definition_type,
+        _parse_definition_enum,
         _parse_definition,
         _parse_import,
         _parse_redefinition_as_type_alias,

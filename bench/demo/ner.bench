@@ -1,6 +1,10 @@
 --- lib.x ---
-# EntityType should really be an enum
-type EntityType = string
+enum EntityType :: string:
+"Type of an entity"
+Person = `"PER"`
+Location = `"LOC"`
+Organization = `"ORG"`
+Misc = `"MISC"`
 
 type Entity:
 "A named entity in a text"
