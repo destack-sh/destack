@@ -1,4 +1,5 @@
 from bench.language.parse import index_module, parse_string
+from bench.runtime.bpl import parse_bpl
 from bench.runtime.execute import execute, instantiate
 
 
@@ -51,3 +52,17 @@ return 5 * val
     idx = index_module(module)
     code = instantiate(idx.statement(".test:function"), idx)
     assert execute(code, {"val": 2}) == 10
+
+
+def test_parse_bpl():
+    bpl = r"""
+"Count the animals in the {zoo}."
+# some comment
+animals = []
+for _ in range(max_animals):
+    " - [animal: string]\n"
+    animals.append(animal)
+return animals
+    """
+    prompt = parse_bpl(bpl)
+    print(prompt.python_code)
