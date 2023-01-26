@@ -16,7 +16,9 @@ class SourceMapping(UUIDModel):
     A source map for compilations to track the mapping between source and target instructions.
     """
 
-    compilation = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="mappings")
+    compilation = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="generated_mappings"
+    )
     source = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="target_mappings"
     )

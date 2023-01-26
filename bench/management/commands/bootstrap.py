@@ -56,7 +56,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, force: bool, *args, **options):
         create_model_providers()
-        create_symbolx_std("bench/demo/std.bench", overwrite=force)
+        create_symbolx_std("bench/bench/std.bench", overwrite=force)
 
 
 @transaction.atomic

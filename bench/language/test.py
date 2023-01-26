@@ -12,10 +12,10 @@ from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, index_module, parse_string
 from bench.language.reconstruct import render
 
-# all .x files in bench/demo
-demo_paths = glob.glob("../demo/*.bench")
+# all .x files in bench/bench
+demo_paths = glob.glob("../bench/*.bench")
 if len(demo_paths) == 0:
-    raise RuntimeError(f"no demo files found at bench/demo (cwd={Path.cwd()})")
+    raise RuntimeError(f"no demo files found (cwd={Path.cwd()})")
 
 
 def _raise_if_error(error: ParseError | SemanticError, test: Callable):

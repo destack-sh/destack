@@ -30,7 +30,29 @@ text: string | null "Text content / alt text"
 type BrowserContext:
 elements: [BrowserElement]
 current_url: string
+    code empty :: () -> BrowserContext:
+    "The default context"
+    ```python
+    return BrowserContext(
+        elements = [],
+        current_url = "https://google.com",
+    )
+    ```
 
 task 'browse to goal' :: (objective: string, max_steps: number | null) -> boolean "Success?":
 "Use a web browser to achieve the given objective"
-    task 'suggest action' ::
+    with code implementation :: (objective: string, max_steps: number | null) -> boolean:
+    ```python
+    context = BrowserContext.empty()
+    for i in range(max_steps):
+        command = suggest_action(context)
+        context = execute_command(command)
+    return False
+    ```
+    task 'suggest action' :: (context: BrowserContext) -> Command "suggested action":
+    "Suggest the next action in the given context"
+
+code execute_command :: (command: Command) -> BrowserContext "new context":
+```python
+...
+```

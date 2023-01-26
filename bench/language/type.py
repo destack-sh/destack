@@ -418,9 +418,11 @@ class Task(SymbolContent):
 @dataclass(repr=False)
 class Expectation(SymbolContent):
     description: str
+    on: Optional[str]
 
     def __str__(self):
-        return f"({self.description})"
+        on_str = f" on {self.on}" if self.on else ""
+        return f"({self.description}{on_str})"
 
 
 @dataclass(repr=False)

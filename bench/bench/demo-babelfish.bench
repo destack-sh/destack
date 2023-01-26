@@ -1,0 +1,48 @@
+--- lib.x ---
+
+type Translated:
+"A potentially translated string"
+content: any
+source_lang: string "the source language"
+target_lang: string "the target language"
+
+task babelify :: InputT -> OutputT:
+"Translate the input and return the output in the same language."
+    var type InputT
+    var type OutputT
+    var task main :: InputT -> OutputT
+    var value target_language = `"en"`
+
+    with code implementation :: InputT -> OutputT:
+        translated = translate(input, to=target_language)
+        result = main(translated.content)
+        return translate(result, to=translated.source_lang)
+
+    task 'translate' :: (data: AnyT, to: string "target language") -> Translated:
+    "Translate the data into the given language (if needed)"
+        var type AnyT
+
+expect 'input output consistency' :: (input: InputT) -> OutputT:
+"The input and output are in the same language"
+    var type InputT
+    var type OutputT
+
+capability 'babel fish':
+"Translate any string into any other language as needed"
+    # Automatic tasks (not yet supported)
+    task babelify
+    # Tool tasks
+
+    # General expectations (not yet supported)
+    expect 'input output consistency'
+
+--- examples.x ---
+
+# Using the babel fish capability
+
+task 'respond kindly' :: (input: string) -> string:
+"Respond to the input with a kind comment"
+    expect 'kindness' on output
+
+    extend task babelify
+        with task main = self
