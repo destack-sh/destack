@@ -41,6 +41,7 @@ KEYWORDS = {
     "null": TypeTag.NULL,
     "enum": TypeTag.ENUM,
     # Other
+    "on": None,
     "as": None,
     "from": None,
 }
@@ -54,7 +55,7 @@ NEWLINE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
 # (eating the previous newline should be a parsing concern, but it's easier in lex for now)
 NEWFILE_REGEX = re.compile(r"^\n?--- (?P<value>[\w.-]*) ---$\n", re.MULTILINE)
 # comment like # <comment>
-LINE_COMMENT_REGEX = re.compile(r"^# (?P<value>.*)$", re.MULTILINE)
+LINE_COMMENT_REGEX = re.compile(r"# (?P<value>.*)")
 MULTILINE_COMMENT_REGEX = re.compile(r"###\n(?P<value>.+?)\n[ \t]*###", re.DOTALL | re.MULTILINE)
 # keywords from set
 # (must have non-word character after, but that is not considered part of the token)
@@ -107,12 +108,11 @@ def lex(source: SourceFile) -> list[Token]:
             line_number = prev_token.line_number + prev_token.line_span
             start_column = prev_token.end_column
         current_pos = source.linebreaks[line_number - 1] + start_column
+        if current_pos >= len(source.content):
+            break  # EOF, done
 
         token = _lex_token(source, current_pos)
         if token is None:
-            if current_pos >= len(source.content):
-                break  # EOF, done
-            # otherwise, we have an error
             raise SyntaxError(ErrorType.UNKNOWN_TOKEN, source, line_number, start_column)
         tokens.append(token)
         prev_token = token
