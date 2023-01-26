@@ -15,12 +15,13 @@ LISTING = `"listing"` "A new entity is listed on the exchange"
 FILING = `"filing"` "Some regulatory filing is made"
 
 enum EventPriority :: number:
-BREAKING = `0`
-HIGH = `1`
-MEDIUM = `2`
-LOW = `3`
+CRITICAL = `3`
+HIGH = `2`
+MEDIUM = `1`
+LOW = `0`
 
 type Event:
+"Something that happened"
 title: string | null "The title of the event (if relevant)"
 summary: string "What happened"
 datetime: string | null "The date and time of the event"
