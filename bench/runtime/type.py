@@ -16,6 +16,7 @@ from bench.language.type import (
     TypeNode,
     Value,
 )
+from bench.runtime.bpl import DynamicPrompt
 from bench.runtime.provider import ModelHandle
 from bench.utils.record import RecordBatch
 
@@ -87,6 +88,7 @@ class ModelInstance(Model, SymbolInstance):
 @dataclass(repr=False)
 class CodeInstance(Code, SymbolInstance):
     code_callable: SyncCodeCallable | AsyncCodeCallable
+    prompt: typing.Optional[DynamicPrompt]
 
     @property
     def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:
