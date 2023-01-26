@@ -11,7 +11,6 @@ import uuid
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
 from dataclasses import replace
-from functools import partial
 from random import Random
 from typing import Any, Union
 from uuid import UUID
@@ -29,7 +28,7 @@ from bench.language.type import (
     Statement,
     Value,
 )
-from bench.runtime.builtins import CODE_BUILTINS
+from bench.runtime.bpl import DynamicPrompt, parse_bpl
 from bench.runtime.openai import OpenAIProvider
 from bench.runtime.provider import Completion, ModelHandle, ModelProvider
 from bench.runtime.tracing import Tracer
@@ -60,7 +59,7 @@ PROVIDERS: dict[ProviderKey, ModelProvider] = {}
 if "OPENAI_API_KEY" in os.environ:
     PROVIDERS[ProviderKey.OPENAI] = OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"])
 
-STATIC_BUILTINS = {**CODE_BUILTINS}
+STATIC_BUILTINS = {}
 DEFAULT_IMPORTS: dict = {Model: ModelHandle, Dataset: RecordBatch}
 CAN_EXEC = DEBUG or TEST
 
@@ -306,13 +305,13 @@ def _instantiate_model_handle(model) -> ModelHandle:
 def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, StatementInstance],
-) -> SyncCodeCallable | AsyncCodeCallable:
+) -> tuple[SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
     if code.builtin_id:
         # builtins are already defined and are just curried using the arguments
         builtin = STATIC_BUILTINS.get(code.builtin_id)
         if builtin is None:
             raise ValueError(f"unknown builtin in {code}: {code.builtin_id}")
-        code_callable = partial(builtin)
+        return builtin, None
     else:
         dynamic_builtins = {"random": Random(code.definition.id.hex.encode())}
         dynamic_context = {
@@ -324,20 +323,29 @@ def _instantiate_code_callable(
             "__module__": code.definition.file.module,
         }
 
+        # transform to python code if necessary
+        prompt = None
+        if code.language == "python":
+            python_code = code.code
+        elif code.language == "bpl":
+            prompt = parse_bpl(code.code)
+            python_code = prompt.python_code
+        else:
+            raise ValueError(f"unknown code language: {code}")
+
+        # create python function from python code
         input_keys = code.type_node.input.keys
-        # create python function from code
         func_name = f"_anon_{code.definition.id.hex}"
         async_str = "async " if code.is_async else ""
         func_params = ", ".join(input_keys)
-        indented_code = textwrap.indent(code.code, " " * 4)
+        indented_code = textwrap.indent(python_code, " " * 4)
         code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
         local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
         try:
-            code_callable = _execute_code(code_str, local_globals)[func_name]
+            return _execute_code(code_str, local_globals)[func_name], prompt
         except Exception as e:
             # shouldn't error unless it's a python parse issue since we're just defining a function
             raise RunError(RunErrorType.PARSE, code.definition, cause=e) from e
-    return code_callable
 
 
 def instantiate(
@@ -354,8 +362,10 @@ def instantiate(
 
     # instantiate statement itself
     if isinstance(statement.content, Code):
-        code_callable = _instantiate_code_callable(statement.content, instantiated_context)
-        instance = CodeInstance(**statement.content.__dict__, code_callable=code_callable)
+        code_callable, prompt = _instantiate_code_callable(statement.content, instantiated_context)
+        instance = CodeInstance(
+            **statement.content.__dict__, code_callable=code_callable, prompt=prompt
+        )
     elif isinstance(statement.content, Value):
         instance = ValueInstance(**statement.content.__dict__)
     elif isinstance(statement.content, Model):

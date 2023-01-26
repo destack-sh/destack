@@ -1,6 +1,15 @@
 import re
 from dataclasses import dataclass
-from typing import Any, NamedTuple
+from functools import cached_property
+from typing import Any
+
+
+@dataclass
+class PromptHole:
+    name: str
+    type: str
+    start: int
+    end: int
 
 
 @dataclass
@@ -11,7 +20,20 @@ class DynamicPrompt:
 
 @dataclass
 class PromptFragment:
-    text: str
+    content: str
+
+    @cached_property
+    def holes(self) -> list[PromptHole]:
+        holes = []
+        for hole_match in EMIT_HOLE_REGEX.finditer(self.content):
+            hole = PromptHole(
+                hole_match.group("name"),
+                hole_match.group("type"),
+                hole_match.start(),
+                hole_match.end(),
+            )
+            holes.append(hole)
+        return holes
 
 
 @dataclass
@@ -21,18 +43,16 @@ class PromptExit:
 
 # Bench prompt language is really just python with pragmas and lonely strings as prompt emits.
 # This is transformed into python code that can be executed with some metadata.
+# pragmas like pragma(n=1, z=Banana())
 PRAGMA_REGEX = re.compile(r"^pragma\((?P<value>.*)\)$", re.MULTILINE)
-EMIT_REGEX = re.compile(r"^(?P<indent> *)\"(?P<value>.*?)\"$")
-RETURN_REGEX = re.compile(r"^(?P<indent> *)return (?P<value>.*)$")
+# returns like return or return 5
+RETURN_REGEX = re.compile(r"^(?P<indent> *)return ?(?P<value>.*)$")
+# emits like "hello" or "hello {name}" or "hello [name: string]"
+EMIT_REGEX = re.compile(r"^(?P<indent>\s*)(?P<value>\".*?\")\s*$")
+# emit variables like {name} (classic f-string)
 EMIT_VARIABLE_REGEX = re.compile(r"\{(?P<value>.*?)\}")
-EMIT_HOLE_REGEX = re.compile(r"\[(?P<value>.*?)\]")
-
-PromptHole = NamedTuple("Hole", [("name", str), ("type", str)])
-
-
-def parse_bpl_hole(hole: str) -> PromptHole:
-    name, type = hole.split(":", 1)
-    return PromptHole(name, type.strip())
+# emit holes like [name: string]
+EMIT_HOLE_REGEX = re.compile(r"\[(?P<name>.*?)(: (?P<type>.*?))?]")
 
 
 def parse_bpl(bpl: str) -> DynamicPrompt:
@@ -67,7 +87,7 @@ def parse_bpl(bpl: str) -> DynamicPrompt:
         match = RETURN_REGEX.match(line)
         if match:
             indent = match.group("indent")
-            value = match.group("value")
+            value = match.group("value") or "None"
             python_lines.append(indent + f"yield PromptExit({value})")
             continue
 
@@ -76,8 +96,7 @@ def parse_bpl(bpl: str) -> DynamicPrompt:
         if match:
             indent = match.group("indent")
             value = match.group("value")
-            holes = [parse_bpl_hole(h) for h in EMIT_HOLE_REGEX.findall(value)]
-
+            holes = PromptFragment(value).holes
             filled_hole_names = [hole.name for hole in holes]
             if len(filled_hole_names) != len(set(filled_hole_names)):
                 raise ValueError(f"hole names must be unique: {line}")

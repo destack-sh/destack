@@ -85,7 +85,7 @@ entities: [Entity]
 
 
 def test_parse_bpl():
-    bpl = """
+    bpl = r"""
 "Count the animals in the {zoo}."
 # some comment
 animals = []
