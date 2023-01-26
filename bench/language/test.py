@@ -11,7 +11,6 @@ from bench.language import Type, TypeTag, parse
 from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, index_module, parse_string
 from bench.language.reconstruct import render
-from bench.runtime.bpl import parse_bpl
 
 # all .x files in bench/bench
 demo_paths = glob.glob("../bench/*.bench")
@@ -82,17 +81,3 @@ entities: [Entity]
 
     type_entity = idx.symbol(".test:Entity", Type).type_node
     assert type_entity.child("first_event").children[0].type == type_event.type
-
-
-def test_parse_bpl():
-    bpl = r"""
-"Count the animals in the {zoo}."
-# some comment
-animals = []
-for _ in range(max_animals):
-    " - [animal: string]\n"
-    animals.append(animal)
-return animals
-    """
-    prompt = parse_bpl(bpl)
-    print(prompt.python_code)

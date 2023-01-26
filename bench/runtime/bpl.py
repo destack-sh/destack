@@ -1,15 +1,6 @@
 import re
 from dataclasses import dataclass
-from functools import cached_property
-from typing import Any
-
-
-@dataclass
-class PromptHole:
-    name: str
-    type: str
-    start: int
-    end: int
+from typing import Any, Optional
 
 
 @dataclass
@@ -19,21 +10,14 @@ class DynamicPrompt:
 
 
 @dataclass
-class PromptFragment:
+class PromptContent:
     content: str
 
-    @cached_property
-    def holes(self) -> list[PromptHole]:
-        holes = []
-        for hole_match in EMIT_HOLE_REGEX.finditer(self.content):
-            hole = PromptHole(
-                hole_match.group("name"),
-                hole_match.group("type"),
-                hole_match.start(),
-                hole_match.end(),
-            )
-            holes.append(hole)
-        return holes
+
+@dataclass
+class PromptHole:
+    name: str
+    type: Optional[str]
 
 
 @dataclass
@@ -53,6 +37,22 @@ EMIT_REGEX = re.compile(r"^(?P<indent>\s*)(?P<value>\".*?\")\s*$")
 EMIT_VARIABLE_REGEX = re.compile(r"\{(?P<value>.*?)\}")
 # emit holes like [name: string]
 EMIT_HOLE_REGEX = re.compile(r"\[(?P<name>.*?)(: (?P<type>.*?))?]")
+
+
+def split_fragment(fragment: str) -> list[PromptHole | PromptContent]:
+    """Splits an emitted fragment into its content and hole parts."""
+    pos = 0
+    while pos < len(fragment):
+        hole_match = EMIT_HOLE_REGEX.search(fragment, pos)
+        if hole_match:
+            if pos != hole_match.start():
+                yield PromptContent(fragment[pos : hole_match.start()])
+            yield PromptHole(hole_match.group("name"), hole_match.group("type"))
+            pos = hole_match.end()
+        else:
+            break
+    if pos < len(fragment):
+        yield PromptContent(fragment[pos:])
 
 
 def parse_bpl(bpl: str) -> DynamicPrompt:
@@ -96,18 +96,18 @@ def parse_bpl(bpl: str) -> DynamicPrompt:
         if match:
             indent = match.group("indent")
             value = match.group("value")
-            holes = PromptFragment(value).holes
-            filled_hole_names = [hole.name for hole in holes]
-            if len(filled_hole_names) != len(set(filled_hole_names)):
-                raise ValueError(f"hole names must be unique: {line}")
-
-            yield_str = f"yield PromptFragment(f{value})"
-            if holes:
-                python_line = indent + ", ".join(filled_hole_names) + f" = {yield_str}"
-            else:
-                python_line = indent + yield_str
-            python_lines.append(python_line)
-            continue
+            for fragment in split_fragment(value):
+                if isinstance(fragment, PromptHole):
+                    python_line = (
+                        indent
+                        + f"{fragment.name} = yield PromptHole({fragment.name!r}, {fragment.type!r})"
+                    )
+                elif isinstance(fragment, PromptContent):
+                    python_line = indent + f"yield PromptContent({fragment.content!r})"
+                else:
+                    raise ValueError(f"unexpected fragment type: {fragment}")
+                python_lines.append(python_line)
+                continue
 
         # pass through anything else
         python_lines.append(line)
