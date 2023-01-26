@@ -86,7 +86,8 @@ class SyntaxError(ValueError):
         line_number: int,
         column: int,
     ):
-        super().__init__(self._format_message(type, source_file, line_number, column))
+        self.message = self._format_message(type, source_file, line_number, column)
+        super().__init__(self.message)
         self.type = type
         self.source_file = source_file
         self.line_number = line_number
