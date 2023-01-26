@@ -24,17 +24,17 @@ value temperature_map:
 #  :: map(Temperature, number)
 
 import model text-davinci-003 as llm from openai.std.text
-code get_temperature :: (description: string "Task description") -> Temperature:
-```python
-temperature_label = await llm_classify(
-    llm,
-    text=description,
-    examples=temperature_examples,
-    prompt_prefix="Assess the temperature (that is, the desired degree of variation or creativity required)",
-    label_key="temperature",
-)
-return temperature_map.get(temperature_label, 0.5)
-```
+# code get_temperature :: (description: string "Task description") -> Temperature:
+# ```python
+# temperature_label = await llm_classify(
+#     llm,
+#     text=description,
+#     examples=temperature_examples,
+#     prompt_prefix="Assess the temperature (that is, the desired degree of variation or creativity required)",
+#     label_key="temperature",
+# )
+# return temperature_map.get(temperature_label, 0.5)
+# ```
 
 code get_temperature :: (description: string "Task description") -> Temperature:
 ```bpl

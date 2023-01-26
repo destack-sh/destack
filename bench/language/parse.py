@@ -499,6 +499,7 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
 def _parse_definition_content(
     tokens: TokenParser, symbol_type: Token, name: Token, definition: Statement
 ) -> SymbolContent:
+    """Parses the content of a symbol definition including everything after [modifier] [type] [name]"""
     if symbol_type.value == SymbolType.CAPABILITY:
         tokens.eat_separator(":")
         tokens.eat_newline()
@@ -514,10 +515,17 @@ def _parse_definition_content(
         description = tokens.eat_description()
         return Task(description=description.value, type_node=type, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
+        on_location = None
+        if tokens.peek_separator(" "):
+            tokens.eat_space()
+            tokens.eat_keyword("on")
+            tokens.eat_space()
+            # very simple location parser (single identifier)
+            on_location = tokens.eat_identifier().value
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return Expectation(description=description.value, definition=definition)
+        return Expectation(description=description.value, definition=definition, on=on_location)
     elif symbol_type.value == SymbolType.CODE:
         tokens.eat_space()
         tokens.eat_separator("::")
@@ -586,8 +594,8 @@ def _parse_dataset_records(
     tokens: TokenParser, type: TypeNode, lang: str | None, literal: Token
 ) -> list[dict[str, LiteralValue]]:
     """Parses the language and records from a dataset literal."""
+    value_str = _clean_literal_indent(literal.value, tokens.indent_level)
     try:
-        value_str = _clean_literal_indent(literal.value, tokens.indent_level)
         if lang is None:
             raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
         elif lang == "jsonl":
@@ -605,7 +613,7 @@ def _parse_dataset_records(
     except ParseError:
         raise  # re-raise since we don't want to catch our own errors
     except ValueError as e:
-        raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
+        raise ParseError(ET.INVALID_TOKEN_VALUE, literal, value=value_str, error=e)
     return records
 
 
@@ -683,10 +691,10 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
                 ET.INVALID_TOKEN_VALUE, member_literal, error=e, value=member_literal.value
             )
 
-        if tokens.peek_description():
+        member_description = None
+        if tokens.peek_separator(" "):
+            tokens.eat_space()
             member_description = tokens.eat_description().value
-        else:
-            member_description = None
         member = TypeNode(
             name=member_name,
             type=TypeTag.LITERAL,
@@ -738,7 +746,14 @@ def parse_type_node_inline(
         tokens.eat_bracket("[")
         node = parse_type_node_inline(tokens, name=None)
         tokens.eat_bracket("]")
-        return TypeNode(name=name, type=TypeTag.ARRAY, children=[node])
+        description = None
+        if tokens.peek_separator(" "):
+            tokens.eat_space()
+            if tokens.peek_description():
+                description = tokens.eat_description().value
+            else:  # turn back, wasn't for us to eat
+                tokens.advance(-1)
+        return TypeNode(name=name, type=TypeTag.ARRAY, description=description, children=[node])
 
     start_mark = tokens.mark()  # for back-tracking
     # parse actual type as either primitive or type reference

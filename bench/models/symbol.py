@@ -123,6 +123,7 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     )
     value = models.JSONField(null=True, blank=True)  # for value
     btl = models.TextField(null=True, blank=True)  # for any type nodes
+    on = models.TextField(null=True, blank=True)  # for expect-likes
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
     default_settings = models.JSONField(null=True, blank=True)  # for model

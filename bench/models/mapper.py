@@ -173,6 +173,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.provider = statement.provider
     data.external_name = statement.external_name
     data.type_node = statement.btl
+    data.on = statement.on
     if statement.symbol_type == SymbolType.DATASET:
         data.records = list(statement.records.all().values_list("data", flat=True))
     elif statement.symbol_type == SymbolType.COMPILATION:
@@ -204,6 +205,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.code_builtin_id = data.code_builtin_id
     statement.provider = data.provider
     statement.external_name = data.external_name
+    statement.on = data.on
     if isinstance(data.type_node, language.TypeNode):
         # render type node to string
         statement.btl = render_symbol_type_node(data.symbol_type, data.type_node)
