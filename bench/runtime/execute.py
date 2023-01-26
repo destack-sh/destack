@@ -314,10 +314,11 @@ def _instantiate_code_callable(
         return builtin, None
     else:
         dynamic_builtins = {"random": Random(code.definition.id.hex.encode())}
+        unwrapped_context = {name: unwrap(value) for name, value in context.items()}
         dynamic_context = {
-            "context": {name: unwrap(value) for name, value in context.items()},
+            "context": unwrapped_context,
             # 'inline' all context variables that are valid Python identifiers
-            **{name: unwrap(value) for name, value in context.items() if name.isidentifier()},
+            **{name: value for name, value in unwrapped_context.items() if name.isidentifier()},
             "__statement__": code.definition,
             "__file__": code.definition.file,
             "__module__": code.definition.file.module,

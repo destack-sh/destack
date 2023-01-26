@@ -54,5 +54,5 @@ task 'browse to goal' :: (objective: string, max_steps: number | null) -> boolea
 
 code execute_command :: (command: Command) -> BrowserContext "new context":
 ```python
-...
+raise NotImplementedError
 ```

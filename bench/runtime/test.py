@@ -56,6 +56,7 @@ return 5 * val
 
 def test_parse_bpl():
     bpl = r"""
+pragma(model="gpt2", n=1, z=None)
 "Count the animals in the {zoo}."
 # some comment
 animals = []
@@ -64,5 +65,5 @@ for _ in range(max_animals):
     animals.append(animal)
 return animals
     """
-    prompt = parse_bpl(bpl)
+    prompt = parse_bpl(bpl, {})
     print(prompt.python_code)
