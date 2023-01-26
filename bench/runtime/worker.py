@@ -92,20 +92,7 @@ def interp_runtime(
 ) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     # TODO @Performance: interp and exec jobs should probably happen in a separate thread
-    errors = []
-    # parse (not resolve) type nodes in place as source contains btl strings
-    for statement in chain.from_iterable(file.statements for file in source.files):
-        if statement.type_node is None:
-            continue
-        elif not isinstance(statement.type_node, str):
-            # type node may already be parsed (either from wire or from a previous interp if partial changes)
-            continue
-        try:
-            statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
-        except ParseError as e:
-            error = e.to_error()
-            error.statement = statement  # technically not correct but we only need id
-            errors.append(error)
+    errors = impute_parsed_type_nodes(source)
     if errors:  # types must be valid for proper parse
         return InterpModule(module_idx=None, errors=errors, dependencies=dependencies)
 
@@ -120,7 +107,29 @@ def interp_runtime(
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
 
 
+def impute_parsed_type_nodes(source: wire.ModuleData):
+    errors = []
+    # TODO @Cleanup: parsing from wire module should not need to happen at all
+    #  (once we've switched to full type nodes in DB)
+    # parse (not resolve) type nodes in place as source contains btl strings
+    for statement in chain.from_iterable(file.statements for file in source.files):
+        if statement.type_node is None:
+            continue
+        elif not isinstance(statement.type_node, str):
+            # type node may already be parsed (either from wire or from a previous interp if partial changes)
+            continue
+        try:
+            statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
+        except ParseError as e:
+            error = e.to_error()
+            error.statement = statement  # technically not correct but we only need id
+            errors.append(error)
+    return errors
+
+
 class RuntimeWorker:
+    """Manages and executes the runtime of a set of modules (incl. static analysis)"""
+
     def __init__(self, worker_id: str | UUID):
         self.worker_id = worker_id
         self.rep_sock = zmq_ctx.socket(zmq.REP)

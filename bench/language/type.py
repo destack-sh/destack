@@ -364,7 +364,7 @@ class TypeNode:
     children: Optional[list["TypeNode"]] = None
 
     def __str__(self):
-        return f"{self.name}: {self.type}"
+        return f"{self.name or '<anon>'}: {self.type}"
 
     @property
     def keys(self) -> list[str]:

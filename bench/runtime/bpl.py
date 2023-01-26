@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, AsyncGenerator, NamedTuple, Union
 
 from bench.language import TypeNode
+from bench.runtime.provider import ModelHandle
 from bench.runtime.type import DynamicPrompt, PromptSettings
 
 UNSET = object()
@@ -42,15 +43,15 @@ SourcePromptPart = NamedTuple("SourcePromptPart", [("indent", str), ("part", Pro
 def render_part(part: PromptPart) -> str:
     """Renders a prompt part to a string that evaluates to the same part."""
     if isinstance(part, PromptStatic):
-        return f'PromptStatic("{part.content}")'
+        return f'PromptStatic(content="{part.content}")'
     elif isinstance(part, PromptVariable):
-        return f'PromptVariable("{part.name}", None, {part.type})'
+        return f'PromptVariable(name="{part.name}", value=None, type={part.type})'
     elif isinstance(part, PromptHole):
         next_static_str = f'"{part.next_static}"' if part.next_static else "None"
         next_variable_str = f'"{part.next_variable}"' if part.next_variable else "None"
-        return f'PromptHole("{part.name}", {part.type}, {next_static_str}, {next_variable_str})'
+        return f'PromptHole(name="{part.name}", type={part.type}, next_static={next_static_str}, next_variable={next_variable_str})'
     elif isinstance(part, PromptExit):
-        return f"PromptExit({part.value})"
+        return f"PromptExit(value={part.value})"
     raise ValueError(f"unexpected part type: {part}")
 
 
@@ -143,30 +144,57 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
         # pass through anything else
         parsed.append(line)
 
-    # second pass to determine what terminates holes
-    for i, part in enumerate(parsed):
-        if isinstance(part, str):
+    # fuse adjacent static parts
+    parsed = _fuse_adjacent_static(parsed)
+
+    # determine what terminates holes
+    for i, source_p in enumerate(parsed):
+        if isinstance(source_p, str):
             continue
-        if not isinstance(part.part, PromptHole):
+        if not isinstance(source_p.part, PromptHole):
             continue
         # set 'next' static or variable if immediately following
         next_part = parsed[i + 1] if i + 1 < len(parsed) else None
         if isinstance(next_part, str):
             continue  # source line
         elif isinstance(next_part.part, PromptStatic):
-            part.part.next_static = next_part.part.content
+            source_p.part.next_static = next_part.part.content
         elif isinstance(next_part.part, SourcePromptPart):
-            part.part.next_variable = next_part.part.name
+            source_p.part.next_variable = next_part.part.name
 
     # render source lines
     parsed_lines = []
-    for part in parsed:
-        if isinstance(part, str):
-            parsed_lines.append(part)
+    for source_p in parsed:
+        if isinstance(source_p, str):
+            parsed_lines.append(source_p)
         else:
-            parsed_lines.append(part.indent + "yield " + render_part(part.part))
+            parsed_lines.append(source_p.indent + "yield " + render_part(source_p.part))
     python_code = "\n".join(parsed_lines)
     return DynamicPrompt(python_code, None)  # TODO @Incomplete: set settings
+
+
+def _fuse_adjacent_static(
+    parts: list[Union[str, SourcePromptPart]]
+) -> list[Union[str, SourcePromptPart]]:
+    """Fuses any list of adjacent static prompt parts together in order."""
+    fused = []
+    for source_p in parts:
+        if isinstance(source_p, str):
+            fused.append(source_p)
+        elif isinstance(source_p.part, PromptStatic):
+            if (
+                fused
+                and isinstance(fused[-1], SourcePromptPart)
+                and isinstance(fused[-1].part, PromptStatic)
+            ):
+                fused_content = fused[-1].part.content + source_p.part.content
+                fused[-1] = SourcePromptPart(fused[-1].indent, PromptStatic(fused_content))
+            else:
+                fused.append(source_p)
+        else:
+            fused.append(source_p)
+    parts = fused
+    return parts
 
 
 class InferenceContext:
@@ -183,12 +211,15 @@ class InferenceContext:
     def current_prompt(self) -> str:
         return "".join(self.parts)
 
+    @property
+    def model(self) -> ModelHandle:
+        return self.settings.model.handle
+
 
 async def run_bpl(
-    generator: AsyncGenerator[PromptFragment | PromptExit, None], settings: PromptSettings
+    generator: AsyncGenerator[PromptFragment | PromptExit, None], ctx: InferenceContext
 ) -> Any:
     """Runs inference on the given BPL-based generator."""
-    ctx = InferenceContext(settings)
     async for part in generator:
         if isinstance(part, PromptExit):
             return part.value
@@ -201,6 +232,6 @@ async def run_bpl(
         elif isinstance(part, PromptHole):
             # get completion that satisfies this hole
             # terminate if full valid value for hole and/or separator token
-            pass  # TODO @Incomplete: fill prompt hole
+            raise NotImplementedError  # TODO @Incomplete: fill prompt hole
 
-    completion = await settings.model.handle.complete(ctx.current_prompt)
+    completion = await ctx.model.complete(ctx.current_prompt)

@@ -26,6 +26,10 @@ from bench.language.type import (
     Model,
     ModelInferenceSettings,
     Statement,
+    StatementType,
+    Type,
+    TypeNode,
+    TypeTag,
     Value,
 )
 from bench.runtime.bpl import DynamicPrompt, parse_bpl
@@ -44,7 +48,7 @@ from bench.runtime.type import (
     ValueInstance,
 )
 from bench.settings import DEBUG, TEST
-from bench.utils.record import RecordBatch
+from bench.utils.record import RecordBatch, RecordList
 
 
 class ProviderKey(models.TextChoices):
@@ -293,13 +297,43 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
 
 
-def _instantiate_model_handle(model) -> ModelHandle:
+def _instantiate_model_handle(model: Model) -> ModelHandle:
     provider = PROVIDERS.get(ProviderKey(model.provider))
     if provider is None:
         raise ValueError(f"unknown provider {model.provider}")
     user_identifier = model.definition.id.hex
     handle = provider.access(model, model.settings, for_user=user_identifier)
     return handle
+
+
+def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
+    if node.type == TypeTag.STRING:
+        return str
+    elif node.type == TypeTag.NUMBER:
+        return float
+    elif node.type == TypeTag.NULL:
+        return type(None)
+    elif node.type == TypeTag.BOOLEAN:
+        return bool
+    elif node.type == TypeTag.ARRAY:
+        return list
+    elif node.type == TypeTag.STRUCT:
+        return typing.TypedDict(
+            node.name,
+            {node.name: _instantiate_py_type(node) for node in node.children},
+        )
+    elif node.type == TypeTag.ENUM:
+        # create 'fake' enum with the given constants pointing to themselves
+        # assumes enums are value enums (not type union enums)
+        # unlike typical python enums our members are raw values (like IntEnum or StrEnum)
+        members = {child.name: child.value for child in node.members}
+        new_enum = type("Enum", (), members)
+        new_enum.__name__ = node.name if node.name else "_AnonEnum"
+        return new_enum
+    elif node.type == TypeTag.LITERAL:
+        return node.value
+    else:
+        raise ValueError(f"unexpected type node: {node}")
 
 
 def _instantiate_code_callable(
@@ -329,7 +363,7 @@ def _instantiate_code_callable(
         if code.language == "python":
             python_code = code.code
         elif code.language == "bpl":
-            prompt = parse_bpl(code.code)
+            prompt = parse_bpl(code.code, context)
             python_code = prompt.python_code
         else:
             raise ValueError(f"unknown code language: {code}")
@@ -361,19 +395,26 @@ def instantiate(
     for name, value in context.items():
         instantiated_context[name] = instantiate(statement=value, idx=idx, proxy=proxy)
 
+    # resolve to underlying content if it's an import
+    if statement.type == StatementType.IMPORT:
+        content = statement.reference.content
+    else:
+        content = statement.content
+
     # instantiate statement itself
-    if isinstance(statement.content, Code):
-        code_callable, prompt = _instantiate_code_callable(statement.content, instantiated_context)
-        instance = CodeInstance(
-            **statement.content.__dict__, code_callable=code_callable, prompt=prompt
-        )
-    elif isinstance(statement.content, Value):
-        instance = ValueInstance(**statement.content.__dict__)
-    elif isinstance(statement.content, Model):
-        model_handle = _instantiate_model_handle(statement.content)
-        instance = ModelInstance(**statement.content.__dict__, handle=model_handle)
-    elif isinstance(statement.content, Dataset):
-        instance = DatasetInstance(**statement.content.__dict__)
+    if isinstance(content, Code):
+        code_callable, prompt = _instantiate_code_callable(content, instantiated_context)
+        instance = CodeInstance(**content.__dict__, code_callable=code_callable, prompt=prompt)
+    elif isinstance(content, Value):
+        instance = ValueInstance(**content.__dict__)
+    elif isinstance(content, Model):
+        model_handle = _instantiate_model_handle(content)
+        instance = ModelInstance(**content.__dict__, handle=model_handle)
+    elif isinstance(content, Dataset):
+        instance = DatasetInstance(**content.__dict__, records_batch=RecordList(content.records))
+    elif isinstance(content, Type):
+        py_type = _instantiate_py_type(content.type_node)
+        instance = TypeInstance(**content.__dict__, py_type=py_type)
     else:
         raise ValueError(f"cannot instantiate {statement}")
     return proxy.proxy(instance)

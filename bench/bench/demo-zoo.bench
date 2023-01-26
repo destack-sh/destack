@@ -15,6 +15,8 @@ task 'identify animal speaker' :: (input: string) -> AnimalType | null "The type
 --- compiled.x ---
 
 import type AnimalType from .zoo
+require openai.std@latest
+import model 'text-curie-001' from openai.std.text
 
 code identify_animal_speaker :: (input: string) -> AnimalType | null:
 ```bpl
