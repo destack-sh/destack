@@ -16,7 +16,6 @@ from bench.language.type import (
     TypeNode,
     Value,
 )
-from bench.runtime.bpl import DynamicPrompt
 from bench.runtime.provider import ModelHandle
 from bench.utils.record import RecordBatch
 
@@ -93,3 +92,18 @@ class CodeInstance(Code, SymbolInstance):
     @property
     def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:
         return self.code_callable
+
+
+@dataclass
+class DynamicPrompt:
+    python_code: str
+    settings: "PromptSettings"
+
+
+@dataclass(slots=True)
+class PromptSettings:
+    model: ModelInstance
+    decoder: typing.Literal["argmax"]
+    temperature: float
+    n: int
+    max_length: int
