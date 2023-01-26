@@ -69,10 +69,11 @@ pragma(model=c['text-davinci-003'])
 # prompt
 "Extract the distinct entities from the text. Be precise and follow the format exactly.\n"
 "Example entities:\n"
-...
+for entity in 'Entity_best samples':
+    "\{'type': {type: EntityType}, 'name': \"{name: string}\"\}\n"
 "Input: \n{input}\n"
-entities = []
 "The contained distinct entities as jsonl:\n"
+entities = []
 for _ in range(MAX_ENTITIES)
     # "[entity: Entity]\n"
     "\{'type': [type: EntityType], 'name': \"[name: string]\"\}\n"
