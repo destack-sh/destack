@@ -1040,14 +1040,7 @@ def resolve(
 
     # resolve references in types (to other statements)
     for statement in idx.statements_by_id.values():
-        # (on all statements that have types in their content)
-        if isinstance(statement.content, Type):
-            resolve_type_references(statement, statement.content.type_node, idx, on_error)
-        elif isinstance(statement.content, Dataset):
-            resolve_type_references(statement, statement.content.type_node, idx, on_error)
-        elif isinstance(statement.content, Task):
-            resolve_type_references(statement, statement.content.type_node, idx, on_error)
-        elif isinstance(statement.content, Code):
+        if isinstance(statement.content, (Type, Dataset, Task, Code)):
             resolve_type_references(statement, statement.content.type_node, idx, on_error)
 
     # check other semantic issues
@@ -1141,6 +1134,8 @@ def resolve_type_references(
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
 ) -> None:
+    """Resolves (but does not impute) type references in a type node."""
+
     def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, statement, cause, **error_args))
 
@@ -1167,13 +1162,12 @@ def resolve_type_references(
     resolved_type = typing.cast(Type, resolved_stmt.underlying_definition.content)
     node.reference = resolved_type.type_node
 
-    # impute type references (also in place)
-    impute_type_references(node, keep_references=True)
+    impute_type_reference(node, keep_references=True)
 
 
-def impute_type_references(node: TypeNode, keep_references: bool = True) -> None:
+def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
     """
-    Replace all references with their definitions.
+    Replace this nodes field in-place with the values of the referenced type node.
     Note that without references, perfect source reconstruction is impossible.
     """
     if node.type != TypeTag.TYPE_REFERENCE:
@@ -1189,9 +1183,6 @@ def impute_type_references(node: TypeNode, keep_references: bool = True) -> None
 
     node.type = node.reference.type
     node.children = node.reference.children
-    if node.children is not None:
-        for node in node.children:
-            impute_type_references(node, keep_references)
     if not keep_references:
         node.reference = None
 

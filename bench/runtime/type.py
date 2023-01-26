@@ -13,7 +13,6 @@ from bench.language.type import (
     StatementPath,
     Task,
     Type,
-    TypeNode,
     Value,
 )
 from bench.runtime.provider import ModelHandle
@@ -44,9 +43,11 @@ class SymbolInstance(StatementInstance):
 
 @dataclass(repr=False)
 class TypeInstance(Type, SymbolInstance):
+    py_type: typing.Any
+
     @property
-    def py_handle(self) -> TypeNode:
-        return self.type_node
+    def py_handle(self) -> typing.Any:
+        return self.py_type
 
 
 @dataclass(repr=False)
