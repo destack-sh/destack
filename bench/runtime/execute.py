@@ -62,7 +62,13 @@ class ProviderKey(models.TextChoices):
 
 CAN_EXEC = DEBUG or TEST
 # TODO @Cleanup: static builtins should be in the run environment context?
-STATIC_BUILTINS = {}
+STATIC_BUILTINS = {
+    # primitive type builtins
+    "string": str,
+    "number": float,
+    "null": None,
+    "boolean": bool,
+}
 
 
 logger = structlog.stdlib.get_logger()
@@ -222,6 +228,8 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         return bool
     elif node.type == TypeTag.ARRAY:
         return list
+    elif node.type == TypeTag.UNION:
+        return typing.Union[tuple(_instantiate_py_type(child) for child in node.children)]
     elif node.type == TypeTag.STRUCT:
         return typing.TypedDict(
             node.name,

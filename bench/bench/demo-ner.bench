@@ -62,21 +62,22 @@ data 'Entity_best samples' :: (name: string, 'type': EntityType):
 "Google","ORG"
 ```
 
-code 'extract_entities' :: (input: string) -> [Entity]:
+code extract_entities :: (input: string) -> [Entity]:
 ```bpl
-pragma(max_length=2048, decoder='argmax')
-pragma(model=c['text-davinci-003'])
+pragma(max_tokens=2048, temperature=0.3)
+pragma(model=context['text-davinci-003'])
 # prompt
 "Extract the distinct entities from the text. Be precise and follow the format exactly.\n"
 "Example entities:\n"
-for entity in 'Entity_best samples':
-    type = entity['type']
+for entity in context['Entity_best samples']:
+    type = entity['type'] # should be EntityType but data isn't typed (yet?)
     name = entity['name']
-    "\{'type': {type}, 'name': \"{name: string}\"\}\n"
+    "\{'type': {type: string}, 'name': \"{name: string}\"\}\n"
 "Input: \n{input}\n"
-"The contained distinct entities as jsonl:\n"
+"The distinct entities contained in the above text as jsonl like above:\n"
+MAX_ENTITIES = 20
 entities = []
-for _ in range(MAX_ENTITIES)
+for _ in range(MAX_ENTITIES):
     # "[entity: Entity]\n"
     "\{'type': [type: EntityType], 'name': \"[name: string]\"\}\n"
     confidence = 0.5 # TODO @Incomplete: get confidence from token reads (holes and entire span)
