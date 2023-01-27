@@ -84,6 +84,7 @@ class ModelInstance(Model, SymbolInstance):
 
 @dataclass(repr=False)
 class CodeInstance(Code, SymbolInstance):
+    transformed_code: str
     code_callable: SyncCodeCallable | AsyncCodeCallable
     prompt: typing.Optional[DynamicPrompt]
 
@@ -99,7 +100,7 @@ class DynamicPrompt:
 
 
 @dataclass(slots=True)
-class DecoderStepSettings:
+class DecoderSettings:
     temperature: float
     max_tokens: int
     stop: list[str]
@@ -108,6 +109,7 @@ class DecoderStepSettings:
 @dataclass(slots=True)
 class PromptSettings:
     model: ModelInstance
+    temperature: float
     max_tokens: int
     stop: list[str]
 

@@ -487,10 +487,6 @@ class Code(SymbolContent):
         else:
             raise ValueError(f"code has no content: {self}")
 
-    @property
-    def is_async(self):
-        return "await " in self.code  # TODO @Cleanup: improve async functions detection
-
 
 @dataclass(repr=False)
 class Requirement(SymbolContent):

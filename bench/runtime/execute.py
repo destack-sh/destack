@@ -9,7 +9,7 @@ from collections import OrderedDict
 from dataclasses import replace
 from random import Random
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from django.db import models
@@ -27,14 +27,20 @@ from bench.language.type import (
     TypeTag,
     Value,
 )
-from bench.runtime.bpl import DynamicPrompt, InferenceContext, parse_bpl, run_bpl_stepwise
+from bench.runtime.bpl import (
+    BPL_BUILTINS,
+    DynamicPrompt,
+    InferenceContext,
+    parse_bpl,
+    run_bpl_stepwise,
+)
 from bench.runtime.inference import LocalHfTransformersInference, OpenAIInference
 from bench.runtime.tracing import Tracer
 from bench.runtime.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
-    DecoderStepSettings,
+    DecoderSettings,
     ModelInstance,
     StatementInstance,
     SymbolInstance,
@@ -145,15 +151,19 @@ class InferenceContextProxy:
         self.tracer.inference_enter(self.context)
         logger.debug("inference.enter", context=self.context)
 
-    async def generate(self, step: DecoderStepSettings) -> str:
+    async def generate(self, step: DecoderSettings) -> str:
         ret = await self.context.generate(step)
         self.tracer.inference_generate(self.context, step)
         logger.debug("inference.generate", step=step, ret=ret)
         return ret
 
-    def end(self):
+    def close(self):
         self.tracer.inference_exit(self.context)
         logger.debug("inference.exit", context=self.context)
+
+    # forward all other methods to the underlying context
+    def __getattr__(self, name):
+        return getattr(self.context, name)
 
 
 class Proxy:
@@ -219,9 +229,8 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         # assumes enums are value enums (not type union enums)
         # unlike typical python enums our members are raw values (like IntEnum or StrEnum)
         members = {child.name: child.value for child in node.members}
-        new_enum = type("Enum", (), members)
-        new_enum.__name__ = node.name if node.name else "_AnonEnum"
-        return new_enum
+        enum_name = node.name or "_anon_" + uuid4().hex
+        return enum.StrEnum(enum_name, members)
     elif node.type == TypeTag.LITERAL:
         return node.value
     else:
@@ -232,7 +241,7 @@ def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, StatementInstance],
     proxy: Proxy | None,
-) -> tuple[SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
+) -> tuple[str, SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
     """
     Instantiates code into a Python callable in the context.
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
@@ -244,7 +253,6 @@ def _instantiate_code_callable(
             raise ValueError(f"unknown builtin in {code}: {code.builtin_id}")
         return builtin, None
 
-    dynamic_builtins = {"random": Random(code.definition.id.hex.encode())}
     unwrapped_context = {name: unwrap(value) for name, value in context.items()}
     dynamic_context = {
         "context": unwrapped_context,
@@ -253,28 +261,32 @@ def _instantiate_code_callable(
         "__statement__": code.definition,
         "__file__": code.definition.file,
         "__module__": code.definition.file.module,
+        "random": Random(code.definition.id.hex.encode()),
     }
 
     # transform to python code if necessary
     prompt = None
     if code.language == "python":
         python_code = code.code
+        locals = {**STATIC_BUILTINS, **dynamic_context}
+        is_async = "await " in python_code  # TODO @Cleanup: detect async python code properly
     elif code.language == "bpl":
-        prompt = parse_bpl(code.code, context)
+        prompt = parse_bpl(code.code, dynamic_context)
         python_code = prompt.python_code
+        locals = {**STATIC_BUILTINS, **BPL_BUILTINS, **dynamic_context}
+        is_async = True
     else:
         raise ValueError(f"unknown code language: {code}")
 
     # create python function from python code
     input_keys = code.type_node.input.keys
     func_name = f"_anon_{code.definition.id.hex}"
-    async_str = "async " if code.is_async else ""
+    async_str = "async " if is_async else ""
     func_params = ", ".join(input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
     code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
-    local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
     try:
-        callable = _execute_code(code_str, local_globals)[func_name]
+        callable = _execute_code(code_str, locals)[func_name]
     except Exception as e:
         # shouldn't error unless it's a python parse issue since we're just defining a function
         raise RunError(RunErrorType.PARSE, code.definition, cause=e) from e
@@ -283,7 +295,7 @@ def _instantiate_code_callable(
     if code.language == "bpl":
         callable = wrap_prompt_callable(callable, prompt, proxy)
 
-    return callable, prompt
+    return python_code, callable, prompt
 
 
 def wrap_prompt_callable(
@@ -292,7 +304,7 @@ def wrap_prompt_callable(
     """Wraps a BPL callable to manage inference contexts."""
 
     @functools.wraps(callable)
-    def wrapped_callable(*args, **kwargs):
+    async def wrapped_callable(*args, **kwargs):
         if prompt.settings.model.provider == ProviderKey.TRANSFORMERS:
             inference = LocalHfTransformersInference(prompt.settings.model)
         elif prompt.settings.model.provider == ProviderKey.OPENAI:
@@ -332,8 +344,15 @@ def instantiate(
 
     # instantiate statement itself
     if isinstance(content, Code):
-        code_callable, prompt = _instantiate_code_callable(content, instantiated_context, proxy)
-        instance = CodeInstance(**content.__dict__, code_callable=code_callable, prompt=prompt)
+        code_str, code_callable, prompt = _instantiate_code_callable(
+            content, instantiated_context, proxy
+        )
+        instance = CodeInstance(
+            **content.__dict__,
+            transformed_code=code_str,
+            code_callable=code_callable,
+            prompt=prompt,
+        )
     elif isinstance(content, Value):
         instance = ValueInstance(**content.__dict__)
     elif isinstance(content, Model):
@@ -384,12 +403,24 @@ def get_context(
     return used_context
 
 
-def execute(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
+def execute_sync(
+    code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
+) -> LiteralValue:
     arguments = arguments or {}
     try:
         return code.py_handle(**arguments)
     except Exception as e:
-        raise RunError(RunErrorType.USER, code.definition, cause=e) from e
+        raise RunError(RunErrorType.RUNTIME, code.definition, cause=e) from e
+
+
+async def execute(
+    code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
+) -> LiteralValue:
+    arguments = arguments or {}
+    try:
+        return await code.py_handle(**arguments)
+    except Exception as e:
+        raise RunError(RunErrorType.RUNTIME, code.definition, cause=e) from e
 
 
 def _summarize_args(arguments: Any) -> str:

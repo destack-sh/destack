@@ -6,7 +6,7 @@ from typing import Any, AsyncGenerator, NamedTuple, Union
 from bench.language import TypeNode
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
-    DecoderStepSettings,
+    DecoderSettings,
     DynamicPrompt,
     ModelInstance,
     PromptSettings,
@@ -28,7 +28,7 @@ class PromptVariable:
     type: Union[str, TypeNode, None]
 
 
-@dataclass(slots=True)
+@dataclass(slots=True)  # not frozen because we need to set the next_* fields
 class PromptHole:
     name: str
     type: Union[str, TypeNode, None]
@@ -36,6 +36,19 @@ class PromptHole:
     next_exit: bool = False
     next_static: Union[str, None] = None
     next_variable: Union[str, None] = None
+
+
+@dataclass(frozen=True, slots=True)
+class PromptPragmaZoneEnter:
+    id: int
+    variables: dict[str, Any]
+    temperature: Union[float, None] = None
+    max_tokens: Union[int, None] = None
+
+
+@dataclass(frozen=True, slots=True)
+class PromptPragmaZoneExit:
+    id: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,21 +81,36 @@ def render_part(part: PromptPart) -> str:
         )
     elif isinstance(part, PromptExit):
         return f"PromptExit(value={part.value})"
+    elif isinstance(part, PromptPragmaZoneEnter):
+        return (
+            f"PromptPragmaZoneEnter("
+            f"id={part.id}, "
+            f"max_tokens={part.max_tokens}, "
+            f"temperature={part.temperature}, "
+        )
+    elif isinstance(part, PromptPragmaZoneExit):
+        return f"PromptPragmaZoneExit(id={part.id})"
     raise ValueError(f"unexpected part type: {part}")
 
 
 # 'builtins' required in context to execute the generated python code
-REQUIRED_BUILTINS = {
+BPL_BUILTINS = {
     "PromptStatic": PromptStatic,
     "PromptVariable": PromptVariable,
     "PromptHole": PromptHole,
     "PromptExit": PromptExit,
+    "PromptPragmaZoneEnter": PromptPragmaZoneEnter,
+    "PromptPragmaZoneExit": PromptPragmaZoneExit,
 }
 
 # Bench prompt language is really just python with pragmas and lonely strings as prompt emits.
 # This is transformed into python code that can be executed with some metadata.
 # pragmas like pragma(n=1, z=Banana())
 PRAGMA_REGEX = re.compile(r"^pragma\((?P<value>.*)\)$", re.MULTILINE)
+# pragma zone begin like pragma_zone
+PRAGMA_ZONE_BEGIN_REGEX = re.compile(r"^(?P<indent> *)pragma_zone\((?P<value>.*)\)$", re.MULTILINE)
+# pragma zone end like pragma_zone_end
+PRAGMA_ZONE_END_REGEX = re.compile(r"^(?P<indent> *)pragma_zone_end\(\)$")
 # returns like return or return 5
 RETURN_REGEX = re.compile(r"^(?P<indent> *)return ?(?P<value>.*)$")
 # emits like "hello" or "hello {name}" or "hello [name: string]"
@@ -120,8 +148,8 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
 
 def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
     """
-    Transforms a bench prompt language statement into a python statement,
-     noting pragmas, imputed emits and replaced returns.
+    Transforms a bench prompt language statement into a python code string
+    that will produce an iterator of prompt parts (i.e. "dynamic prompt").
     """
     lines = bpl.splitlines()
     parsed: list[Union[str, SourcePromptPart]] = []
@@ -139,6 +167,13 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
                 pragmas[key] = eval(value, context)
             parsed.append(f"# pragma: {pragma}")
             continue
+        # TODO @Accuracy: support pragma zones for granular decoder control
+        match = PRAGMA_ZONE_BEGIN_REGEX.match(line)
+        if match:
+            raise NotImplementedError("pragma zones not implemented")
+        match = PRAGMA_ZONE_END_REGEX.match(line)
+        if match:
+            raise NotImplementedError("pragma zones not implemented")
 
         # transform returns
         match = RETURN_REGEX.match(line)
@@ -159,9 +194,6 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
 
         # pass through anything else
         parsed.append(line)
-
-    # fuse adjacent static parts
-    parsed = _fuse_adjacent_static(parsed)
 
     # determine what terminates holes
     for i, source_p in enumerate(parsed):
@@ -188,31 +220,21 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
         else:
             parsed_lines.append(source_p.indent + "yield " + render_part(source_p.part))
     python_code = "\n".join(parsed_lines)
-    return DynamicPrompt(python_code, None)  # TODO @Incomplete: set settings
 
+    # parse settings from pragmas
+    try:
+        temperature = float(pragmas["temperature"])
+        max_tokens = int(pragmas["max_tokens"])
+        model = pragmas["model"]
+        stop = pragmas.get("stop", [])
+        settings = PromptSettings(
+            model=model, temperature=temperature, max_tokens=max_tokens, stop=stop
+        )
+    except ValueError as e:
+        raise ValueError(f"invalid pragma settings: {e}")
 
-def _fuse_adjacent_static(
-    parts: list[Union[str, SourcePromptPart]]
-) -> list[Union[str, SourcePromptPart]]:
-    """Fuses any list of adjacent static prompt parts together in order."""
-    fused = []
-    for source_p in parts:
-        if isinstance(source_p, str):
-            fused.append(source_p)
-        elif isinstance(source_p.part, PromptStatic):
-            if (
-                fused
-                and isinstance(fused[-1], SourcePromptPart)
-                and isinstance(fused[-1].part, PromptStatic)
-            ):
-                fused_content = fused[-1].part.content + source_p.part.content
-                fused[-1] = SourcePromptPart(fused[-1].indent, PromptStatic(fused_content))
-            else:
-                fused.append(source_p)
-        else:
-            fused.append(source_p)
-    parts = fused
-    return parts
+    # parse settings from pragmas
+    return DynamicPrompt(python_code, settings)
 
 
 class InferenceContext:
@@ -227,10 +249,10 @@ class InferenceContext:
         self.id = uuid.uuid4()
 
     def __str__(self):
-        return self.id
+        return f"id={self.id}, parts={len(self.parts)}, length={self.running_length}, settings={self.settings}"
 
     def __repr__(self):
-        return f"<InferenceContext {self.id}>"
+        return f"<InferenceContext {str(self)}>"
 
     @property
     def model(self) -> ModelInstance:
@@ -244,7 +266,11 @@ class InferenceContext:
     def current_prompt(self) -> str:
         return "".join(self.parts)
 
-    async def generate(self, step: DecoderStepSettings) -> str:
+    @property
+    def remaining_tokens(self) -> int:
+        return self.settings.max_tokens - self.running_length
+
+    async def generate(self, step: DecoderSettings) -> str:
         if self.inference is None:
             raise RuntimeError("inference context is closed")
         prefix = self.current_prompt
@@ -260,7 +286,13 @@ class InferenceContext:
 
 async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext) -> Any:
     """Runs inference on a BPL-generated prompt, filling holes step-by-step."""
-    async for part in prompt:
+
+    part = await prompt.asend(None)  # start iteration
+    while True:
+        send_back = None
+        if ctx.remaining_tokens <= 0:
+            raise RuntimeError(f"ran out of tokens: can't proceed with {part}")
+
         if isinstance(part, PromptExit):
             return part.value
         elif isinstance(part, PromptStatic):
@@ -268,17 +300,28 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
         elif isinstance(part, PromptVariable):
             ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation
         elif isinstance(part, PromptHole):
-            # get completion that satisfies this hole
-            # terminate if full valid value for hole and/or separator token
+            # generate to satisfy this hole
+            # figure out where to stop and how to decode
+            stop = []
             if part.next_static:
                 stop = [part.next_static]
             elif part.next_variable:
-                raise NotImplementedError
-            elif part.next_exit:
-                stop = None
-            # TODO @Incomplete: fill prompt hole
-            step_settings = DecoderStepSettings()
-            next_generation = await ctx.generate(step_settings)
+                raise NotImplementedError  # can't handle?
+            generate_settings = DecoderSettings(
+                temperature=ctx.settings.temperature,
+                max_tokens=ctx.remaining_tokens,
+                stop=stop,
+            )
+            # actually generate
+            generated_text = await ctx.generate(generate_settings)
+            # transform into requested type
+            send_back = generated_text
+
+        # send back to prompt and continue
+        try:
+            part = await prompt.asend(send_back)
+        except StopAsyncIteration:
+            break
 
 
 async def run_bpl_backtracking(
@@ -295,7 +338,7 @@ async def run_bpl_backtracking(
             ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation
         elif isinstance(part, PromptHole):
             last_hole = part
-            break  # time to generate
+            break  # switch to generation mode
     if last_hole is None:
         return None  # nothing to do
 

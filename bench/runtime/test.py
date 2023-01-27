@@ -1,6 +1,6 @@
 from bench.language.parse import index_module, parse_string
 from bench.runtime.bpl import parse_bpl
-from bench.runtime.execute import execute, instantiate
+from bench.runtime.execute import execute_sync, instantiate
 
 
 def test_execute_single_code():
@@ -15,7 +15,7 @@ return 5
     )
     idx = index_module(module)
     code = instantiate(idx.statement(".test:function"), idx)
-    assert execute(code) == 5
+    assert execute_sync(code) == 5
 
 
 def test_execute_single_code_with_context():
@@ -36,7 +36,7 @@ return val * context['unwieldy name']
     )
     idx = index_module(module)
     code = instantiate(idx.statement(".test:function"), idx)
-    assert execute(code) == 10
+    assert execute_sync(code) == 10
 
 
 def test_execute_single_code_with_args():
@@ -51,7 +51,7 @@ return 5 * val
     )
     idx = index_module(module)
     code = instantiate(idx.statement(".test:function"), idx)
-    assert execute(code, {"val": 2}) == 10
+    assert execute_sync(code, {"val": 2}) == 10
 
 
 def test_parse_bpl():
