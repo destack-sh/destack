@@ -13,8 +13,8 @@ import structlog
 
 from bench.language.type import TypeNode
 from bench.language.typer import derive_type_from_value
-from bench.runtime.provider import Completion
-from bench.runtime.type import CodeInstance, ModelInstance
+from bench.runtime.bpl import InferenceContext
+from bench.runtime.type import CodeInstance, DecoderStepSettings, ModelInstance
 
 logger = structlog.get_logger(__name__)
 
@@ -34,12 +34,13 @@ class Tracer:
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         pass
 
-    def model_complete_enter(self, model: ModelInstance, prompt: str):
+    def inference_enter(self, ctx: InferenceContext):
         pass
 
-    def model_complete_exit(
-        self, model: ModelInstance, prompt: str, completion: Completion, inference_id: uuid.UUID
-    ):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderStepSettings):
+        pass
+
+    def inference_exit(self, ctx: InferenceContext):
         pass
 
 
@@ -64,15 +65,17 @@ class MultiTracer(Tracer):
         for tracer in reversed(self.tracers):
             tracer.code_exception(code, args, kwargs, exception)
 
-    def model_complete_enter(self, model: ModelInstance, prompt: str):
+    def inference_enter(self, ctx: InferenceContext):
         for tracer in self.tracers:
-            tracer.model_complete_enter(model, prompt)
+            tracer.inference_enter(ctx)
 
-    def model_complete_exit(
-        self, model: ModelInstance, prompt: str, completion: Completion, inference_id: uuid.UUID
-    ):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderStepSettings):
+        for tracer in self.tracers:
+            tracer.inference_generate(ctx, step)
+
+    def inference_exit(self, ctx: InferenceContext):
         for tracer in reversed(self.tracers):
-            tracer.model_complete_exit(model, prompt, completion, inference_id)
+            tracer.inference_exit(ctx)
 
 
 class Trace:
@@ -161,30 +164,23 @@ class ExecutionTracer(Tracer):
         self.tracker(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
-    def model_complete_enter(self, model: ModelInstance, prompt: str):
-        # warn if there is no code on the stack
-        parent_code = self.stacktrace[-1].code if self.stacktrace else None
-        if parent_code is None:
-            logger.warning(
-                "trace.model.complete.enter.missing_parent", model=model, prompt=len(prompt)
-            )
-
-        inputs = {"prompt": prompt}
-        frame = self._create_frame(parent_code, model, inputs)
+    def inference_enter(self, ctx: InferenceContext):
+        frame = self._create_frame(None, ctx.model, {})
         self.stacktrace.append(frame)
         self.tracker(frame)
-        logger.debug("trace.model.complete.enter", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def model_complete_exit(
-        self, model: ModelInstance, prompt: str, completion: Completion, inference_id: uuid.UUID
-    ):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderStepSettings):
+        frame = self.stacktrace[-1]
+        frame.inference_id = ctx.id
+        self.tracker(frame)
+        logger.debug("trace.inference.generate", frame=frame, stackdepth=len(self.stacktrace))
+
+    def inference_exit(self, ctx: InferenceContext):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        # duplicating model inference in execution trace is not ideal but okay for now
-        frame.outputs = {"completion": completion}
-        frame.inference_id = inference_id
         self.tracker(frame)
-        logger.debug("trace.model.complete.exit", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
 
 
 class ValidationError(Exception):

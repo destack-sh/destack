@@ -1,0 +1,8 @@
+# To add, delete or modify a dependency, please update
+# the reference .in file and then execute the following to
+# update the corresponding locked .txt file:
+#  `python -m piptools compile requirements.in requirements-dev.in requirements-compute.in --output-file requirements-compute.txt`
+# Then - optionally - update your installed packages:
+#  `python -m piptools sync requirements-compute.txt`
+
+transformers[torch]==4.26.0
