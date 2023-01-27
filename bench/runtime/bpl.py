@@ -80,7 +80,7 @@ def render_part(part: PromptPart) -> str:
         elif type == "null":
             return "None"
         elif isinstance(type, str):
-            f'source_context["{part.type}"]'
+            return f'source_context["{part.type}"]'
         else:
             return None
 
@@ -104,7 +104,7 @@ def render_part(part: PromptPart) -> str:
         return (
             f"PromptHole("
             f'name="{part.name}", '
-            f"type= {_render_type(part.type)}, "
+            f"type={_render_type(part.type)}, "
             f"next_constant_content={next_constant_content_str}, "
             f"next_variable={next_variable_str}, "
             f"next_exit={part.next_exit}"
