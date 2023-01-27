@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import functools
 import textwrap
+import time
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
@@ -152,9 +153,11 @@ class InferenceContextProxy:
         logger.debug("inference.enter", context=self.context)
 
     async def generate(self, step: DecoderSettings) -> str:
+        start_time = time.time()
         ret = await self.context.generate(step)
-        self.tracer.inference_generate(self.context, step)
-        logger.debug("inference.generate", step=step, ret=ret)
+        duration = time.time() - start_time
+        self.tracer.inference_generate(self.context, step, duration)
+        logger.debug("inference.generate", step=step, ret=ret, duration=duration)
         return ret
 
     def close(self):
@@ -227,10 +230,9 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     elif node.type == TypeTag.ENUM:
         # create 'fake' enum with the given constants pointing to themselves
         # assumes enums are value enums (not type union enums)
-        # unlike typical python enums our members are raw values (like IntEnum or StrEnum)
         members = {child.name: child.value for child in node.members}
         enum_name = node.name or "_anon_" + uuid4().hex
-        return enum.StrEnum(enum_name, members)
+        return enum.Enum(enum_name, members)
     elif node.type == TypeTag.LITERAL:
         return node.value
     else:
@@ -241,7 +243,7 @@ def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, StatementInstance],
     proxy: Proxy | None,
-) -> tuple[str, SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
+) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
     """
     Instantiates code into a Python callable in the context.
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
@@ -251,10 +253,11 @@ def _instantiate_code_callable(
         builtin = STATIC_BUILTINS.get(code.builtin_id)
         if builtin is None:
             raise ValueError(f"unknown builtin in {code}: {code.builtin_id}")
-        return builtin, None
+        return None, builtin, None
 
     unwrapped_context = {name: unwrap(value) for name, value in context.items()}
     dynamic_context = {
+        "source_context": context,
         "context": unwrapped_context,
         # 'inline' all context variables that are valid Python identifiers
         **{name: value for name, value in unwrapped_context.items() if name.isidentifier()},

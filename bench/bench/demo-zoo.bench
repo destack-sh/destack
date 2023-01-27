@@ -16,18 +16,35 @@ task 'identify animal speaker' :: (input: string) -> AnimalType | null "The type
 
 import type AnimalType from .zoo
 require openai.std@latest
-import model 'text-curie-001' from openai.std.text
+import model 'text-davinci-003' from openai.std.text
+
+data samples :: (input: string, target: AnimalType | null):
+"Meta generated samples"
+```csv
+"I'm the greatest mountain creature that headbutts people","goat"
+"Meehh bleh bleh I like grass and eating","sheep"
+"The king of the jungle enters the room, step aside","lion"
+"I just had the most amazing fish for breakfast","penguin"
+"Whatup brah","null"
+```
 
 code identify_animal_speaker :: (input: string) -> AnimalType | null:
 ```bpl
-pragma(model=context["text-curie-001"])
-pragma(temperature=0.5, max_tokens=400)
-"Classify the given input text by the animal type of the author."
-"The possible animal types are: \n"
+pragma(model=context["text-davinci-003"])
+pragma(temperature=0.5, max_tokens=600)
+"Classify the given input text by the animal type of the author.\n"
+"The possible animal types are:\n"
 for animal_type in AnimalType:
-    " - \"{animal_type}\"\n"
-"Do not output an animal type if it's unclear which one it is.\n"
-"The input:\n{input}\n"
-"Animal type (the \"type\" or null): [animal_type: AnimalType]\n"
+    " - \"{animal_type: AnimalType}\"\n"
+"Output \"null\" as the animal type if it's unclear which one it is.\n"
+"Some fun examples:\n"
+for sample in samples:
+    # aliased here because bpl parser can't grok nested brackets yet
+    sample_input = sample['input']
+    sample_target = sample['target']
+    "\"{sample_input}\""
+    " -> \"{sample_target}\"\n"
+"\"{input}\""
+" -> \"[animal_type: AnimalType]\""
 return animal_type
 ```
