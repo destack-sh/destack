@@ -37,7 +37,7 @@ class Tracer:
     def inference_enter(self, ctx: InferenceContext):
         pass
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings, duration: float):
         pass
 
     def inference_exit(self, ctx: InferenceContext):
@@ -69,9 +69,9 @@ class MultiTracer(Tracer):
         for tracer in self.tracers:
             tracer.inference_enter(ctx)
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings, duration: float):
         for tracer in self.tracers:
-            tracer.inference_generate(ctx, step)
+            tracer.inference_generate(ctx, step, duration)
 
     def inference_exit(self, ctx: InferenceContext):
         for tracer in reversed(self.tracers):

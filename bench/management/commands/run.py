@@ -23,8 +23,10 @@ class Command(BaseCommand):
         parser.add_argument("path", type=str)
         # add input string as only variable
         parser.add_argument("statement_path", type=str)
+        # input str
+        parser.add_argument("input", type=str)
 
-    def handle(self, path: str, statement_path: str, **kwargs):
+    def handle(self, path: str, statement_path: str, input: str, **kwargs):
         statement_path = StatementPath(*statement_path.split(":"))
         module = language.Module(id=uuid4(), name=path.rsplit("/", 1)[-1])
         source_file = SourceFile(path=path, content=Path(path).read_text())
@@ -32,6 +34,6 @@ class Command(BaseCommand):
         idx = resolve(lang_module, lookup_in_db_module, on_error=raise_error)
         code = idx.statement(statement_path)
         code_instance = instantiate(code, idx)
-        coro = execute(code_instance, arguments=dict(input="hello world blehhhh!!11!!"))
+        coro = execute(code_instance, arguments=dict(input=input))
         ret = asyncio.get_event_loop().run_until_complete(coro)
         print(ret)

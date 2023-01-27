@@ -1,9 +1,10 @@
+import ast
 import re
 import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, NamedTuple, Union
 
-from bench.language import TypeNode
+from bench.language import TypeNode, TypeTag
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
     DecoderSettings,
@@ -11,13 +12,14 @@ from bench.runtime.type import (
     ModelInstance,
     PromptSettings,
     TextGeneration,
+    TypeInstance,
 )
 
 UNSET = object()
 
 
 @dataclass(frozen=True, slots=True)
-class PromptStatic:
+class PromptConstant:
     content: str
 
 
@@ -34,7 +36,7 @@ class PromptHole:
     type: Union[str, TypeNode, None]
     # what comes after this hole
     next_exit: bool = False
-    next_static: Union[str, None] = None
+    next_constant_content: Union[str, None] = None
     next_variable: Union[str, None] = None
 
 
@@ -56,25 +58,32 @@ class PromptExit:
     value: Union[Any, None, UNSET]
 
 
-PromptFragment = PromptStatic | PromptVariable | PromptHole
+PromptFragment = PromptConstant | PromptVariable | PromptHole
 PromptPart = PromptFragment | PromptExit
 SourcePromptPart = NamedTuple("SourcePromptPart", [("indent", str), ("part", PromptPart)])
 
 
 def render_part(part: PromptPart) -> str:
+    # TODO @Architecture: rendering bpl into strings to parse back seems unnecessary and limited
+    #  Why don't we store BPL as a simple AST? We already have type information here.
+    #  Does it need to be trivially serializable somewhere?
     """Renders a prompt part to a string that evaluates to the same part."""
-    if isinstance(part, PromptStatic):
-        return f'PromptStatic(content="{part.content}")'
+    if isinstance(part, PromptConstant):
+        return f'PromptConstant(content="{part.content}")'
     elif isinstance(part, PromptVariable):
-        return f'PromptVariable(name="{part.name}", value=None, type={part.type})'
+        type_str = f'source_context["{part.type}"]' if part.type else "None"
+        return f"PromptVariable(" f'name="{part.name}", ' f"value={part.name}, " f"type={type_str})"
     elif isinstance(part, PromptHole):
-        next_static_str = f'"{part.next_static}"' if part.next_static else "None"
+        next_constant_content_str = (
+            f'"{part.next_constant_content}"' if part.next_constant_content else "None"
+        )
         next_variable_str = f'"{part.next_variable}"' if part.next_variable else "None"
+        type_str = f'source_context["{part.type}"]' if part.type else "None"
         return (
             f"PromptHole("
             f'name="{part.name}", '
-            f"type={part.type}, "
-            f"next_static={next_static_str}, "
+            f"type= {type_str}, "
+            f"next_constant_content={next_constant_content_str}, "
             f"next_variable={next_variable_str}, "
             f"next_exit={part.next_exit}"
             f")"
@@ -95,7 +104,7 @@ def render_part(part: PromptPart) -> str:
 
 # 'builtins' required in context to execute the generated python code
 BPL_BUILTINS = {
-    "PromptStatic": PromptStatic,
+    "PromptConstant": PromptConstant,
     "PromptVariable": PromptVariable,
     "PromptHole": PromptHole,
     "PromptExit": PromptExit,
@@ -128,7 +137,7 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
         hole_match = EMIT_HOLE_REGEX.search(fragment, pos)
         if hole_match:
             if pos != hole_match.start():
-                yield PromptStatic(fragment[pos : hole_match.start()])
+                yield PromptConstant(fragment[pos : hole_match.start()])
             yield PromptHole(hole_match.group("name"), hole_match.group("type"))
             pos = hole_match.end()
             continue
@@ -136,14 +145,14 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
         variable_match = EMIT_VARIABLE_REGEX.search(fragment, pos)
         if variable_match:
             if pos != variable_match.start():
-                yield PromptStatic(fragment[pos : variable_match.start()])
+                yield PromptConstant(fragment[pos : variable_match.start()])
             yield PromptVariable(variable_match.group("value"), UNSET, variable_match.group("type"))
             pos = variable_match.end()
             continue
 
         break  # nothing matched
     if pos < len(fragment):
-        yield PromptStatic(fragment[pos:])
+        yield PromptConstant(fragment[pos:])
 
 
 def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
@@ -151,6 +160,12 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
     Transforms a bench prompt language statement into a python code string
     that will produce an iterator of prompt parts (i.e. "dynamic prompt").
     """
+    # try parsing as python first to ensure it's valid
+    try:
+        ast.parse(bpl)
+    except SyntaxError as e:
+        raise ValueError(f"invalid python: {e}")
+
     lines = bpl.splitlines()
     parsed: list[Union[str, SourcePromptPart]] = []
     pragmas = {}
@@ -201,12 +216,12 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
             continue
         if not isinstance(source_p.part, PromptHole):
             continue
-        # set 'next' static or variable if immediately following
+        # set 'next' constant or variable if immediately following
         next_part = parsed[i + 1] if i + 1 < len(parsed) else None
         if isinstance(next_part, str):
             continue  # source line
-        elif isinstance(next_part.part, PromptStatic):
-            source_p.part.next_static = next_part.part.content
+        elif isinstance(next_part.part, PromptConstant):
+            source_p.part.next_constant_content = next_part.part.content
         elif isinstance(next_part.part, SourcePromptPart):
             source_p.part.next_variable = next_part.part.name
         elif isinstance(next_part.part, PromptExit) or next_part.part is None:
@@ -217,6 +232,10 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
     for source_p in parsed:
         if isinstance(source_p, str):
             parsed_lines.append(source_p)
+        elif isinstance(source_p.part, PromptHole):
+            parsed_lines.append(
+                source_p.indent + f"{source_p.part.name} = yield " + render_part(source_p.part)
+            )
         else:
             parsed_lines.append(source_p.indent + "yield " + render_part(source_p.part))
     python_code = "\n".join(parsed_lines)
@@ -295,16 +314,24 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
 
         if isinstance(part, PromptExit):
             return part.value
-        elif isinstance(part, PromptStatic):
+        elif isinstance(part, PromptConstant):
             ctx.append(part.content)
         elif isinstance(part, PromptVariable):
-            ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation
+            value = part.value
+            if part.type is not None:
+                # represent target type appropriately
+                if not isinstance(part.type, TypeInstance):
+                    raise ValueError(f"invalid target type: {part}")
+                target_type = part.type.type_node
+                if target_type.type == TypeTag.ENUM:
+                    value = value.value
+            ctx.append(str(value))
         elif isinstance(part, PromptHole):
             # generate to satisfy this hole
             # figure out where to stop and how to decode
             stop = []
-            if part.next_static:
-                stop = [part.next_static]
+            if part.next_constant_content:
+                stop = [part.next_constant_content[:1]]
             elif part.next_variable:
                 raise NotImplementedError  # can't handle?
             generate_settings = DecoderSettings(
@@ -313,9 +340,20 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
                 stop=stop,
             )
             # actually generate
-            generated_text = await ctx.generate(generate_settings)
-            # transform into requested type
-            send_back = generated_text
+            value = await ctx.generate(generate_settings)
+
+            # transform value to target type
+            if not isinstance(part.type, TypeInstance):
+                raise ValueError(f"invalid target type: {part}")
+            target_type = part.type.type_node
+            if value == "null":  # a bit hacky, need 'null' represented
+                value = None
+            # This shouldn't be an elif as it should type check, but that means we have to
+            # parse and handle non-primitive types like unions in BPL directly somehow.
+            elif target_type.type == TypeTag.ENUM:
+                value = part.type.py_type(value)
+
+            send_back = value
 
         # send back to prompt and continue
         try:
@@ -332,7 +370,7 @@ async def run_bpl_backtracking(
     async for part in prompt:
         if isinstance(part, PromptExit):
             return part.value
-        elif isinstance(part, PromptStatic):
+        elif isinstance(part, PromptConstant):
             ctx.append(part.content)
         elif isinstance(part, PromptVariable):
             ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation

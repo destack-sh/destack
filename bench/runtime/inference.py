@@ -67,7 +67,7 @@ class OpenAIInference(Inference):
             "max_tokens": settings.max_tokens,
             "temperature": settings.temperature,
             "stop": settings.stop,
-            "logprobs": 2,
+            "logprobs": 4,
         }
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -84,7 +84,7 @@ class OpenAIInference(Inference):
             generation = TextGeneration(
                 text=output["text"],
                 tokens=output.get("logprobs", {}).get("tokens", None),
-                logits=output.get("logprobs", {}).get("logits", None),
+                logits=output.get("logprobs", {}).get("token_logprobs", None),
             )
             generations.append(generation)
         if len(generations) != 1:
