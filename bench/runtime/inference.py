@@ -2,11 +2,11 @@ import os
 
 import aiohttp
 
-from bench.runtime.type import DecoderStepSettings, ModelInstance, TextGeneration
+from bench.runtime.type import DecoderSettings, ModelInstance, TextGeneration
 
 
 class Inference:
-    async def generate(self, prompt: str, settings: DecoderStepSettings) -> TextGeneration:
+    async def generate(self, prompt: str, settings: DecoderSettings) -> TextGeneration:
         raise NotImplementedError()
 
     def end(self):
@@ -20,7 +20,7 @@ class LocalHfTransformersInference(Inference):
         self.tokenizer = AutoTokenizer.from_pretrained(model.external_name)
         self.hf_model = AutoModelForCausalLM.from_pretrained(model.external_name)
 
-    async def generate(self, prompt: str, settings: DecoderStepSettings) -> TextGeneration:
+    async def generate(self, prompt: str, settings: DecoderSettings) -> TextGeneration:
         from transformers.utils import ModelOutput
 
         input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
@@ -59,7 +59,7 @@ class OpenAIInference(Inference):
     def headers(self):
         return {"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"}
 
-    async def generate(self, prompt: str, settings: DecoderStepSettings) -> TextGeneration:
+    async def generate(self, prompt: str, settings: DecoderSettings) -> TextGeneration:
         request = {
             "model": self.model.external_name,
             "prompt": prompt,

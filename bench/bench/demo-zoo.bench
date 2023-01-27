@@ -20,12 +20,14 @@ import model 'text-curie-001' from openai.std.text
 
 code identify_animal_speaker :: (input: string) -> AnimalType | null:
 ```bpl
+pragma(model=context["text-curie-001"])
+pragma(temperature=0.5, max_tokens=400)
 "Classify the given input text by the animal type of the author."
 "The possible animal types are: \n"
 for animal_type in AnimalType:
-    " - {animal_type}\n"
-"Do not output an animal type if it's unclear.\n"
+    " - \"{animal_type}\"\n"
+"Do not output an animal type if it's unclear which one it is.\n"
 "The input:\n{input}\n"
-"Animal type: [animal_type: AnimalType | null]\n"
+"Animal type (the \"type\" or null): [animal_type: AnimalType]\n"
 return animal_type
 ```

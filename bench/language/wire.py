@@ -303,7 +303,6 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
             definition=statement,
             provider=data.provider,
             external_name=data.external_name,
-            settings=None,
         )
     elif data.symbol_type == SymbolType.VALUE:
         return language.Value(definition=statement, description=data.description, value=data.value)

@@ -14,7 +14,7 @@ import structlog
 from bench.language.type import TypeNode
 from bench.language.typer import derive_type_from_value
 from bench.runtime.bpl import InferenceContext
-from bench.runtime.type import CodeInstance, DecoderStepSettings, ModelInstance
+from bench.runtime.type import CodeInstance, DecoderSettings, ModelInstance
 
 logger = structlog.get_logger(__name__)
 
@@ -37,7 +37,7 @@ class Tracer:
     def inference_enter(self, ctx: InferenceContext):
         pass
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderStepSettings):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings):
         pass
 
     def inference_exit(self, ctx: InferenceContext):
@@ -69,7 +69,7 @@ class MultiTracer(Tracer):
         for tracer in self.tracers:
             tracer.inference_enter(ctx)
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderStepSettings):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings):
         for tracer in self.tracers:
             tracer.inference_generate(ctx, step)
 
@@ -170,7 +170,7 @@ class ExecutionTracer(Tracer):
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderStepSettings):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings):
         frame = self.stacktrace[-1]
         frame.inference_id = ctx.id
         self.tracker(frame)
