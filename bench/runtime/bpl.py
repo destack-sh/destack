@@ -68,21 +68,43 @@ def render_part(part: PromptPart) -> str:
     #  Why don't we store BPL as a simple AST? We already have type information here.
     #  Does it need to be trivially serializable somewhere?
     """Renders a prompt part to a string that evaluates to the same part."""
+
+    def _render_type(type: str) -> str | None:
+        # transform type into a recoverable representation
+        if type == "string":
+            return "str"
+        elif type == "number":
+            return "float"
+        elif type == "boolean":
+            return "bool"
+        elif type == "null":
+            return "None"
+        elif isinstance(type, str):
+            f'source_context["{part.type}"]'
+        else:
+            return None
+
     if isinstance(part, PromptConstant):
-        return f'PromptConstant(content="{part.content}")'
+        # unescape '\{', '\}' since we need them escaped in source content
+        content = part.content.replace("\\{", "{").replace("\\}", "}")
+        return f'PromptConstant(content="{content}")'
     elif isinstance(part, PromptVariable):
-        type_str = f'source_context["{part.type}"]' if part.type else "None"
-        return f"PromptVariable(" f'name="{part.name}", ' f"value={part.name}, " f"type={type_str})"
+        return (
+            f"PromptVariable("
+            f'name="{part.name}", '
+            f"value={part.name}, "
+            f"type={_render_type(part.type)}"
+            f")"
+        )
     elif isinstance(part, PromptHole):
         next_constant_content_str = (
             f'"{part.next_constant_content}"' if part.next_constant_content else "None"
         )
         next_variable_str = f'"{part.next_variable}"' if part.next_variable else "None"
-        type_str = f'source_context["{part.type}"]' if part.type else "None"
         return (
             f"PromptHole("
             f'name="{part.name}", '
-            f"type= {type_str}, "
+            f"type= {_render_type(part.type)}, "
             f"next_constant_content={next_constant_content_str}, "
             f"next_variable={next_variable_str}, "
             f"next_exit={part.next_exit}"
@@ -114,6 +136,8 @@ BPL_BUILTINS = {
 
 # Bench prompt language is really just python with pragmas and lonely strings as prompt emits.
 # This is transformed into python code that can be executed with some metadata.
+# That said, using only regexes for parsing is quick and dirty, should use ast.parse later.
+
 # pragmas like pragma(n=1, z=Banana())
 PRAGMA_REGEX = re.compile(r"^pragma\((?P<value>.*)\)$", re.MULTILINE)
 # pragma zone begin like pragma_zone
@@ -125,7 +149,7 @@ RETURN_REGEX = re.compile(r"^(?P<indent> *)return ?(?P<value>.*)$")
 # emits like "hello" or "hello {name}" or "hello [name: string]"
 EMIT_REGEX = re.compile(r"^(?P<indent>\s*)\"(?P<value>.*?)\"\s*$")
 # emit variables like {name} (classic f-string)
-EMIT_VARIABLE_REGEX = re.compile(r"\{(?P<value>.*?)(: (?P<type>.*?))?}")
+EMIT_VARIABLE_REGEX = re.compile(r"(?<!\\)\{(?P<value>.*?)(: (?P<type>.*?))?}")
 # emit holes like [name: string]
 EMIT_HOLE_REGEX = re.compile(r"\[(?P<name>.*?)(: (?P<type>.*?))?]")
 
@@ -320,11 +344,15 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
             value = part.value
             if part.type is not None:
                 # represent target type appropriately
-                if not isinstance(part.type, TypeInstance):
+                if isinstance(part.type, type):
+                    value = part.type(value)
+                elif isinstance(part.type, TypeInstance):
+                    target_type = part.type.type_node
+                    if target_type.type == TypeTag.ENUM:
+                        value = value.value
+                else:
                     raise ValueError(f"invalid target type: {part}")
-                target_type = part.type.type_node
-                if target_type.type == TypeTag.ENUM:
-                    value = value.value
+
             ctx.append(str(value))
         elif isinstance(part, PromptHole):
             # generate to satisfy this hole
@@ -343,15 +371,19 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
             value = await ctx.generate(generate_settings)
 
             # transform value to target type
-            if not isinstance(part.type, TypeInstance):
-                raise ValueError(f"invalid target type: {part}")
-            target_type = part.type.type_node
             if value == "null":  # a bit hacky, need 'null' represented
                 value = None
             # This shouldn't be an elif as it should type check, but that means we have to
             # parse and handle non-primitive types like unions in BPL directly somehow.
-            elif target_type.type == TypeTag.ENUM:
-                value = part.type.py_type(value)
+            elif isinstance(part.type, type):
+                value = part.type(value)
+            elif isinstance(part.type, TypeInstance):
+                target_type = part.type.type_node
+                if target_type.type == TypeTag.ENUM:
+                    value = value.strip()
+                    value = part.type.py_type(value)
+            else:
+                raise ValueError(f"invalid target type: {part}")
 
             send_back = value
 
