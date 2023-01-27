@@ -39,6 +39,11 @@ providers: list[Provider] = [
         ],
     ),
     Provider("Goose AI", "gooseai", ["fairseq-13b", "fairseq-6b-7b", "gpt-j-20b", "gpt-j-6b"]),
+    Provider(
+        "Transformers",
+        "transformers",
+        ["gpt2", "gpt2-medium", "gpt2-large", "salesforce/codegpt-2B-multi"],
+    ),
 ]
 
 

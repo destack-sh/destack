@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import abc
 import enum
-import hashlib
-import json
-import os
+import functools
 import textwrap
 import typing
-import uuid
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
 from dataclasses import replace
 from random import Random
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -24,7 +20,6 @@ from bench.language.type import (
     Dataset,
     LiteralValue,
     Model,
-    ModelInferenceSettings,
     Statement,
     StatementType,
     Type,
@@ -32,14 +27,14 @@ from bench.language.type import (
     TypeTag,
     Value,
 )
-from bench.runtime.bpl import DynamicPrompt, parse_bpl
-from bench.runtime.openai import OpenAIProvider
-from bench.runtime.provider import Completion, ModelHandle, ModelProvider
+from bench.runtime.bpl import DynamicPrompt, InferenceContext, parse_bpl, run_bpl_stepwise
+from bench.runtime.inference import LocalHfTransformersInference, OpenAIInference
 from bench.runtime.tracing import Tracer
 from bench.runtime.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
+    DecoderStepSettings,
     ModelInstance,
     StatementInstance,
     SymbolInstance,
@@ -48,24 +43,19 @@ from bench.runtime.type import (
     ValueInstance,
 )
 from bench.settings import DEBUG, TEST
-from bench.utils.record import RecordBatch, RecordList
+from bench.utils.record import RecordList
 
 
 class ProviderKey(models.TextChoices):
     OPENAI = "openai"
     GOOSEAI = "gooseai"
     AI21 = "ai21"
+    TRANSFORMERS = "transformers"
 
 
-# TODO @Security: don't pass internal secrets to workers via environment variables
-#  (maybe proxy on the worker pod through a sidecar container.. or something)
-PROVIDERS: dict[ProviderKey, ModelProvider] = {}
-if "OPENAI_API_KEY" in os.environ:
-    PROVIDERS[ProviderKey.OPENAI] = OpenAIProvider(api_key=os.environ["OPENAI_API_KEY"])
-
-STATIC_BUILTINS = {}
-DEFAULT_IMPORTS: dict = {Model: ModelHandle, Dataset: RecordBatch}
 CAN_EXEC = DEBUG or TEST
+# TODO @Cleanup: static builtins should be in the run environment context?
+STATIC_BUILTINS = {}
 
 
 logger = structlog.stdlib.get_logger()
@@ -100,107 +90,6 @@ class RunError(Exception):
 ModelInference = typing.NamedTuple("ModelInference", [("id", UUID), ("output", dict)])
 
 
-class ModelInferenceCache(abc.ABC):
-    async def get(self, model: Model, input: dict, settings: dict) -> ModelInference | None:
-        raise NotImplementedError
-
-    async def set(self, model: Model, input: dict, settings: dict, output: dict) -> None:
-        raise NotImplementedError
-
-
-class ModelInferenceCacheDict(ModelInferenceCache):
-    def __init__(self):
-        self._cache = {}
-
-    # insecure hashing is fine since it's only used for caching
-    # noinspection InsecureHash
-    def key(self, model: Model, input: dict, settings: dict) -> str:
-        settings_str = json.dumps(settings, sort_keys=True)
-        settings_hash = hashlib.md5(settings_str.encode("utf-8")).hexdigest()
-        input_str = json.dumps(input, sort_keys=True)
-        input_hash = hashlib.md5(input_str.encode("utf-8")).hexdigest()
-        return f"{model.definition.id}.{settings_hash}.{input_hash}"
-
-    async def get(self, model: Model, input: dict, settings: dict) -> ModelInference | None:
-        key = self.key(model, input, settings)
-        return self._cache.get(key)
-
-    async def set(self, model: Model, input: dict, settings: dict, output: dict) -> None:
-        key = self.key(model, input, settings)
-        self._cache[key] = ModelInference(id=uuid.uuid4(), output=output)
-
-
-class ModelProxy(ModelHandle):
-    """A worker-side proxy for model tracing and caching."""
-
-    def __init__(
-        self, model: ModelInstance, tracer: Tracer, cache: typing.Optional[ModelInferenceCache]
-    ):
-        self.model = model
-        self.tracer = tracer
-        self.cache = cache
-
-    @property
-    def settings(self) -> ModelInferenceSettings:
-        return self.model.handle.settings
-
-    def configure(self, **settings: dict[str, Any]) -> ModelHandle:
-        new_handle = self.model.handle.configure(**settings)
-        new_model = replace(self.model, handle=new_handle)
-        return ModelProxy(new_model, self.tracer, self.cache)
-
-    async def complete(
-        self, prompt: str, settings: typing.Optional[dict[str, Any]] = None
-    ) -> Union[Completion, list[Completion]]:
-        inference_id = uuid.uuid4()
-        # set up parameters and cache keys
-        if settings is not None:
-            settings_merged = {**self.settings.as_dict(omit_empty=True), **settings}
-        else:
-            settings_merged = self.settings.as_dict(omit_empty=True)
-        log = logger.bind(model=self.model, operation="complete")
-
-        self.tracer.model_complete_enter(self.model, prompt)
-        log.debug("model.complete.enter", prompt=len(prompt))
-
-        # try to get from cache if enabled
-        cached_result = None
-        if self.cache:
-            cached_result = await self.cache.get(
-                model=self.model, input={"prompt": prompt}, settings=settings_merged
-            )
-
-        # cache miss or cache disabled
-        if cached_result is None:
-            log.debug("model.complete.cache.miss")
-            completion = await self.model.handle.complete(prompt)
-
-            # write to cache
-            if self.cache:
-                await self.cache.set(
-                    model=self.model,
-                    input={"prompt": prompt},
-                    settings=settings_merged,
-                    output=completion,
-                )
-            log.debug("model.complete.cache.put")
-        else:
-            completion = cached_result
-            log.debug("model.complete.cache.hit")
-
-        completion_length = (
-            len(completion["text"])
-            if isinstance(completion, dict)
-            else (len(c["text"]) for c in completion)
-        )
-        logger.debug("model.complete.exit", completion=completion_length)
-        self.tracer.model_complete_exit(self.model, prompt, completion, inference_id)
-        return completion
-
-    async def embed(self, text: str, settings: typing.Optional[dict[str, Any]] = None) -> bytes:
-        raise NotImplementedError
-
-
 class SyncCodeProxy:
     """A worker-side proxy for code tracing."""
 
@@ -214,12 +103,12 @@ class SyncCodeProxy:
         log.debug("code.call.enter")
         try:
             result = self.code.code_callable(*args, **kwargs)
-            log.debug("code.call.exit", result=_summarize_args(result))
             self.tracer.code_exit(self.code, args, kwargs, result)
+            log.debug("code.call.exit", result=_summarize_args(result))
             return result
         except Exception as exception:
-            log.debug("code.call.exception", exception=exception)
             self.tracer.code_exception(self.code, args, kwargs, exception)
+            log.debug("code.call.exception", exception=exception)
             raise
 
 
@@ -236,34 +125,42 @@ class AsyncCodeProxy:
         log.debug("code.call.enter")
         try:
             result = await self.code.code_callable(*args, **kwargs)
-            log.debug("code.call.exit", result=_summarize_args(result))
             self.tracer.code_exit(self.code, args, kwargs, result)
+            log.debug("code.call.exit", result=_summarize_args(result))
             return result
         except Exception as exception:
-            log.debug("code.call.exception", exception=exception)
             self.tracer.code_exception(self.code, args, kwargs, exception)
+            log.debug("code.call.exception", exception=exception)
             raise
+
+
+class InferenceContextProxy:
+    """A worker-side proxy for inference tracing."""
+
+    def __init__(self, context: InferenceContext, tracer: Tracer):
+        self.context = context
+        self.tracer = tracer
+        # inference immediately enters on init (maybe not great?)
+        # see InferenceContext for the actual implementation
+        self.tracer.inference_enter(self.context)
+        logger.debug("inference.enter", context=self.context)
+
+    async def generate(self, step: DecoderStepSettings) -> str:
+        ret = await self.context.generate(step)
+        self.tracer.inference_generate(self.context, step)
+        logger.debug("inference.generate", step=step, ret=ret)
+        return ret
+
+    def end(self):
+        self.tracer.inference_exit(self.context)
+        logger.debug("inference.exit", context=self.context)
 
 
 class Proxy:
     """A worker-side proxy for wrapping symbol access."""
 
-    def __init__(self, tracer: Tracer, cache: ModelInferenceCache):
+    def __init__(self, tracer: Tracer):
         self.tracer = tracer
-        self.cache = cache
-
-    def proxy_type(self, type: TypeInstance) -> TypeInstance:
-        return type  # not proxied
-
-    def proxy_dataset(self, dataset: DatasetInstance) -> DatasetInstance:
-        return dataset  # not proxied
-
-    def proxy_value(self, value: ValueInstance) -> ValueInstance:
-        return value  # not proxied
-
-    def proxy_model(self, model: ModelInstance) -> ModelInstance:
-        model_proxy = ModelProxy(model, self.tracer, cache=self.cache)
-        return replace(model, handle=model_proxy)
 
     def proxy_code(self, code: CodeInstance) -> CodeInstance:
         code_proxy_cls = (
@@ -272,15 +169,19 @@ class Proxy:
         code_proxy = code_proxy_cls(code, self.tracer)
         return replace(code, code_callable=code_proxy)
 
-    def proxy(self, symbol: SymbolInstance) -> SymbolInstance:
+    def proxy_inference(self, context: InferenceContext) -> InferenceContext:
+        proxy = InferenceContextProxy(context, self.tracer)
+        return typing.cast(InferenceContext, proxy)  # not same type, but duck-typed
+
+    def proxy_symbol(self, symbol: SymbolInstance) -> SymbolInstance:
         if isinstance(symbol, TypeInstance):
-            return self.proxy_type(symbol)
+            return symbol  # not proxied
         elif isinstance(symbol, DatasetInstance):
-            return self.proxy_dataset(symbol)
+            return symbol  # not proxied
         elif isinstance(symbol, ValueInstance):
-            return self.proxy_value(symbol)
+            return symbol  # not proxied
         elif isinstance(symbol, ModelInstance):
-            return self.proxy_model(symbol)
+            return symbol  # not proxied
         elif isinstance(symbol, CodeInstance):
             return self.proxy_code(symbol)
         else:
@@ -295,15 +196,6 @@ def unwrap(value: StatementInstance):
 
 def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
-
-
-def _instantiate_model_handle(model: Model) -> ModelHandle:
-    provider = PROVIDERS.get(ProviderKey(model.provider))
-    if provider is None:
-        raise ValueError(f"unknown provider {model.provider}")
-    user_identifier = model.definition.id.hex
-    handle = provider.access(model, model.settings, for_user=user_identifier)
-    return handle
 
 
 def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
@@ -339,48 +231,85 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
 def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, StatementInstance],
+    proxy: Proxy | None,
 ) -> tuple[SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
+    """
+    Instantiates code into a Python callable in the context.
+    If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
+    """
     if code.builtin_id:
         # builtins are already defined and are just curried using the arguments
         builtin = STATIC_BUILTINS.get(code.builtin_id)
         if builtin is None:
             raise ValueError(f"unknown builtin in {code}: {code.builtin_id}")
         return builtin, None
+
+    dynamic_builtins = {"random": Random(code.definition.id.hex.encode())}
+    unwrapped_context = {name: unwrap(value) for name, value in context.items()}
+    dynamic_context = {
+        "context": unwrapped_context,
+        # 'inline' all context variables that are valid Python identifiers
+        **{name: value for name, value in unwrapped_context.items() if name.isidentifier()},
+        "__statement__": code.definition,
+        "__file__": code.definition.file,
+        "__module__": code.definition.file.module,
+    }
+
+    # transform to python code if necessary
+    prompt = None
+    if code.language == "python":
+        python_code = code.code
+    elif code.language == "bpl":
+        prompt = parse_bpl(code.code, context)
+        python_code = prompt.python_code
     else:
-        dynamic_builtins = {"random": Random(code.definition.id.hex.encode())}
-        unwrapped_context = {name: unwrap(value) for name, value in context.items()}
-        dynamic_context = {
-            "context": unwrapped_context,
-            # 'inline' all context variables that are valid Python identifiers
-            **{name: value for name, value in unwrapped_context.items() if name.isidentifier()},
-            "__statement__": code.definition,
-            "__file__": code.definition.file,
-            "__module__": code.definition.file.module,
-        }
+        raise ValueError(f"unknown code language: {code}")
 
-        # transform to python code if necessary
-        prompt = None
-        if code.language == "python":
-            python_code = code.code
-        elif code.language == "bpl":
-            prompt = parse_bpl(code.code, context)
-            python_code = prompt.python_code
+    # create python function from python code
+    input_keys = code.type_node.input.keys
+    func_name = f"_anon_{code.definition.id.hex}"
+    async_str = "async " if code.is_async else ""
+    func_params = ", ".join(input_keys)
+    indented_code = textwrap.indent(python_code, " " * 4)
+    code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
+    local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
+    try:
+        callable = _execute_code(code_str, local_globals)[func_name]
+    except Exception as e:
+        # shouldn't error unless it's a python parse issue since we're just defining a function
+        raise RunError(RunErrorType.PARSE, code.definition, cause=e) from e
+
+    # wrap function to manage inference contexts
+    if code.language == "bpl":
+        callable = wrap_prompt_callable(callable, prompt, proxy)
+
+    return callable, prompt
+
+
+def wrap_prompt_callable(
+    callable: AsyncCodeCallable, prompt: DynamicPrompt, proxy: Proxy | None
+) -> AsyncCodeCallable:
+    """Wraps a BPL callable to manage inference contexts."""
+
+    @functools.wraps(callable)
+    def wrapped_callable(*args, **kwargs):
+        if prompt.settings.model.provider == ProviderKey.TRANSFORMERS:
+            inference = LocalHfTransformersInference(prompt.settings.model)
+        elif prompt.settings.model.provider == ProviderKey.OPENAI:
+            inference = OpenAIInference(prompt.settings.model)
         else:
-            raise ValueError(f"unknown code language: {code}")
+            raise ValueError(f"unknown inference provider: {prompt.settings.model.provider}")
 
-        # create python function from python code
-        input_keys = code.type_node.input.keys
-        func_name = f"_anon_{code.definition.id.hex}"
-        async_str = "async " if code.is_async else ""
-        func_params = ", ".join(input_keys)
-        indented_code = textwrap.indent(python_code, " " * 4)
-        code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
-        local_globals = {**STATIC_BUILTINS, **dynamic_builtins, **dynamic_context}
+        ctx = InferenceContext(prompt.settings, inference)
+        if proxy is not None:
+            ctx = proxy.proxy_inference(ctx)
         try:
-            return _execute_code(code_str, local_globals)[func_name], prompt
-        except Exception as e:
-            # shouldn't error unless it's a python parse issue since we're just defining a function
-            raise RunError(RunErrorType.PARSE, code.definition, cause=e) from e
+            generator = callable(*args, **kwargs)
+            return await run_bpl_stepwise(generator, ctx)
+        finally:
+            ctx.close()
+
+    return wrapped_callable
 
 
 def instantiate(
@@ -389,7 +318,7 @@ def instantiate(
     """Instantiate a statement, its context and children (recursively)."""
     context = get_context(statement, idx, used_only=True)
 
-    proxy = proxy or Proxy(tracer=Tracer(), cache=ModelInferenceCacheDict())
+    proxy = proxy or Proxy(tracer=Tracer())
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in context.items():
@@ -403,13 +332,12 @@ def instantiate(
 
     # instantiate statement itself
     if isinstance(content, Code):
-        code_callable, prompt = _instantiate_code_callable(content, instantiated_context)
+        code_callable, prompt = _instantiate_code_callable(content, instantiated_context, proxy)
         instance = CodeInstance(**content.__dict__, code_callable=code_callable, prompt=prompt)
     elif isinstance(content, Value):
         instance = ValueInstance(**content.__dict__)
     elif isinstance(content, Model):
-        model_handle = _instantiate_model_handle(content)
-        instance = ModelInstance(**content.__dict__, handle=model_handle)
+        instance = ModelInstance(**content.__dict__)
     elif isinstance(content, Dataset):
         instance = DatasetInstance(**content.__dict__, records_batch=RecordList(content.records))
     elif isinstance(content, Type):
@@ -417,7 +345,7 @@ def instantiate(
         instance = TypeInstance(**content.__dict__, py_type=py_type)
     else:
         raise ValueError(f"cannot instantiate {statement}")
-    return proxy.proxy(instance)
+    return proxy.proxy_symbol(instance)
 
 
 def get_context(
@@ -478,7 +406,7 @@ def _summarize_args(arguments: Any) -> str:
 
 def _execute_code(code: str, globals: dict[str, Any]) -> dict:
     # remember the globals we started with, do not modify originals
-    globals_local = {**DEFAULT_IMPORTS, **STATIC_BUILTINS, **globals}
+    globals_local = {**globals}
     globals_local_keys_initial = {*globals_local.keys()}
     _do_execute(code, globals_local)
     new_globals = {

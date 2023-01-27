@@ -449,7 +449,6 @@ class Value(SymbolContent):
 class Model(SymbolContent):
     provider: str
     external_name: str
-    settings: Optional[ModelInferenceSettings]
 
     def __content_str__(self):
         return f"provider={self.provider}/{self.external_name}"

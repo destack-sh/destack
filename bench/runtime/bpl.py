@@ -1,10 +1,17 @@
 import re
+import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, NamedTuple, Union
 
 from bench.language import TypeNode
-from bench.runtime.provider import ModelHandle
-from bench.runtime.type import DynamicPrompt, PromptSettings
+from bench.runtime.inference import Inference
+from bench.runtime.type import (
+    DecoderStepSettings,
+    DynamicPrompt,
+    ModelInstance,
+    PromptSettings,
+    TextGeneration,
+)
 
 UNSET = object()
 
@@ -25,7 +32,8 @@ class PromptVariable:
 class PromptHole:
     name: str
     type: Union[str, TypeNode, None]
-    # what comes after this hole (None means not that)
+    # what comes after this hole
+    next_exit: bool = False
     next_static: Union[str, None] = None
     next_variable: Union[str, None] = None
 
@@ -49,7 +57,15 @@ def render_part(part: PromptPart) -> str:
     elif isinstance(part, PromptHole):
         next_static_str = f'"{part.next_static}"' if part.next_static else "None"
         next_variable_str = f'"{part.next_variable}"' if part.next_variable else "None"
-        return f'PromptHole(name="{part.name}", type={part.type}, next_static={next_static_str}, next_variable={next_variable_str})'
+        return (
+            f"PromptHole("
+            f'name="{part.name}", '
+            f"type={part.type}, "
+            f"next_static={next_static_str}, "
+            f"next_variable={next_variable_str}, "
+            f"next_exit={part.next_exit}"
+            f")"
+        )
     elif isinstance(part, PromptExit):
         return f"PromptExit(value={part.value})"
     raise ValueError(f"unexpected part type: {part}")
@@ -161,6 +177,8 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
             source_p.part.next_static = next_part.part.content
         elif isinstance(next_part.part, SourcePromptPart):
             source_p.part.next_variable = next_part.part.name
+        elif isinstance(next_part.part, PromptExit) or next_part.part is None:
+            source_p.part.next_exit = True
 
     # render source lines
     parsed_lines = []
@@ -198,10 +216,25 @@ def _fuse_adjacent_static(
 
 
 class InferenceContext:
-    def __init__(self, settings: PromptSettings):
+    """Append-only context for decoder inference."""
+
+    def __init__(self, settings: PromptSettings, inference: Inference):
         self.settings = settings
+        self.inference: Inference | None = inference
         self.parts: list[str] = []
         self.running_length = 0
+        self.generated_parts: dict[int, TextGeneration] = {}
+        self.id = uuid.uuid4()
+
+    def __str__(self):
+        return self.id
+
+    def __repr__(self):
+        return f"<InferenceContext {self.id}>"
+
+    @property
+    def model(self) -> ModelInstance:
+        return self.settings.model
 
     def append(self, part: str):
         self.parts.append(part)
@@ -211,27 +244,60 @@ class InferenceContext:
     def current_prompt(self) -> str:
         return "".join(self.parts)
 
-    @property
-    def model(self) -> ModelHandle:
-        return self.settings.model.handle
+    async def generate(self, step: DecoderStepSettings) -> str:
+        if self.inference is None:
+            raise RuntimeError("inference context is closed")
+        prefix = self.current_prompt
+        generation = await self.inference.generate(prefix, step)
+        self.generated_parts[self.running_length] = generation
+        self.append(generation.text)
+        return generation.text
+
+    def close(self):
+        self.inference.end()
+        self.inference = None
 
 
-async def run_bpl(
-    generator: AsyncGenerator[PromptFragment | PromptExit, None], ctx: InferenceContext
-) -> Any:
-    """Runs inference on the given BPL-based generator."""
-    async for part in generator:
+async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext) -> Any:
+    """Runs inference on a BPL-generated prompt, filling holes step-by-step."""
+    async for part in prompt:
         if isinstance(part, PromptExit):
             return part.value
         elif isinstance(part, PromptStatic):
             ctx.append(part.content)
         elif isinstance(part, PromptVariable):
-            value_str = str(part.value)
-            # TODO @Incomplete: cast to part.type representation
-            ctx.append(value_str)
+            ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation
         elif isinstance(part, PromptHole):
             # get completion that satisfies this hole
             # terminate if full valid value for hole and/or separator token
-            raise NotImplementedError  # TODO @Incomplete: fill prompt hole
+            if part.next_static:
+                stop = [part.next_static]
+            elif part.next_variable:
+                raise NotImplementedError
+            elif part.next_exit:
+                stop = None
+            # TODO @Incomplete: fill prompt hole
+            step_settings = DecoderStepSettings()
+            next_generation = await ctx.generate(step_settings)
 
-    completion = await ctx.model.complete(ctx.current_prompt)
+
+async def run_bpl_backtracking(
+    prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext
+) -> Any:
+    """Runs inference on a BPL-generated prompt, filling holes in one go and backtracking the parser."""
+    last_hole: PromptHole | None = None
+    async for part in prompt:
+        if isinstance(part, PromptExit):
+            return part.value
+        elif isinstance(part, PromptStatic):
+            ctx.append(part.content)
+        elif isinstance(part, PromptVariable):
+            ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation
+        elif isinstance(part, PromptHole):
+            last_hole = part
+            break  # time to generate
+    if last_hole is None:
+        return None  # nothing to do
+
+    # generate the prompt completion
+    raise NotImplementedError  # TODO @Incomplete: generate prompt completion

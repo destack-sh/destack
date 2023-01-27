@@ -1,9 +1,9 @@
 # To add, delete or modify a dependency, please update
 # the reference .in file and then execute the following to
 # update the corresponding locked .txt file:
-#  `python -m piptools compile requirements-dev.in --rebuild requirements-dev.in`
+#  `python -m piptools compile requirements.in requirements-dev.in --output-file requirements-dev.txt`
 # Then - optionally - update your installed packages:
-#  `python -m piptools sync requirements-dev.in requirements.txt requirements-dev.txt requirements-compute.txt`
+#  `python -m piptools sync requirements-dev.txt`
 
 -c requirements.txt
 
@@ -23,6 +23,3 @@ rich==12.6.0
 types-dj-database-url==1.0.0
 types-psycopg2==2.9.21.2
 types-Pygments==2.13.1.1
-
-# compatibility
-typing-extensions>4.2.0

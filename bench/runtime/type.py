@@ -15,7 +15,6 @@ from bench.language.type import (
     Type,
     Value,
 )
-from bench.runtime.provider import ModelHandle
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
@@ -78,11 +77,9 @@ class ValueInstance(Value, SymbolInstance):
 
 @dataclass(repr=False)
 class ModelInstance(Model, SymbolInstance):
-    handle: ModelHandle
-
     @property
-    def py_handle(self) -> ModelHandle:
-        return self.handle
+    def py_handle(self):
+        return self
 
 
 @dataclass(repr=False)
@@ -102,9 +99,21 @@ class DynamicPrompt:
 
 
 @dataclass(slots=True)
+class DecoderStepSettings:
+    temperature: float
+    max_tokens: int
+    stop: list[str]
+
+
+@dataclass(slots=True)
 class PromptSettings:
     model: ModelInstance
-    decoder: typing.Literal["argmax"]
-    temperature: float
-    n: int
-    max_length: int
+    max_tokens: int
+    stop: list[str]
+
+
+@dataclass
+class TextGeneration:
+    text: str
+    tokens: list[str]
+    logits: list[float]
