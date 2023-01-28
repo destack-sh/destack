@@ -239,9 +239,16 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     elif node.type == TypeTag.ENUM:
         # create 'fake' enum with the given constants pointing to themselves
         # assumes enums are value enums (not type union enums)
+        if node.head_type.type == TypeTag.STRING:
+            enum_cls = enum.StrEnum
+        elif node.head_type.type == TypeTag.NUMBER:
+            enum_cls = enum.IntEnum
+        else:
+            raise ValueError(f"unexpected enum head type: {node.head_type}")
+
         members = {child.name: child.value for child in node.members}
         enum_name = node.name or "_anon_" + uuid4().hex
-        return enum.Enum(enum_name, members)
+        return enum_cls(enum_name, members)
     elif node.type == TypeTag.LITERAL:
         return node.value
     else:
