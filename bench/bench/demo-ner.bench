@@ -72,16 +72,21 @@ pragma(model=context['text-davinci-003'])
 for entity in context['Entity_best samples']:
     type = entity['type'] # should be EntityType but data isn't typed (yet?)
     name = entity['name']
-    "\{'type': {type: string}, 'name': \"{name: string}\"\}\n"
-"Input: \n{input}\n"
-MAX_ENTITIES = 5
-"The most important entities mentioned in the above text as jsonl like above (up to {MAX_ENTITIES}):\n"
+    "\{'type': '{type: string}', 'name': '{name: string}'\}\n"
+"Input: \n\"{input}\"\n"
+"The number of entities mentioned in the above text followed by the entities as jsonl:"
+"\n# entities = [num_entities: number]\n"
 entities = []
-for _ in range(MAX_ENTITIES):
+for i in range(int(num_entities)):
     # "[entity: Entity]\n"
-    "\{'type': [type: EntityType], 'name': \"[name: string]\"\}\n"
+    "\{'type': '[type: EntityType]', 'name': '[name: string]'\}"
+    if i < num_entities - 1:
+        "\n"
     confidence = 0.5 # TODO @Incomplete: get confidence from token reads (holes and entire span)
     entity = Entity(name=name, type=type, confidence=confidence)
     entities.append(entity)
+    # "[cont: ',\n' | '\n']" # TODO @Incomplete: need proper continuation signal
+    # if cont == '\n':
+    #    break
 return entities
 ```
