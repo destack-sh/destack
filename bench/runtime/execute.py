@@ -17,16 +17,16 @@ from django.db import models
 
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
-    Code,
-    Dataset,
+    CodeContent,
+    DatasetContent,
     LiteralValue,
-    Model,
+    ModelContent,
     Statement,
     StatementType,
-    Type,
+    TypeContent,
     TypeNode,
     TypeTag,
-    Value,
+    ValueContent,
 )
 from bench.runtime.bpl import (
     BPL_BUILTINS,
@@ -218,7 +218,7 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
     return {name: self.unwrap(value) for name, value in arguments.items()}
 
 
-def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
+def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     if node.type == TypeTag.STRING:
         return str
     elif node.type == TypeTag.NUMBER:
@@ -230,11 +230,11 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     elif node.type == TypeTag.ARRAY:
         return list
     elif node.type == TypeTag.UNION:
-        return typing.Union[tuple(_instantiate_py_type(child) for child in node.children)]
+        return typing.Union[tuple(instantiate_py_type(child) for child in node.children)]
     elif node.type == TypeTag.STRUCT:
         return typing.TypedDict(
             node.name,
-            {node.name: _instantiate_py_type(node) for node in node.children},
+            {node.name: instantiate_py_type(node) for node in node.children},
         )
     elif node.type == TypeTag.ENUM:
         # create 'fake' enum with the given constants pointing to themselves
@@ -245,7 +245,6 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
             enum_cls = enum.IntEnum
         else:
             raise ValueError(f"unexpected enum head type: {node.head_type}")
-
         members = {child.name: child.value for child in node.members}
         enum_name = node.name or "_anon_" + uuid4().hex
         return enum_cls(enum_name, members)
@@ -256,7 +255,7 @@ def _instantiate_py_type(node: TypeNode) -> type | LiteralValue:
 
 
 def _instantiate_code_callable(
-    code: Code,
+    code: CodeContent,
     context: OrderedDict[str, StatementInstance],
     proxy: Proxy | None,
 ) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
@@ -364,7 +363,7 @@ def instantiate(
         content = statement.content
 
     # instantiate statement itself
-    if isinstance(content, Code):
+    if isinstance(content, CodeContent):
         code_str, code_callable, prompt = _instantiate_code_callable(
             content, instantiated_context, proxy
         )
@@ -374,14 +373,14 @@ def instantiate(
             code_callable=code_callable,
             prompt=prompt,
         )
-    elif isinstance(content, Value):
+    elif isinstance(content, ValueContent):
         instance = ValueInstance(**content.__dict__)
-    elif isinstance(content, Model):
+    elif isinstance(content, ModelContent):
         instance = ModelInstance(**content.__dict__)
-    elif isinstance(content, Dataset):
+    elif isinstance(content, DatasetContent):
         instance = DatasetInstance(**content.__dict__, records_batch=RecordList(content.records))
-    elif isinstance(content, Type):
-        py_type = _instantiate_py_type(content.type_node)
+    elif isinstance(content, TypeContent):
+        py_type = instantiate_py_type(content.type_node)
         instance = TypeInstance(**content.__dict__, py_type=py_type)
     else:
         raise ValueError(f"cannot instantiate {statement}")
@@ -412,7 +411,7 @@ def get_context(
 
     # filter to used context only
     # TODO @Cleanup: improve context visibility filters (beyond just string matching)
-    if isinstance(statement.content, Code):
+    if isinstance(statement.content, CodeContent):
         used_keys = {key for key in available_context if key in statement.content.code}
     else:
         used_keys = set()

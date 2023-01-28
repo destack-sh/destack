@@ -21,7 +21,7 @@ from bench.models.project import Project, ProjectVersion
 
 
 def lookup_in_db_module(
-    requirement: language.Requirement, path: StatementPath
+    requirement: language.RequirementContent, path: StatementPath
 ) -> language.Statement:
     version = lookup_module(requirement.name, requirement.version)
     if version is None:

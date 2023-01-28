@@ -1,16 +1,22 @@
 --- zoo.x ---
 
 enum AnimalType :: string:
-Sheep = `"sheep"`
-Goat = `"goat"`
-HouseCat = `"house cat"`
-Lion = `"lion"`
-Penguin = `"penguin"`
+Sheep = `"sheep"` "The fluffy white cloud"
+Goat = `"goat"` "The proud mountain creature"
+HouseCat = `"house cat"` "The domesticated feline"
+Lion = `"lion"` "The king of the jungle"
+Penguin = `"penguin"` "The majestic bird fish"
 
 task 'identify animal speaker' :: (input: string) -> AnimalType | null "The type of author":
 "Classify the given input text by the animal type of the author."
     expect 'no output if unclear':
     "Do not output an animal type if it's unclear"
+
+import model 'text-davinci' from openai.std.text
+
+compile main:
+    with model 'text-davinci-003'
+    task 'identify animal speaker'
 
 --- compiled.x ---
 

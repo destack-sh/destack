@@ -5,15 +5,15 @@ from dataclasses import dataclass
 
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
-    Code,
-    Dataset,
-    Expectation,
-    Model,
+    CodeContent,
+    DatasetContent,
+    ExpectationContent,
+    ModelContent,
     Module,
     StatementPath,
-    Task,
-    Type,
-    Value,
+    TaskContent,
+    TypeContent,
+    ValueContent,
 )
 from bench.utils.record import RecordBatch
 
@@ -30,7 +30,7 @@ class InstantiatedModule:
 
 @dataclass
 class StatementInstance:
-    pass
+    arguments: dict[str, StatementInstance]
 
 
 @dataclass
@@ -41,7 +41,7 @@ class SymbolInstance(StatementInstance):
 
 
 @dataclass(repr=False)
-class TypeInstance(Type, SymbolInstance):
+class TypeInstance(TypeContent, SymbolInstance):
     py_type: typing.Any
 
     @property
@@ -50,17 +50,18 @@ class TypeInstance(Type, SymbolInstance):
 
 
 @dataclass(repr=False)
-class TaskInstance(Task, SymbolInstance):
-    pass
+class TaskInstance(TaskContent, SymbolInstance):
+    subtasks: list[TaskInstance]
+    expectations: list[ExpectationInstance | DatasetInstance | CodeInstance]
 
 
 @dataclass(repr=False)
-class ExpectationInstance(Expectation, SymbolInstance):
-    pass
+class ExpectationInstance(ExpectationContent, SymbolInstance):
+    expectations: list[ExpectationInstance | DatasetInstance | CodeInstance]
 
 
 @dataclass(repr=False)
-class DatasetInstance(Dataset, SymbolInstance):
+class DatasetInstance(DatasetContent, SymbolInstance):
     records_batch: RecordBatch
 
     @property
@@ -69,21 +70,21 @@ class DatasetInstance(Dataset, SymbolInstance):
 
 
 @dataclass(repr=False)
-class ValueInstance(Value, SymbolInstance):
+class ValueInstance(ValueContent, SymbolInstance):
     @property
     def py_handle(self):
         return self.value
 
 
 @dataclass(repr=False)
-class ModelInstance(Model, SymbolInstance):
+class ModelInstance(ModelContent, SymbolInstance):
     @property
     def py_handle(self):
         return self
 
 
 @dataclass(repr=False)
-class CodeInstance(Code, SymbolInstance):
+class CodeInstance(CodeContent, SymbolInstance):
     transformed_code: str
     code_callable: SyncCodeCallable | AsyncCodeCallable
     prompt: typing.Optional[DynamicPrompt]
