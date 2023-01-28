@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from uuid import uuid4
 
@@ -36,4 +37,4 @@ class Command(BaseCommand):
         code_instance = instantiate(code, idx)
         coro = execute(code_instance, arguments=dict(input=input))
         ret = asyncio.get_event_loop().run_until_complete(coro)
-        print(ret)
+        print(json.dumps(ret, indent=2, default=str))
