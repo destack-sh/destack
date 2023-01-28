@@ -33,7 +33,7 @@ from bench.runtime.bpl import (
     DynamicPrompt,
     InferenceContext,
     parse_bpl,
-    run_bpl_stepwise,
+    run_bpl_controlled,
 )
 from bench.runtime.inference import LocalHfTransformersInference, OpenAIInference
 from bench.runtime.tracing import Tracer
@@ -328,7 +328,7 @@ def wrap_prompt_callable(
             ctx = proxy.proxy_inference(ctx)
         try:
             generator = callable(*args, **kwargs)
-            return await run_bpl_stepwise(generator, ctx)
+            return await run_bpl_controlled(generator, ctx)
         finally:
             ctx.close()
 
