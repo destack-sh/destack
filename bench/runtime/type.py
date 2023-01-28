@@ -103,7 +103,7 @@ class DynamicPrompt:
 class DecoderSettings:
     temperature: float
     max_tokens: int
-    stop: list[str]
+    stop: list[str] | None
 
 
 @dataclass(slots=True)
@@ -111,7 +111,7 @@ class PromptSettings:
     model: ModelInstance
     temperature: float
     max_tokens: int
-    stop: list[str]
+    stop: list[str] | None
 
 
 @dataclass

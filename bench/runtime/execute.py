@@ -34,6 +34,7 @@ from bench.runtime.bpl import (
     InferenceContext,
     parse_bpl,
     run_bpl_controlled,
+    run_bpl_speculative,
 )
 from bench.runtime.inference import LocalHfTransformersInference, OpenAIInference
 from bench.runtime.tracing import Tracer
@@ -163,7 +164,7 @@ class InferenceContextProxy:
         ret = await self.context.generate(step)
         duration = time.time() - start_time
         self.tracer.inference_generate(self.context, step, duration)
-        logger.debug("inference.generate", step=step, ret=ret, duration=duration)
+        logger.debug("inference.generate", step=step, ret=len(ret), duration=duration)
         return ret
 
     def close(self):
@@ -318,8 +319,10 @@ def wrap_prompt_callable(
     async def wrapped_callable(*args, **kwargs):
         if prompt.settings.model.provider == ProviderKey.TRANSFORMERS:
             inference = LocalHfTransformersInference(prompt.settings.model)
+            run = run_bpl_controlled
         elif prompt.settings.model.provider == ProviderKey.OPENAI:
             inference = OpenAIInference(prompt.settings.model)
+            run = run_bpl_speculative
         else:
             raise ValueError(f"unknown inference provider: {prompt.settings.model.provider}")
 
@@ -328,7 +331,7 @@ def wrap_prompt_callable(
             ctx = proxy.proxy_inference(ctx)
         try:
             generator = callable(*args, **kwargs)
-            return await run_bpl_controlled(generator, ctx)
+            return await run(generator, ctx)
         finally:
             ctx.close()
 

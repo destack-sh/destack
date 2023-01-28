@@ -306,7 +306,7 @@ class InferenceContext:
         self.running_length += len(part)
 
     @property
-    def current_prompt(self) -> str:
+    def current_block(self) -> str:
         return "".join(self.parts)
 
     @property
@@ -316,7 +316,7 @@ class InferenceContext:
     async def generate(self, step: DecoderSettings) -> str:
         if self.inference is None:
             raise RuntimeError("inference context is closed")
-        prefix = self.current_prompt
+        prefix = self.current_block
 
         # trim last token if it's a space (not sure if this is the right place)
         ends_in_space = prefix.endswith(" ")
@@ -355,13 +355,11 @@ async def run_bpl_controlled(
             ctx.append(render_variable_repr(part))
         elif isinstance(part, PromptHole):
             # generate to satisfy this hole
-            # figure out where to stop and how to decode
-            generate_settings = get_next_decode_settings(ctx, part)
-            # actually generate
-            value = await ctx.generate(generate_settings)
+            value = await ctx.generate(get_hole_decode_settings(ctx, part))
             # transform value to target type
-            value = parse_hole_repr(part, value)
-            send_back = value
+            send_back = parse_hole_repr(part, value)
+        else:
+            raise RuntimeError(f"unexpected prompt part: {part}")
 
         # send back to prompt and continue
         try:
@@ -370,34 +368,82 @@ async def run_bpl_controlled(
             break
 
 
-async def run_bpl_uncontrolled(
+async def run_bpl_speculative(
     prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext
 ) -> Any:
     """
-    Runs inference on a BPL dynamic prompt, filling as much as possible when one is encountered.
-    We do not assume control of the entire generation and must backtrack to update our context.
-    Useful for inference where we don't own the decoder loop.
+    Runs inference on a BPL dynamic prompt, filling ahead once a hole is encountered (speculative).
+    Useful for inference where we don't own the decoder loop (like with hosted models)
+     as we usually get to fill many holes in one call with minor backtracking to correct.
     """
-    last_hole: PromptHole | None = None
+
+    # forward mode: populate context until we hit a hole
+    first_unfilled_hole: PromptHole | None = None
     async for part in prompt:
         if isinstance(part, PromptExit):
             return part.value
         elif isinstance(part, PromptConstant):
             ctx.append(part.content)
         elif isinstance(part, PromptVariable):
-            ctx.append(str(part.value))  # TODO @Incomplete: cast to part.type representation
+            ctx.append(render_variable_repr(part))
         elif isinstance(part, PromptHole):
-            last_hole = part
-            break  # switch to generation mode
-    if last_hole is None:
+            first_unfilled_hole = part
+            break  # time to generate
+        else:
+            raise RuntimeError(f"unexpected prompt part: {part}")
+    if first_unfilled_hole is None:
         return None  # nothing to do
 
-    # generate the prompt completion
-    raise NotImplementedError  # TODO @Incomplete: generate prompt completion
+    # generate to satisfy this (and potentially future) holes
+    generated = await ctx.generate(
+        DecoderSettings(
+            temperature=ctx.settings.temperature,
+            max_tokens=ctx.remaining_tokens,
+            stop=None,  # no stopping in uncontrolled mode
+        )
+    )
+
+    # backward mode: match generated text to holes
+    # (emulate how controlled step-wise forward would have behaved)
+    pos = 0
+    part = first_unfilled_hole  # resume where we left off
+    while pos < ctx.running_length:
+        send_back = None
+        if isinstance(part, PromptExit):
+            return part.value
+        elif isinstance(part, (PromptConstant, PromptVariable)):
+            # match constant or variable, rewind speculation if mismatch
+            if isinstance(part, PromptConstant):
+                expected = part.content
+            else:
+                expected = render_variable_repr(part)
+            actual = generated[pos : pos + len(expected)]
+            if actual != expected:
+                # TODO @Incomplete: unwind, correct and proceed with forward mode
+                raise ValueError(f"expected constant {expected!r} but got {actual!r} at {pos}")
+            pos += len(expected)
+        elif isinstance(part, PromptHole):
+            # 'decode' from generated text like a decoder would for this hole
+            decode = get_hole_decode_settings(ctx, part)
+            actual = generated[pos : pos + decode.max_tokens]
+            if decode.stop:  # stop at the first stop of the hole
+                min_stop = min(actual.find(s) for s in decode.stop if s in actual)
+                if min_stop >= 0:
+                    actual = actual[:min_stop]
+            # transform value to target type
+            send_back = parse_hole_repr(part, actual)
+            pos += len(actual)
+        else:
+            raise RuntimeError(f"unexpected prompt part: {part}")
+
+        # send back to prompt and continue
+        try:
+            part = await prompt.asend(send_back)
+        except StopAsyncIteration:
+            break
 
 
-def get_next_decode_settings(ctx: InferenceContext, part: PromptHole) -> DecoderSettings:
-    """Gets the decoder settings for the next hole in a dynamic prompt."""
+def get_hole_decode_settings(ctx: InferenceContext, part: PromptHole) -> DecoderSettings:
     stop = []
     if part.next_constant_content:
         stop = [part.next_constant_content[:1]]
@@ -411,6 +457,7 @@ def get_next_decode_settings(ctx: InferenceContext, part: PromptHole) -> Decoder
 
 
 def parse_hole_repr(part: PromptHole, value: str) -> Any:
+    """Parses a string representation of a hole value into its target type."""
     if value == "null":  # a bit hacky, need 'null' represented
         value = None
     # This shouldn't be an elif as it should type check, but that means we have to
@@ -428,7 +475,7 @@ def parse_hole_repr(part: PromptHole, value: str) -> Any:
 
 
 def render_variable_repr(part: PromptVariable) -> str:
-    """Render a variable to a string representation for the prompt (pre-tokenization)."""
+    """Renders a variable to a string representation for the prompt (pre-tokenization)."""
     value = part.value
     if part.type is not None:
         # represent target type appropriately
