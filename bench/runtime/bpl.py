@@ -317,7 +317,16 @@ class InferenceContext:
         if self.inference is None:
             raise RuntimeError("inference context is closed")
         prefix = self.current_prompt
+
+        # trim last token if it's a space (not sure if this is the right place)
+        ends_in_space = prefix.endswith(" ")
+        if ends_in_space:
+            prefix = prefix[:-1]
         generation = await self.inference.generate(prefix, step)
+        # trim space from generation as well
+        # TODO @Cleanup: mangling space for generation messes with generation tokens & logits
+        if ends_in_space and generation.text.startswith(" "):
+            generation.text = generation.text[1:]
         self.generated_parts[self.running_length] = generation
         self.append(generation.text)
         return generation.text
