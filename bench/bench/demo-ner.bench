@@ -74,8 +74,8 @@ for entity in context['Entity_best samples']:
     name = entity['name']
     "\{'type': {type: string}, 'name': \"{name: string}\"\}\n"
 "Input: \n{input}\n"
-"The distinct entities contained in the above text as jsonl like above:\n"
-MAX_ENTITIES = 20
+MAX_ENTITIES = 5
+"The {MAX_ENTITIES} most important entities mentioned in the above text as jsonl like above:\n"
 entities = []
 for _ in range(MAX_ENTITIES):
     # "[entity: Entity]\n"
