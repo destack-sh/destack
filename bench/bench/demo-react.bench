@@ -53,7 +53,7 @@ task 'react' :: (input: string, max_steps: number) -> string | null "Answer":
 enum WikiActionType :: string:
 Search = `"search"` "Get paragraph from wikipedia page"
 Lookup = `"lookup"` "Get next sentence mentioning the string"
-Finish = `"finish"` "Finish the question"
+Finish = `"finish"` "Finish the question (final answer or unanswerable)"
 
 task 'answer with react' :: (question: string) -> string | null "Answer":
 "Answer the given query with the tools at hand"

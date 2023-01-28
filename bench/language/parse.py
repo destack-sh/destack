@@ -15,29 +15,29 @@ import structlog
 from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex_string
 from bench.language.type import (
-    Capability,
-    Code,
-    Compilation,
-    Dataset,
-    Expectation,
+    CapabilityContent,
+    CodeContent,
+    CompilationContent,
+    DatasetContent,
+    ExpectationContent,
     File,
     LiteralValue,
     Module,
-    Requirement,
-    Runconfig,
+    RequirementContent,
+    RunconfigContent,
     Statement,
     StatementModifier,
     StatementPath,
     StatementType,
     SymbolContent,
     SymbolType,
-    Task,
+    TaskContent,
     Token,
     TokenType,
-    Type,
+    TypeContent,
     TypeNode,
     TypeTag,
-    Value,
+    ValueContent,
     parse_statement_path,
 )
 
@@ -83,7 +83,9 @@ def lookup_in_error(*args, **kwargs):
 def parse(
     tokens: list[Token],
     module: Optional[Module] = None,
-    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None] = lookup_in_error,
+    lookup_in_module: Callable[
+        [RequirementContent, StatementPath], Statement | None
+    ] = lookup_in_error,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
     """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
@@ -106,7 +108,7 @@ def parse_string(
     string: str,
     module: Optional[Module] = None,
     lookup_in_module: Callable[
-        [Requirement, StatementPath], Statement | None
+        [RequirementContent, StatementPath], Statement | None
     ] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> Module:
@@ -504,7 +506,7 @@ def _parse_definition_content(
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return Capability(description=description.value, definition=definition)
+        return CapabilityContent(description=description.value, definition=definition)
     elif symbol_type.value == SymbolType.TASK:
         tokens.eat_space()
         tokens.eat_separator("::")
@@ -513,7 +515,7 @@ def _parse_definition_content(
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return Task(description=description.value, type_node=type, definition=definition)
+        return TaskContent(description=description.value, type_node=type, definition=definition)
     elif symbol_type.value == SymbolType.EXPECTATION:
         on_location = None
         if tokens.peek_separator(" "):
@@ -525,7 +527,9 @@ def _parse_definition_content(
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return Expectation(description=description.value, definition=definition, on=on_location)
+        return ExpectationContent(
+            description=description.value, definition=definition, on=on_location
+        )
     elif symbol_type.value == SymbolType.CODE:
         tokens.eat_space()
         tokens.eat_separator("::")
@@ -541,7 +545,7 @@ def _parse_definition_content(
         if lang not in ("python", "bpl"):
             raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
         code_text = _clean_literal_indent(literal.value, tokens.indent_level)
-        return Code(
+        return CodeContent(
             description=description,
             language=lang,  # noqa
             builtin_id=None,
@@ -562,7 +566,7 @@ def _parse_definition_content(
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         records = _parse_dataset_records(tokens, type, lang, literal)
-        return Dataset(
+        return DatasetContent(
             description=description,
             language=lang,
             records=records,
@@ -576,16 +580,16 @@ def _parse_definition_content(
         literal = tokens.eat_literal()
         try:  # parse as json?
             value = json.loads(literal.value)
-            return Value(description=description, value=value, definition=definition)
+            return ValueContent(description=description, value=value, definition=definition)
         except json.JSONDecodeError as e:
             raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.COMPILATION:
         tokens.eat_separator(":")
-        return Compilation(definition=definition)
+        return CompilationContent(definition=definition)
     # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
     elif symbol_type.value == SymbolType.RUNCONFIG:
         tokens.eat_separator(":")
-        return Runconfig(definition=definition)
+        return RunconfigContent(definition=definition)
 
     raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 
@@ -631,7 +635,7 @@ def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
         name=dependency.value,
         **kwargs,
     )
-    definition.content = Requirement(
+    definition.content = RequirementContent(
         name=dependency.value, version=version.value, definition=definition
     )
     return definition
@@ -650,7 +654,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     description = _parse_description_line_optional(tokens)
     struct = parse_type_node_struct(tokens, name=definition.name)
     tokens.eat_newline_or_eos()
-    definition.content = Type(
+    definition.content = TypeContent(
         definition=definition,
         type_node=struct,
         description=description,
@@ -718,7 +722,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         name=name.value,
         **kwargs,
     )
-    definition.content = Type(
+    definition.content = TypeContent(
         definition=definition,
         type_node=enum_type_node,
         description=description,
@@ -899,7 +903,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         modifier=modifier,
         **kwargs,
     )
-    statement.content = Type(definition=statement, description=None, type_node=node)
+    statement.content = TypeContent(definition=statement, description=None, type_node=node)
     return statement
 
 
@@ -999,7 +1003,7 @@ SymbolContentT = typing.TypeVar("SymbolContentT", bound=SymbolContent)
 @dataclass(repr=False)
 class ModuleIndex:
     module: Module
-    requirements_by_name: dict[str, Requirement] = field(default_factory=dict)
+    requirements_by_name: dict[str, RequirementContent] = field(default_factory=dict)
     statements_by_id: dict[UUID, Statement] = field(default_factory=OrderedDict)
     statements_by_path: dict[StatementPath, Statement] = field(default_factory=dict)
     statements_by_parent: dict[UUID, list[Statement]] = field(
@@ -1027,7 +1031,7 @@ class ModuleIndex:
 
 def resolve(
     module: Module,
-    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
+    lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> ModuleIndex:
     """Resolve unresolved references in the given module."""
@@ -1040,7 +1044,7 @@ def resolve(
 
     # resolve references in types (to other statements)
     for statement in idx.statements_by_id.values():
-        if isinstance(statement.content, (Type, Dataset, Task, Code)):
+        if isinstance(statement.content, (TypeContent, DatasetContent, TaskContent, CodeContent)):
             resolve_type_references(statement, statement.content.type_node, idx, on_error)
 
     # check other semantic issues
@@ -1061,7 +1065,7 @@ def check_statement(
     all_children = idx.statements_by_parent[statement.id]
     proper_children = [s for s in all_children if not s.is_parameter and not s.is_argument]
 
-    # check that arguments and parameters have a parent
+    # check that arguments and parameters have a parent (no file-level parameterization yet)
     if (statement.is_argument or statement.is_parameter) and statement.parent is None:
         _error(ET.EXPECTED_PARENT, statement)
 
@@ -1079,7 +1083,7 @@ def check_statement(
 def resolve_statement_reference(
     statement: Statement,
     idx: ModuleIndex,
-    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
+    lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> None:
     def _error(_t: ET, cause: Exception | None = None, **error_args):
@@ -1159,7 +1163,7 @@ def resolve_type_references(
 
     # get type node from statement
     # right now we get the underlying definition directly, ignoring intermediate arguments
-    resolved_type = typing.cast(Type, resolved_stmt.underlying_definition.content)
+    resolved_type = typing.cast(TypeContent, resolved_stmt.underlying_definition.content)
     node.reference = resolved_type.type_node
 
     impute_type_reference(node, keep_references=True)
@@ -1224,6 +1228,8 @@ def index_module(
             if requirement_name in idx.requirements_by_name:
                 _error(ET.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
                 continue
-            idx.requirements_by_name[requirement_name] = typing.cast(Requirement, statement.content)
+            idx.requirements_by_name[requirement_name] = typing.cast(
+                RequirementContent, statement.content
+            )
 
     return idx

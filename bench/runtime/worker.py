@@ -78,7 +78,9 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
     # assumes no conflicting names (checked in resolve)
     dependencies_by_name = {m.module.name: m for m in dependencies}
 
-    def lookup(requirement: language.Requirement, path: StatementPath) -> language.Statement | None:
+    def lookup(
+        requirement: language.RequirementContent, path: StatementPath
+    ) -> language.Statement | None:
         idx: language.ModuleIndex = dependencies_by_name.get(requirement.name)
         if not idx:
             return None

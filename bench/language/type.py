@@ -4,7 +4,7 @@ import enum
 import re
 import typing
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
 from typing import Any, Literal, Optional, Union
@@ -245,6 +245,8 @@ def parse_statement_path(statement_path: str) -> StatementPath:
 
 @dataclass(repr=False)
 class Statement:
+    """A parsed but not interpreted statement in Bench source."""
+
     file: File
     parent: Optional[Statement]
     index: int
@@ -330,21 +332,38 @@ class Statement:
         return str(self.index)
 
 
+SymbolContentT = typing.TypeVar("SymbolContentT", bound="SymbolContent")
+
+
+@dataclass(repr=False)
+class InterpStatement(typing.Generic[SymbolContentT]):
+    """An interpreted - fully resolved, imputed and validated - statement from Bench source."""
+
+    source: Statement
+
+    @property
+    def content(self) -> SymbolContentT:
+        return self.source.content
+
+    @property
+    def modifier(self):
+        return self.source.modifier
+
+    @property
+    def name(self):
+        return self.source.name
+
+    @property
+    def symbol_type(self):
+        return self.source.symbol_type
+
+
 MOCK_STATEMENT = Statement(file=MOCK_FILE, parent=None, index=0, type=StatementType.DEFINITION)
 
 
 @dataclass(repr=False)
 class SymbolContent:
     definition: Statement
-
-
-@dataclass(repr=False)
-class Type(SymbolContent):
-    type_node: TypeNode
-    description: Optional[str]
-
-    def __str__(self):
-        return str(self.type_node)
 
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
@@ -399,7 +418,23 @@ class TypeNode:
 
 
 @dataclass(repr=False)
-class Capability(SymbolContent):
+class TypeContent(SymbolContent):
+    type_node: TypeNode
+    description: Optional[str]
+
+    def __str__(self):
+        return str(self.type_node)
+
+
+@dataclass(repr=False)
+class Type(InterpStatement[TypeContent]):
+    @property
+    def node(self) -> TypeNode:
+        return self.content.type_node
+
+
+@dataclass(repr=False)
+class CapabilityContent(SymbolContent):
     description: str
 
     def __str__(self):
@@ -407,16 +442,25 @@ class Capability(SymbolContent):
 
 
 @dataclass(repr=False)
-class Task(SymbolContent):
-    description: str
+class Capability(InterpStatement[CapabilityContent]):
+    expectations: list[Expectation]
+    tasks: list[Task]
+    capabilities: list[Capability]
+
+
+@dataclass(repr=False)
+class TaskContent(SymbolContent):
     type_node: TypeNode
 
-    def __str__(self):
-        return f"({self.description})"
+
+@dataclass(repr=False)
+class Task(InterpStatement[TaskContent]):
+    expectations: list[Expectation]
+    items: list[Task | Code]
 
 
 @dataclass(repr=False)
-class Expectation(SymbolContent):
+class ExpectationContent(SymbolContent):
     description: str
     on: Optional[str]
 
@@ -426,7 +470,12 @@ class Expectation(SymbolContent):
 
 
 @dataclass(repr=False)
-class Dataset(SymbolContent):
+class Expectation(InterpStatement[ExpectationContent]):
+    expectations: list[Expectation | Task | Dataset | Code]
+
+
+@dataclass(repr=False)
+class DatasetContent(SymbolContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
     records: list[dict[str, LiteralValue]]
     type_node: TypeNode
@@ -437,7 +486,12 @@ class Dataset(SymbolContent):
 
 
 @dataclass(repr=False)
-class Value(SymbolContent):
+class Dataset(InterpStatement[DatasetContent]):
+    pass
+
+
+@dataclass(repr=False)
+class ValueContent(SymbolContent):
     value: LiteralValue
     description: Optional[str]
 
@@ -446,7 +500,12 @@ class Value(SymbolContent):
 
 
 @dataclass(repr=False)
-class Model(SymbolContent):
+class Value(InterpStatement[ValueContent]):
+    pass
+
+
+@dataclass(repr=False)
+class ModelContent(SymbolContent):
     provider: str
     external_name: str
 
@@ -454,24 +513,13 @@ class Model(SymbolContent):
         return f"provider={self.provider}/{self.external_name}"
 
 
-# TODO @Cleanup: ModelInferenceSettings should probably be just a built-in Type.
 @dataclass(repr=False)
-class ModelInferenceSettings:
-    max_tokens: int = 256
-    temperature: float = 0.7
-    top_p: float = 1.0
-    n: int = 1
-    logprobs: int = 2
-    stop: list[str] = field(default_factory=list)
-
-    def as_dict(self, omit_empty: bool) -> dict[str, Any]:
-        return asdict(
-            self, dict_factory=lambda items: {k: v for k, v in items if not omit_empty or v}
-        )
+class Model(InterpStatement[ModelContent]):
+    pass
 
 
 @dataclass(repr=False)
-class Code(SymbolContent):
+class CodeContent(SymbolContent):
     description: Optional[str]
     language: Literal["python"] | Literal["bpl"]
     code: Optional[str]
@@ -489,7 +537,12 @@ class Code(SymbolContent):
 
 
 @dataclass(repr=False)
-class Requirement(SymbolContent):
+class Code(InterpStatement[CodeContent]):
+    pass
+
+
+@dataclass(repr=False)
+class RequirementContent(SymbolContent):
     name: Optional[str]
     version: Optional[str] = None
 
@@ -498,17 +551,33 @@ class Requirement(SymbolContent):
 
 
 @dataclass(repr=False)
-class Runconfig(SymbolContent):
+class Requirement(InterpStatement[RequirementContent]):
+    pass
+
+
+@dataclass(repr=False)
+class RunconfigContent(SymbolContent):
     def __str__(self):
         return ""
 
 
 @dataclass(repr=False)
-class Compilation(SymbolContent):
+class Runconfig(InterpStatement[RunconfigContent]):
+    pass
+
+
+@dataclass(repr=False)
+class CompilationContent(SymbolContent):
     source_mappings: list["SourceMapping"] = field(default_factory=list)
 
     def __str__(self):
         return ""
+
+
+@dataclass(repr=False)
+class Compilation(InterpStatement[CompilationContent]):
+    tasks: list[Task]
+    models: list[Model]
 
 
 @dataclass(repr=False)

@@ -5,7 +5,8 @@ from typing import Optional
 
 import structlog
 
-from bench.language import Statement
+from bench.language import File, Statement
+from bench.language.type import Compilation
 
 logger = structlog.get_logger(__name__)
 
@@ -34,11 +35,5 @@ class CompileError(ValueError):
         super().__init__(self.type.description)
 
 
-class ExpectationStatementType(enum.Enum):
-    """
-    The type of expectation defines its semantics.
-    """
-
-    GENERATE = "generate"
-    TRANSFORM = "transform"
-    VERIFY = "verify"
+async def compile(compilation: Compilation) -> File:
+    raise NotImplementedError

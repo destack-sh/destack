@@ -13,22 +13,22 @@ from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
 from bench.language.type import (
     PRIMITIVE_TYPES,
-    Capability,
-    Code,
-    Compilation,
-    Dataset,
-    Expectation,
-    Requirement,
-    Runconfig,
+    CapabilityContent,
+    CodeContent,
+    CompilationContent,
+    DatasetContent,
+    ExpectationContent,
+    RequirementContent,
+    RunconfigContent,
     StatementPath,
     StatementType,
     SymbolContent,
     SymbolType,
-    Task,
-    Type,
+    TaskContent,
+    TypeContent,
     TypeNode,
     TypeTag,
-    Value,
+    ValueContent,
 )
 
 StmT = StatementType
@@ -98,30 +98,30 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
 
         # special case: inline type node "redefinitions" as definitions
         if statement.symbol_type == SymT.TYPE and cast(
-            Type, statement.content
+            TypeContent, statement.content
         ).type_node.type not in (TypeTag.STRUCT, TypeTag.ENUM):
-            type_str = render_type_node(cast(Type, statement.content).type_node)
+            type_str = render_type_node(cast(TypeContent, statement.content).type_node)
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
         symt_str = statement.symbol_type
         if statement.symbol_type == SymT.REQUIREMENT:
-            postfix = f"@{cast(Requirement, statement.content).version}"
+            postfix = f"@{cast(RequirementContent, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
-            type_str = render_type_node(cast(Task, statement.content).type_node)
+            type_str = render_type_node(cast(TaskContent, statement.content).type_node)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.CODE:
-            type_str = render_type_node(cast(Code, statement.content).type_node)
+            type_str = render_type_node(cast(CodeContent, statement.content).type_node)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATASET:
-            content = cast(Dataset, statement.content)
+            content = cast(DatasetContent, statement.content)
             type_str = render_type_node_struct(content.type_node, ", ")
             postfix = f" :: ({type_str}):"
         elif (
             statement.symbol_type == SymT.TYPE
-            and cast(Type, statement.content).type_node.type == TypeTag.ENUM
+            and cast(TypeContent, statement.content).type_node.type == TypeTag.ENUM
         ):
             # special case for enum types
-            content = cast(Type, statement.content)
+            content = cast(TypeContent, statement.content)
             type_str = render_type_node(content.type_node.head_type)
             symt_str = "enum"
             postfix = f" :: {type_str}:"
@@ -147,25 +147,25 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
 
 
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
-    if isinstance(content, Type):
+    if isinstance(content, TypeContent):
         rendered_type = render_type_node(content.type_node)
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_type}"
         else:
             return rendered_type
-    elif isinstance(content, Capability):
+    elif isinstance(content, CapabilityContent):
         return render_description(content.description)
-    elif isinstance(content, Task):
+    elif isinstance(content, TaskContent):
         return render_description(content.description)
-    elif isinstance(content, Expectation):
+    elif isinstance(content, ExpectationContent):
         return render_description(content.description)
-    elif isinstance(content, Code):
+    elif isinstance(content, CodeContent):
         rendered_code = render_literal(content.code, lang=content.language)
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_code}"
         else:
             return rendered_code
-    elif isinstance(content, Dataset):
+    elif isinstance(content, DatasetContent):
         if content.language == "jsonl":
             records_as_jsonl = "\n".join(json.dumps(record) for record in content.records)
             rendered_data = render_literal(records_as_jsonl, lang="jsonl")
@@ -185,13 +185,13 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
             return f"{render_description(content.description)}\n{rendered_data}"
         else:
             return rendered_data
-    elif isinstance(content, Value):
+    elif isinstance(content, ValueContent):
         rendered_value = render_literal(json.dumps(content.value))
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_value}"
         else:
             return rendered_value
-    elif isinstance(content, (Compilation, Runconfig, Requirement)):
+    elif isinstance(content, (CompilationContent, RunconfigContent, RequirementContent)):
         return None
     else:
         raise ValueError(f"unexpected symbol content type: {type(content)} {content}")

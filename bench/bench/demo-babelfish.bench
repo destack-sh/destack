@@ -14,9 +14,11 @@ task babelify :: InputT -> OutputT:
     var value target_language = `"en"`
 
     with code implementation :: InputT -> OutputT:
+    ```python
         translated = translate(input, to=target_language)
         result = main(translated.content)
         return translate(result, to=translated.source_lang)
+    ```
 
     task 'translate' :: (data: AnyT, to: string "target language") -> Translated:
     "Translate the data into the given language (if needed)"
