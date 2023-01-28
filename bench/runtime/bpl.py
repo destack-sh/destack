@@ -336,8 +336,10 @@ class InferenceContext:
         self.inference = None
 
 
-async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext) -> Any:
-    """Runs inference on a BPL-generated prompt, filling holes step-by-step."""
+async def run_bpl_controlled(
+    prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext
+) -> Any:
+    """Runs inference on a BPL dynamic prompt, filling holes step-by-step in controlled generation."""
 
     part = await prompt.asend(None)  # start iteration
     while True:
@@ -350,50 +352,15 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
         elif isinstance(part, PromptConstant):
             ctx.append(part.content)
         elif isinstance(part, PromptVariable):
-            value = part.value
-            if part.type is not None:
-                # represent target type appropriately
-                if isinstance(part.type, type):
-                    value = part.type(value)
-                elif isinstance(part.type, TypeInstance):
-                    target_type = part.type.type_node
-                    if target_type.type == TypeTag.ENUM:
-                        value = value.value
-                else:
-                    raise ValueError(f"invalid target type: {part}")
-
-            ctx.append(str(value))
+            ctx.append(render_variable_repr(part))
         elif isinstance(part, PromptHole):
             # generate to satisfy this hole
             # figure out where to stop and how to decode
-            stop = []
-            if part.next_constant_content:
-                stop = [part.next_constant_content[:1]]
-            elif part.next_variable:
-                raise NotImplementedError  # can't handle?
-            generate_settings = DecoderSettings(
-                temperature=ctx.settings.temperature,
-                max_tokens=ctx.remaining_tokens,
-                stop=stop,
-            )
+            generate_settings = get_next_decode_settings(ctx, part)
             # actually generate
             value = await ctx.generate(generate_settings)
-
             # transform value to target type
-            if value == "null":  # a bit hacky, need 'null' represented
-                value = None
-            # This shouldn't be an elif as it should type check, but that means we have to
-            # parse and handle non-primitive types like unions in BPL directly somehow.
-            elif isinstance(part.type, type):
-                value = part.type(value)
-            elif isinstance(part.type, TypeInstance):
-                target_type = part.type.type_node
-                if target_type.type == TypeTag.ENUM:
-                    value = value.strip()
-                    value = part.type.py_type(value)
-            else:
-                raise ValueError(f"invalid target type: {part}")
-
+            value = parse_hole_repr(part, value)
             send_back = value
 
         # send back to prompt and continue
@@ -403,10 +370,14 @@ async def run_bpl_stepwise(prompt: AsyncGenerator[PromptPart, None], ctx: Infere
             break
 
 
-async def run_bpl_backtracking(
+async def run_bpl_uncontrolled(
     prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext
 ) -> Any:
-    """Runs inference on a BPL-generated prompt, filling holes in one go and backtracking the parser."""
+    """
+    Runs inference on a BPL dynamic prompt, filling as much as possible when one is encountered.
+    We do not assume control of the entire generation and must backtrack to update our context.
+    Useful for inference where we don't own the decoder loop.
+    """
     last_hole: PromptHole | None = None
     async for part in prompt:
         if isinstance(part, PromptExit):
@@ -423,3 +394,52 @@ async def run_bpl_backtracking(
 
     # generate the prompt completion
     raise NotImplementedError  # TODO @Incomplete: generate prompt completion
+
+
+def get_next_decode_settings(ctx: InferenceContext, part: PromptHole) -> DecoderSettings:
+    """Gets the decoder settings for the next hole in a dynamic prompt."""
+    stop = []
+    if part.next_constant_content:
+        stop = [part.next_constant_content[:1]]
+    elif part.next_variable:
+        raise NotImplementedError  # can't handle?
+    return DecoderSettings(
+        temperature=ctx.settings.temperature,
+        max_tokens=ctx.remaining_tokens,
+        stop=stop,
+    )
+
+
+def parse_hole_repr(part: PromptHole, value: str) -> Any:
+    if value == "null":  # a bit hacky, need 'null' represented
+        value = None
+    # This shouldn't be an elif as it should type check, but that means we have to
+    # parse and handle non-primitive types like unions in BPL directly somehow.
+    elif isinstance(part.type, type):
+        value = part.type(value)
+    elif isinstance(part.type, TypeInstance):
+        target_type = part.type.type_node
+        if target_type.type == TypeTag.ENUM:
+            value = value.strip()
+            value = part.type.py_type(value)
+    else:
+        raise ValueError(f"invalid target type: {part}")
+    return value
+
+
+def render_variable_repr(part: PromptVariable) -> str:
+    """Render a variable to a string representation for the prompt (pre-tokenization)."""
+    value = part.value
+    if part.type is not None:
+        # represent target type appropriately
+        if isinstance(part.type, type):
+            value = part.type(value)
+        elif isinstance(part.type, TypeInstance):
+            target_type = part.type.type_node
+            if target_type.type == TypeTag.ENUM:
+                value = value.value
+        else:
+            raise ValueError(f"invalid target type: {part}")
+    else:
+        value = str(value)
+    return value
