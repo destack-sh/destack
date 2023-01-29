@@ -273,27 +273,20 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         symbol_type=data.symbol_type,
     )
     if statement.type == StatementType.DEFINITION:
-        statement.content = wmap_symbol(data, statement)
+        statement.content = wmap_symbol(data)
     return statement
 
 
-def wmap_symbol(data: StatementData, statement: language.Statement) -> language.SymbolContent:
+def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
-        return language.TypeContent(
-            definition=statement, description=data.description, type_node=data.type_node
-        )
+        return language.TypeContent(description=data.description, type_node=data.type_node)
     elif data.symbol_type == SymbolType.TASK:
-        return language.TaskContent(
-            definition=statement, type_node=data.type_node, description=data.description
-        )
+        return language.TaskContent(type_node=data.type_node, description=data.description)
     elif data.symbol_type == SymbolType.EXPECTATION:
-        return language.ExpectationContent(
-            definition=statement, description=data.description, on=data.on
-        )
+        return language.ExpectationContent(description=data.description, on=data.on)
     elif data.symbol_type == SymbolType.CODE:
         return language.CodeContent(
-            definition=statement,
             description=data.description,
             language=data.lang,
             code=data.code,
@@ -302,40 +295,31 @@ def wmap_symbol(data: StatementData, statement: language.Statement) -> language.
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(
-            definition=statement,
             provider=data.provider,
             external_name=data.external_name,
         )
     elif data.symbol_type == SymbolType.VALUE:
-        return language.ValueContent(
-            definition=statement, description=data.description, value=data.value
-        )
+        return language.ValueContent(description=data.description, value=data.value)
     elif data.symbol_type == SymbolType.CAPABILITY:
-        return language.CapabilityContent(definition=statement, description=data.description)
+        return language.CapabilityContent(description=data.description)
     elif data.symbol_type == SymbolType.DATASET:
         return language.DatasetContent(
-            definition=statement,
             description=data.description,
             language=data.lang,
             type_node=data.type_node,
             records=data.records,
         )
     elif data.symbol_type == SymbolType.COMPILATION:
-        return language.CompilationContent(
-            definition=statement, source_mappings=data.generated_mappings
-        )
+        return language.CompilationContent(source_mappings=data.generated_mappings)
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(
-            definition=statement,
             name=data.reference_module.name if data.reference_module else None,
             version=data.reference_module.version if data.reference_module else None,
         )
     elif data.symbol_type == SymbolType.RUNCONFIG:
-        return language.RunconfigContent(definition=statement)
+        return language.RunconfigContent()
     else:
-        raise ValueError(
-            f"unexpected symbol type {statement.symbol_type} for statement {statement}"
-        )
+        raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 
 
 def render_symbol_type_node(symbol_type: language.SymbolType, type_node: language.TypeNode) -> str:

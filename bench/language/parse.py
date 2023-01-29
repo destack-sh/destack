@@ -493,20 +493,20 @@ def _parse_definition(tokens: TokenParser, **kwargs) -> Statement:
         symbol_type=symbol_type.value,
         **kwargs,
     )
-    definition.content = _parse_definition_content(tokens, symbol_type, name, definition)
+    definition.content = _parse_definition_content(tokens, symbol_type, name)
     tokens.eat_newline_or_eos()
     return definition
 
 
 def _parse_definition_content(
-    tokens: TokenParser, symbol_type: Token, name: Token, definition: Statement
+    tokens: TokenParser, symbol_type: Token, name: Token
 ) -> SymbolContent:
     """Parses the content of a symbol definition including everything after [modifier] [type] [name]"""
     if symbol_type.value == SymbolType.CAPABILITY:
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return CapabilityContent(description=description.value, definition=definition)
+        return CapabilityContent(description=description.value)
     elif symbol_type.value == SymbolType.TASK:
         tokens.eat_space()
         tokens.eat_separator("::")
@@ -515,7 +515,7 @@ def _parse_definition_content(
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return TaskContent(description=description.value, type_node=type, definition=definition)
+        return TaskContent(description=description.value, type_node=type)
     elif symbol_type.value == SymbolType.EXPECTATION:
         on_location = None
         if tokens.peek_separator(" "):
@@ -527,9 +527,7 @@ def _parse_definition_content(
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return ExpectationContent(
-            description=description.value, definition=definition, on=on_location
-        )
+        return ExpectationContent(description=description.value, on=on_location)
     elif symbol_type.value == SymbolType.CODE:
         tokens.eat_space()
         tokens.eat_separator("::")
@@ -551,7 +549,6 @@ def _parse_definition_content(
             builtin_id=None,
             code=code_text,
             type_node=type,
-            definition=definition,
         )
     elif symbol_type.value == SymbolType.DATASET:
         tokens.eat_space()
@@ -571,7 +568,6 @@ def _parse_definition_content(
             language=lang,
             records=records,
             type_node=type,
-            definition=definition,
         )
     elif symbol_type.value == SymbolType.VALUE:
         tokens.eat_separator(":")
@@ -580,16 +576,16 @@ def _parse_definition_content(
         literal = tokens.eat_literal()
         try:  # parse as json?
             value = json.loads(literal.value)
-            return ValueContent(description=description, value=value, definition=definition)
+            return ValueContent(description=description, value=value)
         except json.JSONDecodeError as e:
             raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.COMPILATION:
         tokens.eat_separator(":")
-        return CompilationContent(definition=definition)
+        return CompilationContent(source_mappings=[])
     # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
     elif symbol_type.value == SymbolType.RUNCONFIG:
         tokens.eat_separator(":")
-        return RunconfigContent(definition=definition)
+        return RunconfigContent()
 
     raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 
@@ -635,9 +631,7 @@ def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
         name=dependency.value,
         **kwargs,
     )
-    definition.content = RequirementContent(
-        name=dependency.value, version=version.value, definition=definition
-    )
+    definition.content = RequirementContent(name=dependency.value, version=version.value)
     return definition
 
 
@@ -655,7 +649,6 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     struct = parse_type_node_struct(tokens, name=definition.name)
     tokens.eat_newline_or_eos()
     definition.content = TypeContent(
-        definition=definition,
         type_node=struct,
         description=description,
     )
@@ -720,12 +713,11 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
+        content=TypeContent(
+            type_node=enum_type_node,
+            description=description,
+        ),
         **kwargs,
-    )
-    definition.content = TypeContent(
-        definition=definition,
-        type_node=enum_type_node,
-        description=description,
     )
     return definition
 
@@ -901,9 +893,9 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         symbol_type=SymbolType.TYPE,
         name=name.value,
         modifier=modifier,
+        content=TypeContent(description=None, type_node=node),
         **kwargs,
     )
-    statement.content = TypeContent(definition=statement, description=None, type_node=node)
     return statement
 
 

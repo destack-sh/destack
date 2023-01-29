@@ -4,17 +4,7 @@ import typing
 from dataclasses import dataclass
 
 from bench.language.parse import ModuleIndex
-from bench.language.type import (
-    CodeContent,
-    DatasetContent,
-    ExpectationContent,
-    ModelContent,
-    Module,
-    StatementPath,
-    TaskContent,
-    TypeContent,
-    ValueContent,
-)
+from bench.language.type import Code, Dataset, Model, Module, Type, Value
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
@@ -22,26 +12,20 @@ SyncCodeCallable = typing.Callable[..., typing.Any]
 
 
 @dataclass(repr=False)
-class InstantiatedModule:
+class ModuleInstance:
     module: Module
     index: ModuleIndex
-    instances_by_path: dict[StatementPath, StatementInstance]
 
 
 @dataclass
-class StatementInstance:
-    arguments: dict[str, StatementInstance]
-
-
-@dataclass
-class SymbolInstance(StatementInstance):
+class SymbolInstance:
     @property
     def py_handle(self) -> typing.Any:
         raise NotImplementedError
 
 
 @dataclass(repr=False)
-class TypeInstance(TypeContent, SymbolInstance):
+class TypeInstance(SymbolInstance, Type):
     py_type: typing.Any
 
     @property
@@ -50,18 +34,7 @@ class TypeInstance(TypeContent, SymbolInstance):
 
 
 @dataclass(repr=False)
-class TaskInstance(TaskContent, SymbolInstance):
-    subtasks: list[TaskInstance]
-    expectations: list[ExpectationInstance | DatasetInstance | CodeInstance]
-
-
-@dataclass(repr=False)
-class ExpectationInstance(ExpectationContent, SymbolInstance):
-    expectations: list[ExpectationInstance | DatasetInstance | CodeInstance]
-
-
-@dataclass(repr=False)
-class DatasetInstance(DatasetContent, SymbolInstance):
+class DatasetInstance(SymbolInstance, Dataset):
     records_batch: RecordBatch
 
     @property
@@ -70,21 +43,21 @@ class DatasetInstance(DatasetContent, SymbolInstance):
 
 
 @dataclass(repr=False)
-class ValueInstance(ValueContent, SymbolInstance):
+class ValueInstance(SymbolInstance, Value):
     @property
     def py_handle(self):
         return self.value
 
 
 @dataclass(repr=False)
-class ModelInstance(ModelContent, SymbolInstance):
+class ModelInstance(SymbolInstance, Model):
     @property
     def py_handle(self):
         return self
 
 
 @dataclass(repr=False)
-class CodeInstance(CodeContent, SymbolInstance):
+class CodeInstance(SymbolInstance, Code):
     transformed_code: str
     code_callable: SyncCodeCallable | AsyncCodeCallable
     prompt: typing.Optional[DynamicPrompt]
