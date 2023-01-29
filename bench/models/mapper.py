@@ -31,7 +31,7 @@ def lookup_in_db_module(
     wire_module: wire.ModuleData = read_module(version, path)
     module = wire.wmap_module(wire_module)
     idx = index_module(module)
-    return idx.statements_by_path.get(path)
+    return idx.get_statement(path)
 
 
 def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:

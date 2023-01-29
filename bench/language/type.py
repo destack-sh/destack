@@ -147,6 +147,7 @@ class StatementModifier(models.TextChoices):
 
     VAR = "var"
     WITH = "with"
+    EXTEND = "extend"
     LIKE = "like"
     UNLIKE = "unlike"
     VERIFY = "verify"
@@ -284,6 +285,15 @@ class Statement(Generic[SymbolContentT]):
         return f"<Statement {self}>"
 
     @property
+    def infile_path(self) -> str:
+        parent = self.parent
+        ancestor_parts = [self.name]
+        while parent is not None:
+            ancestor_parts.append(parent.name)
+            parent = parent.parent
+        return ".".join(reversed(ancestor_parts))
+
+    @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent else None
 
@@ -307,7 +317,7 @@ class Statement(Generic[SymbolContentT]):
 
     @property
     def referable(self) -> bool:
-        return self.type in (
+        return self.is_parameter or self.type in (
             StatementType.DEFINITION,
             StatementType.REDEFINITION,
             StatementType.IMPORT,
@@ -324,6 +334,10 @@ class Statement(Generic[SymbolContentT]):
     @property
     def is_argument(self) -> bool:
         return self.modifier == StatementModifier.WITH
+
+    @property
+    def is_extend(self):
+        return self.modifier == StatementModifier.EXTEND
 
     @property
     def is_alias(self):
@@ -346,6 +360,7 @@ class InterpSymbol:
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
     name: str
+    abstract: bool
     modifier: Optional[StatementModifier]
     symbol_type: SymbolType
     context: OrderedDict[str, "InterpSymbol"]

@@ -7,10 +7,11 @@ from typing import Callable
 
 import pytest
 
-from bench.language import TypeContent, TypeTag, parse
+from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, index_module, parse_string
 from bench.language.reconstruct import render
+from bench.language.type import Type
 
 # all .x files in bench/bench
 demo_paths = glob.glob("../bench/*.bench")
@@ -54,10 +55,10 @@ name: string
     )
     idx = index_module(module)
 
-    type_entity_type = idx.symbol(".test:EntityType", TypeContent).type_node
+    type_entity_type = idx.symbol(".test:EntityType", Type).type_node
     assert type_entity_type.type == TypeTag.STRING
 
-    type_entity = idx.symbol(".test:Entity", TypeContent).type_node
+    type_entity = idx.symbol(".test:Entity", Type).type_node
     assert type_entity.child("type").type == TypeTag.STRING
 
 
@@ -76,8 +77,8 @@ entities: [Entity]
     )
     idx = index_module(module)
 
-    type_event = idx.symbol(".test:Event", TypeContent).type_node
+    type_event = idx.symbol(".test:Event", Type).type_node
     assert type_event.child("entities").type == TypeTag.ARRAY
 
-    type_entity = idx.symbol(".test:Entity", TypeContent).type_node
+    type_entity = idx.symbol(".test:Entity", Type).type_node
     assert type_entity.child("first_event").children[0].type == type_event.type
