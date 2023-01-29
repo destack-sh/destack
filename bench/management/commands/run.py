@@ -10,7 +10,7 @@ from django.core.management.base import CommandParser
 
 from bench import language
 from bench.language import lex
-from bench.language.parse import parse, raise_error, resolve
+from bench.language.parse import parse, raise_error, resolve_interp
 from bench.language.type import Code, SourceFile, StatementPath
 from bench.models.mapper import lookup_in_db_module
 from bench.runtime.execute import execute, instantiate
@@ -33,7 +33,7 @@ class Command(BaseCommand):
         module = language.Module(id=uuid4(), name=path.rsplit("/", 1)[-1])
         source_file = SourceFile(path=path, content=Path(path).read_text())
         lang_module = parse(lex(source_file), module, lookup_in_db_module)
-        idx = resolve(lang_module, lookup_in_db_module, on_error=raise_error)
+        idx = resolve_interp(lang_module, lookup_in_db_module, on_error=raise_error)
         code = idx.symbol(statement_path, Code)
         code_instance: CodeInstance = instantiate(code, idx)
         coro = execute(code_instance, arguments=dict(input=input))
