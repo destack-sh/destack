@@ -21,6 +21,7 @@ from bench.language.type import (
     DatasetContent,
     ExpectationContent,
     File,
+    InterpSymbol,
     LiteralValue,
     Module,
     RequirementContent,
@@ -98,8 +99,11 @@ def parse(
     files = preparse(tokens, module, on_error=on_error)
     module.files.extend(files)
 
-    # second pass: resolve statements into AST
-    resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
+    # second pass: resolve statement references
+    idx = resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
+
+    # third pass: create symbols
+    interp(idx)
 
     return module
 
@@ -119,7 +123,7 @@ def parse_string(
 class TokenParser:
     """
     Iterates over the source stream with a peek window of 1 token.
-    Automatically matches (and ignores) indentation at the set level (may be changed).
+    Automatically matches (and ignores) indentation at the set level (mutable).
     """
 
     def __init__(self, tokens: list[Token], start_pos: int, indent_level: int):
@@ -333,8 +337,9 @@ class FileParseState:
     def add_statement(self, statement: Statement):
         self.file.statements.append(statement)
 
-        self.ancestors = self.ancestors[: self.indent]  # wipe ancestors with higher indent
-        self.ancestors += [statement]  # replace ancestor at current indent
+        if statement.type not in (StatementType.BLANK, StatementType.COMMENT):
+            self.ancestors = self.ancestors[: self.indent]  # wipe ancestors with higher indent
+            self.ancestors += [statement]  # replace ancestor at current indent
 
         parent_id = statement.parent.id if statement.parent else None
         self.statements_by_parent[parent_id].append(statement)
@@ -990,35 +995,64 @@ StmT = StatementType
 SymT = SymbolType
 
 SymbolContentT = typing.TypeVar("SymbolContentT", bound=SymbolContent)
+SymbolT = typing.TypeVar("SymbolT", bound=InterpSymbol)
+
+
+@dataclass(repr=False)
+class Scope:
+    """A scope in which statements are defined. May be at file- or statement-level."""
+
+    name: str
+    id: UUID  # id from file or statement
+    parent: Scope | None
+    file: File
+    statement: Statement | None
+    statements: OrderedDict[str, Statement] = field(default_factory=OrderedDict)
+    symbols: OrderedDict[str, InterpSymbol] = field(default_factory=OrderedDict)
+
+    def lookup_statement(self, name: str) -> Statement | None:
+        """Lookup the statement recursively in this scope and its parents."""
+        if name in self.statements:
+            return self.statements[name]
+        if self.parent is not None:
+            return self.parent.lookup_statement(name)
+        return None
+
+    def __str__(self):
+        return f"{self.name} ({'file' if self.statement is None else 'statement'})"
+
+    def __repr__(self):
+        return f"<Scope {self.name}>"
 
 
 @dataclass(repr=False)
 class ModuleIndex:
+    """The index into a module's resolved and interpreted symbols and statements."""
+
     module: Module
     requirements_by_name: dict[str, RequirementContent] = field(default_factory=dict)
     statements_by_id: dict[UUID, Statement] = field(default_factory=OrderedDict)
-    statements_by_path: dict[StatementPath, Statement] = field(default_factory=dict)
-    statements_by_parent: dict[UUID, list[Statement]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    scopes: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
+    scopes_by_name: OrderedDict[str, Scope] = field(default_factory=OrderedDict)
 
-    def statement(self, path: StatementPath | str) -> Statement:
+    def add_scope(self, scope: Scope) -> None:
+        self.scopes[scope.id] = scope
+        self.scopes_by_name[scope.name] = scope
+
+    def get_statement(self, path: StatementPath | str) -> Statement | None:
         if isinstance(path, str):
             path = parse_statement_path(path)
-        return self.statements_by_path[path]
+        scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
+        if scope is None:
+            return None
+        return scope.statements.get(path.name)
 
     def symbol(
-        self, path: StatementPath | str, symbol_t: typing.Type[SymbolContentT]
-    ) -> SymbolContentT:
-        statement = self.statement(path)
-        if statement.content is None:
-            raise ValueError(f"statement {statement} has no content")
-        if not isinstance(statement.content, symbol_t):
-            raise ValueError(f"statement {statement} has content of type {type(statement.content)}")
-        return typing.cast(SymbolContentT, statement.content)
-
-    def children(self, statement: Statement) -> list[Statement]:
-        return self.statements_by_parent[statement.id]
+        self, path: StatementPath | str, symbol_t: typing.Type[SymbolT] | None = None
+    ) -> SymbolT:
+        if isinstance(path, str):
+            path = parse_statement_path(path)
+        raise NotImplementedError
 
 
 def resolve(
@@ -1039,37 +1073,7 @@ def resolve(
         if isinstance(statement.content, (TypeContent, DatasetContent, TaskContent, CodeContent)):
             resolve_type_references(statement, statement.content.type_node, idx, on_error)
 
-    # check other semantic issues
-    # TODO @Cleanup: not sure where to put non-resolution semantic checking
-    #  And what about lints and such? Probably separate.. but where?
-    for statement in idx.statements_by_id.values():
-        check_statement(statement, idx, on_error)
-
     return idx
-
-
-def check_statement(
-    statement: Statement, idx: ModuleIndex, on_error: Callable[[SemanticError], None]
-):
-    def _error(_t: ET, statement: Statement, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, statement, cause, **error_args))
-
-    all_children = idx.statements_by_parent[statement.id]
-    proper_children = [s for s in all_children if not s.is_parameter and not s.is_argument]
-
-    # check that arguments and parameters have a parent (no file-level parameterization yet)
-    if (statement.is_argument or statement.is_parameter) and statement.parent is None:
-        _error(ET.EXPECTED_PARENT, statement)
-
-    # check that compile definition has proper children and model parameters
-    if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.COMPILATION:
-        if len(proper_children) == 0:
-            _error(ET.EXPECTED_PROPER_CHILDREN, statement)
-
-    # check that runconfig has arguments
-    if statement.type == StmT.DEFINITION and statement.symbol_type == SymT.RUNCONFIG:
-        if len(proper_children) == 0:
-            _error(ET.EXPECTED_PROPER_CHILDREN, statement, type="any")
 
 
 def resolve_statement_reference(
@@ -1085,21 +1089,23 @@ def resolve_statement_reference(
         return  # need not be resolved
 
     # normalize path to resolve file-local references (with .)
-    normalized_path = statement.reference
-    if statement.reference.path == ".":  # current file
-        normalized_path = StatementPath(
-            f".{statement.file.path_without_extension}", statement.reference.name
-        )
-
     # :StatementReferencePath
-    if normalized_path.path.startswith("."):  # resolve in local module
-        resolved = idx.statements_by_path.get(normalized_path)
+    reference_path, reference_name = statement.reference
+    if reference_path == ".":  # resolve relative to this statement
+        statement_scope = idx.scopes[statement.id]
+        resolved = statement_scope.lookup_statement(reference_name)
         if resolved is None:
-            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
+            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
             return
-    else:  # resolve in external module
+    elif reference_path.startswith("."):  # resolve by "absolute" path in local module
+        parent_scope = idx.scopes_by_name[reference_path[1:]]
+        resolved = parent_scope.lookup_statement(reference_name)
+        if resolved is None:
+            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
+            return
+    else:  # resolve by absolute path in external module
         # get source requirement
-        source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(normalized_path.path)
+        source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference_path)
         if source is None:  # (should be caught in parse)
             raise RuntimeError(f"invalid import source at {statement}")
         requirement_name = f"{source.group('owner')}.{source.group('name')}"
@@ -1108,7 +1114,7 @@ def resolve_statement_reference(
             _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
             return
         # localize path to requirement module
-        localized_path = StatementPath("." + source.group("path"), normalized_path.name)
+        localized_path = StatementPath("." + source.group("path"), reference_name)
         try:  # use module lookup to resolve
             resolved = lookup_in_module(requirement, localized_path)
         except Exception as e:
@@ -1144,10 +1150,9 @@ def resolve_type_references(
         return  # nothing to resolve
 
     # normalize path to statement
-    normalized_path = StatementPath("." + statement.file.path_without_extension, node.reference)
-    resolved_stmt = idx.statements_by_path.get(normalized_path)
+    resolved_stmt = idx.scopes[statement.id].lookup_statement(node.reference)
     if resolved_stmt is None or resolved_stmt.underlying_definition is None:
-        _error(ET.UNDEFINED_LOCAL_REFERENCE, path=normalized_path)
+        _error(ET.UNDEFINED_LOCAL_REFERENCE, path=node.reference)
         return
     if resolved_stmt.symbol_type != SymT.TYPE:
         _error(ET.REFERENCE_TYPE_MISMATCH, type=SymT.TYPE, resolved=resolved_stmt)
@@ -1187,31 +1192,59 @@ def index_module(
     module: Module,
     on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise",
 ) -> ModuleIndex:
+    """Index the module's scopes and requirements."""
     if on_error == "raise":
         on_error = raise_error
 
-    def _error(_t: ET, statement: Statement, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, statement, cause, **error_args))
+    def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
+        on_error(SemanticError(_t, subject, cause, **error_args))
 
     idx = ModuleIndex(module=module)
 
-    # collect files and statements
+    # create scopes for files and statements (but don't populate nested statements them yet)
+    statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
     for file in module.files:
+        file_scope = Scope(
+            id=file.id, name=file.path_without_extension, file=file, parent=None, statement=None
+        )
+        if file_scope.name in idx.scopes_by_name:
+            _error(ET.AMBIGUOUS_DEFINITION, file, path=file_scope.name)
+            continue
+        idx.add_scope(file_scope)
+
         for statement in file.statements:
+            if statement.name is None:
+                continue  # ignore blanks and comments
+            # create scope for every regular statement
             idx.statements_by_id[statement.id] = statement
-            if statement.parent is not None:
-                idx.statements_by_parent[statement.parent.id].append(statement)
-            if statement.referable and statement.parent is None:
-                # TODO @Feature: make non-top-level statements referable
-                #  Will need to change resolution with StatementPaths in indexed module.
-                statement_path = StatementPath(f".{file.path_without_extension}", statement.name)
-                if statement_path in idx.statements_by_path:
-                    _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_path)
-                    continue
-                idx.statements_by_path[statement_path] = statement
-    # sort statements by parent by index (for deterministic resolution)
-    for statements in idx.statements_by_parent.values():
+            statements_by_parent_id[statement.parent_id or statement.file.id].append(statement)
+            path = file_scope.name + ":" + statement.infile_path
+            statement_scope = Scope(
+                id=statement.id,
+                name=path,
+                file=file,
+                parent=file_scope,
+                statement=statement,
+            )
+            if statement_scope.name in idx.scopes_by_name:
+                _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_scope.name)
+                continue
+            idx.add_scope(statement_scope)
+
+    # set parent scope to statement parent (if it exists)
+    for statement in idx.statements_by_id.values():
+        if statement.parent_id is not None:
+            statement_scope = idx.scopes[statement.id]
+            parent_scope = idx.scopes[statement.parent_id]
+            statement_scope.parent = parent_scope
+
+    # populate scopes with expanded statements
+    for statements in statements_by_parent_id.values():
+        # (first sort all statements by index ascending inside their parent)
         statements.sort(key=lambda s: s.index)
+        for statement in statements:
+            scope = idx.scopes[statement.id]
+            scope.parent.statements[statement.name] = statement
 
     # collect requirements
     for statement in idx.statements_by_id.values():
@@ -1225,3 +1258,14 @@ def index_module(
             )
 
     return idx
+
+
+def interp(
+    idx: ModuleIndex, on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise"
+):
+    """Interpret the module's statements as symbols."""
+    if on_error == "raise":
+        on_error = raise_error
+
+    def _error(_t: ET, statement: Statement, cause: Exception | None = None, **error_args):
+        on_error(SemanticError(_t, statement, cause, **error_args))

@@ -18,12 +18,10 @@ from django.db import models
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Code,
-    CodeContent,
     Dataset,
     InterpSymbol,
     LiteralValue,
     Model,
-    Statement,
     Type,
     TypeNode,
     TypeTag,
@@ -331,6 +329,8 @@ def instantiate(
     symbol: InterpSymbol, idx: ModuleIndex, proxy: Proxy | None = None
 ) -> SymbolInstance:
     """Instantiate a statement, its context and children (recursively)."""
+    if symbol.abstract:
+        raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     proxy = proxy or Proxy(tracer=Tracer())
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
@@ -360,42 +360,6 @@ def instantiate(
         return TypeInstance(**symbol.__dict__, py_type=py_type)
     else:
         raise ValueError(f"cannot instantiate {symbol}")
-
-
-def get_context(
-    statement: Statement, idx: ModuleIndex, used_only: bool
-) -> OrderedDict[str, Statement]:
-    # gather all available statements: everything above and next to the statement
-    available_statements = []
-    current_parent = statement.parent
-    while current_parent is not None:
-        available_statements.extend(idx.statements_by_parent[current_parent.id])
-        current_parent = current_parent.parent
-    available_statements.extend(statement.file.root_statements)
-
-    available_context = OrderedDict()
-    for available_statement in available_statements:
-        var_name = available_statement.name
-        if var_name is not None and var_name not in available_context:
-            # there may be local shadowing, so use the first reference
-            # (also ignore duplicate definitions, that's for semantic parse)
-            available_context[var_name] = available_statement
-
-    if not used_only:
-        return available_context
-
-    # filter to used context only
-    # TODO @Cleanup: improve context visibility filters (beyond just string matching)
-    if isinstance(statement.content, CodeContent):
-        used_keys = {key for key in available_context if key in statement.content.code}
-    else:
-        used_keys = set()
-
-    used_context = OrderedDict()
-    for key in available_context:  # preserve order
-        if key in used_keys:
-            used_context[key] = available_context[key]
-    return used_context
 
 
 def execute_sync(

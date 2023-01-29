@@ -3,7 +3,14 @@ import typing
 from dataclasses import dataclass
 from typing import Optional
 
-from bench.language.type import SourceFile, Statement, StatementPath, Token, statement_path_as_str
+from bench.language.type import (
+    File,
+    SourceFile,
+    Statement,
+    StatementPath,
+    Token,
+    statement_path_as_str,
+)
 
 
 def get_location_pointer(
@@ -51,7 +58,7 @@ class ErrorType(enum.Enum):
     UNEXPECTED_EXTRA = 26, "unexpected token value extra {extra}={value}"
     INVALID_TOKEN_VALUE = 27, "invalid token value {value} {error}"
     INVALID_STATEMENT = 28, "invalid statement"
-    # semantic errors
+    # resolve/interp errors
     UNKNOWN_IMPORT_SOURCE = 60, "unspecified import module source {source}"
     UNDEFINED_LOCAL_REFERENCE = 61, "undefined reference {path}"
     UNDEFINED_EXTERNAL_REFERENCE = 62, "undefined external reference {path} in module {module}"
@@ -175,14 +182,14 @@ class SemanticError(ValueError):
     def __init__(
         self,
         _t: ErrorType,
-        statement: Optional[Statement],
+        subject: File | Statement | None,
         cause: Optional[Exception] = None,
         **error_args,
     ):
-        self.short_message, message = self._format_message(_t, error_args, statement, cause)
+        self.short_message, message = self._format_message(_t, error_args, subject, cause)
         super().__init__(message)
         self.type = _t
-        self.statement = statement
+        self.subject = subject
         self.related_statements = {k: v for k, v in error_args.items() if isinstance(v, Statement)}
         self.cause = cause
 
@@ -190,7 +197,7 @@ class SemanticError(ValueError):
         self,
         error_type: ErrorType,
         error_args: dict,
-        statement: Statement,
+        subject: File | Statement | None,
         cause: Exception | None,
     ) -> tuple[str, str]:
         # convert error args as needed
@@ -202,13 +209,17 @@ class SemanticError(ValueError):
         # noinspection StrFormat
         message = error_type.description.format(**error_args)
         cause_context = f"\ncause: {cause.__class__.__name__} {cause}" if cause is not None else ""
-        return message, message + SemanticError.statement_context(statement) + cause_context
+        if isinstance(subject, Statement):
+            thing_context = SemanticError.statement_context(subject)
+        elif isinstance(subject, File):
+            thing_context = f" in {subject.path}"
+        else:
+            thing_context = ""
+        return message, message + thing_context + cause_context
 
     @staticmethod
-    def statement_context(statement: Optional[Statement]) -> str:
-        if statement is None:
-            return ""
-        elif statement._source is None:
+    def statement_context(statement: Statement) -> str:
+        if statement._source is None:
             return "<source unavailable>"
         else:
             source = typing.cast(list[Token], statement._source)
@@ -222,8 +233,8 @@ class SemanticError(ValueError):
             return f" at\n> {statement}\n{source[0].source_file.path}:{source[0].line_number}\n{source_context}"
 
     def to_error(self) -> "Error":
-        if self.statement._source is not None:
-            source = typing.cast(list[Token], self.statement._source)
+        if isinstance(self.subject, Statement) and self.subject._source is not None:
+            source = typing.cast(list[Token], self.subject._source)
             extras = dict(
                 source_file=source[0].source_file,
                 line_number=source[0].line_number,
@@ -235,7 +246,8 @@ class SemanticError(ValueError):
             type=self.type,
             message=self.short_message,
             verbose_message=self.args[0],
-            statement=self.statement,
+            file=self.subject if isinstance(self.subject, File) else None,
+            statement=self.subject if isinstance(self.subject, Statement) else None,
             **extras,
         )
 
@@ -249,4 +261,5 @@ class Error:
     line_number: Optional[int] = None
     column: Optional[int] = None
     token: Optional[Token] = None
+    file: Optional[File] = None
     statement: Optional[Statement] = None

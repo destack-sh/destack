@@ -3,7 +3,7 @@
 require symbolx.std@latest
 require openai.std@latest
 
---- lints.x ---
+--- lint.x ---
 # AI support for linting Bench files
 
 --- suggest.x ---

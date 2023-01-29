@@ -11,7 +11,7 @@ type Entity:
 name: string "Canonical name of the entity"
 'type': EntityType
 confidence: number | null "Confidence in the detected type"
-
+    
     like data samples :: (name: string, 'type': EntityType):
     "Common uses of {Entity}"
     ```csv
