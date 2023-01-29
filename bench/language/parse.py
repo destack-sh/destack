@@ -35,6 +35,7 @@ from bench.language.type import (
     TaskContent,
     Token,
     TokenType,
+    Type,
     TypeContent,
     TypeNode,
     TypeTag,
@@ -98,12 +99,10 @@ def parse(
     # first pass: extract files and statements
     files = preparse(tokens, module, on_error=on_error)
     module.files.extend(files)
-
-    # second pass: resolve statement references
+    # second pass: resolve references
     idx = resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
-
     # third pass: create symbols
-    interp(idx)
+    interp(idx, on_error=on_error)
 
     return module
 
@@ -118,6 +117,19 @@ def parse_string(
 ) -> Module:
     tokens = lex_string(string)
     return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
+
+
+def resolve_interp(
+    module: Module,
+    lookup_in_module: Callable[
+        [RequirementContent, StatementPath], Statement | None
+    ] = lookup_in_error,
+    on_error: Callable[[SemanticError], None] = raise_error,
+) -> ModuleIndex:
+    """Resolve references in a module, using the given lookup function."""
+    idx = resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
+    interp(idx, on_error=on_error)
+    return idx
 
 
 class TokenParser:
@@ -1031,9 +1043,10 @@ class ModuleIndex:
 
     module: Module
     requirements_by_name: dict[str, RequirementContent] = field(default_factory=dict)
-    statements_by_id: dict[UUID, Statement] = field(default_factory=OrderedDict)
+    statements: dict[UUID, Statement] = field(default_factory=OrderedDict)
     scopes: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
     scopes_by_name: OrderedDict[str, Scope] = field(default_factory=OrderedDict)
+    symbols: dict[UUID, InterpSymbol] = field(default_factory=OrderedDict)
 
     def add_scope(self, scope: Scope) -> None:
         self.scopes[scope.id] = scope
@@ -1052,7 +1065,15 @@ class ModuleIndex:
     ) -> SymbolT:
         if isinstance(path, str):
             path = parse_statement_path(path)
-        raise NotImplementedError
+        scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
+        if scope is None:
+            raise KeyError(f"no scope found for path {path.path}")
+        symbol = scope.symbols.get(path.name)
+        if symbol is None:
+            raise KeyError(f"no symbol {path.name} found in scope {scope}")
+        if symbol_t is not None and not isinstance(symbol, symbol_t):
+            raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
+        return symbol
 
 
 def resolve(
@@ -1065,13 +1086,13 @@ def resolve(
     idx = index_module(module, on_error=on_error)
 
     # resolve references to other statements
-    for statement in idx.statements_by_id.values():
+    for statement in idx.statements.values():
         resolve_statement_reference(statement, idx, lookup_in_module, on_error)
 
     # resolve references in types (to other statements)
-    for statement in idx.statements_by_id.values():
+    for statement in idx.statements.values():
         if isinstance(statement.content, (TypeContent, DatasetContent, TaskContent, CodeContent)):
-            resolve_type_references(statement, statement.content.type_node, idx, on_error)
+            resolve_type_references(statement, statement.content.type_node, idx, on_error, [])
 
     return idx
 
@@ -1135,16 +1156,17 @@ def resolve_type_references(
     node: TypeNode,
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
+    _path: list[TypeNode],
 ) -> None:
     """Resolves (but does not impute) type references in a type node."""
 
-    def _error(_t: ET, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, statement, cause, **error_args))
-
     # walk through child nodes
     if node.children is not None:
+        _path = _path + [node]
         for child in node.children:
-            resolve_type_references(statement, child, idx, on_error)
+            if child in _path:
+                continue  # break circle, circular references are allowed
+            resolve_type_references(statement, child, idx, on_error, _path)
 
     if not isinstance(node.reference, str):
         return  # nothing to resolve
@@ -1152,14 +1174,17 @@ def resolve_type_references(
     # normalize path to statement
     resolved_stmt = idx.scopes[statement.id].lookup_statement(node.reference)
     if resolved_stmt is None or resolved_stmt.underlying_definition is None:
-        _error(ET.UNDEFINED_LOCAL_REFERENCE, path=node.reference)
+        on_error(SemanticError(ET.UNDEFINED_LOCAL_REFERENCE, statement, None, path=node.reference))
         return
     if resolved_stmt.symbol_type != SymT.TYPE:
-        _error(ET.REFERENCE_TYPE_MISMATCH, type=SymT.TYPE, resolved=resolved_stmt)
+        error = SemanticError(
+            ET.REFERENCE_TYPE_MISMATCH, statement, None, type=SymT.TYPE, resolved=resolved_stmt
+        )
+        on_error(error)
         return
 
     # get type node from statement
-    # right now we get the underlying definition directly, ignoring intermediate arguments
+    # TODO @Incomplete: type resolve gets the underlying definition directly
     resolved_type = typing.cast(TypeContent, resolved_stmt.underlying_definition.content)
     node.reference = resolved_type.type_node
 
@@ -1216,7 +1241,7 @@ def index_module(
             if statement.name is None:
                 continue  # ignore blanks and comments
             # create scope for every regular statement
-            idx.statements_by_id[statement.id] = statement
+            idx.statements[statement.id] = statement
             statements_by_parent_id[statement.parent_id or statement.file.id].append(statement)
             path = file_scope.name + ":" + statement.infile_path
             statement_scope = Scope(
@@ -1232,7 +1257,7 @@ def index_module(
             idx.add_scope(statement_scope)
 
     # set parent scope to statement parent (if it exists)
-    for statement in idx.statements_by_id.values():
+    for statement in idx.statements.values():
         if statement.parent_id is not None:
             statement_scope = idx.scopes[statement.id]
             parent_scope = idx.scopes[statement.parent_id]
@@ -1247,7 +1272,7 @@ def index_module(
             scope.parent.statements[statement.name] = statement
 
     # collect requirements
-    for statement in idx.statements_by_id.values():
+    for statement in idx.statements.values():
         if statement.symbol_type == SymT.REQUIREMENT:
             requirement_name = statement.name
             if requirement_name in idx.requirements_by_name:
@@ -1262,10 +1287,35 @@ def index_module(
 
 def interp(
     idx: ModuleIndex, on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise"
-):
-    """Interpret the module's statements as symbols."""
+) -> ModuleIndex:
+    """Interpret the module's statements as symbols (populating the module's symbol tables)."""
     if on_error == "raise":
         on_error = raise_error
 
-    def _error(_t: ET, statement: Statement, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, statement, cause, **error_args))
+    def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
+        on_error(SemanticError(_t, subject, cause, **error_args))
+
+    symbols = idx.symbols
+    for statement in idx.statements.values():
+        scope = idx.scopes[statement.id]
+        abstract = False  # TODO @Incomplete: implement abstraction/variable templating
+        interp_symbol_base = InterpSymbol(
+            name=statement.name,
+            abstract=abstract,
+            modifier=statement.modifier,
+            symbol_type=statement.symbol_type,
+            context=OrderedDict(),
+            source=statement,
+        )
+        if statement.symbol_type == SymT.TYPE:
+            if scope.statements:
+                _error(ET.UNEXPECTED_CHILDREN, statement)
+                continue
+            symbol = Type(**interp_symbol_base.__dict__, **statement.content.__dict__)
+        else:
+            raise ValueError(f"unexpected statement {statement}")
+
+        scope.parent.symbols[symbol.name] = symbol
+        symbols[statement.id] = symbol
+
+    return idx

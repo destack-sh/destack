@@ -9,7 +9,7 @@ import pytest
 
 from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import ErrorType, ParseError, SemanticError, index_module, parse_string
+from bench.language.parse import ErrorType, ParseError, SemanticError, parse_string, resolve_interp
 from bench.language.reconstruct import render
 from bench.language.type import Type
 
@@ -53,7 +53,7 @@ name: string
 'type': EntityType
 """
     )
-    idx = index_module(module)
+    idx = resolve_interp(module)
 
     type_entity_type = idx.symbol(".test:EntityType", Type).type_node
     assert type_entity_type.type == TypeTag.STRING
@@ -75,7 +75,7 @@ summary: string
 entities: [Entity]
 """
     )
-    idx = index_module(module)
+    idx = resolve_interp(module)
 
     type_event = idx.symbol(".test:Event", Type).type_node
     assert type_event.child("entities").type == TypeTag.ARRAY
