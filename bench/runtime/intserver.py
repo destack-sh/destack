@@ -111,8 +111,8 @@ async def save_execution_frame(frame: ExecutionFrame):
     await Execution.objects.aupdate_or_create(
         id=frame.id,
         parent_id=frame.parent.id if frame.parent else None,
-        code_id=frame.code.definition.id,
-        model_id=frame.model.definition.id if frame.model else None,
+        code_id=frame.code.source.id,
+        model_id=frame.model.source.id if frame.model else None,
         defaults=dict(
             started_at=frame.entered_at,
             terminated_at=frame.exited_at,

@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import enum
 import re
-import typing
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import Any, Literal, Optional, Union
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    NamedTuple,
+    Optional,
+    OrderedDict,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
 from django.db import models
@@ -227,9 +235,7 @@ class File:
         return [statement for statement in self.statements if statement.parent is None]
 
 
-MOCK_FILE = File(MOCK_MODULE, "<mock>")
-
-StatementPath = typing.NamedTuple("StatementPath", [("path", str), ("name", str)])
+StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
 
 
 def statement_path_as_str(statement_path: StatementPath) -> str:
@@ -243,8 +249,11 @@ def parse_statement_path(statement_path: str) -> StatementPath:
     return StatementPath(path, name)
 
 
+SymbolContentT = TypeVar("SymbolContentT", bound="SymbolContent")
+
+
 @dataclass(repr=False)
-class Statement:
+class Statement(Generic[SymbolContentT]):
     """A parsed but not interpreted statement in Bench source."""
 
     file: File
@@ -255,7 +264,7 @@ class Statement:
     name: Optional[str] = None
     text: Optional[str] = None
     symbol_type: Optional[SymbolType] = None
-    content: Optional[SymbolContent] = None
+    content: Optional[SymbolContentT] = None
     reference: Optional[Statement | StatementPath] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
@@ -332,38 +341,24 @@ class Statement:
         return str(self.index)
 
 
-SymbolContentT = typing.TypeVar("SymbolContentT", bound="SymbolContent")
-
-
 @dataclass(repr=False)
-class InterpStatement(typing.Generic[SymbolContentT]):
-    """An interpreted - fully resolved, imputed and validated - statement from Bench source."""
+class InterpSymbol:
+    """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
-    source: Statement
+    name: str
+    modifier: Optional[StatementModifier]
+    symbol_type: SymbolType
+    context: OrderedDict[str, "InterpSymbol"]
+    source: Optional[Statement]
 
-    @property
-    def content(self) -> SymbolContentT:
-        return self.source.content
-
-    @property
-    def modifier(self):
-        return self.source.modifier
-
-    @property
-    def name(self):
-        return self.source.name
-
-    @property
-    def symbol_type(self):
-        return self.source.symbol_type
-
-
-MOCK_STATEMENT = Statement(file=MOCK_FILE, parent=None, index=0, type=StatementType.DEFINITION)
+    def __str__(self):
+        modifier_str = f"{self.modifier} " if self.modifier else ""
+        return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source})"
 
 
 @dataclass(repr=False)
 class SymbolContent:
-    definition: Statement
+    pass
 
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
@@ -427,10 +422,8 @@ class TypeContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Type(InterpStatement[TypeContent]):
-    @property
-    def node(self) -> TypeNode:
-        return self.content.type_node
+class Type(InterpSymbol, TypeContent):
+    pass
 
 
 @dataclass(repr=False)
@@ -442,7 +435,7 @@ class CapabilityContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Capability(InterpStatement[CapabilityContent]):
+class Capability(InterpSymbol, CapabilityContent):
     expectations: list[Expectation]
     tasks: list[Task]
     capabilities: list[Capability]
@@ -451,10 +444,11 @@ class Capability(InterpStatement[CapabilityContent]):
 @dataclass(repr=False)
 class TaskContent(SymbolContent):
     type_node: TypeNode
+    description: str
 
 
 @dataclass(repr=False)
-class Task(InterpStatement[TaskContent]):
+class Task(InterpSymbol, TaskContent):
     expectations: list[Expectation]
     items: list[Task | Code]
 
@@ -470,7 +464,7 @@ class ExpectationContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Expectation(InterpStatement[ExpectationContent]):
+class Expectation(InterpSymbol, ExpectationContent):
     expectations: list[Expectation | Task | Dataset | Code]
 
 
@@ -486,7 +480,7 @@ class DatasetContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Dataset(InterpStatement[DatasetContent]):
+class Dataset(InterpSymbol, DatasetContent):
     pass
 
 
@@ -500,7 +494,7 @@ class ValueContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Value(InterpStatement[ValueContent]):
+class Value(InterpSymbol, ValueContent):
     pass
 
 
@@ -514,7 +508,7 @@ class ModelContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Model(InterpStatement[ModelContent]):
+class Model(InterpSymbol, ModelContent):
     pass
 
 
@@ -537,21 +531,21 @@ class CodeContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Code(InterpStatement[CodeContent]):
+class Code(InterpSymbol, CodeContent):
     pass
 
 
 @dataclass(repr=False)
 class RequirementContent(SymbolContent):
     name: Optional[str]
-    version: Optional[str] = None
+    version: Optional[str]
 
     def __str__(self):
         return f"{self.name}@{self.version}"
 
 
 @dataclass(repr=False)
-class Requirement(InterpStatement[RequirementContent]):
+class Requirement(InterpSymbol, RequirementContent):
     pass
 
 
@@ -562,20 +556,20 @@ class RunconfigContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Runconfig(InterpStatement[RunconfigContent]):
+class Runconfig(InterpSymbol, RunconfigContent):
     pass
 
 
 @dataclass(repr=False)
 class CompilationContent(SymbolContent):
-    source_mappings: list["SourceMapping"] = field(default_factory=list)
+    source_mappings: list["SourceMapping"]
 
     def __str__(self):
         return ""
 
 
 @dataclass(repr=False)
-class Compilation(InterpStatement[CompilationContent]):
+class Compilation(InterpSymbol, CompilationContent):
     tasks: list[Task]
     models: list[Model]
 

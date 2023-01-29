@@ -63,7 +63,6 @@ class OpenAIInference(Inference):
         request = {
             "model": self.model.external_name,
             "prompt": prompt,
-            "user": self.model.definition.id.hex,
             "max_tokens": settings.max_tokens,
             "temperature": settings.temperature,
             "stop": settings.stop,

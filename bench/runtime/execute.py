@@ -17,16 +17,17 @@ from django.db import models
 
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
+    Code,
     CodeContent,
-    DatasetContent,
+    Dataset,
+    InterpSymbol,
     LiteralValue,
-    ModelContent,
+    Model,
     Statement,
-    StatementType,
-    TypeContent,
+    Type,
     TypeNode,
     TypeTag,
-    ValueContent,
+    Value,
 )
 from bench.runtime.bpl import (
     BPL_BUILTINS,
@@ -44,7 +45,6 @@ from bench.runtime.type import (
     DatasetInstance,
     DecoderSettings,
     ModelInstance,
-    StatementInstance,
     SymbolInstance,
     SyncCodeCallable,
     TypeInstance,
@@ -71,7 +71,6 @@ STATIC_BUILTINS = {
     "boolean": bool,
 }
 
-
 logger = structlog.stdlib.get_logger()
 
 
@@ -92,11 +91,11 @@ class RunError(Exception):
     def __init__(
         self,
         _t: RunErrorType,
-        statement: typing.Optional[Statement],
+        symbol: typing.Optional[InterpSymbol],
         cause: typing.Optional[Exception] = None,
     ):
         self.type = _t
-        self.statement = statement
+        self.symbol = symbol
         self.cause = cause
         super().__init__(self.type.description)
 
@@ -193,24 +192,8 @@ class Proxy:
         proxy = InferenceContextProxy(context, self.tracer)
         return typing.cast(InferenceContext, proxy)  # not same type, but duck-typed
 
-    def proxy_symbol(self, symbol: SymbolInstance) -> SymbolInstance:
-        if isinstance(symbol, TypeInstance):
-            return symbol  # not proxied
-        elif isinstance(symbol, DatasetInstance):
-            return symbol  # not proxied
-        elif isinstance(symbol, ValueInstance):
-            return symbol  # not proxied
-        elif isinstance(symbol, ModelInstance):
-            return symbol  # not proxied
-        elif isinstance(symbol, CodeInstance):
-            return self.proxy_code(symbol)
-        else:
-            raise ValueError(f"unknown symbol type: {symbol}")
 
-
-def unwrap(value: StatementInstance):
-    if not isinstance(value, SymbolInstance):
-        raise ValueError(f"cannot unwrap {value}")
+def unwrap(value: SymbolInstance):
     return value.py_handle
 
 
@@ -255,8 +238,8 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
 
 
 def _instantiate_code_callable(
-    code: CodeContent,
-    context: OrderedDict[str, StatementInstance],
+    code: Code,
+    context: OrderedDict[str, SymbolInstance],
     proxy: Proxy | None,
 ) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
     """
@@ -276,10 +259,10 @@ def _instantiate_code_callable(
         "context": unwrapped_context,
         # 'inline' all context variables that are valid Python identifiers
         **{name: value for name, value in unwrapped_context.items() if name.isidentifier()},
-        "__statement__": code.definition,
-        "__file__": code.definition.file,
-        "__module__": code.definition.file.module,
-        "random": Random(code.definition.id.hex.encode()),
+        "__statement__": code.source,
+        "__file__": code.source.file,
+        "__module__": code.source.file.module,
+        "random": Random(code.source.id.hex.encode()),
     }
 
     # transform to python code if necessary
@@ -298,7 +281,7 @@ def _instantiate_code_callable(
 
     # create python function from python code
     input_keys = code.type_node.input.keys
-    func_name = f"_anon_{code.definition.id.hex}"
+    func_name = f"_anon_{code.source.id.hex}"
     async_str = "async " if is_async else ""
     func_params = ", ".join(input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
@@ -307,7 +290,7 @@ def _instantiate_code_callable(
         callable = _execute_code(code_str, locals)[func_name]
     except Exception as e:
         # shouldn't error unless it's a python parse issue since we're just defining a function
-        raise RunError(RunErrorType.PARSE, code.definition, cause=e) from e
+        raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
 
     # wrap function to manage inference contexts
     if code.language == "bpl":
@@ -345,46 +328,38 @@ def wrap_prompt_callable(
 
 
 def instantiate(
-    statement: Statement, idx: ModuleIndex, proxy: Proxy | None = None
-) -> StatementInstance:
+    symbol: InterpSymbol, idx: ModuleIndex, proxy: Proxy | None = None
+) -> SymbolInstance:
     """Instantiate a statement, its context and children (recursively)."""
-    context = get_context(statement, idx, used_only=True)
-
     proxy = proxy or Proxy(tracer=Tracer())
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
-    for name, value in context.items():
-        instantiated_context[name] = instantiate(statement=value, idx=idx, proxy=proxy)
-
-    # resolve to underlying content if it's an import
-    if statement.type == StatementType.IMPORT:
-        content = statement.reference.content
-    else:
-        content = statement.content
+    for name, value in symbol.context.items():
+        instantiated_context[name] = instantiate(value, idx=idx, proxy=proxy)
 
     # instantiate statement itself
-    if isinstance(content, CodeContent):
+    if isinstance(symbol, Code):
         code_str, code_callable, prompt = _instantiate_code_callable(
-            content, instantiated_context, proxy
+            symbol, instantiated_context, proxy
         )
-        instance = CodeInstance(
-            **content.__dict__,
+        code_instance = CodeInstance(
+            **symbol.__dict__,
             transformed_code=code_str,
             code_callable=code_callable,
             prompt=prompt,
         )
-    elif isinstance(content, ValueContent):
-        instance = ValueInstance(**content.__dict__)
-    elif isinstance(content, ModelContent):
-        instance = ModelInstance(**content.__dict__)
-    elif isinstance(content, DatasetContent):
-        instance = DatasetInstance(**content.__dict__, records_batch=RecordList(content.records))
-    elif isinstance(content, TypeContent):
-        py_type = instantiate_py_type(content.type_node)
-        instance = TypeInstance(**content.__dict__, py_type=py_type)
+        return proxy.proxy_code(code_instance)
+    elif isinstance(symbol, Value):
+        return ValueInstance(**symbol.__dict__)
+    elif isinstance(symbol, Model):
+        return ModelInstance(**symbol.__dict__)
+    elif isinstance(symbol, Dataset):
+        return DatasetInstance(**symbol.__dict__, records_batch=RecordList(symbol.records))
+    elif isinstance(symbol, Type):
+        py_type = instantiate_py_type(symbol.type_node)
+        return TypeInstance(**symbol.__dict__, py_type=py_type)
     else:
-        raise ValueError(f"cannot instantiate {statement}")
-    return proxy.proxy_symbol(instance)
+        raise ValueError(f"cannot instantiate {symbol}")
 
 
 def get_context(
@@ -430,7 +405,7 @@ def execute_sync(
     try:
         return code.py_handle(**arguments)
     except Exception as e:
-        raise RunError(RunErrorType.RUNTIME, code.definition, cause=e) from e
+        raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
 
 async def execute(
@@ -440,7 +415,7 @@ async def execute(
     try:
         return await code.py_handle(**arguments)
     except Exception as e:
-        raise RunError(RunErrorType.RUNTIME, code.definition, cause=e) from e
+        raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
 
 def _summarize_args(arguments: Any) -> str:
