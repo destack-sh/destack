@@ -15,7 +15,6 @@ import structlog
 from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex_string
 from bench.language.type import (
-    SYMBOL_CLASS_BY_TYPE,
     CapabilityContent,
     Code,
     CodeContent,
@@ -96,7 +95,7 @@ def parse(
         [RequirementContent, StatementPath], Statement | None
     ] = lookup_in_error,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
-) -> Module:
+) -> tuple[Module, ModuleIndex]:
     """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
     if on_error == "raise":
         on_error = raise_error
@@ -111,7 +110,7 @@ def parse(
     # third pass: create symbols
     interp(idx, on_error=on_error)
 
-    return module
+    return module, idx
 
 
 def parse_string(
@@ -121,7 +120,7 @@ def parse_string(
         [RequirementContent, StatementPath], Statement | None
     ] = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
-) -> Module:
+) -> tuple[Module, ModuleIndex]:
     tokens = lex_string(string)
     return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
 
@@ -1031,6 +1030,12 @@ class Scope:
     statements: OrderedDict[str, Statement] = field(default_factory=OrderedDict)
     symbols: OrderedDict[str, InterpSymbol] = field(default_factory=OrderedDict)
 
+    def __str__(self):
+        return f"{self.name} ({'file' if self.statement is None else 'statement'})"
+
+    def __repr__(self):
+        return f"<Scope {self.name}>"
+
     def lookup_statement(self, name: str, exclude: Statement | None = None) -> Statement | None:
         """Lookup the statement recursively in this scope and its parents."""
         if name in self.statements and self.statements[name] is not exclude:
@@ -1055,12 +1060,6 @@ class Scope:
     def proper_symbols(self) -> list[InterpSymbol]:
         return [self.symbols[s.name] for s in self.proper_statements if s.name in self.symbols]
 
-    def __str__(self):
-        return f"{self.name} ({'file' if self.statement is None else 'statement'})"
-
-    def __repr__(self):
-        return f"<Scope {self.name}>"
-
 
 @dataclass(repr=False)
 class ModuleIndex:
@@ -1069,9 +1068,19 @@ class ModuleIndex:
     module: Module
     requirements_by_name: dict[str, RequirementContent] = field(default_factory=dict)
     statements: dict[UUID, Statement] = field(default_factory=OrderedDict)
+    interpreted: bool = False
     scopes: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
     scopes_by_name: OrderedDict[str, Scope] = field(default_factory=OrderedDict)
     symbols: dict[UUID, InterpSymbol] = field(default_factory=OrderedDict)
+
+    def __str__(self):
+        statements_str = f"statements={len(self.statements)}"
+        requirements_str = f"requirements={len(self.requirements_by_name)}"
+        symbols_str = f"symbols={len(self.symbols)}" if self.interpreted else "<not interpreted>"
+        return f"index for {self.module} ({statements_str}, {requirements_str}, {symbols_str})"
+
+    def __repr__(self):
+        return f"<ModuleIndex {self.module}>"
 
     def add_scope(self, scope: Scope) -> None:
         self.scopes[scope.id] = scope
@@ -1088,6 +1097,8 @@ class ModuleIndex:
     def symbol(
         self, path: StatementPath | str, symbol_t: typing.Type[SymbolT] | None = None
     ) -> SymbolT:
+        if not self.interpreted:
+            raise RuntimeError(f"module index is not interpreted: {self}")
         if isinstance(path, str):
             path = parse_statement_path(path)
         scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
@@ -1095,7 +1106,7 @@ class ModuleIndex:
             raise KeyError(f"no scope found for path {path.path}")
         symbol = scope.symbols.get(path.name)
         if symbol is None:
-            raise KeyError(f"no symbol {path.name} found in scope {scope}")
+            raise KeyError(f"no symbol {path.name} found in {scope}")
         if symbol_t is not None and not isinstance(symbol, symbol_t):
             raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
         return symbol
@@ -1321,7 +1332,7 @@ def interp(
 
     symbols = idx.symbols
 
-    # create symbol shells for proper statements (without symbol-specific
+    # create symbol shells for proper statements (without symbol-specific fields)
     for statement in idx.statements.values():
         if not statement.is_proper:
             continue
@@ -1333,24 +1344,23 @@ def interp(
             continue
         abstract = False
 
-        interp_symbol_args = InterpSymbol(
+        if statement.underlying_definition is None:
+            # definition is not available, probably due to some reference or load error
+            # we ignore here since this is already an error upstream
+            continue
+
+        base_symbol = InterpSymbol(
             name=statement.name,
             abstract=abstract,
             modifier=statement.modifier,
             symbol_type=statement.symbol_type,
             context=OrderedDict(),
             source=statement,
-        ).__dict__
-
-        if statement.underlying_definition is None:
-            # definition is not available, probably due to some reference or load error
-            # we ignore here since this is already an error upstream
-            continue
-
+        )
         source_content = statement.underlying_definition.content
-        # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
-        symbol_cls = SYMBOL_CLASS_BY_TYPE[statement.symbol_type]
-        symbol = symbol_cls(**source_content.__dict__, **interp_symbol_args)
+        symbol = InterpSymbol.default_from_content(
+            statement.symbol_type, base_symbol, source_content
+        )
 
         scope.parent.symbols[symbol.name] = symbol
         symbols[statement.id] = symbol
@@ -1361,41 +1371,41 @@ def interp(
         scope = idx.scopes[id]
 
         if isinstance(symbol, Type):
-            for child in scope.proper_symbols:
-                if child.source.is_expect:
-                    symbol.expectations.append(child)
+            for other in scope.proper_symbols:
+                if other.source.is_expect:
+                    symbol.expectations.append(other)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+                    _error(ET.UNEXPECTED_STATEMENT, other.source)
         elif isinstance(symbol, Task):
-            for child in scope.proper_symbols:
-                if child.source.is_expect:
-                    symbol.expectations.append(child)
-                elif child.symbol_type in (SymbolType.TASK, SymbolType.CODE):
-                    symbol.steps.append(child)
+            for other in scope.proper_symbols:
+                if other.source.is_expect:
+                    symbol.expectations.append(other)
+                elif other.symbol_type in (SymbolType.TASK, SymbolType.CODE):
+                    symbol.steps.append(other)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+                    _error(ET.UNEXPECTED_STATEMENT, other.source)
         elif isinstance(symbol, Expectation):
-            for child in scope.proper_symbols:
-                if child.source.is_expect:
-                    symbol.expectations.append(child)
+            for other in scope.proper_symbols:
+                if other.source.is_expect:
+                    symbol.expectations.append(other)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+                    _error(ET.UNEXPECTED_STATEMENT, other.source)
         elif isinstance(symbol, Compilation):
-            for child in scope.proper_symbols:
-                if isinstance(child, Model):
-                    symbol.models.append(child)
-                elif isinstance(child, Task):
-                    symbol.tasks.append(child)
+            for other in scope.proper_symbols:
+                if isinstance(other, Model):
+                    symbol.models.append(other)
+                elif isinstance(other, Task):
+                    symbol.tasks.append(other)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+                    _error(ET.UNEXPECTED_STATEMENT, other.source)
         elif isinstance(symbol, Runconfig):
-            for child in scope.proper_symbols:
-                if isinstance(child, Code):
-                    symbol.codes.append(child)
-                elif isinstance(child, Task):
-                    symbol.tasks.append(child)
-                elif isinstance(child, Compilation):
-                    symbol.compilations.append(child)
+            for other in scope.proper_symbols:
+                if isinstance(other, Code):
+                    symbol.codes.append(other)
+                elif isinstance(other, Task):
+                    symbol.tasks.append(other)
+                elif isinstance(other, Compilation):
+                    symbol.compilations.append(other)
         else:
             # default interp (expect no children)
             if scope.proper_statements:
@@ -1404,6 +1414,26 @@ def interp(
 
     # add symbol context for those who need it
     for id, symbol in symbols.items():
-        pass  # TODO @Incomplete: implement symbol context
+        needs_context = symbol.symbol_type == SymbolType.CODE
+        if not needs_context:
+            continue
 
+        # build required context by traversing the scope tree upwards
+        current_scope = idx.scopes[id].parent
+        while current_scope is not None:
+            for other in current_scope.proper_symbols:
+                if symbol_mentions_symbol(symbol, other) and other.name not in symbol.context:
+                    symbol.context[other.name] = other
+            current_scope = current_scope.parent
+
+    idx.interpreted = True
     return idx
+
+
+def symbol_mentions_symbol(symbol: InterpSymbol, other: InterpSymbol) -> bool:
+    """Return whether the given symbol mentions the other symbol."""
+    # TODO @Robustness: improve symbol mention detection & extraction
+    if isinstance(symbol, Code):
+        return other.name in symbol.code
+    else:
+        return False

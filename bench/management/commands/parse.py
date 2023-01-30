@@ -37,9 +37,9 @@ class Command(BaseCommand):
             console.print(pprint_tokens(tokens))
 
         if database:
-            module = parse(tokens, lookup_in_module=lookup_in_db_module)
+            module, _ = parse(tokens, lookup_in_module=lookup_in_db_module)
         else:
-            module = parse(tokens)
+            module, _ = parse(tokens)
 
         if not reconstruct:
             for panel in pprint_files(module.files):

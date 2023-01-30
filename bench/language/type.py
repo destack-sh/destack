@@ -392,6 +392,30 @@ class InterpSymbol:
         modifier_str = f"{self.modifier} " if self.modifier else ""
         return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source})"
 
+    @staticmethod
+    def default_from_content(
+        symbol_type: SymbolType, base: InterpSymbol, content: SymbolContent
+    ) -> InterpSymbol:
+        # TODO @Cleanup: using __dict__ carries unnecessary fields
+        if symbol_type == SymbolType.TYPE:
+            return Type(expectations=[], **base.__dict__, **content.__dict__)
+        elif symbol_type == SymbolType.TASK:
+            return Task(
+                implementation=None, expectations=[], steps=[], **base.__dict__, **content.__dict__
+            )
+        elif symbol_type == SymbolType.EXPECTATION:
+            return Expectation(expectations=[], **base.__dict__, **content.__dict__)
+        elif symbol_type == SymbolType.COMPILATION:
+            return Compilation(models=[], tasks=[], **base.__dict__, **content.__dict__)
+        elif symbol_type == SymbolType.RUNCONFIG:
+            return Runconfig(
+                codes=[], tasks=[], compilations=[], **base.__dict__, **content.__dict__
+            )
+        else:
+            # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
+            symbol_cls = SYMBOL_CLASS_BY_TYPE[symbol_type]
+            return symbol_cls(**base.__dict__, **content.__dict__)  # type: ignore
+
 
 @dataclass(repr=False)
 class SymbolContent:
@@ -460,7 +484,7 @@ class TypeContent(SymbolContent):
 
 @dataclass(repr=False)
 class Type(InterpSymbol, TypeContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code]
 
 
 @dataclass(repr=False)
@@ -473,9 +497,9 @@ class CapabilityContent(SymbolContent):
 
 @dataclass(repr=False)
 class Capability(InterpSymbol, CapabilityContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
-    tasks: list[Task] = field(default_factory=list)
-    capabilities: list[Capability] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code]
+    tasks: list[Task]
+    capabilities: list[Capability]
 
 
 @dataclass(repr=False)
@@ -486,9 +510,9 @@ class TaskContent(SymbolContent):
 
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
-    implementation: Optional[Code] = None
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
-    steps: list[Task | Code] = field(default_factory=list)
+    implementation: Optional[Code]
+    expectations: list[Expectation | Task | Dataset | Code]
+    steps: list[Task | Code]
 
 
 @dataclass(repr=False)
@@ -503,7 +527,7 @@ class ExpectationContent(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(InterpSymbol, ExpectationContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code]
 
 
 @dataclass(repr=False)

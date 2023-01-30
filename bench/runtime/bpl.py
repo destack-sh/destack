@@ -273,7 +273,7 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
         settings = PromptSettings(
             model=model, temperature=temperature, max_tokens=max_tokens, stop=stop
         )
-    except ValueError as e:
+    except (KeyError, ValueError) as e:
         raise ValueError(f"invalid pragma settings: {e}")
 
     # parse settings from pragmas
