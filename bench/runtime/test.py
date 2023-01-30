@@ -1,10 +1,10 @@
-from bench.language.parse import index_module, parse_string
+from bench.language.parse import parse_string
 from bench.runtime.bpl import parse_bpl
-from bench.runtime.execute import execute_sync, instantiate
+from bench.runtime.execute import instantiate, run_sync
 
 
 def test_execute_single_code():
-    module = parse_string(
+    module, idx = parse_string(
         """
 --- test.x ---
 code function :: () -> number:
@@ -13,13 +13,12 @@ return 5
 ```
 """
     )
-    idx = index_module(module)
     code = instantiate(idx.symbol(".test:function"), idx)
-    assert execute_sync(code) == 5
+    assert run_sync(code) == 5
 
 
 def test_execute_single_code_with_context():
-    module = parse_string(
+    module, idx = parse_string(
         """
 --- test.x ---
 value val:
@@ -34,13 +33,12 @@ return val * context['unwieldy name']
 ```
 """
     )
-    idx = index_module(module)
     code = instantiate(idx.symbol(".test:function"), idx)
-    assert execute_sync(code) == 10
+    assert run_sync(code) == 10
 
 
 def test_execute_single_code_with_args():
-    module = parse_string(
+    module, idx = parse_string(
         """
 --- test.x ---
 code function :: (val: number) -> number:
@@ -49,14 +47,13 @@ return 5 * val
 ```
 """
     )
-    idx = index_module(module)
     code = instantiate(idx.symbol(".test:function"), idx)
-    assert execute_sync(code, {"val": 2}) == 10
+    assert run_sync(code, {"val": 2}) == 10
 
 
 def test_parse_bpl():
     bpl = r"""
-pragma(model="gpt2", n=1, z=None)
+pragma(model="gpt2", max_tokens=2000, temperature=0.7)
 "Count the animals in the {zoo}."
 # some comment
 animals = []

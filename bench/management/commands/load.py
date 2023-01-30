@@ -47,7 +47,7 @@ class Command(BaseCommand):
         project_v.reset()
         module = language.Module(id=project_v.id, name=project_v.project.path)
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        module = parse(lex(source_file), module, lookup_in_db_module)
+        module, _ = parse(lex(source_file), module, lookup_in_db_module)
         wire_module = wire.rmap_module(module)
         write_module(wire_module.files, project_v)
 

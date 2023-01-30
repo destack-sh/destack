@@ -9,7 +9,7 @@ import pytest
 
 from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import ErrorType, ParseError, SemanticError, parse_string, resolve_interp
+from bench.language.parse import ErrorType, ParseError, SemanticError, parse_string
 from bench.language.reconstruct import render
 from bench.language.type import Type
 
@@ -35,7 +35,7 @@ def _raise_if_not_external():
 @pytest.mark.parametrize("path", demo_paths)
 def test_round_trip_demo_files(path: str):
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    module = parse(lex(source_file), on_error=_raise_if_not_external())
+    module, _ = parse(lex(source_file), on_error=_raise_if_not_external())
     reconstructed = render(module.files)
     assert reconstructed == source_file.content
 
@@ -59,7 +59,7 @@ task something :: ():
 
 
 def test_resolve_nested_aliased_type():
-    module = parse_string(
+    module, idx = parse_string(
         """
 --- test.x ---
 type RealString = string
@@ -71,7 +71,6 @@ name: string
 'type': EntityType
 """
     )
-    idx = resolve_interp(module)
 
     type_entity_type = idx.symbol(".test:EntityType", Type).type_node
     assert type_entity_type.type == TypeTag.STRING
@@ -81,7 +80,7 @@ name: string
 
 
 def test_resolve_circular_type():
-    module = parse_string(
+    module, idx = parse_string(
         """
 --- test.x ---
 type Entity:
@@ -93,7 +92,6 @@ summary: string
 entities: [Entity]
 """
     )
-    idx = resolve_interp(module)
 
     type_event = idx.symbol(".test:Event", Type).type_node
     assert type_event.child("entities").type == TypeTag.ARRAY

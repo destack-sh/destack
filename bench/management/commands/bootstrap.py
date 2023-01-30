@@ -84,7 +84,7 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
     std_v = std.create_version(name=version_id, parent=std_v)
     std_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    module = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
+    module, _ = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
     wire_module = wire.rmap_module(module)
     write_module(wire_module.files, std_v)
 

@@ -10,11 +10,10 @@ from django.core.management.base import CommandParser
 
 from bench import language
 from bench.language import lex
-from bench.language.parse import parse, raise_error, resolve_interp
+from bench.language.parse import parse
 from bench.language.type import Code, SourceFile, StatementPath
 from bench.models.mapper import lookup_in_db_module
-from bench.runtime.execute import execute, instantiate
-from bench.runtime.type import CodeInstance
+from bench.runtime.execute import instantiate, run
 
 
 class Command(BaseCommand):
@@ -32,10 +31,9 @@ class Command(BaseCommand):
         statement_path = StatementPath(*statement_path.split(":"))
         module = language.Module(id=uuid4(), name=path.rsplit("/", 1)[-1])
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        lang_module = parse(lex(source_file), module, lookup_in_db_module)
-        idx = resolve_interp(lang_module, lookup_in_db_module, on_error=raise_error)
-        code = idx.symbol(statement_path, Code)
-        code_instance: CodeInstance = instantiate(code, idx)
-        coro = execute(code_instance, arguments=dict(input=input))
-        ret = asyncio.get_event_loop().run_until_complete(coro)
+        lang_module, idx = parse(lex(source_file), module, lookup_in_db_module)
+        code_instance = instantiate(idx.symbol(statement_path, Code), idx)
+        ret = asyncio.get_event_loop().run_until_complete(
+            run(code_instance, arguments=dict(input=input))
+        )
         print(json.dumps(ret, indent=2, default=str))

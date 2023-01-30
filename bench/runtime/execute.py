@@ -119,7 +119,7 @@ class SyncCodeProxy:
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
-            log.debug("code.call.exception", exception=exception)
+            log.debug("code.call.exception", excinfo=True)
             raise
 
 
@@ -141,7 +141,7 @@ class AsyncCodeProxy:
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
-            log.debug("code.call.exception", exception=exception)
+            log.debug("code.call.exception", excinfo=True)
             raise
 
 
@@ -362,9 +362,7 @@ def instantiate(
         raise ValueError(f"cannot instantiate {symbol}")
 
 
-def execute_sync(
-    code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
-) -> LiteralValue:
+def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
     arguments = arguments or {}
     try:
         return code.py_handle(**arguments)
@@ -372,9 +370,7 @@ def execute_sync(
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
 
-async def execute(
-    code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
-) -> LiteralValue:
+async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
     arguments = arguments or {}
     try:
         return await code.py_handle(**arguments)
