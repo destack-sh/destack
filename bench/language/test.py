@@ -40,7 +40,7 @@ def test_round_trip_demo_files(path: str):
     assert reconstructed == source_file.content
 
 
-def test_resolve_nested_indirect_type():
+def test_resolve_nested_aliased_type():
     module = parse_string(
         """
 --- test.x ---

@@ -15,16 +15,22 @@ import structlog
 from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex_string
 from bench.language.type import (
+    SYMBOL_CLASS_BY_TYPE,
     CapabilityContent,
+    Code,
     CodeContent,
+    Compilation,
     CompilationContent,
     DatasetContent,
+    Expectation,
     ExpectationContent,
     File,
     InterpSymbol,
     LiteralValue,
+    Model,
     Module,
     RequirementContent,
+    Runconfig,
     RunconfigContent,
     Statement,
     StatementModifier,
@@ -32,6 +38,7 @@ from bench.language.type import (
     StatementType,
     SymbolContent,
     SymbolType,
+    Task,
     TaskContent,
     Token,
     TokenType,
@@ -648,7 +655,7 @@ def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
         name=dependency.value,
         **kwargs,
     )
-    definition.content = RequirementContent(name=dependency.value, version=version.value)
+    definition.content = RequirementContent(module_name=dependency.value, version=version.value)
     return definition
 
 
@@ -1022,13 +1029,29 @@ class Scope:
     statements: OrderedDict[str, Statement] = field(default_factory=OrderedDict)
     symbols: OrderedDict[str, InterpSymbol] = field(default_factory=OrderedDict)
 
-    def lookup_statement(self, name: str) -> Statement | None:
+    def lookup_statement(self, name: str, exclude: Statement | None = None) -> Statement | None:
         """Lookup the statement recursively in this scope and its parents."""
-        if name in self.statements:
+        if name in self.statements and self.statements[name] is not exclude:
             return self.statements[name]
         if self.parent is not None:
-            return self.parent.lookup_statement(name)
+            return self.parent.lookup_statement(name, exclude=exclude)
         return None
+
+    @property
+    def parameters(self) -> list[Statement]:
+        return [s for s in self.statements.values() if s.is_parameter]
+
+    @property
+    def arguments(self) -> list[Statement]:
+        return [s for s in self.statements.values() if s.is_argument]
+
+    @property
+    def proper_statements(self) -> list[Statement]:
+        return [s for s in self.statements.values() if not s.is_argument and not s.is_parameter]
+
+    @property
+    def proper_symbols(self) -> list[InterpSymbol]:
+        return [self.symbols[s.name] for s in self.proper_statements if s.name in self.symbols]
 
     def __str__(self):
         return f"{self.name} ({'file' if self.statement is None else 'statement'})"
@@ -1114,13 +1137,12 @@ def resolve_statement_reference(
     reference_path, reference_name = statement.reference
     if reference_path == ".":  # resolve relative to this statement
         statement_scope = idx.scopes[statement.id]
-        resolved = statement_scope.lookup_statement(reference_name)
+        resolved = statement_scope.lookup_statement(reference_name, exclude=statement)
         if resolved is None:
             _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
             return
     elif reference_path.startswith("."):  # resolve by "absolute" path in local module
-        parent_scope = idx.scopes_by_name[reference_path[1:]]
-        resolved = parent_scope.lookup_statement(reference_name)
+        resolved = idx.get_statement(statement.reference)
         if resolved is None:
             _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
             return
@@ -1142,7 +1164,7 @@ def resolve_statement_reference(
             _error(ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
             return
         if resolved is None:
-            _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement.name)
+            _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
             return
 
     statement.reference = resolved
@@ -1296,26 +1318,90 @@ def interp(
         on_error(SemanticError(_t, subject, cause, **error_args))
 
     symbols = idx.symbols
+
+    # create symbol shells for proper statements (without symbol-specific
     for statement in idx.statements.values():
+        if not statement.is_proper:
+            continue
+
         scope = idx.scopes[statement.id]
-        abstract = False  # TODO @Incomplete: implement abstraction/variable templating
-        interp_symbol_base = InterpSymbol(
+        # TODO @Incomplete: implement abstraction/variable templating
+        if scope.parameters or scope.arguments:
+            _error(ET.UNEXPECTED_PARAMETERS, statement)
+            continue
+        abstract = False
+
+        interp_symbol_args = InterpSymbol(
             name=statement.name,
             abstract=abstract,
             modifier=statement.modifier,
             symbol_type=statement.symbol_type,
             context=OrderedDict(),
             source=statement,
-        )
-        if statement.symbol_type == SymT.TYPE:
-            if scope.statements:
-                _error(ET.UNEXPECTED_CHILDREN, statement)
-                continue
-            symbol = Type(**interp_symbol_base.__dict__, **statement.content.__dict__)
-        else:
-            raise ValueError(f"unexpected statement {statement}")
+        ).__dict__
+
+        if statement.underlying_definition is None:
+            # definition is not available, probably due to some reference or load error
+            # we ignore here since this is already an error upstream
+            continue
+
+        source_content = statement.underlying_definition.content
+        # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
+        symbol_cls = SYMBOL_CLASS_BY_TYPE[statement.symbol_type]
+        symbol = symbol_cls(**source_content.__dict__, **interp_symbol_args)
 
         scope.parent.symbols[symbol.name] = symbol
         symbols[statement.id] = symbol
+
+    # interp symbol contents using related symbols
+    for id, symbol in symbols.items():
+        statement = idx.statements[id]
+        scope = idx.scopes[id]
+
+        if isinstance(symbol, Type):
+            for child in scope.proper_symbols:
+                if child.source.is_expect:
+                    symbol.expectations.append(child)
+                else:
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+        elif isinstance(symbol, Task):
+            for child in scope.proper_symbols:
+                if child.source.is_expect:
+                    symbol.expectations.append(child)
+                elif child.symbol_type in (SymbolType.TASK, SymbolType.CODE):
+                    symbol.steps.append(child)
+                else:
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+        elif isinstance(symbol, Expectation):
+            for child in scope.proper_symbols:
+                if child.source.is_expect:
+                    symbol.expectations.append(child)
+                else:
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+        elif isinstance(symbol, Compilation):
+            for child in scope.proper_symbols:
+                if isinstance(child, Model):
+                    symbol.models.append(child)
+                elif isinstance(child, Task):
+                    symbol.tasks.append(child)
+                else:
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
+        elif isinstance(symbol, Runconfig):
+            for child in scope.proper_symbols:
+                if isinstance(child, Code):
+                    symbol.codes.append(child)
+                elif isinstance(child, Task):
+                    symbol.tasks.append(child)
+                elif isinstance(child, Compilation):
+                    symbol.compilations.append(child)
+        else:
+            # default interp (expect no children)
+            if scope.proper_statements:
+                _error(ET.UNEXPECTED_CHILDREN, statement)
+                continue
+
+    # add symbol context for those who need it
+    for id, symbol in symbols.items():
+        pass  # TODO @Incomplete: implement symbol context
 
     return idx

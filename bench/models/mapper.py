@@ -23,7 +23,7 @@ from bench.models.project import Project, ProjectVersion
 def lookup_in_db_module(
     requirement: language.RequirementContent, path: StatementPath
 ) -> language.Statement:
-    version = lookup_module(requirement.name, requirement.version)
+    version = lookup_module(requirement.module_name, requirement.version)
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 

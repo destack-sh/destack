@@ -42,11 +42,11 @@ import model text-davinci-003 from openai.std.text
 
 compile prod:
     task 'extract entities'
-    with model text-davinci-003
+    model text-davinci-003
 
 run ner-prod:
-    with compile target = compile prod
     task 'extract entities'
+    compile prod
 
 --- compiled.x ---
 import model text-davinci-003 from openai.std.text

@@ -81,10 +81,10 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
     def lookup(
         requirement: language.RequirementContent, path: StatementPath
     ) -> language.Statement | None:
-        idx: language.ModuleIndex = dependencies_by_name.get(requirement.name)
+        idx: language.ModuleIndex = dependencies_by_name.get(requirement.module_name)
         if not idx:
             return None
-        return idx.statements_by_path.get(path)
+        return idx.get_statement(path)
 
     return lookup
 

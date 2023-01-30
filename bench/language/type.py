@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import re
+import typing
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -324,6 +325,22 @@ class Statement(Generic[SymbolContentT]):
         )
 
     @property
+    def is_expect(self) -> bool:
+        expectable_symbol = self.symbol_type in (
+            SymbolType.TASK,
+            SymbolType.CODE,
+            SymbolType.DATASET,
+        )
+        has_expect_intent = self.modifier in (
+            StatementModifier.LIKE,
+            StatementModifier.UNLIKE,
+            StatementModifier.VERIFY,
+        )
+        return self.is_proper and (
+            self.symbol_type == SymbolType.EXPECTATION or (expectable_symbol and has_expect_intent)
+        )
+
+    @property
     def defines_symbol(self) -> bool:
         return self.type in (StatementType.DEFINITION, StatementType.REDEFINITION)
 
@@ -334,6 +351,11 @@ class Statement(Generic[SymbolContentT]):
     @property
     def is_argument(self) -> bool:
         return self.modifier == StatementModifier.WITH
+
+    @property
+    def is_proper(self):
+        """Not an argument or parameter"""
+        return not self.is_argument and not self.is_parameter
 
     @property
     def is_extend(self):
@@ -438,7 +460,7 @@ class TypeContent(SymbolContent):
 
 @dataclass(repr=False)
 class Type(InterpSymbol, TypeContent):
-    pass
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -451,9 +473,9 @@ class CapabilityContent(SymbolContent):
 
 @dataclass(repr=False)
 class Capability(InterpSymbol, CapabilityContent):
-    expectations: list[Expectation]
-    tasks: list[Task]
-    capabilities: list[Capability]
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    tasks: list[Task] = field(default_factory=list)
+    capabilities: list[Capability] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -464,8 +486,9 @@ class TaskContent(SymbolContent):
 
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
-    expectations: list[Expectation]
-    items: list[Task | Code]
+    implementation: Optional[Code] = None
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    steps: list[Task | Code] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -480,7 +503,7 @@ class ExpectationContent(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(InterpSymbol, ExpectationContent):
-    expectations: list[Expectation | Task | Dataset | Code]
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -518,7 +541,7 @@ class ModelContent(SymbolContent):
     provider: str
     external_name: str
 
-    def __content_str__(self):
+    def __str__(self):
         return f"provider={self.provider}/{self.external_name}"
 
 
@@ -535,14 +558,12 @@ class CodeContent(SymbolContent):
     builtin_id: Optional[str]
     type_node: TypeNode
 
-    def __content_str__(self):
+    def __str__(self):
         # copied almost verbatim from Code.__str__
         if self.builtin_id:
             return f"builtin={self.builtin_id}"
         elif self.code:
-            return f"length={len(self.code)}"
-        else:
-            raise ValueError(f"code has no content: {self}")
+            return f"code={len(self.code)}"
 
 
 @dataclass(repr=False)
@@ -552,11 +573,11 @@ class Code(InterpSymbol, CodeContent):
 
 @dataclass(repr=False)
 class RequirementContent(SymbolContent):
-    name: Optional[str]
+    module_name: Optional[str]
     version: Optional[str]
 
     def __str__(self):
-        return f"{self.name}@{self.version}"
+        return f"{self.module_name}@{self.version}"
 
 
 @dataclass(repr=False)
@@ -572,7 +593,9 @@ class RunconfigContent(SymbolContent):
 
 @dataclass(repr=False)
 class Runconfig(InterpSymbol, RunconfigContent):
-    pass
+    codes: list[Code] = field(default_factory=list)
+    tasks: list[Task] = field(default_factory=list)
+    compilations: list[Compilation] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -585,8 +608,8 @@ class CompilationContent(SymbolContent):
 
 @dataclass(repr=False)
 class Compilation(InterpSymbol, CompilationContent):
-    tasks: list[Task]
-    models: list[Model]
+    tasks: list[Task] = field(default_factory=list)
+    models: list[Model] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -597,6 +620,21 @@ class SourceMapping:
     target_id: UUID
     target_revision: int
     target_path: dict
+
+
+SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
+    SymbolType.TYPE: Type,
+    SymbolType.CAPABILITY: Capability,
+    SymbolType.TASK: Task,
+    SymbolType.EXPECTATION: Expectation,
+    SymbolType.DATASET: Dataset,
+    SymbolType.VALUE: Value,
+    SymbolType.MODEL: Model,
+    SymbolType.CODE: Code,
+    SymbolType.REQUIREMENT: Requirement,
+    SymbolType.RUNCONFIG: Runconfig,
+    SymbolType.COMPILATION: Compilation,
+}
 
 
 EMPTY_FUNC_TYPE = TypeNode(
