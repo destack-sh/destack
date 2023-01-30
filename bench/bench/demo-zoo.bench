@@ -12,7 +12,7 @@ task 'identify animal speaker' :: (input: string) -> AnimalType | null "The type
     expect 'no output if unclear':
     "Do not output an animal type if it's unclear"
 
-import model 'text-davinci-003' from openai.std.text
+import model text-davinci-003 from openai.std.text
 
 compile main:
     model text-davinci-003

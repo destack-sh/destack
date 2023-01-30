@@ -42,7 +42,7 @@ task complete_code :: (context: CodeContext) -> CodeCompletion:
         verify code check_no_idea
 
     # control control flow without leaving abstraction
-    with code implementation:
+    with code implementation :: ():
     ```python
     how?
     ```

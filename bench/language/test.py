@@ -40,6 +40,24 @@ def test_round_trip_demo_files(path: str):
     assert reconstructed == source_file.content
 
 
+def test_unexpected_indent():
+    with pytest.raises(ParseError) as excinfo:
+        # empty un-indented line stops the indent
+        parse_string(
+            """
+--- test.x ---
+task something :: ():
+"Do something"
+
+
+
+    task something_else :: ():
+    "Do something else"
+"""
+        )
+    assert excinfo.value.type == ErrorType.UNEXPECTED_INDENT
+
+
 def test_resolve_nested_aliased_type():
     module = parse_string(
         """
