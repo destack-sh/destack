@@ -19,6 +19,7 @@ type DatasetRecord {
 scalar DateTime
 
 enum ErrorType {
+  INTERNAL
   UNKNOWN_TOKEN
   MISSING_TOKEN
   UNEXPECTED_TOKEN_TYPE
@@ -43,6 +44,9 @@ enum ErrorType {
   EXPECTED_PARAMETERS
   UNEXPECTED_PARAMETERS
   EXPECTED_ARGUMENTS
+  UNEXPECTED_STATEMENT
+  COMPILATION_MISSING_MODEL
+  COMPILATION_MISSING_TASK
 }
 
 type File implements Node {
@@ -392,6 +396,7 @@ input StatementFilter {
 enum StatementModifier {
   VAR
   WITH
+  EXTEND
   LIKE
   UNLIKE
   VERIFY
