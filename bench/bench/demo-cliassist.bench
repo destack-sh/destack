@@ -11,7 +11,7 @@ import model text-davinci-003 from openai.std.text
 #    task 'generate command'
 
 compile prod:
-    with model text-davinci-003
+    model text-davinci-003
     task 'generate command'
 
 # Run configurations

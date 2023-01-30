@@ -249,8 +249,8 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     elif isinstance(content, language.CompilationContent):
         data.generated_mappings = content.source_mappings
     elif isinstance(content, language.RequirementContent):
-        if content.name and content.version:
-            data.reference_module = ModuleReference(content.name, content.version, id=None)
+        if content.module_name and content.version:
+            data.reference_module = ModuleReference(content.module_name, content.version, id=None)
     elif isinstance(content, language.RunconfigContent):
         pass
     else:
@@ -313,7 +313,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.CompilationContent(source_mappings=data.generated_mappings)
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(
-            name=data.reference_module.name if data.reference_module else None,
+            module_name=data.reference_module.name if data.reference_module else None,
             version=data.reference_module.version if data.reference_module else None,
         )
     elif data.symbol_type == SymbolType.RUNCONFIG:

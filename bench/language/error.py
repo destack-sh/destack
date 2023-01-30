@@ -73,6 +73,7 @@ class ErrorType(enum.Enum):
     EXPECTED_PARAMETERS = 71, "expected parameters of type {type}"
     UNEXPECTED_PARAMETERS = 72, "unexpected parameters"
     EXPECTED_ARGUMENTS = 73, "expected arguments of type {type}"
+    UNEXPECTED_STATEMENT = 74, "unexpected statement"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
