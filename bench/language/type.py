@@ -381,6 +381,7 @@ class Statement(Generic[SymbolContentT]):
 class InterpSymbol:
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
+    id: UUID
     name: str
     abstract: bool
     modifier: Optional[StatementModifier]
