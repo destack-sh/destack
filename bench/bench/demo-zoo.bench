@@ -41,7 +41,7 @@ pragma(temperature=0.5, max_tokens=600)
 "Classify the given input text by the animal type of the author.\n"
 "The possible animal types are:\n"
 for animal_type in AnimalType:
-    " - \"{animal_type: AnimalType}\"\n"
+    " - \"{animal_type: AnimalType}\": \"{animal_type.description}\"\n"
 "Output \"null\" as the animal type if it's unclear which one it is.\n"
 "Some fun examples:\n"
 for sample in samples:

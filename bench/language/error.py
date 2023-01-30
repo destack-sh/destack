@@ -46,8 +46,9 @@ def get_location_range_pointer(
 
 
 class ErrorType(enum.Enum):
+    INTERNAL = 0, "Internal error"
     # syntax errors
-    UNKNOWN_TOKEN = 0, "unknown token"
+    UNKNOWN_TOKEN = 1, "unknown token"
     # parser errors
     MISSING_TOKEN = 20, "expected a token"
     UNEXPECTED_TOKEN_TYPE = 21, "expected token type {type}"
@@ -74,6 +75,8 @@ class ErrorType(enum.Enum):
     UNEXPECTED_PARAMETERS = 72, "unexpected parameters"
     EXPECTED_ARGUMENTS = 73, "expected arguments of type {type}"
     UNEXPECTED_STATEMENT = 74, "unexpected statement"
+    COMPILATION_MISSING_MODEL = 75, "missing model"
+    COMPILATION_MISSING_TASK = 76, "missing task"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)

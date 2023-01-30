@@ -427,7 +427,7 @@ async def run_bpl_speculative(
             decode = get_hole_decode_settings(ctx, part)
             actual = generated[pos : pos + decode.max_tokens]
             if decode.stop:  # stop at the first stop of the hole
-                min_stop = min(actual.find(s) for s in decode.stop if s in actual)
+                min_stop = min(actual.find(s) for s in decode.stop)
                 if min_stop >= 0:
                     actual = actual[:min_stop]
             # transform value to target type
@@ -484,7 +484,7 @@ def render_variable_repr(part: PromptVariable) -> str:
         elif isinstance(part.type, TypeInstance):
             target_type = part.type.type_node
             if target_type.type == TypeTag.ENUM:
-                value = value.value
+                value = str(value)
         else:
             raise ValueError(f"invalid target type: {part}")
     else:

@@ -1398,6 +1398,10 @@ def interp(
                     symbol.tasks.append(other)
                 else:
                     _error(ET.UNEXPECTED_STATEMENT, other.source)
+            if not symbol.models:
+                _error(ET.COMPILATION_MISSING_MODEL, statement)
+            if not symbol.tasks:
+                _error(ET.COMPILATION_MISSING_TASK, statement)
         elif isinstance(symbol, Runconfig):
             for other in scope.proper_symbols:
                 if isinstance(other, Code):
