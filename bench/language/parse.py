@@ -356,9 +356,8 @@ class FileParseState:
     def add_statement(self, statement: Statement):
         self.file.statements.append(statement)
 
-        if statement.type not in (StatementType.BLANK, StatementType.COMMENT):
-            self.ancestors = self.ancestors[: self.indent]  # wipe ancestors with higher indent
-            self.ancestors += [statement]  # replace ancestor at current indent
+        self.ancestors = self.ancestors[: self.indent]  # wipe ancestors with higher indent
+        self.ancestors += [statement]  # replace ancestor at current indent
 
         parent_id = statement.parent.id if statement.parent else None
         self.statements_by_parent[parent_id].append(statement)
@@ -395,43 +394,46 @@ def preparse(
         # empty stream
         return []
 
-    parser = TokenParser(tokens, start_pos=0, indent_level=0)
+    tokens = TokenParser(tokens, start_pos=0, indent_level=0)
     states: dict[str, FileParseState] = OrderedDict()  # remember original file order
     # tokens[0] must be newfile
-    initial_file: File = File(module=module, path=parser.eat_newfile().value)
+    initial_file: File = File(module=module, path=tokens.eat_newfile().value)
     local = FileParseState(file=initial_file)
     states[initial_file.path] = local
 
-    while parser.peek() is not None:
+    while tokens.peek() is not None:
         # reset indent if previous token was on a different line
-        if parser.previous is not None and parser.previous.line_number != parser.peek().line_number:
+        if tokens.previous is not None and tokens.previous.line_number != tokens.peek().line_number:
             local.indent = 0
 
-        if parser.peek().type == TT.NEWFILE:
-            path = parser.eat_newfile().value
+        if tokens.peek().type == TT.NEWFILE:
+            path = tokens.eat_newfile().value
             if path not in states:  # begin new file state
                 new_file = File(module=module, path=path)
                 states[path] = FileParseState(file=new_file)
             local = states[path]
-        elif parser.peek().type == TT.INDENT:
-            parser.eat()
+        elif tokens.peek().type == TT.INDENT:
+            tokens.eat()
             local.indent += 1
         else:  # parse statement
             if len(local.ancestors) < local.indent:  # too much indentation
-                raise ParseError(ET.UNEXPECTED_INDENT, parser.peek())
+                raise ParseError(ET.UNEXPECTED_INDENT, tokens.peek(), indent=local.indent)
+            if local.parent and local.parent.type in (StatementType.BLANK, StatementType.COMMENT):
+                # can't have children
+                raise ParseError(ET.UNEXPECTED_INDENT, tokens.peek(), indent=local.indent)
 
             errors: list[ParseError] = []
-            parser.indent_level = local.indent  # skip indent tokens at current level
-            start_mark = parser.mark()
+            tokens.indent_level = local.indent  # skip indent tokens at current level
+            start_mark = tokens.mark()
             statement = _parse_statement(
-                parser,
+                tokens,
                 is_root=local.root,
                 on_error=errors.append,
                 file=local.file,
                 parent=local.parent,
                 index=local.index,
             )
-            parser.indent_level = 0  # skip only for statement parsing
+            tokens.indent_level = 0  # skip only for statement parsing
 
             # handle and remember parse errors
             errors.sort(key=lambda e: e.position, reverse=True)  # get the deepest error
@@ -443,11 +445,11 @@ def preparse(
                 cause = likely_error or (
                     local.previous_errors[-2] if len(local.previous_errors) > 1 else None
                 )
-                error = ParseError(ET.INVALID_STATEMENT, parser.peek(), cause=cause)
+                error = ParseError(ET.INVALID_STATEMENT, tokens.peek(), cause=cause)
                 on_error(error)
                 continue
 
-            statement._source = parser.eaten(start_mark)
+            statement._source = tokens.eaten(start_mark)
             local.add_statement(statement)
 
     return [state.file for state in states.values()]

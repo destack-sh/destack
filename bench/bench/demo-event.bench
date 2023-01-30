@@ -33,6 +33,6 @@ task 'extract events' :: (input: string) -> [Event]:
 "Extract events from the given text"
     expect 'event follows from text':
     "The text should imply the event"
-
+    
     expect 'non-overlapping events' on output:
     "The events should be distinct in content"

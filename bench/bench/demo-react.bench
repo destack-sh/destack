@@ -16,7 +16,7 @@ task 'react' :: (input: string, max_steps: number) -> string | null "Answer":
     var type ActionT
     var code act :: (action: ActionT) -> string | null
 
-    with code implementation:
+    with code implementation :: ():
     ```python
     for i in range(max_steps):
         step = decide_step(input, i)
@@ -29,7 +29,7 @@ task 'react' :: (input: string, max_steps: number) -> string | null "Answer":
     "Decide what to do next"
 
     # compiled implementation
-    with code implementation:
+    with code implementation :: ():
     ```bpl
     # context
     "{samples}"

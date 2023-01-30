@@ -73,7 +73,8 @@ def render_file(file: File) -> str:
 def render_statement_indented(statement: Statement, indent: int) -> str:
     content_str = render_statement(statement)
     if indent > 0:
-        content_lines = content_str.splitlines()
+        # if empty, add a single empty line
+        content_lines = content_str.splitlines() if content_str else [""]
         indent_str = " " * 4 * indent  # use 4 spaces
         content_lines = [f"{indent_str}{line}" for line in content_lines]
         content_str = "\n".join(content_lines)
@@ -175,7 +176,10 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
             field_names = [field.name for field in content.type_node.children]
             csv_output = io.StringIO()
             csv_writer = csv.DictWriter(
-                csv_output, quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
+                csv_output,
+                quoting=csv.QUOTE_NONNUMERIC,
+                fieldnames=field_names,
+                lineterminator="\n",
             )
             csv_writer.writerows(content.records)
             rendered_data = render_literal(csv_output.getvalue().strip(), lang="csv")
