@@ -1,40 +1,27 @@
-from asgiref.sync import async_to_sync
+import asyncio
+
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 
-from bench.models import Project, SymbolType
+from bench.language.parse import parse_file
+from bench.language.reconstruct import render_file
+from bench.language.type import Compilation
+from bench.models.mapper import lookup_in_db_module
+from bench.runtime.compile import compile, down
 
 
 class Command(BaseCommand):
     help = "Compiles a task into optimized code"
 
     def add_arguments(self, parser: CommandParser):
-        # project name as organization/project
-        parser.add_argument("organization_project", type=str)
-        # task file path (must exist and end in .py)
-        parser.add_argument("task_name", type=str)
-        # backend names
-        parser.add_argument("--backends", type=str, nargs="+", required=True)
+        # project as organization/project[:compilation]
+        parser.add_argument("path", type=str)
+        # compile path as statement path
+        parser.add_argument("compile_path", type=str)
 
-    def handle(self, organization_project: str, task_name: str, *args, **options):
-        project = Project.objects.get_by_slug(*organization_project.split("/"))
-        if project is None:
-            raise ValueError(f"project not found: {organization_project}")
-
-        project_v = project.head_
-        task_def = project_v.definition(SymbolType.TASK, task_name)
-        # get backend models as owner/model from its backends library
-        backends = []
-        for backend in options["backends"]:
-            backends.append(get_std_model(backend))
-        if not backends:
-            raise ValueError("no backends provided")
-
-        executor = Executor(Mapper())
-        compiler = Compiler(executor)
-        compilation, _ = task_def.task.compilations.select_related("project_version").get_or_create(
-            project_version=project_v, task=task_def.task, name="default"
-        )
-        compilation.backends.set(backends)
-        task_def.task.compilations.set([compilation])
-        async_to_sync(compiler.compile)(compilation)
+    def handle(self, path: str, compile_path: str, **kwargs):
+        lang_module, idx = parse_file(path, lookup_in_module=lookup_in_db_module)
+        compilation = compile(idx.symbol(compile_path, Compilation))
+        gen_symbols, mappings = asyncio.get_event_loop().run_until_complete(compilation)
+        gen_file = down(gen_symbols)
+        print(render_file(gen_file))

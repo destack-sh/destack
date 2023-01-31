@@ -209,13 +209,17 @@ def escape_identifier(identifier: str) -> str:
         return f"'{identifier}'"
 
 
-def render_type_node(node: TypeNode, ignore_name: bool = False) -> str:
+def render_type_node(
+    node: TypeNode, ignore_name: bool = False, ignore_reference: bool = False
+) -> str:
     if node.name and not ignore_name:
         identifier_str = escape_identifier(node.name) + ": "
     else:
         identifier_str = ""
     description_str = f' "{node.description}"' if node.description else ""
-    if node.type == TypeTag.TYPE_REFERENCE or node.source_reference is not None:
+    if node.type == TypeTag.TYPE_REFERENCE or (
+        node.source_reference is not None and not ignore_reference
+    ):
         # if it's a reference _or_ used to be a reference, keep the type reference
         reference_str = escape_identifier(node.source_reference)
         return f"{identifier_str}{reference_str}{description_str}"

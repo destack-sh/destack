@@ -13,7 +13,7 @@ return 5
 ```
 """
     )
-    code = instantiate(idx.symbol(".test:function"), idx)
+    code = instantiate(idx.symbol(".test:function"))
     assert run_sync(code) == 5
 
 
@@ -33,7 +33,7 @@ return val * context['unwieldy name']
 ```
 """
     )
-    code = instantiate(idx.symbol(".test:function"), idx)
+    code = instantiate(idx.symbol(".test:function"))
     assert run_sync(code) == 10
 
 
@@ -47,7 +47,7 @@ return 5 * val
 ```
 """
     )
-    code = instantiate(idx.symbol(".test:function"), idx)
+    code = instantiate(idx.symbol(".test:function"))
     assert run_sync(code, {"val": 2}) == 10
 
 
