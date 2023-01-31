@@ -35,28 +35,11 @@ data samples :: (input: string, target: AnimalType | null):
 "Whatup brah","null"
 ```
 
-code identify_animal_speaker :: (input: string) -> AnimalType | null:
-```bpl
-pragma(model=context["text-davinci-003"])
-pragma(temperature=0.5, max_tokens=600)
-"Classify the given input text by the animal type of the author.\n"
-"The possible animal types are:\n"
-for animal_type in AnimalType:
-    " - \"{animal_type: AnimalType}\": \"{animal_type.description}\"\n"
-"Output \"null\" as the animal type if it's unclear which one it is.\n"
-"Some fun examples:\n"
-for sample in samples:
-    # aliased here because bpl parser can't grok nested brackets yet
-    sample_input = sample['input']
-    sample_target = sample['target']
-    "\"{sample_input}\""
-    " -> \"{sample_target}\"\n"
-"\"{input}\""
-" -> \"[animal_type: AnimalType]\""
-return animal_type
-```
+# Copied from actually compiled code
+data 'identify animal speaker examples' :: (input: string, output: AnimalType | null "The type of author"):
+```jsonl
 
-# Copied from actually compiled code (with minor edits)
+```
 code 'identify animal speaker' :: (input: string) -> AnimalType | null "The type of author":
 ```bpl
 pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
@@ -67,16 +50,26 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 # Task type instruction
 "type of task\"identify animal speaker\n"
 "input: string\n"
-"output: AnimalType \"The type of author\"\n"
+"output: AnimalType | null \"The type of author\"\n"
 
-"type of AnimalType:\n"
-"Sheep = `\"sheep\"` \"The fluffy white cloud\""
-"Goat = `\"goat\"` \"The proud mountain creature\""
-"HouseCat = `\"house cat\"` \"The domesticated feline\""
-"Lion = `\"lion\"` \"The king of the jungle\""
-"Penguin = `\"penguin\"` \"The majestic bird fish\""
+"enum AnimalType:\n"
+"sheep = (\"Sheep\", \"The fluffy white cloud\")"
+"goat = (\"Goat\", \"The proud mountain creature\")"
+"house cat = (\"HouseCat\", \"The domesticated feline\")"
+"lion = (\"Lion\", \"The king of the jungle\")"
+"penguin = (\"Penguin\", \"The majestic bird fish\")"
+
+# Task example instruction
+"examples for task \"identify animal speaker\":"
+"Classify the given input text by the animal type of the author.\n"
+for example in context['identify animal speaker examples']:
+    _input = example['input']
+    "\"input\": {_input}\n"
+    _output = example['output']
+    "\"output\": {_output}\n"
 
 # Task inference
-"\"input\": {input}\n"
-"\"output\": [output: AnimalType]\n"
+"\"input\": \"{input}\"\n"
+"\"output\": [output: AnimalType | null]"
 ```
+

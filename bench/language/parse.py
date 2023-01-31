@@ -159,7 +159,7 @@ class TokenParser:
     Automatically matches (and ignores) indentation at the set level (mutable).
     """
 
-    def __init__(self, tokens: list[Token], start_pos: int, indent_level: int):
+    def __init__(self, tokens: list[Token], start_pos: int = 0, indent_level: int = 0):
         self._tokens = tokens
         self._start_pos = start_pos
         self._peek_pos = start_pos
@@ -1210,7 +1210,7 @@ def resolve_type_references(
 ) -> None:
     """Resolves (but does not impute) type references in a type node."""
 
-    # walk through child nodes
+    # walk through child nodes (always, as they may not be resolved even if the parent is)
     if node.children is not None:
         _path = _path + [node]
         for child in node.children:
@@ -1234,7 +1234,7 @@ def resolve_type_references(
         return
 
     # get type node from statement
-    # TODO @Incomplete: type resolve gets the underlying definition directly
+    # TODO @Incomplete: type resolve should use Type symbols :TypeResolveSymbols
     resolved_type = typing.cast(TypeContent, resolved_stmt.underlying_definition.content)
     node.reference = resolved_type.type_node
 

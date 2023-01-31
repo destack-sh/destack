@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from typing import Any, AsyncGenerator, NamedTuple, Union
 
 from bench.language import TypeNode, TypeTag
+from bench.language.lex import lex_string
+from bench.language.parse import TokenParser, parse_type_node_inline
+from bench.language.type import InterpSymbol
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
     DecoderSettings,
@@ -71,6 +74,7 @@ def render_part(part: PromptPart) -> str:
 
     def _render_type(type: str) -> str | None:
         # transform type into a recoverable representation
+        # :PrimitiveTypeMap
         if type == "string":
             return "str"
         elif type == "number":
@@ -80,7 +84,7 @@ def render_part(part: PromptPart) -> str:
         elif type == "null":
             return "None"
         elif isinstance(type, str):
-            return f'source_context["{part.type}"]'
+            return f'_parse_type_inline("{part.type}", source_context)'
         else:
             return None
 
@@ -123,16 +127,6 @@ def render_part(part: PromptPart) -> str:
         return f"PromptPragmaZoneExit(id={part.id})"
     raise ValueError(f"unexpected part type: {part}")
 
-
-# 'builtins' required in context to execute the generated python code
-BPL_BUILTINS = {
-    "PromptConstant": PromptConstant,
-    "PromptVariable": PromptVariable,
-    "PromptHole": PromptHole,
-    "PromptExit": PromptExit,
-    "PromptPragmaZoneEnter": PromptPragmaZoneEnter,
-    "PromptPragmaZoneExit": PromptPragmaZoneExit,
-}
 
 # Bench prompt language is really just python with pragmas and lonely strings as prompt emits.
 # This is transformed into python code that can be executed with some metadata.
@@ -242,8 +236,8 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
             continue
         # set 'next' constant or variable if immediately following
         next_part = parsed[i + 1] if i + 1 < len(parsed) else None
-        if isinstance(next_part, str):
-            continue  # source line
+        if isinstance(next_part, str) or next_part is None:
+            continue  # source line or end
         elif isinstance(next_part.part, PromptConstant):
             source_p.part.next_constant_content = next_part.part.content
         elif isinstance(next_part.part, SourcePromptPart):
@@ -377,7 +371,7 @@ async def run_bpl_speculative(
      as we usually get to fill many holes in one call with minor backtracking to correct.
     """
 
-    # forward mode: populate context until we hit a hole
+    # forward mode: build prefix until we hit a hole
     first_unfilled_hole: PromptHole | None = None
     async for part in prompt:
         if isinstance(part, PromptExit):
@@ -464,11 +458,14 @@ def parse_hole_repr(part: PromptHole, value: str) -> Any:
     # parse and handle non-primitive types like unions in BPL directly somehow.
     elif isinstance(part.type, type):
         value = part.type(value)
-    elif isinstance(part.type, TypeInstance):
-        target_type = part.type.type_node
-        if target_type.type == TypeTag.ENUM:
-            value = value.strip()
-            value = part.type.py_type(value)
+    elif isinstance(part.type, TypeNode):
+        # TODO @Incomplete: validate arbitrary type nodes :TypeChecking
+        # this should be unified with validation tracer and other value type checking
+        # note that we don't actually transform the value here, we just validate it
+        if part.type.type == TypeTag.ENUM:
+            allowed_values = [v.value for v in part.type.members]
+            if value not in allowed_values:
+                raise ValueError(f"expected one of {allowed_values} but got {value}")
     else:
         raise ValueError(f"invalid target type: {part}")
     return value
@@ -490,3 +487,41 @@ def render_variable_repr(part: PromptVariable) -> str:
     else:
         value = str(value)
     return value
+
+
+def _parse_type_inline(type_str: str, source_context: dict[str, InterpSymbol]) -> TypeNode:
+    """Resolves (rather naively) a type str using source context"""
+    type_node = parse_type_node_inline(TokenParser(lex_string(type_str)), name=None)
+    # unfortunately we duplicate resolve_type_references as it resolves on statement level
+    # TODO @Cleanup: :TypeResolveSymbols this method shouldn't exist
+
+    def _walk_type_node(node: TypeNode, _path: list[TypeNode]):
+        if node in _path:
+            return  # skip cycles
+        _path = _path + [node]
+        yield node
+        if node.children:
+            for child in node.children:
+                yield from _walk_type_node(child, _path)
+
+    for node in _walk_type_node(type_node, []):
+        if isinstance(node.reference, str):
+            resolved = source_context.get(node.reference)
+            if resolved is None:
+                # this shouldn't happen
+                raise ValueError(f"unknown type reference: {node.reference}")
+            node.reference = resolved
+
+    return type_node
+
+
+# 'builtins' required in context to execute the generated python code
+BPL_BUILTINS = {
+    "PromptConstant": PromptConstant,
+    "PromptVariable": PromptVariable,
+    "PromptHole": PromptHole,
+    "PromptExit": PromptExit,
+    "PromptPragmaZoneEnter": PromptPragmaZoneEnter,
+    "PromptPragmaZoneExit": PromptPragmaZoneExit,
+    "_parse_type_inline": _parse_type_inline,
+}

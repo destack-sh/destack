@@ -199,6 +199,7 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
+    # :PrimitiveTypeMap
     if node.type == TypeTag.STRING:
         return str
     elif node.type == TypeTag.NUMBER:
@@ -332,8 +333,11 @@ def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInsta
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in symbol.context.items():
-        if symbol == value:
-            # skip self-reference, will be inserted later
+        if symbol is value:
+            # self-reference is not supported for now
+            # mainly because it would require either
+            #  1) allowing invalid/mock initial instance state (and populate that later)
+            #  2) tracking and somehow swapping the reference after it is actually created
             continue
         instantiated_context[name] = instantiate(value, proxy=proxy)
 
