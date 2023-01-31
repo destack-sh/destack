@@ -38,3 +38,20 @@ for sample in temperature_examples:
 "Temperature: [temperature: Temperature]"
 return temperature
 ```
+
+--- utils.x ---
+
+# Task expansion
+code generate_examples :: (task_description: string, task_type: any, count: number) -> [any]:
+"Generates examples for a given task of the given type"
+```bpl
+"Create more examples for the given task\n"
+"Task description: {task_description}\n"
+"Task type: {task_type}\n"
+"\n"
+"{count} examples:\n"
+examples = []
+for i in range(count):
+    raise NotImplementedError
+return examples
+```

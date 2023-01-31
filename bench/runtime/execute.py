@@ -15,7 +15,6 @@ from uuid import UUID, uuid4
 import structlog
 from django.db import models
 
-from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Code,
     Dataset,
@@ -51,6 +50,8 @@ from bench.runtime.type import (
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordList
 
+logger = structlog.stdlib.get_logger()
+
 
 class ProviderKey(models.TextChoices):
     OPENAI = "openai"
@@ -68,8 +69,6 @@ STATIC_BUILTINS = {
     "null": None,
     "boolean": bool,
 }
-
-logger = structlog.stdlib.get_logger()
 
 
 class RunErrorType(enum.Enum):
@@ -325,9 +324,7 @@ def wrap_prompt_callable(
     return wrapped_callable
 
 
-def instantiate(
-    symbol: InterpSymbol, idx: ModuleIndex, proxy: Proxy | None = None
-) -> SymbolInstance:
+def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInstance:
     """Instantiate a statement, its context and children (recursively)."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
@@ -335,7 +332,10 @@ def instantiate(
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in symbol.context.items():
-        instantiated_context[name] = instantiate(value, idx=idx, proxy=proxy)
+        if symbol == value:
+            # skip self-reference, will be inserted later
+            continue
+        instantiated_context[name] = instantiate(value, proxy=proxy)
 
     # instantiate statement itself
     if isinstance(symbol, Code):
