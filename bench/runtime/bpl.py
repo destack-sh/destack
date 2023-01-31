@@ -6,8 +6,9 @@ from typing import Any, AsyncGenerator, NamedTuple, Union
 
 from bench.language import TypeNode, TypeTag
 from bench.language.lex import lex_string
-from bench.language.parse import TokenParser, parse_type_node_inline
+from bench.language.parse import TokenParser, impute_type_reference, parse_type_node_inline
 from bench.language.type import InterpSymbol
+from bench.language.typer import check_type
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
     DecoderSettings,
@@ -330,6 +331,14 @@ class InferenceContext:
         self.inference = None
 
 
+class GenerationError(ValueError):
+    def __init__(self, message: str, part: PromptPart, cause: Exception | None = None):
+        super().__init__(message, cause)
+        self.message = message
+        self.part = part
+        self.cause = cause
+
+
 async def run_bpl_controlled(
     prompt: AsyncGenerator[PromptPart, None], ctx: InferenceContext
 ) -> Any:
@@ -337,10 +346,10 @@ async def run_bpl_controlled(
 
     part = await prompt.asend(None)  # start iteration
     while True:
-        send_back = None
         if ctx.remaining_tokens <= 0:
-            raise RuntimeError(f"ran out of tokens: can't proceed with {part}")
+            raise GenerationError("ran out of tokens", part)
 
+        send_back = None
         if isinstance(part, PromptExit):
             return part.value
         elif isinstance(part, PromptConstant):
@@ -396,6 +405,9 @@ async def run_bpl_speculative(
             stop=None,  # no stopping in uncontrolled mode
         )
     )
+
+    if ctx.remaining_tokens <= 0:
+        raise GenerationError("ran out of tokens", first_unfilled_hole)
 
     # backward mode: match generated text to holes
     # (emulate how controlled step-wise forward would have behaved)
@@ -459,15 +471,13 @@ def parse_hole_repr(part: PromptHole, value: str) -> Any:
     elif isinstance(part.type, type):
         value = part.type(value)
     elif isinstance(part.type, TypeNode):
-        # TODO @Incomplete: validate arbitrary type nodes :TypeChecking
-        # this should be unified with validation tracer and other value type checking
         # note that we don't actually transform the value here, we just validate it
-        if part.type.type == TypeTag.ENUM:
-            allowed_values = [v.value for v in part.type.members]
-            if value not in allowed_values:
-                raise ValueError(f"expected one of {allowed_values} but got {value}")
+        try:
+            check_type(value, part.type)  # raises our TypeError
+        except TypeError as e:
+            raise GenerationError(f"invalid value for hole: {e}", part, e)
     else:
-        raise ValueError(f"invalid target type: {part}")
+        raise RuntimeError(f"invalid target type: {part}")
     return value
 
 
@@ -504,13 +514,18 @@ def _parse_type_inline(type_str: str, source_context: dict[str, InterpSymbol]) -
             for child in node.children:
                 yield from _walk_type_node(child, _path)
 
+    # resolve references
     for node in _walk_type_node(type_node, []):
         if isinstance(node.reference, str):
             resolved = source_context.get(node.reference)
-            if resolved is None:
+            if not isinstance(resolved, TypeInstance):
                 # this shouldn't happen
                 raise ValueError(f"unknown type reference: {node.reference}")
-            node.reference = resolved
+            node.reference = resolved.type_node
+
+    # impute references in-place
+    for node in _walk_type_node(type_node, []):
+        impute_type_reference(node)
 
     return type_node
 
