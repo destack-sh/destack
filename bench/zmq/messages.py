@@ -53,7 +53,13 @@ class ZMessageType(StrEnum):
     MODULE_RUNTIME_CHANGED = "module_runtime_changed"
 
 
-# TODO @Performance @Robustness: use custom message types & format beyond JSON?
+#
+# All messages are just Python dataclasses.
+# They are serialized and deserialized in serialize.py with some custom logic
+#  to support all the nested Python typing we need (e.g. NamedTuples).
+# In the future we may want to use a more formal serialization format,
+# but for the time being this is both fast and flexible.
+#
 
 
 @_register_payload(ZMessageType.PROJECT_VERSION_CHANGED)

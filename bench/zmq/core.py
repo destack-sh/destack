@@ -130,7 +130,7 @@ async def recv_message_poll(poller: zmq.asyncio.Poller, timeout: int | None = No
 zmq_ctx_sync = zmq.Context()
 zmq_ctx = zmq.asyncio.Context(shadow=zmq_ctx_sync)
 
-# TODO @Incomplete: close zmq_ctx_sync/zmq_ctx on exit
+# TODO @Robustness: close zmq_ctx_sync/zmq_ctx on exit
 #  (and ensure all sockets and connections are closed)
 
 

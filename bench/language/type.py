@@ -434,7 +434,6 @@ PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING
 class TypeNode:
     name: Optional[str]
     type: TypeTag
-    required: bool = True
     description: Optional[str] = None
     reference: Union[None, str, "TypeNode"] = None
     value: Optional[LiteralValue] = None  # for literal types
@@ -468,6 +467,12 @@ class TypeNode:
     def members(self) -> list[TypeNode]:  # for enum types
         return self.children[1:]
 
+    @property
+    def is_union_with_none(self) -> bool:
+        return self.type == TypeTag.UNION and any(
+            child.type == TypeTag.NULL for child in self.children
+        )
+
     def child(self, key: str) -> TypeNode:
         if self.children is None:
             raise ValueError(f"find cannot be used on {self}")
@@ -479,6 +484,7 @@ class TypeNode:
 
 @dataclass(repr=False)
 class TypeContent(SymbolContent):
+    # TODO @Cleanup: TypeContent == TypeNode
     type_node: TypeNode
     description: Optional[str]
 

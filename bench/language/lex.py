@@ -69,7 +69,7 @@ IDENTIFIER_REGEX = re.compile(r"(?P<value>([\w.\-][\w.-]*))")
 ESCAPED_IDENTIFIER_REGEX = re.compile(r"'(?P<value>[\w.\-][ \w.\-]*)'")
 # literal as `<value>`{<lang>}? or ^```<lang>?\n<multi \n line \n value>\n```$
 MULTILINE_LITERAL_REGEX = re.compile(
-    r"```(?P<lang>\w+)?\n(?P<value>.+?)\n[ \t]*```", re.DOTALL | re.MULTILINE
+    r"```(?P<lang>\w+)?\n(?P<value>.*?)\n[ \t]*```", re.DOTALL | re.MULTILINE
 )
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({\.(?P<lang>\w+)})?")
 # descriptions as "<value>"

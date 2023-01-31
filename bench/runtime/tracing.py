@@ -207,7 +207,7 @@ class ValidationTracer(Tracer):
         self._check_output(code, result, code.type_node.output)
 
     def _check_output(self, code: CodeInstance, value: Any, type: TypeNode):
-        # TODO @Typing: recursive schema validation
+        # TODO @Typing: recursive type node validation :TypeChecking
         value_type = derive_type_from_value(value)
         if not type.required and value is None:
             return
