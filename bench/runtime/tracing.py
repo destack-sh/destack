@@ -11,8 +11,7 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.language.type import TypeNode
-from bench.language.typer import derive_type_from_value
+from bench.language.typer import check_type
 from bench.runtime.bpl import InferenceContext
 from bench.runtime.type import CodeInstance, DecoderSettings, ModelInstance
 
@@ -170,11 +169,17 @@ class ExecutionTracer(Tracer):
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings):
+    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings, duration: float):
         frame = self.stacktrace[-1]
         frame.inference_id = ctx.id
         self.tracker(frame)
-        logger.debug("trace.inference.generate", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug(
+            "trace.inference.generate",
+            frame=frame,
+            stackdepth=len(self.stacktrace),
+            step=step,
+            duration=duration,
+        )
 
     def inference_exit(self, ctx: InferenceContext):
         frame = self.stacktrace.pop()
@@ -193,27 +198,20 @@ class ValidationTracer(Tracer):
     """
 
     def code_enter(self, code: CodeInstance, args, kwargs):
-        # validate kwargs
-        for name, value in kwargs.items():
-            parameter = code.type_node.input.child(name)
-            if parameter is None:
-                # TODO @Typing: error on unknown parameters?
-                #  Currently we ignore this because schema elements don't include non-value types.
-                # ignore unknown parameters for now
-                continue
-            self._check_argument(code, value, parameter)
+        try:
+            # check args
+            for i, value in enumerate(args):
+                value_type = code.type_node.input.children[i]
+                check_type(value, value_type)
+            # check kwargs
+            for name, value in kwargs.items():
+                value_type = code.type_node.input.child(name)
+                check_type(value, value_type)
+        except (ValueError, TypeError) as e:
+            raise ValidationError(f"invalid arguments for {code.name}: {e}", e)
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
-        self._check_output(code, result, code.type_node.output)
-
-    def _check_output(self, code: CodeInstance, value: Any, type: TypeNode):
-        # TODO @Typing: recursive type node validation :TypeChecking
-        value_type = derive_type_from_value(value)
-        if not type.required and value is None:
-            return
-        elif value_type != type.type:
-            raise ValidationError(f"return from {code} expected {type}, got {value_type}")
-
-    def _check_argument(self, code: CodeInstance, argument: Any, parameter: TypeNode):
-        # TODO @Typing: check that the argument has a compatible schema
-        raise NotImplementedError
+        try:
+            check_type(result, code.type_node.output)
+        except TypeError as e:
+            raise ValidationError(f"invalid return value for {code.name}: {e}", e)
