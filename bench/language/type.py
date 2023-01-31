@@ -151,7 +151,7 @@ class StatementModifier(models.TextChoices):
     EXTEND = "extend"
     LIKE = "like"
     UNLIKE = "unlike"
-    VERIFY = "verify"
+    CHECK = "check"
 
 
 class SymbolType(models.TextChoices):
@@ -334,7 +334,7 @@ class Statement(Generic[SymbolContentT]):
         has_expect_intent = self.modifier in (
             StatementModifier.LIKE,
             StatementModifier.UNLIKE,
-            StatementModifier.VERIFY,
+            StatementModifier.CHECK,
         )
         return self.is_proper and (
             self.symbol_type == SymbolType.EXPECTATION or (expectable_symbol and has_expect_intent)
@@ -392,6 +392,9 @@ class InterpSymbol:
     def __str__(self):
         modifier_str = f"{self.modifier} " if self.modifier else ""
         return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source})"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
 
     @staticmethod
     def default_from_content(

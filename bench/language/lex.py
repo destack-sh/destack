@@ -20,7 +20,7 @@ KEYWORDS = {
     "with": StatementModifier.WITH,
     "like": StatementModifier.LIKE,
     "unlike": StatementModifier.UNLIKE,
-    "verify": StatementModifier.VERIFY,
+    "check": StatementModifier.CHECK,
     # SymbolType
     "type": SymbolType.TYPE,
     "capability": SymbolType.CAPABILITY,

@@ -45,12 +45,15 @@ export type DatasetRecord = {
 export enum ErrorType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
   AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
+  CompilationMissingModel = "COMPILATION_MISSING_MODEL",
+  CompilationMissingTask = "COMPILATION_MISSING_TASK",
   ExpectedArguments = "EXPECTED_ARGUMENTS",
   ExpectedBlank = "EXPECTED_BLANK",
   ExpectedParameters = "EXPECTED_PARAMETERS",
   ExpectedParent = "EXPECTED_PARENT",
   ExpectedProperChildren = "EXPECTED_PROPER_CHILDREN",
   ExternalLookupFailed = "EXTERNAL_LOOKUP_FAILED",
+  Internal = "INTERNAL",
   InvalidStatement = "INVALID_STATEMENT",
   InvalidTokenValue = "INVALID_TOKEN_VALUE",
   MissingExtra = "MISSING_EXTRA",
@@ -63,6 +66,7 @@ export enum ErrorType {
   UnexpectedIndent = "UNEXPECTED_INDENT",
   UnexpectedParameters = "UNEXPECTED_PARAMETERS",
   UnexpectedParent = "UNEXPECTED_PARENT",
+  UnexpectedStatement = "UNEXPECTED_STATEMENT",
   UnexpectedTokenType = "UNEXPECTED_TOKEN_TYPE",
   UnexpectedTokenValue = "UNEXPECTED_TOKEN_VALUE",
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
@@ -517,10 +521,11 @@ export type StatementFilter = {
 
 /** A modifier to a Bench statement. */
 export enum StatementModifier {
+  Check = "CHECK",
+  Extend = "EXTEND",
   Like = "LIKE",
   Unlike = "UNLIKE",
   Var = "VAR",
-  Verify = "VERIFY",
   With = "WITH",
 }
 
