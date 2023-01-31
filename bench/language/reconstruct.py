@@ -251,6 +251,8 @@ def render_type_node(
         return "\n".join(members_strs)
     elif node.type in PRIMITIVE_TYPES:
         return f"{identifier_str}{node.type.value}{description_str}"
+    elif node.type == TypeTag.ANY:
+        return f"{identifier_str}any{description_str}"
     else:
         raise ValueError(f"unexpected type: {node.type}")
 

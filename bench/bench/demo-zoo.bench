@@ -48,22 +48,25 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 "Classify the given input text by the animal type of the author.\n"
 
 # Task type instruction
-"type of task\"identify animal speaker\n"
+"type of task \"identify animal speaker\"\n"
 "input: string\n"
 "output: AnimalType | null \"The type of author\"\n"
+"\n"
 
 "enum AnimalType as (key: info):\n"
-"sheep: \"The fluffy white cloud\""
-"goat: \"The proud mountain creature\""
-"house cat: \"The domesticated feline\""
-"lion: \"The king of the jungle\""
-"penguin: \"The majestic bird fish\""
+"sheep: \"The fluffy white cloud\"\n"
+"goat: \"The proud mountain creature\"\n"
+"house cat: \"The domesticated feline\"\n"
+"lion: \"The king of the jungle\"\n"
+"penguin: \"The majestic bird fish\"\n"
 "value must be one of the above keys\n"
+"\n"
 
 # Task example instruction
-"examples for task \"identify animal speaker\":"
+"examples for task \"identify animal speaker\":\n"
 "Classify the given input text by the animal type of the author.\n"
 for example in context['identify animal speaker examples']:
+
     _input = example['input']
     "\"input\": {_input}\n"
     _output = example['output']
@@ -73,5 +76,3 @@ for example in context['identify animal speaker examples']:
 "\"input\": \"{input}\"\n"
 "\"output\": [output: AnimalType | null]"
 ```
-
-
