@@ -1,6 +1,6 @@
 from bench.language.error import Error, ErrorType
 from bench.language.lex import Token, TokenType, lex
-from bench.language.parse import ModuleIndex, parse
+from bench.language.parse import ModuleIndex, Scope, parse
 from bench.language.type import (
     CapabilityContent,
     CodeContent,
@@ -41,6 +41,7 @@ __all__ = [
     "parse",
     "RequirementContent",
     "RunconfigContent",
+    "Scope",
     "SourceMapping",
     "Statement",
     "StatementModifier",

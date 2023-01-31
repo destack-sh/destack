@@ -90,12 +90,13 @@ def lookup_in_error(*args, **kwargs):
     raise NotImplementedError("external module lookup disabled")
 
 
+LookupFunc = Callable[[RequirementContent, StatementPath], typing.Union["Scope", None]]
+
+
 def parse(
     tokens: list[Token],
     module: Optional[Module] = None,
-    lookup_in_module: Callable[
-        [RequirementContent, StatementPath], Statement | None
-    ] = lookup_in_error,
+    lookup_in_module: LookupFunc = lookup_in_error,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> tuple[Module, ModuleIndex]:
     """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
@@ -118,9 +119,7 @@ def parse(
 def parse_string(
     string: str,
     module: Optional[Module] = None,
-    lookup_in_module: Callable[
-        [RequirementContent, StatementPath], Statement | None
-    ] = ignore_module_lookup,
+    lookup_in_module: LookupFunc = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> tuple[Module, ModuleIndex]:
     tokens = lex_string(string)
@@ -130,9 +129,7 @@ def parse_string(
 def parse_file(
     file_path: str,
     module: Optional[Module] = None,
-    lookup_in_module: Callable[
-        [RequirementContent, StatementPath], Statement | None
-    ] = ignore_module_lookup,
+    lookup_in_module: LookupFunc = ignore_module_lookup,
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> tuple[Module, ModuleIndex]:
     source_file = SourceFile(path=file_path, content=Path(file_path).read_text())
@@ -142,9 +139,7 @@ def parse_file(
 
 def resolve_interp(
     module: Module,
-    lookup_in_module: Callable[
-        [RequirementContent, StatementPath], Statement | None
-    ] = lookup_in_error,
+    lookup_in_module: LookupFunc = lookup_in_error,
     on_error: Callable[[SemanticError], None] = raise_error,
 ) -> ModuleIndex:
     """Resolve references in a module, using the given lookup function."""
@@ -793,16 +788,26 @@ def parse_type_node_inline(
 
     start_mark = tokens.mark()  # for back-tracking
     # parse actual type as either primitive or type reference
+    reference = None
+    value = None
     if tokens.peek_keyword_like(TypeTag):
         # not all value types are keywords, but only the valid ones are in KEYWORDS
         type = tokens.eat_keyword_like(TypeTag).value
-        reference = None
+    elif tokens.peek_type(TokenType.LITERAL):
+        type = TypeTag.LITERAL
+        value_token = tokens.eat_literal()
+        try:
+            value = json.loads(value_token.value)
+        except ValueError as e:
+            raise ParseError(ET.INVALID_TOKEN_VALUE, value_token, error=e, value=value)
     else:
         type = TypeTag.TYPE_REFERENCE
         reference = tokens.eat_identifier().value
 
     if not tokens.peek_separator(" "):  # type is done
-        return TypeNode(name=name, type=type, reference=reference, source_reference=reference)
+        return TypeNode(
+            name=name, type=type, value=value, reference=reference, source_reference=reference
+        )
 
     tokens.eat_space()
     if tokens.peek_description():  # description completes type declaration
@@ -810,6 +815,7 @@ def parse_type_node_inline(
         return TypeNode(
             name=name,
             type=type,
+            value=value,
             reference=reference,
             source_reference=reference,
             description=description,
@@ -818,7 +824,9 @@ def parse_type_node_inline(
     elif tokens.peek_separator("|") or tokens.peek_separator("&"):
         if packing:  # inner type is done, so this must refer to parent packing
             tokens.advance(-1)  # go back one token to leave whitespace separator
-            return TypeNode(name=name, type=type, reference=reference, source_reference=reference)
+            return TypeNode(
+                name=name, type=type, value=value, reference=reference, source_reference=reference
+            )
         # otherwise we're starting to pack a new union/intersection
         packing_separator = tokens.eat().value
         packing_type = TypeTag.UNION if packing_separator == "|" else TypeTag.INTERSECTION
@@ -1101,6 +1109,10 @@ class ModuleIndex:
         self.scopes[scope.id] = scope
         self.scopes_by_name[scope.name] = scope
 
+    def add_imported_scope(self, scope: Scope) -> None:
+        # only make imported scopes available by id
+        self.scopes[scope.id] = scope
+
     def get_statement(self, path: StatementPath | str) -> Statement | None:
         if isinstance(path, str):
             path = parse_statement_path(path)
@@ -1108,6 +1120,14 @@ class ModuleIndex:
         if scope is None:
             return None
         return scope.statements.get(path.name)
+
+    def get_scope(self, path: StatementPath | str) -> Scope | None:
+        if isinstance(path, str):
+            path = parse_statement_path(path)
+        statement = self.get_statement(path)
+        if statement is None:
+            return None
+        return self.scopes.get(statement.id)
 
     def symbol(
         self, path: StatementPath | str, symbol_t: typing.Type[SymbolT] | None = None
@@ -1151,7 +1171,7 @@ def resolve(
 def resolve_statement_reference(
     statement: Statement,
     idx: ModuleIndex,
-    lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
+    lookup_in_module: LookupFunc,
     on_error: Callable[[SemanticError], None],
 ) -> None:
     def _error(_t: ET, cause: Exception | None = None, **error_args):
@@ -1169,9 +1189,10 @@ def resolve_statement_reference(
         if resolved is None:
             _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
             return
+        resolved_scope = idx.scopes[resolved.id]
     elif reference_path.startswith("."):  # resolve by "absolute" path in local module
-        resolved = idx.get_statement(statement.reference)
-        if resolved is None:
+        resolved_scope = idx.get_scope(statement.reference)
+        if resolved_scope is None:
             _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
             return
     else:  # resolve by absolute path in external module
@@ -1187,18 +1208,23 @@ def resolve_statement_reference(
         # localize path to requirement module
         localized_path = StatementPath("." + source.group("path"), reference_name)
         try:  # use module lookup to resolve
-            resolved = lookup_in_module(requirement, localized_path)
+            resolved_scope = lookup_in_module(requirement, localized_path)
         except Exception as e:
             _error(ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
             return
-        if resolved is None:
+        if resolved_scope is None:
             _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
             return
+        idx.add_imported_scope(resolved_scope)
 
-    statement.reference = resolved
+    statement.reference = resolved_scope.statement
     # check if the reference has the correct type
-    if resolved.symbol_type != statement.symbol_type:
-        _error(ET.REFERENCE_TYPE_MISMATCH, type=statement.symbol_type, resolved=resolved)
+    if statement.reference.symbol_type != statement.symbol_type:
+        _error(
+            ET.REFERENCE_TYPE_MISMATCH,
+            type=statement.symbol_type,
+            resolved=resolved_scope.statement,
+        )
 
 
 def resolve_type_references(
@@ -1352,8 +1378,8 @@ def interp(
         if not statement.is_proper:
             continue
 
+        # TODO @Incomplete: implement abstraction/variable templating :Variables
         scope = idx.scopes[statement.id]
-        # TODO @Incomplete: implement abstraction/variable templating
         if scope.parameters or scope.arguments:
             _error(ET.UNEXPECTED_PARAMETERS, statement)
             continue
@@ -1384,7 +1410,10 @@ def interp(
     # interp symbol contents using related symbols
     for id, symbol in symbols.items():
         statement = idx.statements[id]
-        scope = idx.scopes[id]
+        if statement.type == StatementType.DEFINITION:
+            scope = idx.scopes[id]
+        else:  # borrow scope from reference (imported references import their scope)
+            scope = idx.scopes[statement.reference_id]
 
         if isinstance(symbol, Type):
             for other in scope.proper_symbols:

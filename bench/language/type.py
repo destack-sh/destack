@@ -354,7 +354,6 @@ class Statement(Generic[SymbolContentT]):
 
     @property
     def is_proper(self):
-        """Not an argument or parameter"""
         return not self.is_argument and not self.is_parameter
 
     @property
