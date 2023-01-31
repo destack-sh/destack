@@ -29,7 +29,7 @@ task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
     expect 'no duplicates' on output:
     "The entities are distinct"
-        verify code check_no_duplicates :: (entities: [Entity]) -> boolean:
+        check code check_no_duplicates :: (entities: [Entity]) -> boolean:
         "Check that the entities are distinct (very crudely)"
         ```python
         entities_by_name = {e.name: e for e in entities}

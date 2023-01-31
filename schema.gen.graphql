@@ -399,7 +399,7 @@ enum StatementModifier {
   EXTEND
   LIKE
   UNLIKE
-  VERIFY
+  CHECK
 }
 
 input StatementMorphInput {

@@ -52,9 +52,10 @@ export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(
 export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",
   [StatementModifier.Unlike]: "unlike",
-  [StatementModifier.Verify]: "verify",
+  [StatementModifier.Check]: "check",
   [StatementModifier.With]: "with",
   [StatementModifier.Var]: "var",
+  [StatementModifier.Extend]: "extend",
 };
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
 

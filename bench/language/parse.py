@@ -7,13 +7,14 @@ import re
 import typing
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Optional
 from uuid import UUID
 
 import structlog
 
 from bench.language.error import ErrorType, ParseError, SemanticError
-from bench.language.lex import lex_string
+from bench.language.lex import lex, lex_string
 from bench.language.type import (
     CapabilityContent,
     Code,
@@ -31,6 +32,7 @@ from bench.language.type import (
     RequirementContent,
     Runconfig,
     RunconfigContent,
+    SourceFile,
     Statement,
     StatementModifier,
     StatementPath,
@@ -122,6 +124,19 @@ def parse_string(
     on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
 ) -> tuple[Module, ModuleIndex]:
     tokens = lex_string(string)
+    return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
+
+
+def parse_file(
+    file_path: str,
+    module: Optional[Module] = None,
+    lookup_in_module: Callable[
+        [RequirementContent, StatementPath], Statement | None
+    ] = ignore_module_lookup,
+    on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
+) -> tuple[Module, ModuleIndex]:
+    source_file = SourceFile(path=file_path, content=Path(file_path).read_text())
+    tokens = lex(source_file)
     return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
 
 
@@ -1350,6 +1365,7 @@ def interp(
             continue
 
         base_symbol = InterpSymbol(
+            id=statement.id,
             name=statement.name,
             abstract=abstract,
             modifier=statement.modifier,

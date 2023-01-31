@@ -35,11 +35,11 @@ task complete_code :: (context: CodeContext) -> CodeCompletion:
     "The code should be useful in the context"
         expect 'no repetition':
         "The code should not repeat itself unnecessarily"
-            verify code check_repetition
+            check code check_repetition
 
     expect 'no response if no idea':
     "No code should be generated if it has no idea what to do"
-        verify code check_no_idea
+        check code check_no_idea
 
     # control control flow without leaving abstraction
     with code implementation :: ():
