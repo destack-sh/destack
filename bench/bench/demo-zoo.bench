@@ -48,31 +48,27 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 "Classify the given input text by the animal type of the author.\n"
 
 # Task type instruction
-"type of task \"identify animal speaker\"\n"
-"input: string\n"
-"output: AnimalType | null \"The type of author\"\n"
-"\n"
+"func identify animal speaker {\n"
+"  input: string\n"
+"  output: AnimalType | null # \"The type of author\"\n"
+"}\n"
 
-"enum AnimalType as (key: info):\n"
-"sheep: \"The fluffy white cloud\"\n"
-"goat: \"The proud mountain creature\"\n"
-"house cat: \"The domesticated feline\"\n"
-"lion: \"The king of the jungle\"\n"
-"penguin: \"The majestic bird fish\"\n"
-"value must be one of the above keys\n"
-"\n"
-
-# Task example instruction
-"examples for task \"identify animal speaker\":\n"
-"Classify the given input text by the animal type of the author.\n"
-for example in context['identify animal speaker examples']:
-
-    _input = example['input']
-    "\"input\": {_input}\n"
-    _output = example['output']
-    "\"output\": {_output}\n"
+"enum AnimalType {\n"
+"  \"sheep\" # \"The fluffy white cloud\"\n"
+"  \"goat\" # \"The proud mountain creature\"\n"
+"  \"house cat\" # \"The domesticated feline\"\n"
+"  \"lion\" # \"The king of the jungle\"\n"
+"  \"penguin\" # \"The majestic bird fish\"\n"
+"}\n"
 
 # Task inference
-"\"input\": \"{input}\"\n"
-"\"output\": [output: AnimalType | null]"
+"Perform the task identify animal speaker as described above to complete the output with the correct types. Consider the instructions carefully:\n"
+"Classify the given input text by the animal type of the author.\n"
+" - Do not output an animal type if it's unclear\n"
+"{\n"
+"  \"input\": \"{input}\",\n"
+"  \"output\": [final_output: AnimalType | null]"
+"}"
+return final_output
 ```
+

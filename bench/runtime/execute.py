@@ -360,7 +360,7 @@ def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInsta
     elif isinstance(symbol, Dataset):
         return DatasetInstance(**symbol.__dict__, records_batch=RecordList(symbol.records))
     elif isinstance(symbol, Type):
-        py_type = instantiate_py_type(symbol.type_node)
+        py_type = instantiate_py_type(symbol)
         return TypeInstance(**symbol.__dict__, py_type=py_type)
     else:
         raise ValueError(f"cannot instantiate {symbol}")

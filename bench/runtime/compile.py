@@ -174,7 +174,8 @@ class PromptBuilder:
     #
 
     def emit_explain_type(self, node: TypeNode):
-        """Explains the given type and all referenced types."""
+        """Emits BPL to explain the given type and all its references."""
+        # TODO @Cleanup: emit_explain_type is unwieldy (esp. _render_type_node)
 
         # accumulate pending types that we need to explain at the end
         explained_types = set()
@@ -202,7 +203,7 @@ class PromptBuilder:
                 return id(node).__str__()
 
         def _render_type_node(node: TypeNode, is_root: bool = False) -> str:
-            name_str = f"{node.name} = " if node.name else ""
+            name_str = f"{node.name}: " if node.name else ""
             description_str = f' # "{node.description}"' if node.description else ""
             if node.source_reference and not is_root:
                 # refer to types by their source reference unless we're at root
@@ -216,30 +217,28 @@ class PromptBuilder:
                 return f"{name_str}{element_type}[]{description_str}"
             elif node.tag == TypeTag.FUNCTION:
                 func_strs = [
-                    f"function {node.name}{description_str}:",
-                    " # inputs",
-                    *(_render_type_node(child) for child in node.input.children),
-                    " # -> output",
-                    _render_type_node(node.output),
+                    f"func {node.name}{description_str} {{",
+                    *("  " + _render_type_node(child) for child in node.input.children),
+                    "  " + _render_type_node(node.output),
                 ]
                 # since function inlines the input types, we need to consider children
                 for child in node.children + node.input.children:
                     explained_types.add(_source_name(child))
                     _consider_children(child)
-                return "\n".join(func_strs)
+                return "\n".join(func_strs) + "\n}"
             elif node.tag == TypeTag.STRUCT:
-                struct_strs = [f"struct {node.name or node.source_reference}{description_str}:"]
+                struct_strs = [f"struct {node.source_reference}{description_str} {{"]
                 for child in node.children:
-                    struct_strs.append(_render_type_node(child))
+                    struct_strs.append("  " + _render_type_node(child))
                     explained_types.add(_source_name(child))
                     _consider_children(node)
-                return "\n".join(struct_strs)
+                return "\n".join(struct_strs) + "\n}"
             elif node.tag == TypeTag.ENUM:
                 # assumes literal enum (only value members)
-                enum_strs = [f"enum {node.name or node.source_reference}{description_str}:"]
+                enum_strs = [f"enum {node.source_reference}{description_str} {{"]
                 for child in node.members:
-                    enum_strs.append(f'"{child.value}" # "{child.description}"')
-                return "\n".join(enum_strs)
+                    enum_strs.append(f'  "{child.value}" # "{child.description or child.name}"')
+                return "\n".join(enum_strs) + "\n}"
             elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
                 return f"{name_str}{node.tag.value}{description_str}"
             else:
@@ -248,27 +247,69 @@ class PromptBuilder:
         types_to_explain[_source_name(node)] = node
         while len(types_to_explain) > 0:
             node = types_to_explain.popitem()[1]
-            self.emit_many(_render_type_node(node, is_root=True).splitlines())
+            for line in _render_type_node(node, is_root=True).splitlines():
+                self.emit(line + "\n")
             self.blank()
             explained_types.add(_source_name(node))
             _consider_children(node)  # see if we need to explain any children
 
     def emit_show_examples(self, examples: Dataset | DataBuilder):
+        """Emits BPL to show the given examples."""
         with self.block(f"for example in context['{examples.name}']:\n"):
-            self.emit("{ ")
+            self.emit("{ \n")
             for i, node in enumerate(examples.type_node.children):
                 # weird _aliasing because BPL
                 # 1) doesn't get variable scoping and
                 # 2) can't understand [..] inside f-strings
                 self.append(f"_{node.name} = example['{node.name}']")
-                self.emit(f'"{node.name}" = {{_{node.name}}}')
-                if i < len(examples.type_node.children) - 1:
-                    self.emit(", ")
-            self.emit(" }\n")
+                self.emit(f'  "{node.name}" = {{_{node.name}}}')
+                self.emit(",\n")
+            self.emit("}\n")
         self.blank()
 
-    def emit_show_record(self, record: LiteralValue):
-        raise NotImplementedError
+    def emit_get_record(self, inputs: list[TypeNode], output: TypeNode, result_var: str = "output"):
+        """Emits BPL to get the output record given the inputs"""
+        # like for example, we create a json-like object
+
+        emit_indent = ""
+
+        def _emit(s: str):
+            self.emit(f"{emit_indent}{s}")
+
+        _emit("{\n")
+        # inputs
+        if any(not input.is_flat for input in inputs):
+            raise RuntimeError(f"non-flat inputs not yet supported: {inputs}")
+        for i, node in enumerate(inputs):
+            pfix_str = '"' if node.tag == TypeTag.STRING else ""
+            _emit(f'  "{node.name}": {pfix_str}{{{node.name}}}{pfix_str},\n')
+
+        # outputs
+        if output.is_flat:  # simple case
+            field_type_str = render_type_node(output, ignore_name=True, ignore_description=True)
+            pfix_str = '"' if output.tag == TypeTag.STRING else ""
+            _emit(f'  "{output.name}": {pfix_str}[{result_var}: {field_type_str}]{pfix_str}')
+        elif output.tag == TypeTag.ARRAY:
+            self.append(f"{result_var} = []")
+            _emit(f'  "{output.name}": [\n')
+            with self.block("while True:"):
+                _emit("  ")
+                _emit('[cont: `"  "` | `"]"`]')
+                self.append("if cont == ']':")
+                self.append("    break")
+                self.emit_get_record(inputs=[], output=output.head_type, result_var="element")
+                self.append(f"{result_var}.append(element)")
+        elif output.tag == TypeTag.STRUCT:
+            for node in output.children:
+                if not node.is_flat:
+                    raise RuntimeError(f"non-flat struct output fields not yet supported: {node}")
+                field_type_str = render_type_node(node, ignore_name=True, ignore_description=True)
+                _emit(f'  "{node.name}": [{node.name}: {field_type_str}],\n')
+            init_args = ", ".join(f"{node.name}={node.name}" for node in output.children)
+            self.append(f"{result_var} = {output.source_reference}({init_args})")
+        else:
+            raise RuntimeError(f"output type supported: {output}")
+        _emit("}")
 
 
 async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[SourceMapping]]:
@@ -288,8 +329,9 @@ def _gather_expectations(symbol: Expectation | Task) -> list[Expectation]:
     expectations = []
     if isinstance(symbol, Expectation):
         expectations.append(symbol)
-    for child in symbol.expectations:
-        expectations.extend(_gather_expectations(child))
+    if isinstance(symbol, (Task, Expectation)):
+        for child in symbol.expectations:
+            expectations.extend(_gather_expectations(child))
     return expectations
 
 
@@ -325,22 +367,19 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
 
     # task inference
     target_code.comment("Task inference")
+    target_code.emit(
+        f"Perform the task {task.name} as described above to complete the output with the correct types."
+        f" Consider the instructions carefully:\n"
+    )
+    target_code.emit(task.description + "\n")
     # inline expectation restatement
     for expectation in task_expectations:
         if isinstance(expectation, Expectation):
-            target_code.emit(expectation.description + "\n")
+            target_code.emit(" - " + expectation.description + "\n")
 
     # task input fields
-    target_code.emit("{ ")
-    for i, node in enumerate(task_t.input.children):
-        target_code.emit(f'"{node.name}": "{{{node.name}}}"')
-        target_code.emit(", ")
-    # task final output fields (to be generated by model)
-    # (currently only works if the output is a single valued field (no array or struct))
-    field_type_str = render_type_node(task_t.output, ignore_name=True, ignore_description=True)
-    target_code.emit(f'"{task_t.output.name}": [{task_t.output.name}: {field_type_str}]')
-    target_code.emit(" }")
-    target_code.append(f"return {task_t.output.name}")
+    target_code.emit_get_record(task_t.input.children, task_t.output, result_var="final_output")
+    target_code.append("return final_output")
 
     # target pragma
     # TODO @Incomplete: generate task target pragma properly
