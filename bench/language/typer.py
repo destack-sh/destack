@@ -49,5 +49,7 @@ def check_type(value: Any, expected: TypeNode):
         _check(value is None, "expected null")
     elif expected.tag == TypeTag.ANY:
         pass
+    elif expected.tag == TypeTag.LITERAL:
+        _check(value == expected.value, "expected literal")
     else:
         raise RuntimeError(f"unexpected type {expected.tag}")

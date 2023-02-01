@@ -7,7 +7,7 @@ from typing import Any, AsyncGenerator, NamedTuple, Union
 from bench.language import TypeNode
 from bench.language.lex import lex_string
 from bench.language.parse import TokenParser, impute_type_reference, parse_type_node_inline
-from bench.language.type import InterpSymbol
+from bench.language.type import InterpSymbol, TypeTag
 from bench.language.typer import check_type
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
@@ -90,9 +90,7 @@ def render_part(part: PromptPart) -> str:
             return None
 
     if isinstance(part, PromptConstant):
-        # unescape '\{', '\}' since we need them escaped in source content
-        content = part.content.replace("\\{", "{").replace("\\}", "}")
-        return f'PromptConstant(content="{content}")'
+        return f'PromptConstant(content="{part.content}")'
     elif isinstance(part, PromptVariable):
         return (
             f"PromptVariable("
@@ -146,7 +144,17 @@ EMIT_REGEX = re.compile(r"^(?P<indent>\s*)\"(?P<value>.*?)\"\s*$")
 # emit variables like {name} (classic f-string)
 EMIT_VARIABLE_REGEX = re.compile(r"(?<!\\)\{(?P<value>.*?)(: (?P<type>.*?))?}")
 # emit holes like [name: string]
-EMIT_HOLE_REGEX = re.compile(r"\[(?P<name>.*?)(: (?P<type>.*?))?]")
+EMIT_HOLE_REGEX = re.compile(r"(?<!\\)\[(?P<name>\w+?)(: (?P<type>.+?))?(?<!\\)]")
+
+
+def unescape(s: str | None) -> str | None:
+    if not s:
+        return s
+    # unescape '\{', '\}', '\[', '\]'
+    # we need them escaped in BPL emits (to avoid confusion with variables/holes)
+    for c in ["{", "}", "[", "]"]:
+        s = s.replace(f"\\{c}", c)
+    return s
 
 
 def split_fragment(fragment: str) -> list[PromptFragment]:
@@ -157,7 +165,9 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
         if hole_match:
             if pos != hole_match.start():
                 yield PromptConstant(fragment[pos : hole_match.start()])
-            yield PromptHole(hole_match.group("name"), hole_match.group("type"))
+            name = unescape(hole_match.group("name"))
+            type = unescape(hole_match.group("type"))
+            yield PromptHole(name, type)
             pos = hole_match.end()
             continue
 
@@ -165,13 +175,15 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
         if variable_match:
             if pos != variable_match.start():
                 yield PromptConstant(fragment[pos : variable_match.start()])
-            yield PromptVariable(variable_match.group("value"), UNSET, variable_match.group("type"))
+            value = unescape(variable_match.group("value"))
+            type = unescape(variable_match.group("type"))
+            yield PromptVariable(value, UNSET, type)
             pos = variable_match.end()
             continue
 
         break  # nothing matched
     if pos < len(fragment):
-        yield PromptConstant(fragment[pos:])
+        yield PromptConstant(unescape(fragment[pos:]))
 
 
 def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
@@ -450,13 +462,21 @@ async def run_bpl_speculative(
 
 def get_hole_decode_settings(ctx: InferenceContext, part: PromptHole) -> DecoderSettings:
     stop = []
+    max_tokens = ctx.remaining_tokens
+    if isinstance(part.type, TypeNode) and part.type.tag == TypeTag.UNION:
+        # special case to set max length if all union members are string literals
+        all_string_literals = all(
+            t.tag == TypeTag.LITERAL and isinstance(t.value, str) for t in part.type.children
+        )
+        if all_string_literals:
+            max_tokens = max(len(t.value) for t in part.type.children)
     if part.next_constant_content:
-        stop = [part.next_constant_content[:1]]
+        stop.append(part.next_constant_content[:1])
     elif part.next_variable:
         raise NotImplementedError  # can't handle?
     return DecoderSettings(
         temperature=ctx.settings.temperature,
-        max_tokens=ctx.remaining_tokens,
+        max_tokens=max_tokens,
         stop=stop,
     )
 
