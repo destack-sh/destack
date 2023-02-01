@@ -218,9 +218,8 @@ def rmap_statement(statement: language.Statement) -> StatementData:
 
 def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
-    if isinstance(content, language.TypeContent):
-        data.description = content.description
-        data.type_node = content.type_node
+    if isinstance(content, language.TypeNode):
+        data.type_node = content
     elif isinstance(content, language.TaskContent):
         data.description = content.description
         data.type_node = content.type_node
@@ -280,7 +279,7 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
-        return language.TypeContent(description=data.description, type_node=data.type_node)
+        return data.type_node
     elif data.symbol_type == SymbolType.TASK:
         return language.TaskContent(type_node=data.type_node, description=data.description)
     elif data.symbol_type == SymbolType.EXPECTATION:
@@ -329,7 +328,7 @@ def render_symbol_type_node(symbol_type: language.SymbolType, type_node: languag
     elif symbol_type == SymbolType.DATASET:
         return f"({render_type_node_struct(type_node, seperator=', ')})"
     elif symbol_type == SymbolType.TYPE:
-        if type_node.type == TypeTag.STRUCT:
+        if type_node.tag == TypeTag.STRUCT:
             # to distinguish struct defs from inline redefs we put a newline at the end
             # (and Bench structs don't have any special characters and may be empty)
             return render_type_node_struct(type_node, seperator="\n") + "\n"

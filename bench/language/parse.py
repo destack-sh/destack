@@ -21,6 +21,7 @@ from bench.language.type import (
     CodeContent,
     Compilation,
     CompilationContent,
+    Dataset,
     DatasetContent,
     Expectation,
     ExpectationContent,
@@ -44,7 +45,6 @@ from bench.language.type import (
     Token,
     TokenType,
     Type,
-    TypeContent,
     TypeNode,
     TypeTag,
     ValueContent,
@@ -135,17 +135,6 @@ def parse_file(
     source_file = SourceFile(path=file_path, content=Path(file_path).read_text())
     tokens = lex(source_file)
     return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
-
-
-def resolve_interp(
-    module: Module,
-    lookup_in_module: LookupFunc = lookup_in_error,
-    on_error: Callable[[SemanticError], None] = raise_error,
-) -> ModuleIndex:
-    """Resolve references in a module, using the given lookup function."""
-    idx = resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
-    interp(idx, on_error=on_error)
-    return idx
 
 
 class TokenParser:
@@ -682,11 +671,9 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_newline()
     description = _parse_description_line_optional(tokens)
     struct = parse_type_node_struct(tokens, name=definition.name)
+    struct.description = description
     tokens.eat_newline_or_eos()
-    definition.content = TypeContent(
-        type_node=struct,
-        description=description,
-    )
+    definition.content = struct
     return definition
 
 
@@ -729,7 +716,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
             member_description = tokens.eat_description().value
         member = TypeNode(
             name=member_name,
-            type=TypeTag.LITERAL,
+            tag=TypeTag.LITERAL,
             value=member_value,
             description=member_description,
         )
@@ -742,16 +729,18 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
             break
 
     tokens.eat_newline_or_eos()
-    enum_type_node = TypeNode(name=None, type=TypeTag.ENUM, children=[member_type_node, *members])
+    enum_type_node = TypeNode(
+        name=name.value,
+        description=description,
+        tag=TypeTag.ENUM,
+        children=[member_type_node, *members],
+    )
 
     definition = Statement(
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
-        content=TypeContent(
-            type_node=enum_type_node,
-            description=description,
-        ),
+        content=enum_type_node,
         **kwargs,
     )
     return definition
@@ -784,7 +773,7 @@ def parse_type_node_inline(
                 description = tokens.eat_description().value
             else:  # turn back, wasn't for us to eat
                 tokens.advance(-1)
-        return TypeNode(name=name, type=TypeTag.ARRAY, description=description, children=[node])
+        return TypeNode(name=name, tag=TypeTag.ARRAY, description=description, children=[node])
 
     start_mark = tokens.mark()  # for back-tracking
     # parse actual type as either primitive or type reference
@@ -806,7 +795,7 @@ def parse_type_node_inline(
 
     if not tokens.peek_separator(" "):  # type is done
         return TypeNode(
-            name=name, type=type, value=value, reference=reference, source_reference=reference
+            name=name, tag=type, value=value, reference=reference, source_reference=reference
         )
 
     tokens.eat_space()
@@ -814,7 +803,7 @@ def parse_type_node_inline(
         description = tokens.eat_description().value
         return TypeNode(
             name=name,
-            type=type,
+            tag=type,
             value=value,
             reference=reference,
             source_reference=reference,
@@ -825,13 +814,13 @@ def parse_type_node_inline(
         if packing:  # inner type is done, so this must refer to parent packing
             tokens.advance(-1)  # go back one token to leave whitespace separator
             return TypeNode(
-                name=name, type=type, value=value, reference=reference, source_reference=reference
+                name=name, tag=type, value=value, reference=reference, source_reference=reference
             )
         # otherwise we're starting to pack a new union/intersection
         packing_separator = tokens.eat().value
         packing_type = TypeTag.UNION if packing_separator == "|" else TypeTag.INTERSECTION
         tokens.reset(start_mark)  # back-track and reparse all children in one go
-        parent = TypeNode(name=name, type=packing_type, children=[])
+        parent = TypeNode(name=name, tag=packing_type, children=[])
         while True:
             node = parse_type_node_inline(tokens, name=None, packing=True)
             parent.children.append(node)
@@ -854,7 +843,7 @@ def parse_type_node_inline(
 
 def parse_type_node_struct(tokens: TokenParser, name: str | None) -> TypeNode:
     # parse tuples like <tuple1>\n<tuple2>\n...
-    struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
+    struct = TypeNode(name=name, tag=TypeTag.STRUCT, children=[])
     while True:
         tuple = parse_type_node_named(tokens)
         struct.children.append(tuple)
@@ -868,7 +857,7 @@ def parse_type_node_struct(tokens: TokenParser, name: str | None) -> TypeNode:
 
 
 def parse_type_node_struct_inline(tokens: TokenParser, name: str | None) -> TypeNode:
-    struct = TypeNode(name=name, type=TypeTag.STRUCT, children=[])
+    struct = TypeNode(name=name, tag=TypeTag.STRUCT, children=[])
     while not tokens.peek_bracket(")"):
         tuple = parse_type_node_named(tokens)
         struct.children.append(tuple)
@@ -890,8 +879,8 @@ def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeNode:
         tokens.eat_space()
         output = parse_type_node_inline(tokens, "output")
     else:
-        output = TypeNode(name="output", type=TypeTag.NULL)
-    return TypeNode(name=name, type=TypeTag.FUNCTION, children=[input, output])
+        output = TypeNode(name="output", tag=TypeTag.NULL)
+    return TypeNode(name=name, tag=TypeTag.FUNCTION, children=[input, output])
 
 
 def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
@@ -941,7 +930,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         symbol_type=SymbolType.TYPE,
         name=name.value,
         modifier=modifier,
-        content=TypeContent(description=None, type_node=node),
+        content=node,
         **kwargs,
     )
     return statement
@@ -1152,18 +1141,13 @@ def resolve(
     lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
     on_error: Callable[[SemanticError], None],
 ) -> ModuleIndex:
-    """Resolve unresolved references in the given module."""
+    """Resolve unresolved statement references in the given module."""
 
     idx = index_module(module, on_error=on_error)
 
     # resolve references to other statements
     for statement in idx.statements.values():
         resolve_statement_reference(statement, idx, lookup_in_module, on_error)
-
-    # resolve references in types (to other statements)
-    for statement in idx.statements.values():
-        if isinstance(statement.content, (TypeContent, DatasetContent, TaskContent, CodeContent)):
-            resolve_type_references(statement, statement.content.type_node, idx, on_error, [])
 
     return idx
 
@@ -1258,11 +1242,7 @@ def resolve_type_references(
         )
         on_error(error)
         return
-
-    # get type node from statement
-    # TODO @Incomplete: type resolve should use Type symbols :TypeResolveSymbols
-    resolved_type = typing.cast(TypeContent, resolved_stmt.underlying_definition.content)
-    node.reference = resolved_type.type_node
+    node.reference = idx.symbols[resolved_stmt.id]
 
     impute_type_reference(node, keep_references=True)
 
@@ -1272,18 +1252,18 @@ def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
     Replace this nodes field in-place with the values of the referenced type node.
     Note that without references, perfect source reconstruction is impossible.
     """
-    if node.type != TypeTag.TYPE_REFERENCE:
+    if node.tag != TypeTag.TYPE_REFERENCE:
         return
 
     if not isinstance(node.reference, TypeNode):
         raise ValueError(f"type reference is not resolved: {node}")
 
     # error? if reference is an unresolved reference
-    if node.reference.type == TypeTag.TYPE_REFERENCE:
+    if node.reference.tag == TypeTag.TYPE_REFERENCE:
         # TODO @Incomplete: could just impute that as well? but then we'd need to break circles?
         raise ValueError(f"reference is unresolved type reference: {node}")
 
-    node.type = node.reference.type
+    node.tag = node.reference.tag
     node.children = node.reference.children
     if not keep_references:
         node.reference = None
@@ -1407,6 +1387,15 @@ def interp(
         scope.parent.symbols[symbol.name] = symbol
         symbols[statement.id] = symbol
 
+    # resolve type references (now that we have Type instances)
+    for symbol in idx.symbols.values():
+        if isinstance(symbol, Type):
+            resolve_type_references(symbol.source, symbol, idx, on_error, [])
+        elif isinstance(symbol, (Dataset, Task, Code)):
+            if symbol.type is None:
+                raise RuntimeError(f"symbol type should be set: {symbol}")
+            resolve_type_references(symbol.source, symbol.type, idx, on_error, [])
+
     # interp symbol contents using related symbols
     for id, symbol in symbols.items():
         statement = idx.statements[id]
@@ -1416,45 +1405,45 @@ def interp(
             scope = idx.scopes[statement.reference_id]
 
         if isinstance(symbol, Type):
-            for other in scope.proper_symbols:
-                if other.source.is_expect:
-                    symbol.expectations.append(other)
+            for child in scope.proper_symbols:
+                if child.source.is_expect:
+                    symbol.expectations.append(child)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, other.source)
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
         elif isinstance(symbol, Task):
-            for other in scope.proper_symbols:
-                if other.source.is_expect:
-                    symbol.expectations.append(other)
-                elif other.symbol_type in (SymbolType.TASK, SymbolType.CODE):
-                    symbol.steps.append(other)
+            for child in scope.proper_symbols:
+                if child.source.is_expect:
+                    symbol.expectations.append(child)
+                elif isinstance(child, (Task, Code)):
+                    symbol.steps.append(child)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, other.source)
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
         elif isinstance(symbol, Expectation):
-            for other in scope.proper_symbols:
-                if other.source.is_expect:
-                    symbol.expectations.append(other)
+            for child in scope.proper_symbols:
+                if child.source.is_expect:
+                    symbol.expectations.append(child)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, other.source)
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
         elif isinstance(symbol, Compilation):
-            for other in scope.proper_symbols:
-                if isinstance(other, Model):
-                    symbol.models.append(other)
-                elif isinstance(other, Task):
-                    symbol.tasks.append(other)
+            for child in scope.proper_symbols:
+                if isinstance(child, Model):
+                    symbol.models.append(child)
+                elif isinstance(child, Task):
+                    symbol.tasks.append(child)
                 else:
-                    _error(ET.UNEXPECTED_STATEMENT, other.source)
+                    _error(ET.UNEXPECTED_STATEMENT, child.source)
             if not symbol.models:
                 _error(ET.COMPILATION_MISSING_MODEL, statement)
             if not symbol.tasks:
                 _error(ET.COMPILATION_MISSING_TASK, statement)
         elif isinstance(symbol, Runconfig):
-            for other in scope.proper_symbols:
-                if isinstance(other, Code):
-                    symbol.codes.append(other)
-                elif isinstance(other, Task):
-                    symbol.tasks.append(other)
-                elif isinstance(other, Compilation):
-                    symbol.compilations.append(other)
+            for child in scope.proper_symbols:
+                if isinstance(child, Code):
+                    symbol.codes.append(child)
+                elif isinstance(child, Task):
+                    symbol.tasks.append(child)
+                elif isinstance(child, Compilation):
+                    symbol.compilations.append(child)
         else:
             # default interp (expect no children)
             if scope.proper_statements:
@@ -1470,9 +1459,9 @@ def interp(
         # build required context by traversing the scope tree upwards
         current_scope = idx.scopes[id].parent
         while current_scope is not None:
-            for other in current_scope.proper_symbols:
-                if symbol_mentions_symbol(symbol, other) and other.name not in symbol.context:
-                    symbol.context[other.name] = other
+            for child in current_scope.proper_symbols:
+                if symbol_mentions_symbol(symbol, child) and child.name not in symbol.context:
+                    symbol.context[child.name] = child
             current_scope = current_scope.parent
 
     idx.interpreted = True

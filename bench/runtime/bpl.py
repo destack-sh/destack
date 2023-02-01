@@ -490,7 +490,7 @@ def render_variable_repr(part: PromptVariable) -> str:
             value = part.type(value)
         elif isinstance(part.type, TypeInstance):
             target_type = part.type.type_node
-            if target_type.type == TypeTag.ENUM:
+            if target_type.tag == TypeTag.ENUM:
                 value = str(value)
         else:
             raise ValueError(f"invalid target type: {part}")

@@ -399,28 +399,14 @@ class InterpSymbol:
     def default_from_content(
         symbol_type: SymbolType, base: InterpSymbol, content: SymbolContent
     ) -> InterpSymbol:
-        # TODO @Cleanup: using __dict__ carries unnecessary fields
-        if symbol_type == SymbolType.TYPE:
-            return Type(expectations=[], **base.__dict__, **content.__dict__)
-        elif symbol_type == SymbolType.TASK:
-            return Task(
-                implementation=None, expectations=[], steps=[], **base.__dict__, **content.__dict__
-            )
-        elif symbol_type == SymbolType.EXPECTATION:
-            return Expectation(expectations=[], **base.__dict__, **content.__dict__)
-        elif symbol_type == SymbolType.COMPILATION:
-            return Compilation(models=[], tasks=[], **base.__dict__, **content.__dict__)
-        elif symbol_type == SymbolType.RUNCONFIG:
-            return Runconfig(
-                codes=[], tasks=[], compilations=[], **base.__dict__, **content.__dict__
-            )
-        else:
-            # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
-            symbol_cls = SYMBOL_CLASS_BY_TYPE[symbol_type]
-            return symbol_cls(**base.__dict__, **content.__dict__)  # type: ignore
+        # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
+        symbol_cls = SYMBOL_CLASS_BY_TYPE[symbol_type]
+        kwargs = dict(content.__dict__)
+        # the only conflict here should be 'name' in Type
+        kwargs.update(base.__dict__)  # prefer base to content
+        return symbol_cls(**kwargs)  # type: ignore
 
 
-@dataclass(repr=False)
 class SymbolContent:
     pass
 
@@ -430,18 +416,18 @@ PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING
 
 
 @dataclass
-class TypeNode:
+class TypeNode(SymbolContent):
     name: Optional[str]
-    type: TypeTag
+    tag: TypeTag
     description: Optional[str] = None
-    reference: Union[None, str, "TypeNode"] = None
+    reference: Union[None, str, "TypeNode", "Type"] = None
     value: Optional[LiteralValue] = None  # for literal types
     # source reference is separate as the resolved TypeNode may not contain the name
     source_reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
 
     def __str__(self):
-        return f"{self.name or '<anon>'}: {self.type}"
+        return f"{self.name or '<anon>'}: {self.tag}"
 
     @property
     def keys(self) -> list[str]:
@@ -468,8 +454,8 @@ class TypeNode:
 
     @property
     def is_union_with_none(self) -> bool:
-        return self.type == TypeTag.UNION and any(
-            child.type == TypeTag.NULL for child in self.children
+        return self.tag == TypeTag.UNION and any(
+            child.tag == TypeTag.NULL for child in self.children
         )
 
     def child(self, key: str) -> TypeNode:
@@ -482,18 +468,15 @@ class TypeNode:
 
 
 @dataclass(repr=False)
-class TypeContent(SymbolContent):
-    # TODO @Cleanup: TypeContent == TypeNode
-    type_node: TypeNode
-    description: Optional[str]
+class Type(TypeNode, InterpSymbol):
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
+    # override __str__/__repr__ to preserve InterpSymbol's __str__/__repr__
     def __str__(self):
-        return str(self.type_node)
+        return InterpSymbol.__str__(self)
 
-
-@dataclass(repr=False)
-class Type(InterpSymbol, TypeContent):
-    expectations: list[Expectation | Task | Dataset | Code]
+    def __repr__(self):
+        return InterpSymbol.__repr__(self)
 
 
 @dataclass(repr=False)
@@ -505,10 +488,10 @@ class CapabilityContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Capability(InterpSymbol, CapabilityContent):
-    expectations: list[Expectation | Task | Dataset | Code]
-    tasks: list[Task]
-    capabilities: list[Capability]
+class Capability(CapabilityContent, InterpSymbol):
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    tasks: list[Task] = field(default_factory=list)
+    capabilities: list[Capability] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -519,9 +502,10 @@ class TaskContent(SymbolContent):
 
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
-    implementation: Optional[Code]
-    expectations: list[Expectation | Task | Dataset | Code]
-    steps: list[Task | Code]
+    type: Type = field(default=None)  # must be set after construction
+    implementation: Optional[Code] = field(default=None)
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    steps: list[Task | Code] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -536,7 +520,7 @@ class ExpectationContent(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(InterpSymbol, ExpectationContent):
-    expectations: list[Expectation | Task | Dataset | Code]
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -552,7 +536,7 @@ class DatasetContent(SymbolContent):
 
 @dataclass(repr=False)
 class Dataset(InterpSymbol, DatasetContent):
-    pass
+    type: Type = field(default=None)  # must be set after construction
 
 
 @dataclass(repr=False)
@@ -601,7 +585,7 @@ class CodeContent(SymbolContent):
 
 @dataclass(repr=False)
 class Code(InterpSymbol, CodeContent):
-    pass
+    type: Type = field(default=None)  # must be set after construction
 
 
 @dataclass(repr=False)
@@ -672,7 +656,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
 
 EMPTY_FUNC_TYPE = TypeNode(
     name=None,
-    type=TypeTag.FUNCTION,
+    tag=TypeTag.FUNCTION,
     children=[
         TypeNode("input", TypeTag.STRUCT, children=[]),
         TypeNode("output", TypeTag.NULL),
