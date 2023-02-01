@@ -1274,6 +1274,8 @@ def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
     node.children = node.reference.children
     if not keep_references:
         node.reference = None
+    elif node.source_reference is None:
+        node.source_reference = node.reference.name
 
 
 def index_module(
