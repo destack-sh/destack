@@ -35,7 +35,10 @@ def get_from_env(
 def required_field(**kwargs):
     """Hacky way to make a field required when subclassing a dataclass with defaults."""
 
-    def _raise_must_set():
-        raise ValueError("This field must be set.")
+    _field = None
 
-    return field(default_factory=_raise_must_set, **kwargs)
+    def _raise_must_set():
+        raise ValueError(f"field {_field.name} must be set")
+
+    _field = field(default_factory=_raise_must_set, **kwargs)
+    return _field
