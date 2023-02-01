@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import enum
 import re
 import typing
@@ -20,6 +21,8 @@ from typing import (
 from uuid import UUID
 
 from django.db import models
+
+from bench.settings.utils import required_field
 
 
 @dataclass(repr=False)
@@ -380,35 +383,29 @@ class Statement(Generic[SymbolContentT]):
 class InterpSymbol:
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
-    id: UUID
-    name: str
-    abstract: bool
-    modifier: Optional[StatementModifier]
-    symbol_type: SymbolType
-    context: OrderedDict[str, "InterpSymbol"]
-    source: Optional[Statement]
+    id: UUID = field(default_factory=uuid.uuid4)
+    name: str = required_field()
+    abstract: bool = field(default=False)
+    modifier: Optional[StatementModifier] = None
+    context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
+    source: Optional[Statement] = None
+
+    @property
+    def symbol_type(self) -> SymbolType:
+        return SYMBOL_TYPE_BY_CLASS[self.__class__]
 
     def __str__(self):
         modifier_str = f"{self.modifier} " if self.modifier else ""
-        return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source})"
+        return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source or '<unknown>'})"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
 
-    @staticmethod
-    def default_from_content(
-        symbol_type: SymbolType, base: InterpSymbol, content: SymbolContent
-    ) -> InterpSymbol:
-        # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
-        symbol_cls = SYMBOL_CLASS_BY_TYPE[symbol_type]
-        kwargs = dict(content.__dict__)
-        # the only conflict here should be 'name' in Type
-        kwargs.update(base.__dict__)  # prefer base to content
-        return symbol_cls(**kwargs)  # type: ignore
-
 
 class SymbolContent:
-    pass
+    def deepcopy(self) -> "SymbolContent":
+        # default dataclass copy
+        return self.__class__(**self.__dict__)  # type: ignore
 
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
@@ -417,8 +414,8 @@ PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING
 
 @dataclass
 class TypeNode(SymbolContent):
-    name: Optional[str]
-    tag: TypeTag
+    name: Optional[str] = required_field()
+    tag: TypeTag = required_field()
     description: Optional[str] = None
     reference: Union[None, str, "TypeNode", "Type"] = None
     value: Optional[LiteralValue] = None  # for literal types
@@ -428,6 +425,34 @@ class TypeNode(SymbolContent):
 
     def __str__(self):
         return f"{self.name or '<anon>'}: {self.tag}"
+
+    def deepcopy(self) -> "TypeNode":
+        return TypeNode(
+            name=self.name,
+            tag=self.tag,
+            description=self.description,
+            # revert to reference by name for copy (to avoid carrying the whole tree)
+            reference=self.source_reference,
+            value=self.value,
+            children=[child.deepcopy() for child in self.children] if self.children else None,
+        )
+
+    def walk(self, path: list[TypeNode] | None = None):
+        if path is None:
+            path = [self]
+        else:
+            path = path + [self]
+        yield self
+        if self.children:
+            for child in self.children:
+                if child in path:
+                    continue  # break cycles (allowed, but we don't want to traverse them)
+                yield from child.walk(path)
+
+    def to_type(self) -> "Type":
+        if self.name is None:
+            raise ValueError("cannot convert anonymous type to Type")
+        return Type(**self.deepcopy().__dict__)
 
     @property
     def keys(self) -> list[str]:
@@ -468,7 +493,7 @@ class TypeNode(SymbolContent):
 
 
 @dataclass(repr=False)
-class Type(TypeNode, InterpSymbol):
+class Type(InterpSymbol, TypeNode):
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
     # override __str__/__repr__ to preserve InterpSymbol's __str__/__repr__
@@ -488,7 +513,7 @@ class CapabilityContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Capability(CapabilityContent, InterpSymbol):
+class Capability(InterpSymbol, CapabilityContent):
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
     tasks: list[Task] = field(default_factory=list)
     capabilities: list[Capability] = field(default_factory=list)
@@ -502,7 +527,7 @@ class TaskContent(SymbolContent):
 
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
-    type: Type = field(default=None)  # must be set after construction
+    type: Type = required_field()
     implementation: Optional[Code] = field(default=None)
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
@@ -530,13 +555,21 @@ class DatasetContent(SymbolContent):
     type_node: TypeNode
     description: Optional[str]
 
+    def deepcopy(self) -> "DatasetContent":
+        return DatasetContent(
+            language=self.language,
+            records=copy.deepcopy(self.records),
+            type_node=self.type_node,
+            description=self.description,
+        )
+
     def __str__(self):
         return f"({len(self.records)})"
 
 
 @dataclass(repr=False)
 class Dataset(InterpSymbol, DatasetContent):
-    type: Type = field(default=None)  # must be set after construction
+    type: Type = required_field()
 
 
 @dataclass(repr=False)
@@ -585,7 +618,7 @@ class CodeContent(SymbolContent):
 
 @dataclass(repr=False)
 class Code(InterpSymbol, CodeContent):
-    type: Type = field(default=None)  # must be set after construction
+    type: Type = required_field()
 
 
 @dataclass(repr=False)
@@ -651,6 +684,9 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.REQUIREMENT: Requirement,
     SymbolType.RUNCONFIG: Runconfig,
     SymbolType.COMPILATION: Compilation,
+}
+SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
+    v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
 }
 
 

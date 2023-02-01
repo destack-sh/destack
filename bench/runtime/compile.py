@@ -5,7 +5,6 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Optional
-from uuid import uuid4
 
 import structlog
 
@@ -26,7 +25,6 @@ from bench.language.type import (
     SourceMapping,
     Statement,
     StatementType,
-    SymbolType,
     Task,
     TypeNode,
     TypeTag,
@@ -81,15 +79,10 @@ class CompilationState:
 
     def create_data(self, builder: DataBuilder) -> Dataset:
         dataset = Dataset(
-            id=uuid4(),
             name=builder.name,
             type_node=builder.type_node,
+            type=builder.type_node.to_type(),
             records=builder.records,
-            abstract=False,
-            source=None,
-            symbol_type=SymbolType.DATASET,
-            modifier=None,
-            context=OrderedDict(),
             description=None,
             language="jsonl",
         )
@@ -98,18 +91,13 @@ class CompilationState:
 
     def create_code(self, builder: PromptBuilder) -> Code:
         code = Code(
-            id=uuid4(),
             name=builder.name,
             type_node=builder.type_node,
+            type=builder.type_node.to_type(),
             language="bpl",
             code=builder.to_code_content(),
-            abstract=False,
             builtin_id=None,
-            symbol_type=SymbolType.CODE,
-            modifier=None,
-            context=OrderedDict(),
             description=None,
-            source=None,
         )
         self.target_symbols.append(code)
         return code

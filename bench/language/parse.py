@@ -16,6 +16,7 @@ import structlog
 from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex, lex_string
 from bench.language.type import (
+    SYMBOL_CLASS_BY_TYPE,
     CapabilityContent,
     Code,
     CodeContent,
@@ -1216,17 +1217,14 @@ def resolve_type_references(
     node: TypeNode,
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
-    _path: list[TypeNode],
 ) -> None:
     """Resolves (but does not impute) type references in a type node."""
 
     # walk through child nodes (always, as they may not be resolved even if the parent is)
-    if node.children is not None:
-        _path = _path + [node]
-        for child in node.children:
-            if child in _path:
-                continue  # break circle, circular references are allowed
-            resolve_type_references(statement, child, idx, on_error, _path)
+    for child in node.walk():
+        if child is node:
+            continue  # skip ourselves
+        resolve_type_references(statement, child, idx, on_error)
 
     if not isinstance(node.reference, str):
         return  # nothing to resolve
@@ -1375,14 +1373,32 @@ def interp(
             name=statement.name,
             abstract=abstract,
             modifier=statement.modifier,
-            symbol_type=statement.symbol_type,
-            context=OrderedDict(),
             source=statement,
         )
         source_content = statement.underlying_definition.content
-        symbol = InterpSymbol.default_from_content(
-            statement.symbol_type, base_symbol, source_content
-        )
+        symbol_cls = SYMBOL_CLASS_BY_TYPE[statement.symbol_type]
+        if isinstance(source_content, (DatasetContent, TaskContent, CodeContent)):
+            # for typed symbols we need to create a type symbol as well
+            type_symbol = Type(
+                id=statement.id,  # not sure which id to use here
+                abstract=abstract,
+                source=statement,
+                # use name from source type node
+                **source_content.type_node.deepcopy().__dict__,
+            )
+            source_kwargs = source_content.deepcopy().__dict__
+            # also point type_node to the type symbol
+            source_kwargs["type_node"] = type_symbol
+            symbol = symbol_cls(**base_symbol.__dict__, **source_kwargs, type=type_symbol)  # type: ignore
+        elif isinstance(source_content, TypeNode):
+            # avoid name clash, use name from source statement
+            # (TypeNode.name is not set sometimes for pure Type symbols)
+            kwargs = {**source_content.deepcopy().__dict__}
+            kwargs.update(base_symbol.__dict__)
+            symbol = Type(**kwargs)
+        else:
+            # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
+            symbol = symbol_cls(**base_symbol.__dict__, **source_content.deepcopy().__dict__)  # type: ignore
 
         scope.parent.symbols[symbol.name] = symbol
         symbols[statement.id] = symbol
@@ -1392,8 +1408,6 @@ def interp(
         if isinstance(symbol, Type):
             resolve_type_references(symbol.source, symbol, idx, on_error, [])
         elif isinstance(symbol, (Dataset, Task, Code)):
-            if symbol.type is None:
-                raise RuntimeError(f"symbol type should be set: {symbol}")
             resolve_type_references(symbol.source, symbol.type, idx, on_error, [])
 
     # interp symbol contents using related symbols

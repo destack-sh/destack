@@ -26,6 +26,12 @@ def _prep_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
     return fields
 
 
+def deepcopy(obj: typing.Any) -> typing.Any:
+    """Stupid simple deepcopy that serializes and deserializes."""
+    cls = type(obj)
+    return from_dict(cls, to_dict(obj))
+
+
 def to_dict(obj: typing.Any) -> typing.Any:
     """Convert any "reasonable" object to dict-able representation."""
     if dataclasses.is_dataclass(obj):

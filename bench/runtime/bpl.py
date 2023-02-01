@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, NamedTuple, Union
 
-from bench.language import TypeNode, TypeTag
+from bench.language import TypeNode
 from bench.language.lex import lex_string
 from bench.language.parse import TokenParser, impute_type_reference, parse_type_node_inline
 from bench.language.type import InterpSymbol
@@ -489,9 +489,7 @@ def render_variable_repr(part: PromptVariable) -> str:
         if isinstance(part.type, type):
             value = part.type(value)
         elif isinstance(part.type, TypeInstance):
-            target_type = part.type.type_node
-            if target_type.tag == TypeTag.ENUM:
-                value = str(value)
+            pass  # no special representation
         else:
             raise ValueError(f"invalid target type: {part}")
     else:
@@ -502,29 +500,18 @@ def render_variable_repr(part: PromptVariable) -> str:
 def _parse_type_inline(type_str: str, source_context: dict[str, InterpSymbol]) -> TypeNode:
     """Resolves (rather naively) a type str using source context"""
     type_node = parse_type_node_inline(TokenParser(lex_string(type_str)), name=None)
-    # unfortunately we duplicate resolve_type_references as it resolves on statement level
-    # TODO @Cleanup: :TypeResolveSymbols this method shouldn't exist
 
-    def _walk_type_node(node: TypeNode, _path: list[TypeNode]):
-        if node in _path:
-            return  # skip cycles
-        _path = _path + [node]
-        yield node
-        if node.children:
-            for child in node.children:
-                yield from _walk_type_node(child, _path)
-
-    # resolve references
-    for node in _walk_type_node(type_node, []):
+    # resolve references in source context
+    for node in type_node.walk():
         if isinstance(node.reference, str):
             resolved = source_context.get(node.reference)
             if not isinstance(resolved, TypeInstance):
                 # this shouldn't happen
                 raise ValueError(f"unknown type reference: {node.reference}")
-            node.reference = resolved.type_node
+            node.reference = resolved
 
     # impute references in-place
-    for node in _walk_type_node(type_node, []):
+    for node in type_node.walk():
         impute_type_reference(node)
 
     return type_node
