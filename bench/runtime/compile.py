@@ -228,7 +228,7 @@ class PromptBuilder:
                     _consider_children(child)
                 return "\n".join(func_strs)
             elif node.tag == TypeTag.STRUCT:
-                struct_strs = [f"struct {name_str}{description_str}:"]
+                struct_strs = [f"struct {node.name or node.source_reference}{description_str}:"]
                 for child in node.children:
                     struct_strs.append(_render_type_node(child))
                     explained_types.add(_source_name(child))
@@ -236,9 +236,9 @@ class PromptBuilder:
                 return "\n".join(struct_strs)
             elif node.tag == TypeTag.ENUM:
                 # assumes literal enum (only value members)
-                enum_strs = [f"enum {name_str}{description_str}:"]
+                enum_strs = [f"enum {node.name or node.source_reference}{description_str}:"]
                 for child in node.members:
-                    enum_strs.append(f'"{child.name}": {child.value} # "{child.description}"')
+                    enum_strs.append(f'"{child.value}" # "{child.description}"')
                 return "\n".join(enum_strs)
             elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
                 return f"{name_str}{node.tag.value}{description_str}"
@@ -317,10 +317,11 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
 
     # task example instruction
     # TODO @Incomplete: generate examples for task
-    target_code.comment("Task example instruction")
-    target_code.emit(f'examples for task "{task.name}":\n')
-    target_code.emit(task.description + "\n")
-    target_code.emit_show_examples(examples_data)
+    if examples_data.records:
+        target_code.comment("Task example instruction")
+        target_code.emit(f'examples for task "{task.name}":\n')
+        target_code.emit(task.description + "\n")
+        target_code.emit_show_examples(examples_data)
 
     # task inference
     target_code.comment("Task inference")
