@@ -16,6 +16,11 @@ class TypeError(TypeError):
 
 
 def check_type(value: Any, expected: TypeNode):
+    """
+    Checks whether the given value has the expected type (deeply).
+    Raises TypeError if not at the first issue.
+    """
+
     def _check(valid: bool, message: str):
         if not valid:
             raise TypeError(value, expected, message)
@@ -53,3 +58,27 @@ def check_type(value: Any, expected: TypeNode):
         _check(value == expected.value, "expected literal")
     else:
         raise RuntimeError(f"unexpected type {expected.tag}")
+
+
+def fabricate(type: TypeNode) -> Any:
+    """Synthesizes a value of the given type with fake fields."""
+    if type.tag == TypeTag.STRING:
+        return "lorem ipsum"
+    elif type.tag == TypeTag.NUMBER:
+        return 42
+    elif type.tag == TypeTag.BOOLEAN:
+        return False
+    elif type.tag == TypeTag.ARRAY:
+        return [fabricate(type.children[0])]
+    elif type.tag == TypeTag.ENUM:
+        return type.members[0].value
+    elif type.tag == TypeTag.STRUCT:
+        return {subtype.name: fabricate(subtype) for subtype in type.children}
+    elif type.tag == TypeTag.UNION:
+        return fabricate(type.children[0])
+    elif type.tag == TypeTag.NULL:
+        return None
+    elif type.tag == TypeTag.LITERAL:
+        return type.value
+    else:
+        raise RuntimeError(f"unexpected type {type.tag}")
