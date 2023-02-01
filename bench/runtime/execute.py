@@ -200,36 +200,36 @@ def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
 
 def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     # :PrimitiveTypeMap
-    if node.type == TypeTag.STRING:
+    if node.tag == TypeTag.STRING:
         return str
-    elif node.type == TypeTag.NUMBER:
+    elif node.tag == TypeTag.NUMBER:
         return float
-    elif node.type == TypeTag.NULL:
+    elif node.tag == TypeTag.NULL:
         return type(None)
-    elif node.type == TypeTag.BOOLEAN:
+    elif node.tag == TypeTag.BOOLEAN:
         return bool
-    elif node.type == TypeTag.ARRAY:
+    elif node.tag == TypeTag.ARRAY:
         return list
-    elif node.type == TypeTag.UNION:
+    elif node.tag == TypeTag.UNION:
         return typing.Union[tuple(instantiate_py_type(child) for child in node.children)]
-    elif node.type == TypeTag.STRUCT:
+    elif node.tag == TypeTag.STRUCT:
         return typing.TypedDict(
             node.name,
             {node.name: instantiate_py_type(node) for node in node.children},
         )
-    elif node.type == TypeTag.ENUM:
+    elif node.tag == TypeTag.ENUM:
         # create 'fake' enum with the given constants pointing to themselves
         # assumes enums are value enums (not type union enums)
-        if node.head_type.type == TypeTag.STRING:
+        if node.head_type.tag == TypeTag.STRING:
             enum_cls = enum.StrEnum
-        elif node.head_type.type == TypeTag.NUMBER:
+        elif node.head_type.tag == TypeTag.NUMBER:
             enum_cls = enum.IntEnum
         else:
             raise ValueError(f"unexpected enum head type: {node.head_type}")
         members = {child.name: child.value for child in node.members}
         enum_name = node.name or "_anon_" + uuid4().hex
         return enum_cls(enum_name, members)
-    elif node.type == TypeTag.LITERAL:
+    elif node.tag == TypeTag.LITERAL:
         return node.value
     else:
         raise ValueError(f"unexpected type node: {node}")

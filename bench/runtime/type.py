@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from bench.language.parse import ModuleIndex
 from bench.language.type import Code, Dataset, Model, Module, Type, Value
+from bench.settings.utils import required_field
 from bench.utils.record import RecordBatch
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
@@ -26,7 +27,7 @@ class SymbolInstance:
 
 @dataclass(repr=False)
 class TypeInstance(SymbolInstance, Type):
-    py_type: typing.Any
+    py_type: typing.Any = required_field()
 
     @property
     def py_handle(self) -> typing.Any:
@@ -35,7 +36,7 @@ class TypeInstance(SymbolInstance, Type):
 
 @dataclass(repr=False)
 class DatasetInstance(SymbolInstance, Dataset):
-    records_batch: RecordBatch
+    records_batch: RecordBatch = required_field()
 
     @property
     def py_handle(self) -> RecordBatch:
@@ -58,9 +59,9 @@ class ModelInstance(SymbolInstance, Model):
 
 @dataclass(repr=False)
 class CodeInstance(SymbolInstance, Code):
-    transformed_code: str
-    code_callable: SyncCodeCallable | AsyncCodeCallable
-    prompt: typing.Optional[DynamicPrompt]
+    transformed_code: str = required_field()
+    code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
+    prompt: typing.Optional[DynamicPrompt] = required_field()
 
     @property
     def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:

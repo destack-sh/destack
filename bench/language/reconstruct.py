@@ -25,7 +25,6 @@ from bench.language.type import (
     SymbolContent,
     SymbolType,
     TaskContent,
-    TypeContent,
     TypeNode,
     TypeTag,
     ValueContent,
@@ -98,10 +97,11 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         identifier_str = escape_identifier(statement.name)
 
         # special case: inline type node "redefinitions" as definitions
-        if statement.symbol_type == SymT.TYPE and cast(
-            TypeContent, statement.content
-        ).type_node.type not in (TypeTag.STRUCT, TypeTag.ENUM):
-            type_str = render_type_node(cast(TypeContent, statement.content).type_node)
+        if statement.symbol_type == SymT.TYPE and cast(TypeNode, statement.content).tag not in (
+            TypeTag.STRUCT,
+            TypeTag.ENUM,
+        ):
+            type_str = render_type_node(cast(TypeNode, statement.content))
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
         symt_str = statement.symbol_type
@@ -119,11 +119,11 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             postfix = f" :: ({type_str}):"
         elif (
             statement.symbol_type == SymT.TYPE
-            and cast(TypeContent, statement.content).type_node.type == TypeTag.ENUM
+            and cast(TypeNode, statement.content).tag == TypeTag.ENUM
         ):
             # special case for enum types
-            content = cast(TypeContent, statement.content)
-            type_str = render_type_node(content.type_node.head_type)
+            content = cast(TypeNode, statement.content)
+            type_str = render_type_node(content.head_type)
             symt_str = "enum"
             postfix = f" :: {type_str}:"
         else:
@@ -148,8 +148,8 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
 
 
 def render_symbol_content(content: SymbolContent) -> Optional[str]:
-    if isinstance(content, TypeContent):
-        rendered_type = render_type_node(content.type_node)
+    if isinstance(content, TypeNode):
+        rendered_type = render_type_node(content)
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_type}"
         else:
@@ -222,26 +222,26 @@ def render_type_node(
     description_str = (
         f' "{node.description}"' if node.description and not ignore_description else ""
     )
-    if node.type == TypeTag.TYPE_REFERENCE or (
+    if node.tag == TypeTag.TYPE_REFERENCE or (
         node.source_reference is not None and not ignore_reference
     ):
         # if it's a reference _or_ used to be a reference, keep the type reference
         reference_str = escape_identifier(node.source_reference)
         return f"{identifier_str}{reference_str}{description_str}"
-    elif node.type == TypeTag.FUNCTION:
+    elif node.tag == TypeTag.FUNCTION:
         return render_type_node_func(node)
-    elif node.type == TypeTag.STRUCT:
+    elif node.tag == TypeTag.STRUCT:
         return render_type_node_struct(node, seperator="\n")
-    elif node.type == TypeTag.ARRAY:
+    elif node.tag == TypeTag.ARRAY:
         type_str = f"[{render_type_node(node.children[0])}]"
         return f"{identifier_str}{type_str}{description_str}"
-    elif node.type == TypeTag.UNION:
+    elif node.tag == TypeTag.UNION:
         type_str = " | ".join(render_type_node(e) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
-    elif node.type == TypeTag.INTERSECTION:
+    elif node.tag == TypeTag.INTERSECTION:
         type_str = " & ".join(render_type_node(e) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
-    elif node.type == TypeTag.ENUM:
+    elif node.tag == TypeTag.ENUM:
         members_strs = []
         for m in node.members:
             member_str = f"{escape_identifier(m.name)} = {render_literal(json.dumps(m.value))}"
@@ -249,15 +249,15 @@ def render_type_node(
                 member_str += f' "{m.description}"'
             members_strs.append(member_str)
         return "\n".join(members_strs)
-    elif node.type in PRIMITIVE_TYPES or node.type == TypeTag.ANY:
-        return f"{identifier_str}{node.type.value}{description_str}"
+    elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
+        return f"{identifier_str}{node.tag.value}{description_str}"
     else:
-        raise ValueError(f"unexpected type: {node.type}")
+        raise ValueError(f"unexpected type: {node.tag}")
 
 
 def render_type_node_func(node: TypeNode) -> str:
     input_str = render_type_node_struct(node.input, seperator=", ")
-    if node.output.type != TypeTag.NULL:
+    if node.output.tag != TypeTag.NULL:
         output_str = render_type_node(node.output, ignore_name=True)
         return f"({input_str}) -> {output_str}"
     else:

@@ -1,4 +1,5 @@
 import os
+from dataclasses import field
 from typing import Any, Callable, Optional
 
 from django.core.exceptions import ImproperlyConfigured
@@ -29,3 +30,12 @@ def get_from_env(
     if type_cast is not None:
         value = type_cast(value)
     return value
+
+
+def required_field(**kwargs):
+    """Hacky way to make a field required when subclassing a dataclass with defaults."""
+
+    def _raise_must_set():
+        raise ValueError("This field must be set.")
+
+    return field(default_factory=_raise_must_set, **kwargs)

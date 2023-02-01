@@ -194,9 +194,9 @@ class PromptBuilder:
 
         def _needs_explanation(node: TypeNode) -> bool:
             return (
-                node.type not in PRIMITIVE_TYPES
-                and node.type != TypeTag.ANY
-                and node.type != TypeTag.LITERAL
+                node.tag not in PRIMITIVE_TYPES
+                and node.tag != TypeTag.ANY
+                and node.tag != TypeTag.LITERAL
             )
 
         def _consider_children(node: TypeNode):
@@ -220,13 +220,13 @@ class PromptBuilder:
                 # refer to types by their source reference unless we're at root
                 #  (at 'root' we want to explain this type inline)
                 return f"{name_str}{node.source_reference}{description_str}"
-            elif node.type == TypeTag.UNION:
+            elif node.tag == TypeTag.UNION:
                 union_str = " | ".join(_render_type_node(child) for child in node.children)
                 return f"{name_str}{union_str}{description_str}"
-            elif node.type == TypeTag.ARRAY:
+            elif node.tag == TypeTag.ARRAY:
                 element_type = _render_type_node(node.children[0])
                 return f"{name_str}{element_type}[]{description_str}"
-            elif node.type == TypeTag.FUNCTION:
+            elif node.tag == TypeTag.FUNCTION:
                 func_strs = [
                     f"function {node.name}{description_str}:",
                     " # inputs",
@@ -239,21 +239,21 @@ class PromptBuilder:
                     explained_types.add(_source_name(child))
                     _consider_children(child)
                 return "\n".join(func_strs)
-            elif node.type == TypeTag.STRUCT:
+            elif node.tag == TypeTag.STRUCT:
                 struct_strs = [f"struct {name_str}{description_str}:"]
                 for child in node.children:
                     struct_strs.append(_render_type_node(child))
                     explained_types.add(_source_name(child))
                     _consider_children(node)
                 return "\n".join(struct_strs)
-            elif node.type == TypeTag.ENUM:
+            elif node.tag == TypeTag.ENUM:
                 # assumes literal enum (only value members)
                 enum_strs = [f"enum {name_str}{description_str}:"]
                 for child in node.members:
                     enum_strs.append(f'"{child.name}": {child.value} # "{child.description}"')
                 return "\n".join(enum_strs)
-            elif node.type in PRIMITIVE_TYPES or node.type == TypeTag.ANY:
-                return f"{name_str}{node.type.value}{description_str}"
+            elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
+                return f"{name_str}{node.tag.value}{description_str}"
             else:
                 raise RuntimeError(f"unhandled type {node}")
 
@@ -322,7 +322,7 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
     # task examples
     examples_type = TypeNode(
         name=task.name + "_unravelled",
-        type=TypeTag.STRUCT,
+        tag=TypeTag.STRUCT,
         children=[*task_t.input.children, task_t.output],
     )
     examples_data = DataBuilder(name=task.name + " examples", type_node=examples_type)

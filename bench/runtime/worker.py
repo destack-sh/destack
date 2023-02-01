@@ -11,7 +11,7 @@ import zmq.asyncio
 from bench import language
 from bench.language import wire
 from bench.language.error import ParseError
-from bench.language.parse import ErrorCollector, resolve_interp
+from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import StatementPath, SymbolType
 from bench.language.wire import ModuleReference, parse_symbol_type_node
 from bench.zmq import (
@@ -101,9 +101,9 @@ def interp_runtime(
     # resolve
     interp_module = wire.wmap_module(source)
     collector = ErrorCollector()
-    module_idx = resolve_interp(
-        interp_module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
-    )
+    module = lookup_in_dependencies(dependencies)
+    module_idx = resolve(interp_module, lookup_in_module=module, on_error=collector)
+    interp(module_idx, on_error=collector)
     errors.extend([e.to_error() for e in collector.errors])
 
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)

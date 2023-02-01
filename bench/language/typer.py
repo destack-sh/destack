@@ -20,24 +20,24 @@ def check_type(value: Any, expected: TypeNode):
         if not valid:
             raise TypeError(value, expected, message)
 
-    if expected.type == TypeTag.STRING:
+    if expected.tag == TypeTag.STRING:
         _check(isinstance(value, str), "expected string")
-    elif expected.type == TypeTag.NUMBER:
+    elif expected.tag == TypeTag.NUMBER:
         _check(isinstance(value, (int, float)), "expected number")
-    elif expected.type == TypeTag.BOOLEAN:
+    elif expected.tag == TypeTag.BOOLEAN:
         _check(isinstance(value, bool), "expected boolean")
-    elif expected.type == TypeTag.ARRAY:
+    elif expected.tag == TypeTag.ARRAY:
         _check(isinstance(value, list), "expected array")
         for item in value:
             check_type(item, expected.children[0])
-    elif expected.type == TypeTag.ENUM:
+    elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
         _check(any(member.value == value for member in expected.members), "expected enum member")
-    elif expected.type == TypeTag.STRUCT:
+    elif expected.tag == TypeTag.STRUCT:
         _check(isinstance(value, dict), "expected struct")
         for subtype in expected.children:
             check_type(value[subtype.name], subtype)
-    elif expected.type == TypeTag.UNION:
+    elif expected.tag == TypeTag.UNION:
         for subtype in expected.children:
             try:
                 check_type(value, subtype)
@@ -45,9 +45,9 @@ def check_type(value: Any, expected: TypeNode):
             except TypeError:
                 pass
         raise TypeError(value, expected, "expected one of the union types")
-    elif expected.type == TypeTag.NULL:
+    elif expected.tag == TypeTag.NULL:
         _check(value is None, "expected null")
-    elif expected.type == TypeTag.ANY:
+    elif expected.tag == TypeTag.ANY:
         pass
     else:
-        raise RuntimeError(f"unexpected type {expected.type}")
+        raise RuntimeError(f"unexpected type {expected.tag}")

@@ -72,11 +72,11 @@ name: string
 """
     )
 
-    type_entity_type = idx.symbol(".test:EntityType", Type).type_node
-    assert type_entity_type.type == TypeTag.STRING
+    type_entity_type = idx.symbol(".test:EntityType", Type)
+    assert type_entity_type.tag == TypeTag.STRING
 
-    type_entity = idx.symbol(".test:Entity", Type).type_node
-    assert type_entity.child("type").type == TypeTag.STRING
+    type_entity = idx.symbol(".test:Entity", Type)
+    assert type_entity.child("type").tag == TypeTag.STRING
 
 
 def test_resolve_circular_type():
@@ -93,8 +93,8 @@ entities: [Entity]
 """
     )
 
-    type_event = idx.symbol(".test:Event", Type).type_node
-    assert type_event.child("entities").type == TypeTag.ARRAY
+    type_event = idx.symbol(".test:Event", Type)
+    assert type_event.child("entities").tag == TypeTag.ARRAY
 
-    type_entity = idx.symbol(".test:Entity", Type).type_node
-    assert type_entity.child("first_event").children[0].type == type_event.type
+    type_entity = idx.symbol(".test:Entity", Type)
+    assert type_entity.child("first_event").children[0].tag == type_event.tag
