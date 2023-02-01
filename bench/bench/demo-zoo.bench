@@ -25,17 +25,6 @@ import type AnimalType from .zoo
 require openai.std@latest
 import model text-davinci-003 from openai.std.text
 
-data samples :: (input: string, target: AnimalType | null):
-"Meta generated samples"
-```csv
-"I'm the greatest mountain creature that headbutts people","goat"
-"Meehh bleh bleh I like grass and eating","sheep"
-"The king of the jungle enters the room, step aside","lion"
-"I just had the most amazing fish for breakfast","penguin"
-"Whatup brah","null"
-```
-
-# Copied from actually compiled code
 data 'identify animal speaker examples' :: (input: string, output: AnimalType | null "The type of author"):
 ```jsonl
 
@@ -65,9 +54,20 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 "Perform the task identify animal speaker as described above to complete the output with the correct types. Consider the instructions carefully:\n"
 "Classify the given input text by the animal type of the author.\n"
 " - Do not output an animal type if it's unclear\n"
+# Task type example stub
+"The data should look like this (with real values obviously):\n"
+"\{ \n"
+"  \"input\": "
+"string"
+",\n"
+"  \"output\": "
+"sheep"
+",\n"
+"\}\n"
+
 "{\n"
 "  \"input\": \"{input}\",\n"
-"  \"output\": [final_output: AnimalType | null]"
+"  \"output\": [final_output: AnimalType | null],\n"
 "}"
 return final_output
 ```

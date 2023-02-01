@@ -5,7 +5,7 @@ import enum
 from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -30,7 +30,7 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.language.typer import check_type
+from bench.language.typer import check_type, fabricate
 
 logger = structlog.get_logger(__name__)
 
@@ -264,7 +264,7 @@ class PromptBuilder:
         """Emits BPL to show the given examples."""
         with self.block(f"for example in context['{examples.name}']:\n"):
             self.emit("{ \n")
-            for i, node in enumerate(examples.type_node.children):
+            for i, node in enumerate(examples.type.children):
                 # weird _aliasing because BPL
                 # 1) doesn't get variable scoping and
                 # 2) can't understand [..] inside f-strings
@@ -273,6 +273,31 @@ class PromptBuilder:
                 self.emit(",\n")
             self.emit("}\n")
         self.blank()
+
+    def emit_show_record(self, value: Any, type: TypeNode, indent: str = ""):
+        """Emits BPL to show the given example."""
+
+        def _emit(s: str):
+            self.emit(indent + s)
+
+        if type.tag == TypeTag.STRUCT:
+            _emit("\\{ \n")
+            for node in type.children:
+                _emit(f'  "{node.name}": ')
+                self.emit_show_record(value[node.name], node, indent + "  ")
+                _emit(",\n")
+            _emit("\\}\n")
+        elif type.tag == TypeTag.ARRAY:
+            _emit("\\[ \n")
+            for val in value:
+                self.emit_show_record(val, type.head_type, indent + "  ")
+                _emit(",\n")
+            _emit("\\]\n")
+        elif type.is_flat:  # ignore indent
+            pfix_str = '"' if type.tag == TypeTag.STRING else ""
+            self.emit(f"{pfix_str}{value}{pfix_str}")
+        else:
+            raise RuntimeError(f"unhandled type {type}")
 
     def emit_get_record(
         self,
@@ -284,6 +309,10 @@ class PromptBuilder:
         close_brace: bool = True,
     ):
         """Emits BPL to get the output record given the inputs"""
+        # TODO @Cleanup: emit_show_examples, emit_show_record and emit_get_record are 3 sides of the same coin
+        #  (using runtime records, using static records, mixing runtime and model-generated records)
+        #  The way they're currently implemented is unwieldy and requires 3 sites to be updated for format changes.
+        #  Either we force JSON for everything or use a "format" class to handle all specific formatting.
         # like for example, we create a json-like object
 
         def _emit(s: str):
@@ -302,7 +331,7 @@ class PromptBuilder:
         if output.is_flat:  # simple case
             field_type_str = render_type_node(output, ignore_name=True, ignore_description=True)
             pfix_str = '"' if output.tag == TypeTag.STRING else ""
-            _emit(f'  "{output.name}": {pfix_str}[{result_var}: {field_type_str}]{pfix_str}')
+            _emit(f'  "{output.name}": {pfix_str}[{result_var}: {field_type_str}]{pfix_str},\n')
         elif output.tag == TypeTag.ARRAY:
             self.append(f"{result_var} = []")
             _emit(f'  "{output.name}": [\n')
@@ -402,6 +431,14 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
     for expectation in task_expectations:
         if isinstance(expectation, Expectation):
             target_code.emit(" - " + expectation.description + "\n")
+
+    # task type example stub
+    # (basically an example that is properly formatted but has obviously fake values)
+    target_code.comment("Task type example stub")
+    target_code.emit("The data should look like this (with real values obviously):\n")
+    fake_data = fabricate(examples_type)
+    target_code.emit_show_record(fake_data, examples_type)
+    target_code.blank()
 
     # task input fields
     target_code.emit_get_record(task_t.input.children, task_t.output, result_var="final_output")
