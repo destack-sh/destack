@@ -1212,37 +1212,46 @@ def resolve_statement_reference(
         )
 
 
-def resolve_type_references(
-    statement: Statement,
-    node: TypeNode,
+def resolve_type_references_rec(
+    type: Type,
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
 ) -> None:
-    """Resolves (but does not impute) type references in a type node."""
+    scope = idx.scopes[type.id]
+    for node in type.walk():
+        resolve_type_reference(scope, node, idx, on_error)
 
-    # walk through child nodes (always, as they may not be resolved even if the parent is)
-    for child in node.walk():
-        if child is node:
-            continue  # skip ourselves
-        resolve_type_references(statement, child, idx, on_error)
 
-    if not isinstance(node.reference, str):
+def resolve_type_reference(
+    scope: Scope,
+    type: TypeNode,
+    idx: ModuleIndex,
+    on_error: Callable[[SemanticError], None],
+) -> None:
+    """Resolves and imputes type references in a type node."""
+    if not isinstance(type.reference, str):
         return  # nothing to resolve
 
     # normalize path to statement
-    resolved_stmt = idx.scopes[statement.id].lookup_statement(node.reference)
+    resolved_stmt = scope.lookup_statement(type.reference)
     if resolved_stmt is None or resolved_stmt.underlying_definition is None:
-        on_error(SemanticError(ET.UNDEFINED_LOCAL_REFERENCE, statement, None, path=node.reference))
+        on_error(
+            SemanticError(ET.UNDEFINED_LOCAL_REFERENCE, scope.statement, None, path=type.reference)
+        )
         return
     if resolved_stmt.symbol_type != SymT.TYPE:
         error = SemanticError(
-            ET.REFERENCE_TYPE_MISMATCH, statement, None, type=SymT.TYPE, resolved=resolved_stmt
+            ET.REFERENCE_TYPE_MISMATCH,
+            scope.statement,
+            None,
+            type=SymT.TYPE,
+            resolved=resolved_stmt,
         )
         on_error(error)
         return
-    node.reference = idx.symbols[resolved_stmt.id]
+    type.reference = idx.symbols[resolved_stmt.id]
 
-    impute_type_reference(node, keep_references=True)
+    impute_type_reference(type, keep_references=True)
 
 
 def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
@@ -1406,9 +1415,9 @@ def interp(
     # resolve type references (now that we have Type instances)
     for symbol in idx.symbols.values():
         if isinstance(symbol, Type):
-            resolve_type_references(symbol.source, symbol, idx, on_error, [])
+            resolve_type_references_rec(symbol, idx, on_error)
         elif isinstance(symbol, (Dataset, Task, Code)):
-            resolve_type_references(symbol.source, symbol.type, idx, on_error, [])
+            resolve_type_references_rec(symbol.type, idx, on_error)
 
     # interp symbol contents using related symbols
     for id, symbol in symbols.items():
