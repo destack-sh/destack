@@ -16,11 +16,8 @@ class Command(BaseCommand):
     help = "Runs code in a module with the given arguments"
 
     def add_arguments(self, parser: CommandParser) -> None:
-        # project as organization/project[:compilation]
         parser.add_argument("path", type=str)
-        # code path as statement path
         parser.add_argument("code_path", type=str)
-        # add input string as only variable
         parser.add_argument("input", type=str)
 
     def handle(self, path: str, code_path: str, input: str, **kwargs):

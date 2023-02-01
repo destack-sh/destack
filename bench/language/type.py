@@ -424,7 +424,8 @@ class TypeNode(SymbolContent):
     children: Optional[list["TypeNode"]] = None
 
     def __str__(self):
-        return f"{self.name or '<anon>'}: {self.tag}"
+        name_str = f"{self.name} " if self.name else ""
+        return f"{name_str}{self.tag.value}"
 
     def deepcopy(self) -> "TypeNode":
         return TypeNode(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import enum
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -29,6 +30,7 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
+from bench.language.typer import check_type
 
 logger = structlog.get_logger(__name__)
 
@@ -86,6 +88,9 @@ class CompilationState:
             description=None,
             language="jsonl",
         )
+        # type check records
+        for record in dataset.records:
+            check_type(record, dataset.type)
         self.target_symbols.append(dataset)
         return dataset
 
@@ -99,6 +104,8 @@ class CompilationState:
             builtin_id=None,
             description=None,
         )
+        # try to parse code
+        ast.parse(code.code)
         self.target_symbols.append(code)
         return code
 
@@ -267,16 +274,23 @@ class PromptBuilder:
             self.emit("}\n")
         self.blank()
 
-    def emit_get_record(self, inputs: list[TypeNode], output: TypeNode, result_var: str = "output"):
+    def emit_get_record(
+        self,
+        inputs: list[TypeNode],
+        output: TypeNode,
+        result_var: str = "output",
+        indent: str = "",
+        open_brace: bool = True,
+        close_brace: bool = True,
+    ):
         """Emits BPL to get the output record given the inputs"""
         # like for example, we create a json-like object
 
-        emit_indent = ""
-
         def _emit(s: str):
-            self.emit(f"{emit_indent}{s}")
+            self.emit(indent + s)
 
-        _emit("{\n")
+        if open_brace:
+            _emit("{\n")
         # inputs
         if any(not input.is_flat for input in inputs):
             raise RuntimeError(f"non-flat inputs not yet supported: {inputs}")
@@ -294,10 +308,21 @@ class PromptBuilder:
             _emit(f'  "{output.name}": [\n')
             with self.block("while True:"):
                 _emit("  ")
-                _emit('[cont: `"  "` | `"]"`]')
+                # single character continuation signal
+                _emit('[cont: `" "` | `"\\{"` | `"\\]"`]')
                 self.append("if cont == ']':")
                 self.append("    break")
-                self.emit_get_record(inputs=[], output=output.head_type, result_var="element")
+                self.append("elif cont == ' ':")
+                self.append('    " "')  # re-add extra space to align
+                self.append("elif cont == '{':")
+                self.append('    "\\n"')  # consume newline of new object
+                self.emit_get_record(
+                    inputs=[],
+                    output=output.head_type,
+                    result_var="element",
+                    open_brace=False,  # already emitted above
+                    indent=indent + "  ",
+                )
                 self.append(f"{result_var}.append(element)")
         elif output.tag == TypeTag.STRUCT:
             for node in output.children:
@@ -309,7 +334,8 @@ class PromptBuilder:
             self.append(f"{result_var} = {output.source_reference}({init_args})")
         else:
             raise RuntimeError(f"output type supported: {output}")
-        _emit("}")
+        if close_brace:
+            _emit("}")
 
 
 async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[SourceMapping]]:

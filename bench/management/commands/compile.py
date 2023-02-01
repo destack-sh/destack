@@ -14,9 +14,7 @@ class Command(BaseCommand):
     help = "Compiles a task into optimized code"
 
     def add_arguments(self, parser: CommandParser):
-        # project as organization/project[:compilation]
         parser.add_argument("path", type=str)
-        # compile path as statement path
         parser.add_argument("compile_path", type=str)
 
     def handle(self, path: str, compile_path: str, **kwargs):
