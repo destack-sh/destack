@@ -84,7 +84,7 @@ for i in range(int(num_entities)):
     confidence = 0.5 # TODO @Incomplete: get confidence from token reads (holes and entire span)
     entity = Entity(name=name, type=type, confidence=confidence)
     entities.append(entity)
-    # "[cont: ',\n' | '\n']" # TODO @Incomplete: need proper continuation signal
+    # "[cont: `",\n"` | `"\n"`]" # TODO @Incomplete: need proper continuation signal
     # if cont == '\n':
     #    break
 return entities
