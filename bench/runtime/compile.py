@@ -4,7 +4,6 @@ import enum
 from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from itertools import chain
 from typing import Optional
 from uuid import uuid4
 
@@ -12,6 +11,7 @@ import structlog
 
 from bench.language.reconstruct import render_type_node
 from bench.language.type import (
+    PRIMITIVE_TYPES,
     Code,
     CodeContent,
     Compilation,
@@ -78,6 +78,41 @@ class CompilationState:
     target_symbols: list[InterpSymbol] = field(default_factory=list)
     # TODO @Incomplete: track source mappings during compilation
     source_mappings: list[SourceMapping] = field(default_factory=list)
+
+    def create_data(self, builder: DataBuilder) -> Dataset:
+        dataset = Dataset(
+            id=uuid4(),
+            name=builder.name,
+            type_node=builder.type_node,
+            records=builder.records,
+            abstract=False,
+            source=None,
+            symbol_type=SymbolType.DATASET,
+            modifier=None,
+            context=OrderedDict(),
+            description=None,
+            language="jsonl",
+        )
+        self.target_symbols.append(dataset)
+        return dataset
+
+    def create_code(self, builder: PromptBuilder) -> Code:
+        code = Code(
+            id=uuid4(),
+            name=builder.name,
+            type_node=builder.type_node,
+            language="bpl",
+            code=builder.to_code_content(),
+            abstract=False,
+            builtin_id=None,
+            symbol_type=SymbolType.CODE,
+            modifier=None,
+            context=OrderedDict(),
+            description=None,
+            source=None,
+        )
+        self.target_symbols.append(code)
+        return code
 
 
 class DataBuilder:
@@ -146,6 +181,107 @@ class PromptBuilder:
     def to_code_content(self) -> str:
         return "\n".join(self.bpl_lines)
 
+    #
+    # Structured emits (maybe should live elsewhere?)
+    #
+
+    def emit_explain_type(self, node: TypeNode):
+        """Explains the given type and all referenced types."""
+
+        # accumulate pending types that we need to explain at the end
+        explained_types = set()
+        types_to_explain: dict[str, TypeNode] = OrderedDict()
+
+        def _needs_explanation(node: TypeNode) -> bool:
+            return (
+                node.type not in PRIMITIVE_TYPES
+                and node.type != TypeTag.ANY
+                and node.type != TypeTag.LITERAL
+            )
+
+        def _consider_children(node: TypeNode):
+            if not node.children:
+                return
+            for child in node.children:
+                ref_name = _source_name(child)
+                if _needs_explanation(child) and ref_name not in explained_types:
+                    types_to_explain[child.source_reference] = child
+
+        def _source_name(node: TypeNode) -> str:
+            if node.source_reference:
+                return node.source_reference
+            else:  # make one up (that's stable)
+                return id(node).__str__()
+
+        def _render_type_node(node: TypeNode, is_root: bool = False) -> str:
+            name_str = f"{node.name} = " if node.name else ""
+            description_str = f' # "{node.description}"' if node.description else ""
+            if node.source_reference and not is_root:
+                # refer to types by their source reference unless we're at root
+                #  (at 'root' we want to explain this type inline)
+                return f"{name_str}{node.source_reference}{description_str}"
+            elif node.type == TypeTag.UNION:
+                union_str = " | ".join(_render_type_node(child) for child in node.children)
+                return f"{name_str}{union_str}{description_str}"
+            elif node.type == TypeTag.ARRAY:
+                element_type = _render_type_node(node.children[0])
+                return f"{name_str}{element_type}[]{description_str}"
+            elif node.type == TypeTag.FUNCTION:
+                func_strs = [
+                    f"function {node.name}{description_str}:",
+                    " # inputs",
+                    *(_render_type_node(child) for child in node.input.children),
+                    " # -> output",
+                    _render_type_node(node.output),
+                ]
+                # since function inlines the input types, we need to consider children
+                for child in node.children + node.input.children:
+                    explained_types.add(_source_name(child))
+                    _consider_children(child)
+                return "\n".join(func_strs)
+            elif node.type == TypeTag.STRUCT:
+                struct_strs = [f"struct {name_str}{description_str}:"]
+                for child in node.children:
+                    struct_strs.append(_render_type_node(child))
+                    explained_types.add(_source_name(child))
+                    _consider_children(node)
+                return "\n".join(struct_strs)
+            elif node.type == TypeTag.ENUM:
+                # assumes literal enum (only value members)
+                enum_strs = [f"enum {name_str}{description_str}:"]
+                for child in node.members:
+                    enum_strs.append(f'"{child.name}": {child.value} # "{child.description}"')
+                return "\n".join(enum_strs)
+            elif node.type in PRIMITIVE_TYPES or node.type == TypeTag.ANY:
+                return f"{name_str}{node.type.value}{description_str}"
+            else:
+                raise RuntimeError(f"unhandled type {node}")
+
+        types_to_explain[_source_name(node)] = node
+        while len(types_to_explain) > 0:
+            node = types_to_explain.popitem()[1]
+            self.emit_many(_render_type_node(node, is_root=True).splitlines())
+            self.blank()
+            explained_types.add(_source_name(node))
+            _consider_children(node)  # see if we need to explain any children
+
+    def emit_show_examples(self, examples: Dataset | DataBuilder):
+        with self.block(f"for example in context['{examples.name}']:\n"):
+            self.emit("{ ")
+            for i, node in enumerate(examples.type_node.children):
+                # weird _aliasing because BPL
+                # 1) doesn't get variable scoping and
+                # 2) can't understand [..] inside f-strings
+                self.append(f"_{node.name} = example['{node.name}']")
+                self.emit(f'"{node.name}" = {{_{node.name}}}')
+                if i < len(examples.type_node.children) - 1:
+                    self.emit(", ")
+            self.emit(" }\n")
+        self.blank()
+
+    def emit_show_record(self, record: LiteralValue):
+        raise NotImplementedError
+
 
 async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[SourceMapping]]:
     logger.debug("compile.start", compilation=compilation)
@@ -160,8 +296,19 @@ async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[So
     return state.target_symbols, state.source_mappings
 
 
+def _gather_expectations(symbol: Expectation | Task) -> list[Expectation]:
+    expectations = []
+    if isinstance(symbol, Expectation):
+        expectations.append(symbol)
+    for child in symbol.expectations:
+        expectations.extend(_gather_expectations(child))
+    return expectations
+
+
 async def _compile_task(state: CompilationState, task: Task) -> None:
     task_t = task.type_node
+    task_expectations = _gather_expectations(task)
+
     target_code = PromptBuilder(name=task.name, type_node=task_t)
     target_code.comment("Task metadata")
     target_code.emit(f'task "{task.name}"\n')
@@ -170,29 +317,7 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
 
     # task type explanation
     target_code.comment("Task type instruction")
-    target_code.emit(f'type of task "{task.name}"\n')
-    input_type_str = render_type_node(task_t.input)
-    output_type_str = render_type_node(task_t.output)
-    target_code.emit(f"{input_type_str}\n")
-    target_code.emit(f"{output_type_str}\n")
-    target_code.emit("\n")
-    target_code.blank()
-    for node in chain(task_t.input.children, task_t.output.children):
-        # explain task subtypes (only struct and enum for now, not recursive yet)
-        if node.type == TypeTag.STRUCT:
-            target_code.emit(f"type of {node.source_reference}:\n")
-            for member in node.children:
-                member_type_str = render_type_node(member, ignore_name=True)
-                target_code.emit(f"{member.name}: {member_type_str}\n")
-            target_code.emit("\n")
-            target_code.blank()
-        elif node.type == TypeTag.ENUM:
-            target_code.emit(f"enum {node.source_reference} as (key: info):\n")
-            for member in node.members:
-                target_code.emit(f'{member.value}: "{member.description or member.name}"\n')
-            target_code.emit("value must be one of the above keys\n")
-            target_code.emit("\n")
-            target_code.blank()
+    target_code.emit_explain_type(task_t)
 
     # task examples
     examples_type = TypeNode(
@@ -207,25 +332,15 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
     target_code.comment("Task example instruction")
     target_code.emit(f'examples for task "{task.name}":\n')
     target_code.emit(task.description + "\n")
-    with target_code.block(f"for example in context['{examples_data.name}']:\n"):
-        target_code.emit("{ ")
-        for i, node in enumerate(examples_type.children):
-            # weird _aliasing because BPL
-            # 1) doesn't get variable scoping and
-            # 2) can't understand [..] inside f-strings
-            target_code.append(f"_{node.name} = example['{node.name}']")
-            target_code.emit(f'"{node.name}" = {{_{node.name}}}')
-            if i < len(examples_type.children) - 1:
-                target_code.emit(", ")
-        target_code.emit(" }\n")
-    target_code.blank()
+    target_code.emit_show_examples(examples_data)
 
     # task inference
     target_code.comment("Task inference")
     # inline expectation restatement
-    for expectation in task.expectations:
+    for expectation in task_expectations:
         if isinstance(expectation, Expectation):
             target_code.emit(expectation.description + "\n")
+
     # task input fields
     target_code.emit("{ ")
     for i, node in enumerate(task_t.input.children):
@@ -236,43 +351,17 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
     field_type_str = render_type_node(task_t.output, ignore_name=True, ignore_description=True)
     target_code.emit(f'"{task_t.output.name}": [{task_t.output.name}: {field_type_str}]')
     target_code.emit(" }")
+    target_code.append(f"return {task_t.output.name}")
 
     # target pragma
     # TODO @Incomplete: generate task target pragma properly
+    #  1. Get temperature from task description + type info
+    #  2. Get max_tokens from emitted size..? Set max_new_tokens instead?
+    #  3. Set temperature in pragma zones? (field by field)
     target_code.pragma(temperature=0.5, max_tokens=1024, model=f'context["{state.model.name}"]')
 
-    # TODO @Cleanup: create target symbols nicely with mappings (in state?)
-    state.target_symbols.append(
-        Dataset(
-            id=uuid4(),
-            name=examples_data.name,
-            type_node=examples_data.type_node,
-            records=examples_data.records,
-            abstract=False,
-            source=None,
-            symbol_type=SymbolType.DATASET,
-            modifier=None,
-            context=OrderedDict(),
-            description=None,
-            language="jsonl",
-        )
-    )
-    state.target_symbols.append(
-        Code(
-            id=uuid4(),
-            name=target_code.name,
-            type_node=target_code.type_node,
-            language="bpl",
-            code=target_code.to_code_content(),
-            abstract=False,
-            builtin_id=None,
-            symbol_type=SymbolType.CODE,
-            modifier=None,
-            context=OrderedDict(),
-            description=None,
-            source=None,
-        )
-    )
+    state.create_data(examples_data)
+    state.create_code(target_code)
 
 
 def down(symbols: list[InterpSymbol], file: File | None = None) -> File:
