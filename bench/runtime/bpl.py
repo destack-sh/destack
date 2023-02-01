@@ -397,6 +397,8 @@ async def run_bpl_speculative(
     if first_unfilled_hole is None:
         return None  # nothing to do
 
+    if ctx.remaining_tokens <= 0:
+        raise GenerationError("ran out of tokens", first_unfilled_hole)
     # generate to satisfy this (and potentially future) holes
     generated = await ctx.generate(
         DecoderSettings(
@@ -405,9 +407,6 @@ async def run_bpl_speculative(
             stop=None,  # no stopping in uncontrolled mode
         )
     )
-
-    if ctx.remaining_tokens <= 0:
-        raise GenerationError("ran out of tokens", first_unfilled_hole)
 
     # backward mode: match generated text to holes
     # (emulate how controlled step-wise forward would have behaved)
@@ -471,6 +470,11 @@ def parse_hole_repr(part: PromptHole, value: str) -> Any:
     elif isinstance(part.type, type):
         value = part.type(value)
     elif isinstance(part.type, TypeNode):
+        # unwrap the value if it's quoted
+        # TODO @Cleanup: reconsider wrapping/unwrapping of string reprs for variable & hole values
+        if value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
+
         # note that we don't actually transform the value here, we just validate it
         try:
             check_type(value, part.type)  # raises our TypeError

@@ -52,40 +52,62 @@ import model text-davinci-003 from openai.std.text
 import type Entity from .lib
 import type EntityType from .lib
 
-# do we need to copy all deps?
+# do we need to copy all deps? or is import enough?
 
-data 'Entity_best samples' :: (name: string, 'type': EntityType):
-```csv
-"Barack Obama","PER"
-"London","LOC"
-"Google","ORG"
+# copied from real
+data 'extract entities examples' :: (input: string, output: [Entity]):
+```jsonl
+
 ```
-
-code extract_entities :: (input: string) -> [Entity]:
+code 'extract entities' :: (input: string) -> [Entity]:
 ```bpl
-pragma(max_tokens=2048, temperature=0.3)
-pragma(model=context['text-davinci-003'])
-# prompt
-"Extract the distinct entities from the text. Be precise and follow the format exactly.\n"
-"Example entities:\n"
-for entity in context['Entity_best samples']:
-    type = entity['type'] # should be EntityType but data isn't typed (yet?)
-    name = entity['name']
-    "\{'type': '{type: string}', 'name': '{name: string}'\}\n"
-"Input: \n\"{input}\"\n"
-"The number of entities mentioned in the above text followed by the entities as jsonl:"
-"\n# entities = [num_entities: number]\n"
-entities = []
-for i in range(int(num_entities)):
-    # "[entity: Entity]\n"
-    "\{'type': '[type: EntityType]', 'name': '[name: string]'\}"
-    if i < num_entities - 1:
-        "\n"
-    confidence = 0.5 # TODO @Incomplete: get confidence from token reads (holes and entire span)
-    entity = Entity(name=name, type=type, confidence=confidence)
-    entities.append(entity)
-    # "[cont: `",\n"` | `"\n"`]" # TODO @Incomplete: need proper continuation signal
-    # if cont == '\n':
-    #    break
-return entities
+pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
+# Task metadata
+"task \"extract entities\"\n"
+"Extract the distinct entities from the text\n"
+
+# Task type instruction
+"func extract entities {"
+"  input: string"
+"  output: Entity[]"
+"}"
+
+"struct Entity {"
+"  name: string # \"Canonical name of the entity\""
+"  type: EntityType"
+"  confidence: number | null # \"Confidence in the detected type\""
+"}"
+
+"confidence: number | null # \"Confidence in the detected type\""
+
+"enum EntityType {"
+"  \"PER\" # \"Person\""
+"  \"LOC\" # \"Location\""
+"  \"ORG\" # \"Organization\""
+"  \"MISC\" # \"Misc\""
+"}"
+
+# Task inference
+"Perform the task extract entities described above as a function with the correct types. Consider the instructions carefully:\n"
+"Extract the distinct entities from the text\n"
+" - The entities are distinct\n"
+"{\n"
+"  \"input\": {input},\n"
+final_output = []
+"  \"output\": [\n"
+while True:
+    "  "
+    "[cont: `\"  \"` | `\"]\"`]"
+    if cont == ']':
+        break
+    "{\n"
+    "  \"name\": [name: string],\n"
+    "  \"type\": [type: EntityType],\n"
+    "  \"confidence\": [confidence: number | null],\n"
+    element = Entity(name=name, type=type, confidence=confidence)
+    "}"
+    final_output.append(element)
+"}"
+return final_output
+
 ```

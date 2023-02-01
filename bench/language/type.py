@@ -483,6 +483,18 @@ class TypeNode(SymbolContent):
             child.tag == TypeTag.NULL for child in self.children
         )
 
+    @property
+    def is_flat(self) -> bool:
+        """Whether this type can be represented as a single un-nested primitive value."""
+        if self.tag in PRIMITIVE_TYPES:
+            return True
+        elif self.tag == TypeTag.ENUM:
+            return self.head_type.is_flat
+        elif self.tag == TypeTag.UNION:
+            return all(child.is_flat for child in self.children)
+        else:
+            return False
+
     def child(self, key: str) -> TypeNode:
         if self.children is None:
             raise ValueError(f"find cannot be used on {self}")
