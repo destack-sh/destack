@@ -2,7 +2,7 @@ import os
 
 import aiohttp
 
-from bench.runtime.type import DecoderSettings, ModelInstance, TextGeneration
+from bench.runtime.type import DecoderSettings, FinishReason, ModelInstance, TextGeneration
 
 
 class Inference:
@@ -39,6 +39,7 @@ class LocalHfTransformersInference(Inference):
             text=generated_text,
             tokens=generated_tokens,
             logits=generated_logits,
+            finish_reason=FinishReason.STOP,  # TODO @Cleanup: local generate is incorrect
         )
 
     def end(self):
@@ -80,10 +81,17 @@ class OpenAIInference(Inference):
         outputs = [choice for choice in output["choices"]]
         generations = []
         for output in outputs:
+            if output["finish_reason"] == "stop":
+                finish_reason = FinishReason.STOP
+            elif output["finish_reason"] == "length":
+                finish_reason = FinishReason.MAX_TOKENS
+            else:
+                raise RuntimeError(f"unexpected finish_reason: {output['finish_reason']}")
             generation = TextGeneration(
                 text=output["text"],
                 tokens=output.get("logprobs", {}).get("tokens", None),
                 logits=output.get("logprobs", {}).get("token_logprobs", None),
+                finish_reason=finish_reason,
             )
             generations.append(generation)
         if len(generations) != 1:

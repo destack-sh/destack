@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import ast
 import enum
-from collections import OrderedDict
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import structlog
 
-from bench.language.reconstruct import render_type_node
+from bench.language.reconstruct import render_type_node, render_type_node_struct
 from bench.language.type import (
     PRIMITIVE_TYPES,
     Code,
@@ -27,6 +27,7 @@ from bench.language.type import (
     Statement,
     StatementType,
     Task,
+    Type,
     TypeNode,
     TypeTag,
 )
@@ -180,191 +181,86 @@ class PromptBuilder:
     # Structured emits (maybe should live elsewhere?)
     #
 
-    def emit_explain_type(self, node: TypeNode):
+    def emit_explain_type(self, node: Type):
         """Emits BPL to explain the given type and all its references."""
-        # TODO @Cleanup: emit_explain_type is unwieldy (esp. _render_type_node)
 
-        # accumulate pending types that we need to explain at the end
-        explained_types = set()
-        types_to_explain: dict[str, TypeNode] = OrderedDict()
-
-        def _needs_explanation(node: TypeNode) -> bool:
-            return (
-                node.tag not in PRIMITIVE_TYPES
-                and node.tag != TypeTag.ANY
-                and node.tag != TypeTag.LITERAL
-            )
-
-        def _consider_children(node: TypeNode):
-            if not node.children:
-                return
-            for child in node.children:
-                ref_name = _source_name(child)
-                if _needs_explanation(child) and ref_name not in explained_types:
-                    types_to_explain[child.source_reference] = child
-
-        def _source_name(node: TypeNode) -> str:
-            if node.source_reference:
-                return node.source_reference
-            else:  # make one up (that's stable)
-                return id(node).__str__()
-
-        def _render_type_node(node: TypeNode, is_root: bool = False) -> str:
-            name_str = f"{node.name}: " if node.name else ""
-            description_str = f' # "{node.description}"' if node.description else ""
-            if node.source_reference and not is_root:
-                # refer to types by their source reference unless we're at root
-                #  (at 'root' we want to explain this type inline)
-                return f"{name_str}{node.source_reference}{description_str}"
-            elif node.tag == TypeTag.UNION:
-                union_str = " | ".join(_render_type_node(child) for child in node.children)
-                return f"{name_str}{union_str}{description_str}"
-            elif node.tag == TypeTag.ARRAY:
-                element_type = _render_type_node(node.children[0])
-                return f"{name_str}{element_type}[]{description_str}"
-            elif node.tag == TypeTag.FUNCTION:
-                func_strs = [
-                    f"func {node.name}{description_str} {{",
-                    *("  " + _render_type_node(child) for child in node.input.children),
-                    "  " + _render_type_node(node.output),
-                ]
-                # since function inlines the input types, we need to consider children
-                for child in node.children + node.input.children:
-                    explained_types.add(_source_name(child))
-                    _consider_children(child)
-                return "\n".join(func_strs) + "\n}"
-            elif node.tag == TypeTag.STRUCT:
-                struct_strs = [f"struct {node.source_reference}{description_str} {{"]
-                for child in node.children:
-                    struct_strs.append("  " + _render_type_node(child))
-                    explained_types.add(_source_name(child))
-                    _consider_children(node)
-                return "\n".join(struct_strs) + "\n}"
-            elif node.tag == TypeTag.ENUM:
-                # assumes literal enum (only value members)
-                enum_strs = [f"enum {node.source_reference}{description_str} {{"]
-                for child in node.members:
-                    enum_strs.append(f'  "{child.value}" # "{child.description or child.name}"')
-                return "\n".join(enum_strs) + "\n}"
-            elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
-                return f"{name_str}{node.tag.value}{description_str}"
-            else:
-                raise RuntimeError(f"unhandled type {node}")
-
-        types_to_explain[_source_name(node)] = node
+        explained_types: list[TypeNode] = []
+        types_to_explain: list[TypeNode] = [node]
         while len(types_to_explain) > 0:
-            node = types_to_explain.popitem()[1]
-            for line in _render_type_node(node, is_root=True).splitlines():
-                self.emit(line + "\n")
+            node = types_to_explain.pop()
+            if node.tag == TypeTag.FUNCTION:  # recast to struct for simplicity
+                node = TypeNode(
+                    name=node.name, tag=TypeTag.STRUCT, children=[*node.input.children, node.output]
+                )
+            type_str = render_type_node(node, ignore_name=True, ignore_reference=True)
+            if node.tag == TypeTag.STRUCT:
+                self.emit(f"type {node.source_reference}:")
+                self.emit(type_str)
+            elif node.tag == TypeTag.ENUM:
+                self.emit(f"enum {node.source_reference}:")
+                self.emit(type_str)
+            else:
+                self.emit(f"type {node.source_reference} = {type_str}")
+            self.emit("\n")
             self.blank()
-            explained_types.add(_source_name(node))
-            _consider_children(node)  # see if we need to explain any children
+            explained_types.append(node)
 
-    def emit_show_examples(self, examples: Dataset | DataBuilder):
-        """Emits BPL to show the given examples."""
-        with self.block(f"for example in context['{examples.name}']:\n"):
-            self.emit("{ \n")
-            for i, node in enumerate(examples.type.children):
-                # weird _aliasing because BPL
-                # 1) doesn't get variable scoping and
-                # 2) can't understand [..] inside f-strings
-                self.append(f"_{node.name} = example['{node.name}']")
-                self.emit(f'  "{node.name}" = {{_{node.name}}}')
-                self.emit(",\n")
-            self.emit("}\n")
-        self.blank()
+            for child in node.children or []:
+                while child.tag == TypeTag.ARRAY:
+                    child = child.children[0]  # skip array (simple wrapper)
+                needs_explanation = (
+                    child.tag not in PRIMITIVE_TYPES
+                    and child.tag != TypeTag.ANY
+                    and child.tag != TypeTag.LITERAL
+                    and not child.is_flat
+                )
+                if (
+                    needs_explanation
+                    and child not in explained_types
+                    and child.source_reference is not None
+                ):
+                    types_to_explain.append(child)
 
-    def emit_show_record(self, value: Any, type: TypeNode, indent: str = ""):
+    def emit_show_dataset(self, dataset: Dataset | DataBuilder):
+        """Emits BPL to show the given dataset."""
+        element_type_str = render_type_node(dataset.type_node)
+        with self.block(f"for record in context['{dataset.name}']:\n"):
+            self.append("_record_as_json = json.dumps(record, indent=2)")
+            self.emit(f"value example :: ({element_type_str}):\n")
+            self.emit("```\n")
+            self.emit("{_record_as_json}\n")
+            self.emit("```\n")
+
+    def emit_show_record(self, value: Any, type: TypeNode):
         """Emits BPL to show the given example."""
-
-        def _emit(s: str):
-            self.emit(indent + s)
-
-        if type.tag == TypeTag.STRUCT:
-            _emit("\\{ \n")
-            for node in type.children:
-                _emit(f'  "{node.name}": ')
-                self.emit_show_record(value[node.name], node, indent + "  ")
-                _emit(",\n")
-            _emit("\\}\n")
-        elif type.tag == TypeTag.ARRAY:
-            _emit("\\[ \n")
-            for val in value:
-                self.emit_show_record(val, type.head_type, indent + "  ")
-                _emit(",\n")
-            _emit("\\]\n")
-        elif type.is_flat:  # ignore indent
-            pfix_str = '"' if type.tag == TypeTag.STRING else ""
-            self.emit(f"{pfix_str}{value}{pfix_str}")
-        else:
-            raise RuntimeError(f"unhandled type {type}")
+        check_type(value, type)
+        record_type_str = render_type_node_struct(type, seperator=", ")
+        self.emit(f"value example :: ({record_type_str}):\n")
+        self.emit("```\n")
+        self.emit(json.dumps(value, indent=2))
+        self.emit("\n```\n")
 
     def emit_get_record(
         self,
         inputs: list[TypeNode],
         output: TypeNode,
-        result_var: str = "output",
-        indent: str = "",
-        open_brace: bool = True,
-        close_brace: bool = True,
+        output_var: str,
     ):
         """Emits BPL to get the output record given the inputs"""
-        # TODO @Cleanup: emit_show_examples, emit_show_record and emit_get_record are 3 sides of the same coin
-        #  (using runtime records, using static records, mixing runtime and model-generated records)
-        #  The way they're currently implemented is unwieldy and requires 3 sites to be updated for format changes.
-        #  Either we force JSON for everything or use a "format" class to handle all specific formatting.
-        # like for example, we create a json-like object
-
-        def _emit(s: str):
-            self.emit(indent + s)
-
-        if open_brace:
-            _emit("{\n")
-        # inputs
-        if any(not input.is_flat for input in inputs):
-            raise RuntimeError(f"non-flat inputs not yet supported: {inputs}")
-        for i, node in enumerate(inputs):
-            pfix_str = '"' if node.tag == TypeTag.STRING else ""
-            _emit(f'  "{node.name}": {pfix_str}{{{node.name}}}{pfix_str},\n')
-
-        # outputs
-        if output.is_flat:  # simple case
-            field_type_str = render_type_node(output, ignore_name=True, ignore_description=True)
-            pfix_str = '"' if output.tag == TypeTag.STRING else ""
-            _emit(f'  "{output.name}": {pfix_str}[{result_var}: {field_type_str}]{pfix_str},\n')
-        elif output.tag == TypeTag.ARRAY:
-            self.append(f"{result_var} = []")
-            _emit(f'  "{output.name}": [\n')
-            with self.block("while True:"):
-                _emit("  ")
-                # single character continuation signal
-                _emit('[cont: `" "` | `"\\{"` | `"\\]"`]')
-                self.append("if cont == ']':")
-                self.append("    break")
-                self.append("elif cont == ' ':")
-                self.append('    " "')  # re-add extra space to align
-                self.append("elif cont == '{':")
-                self.append('    "\\n"')  # consume newline of new object
-                self.emit_get_record(
-                    inputs=[],
-                    output=output.head_type,
-                    result_var="element",
-                    open_brace=False,  # already emitted above
-                    indent=indent + "  ",
-                )
-                self.append(f"{result_var}.append(element)")
-        elif output.tag == TypeTag.STRUCT:
-            for node in output.children:
-                if not node.is_flat:
-                    raise RuntimeError(f"non-flat struct output fields not yet supported: {node}")
-                field_type_str = render_type_node(node, ignore_name=True, ignore_description=True)
-                _emit(f'  "{node.name}": [{node.name}: {field_type_str}],\n')
-            init_args = ", ".join(f"{node.name}={node.name}" for node in output.children)
-            self.append(f"{result_var} = {output.source_reference}({init_args})")
-        else:
-            raise RuntimeError(f"output type supported: {output}")
-        if close_brace:
-            _emit("}")
+        # combine inputs and outputs into single example struct
+        combined_type = TypeNode(name=None, tag=TypeTag.STRUCT, children=inputs + [output])
+        combined_type_str = render_type_node_struct(combined_type, seperator=", ")
+        self.emit(f"value :: ({combined_type_str}):\n")
+        self.emit("```\n")
+        self.emit("{\n")
+        # render input fields as BPL variables like |{var_name}|
+        for input in inputs:
+            self.emit(f'  "{input.name}": |{{{input.name}}}|,\n')
+        # render output as giant hole of its type :JsonHole
+        output_type_str = render_type_node(output, ignore_name=True, ignore_description=True)
+        self.emit(f'  "{output.name}": |[{output_var}: {output_type_str}]|\n')
+        self.emit("}\n")
+        self.emit("```")
 
 
 async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[SourceMapping]]:
@@ -391,7 +287,7 @@ def _gather_expectations(symbol: Expectation | Task) -> list[Expectation]:
 
 
 async def _compile_task(state: CompilationState, task: Task) -> None:
-    task_t = task.type_node
+    task_t = task.type
     task_expectations = _gather_expectations(task)
 
     target_code = PromptBuilder(name=task.name, type_node=task_t)
@@ -418,7 +314,7 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
         target_code.comment("Task example instruction")
         target_code.emit(f'examples for task "{task.name}":\n')
         target_code.emit(task.description + "\n")
-        target_code.emit_show_examples(examples_data)
+        target_code.emit_show_dataset(examples_data)
 
     # task inference
     target_code.comment("Task inference")
@@ -441,7 +337,7 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
     target_code.blank()
 
     # task input fields
-    target_code.emit_get_record(task_t.input.children, task_t.output, result_var="final_output")
+    target_code.emit_get_record(task_t.input.children, task_t.output, "final_output")
     target_code.append("return final_output")
 
     # target pragma

@@ -1,4 +1,6 @@
 import ast
+import enum
+import json
 import re
 import uuid
 from dataclasses import dataclass
@@ -13,6 +15,7 @@ from bench.runtime.inference import Inference
 from bench.runtime.type import (
     DecoderSettings,
     DynamicPrompt,
+    FinishReason,
     ModelInstance,
     PromptSettings,
     TextGeneration,
@@ -141,20 +144,10 @@ PRAGMA_ZONE_END_REGEX = re.compile(r"^(?P<indent> *)pragma_zone_end\(\)$")
 RETURN_REGEX = re.compile(r"^(?P<indent> *)return ?(?P<value>.*)$")
 # emits like "hello" or "hello {name}" or "hello [name: string]"
 EMIT_REGEX = re.compile(r"^(?P<indent>\s*)\"(?P<value>.*?)\"\s*$")
-# emit variables like {name} (classic f-string)
-EMIT_VARIABLE_REGEX = re.compile(r"(?<!\\)\{(?P<value>.*?)(: (?P<type>.*?))?}")
-# emit holes like [name: string]
-EMIT_HOLE_REGEX = re.compile(r"(?<!\\)\[(?P<name>\w+?)(: (?P<type>.+?))?(?<!\\)]")
-
-
-def unescape(s: str | None) -> str | None:
-    if not s:
-        return s
-    # unescape '\{', '\}', '\[', '\]'
-    # we need them escaped in BPL emits (to avoid confusion with variables/holes)
-    for c in ["{", "}", "[", "]"]:
-        s = s.replace(f"\\{c}", c)
-    return s
+# emit variables like |{name}| (classic f-string)
+EMIT_VARIABLE_REGEX = re.compile(r"\|\{(?P<value>.*?)(: (?P<type>.*?))?}\|")
+# emit holes like |[name: string]|
+EMIT_HOLE_REGEX = re.compile(r"\|\[(?P<name>\w+?)(: (?P<type>.+?))?]\|")
 
 
 def split_fragment(fragment: str) -> list[PromptFragment]:
@@ -165,8 +158,8 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
         if hole_match:
             if pos != hole_match.start():
                 yield PromptConstant(fragment[pos : hole_match.start()])
-            name = unescape(hole_match.group("name"))
-            type = unescape(hole_match.group("type"))
+            name = hole_match.group("name")
+            type = hole_match.group("type")
             yield PromptHole(name, type)
             pos = hole_match.end()
             continue
@@ -175,15 +168,16 @@ def split_fragment(fragment: str) -> list[PromptFragment]:
         if variable_match:
             if pos != variable_match.start():
                 yield PromptConstant(fragment[pos : variable_match.start()])
-            value = unescape(variable_match.group("value"))
-            type = unescape(variable_match.group("type"))
+            value = variable_match.group("value")
+            type = variable_match.group("type")
             yield PromptVariable(value, UNSET, type)
             pos = variable_match.end()
             continue
 
         break  # nothing matched
     if pos < len(fragment):
-        yield PromptConstant(unescape(fragment[pos:]))
+        s = fragment[pos:]
+        yield PromptConstant(s)
 
 
 def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
@@ -253,6 +247,12 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
             continue  # source line or end
         elif isinstance(next_part.part, PromptConstant):
             source_p.part.next_constant_content = next_part.part.content
+            # accumulate constant content until we hit something else
+            for next_next_part in parsed[i + 2 :]:
+                if not isinstance(next_next_part, str) and isinstance(
+                    next_next_part.part, PromptConstant
+                ):
+                    source_p.part.next_constant_content += next_next_part.part.content
         elif isinstance(next_part.part, SourcePromptPart):
             source_p.part.next_variable = next_part.part.name
         elif isinstance(next_part.part, PromptExit) or next_part.part is None:
@@ -330,6 +330,9 @@ class InferenceContext:
         if ends_in_space:
             prefix = prefix[:-1]
         generation = await self.inference.generate(prefix, step)
+        if generation.finish_reason == FinishReason.MAX_TOKENS:
+            raise GenerationError(GenerationErrorType.OUT_OF_TOKENS)
+
         # trim space from generation as well
         # TODO @Cleanup: mangling space for generation messes with generation tokens & logits
         if ends_in_space and generation.text.startswith(" "):
@@ -343,12 +346,30 @@ class InferenceContext:
         self.inference = None
 
 
-class GenerationError(ValueError):
-    def __init__(self, message: str, part: PromptPart, cause: Exception | None = None):
-        super().__init__(message, cause)
+class GenerationErrorType(enum.Enum):
+    INTERNAL = 0, "internal error"
+    OUT_OF_TOKENS = 1, "ran out of tokens"
+    INVALID_VARIABLE = 2, "invalid variable"
+    INVALID_HOLE = 3, "invalid hole"
+
+    def __init__(self, code: int, message: str):
+        self.code = code
         self.message = message
+
+
+class GenerationError(ValueError):
+    def __init__(
+        self,
+        _t: GenerationErrorType,
+        part: PromptPart | None = None,
+        message_detail: str | None = None,
+        cause: Exception | None = None,
+    ):
+        super().__init__(_t.message, cause)
+        self.type = _t
         self.part = part
         self.cause = cause
+        self.message_detail = message_detail
 
 
 async def run_bpl_controlled(
@@ -359,7 +380,7 @@ async def run_bpl_controlled(
     part = await prompt.asend(None)  # start iteration
     while True:
         if ctx.remaining_tokens <= 0:
-            raise GenerationError("ran out of tokens", part)
+            raise GenerationError(GenerationErrorType.OUT_OF_TOKENS, part)
 
         send_back = None
         if isinstance(part, PromptExit):
@@ -370,7 +391,10 @@ async def run_bpl_controlled(
             ctx.append(render_variable_repr(part))
         elif isinstance(part, PromptHole):
             # generate to satisfy this hole
-            value = await ctx.generate(get_hole_decode_settings(ctx, part))
+            settings = get_hole_decode_settings(
+                ctx.remaining_tokens, ctx.settings.temperature, part
+            )
+            value = await ctx.generate(settings)
             # transform value to target type
             send_back = parse_hole_repr(part, value)
         else:
@@ -410,7 +434,7 @@ async def run_bpl_speculative(
         return None  # nothing to do
 
     if ctx.remaining_tokens <= 0:
-        raise GenerationError("ran out of tokens", first_unfilled_hole)
+        raise GenerationError(GenerationErrorType.OUT_OF_TOKENS, first_unfilled_hole)
     # generate to satisfy this (and potentially future) holes
     generated = await ctx.generate(
         DecoderSettings(
@@ -437,11 +461,15 @@ async def run_bpl_speculative(
             actual = generated[pos : pos + len(expected)]
             if actual != expected:
                 # TODO @Incomplete: unwind, correct and proceed with forward mode
-                raise ValueError(f"expected constant {expected!r} but got {actual!r} at {pos}")
+                raise GenerationError(
+                    GenerationErrorType.INVALID_HOLE,
+                    part,
+                    f"expected constant {expected!r} but got {actual!r} at {pos}",
+                )
             pos += len(expected)
         elif isinstance(part, PromptHole):
             # 'decode' from generated text like a decoder would for this hole
-            decode = get_hole_decode_settings(ctx, part)
+            decode = get_hole_decode_settings(len(generated) - pos, ctx.settings.temperature, part)
             actual = generated[pos : pos + decode.max_tokens]
             if decode.stop:  # stop at the first stop of the hole
                 min_stop = min(actual.find(s) for s in decode.stop)
@@ -460,9 +488,10 @@ async def run_bpl_speculative(
             break
 
 
-def get_hole_decode_settings(ctx: InferenceContext, part: PromptHole) -> DecoderSettings:
+def get_hole_decode_settings(
+    max_tokens: int, base_temperature: float, part: PromptHole
+) -> DecoderSettings:
     stop = []
-    max_tokens = ctx.remaining_tokens
     if isinstance(part.type, TypeNode) and part.type.tag == TypeTag.UNION:
         # special case to set max length if all union members are string literals
         all_string_literals = all(
@@ -471,11 +500,12 @@ def get_hole_decode_settings(ctx: InferenceContext, part: PromptHole) -> Decoder
         if all_string_literals:
             max_tokens = max(len(t.value) for t in part.type.children)
     if part.next_constant_content:
-        stop.append(part.next_constant_content[:1])
+        # TODO @Robustness: limit stop length of next constant content in hole to..?
+        stop.append(part.next_constant_content)
     elif part.next_variable:
         raise NotImplementedError  # can't handle?
     return DecoderSettings(
-        temperature=ctx.settings.temperature,
+        temperature=base_temperature,
         max_tokens=max_tokens,
         stop=stop,
     )
@@ -483,23 +513,16 @@ def get_hole_decode_settings(ctx: InferenceContext, part: PromptHole) -> Decoder
 
 def parse_hole_repr(part: PromptHole, value: str) -> Any:
     """Parses a string representation of a hole value into its target type."""
-    if value == "null":  # a bit hacky, need 'null' represented
-        value = None
-    # This shouldn't be an elif as it should type check, but that means we have to
-    # parse and handle non-primitive types like unions in BPL directly somehow.
-    elif isinstance(part.type, type):
+    if isinstance(part.type, type):
         value = part.type(value)
     elif isinstance(part.type, TypeNode):
-        # unwrap the value if it's quoted
-        # TODO @Cleanup: reconsider wrapping/unwrapping of string reprs for variable & hole values
-        if value.startswith('"') and value.endswith('"'):
-            value = value[1:-1]
-
         # note that we don't actually transform the value here, we just validate it
         try:
+            # :JsonHole
+            value = json.loads(value)
             check_type(value, part.type)  # raises our TypeError
-        except TypeError as e:
-            raise GenerationError(f"invalid value for hole: {e}", part, e)
+        except (ValueError, TypeError) as e:
+            raise GenerationError(GenerationErrorType.INVALID_HOLE, part, cause=e)
     else:
         raise RuntimeError(f"invalid target type: {part}")
     return value
@@ -512,12 +535,10 @@ def render_variable_repr(part: PromptVariable) -> str:
         # represent target type appropriately
         if isinstance(part.type, type):
             value = part.type(value)
-        elif isinstance(part.type, TypeInstance):
-            pass  # no special representation
         else:
             raise ValueError(f"invalid target type: {part}")
-    else:
-        value = str(value)
+    # :JsonHole
+    value = json.dumps(value, indent=2)
     return value
 
 
@@ -550,4 +571,5 @@ BPL_BUILTINS = {
     "PromptPragmaZoneEnter": PromptPragmaZoneEnter,
     "PromptPragmaZoneExit": PromptPragmaZoneExit,
     "_parse_type_inline": _parse_type_inline,
+    "json": json,
 }
