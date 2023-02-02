@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 import typing
 from dataclasses import dataclass
 
@@ -80,6 +81,14 @@ class DecoderSettings:
     max_tokens: int
     stop: list[str] | None
 
+    def __post_init__(self):
+        # max tokens must be > 0
+        if self.max_tokens <= 0:
+            raise ValueError("max_tokens must be greater than 0")
+        # temperature must be [0, 1]
+        if self.temperature < 0 or self.temperature > 1:
+            raise ValueError("temperature must be between 0 and 1")
+
 
 @dataclass(slots=True)
 class PromptSettings:
@@ -89,8 +98,14 @@ class PromptSettings:
     stop: list[str] | None
 
 
+class FinishReason(enum.Enum):
+    MAX_TOKENS = "max_tokens"
+    STOP = "stop"
+
+
 @dataclass
 class TextGeneration:
     text: str
     tokens: list[str]
     logits: list[float]
+    finish_reason: FinishReason

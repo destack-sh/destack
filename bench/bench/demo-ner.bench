@@ -67,25 +67,13 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 "Extract the distinct entities from the text\n"
 
 # Task type instruction
-"func extract entities {\n"
-"  input: string\n"
-"  output: Entity[]\n"
-"}\n"
+"type None:"
+"input: string\noutput: [Entity]"
+"\n"
 
-"struct Entity {\n"
-"  name: string # \"Canonical name of the entity\"\n"
-"  type: EntityType\n"
-"  confidence: number | null # \"Confidence in the detected type\"\n"
-"}\n"
-
-"confidence: number | null # \"Confidence in the detected type\"\n"
-
-"enum EntityType {\n"
-"  \"PER\" # \"Person\"\n"
-"  \"LOC\" # \"Location\"\n"
-"  \"ORG\" # \"Organization\"\n"
-"  \"MISC\" # \"Misc\"\n"
-"}\n"
+"type Entity:"
+"name: string \"Canonical name of the entity\"\n'type': EntityType\nconfidence: number | null \"Confidence in the detected type\""
+"\n"
 
 # Task inference
 "Perform the task extract entities as described above to complete the output with the correct types. Consider the instructions carefully:\n"
@@ -93,51 +81,18 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 " - The entities are distinct\n"
 # Task type example stub
 "The data should look like this (with real values obviously):\n"
-"{ \n"
-"  \"input\": "
-"string"
-",\n"
-"  \"output\": "
-"  [ \n"
-"    { \n"
-"      \"name\": "
-"string"
-"    ,\n"
-"      \"type\": "
-"PER"
-"    ,\n"
-"      \"confidence\": "
-"7"
-"    ,\n"
-"    }\n"
-"  ,\n"
-"  ]\n"
-",\n"
-"}\n"
+"value example :: (input: string, output: [Entity]):\n"
+"```\n"
+"{\n  \"input\": \"lorem ipsum\",\n  \"output\": [\n    {\n      \"name\": \"lorem ipsum\",\n      \"type\": \"PER\",\n      \"confidence\": 42\n    }\n  ]\n}"
+"\n```\n"
 
+"value :: (input: string, output: [Entity]):\n"
+"```\n"
 "{\n"
-"  \"input\": \"{input}\",\n"
-final_output = []
-"  \"output\": [\n"
-while True:
-    "  "
-    "[cont: `\" \"` | `\"\{\"` | `\"\]\"`]"
-    if cont == ']':
-        break
-    elif cont == ' ':
-        " "
-    elif cont == '{':
-        "\n"
-    "    \"name\": [name: string],\n"
-    "    \"type\": [type: EntityType],\n"
-    "    \"confidence\": [confidence: number | null],\n"
-    element = Entity(name=name, type=type, confidence=confidence)
-    "  }"
-    final_output.append(element)
-"}"
+"  \"input\": |{input}|,\n"
+"  \"output\": |[final_output: [Entity]]|\n"
+"}\n"
+"```"
 return final_output
 ```
-2023-02-01T18:20:25.583867Z [debug    ] compile.start [bench.runtime.compile] compilation=<Compilation compile prod (source=main.x:10 compile prod:)>
-2023-02-01T18:20:25.585073Z [debug    ] compile.end [bench.runtime.compile] compilation=<Compilation compile prod (source=main.x:10 compile prod:)> state=CompilationState(compilation=<Compilation compile prod (source=main.x:10 compile prod:)>, task=<Task task extract entities (source=main.x:10.0 task 'extract entities')>, model=<Model model text-davinci-003 (source=main.x:10.1 model text-davinci-003)>, target_symbols=[<Dataset data extract entities examples (source=<unknown>)>, <Code code extract entities (source=<unknown>)>], source_mappings=[])
 
-Process finished with exit code 0
