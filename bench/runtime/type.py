@@ -95,6 +95,7 @@ class PromptSettings:
     model: ModelInstance
     temperature: float
     max_tokens: int
+    max_generated_tokens: int
     stop: list[str] | None
 
 

@@ -5,13 +5,12 @@ import enum
 import json
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import structlog
 
 from bench.language.reconstruct import render_type_node, render_type_node_struct
 from bench.language.type import (
-    PRIMITIVE_TYPES,
     Code,
     CodeContent,
     Compilation,
@@ -25,6 +24,7 @@ from bench.language.type import (
     Module,
     SourceMapping,
     Statement,
+    StatementModifier,
     StatementType,
     Task,
     Type,
@@ -120,10 +120,12 @@ class DataBuilder:
         self.records: list[LiteralValue] = []
 
     def append(self, record: LiteralValue):
+        check_type(record, self.type_node)
         self.records.append(record)
 
     def extend(self, records: list[LiteralValue]):
-        self.records.extend(records)
+        for record in records:
+            self.append(record)
 
 
 class PromptBuilder:
@@ -152,6 +154,9 @@ class PromptBuilder:
         line = line.replace("\n", "\\n")
         line = line.replace('"', '\\"')
         self.append(f'"{line}"')
+
+    def emit_split(self, line: str):
+        self.emit_many([(line + "\n") for line in line.splitlines()])
 
     def emit_many(self, lines: list[str]):
         for line in lines:
@@ -182,12 +187,12 @@ class PromptBuilder:
     #
 
     def emit_explain_type(self, node: Type):
-        """Emits BPL to explain the given type and all its references."""
+        """Emits BPL to explain the given type (recursively)."""
 
-        explained_types: list[TypeNode] = []
-        types_to_explain: list[TypeNode] = [node]
-        while len(types_to_explain) > 0:
-            node = types_to_explain.pop()
+        for node in node.walk():
+            # ignore improper type
+            if node.source_reference is None:
+                continue
             if node.tag == TypeTag.FUNCTION:  # recast to struct for simplicity
                 node = TypeNode(
                     name=node.name, tag=TypeTag.STRUCT, children=[*node.input.children, node.output]
@@ -195,50 +200,35 @@ class PromptBuilder:
             type_str = render_type_node(node, ignore_name=True, ignore_reference=True)
             if node.tag == TypeTag.STRUCT:
                 self.emit(f"type {node.source_reference}:")
-                self.emit(type_str)
+                self.emit_split(type_str)
             elif node.tag == TypeTag.ENUM:
                 self.emit(f"enum {node.source_reference}:")
-                self.emit(type_str)
+                self.emit_split(type_str)
             else:
                 self.emit(f"type {node.source_reference} = {type_str}")
             self.emit("\n")
             self.blank()
-            explained_types.append(node)
-
-            for child in node.children or []:
-                while child.tag == TypeTag.ARRAY:
-                    child = child.children[0]  # skip array (simple wrapper)
-                needs_explanation = (
-                    child.tag not in PRIMITIVE_TYPES
-                    and child.tag != TypeTag.ANY
-                    and child.tag != TypeTag.LITERAL
-                    and not child.is_flat
-                )
-                if (
-                    needs_explanation
-                    and child not in explained_types
-                    and child.source_reference is not None
-                ):
-                    types_to_explain.append(child)
 
     def emit_show_dataset(self, dataset: Dataset | DataBuilder):
         """Emits BPL to show the given dataset."""
-        element_type_str = render_type_node(dataset.type_node)
-        with self.block(f"for record in context['{dataset.name}']:\n"):
+        element_type_str = render_type_node(dataset.type_node, ignore_description=True)
+        self.emit(f"data '{dataset.name}' :: ({element_type_str}):\n")
+        self.emit("```jsonl\n")
+        with self.block(f"for record in context['{dataset.name}']:"):
             self.append("_record_as_json = json.dumps(record, indent=2)")
-            self.emit(f"value example :: ({element_type_str}):\n")
-            self.emit("```\n")
-            self.emit("{_record_as_json}\n")
-            self.emit("```\n")
+            self.emit("|{_record_as_json}|\n")
+        self.emit("```\n")
+        self.blank()
 
-    def emit_show_record(self, value: Any, type: TypeNode):
+    def emit_show_value(self, value: Any, type: TypeNode, name: str = "example"):
         """Emits BPL to show the given example."""
         check_type(value, type)
         record_type_str = render_type_node_struct(type, seperator=", ")
-        self.emit(f"value example :: ({record_type_str}):\n")
+        self.emit(f"value {name} :: ({record_type_str}):\n")
+        self.emit("```json\n")
+        self.emit_split(json.dumps(value, indent=2))
         self.emit("```\n")
-        self.emit(json.dumps(value, indent=2))
-        self.emit("\n```\n")
+        self.blank()
 
     def emit_get_record(
         self,
@@ -251,7 +241,7 @@ class PromptBuilder:
         combined_type = TypeNode(name=None, tag=TypeTag.STRUCT, children=inputs + [output])
         combined_type_str = render_type_node_struct(combined_type, seperator=", ")
         self.emit(f"value :: ({combined_type_str}):\n")
-        self.emit("```\n")
+        self.emit("```json\n")
         self.emit("{\n")
         # render input fields as BPL variables like |{var_name}|
         for input in inputs:
@@ -261,6 +251,7 @@ class PromptBuilder:
         self.emit(f'  "{output.name}": |[{output_var}: {output_type_str}]|\n')
         self.emit("}\n")
         self.emit("```")
+        self.blank()
 
 
 async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[SourceMapping]]:
@@ -276,21 +267,23 @@ async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[So
     return state.target_symbols, state.source_mappings
 
 
-def _gather_expectations(symbol: Expectation | Task) -> list[Expectation]:
-    expectations = []
+Expect = Union[Task, Code, Dataset, Expectation]
+
+
+def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
+    expects = []
     if isinstance(symbol, Expectation):
-        expectations.append(symbol)
-    if isinstance(symbol, (Task, Expectation)):
+        expects.append(symbol)
+    if isinstance(symbol, (Type, Task, Expectation)):
         for child in symbol.expectations:
-            expectations.extend(_gather_expectations(child))
-    return expectations
+            if not isinstance(child, Expectation):
+                expects.append(child)
+            expects.extend(_gather_expectations(child))
+    return expects
 
 
 async def _compile_task(state: CompilationState, task: Task) -> None:
-    task_t = task.type
-    task_expectations = _gather_expectations(task)
-
-    target_code = PromptBuilder(name=task.name, type_node=task_t)
+    target_code = PromptBuilder(name=task.name, type_node=task.type)
     target_code.comment("Task metadata")
     target_code.emit(f'task "{task.name}"\n')
     target_code.emit(task.description + "\n")
@@ -298,18 +291,40 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
 
     # task type explanation
     target_code.comment("Task type instruction")
-    target_code.emit_explain_type(task_t)
+    target_code.emit_explain_type(task.type)
+
+    # task type expectations (that apply to the task's types)
+    for type in task.type.walk():
+        if isinstance(type.reference, Type):
+            type = type.reference
+        if not isinstance(type, Type):
+            continue
+        type_examples = DataBuilder(name=type.name + " examples", type_node=type)
+        for expect in _gather_expectations(type):
+            if isinstance(expect, Dataset) and expect.modifier == StatementModifier.LIKE:
+                type_examples.extend(expect.records)
+                # ignore non-like datasets for now
+        if type_examples.records:
+            state.create_data(type_examples)
+            target_code.emit(f"{type.name} should be used like this:")
+            target_code.emit_show_dataset(type_examples)
+
+    # task expectations (that apply to the task directly)
+    task_expects = _gather_expectations(task)
 
     # task examples
     examples_type = TypeNode(
         name=task.name + "_unravelled",
         tag=TypeTag.STRUCT,
-        children=[*task_t.input.children, task_t.output],
+        children=[*task.type.input.children, task.type.output],
     )
     examples_data = DataBuilder(name=task.name + " examples", type_node=examples_type)
+    for expect in task_expects:
+        if isinstance(expect, Dataset) and expect.modifier == StatementModifier.LIKE:
+            examples_data.extend(expect.records)
+            # ignore non-like datasets for now
 
     # task example instruction
-    # TODO @Incomplete: generate examples for task
     if examples_data.records:
         target_code.comment("Task example instruction")
         target_code.emit(f'examples for task "{task.name}":\n')
@@ -324,28 +339,32 @@ async def _compile_task(state: CompilationState, task: Task) -> None:
     )
     target_code.emit(task.description + "\n")
     # inline expectation restatement
-    for expectation in task_expectations:
-        if isinstance(expectation, Expectation):
-            target_code.emit(" - " + expectation.description + "\n")
+    for expect in task_expects:
+        if isinstance(expect, Expectation):
+            target_code.emit(" - " + expect.description + "\n")
 
     # task type example stub
     # (basically an example that is properly formatted but has obviously fake values)
     target_code.comment("Task type example stub")
     target_code.emit("The data should look like this (with real values obviously):\n")
     fake_data = fabricate(examples_type)
-    target_code.emit_show_record(fake_data, examples_type)
+    target_code.emit_show_value(fake_data, examples_type)
     target_code.blank()
 
     # task input fields
-    target_code.emit_get_record(task_t.input.children, task_t.output, "final_output")
+    target_code.emit_get_record(task.type.input.children, task.type.output, "final_output")
     target_code.append("return final_output")
 
     # target pragma
-    # TODO @Incomplete: generate task target pragma properly
+    # TODO @Feature: generate task target pragma properly
     #  1. Get temperature from task description + type info
     #  2. Get max_tokens from emitted size..? Set max_new_tokens instead?
-    #  3. Set temperature in pragma zones? (field by field)
-    target_code.pragma(temperature=0.5, max_tokens=1024, model=f'context["{state.model.name}"]')
+    target_code.pragma(
+        temperature=0.5,
+        max_tokens=1024,
+        max_generated_tokens=1024,
+        model=f'context["{state.model.name}"]',
+    )
 
     state.create_data(examples_data)
     state.create_code(target_code)

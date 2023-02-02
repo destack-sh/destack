@@ -251,6 +251,9 @@ def render_type_node(
         return "\n".join(members_strs)
     elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
         return f"{identifier_str}{node.tag.value}{description_str}"
+    elif node.tag == TypeTag.LITERAL:
+        literal_str = render_literal(json.dumps(node.value))
+        return f"{identifier_str}{literal_str}{description_str}"
     else:
         raise ValueError(f"unexpected type: {node.tag}")
 

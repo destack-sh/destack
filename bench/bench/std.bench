@@ -8,7 +8,7 @@ High = `"high"`
 Medium = `"medium"`
 Low = `"low"`
 
-data temperature_examples :: (text: string, temperature: Temperature):
+data description_examples :: (text: string, temperature: Temperature):
 ```jsonl
 {"text": "Write a poem about a space cat.", "temperature": "high"}
 {"text": "Repeat the following back to me: I am", "temperature": "low"}
@@ -19,39 +19,4 @@ data temperature_examples :: (text: string, temperature: Temperature):
 {"text": "Given an input command, write a program that implements it in Python", "temperature": "medium"}
 ```
 
-value temperature_map:
-`{"high": 0.9, "medium": 0.5, "low": 0.1}`
-#  :: map(Temperature, number)
-
-import model text-davinci-003 as llm from openai.std.text
-
-code get_temperature :: (input: string "Task description") -> Temperature:
-```bpl
-pragma(model=llm, temperature=0.0, max_tokens=1024)
-"Estimate the temperature level\n"
-for sample in temperature_examples:
-    description = sample['text']
-    temperature = sample['temperature']
-    "Description: {description}\n"
-    "Temperature: {temperature: Temperature}\n"
-"Description: {input}\n"
-"Temperature: [temperature: Temperature]"
-return temperature
-```
-
---- utils.x ---
-
-# Task expansion
-code generate_examples :: (task_description: string, task_type: any, count: number) -> [any]:
-"Generates examples for a given task of the given type"
-```bpl
-"Create more examples for the given task\n"
-"Task description: {task_description}\n"
-"Task type: {task_type}\n"
-"\n"
-"{count} examples:\n"
-examples = []
-for i in range(count):
-    raise NotImplementedError
-return examples
-```
+task 'estimate temperature' :: ()

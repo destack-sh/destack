@@ -118,15 +118,6 @@ def render_part(part: PromptPart) -> str:
         )
     elif isinstance(part, PromptExit):
         return f"PromptExit(value={part.value})"
-    elif isinstance(part, PromptPragmaZoneEnter):
-        return (
-            f"PromptPragmaZoneEnter("
-            f"id={part.id}, "
-            f"max_tokens={part.max_tokens}, "
-            f"temperature={part.temperature}, "
-        )
-    elif isinstance(part, PromptPragmaZoneExit):
-        return f"PromptPragmaZoneExit(id={part.id})"
     raise ValueError(f"unexpected part type: {part}")
 
 
@@ -275,10 +266,15 @@ def parse_bpl(bpl: str, context: dict[str, Any]) -> DynamicPrompt:
     try:
         temperature = float(pragmas["temperature"])
         max_tokens = int(pragmas["max_tokens"])
+        max_generated_tokens = int(pragmas["max_generated_tokens"])
         model = pragmas["model"]
         stop = pragmas.get("stop", [])
         settings = PromptSettings(
-            model=model, temperature=temperature, max_tokens=max_tokens, stop=stop
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_generated_tokens=max_generated_tokens,
+            stop=stop,
         )
     except (KeyError, ValueError) as e:
         raise ValueError(f"invalid pragma settings: {e}")
@@ -317,8 +313,15 @@ class InferenceContext:
         return "".join(self.parts)
 
     @property
-    def remaining_tokens(self) -> int:
-        return self.settings.max_tokens - self.running_length
+    def generated_length(self) -> int:
+        return sum(len(g.text) for g in self.generated_parts.values())
+
+    @property
+    def remaining_generate_tokens(self) -> int:
+        return min(
+            self.settings.max_tokens - self.running_length,
+            self.settings.max_generated_tokens - self.generated_length,
+        )
 
     async def generate(self, step: DecoderSettings) -> str:
         if self.inference is None:
@@ -379,8 +382,6 @@ async def run_bpl_controlled(
 
     part = await prompt.asend(None)  # start iteration
     while True:
-        if ctx.remaining_tokens <= 0:
-            raise GenerationError(GenerationErrorType.OUT_OF_TOKENS, part)
 
         send_back = None
         if isinstance(part, PromptExit):
@@ -390,9 +391,11 @@ async def run_bpl_controlled(
         elif isinstance(part, PromptVariable):
             ctx.append(render_variable_repr(part))
         elif isinstance(part, PromptHole):
+            if ctx.remaining_generate_tokens <= 0:
+                raise GenerationError(GenerationErrorType.OUT_OF_TOKENS, part)
             # generate to satisfy this hole
             settings = get_hole_decode_settings(
-                ctx.remaining_tokens, ctx.settings.temperature, part
+                ctx.remaining_generate_tokens, ctx.settings.temperature, part
             )
             value = await ctx.generate(settings)
             # transform value to target type
@@ -433,13 +436,13 @@ async def run_bpl_speculative(
     if first_unfilled_hole is None:
         return None  # nothing to do
 
-    if ctx.remaining_tokens <= 0:
+    if ctx.remaining_generate_tokens <= 0:
         raise GenerationError(GenerationErrorType.OUT_OF_TOKENS, first_unfilled_hole)
     # generate to satisfy this (and potentially future) holes
     generated = await ctx.generate(
         DecoderSettings(
             temperature=ctx.settings.temperature,
-            max_tokens=ctx.remaining_tokens,
+            max_tokens=ctx.remaining_generate_tokens,
             stop=None,  # no stopping in uncontrolled mode
         )
     )

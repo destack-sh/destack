@@ -10,7 +10,6 @@ type Entity:
 "A named entity in a text"
 name: string "Canonical name of the entity"
 'type': EntityType
-confidence: number | null "Confidence in the detected type"
     like data samples :: (name: string, 'type': EntityType):
     "Common uses of {Entity}"
     ```csv
@@ -48,51 +47,82 @@ run ner-prod:
     compile prod
 
 --- compiled.x ---
-import model text-davinci-003 from openai.std.text
+import model text-davinci-003 as llm from openai.std.text
 import type Entity from .lib
 import type EntityType from .lib
 
 # do we need to copy all deps? or is import enough?
 
 # copied from real
+data 'Entity examples' :: (name: string "Canonical name of the entity", 'type': EntityType):
+```jsonl
+{"name": "Barack Obama", "type": "PER"}
+{"name": "London", "type": "LOC"}
+{"name": "Google", "type": "ORG"}
+```
 data 'extract entities examples' :: (input: string, output: [Entity]):
 ```jsonl
 
 ```
 code 'extract entities' :: (input: string) -> [Entity]:
 ```bpl
-pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
+pragma(temperature=0.5, max_tokens=2048, max_generated_tokens=1024, model=context["llm"])
 # Task metadata
 "task \"extract entities\"\n"
 "Extract the distinct entities from the text\n"
 
 # Task type instruction
-"type None:"
-"input: string\noutput: [Entity]"
+"type Entity:"
+"name: string \"Canonical name of the entity\"\n"
+"'type': EntityType\n"
 "\n"
 
-"type Entity:"
-"name: string \"Canonical name of the entity\"\n'type': EntityType\nconfidence: number | null \"Confidence in the detected type\""
+"enum EntityType:"
+"Person = `\"PER\"`\n"
+"Location = `\"LOC\"`\n"
+"Organization = `\"ORG\"`\n"
+"Misc = `\"MISC\"`\n"
 "\n"
+
+"Entity should be used like this:"
+"data 'Entity examples' :: (name: string \"Canonical name of the entity\"\n'type': EntityType):\n"
+"```jsonl\n"
+for record in context['Entity examples']:
+    _record_as_json = json.dumps(record, indent=2)
+    "|{_record_as_json}|\n"
+"```\n"
 
 # Task inference
 "Perform the task extract entities as described above to complete the output with the correct types. Consider the instructions carefully:\n"
 "Extract the distinct entities from the text\n"
 " - The entities are distinct\n"
+" - The entities are distinct\n"
 # Task type example stub
 "The data should look like this (with real values obviously):\n"
 "value example :: (input: string, output: [Entity]):\n"
-"```\n"
-"{\n  \"input\": \"lorem ipsum\",\n  \"output\": [\n    {\n      \"name\": \"lorem ipsum\",\n      \"type\": \"PER\",\n      \"confidence\": 42\n    }\n  ]\n}"
+"```json\n"
+"{\n"
+"  \"input\": \"lorem ipsum\",\n"
+"  \"output\": [\n"
+"    {\n"
+"      \"name\": \"lorem ipsum\",\n"
+"      \"type\": \"PER\"\n"
+"    }\n"
+"  ]\n"
+"}\n"
 "\n```\n"
 
+
 "value :: (input: string, output: [Entity]):\n"
-"```\n"
+"```json\n"
 "{\n"
 "  \"input\": |{input}|,\n"
 "  \"output\": |[final_output: [Entity]]|\n"
 "}\n"
 "```"
+
 return final_output
 ```
+
+
 
