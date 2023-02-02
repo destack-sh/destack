@@ -1,8 +1,11 @@
 import os
 
 import aiohttp
+import structlog
 
 from bench.runtime.type import DecoderSettings, FinishReason, ModelInstance, TextGeneration
+
+logger = structlog.get_logger(__name__)
 
 
 class Inference:
@@ -76,9 +79,15 @@ class OpenAIInference(Inference):
             ) as response:
                 if response.status != 200:
                     raise RuntimeError(await response.text())
-                output = await response.json()
+                response_json = await response.json()
 
-        outputs = [choice for choice in output["choices"]]
+        logger.debug(
+            "inference.openai.generate",
+            prompt=len(prompt),
+            usage_tokens=response_json["usage"]["total_tokens"],
+        )
+
+        outputs = [choice for choice in response_json["choices"]]
         generations = []
         for output in outputs:
             if output["finish_reason"] == "stop":
@@ -95,7 +104,7 @@ class OpenAIInference(Inference):
             )
             generations.append(generation)
         if len(generations) != 1:
-            raise ValueError(f"expected exactly one generation: {generations}")
+            raise RuntimeError(f"expected exactly one generation: {generations}")
         return generations[0]
 
     def end(self):

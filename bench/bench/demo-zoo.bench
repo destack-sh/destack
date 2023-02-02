@@ -31,14 +31,18 @@ data 'identify animal speaker examples' :: (input: string, output: AnimalType | 
 ```
 code 'identify animal speaker' :: (input: string) -> AnimalType | null "The type of author":
 ```bpl
-pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
+pragma(temperature=0.5, max_tokens=1024, max_generated_tokens=1024, model=context["text-davinci-003"])
 # Task metadata
 "task \"identify animal speaker\"\n"
 "Classify the given input text by the animal type of the author.\n"
 
 # Task type instruction
-"type None:"
-"input: string\noutput: AnimalType | null \"The type of author\""
+"enum AnimalType:"
+"Sheep = `\"sheep\"` \"The fluffy white cloud\"\n"
+"Goat = `\"goat\"` \"The proud mountain creature\"\n"
+"HouseCat = `\"house cat\"` \"The domesticated feline\"\n"
+"Lion = `\"lion\"` \"The king of the jungle\"\n"
+"Penguin = `\"penguin\"` \"The majestic bird fish\"\n"
 "\n"
 
 # Task inference
@@ -48,17 +52,22 @@ pragma(temperature=0.5, max_tokens=1024, model=context["text-davinci-003"])
 # Task type example stub
 "The data should look like this (with real values obviously):\n"
 "value example :: (input: string, output: AnimalType | null \"The type of author\"):\n"
+"```json\n"
+"{\n"
+"  \"input\": \"lorem ipsum\",\n"
+"  \"output\": \"sheep\"\n"
+"}\n"
 "```\n"
-"{\n  \"input\": \"lorem ipsum\",\n  \"output\": \"sheep\"\n}"
-"\n```\n"
+
 
 "value :: (input: string, output: AnimalType | null \"The type of author\"):\n"
-"```\n"
+"```json\n"
 "{\n"
-_input_as_json = json.dumps(input, indent=2)
-"  \"input\": |{_input_as_json}|,\n"
+"  \"input\": |{input}|,\n"
 "  \"output\": |[final_output: AnimalType | null]|\n"
 "}\n"
 "```"
+
 return final_output
 ```
+

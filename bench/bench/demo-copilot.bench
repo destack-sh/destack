@@ -41,12 +41,6 @@ task complete_code :: (context: CodeContext) -> CodeCompletion:
     "No code should be generated if it has no idea what to do"
         check code check_no_idea
 
-    # control control flow without leaving abstraction
-    with code implementation :: ():
-    ```python
-    how?
-    ```
-
     task 'lookup docs' :: ??? -> ???:
     "Consider the docs for the language and context (if needed)"
         task 'get searchable terms' :: ??? -> ???:
