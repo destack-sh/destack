@@ -396,7 +396,7 @@ type Statement implements Node {
   description: String
   referenceProjectVersion: ProjectVersion
   value: JSON
-  btl: String
+  typeNodes: [TypeNodeData!]!
   records: [DatasetRecord!]!
   mappings: [SourceMapping!]!
   importPath: String
@@ -543,6 +543,17 @@ type TypeNode {
   description: String
   reference: String
   children: [TypeNode!]
+}
+
+type TypeNodeData {
+  id: UUID!
+  name: String
+  tag: TypeTag!
+  description: String
+  value: JSON
+  reference: String
+  parentId: UUID
+  orderKey: String
 }
 
 """The type of type node."""

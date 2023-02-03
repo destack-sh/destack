@@ -7,15 +7,18 @@ from uuid import UUID
 
 import pytz
 import structlog
+from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
 from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
+from bench.language import wire
 from bench.language.type import StatementModifier, StatementType, SymbolType
 from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
+from bench.zmq.serialize import from_dict, to_dict
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion
@@ -57,6 +60,24 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
+# Django field for our wire.TypeNodeData dataclass
+class TypeNodeDataField(models.JSONField):
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return None
+        return from_dict(wire.TypeNodeData, value)
+
+    def to_python(self, value):
+        if value is None:
+            return None
+        return from_dict(wire.TypeNodeData, value)
+
+    def get_prep_value(self, value):
+        if value is None:
+            return None
+        return to_dict(value)
+
+
 # sync with actual symbol content fields of Statement
 SYMBOL_CONTENT_VALUE_FIELDS = {
     "language",
@@ -64,7 +85,7 @@ SYMBOL_CONTENT_VALUE_FIELDS = {
     "code_builtin_id",
     "description",
     "value",
-    "btl",
+    "type_nodes",
 }
 SYMBOL_CONTENT_RELATION_1TOM_FIELDS = {
     "reference_project_version",
@@ -101,6 +122,7 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     )
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     index = models.IntegerField(null=True)  # index into file or parent statement
+    order_key = models.CharField(max_length=32, null=True, blank=True)  # in file/parent
 
     symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
     reference = models.ForeignKey(
@@ -122,11 +144,10 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     value = models.JSONField(null=True, blank=True)  # for value
-    btl = models.TextField(null=True, blank=True)  # for any type nodes
+    type_nodes = ArrayField(TypeNodeDataField(), null=True, blank=True)  # for any type nodes
     on = models.TextField(null=True, blank=True)  # for expect-likes
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
-    default_settings = models.JSONField(null=True, blank=True)  # for model
 
     def __str__(self):
         path = self.file.path + ":" + str(self.absolute_index)

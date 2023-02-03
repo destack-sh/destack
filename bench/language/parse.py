@@ -1225,11 +1225,11 @@ def resolve_statement_reference(
 
 
 def resolve_type_references_rec(
+    scope: Scope,
     type: Type,
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
 ) -> None:
-    scope = idx.scopes[type.id]
     for node in type.walk():
         resolve_type_reference(scope, node, idx, on_error)
 
@@ -1403,10 +1403,9 @@ def interp(
         if isinstance(source_content, (DatasetContent, TaskContent, CodeContent)):
             # for typed symbols we need to create a type symbol as well
             type_symbol = Type(
-                id=statement.id,  # not sure which id to use here
                 abstract=abstract,
                 source=statement,
-                # use name from source type node
+                # use id and name from source type node
                 **source_content.type_node.deepcopy().__dict__,
             )
             # otherwise use name from source statement
@@ -1431,10 +1430,11 @@ def interp(
 
     # resolve type references (now that we have Type instances)
     for symbol in idx.symbols.values():
+        scope = idx.scopes[symbol.source.id]
         if isinstance(symbol, Type):
-            resolve_type_references_rec(symbol, idx, on_error)
+            resolve_type_references_rec(scope, symbol, idx, on_error)
         elif isinstance(symbol, (Dataset, Task, Code)):
-            resolve_type_references_rec(symbol.type, idx, on_error)
+            resolve_type_references_rec(scope, symbol.type, idx, on_error)
 
     # interp symbol contents using related symbols
     for id, symbol in symbols.items():

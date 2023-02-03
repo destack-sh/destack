@@ -414,11 +414,12 @@ PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING
 
 @dataclass
 class TypeNode(SymbolContent):
+    id: UUID = field(default_factory=uuid.uuid4)
     name: Optional[str] = required_field()
     tag: TypeTag = required_field()
     description: Optional[str] = None
-    reference: Union[None, str, "TypeNode", "Type"] = None
     value: Optional[LiteralValue] = None  # for literal types
+    reference: Union[None, str, "TypeNode", "Type"] = None
     # source reference is separate as the resolved TypeNode may not contain the name
     source_reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None
@@ -707,8 +708,8 @@ EMPTY_FUNC_TYPE = TypeNode(
     name=None,
     tag=TypeTag.FUNCTION,
     children=[
-        TypeNode("input", TypeTag.STRUCT, children=[]),
-        TypeNode("output", TypeTag.NULL),
+        TypeNode(name="input", tag=TypeTag.STRUCT, children=[]),
+        TypeNode(name="output", tag=TypeTag.NULL),
     ],
 )
-EMPTY_STRUCT_TYPE = TypeNode(None, TypeTag.STRUCT, children=[])
+EMPTY_STRUCT_TYPE = TypeNode(name=None, tag=TypeTag.STRUCT, children=[])

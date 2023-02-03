@@ -18,5 +18,3 @@ data description_examples :: (text: string, temperature: Temperature):
 {"text": "This is a conversation between a chatty and imaginative buddy and his friends.", "temperature": "high"}
 {"text": "Given an input command, write a program that implements it in Python", "temperature": "medium"}
 ```
-
-task 'estimate temperature' :: ()

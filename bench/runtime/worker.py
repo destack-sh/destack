@@ -10,10 +10,9 @@ import zmq.asyncio
 
 from bench import language
 from bench.language import wire
-from bench.language.error import ParseError
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import Compilation, StatementPath, SymbolType
-from bench.language.wire import ModuleReference, parse_symbol_type_node
+from bench.language.wire import ModuleReference
 from bench.runtime.compile import compile
 from bench.zmq import (
     ZMessage,
@@ -103,39 +102,15 @@ def interp_runtime(
 ) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     # TODO @Performance: interp and exec jobs should probably happen in a separate thread
-    errors = impute_parsed_type_nodes(source)
-    if errors:  # types must be valid for proper parse
-        return InterpModule(module_idx=None, errors=errors, dependencies=dependencies)
-
     # resolve
     interp_module = wire.wmap_module(source)
     collector = ErrorCollector()
     module = lookup_in_dependencies(dependencies)
     module_idx = resolve(interp_module, lookup_in_module=module, on_error=collector)
     interp(module_idx, on_error=collector)
-    errors.extend([e.to_error() for e in collector.errors])
+    errors = [e.to_error() for e in collector.errors]
 
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
-
-
-def impute_parsed_type_nodes(source: wire.ModuleData):
-    errors = []
-    # TODO @Cleanup: parsing from wire module should not need to happen at all
-    #  (once we've switched to full type nodes in DB)
-    # parse (not resolve) type nodes in place as source contains btl strings
-    for statement in chain.from_iterable(file.statements for file in source.files):
-        if statement.type_node is None:
-            continue
-        elif not isinstance(statement.type_node, str):
-            # type node may already be parsed (either from wire or from a previous interp if partial changes)
-            continue
-        try:
-            statement.type_node = parse_symbol_type_node(statement.symbol_type, statement.type_node)
-        except ParseError as e:
-            error = e.to_error()
-            error.statement = statement  # technically not correct but we only need id
-            errors.append(error)
-    return errors
 
 
 class RuntimeWorker:

@@ -3,7 +3,7 @@ import zmq.asyncio
 from asgiref.sync import sync_to_async
 
 from bench.models import Execution, ExecutionStatus, ProjectVersion
-from bench.models.mapper import read_module
+from bench.models.mapper import read_module, write_module
 from bench.runtime.tracing import ExecutionFrame
 from bench.zmq import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
 from bench.zmq.messages import (
@@ -11,6 +11,7 @@ from bench.zmq.messages import (
     ProjectVersionChangedPayload,
     RepReadModulePayload,
     ReqReadModulePayload,
+    ReqWriteModulePayload,
 )
 
 # TODO @Cleanup: intservers should probably live in django-side of the backend?
@@ -80,8 +81,10 @@ class InternalServer:
                 ModuleChangedPayload(module_id=module.id, module=module),
             )
         elif msg.type == ZMessageType.REQ_WRITE_MODULE:
-            # TODO @Incomplete: write module to DB
-            raise NotImplementedError
+            write = msg.payload_as(ReqWriteModulePayload)
+            project_v = await ProjectVersion.objects.aget(id=write.module_id)
+            await sync_to_async(write_module)(write.files, project_v, overwrite=True)
+            send_message(self.rep_sock, ZMessageType.REP_WRITE_MODULE)
         else:
             raise ValueError(f"unexpected message: {msg}")
 
