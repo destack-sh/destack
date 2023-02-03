@@ -1,23 +1,14 @@
 import enum
 import typing
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
 
+from more_itertools import first
+
 from bench import language
 from bench.language import ErrorType
-from bench.language.parse import (
-    parse_type_node_func,
-    parse_type_node_inline,
-    parse_type_node_struct,
-    parse_type_node_struct_inline,
-    parser_from_string,
-)
-from bench.language.reconstruct import (
-    render_type_node,
-    render_type_node_func,
-    render_type_node_struct,
-)
 from bench.language.type import (
     LiteralValue,
     SourceMapping,
@@ -25,9 +16,9 @@ from bench.language.type import (
     StatementPath,
     StatementType,
     SymbolType,
-    TypeNode,
     TypeTag,
 )
+from bench.utils.fractional import generate_n_keys_between
 
 #
 # Stable, concise and flat language data structures for transit and storage.
@@ -36,19 +27,18 @@ from bench.language.type import (
 
 @dataclass(repr=False)
 class TypeNodeData:
-    # TODO @Cleanup: use TypeNodeData instead of TypeNode in wire
     id: UUID
     name: Optional[str]
-    type: TypeTag
-    required: bool = True
+    tag: TypeTag
     description: Optional[str] = None
-    reference: Optional[str] = None
     value: Optional[LiteralValue] = None
-    source_reference: Optional[str] = None
-    children: Optional[list["TypeNodeData"]] = None
+    reference: Union[None, str] = None
+    parent_id: Optional[UUID] = None
+    order_key: Optional[str] = None
 
     def __str__(self):
-        return f"{self.name or '<unnamed>'} {self.type.name}"
+        name_str = f"{self.name} " if self.name else ""
+        return f"{name_str}{self.tag.value}"
 
     def __repr__(self):
         return f"<TypeNode {str(self)}>"
@@ -101,7 +91,7 @@ class StatementData:
     text: Optional[str]
     symbol_type: Optional[SymbolType]
     # symbol contents
-    type_node: Union[None, str, TypeNode] = None
+    type_nodes: list[TypeNodeData] | None = None
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
@@ -218,46 +208,6 @@ def rmap_statement(statement: language.Statement) -> StatementData:
     return data
 
 
-def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
-    """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
-    if isinstance(content, language.TypeNode):
-        data.type_node = content
-    elif isinstance(content, language.TaskContent):
-        data.description = content.description
-        data.type_node = content.type_node
-    elif isinstance(content, language.ExpectationContent):
-        data.description = content.description
-        data.on = content.on
-    elif isinstance(content, language.CodeContent):
-        data.description = content.description
-        data.lang = content.language
-        data.code = content.code
-        data.code_builtin_id = content.builtin_id
-        data.type_node = content.type_node
-    elif isinstance(content, language.ModelContent):
-        data.provider = content.provider
-        data.external_name = content.external_name
-    elif isinstance(content, language.ValueContent):
-        data.description = content.description
-        data.value = content.value
-    elif isinstance(content, language.CapabilityContent):
-        data.description = content.description
-    elif isinstance(content, language.DatasetContent):
-        data.lang = content.language
-        data.description = content.description
-        data.records = content.records
-        data.type_node = content.type_node
-    elif isinstance(content, language.CompilationContent):
-        data.generated_mappings = content.source_mappings
-    elif isinstance(content, language.RequirementContent):
-        if content.module_name and content.version:
-            data.reference_module = ModuleReference(content.module_name, content.version, id=None)
-    elif isinstance(content, language.RunconfigContent):
-        pass
-    else:
-        raise ValueError(f"unexpected symbol type {content}")
-
-
 def wmap_statement(data: StatementData, file: language.File) -> language.Statement:
     """Maps a wire statement's _contents_ (excl. refs) to a language statement."""
     reference = data.reference if isinstance(data.reference, StatementPath) else None
@@ -278,12 +228,54 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
     return statement
 
 
+def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
+    """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
+    if isinstance(content, language.TypeNode):
+        data.type_node = rmap_type_node(content)
+    elif isinstance(content, language.TaskContent):
+        data.description = content.description
+        data.type_node = rmap_type_node(content.type_node)
+    elif isinstance(content, language.ExpectationContent):
+        data.description = content.description
+        data.on = content.on
+    elif isinstance(content, language.CodeContent):
+        data.description = content.description
+        data.lang = content.language
+        data.code = content.code
+        data.code_builtin_id = content.builtin_id
+        data.type_node = rmap_type_node(content.type_node)
+    elif isinstance(content, language.ModelContent):
+        data.provider = content.provider
+        data.external_name = content.external_name
+    elif isinstance(content, language.ValueContent):
+        data.description = content.description
+        data.value = content.value
+    elif isinstance(content, language.CapabilityContent):
+        data.description = content.description
+    elif isinstance(content, language.DatasetContent):
+        data.lang = content.language
+        data.description = content.description
+        data.records = content.records
+        data.type_node = rmap_type_node(content.type_node)
+    elif isinstance(content, language.CompilationContent):
+        data.generated_mappings = content.source_mappings
+    elif isinstance(content, language.RequirementContent):
+        if content.module_name and content.version:
+            data.reference_module = ModuleReference(content.module_name, content.version, id=None)
+    elif isinstance(content, language.RunconfigContent):
+        pass
+    else:
+        raise ValueError(f"unexpected symbol type {content}")
+
+
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
-        return data.type_node
+        return wmap_type_node(data.type_nodes)
     elif data.symbol_type == SymbolType.TASK:
-        return language.TaskContent(type_node=data.type_node, description=data.description)
+        return language.TaskContent(
+            type_node=wmap_type_node(data.type_nodes), description=data.description
+        )
     elif data.symbol_type == SymbolType.EXPECTATION:
         return language.ExpectationContent(description=data.description, on=data.on)
     elif data.symbol_type == SymbolType.CODE:
@@ -291,7 +283,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             description=data.description,
             language=data.lang,
             code=data.code,
-            type_node=data.type_node,
+            type_node=wmap_type_node(data.type_nodes),
             builtin_id=data.code_builtin_id,
         )
     elif data.symbol_type == SymbolType.MODEL:
@@ -307,7 +299,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.DatasetContent(
             description=data.description,
             language=data.lang,
-            type_node=data.type_node,
+            type_node=wmap_type_node(data.type_nodes),
             records=data.records,
         )
     elif data.symbol_type == SymbolType.COMPILATION:
@@ -323,43 +315,56 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 
 
-def render_symbol_type_node(symbol_type: language.SymbolType, type_node: language.TypeNode) -> str:
-    """Renders a type node into a recoverable string (parsed as below)."""
-    if symbol_type in (SymbolType.TASK, SymbolType.CODE):
-        return render_type_node_func(type_node)
-    elif symbol_type == SymbolType.DATASET:
-        return f"({render_type_node_struct(type_node, seperator=', ')})"
-    elif symbol_type == SymbolType.TYPE:
-        if type_node.tag == TypeTag.STRUCT:
-            # to distinguish struct defs from inline redefs we put a newline at the end
-            # (and Bench structs don't have any special characters and may be empty)
-            return render_type_node_struct(type_node, seperator="\n") + "\n"
-        else:
-            return render_type_node(type_node)
-    else:
-        raise ValueError(f"unexpected symbol type {symbol_type}")
+def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
+    """Maps a flat list of wire type nodes to a language type node tree."""
+
+    nodes_by_id = {}
+    for data in nodes_data:
+        node = language.TypeNode(
+            id=data.id,
+            name=data.name,
+            tag=data.tag,
+            description=data.description,
+            value=data.value,
+            reference=data.reference,
+        )
+        nodes_by_id[data.id] = node
+
+    # assign children based on parent ids (sorted by order keys, which works per-parent)
+    for data in sorted(nodes_data, key=lambda n: n.order_key):
+        if data.parent_id is not None:
+            nodes_by_id[data.parent_id].children.append(nodes_by_id[data.id])
+
+    # find original root (the one with no parent)
+    root = first(nodes_by_id.values(), lambda n: n.parent_id is None)
+    return root
 
 
-def parse_symbol_type_node(symbol_type: language.SymbolType, type_node: str) -> language.TypeNode:
-    """Parses a type node from a recoverable string (rendered as above)."""
-    btl_parser = parser_from_string(type_node)
-    if symbol_type in (SymbolType.TASK, SymbolType.CODE):
-        parsed = parse_type_node_func(btl_parser, name=None)
-    elif symbol_type == SymbolType.DATASET:
-        btl_parser.eat_bracket("(")
-        parsed = parse_type_node_struct_inline(btl_parser, name=None)
-        btl_parser.eat_bracket(")")
-    elif symbol_type == SymbolType.TYPE:
-        # determine whether it's an inline redef or struct def (check for newline, see note in render above)
-        if "\n" in type_node:
-            parsed = parse_type_node_struct(btl_parser, name=None)
-            btl_parser.eat_newline()
-        else:
-            parsed = parse_type_node_inline(btl_parser, name=None)
-    else:
-        raise ValueError(f"unexpected symbol type {symbol_type}")
-    btl_parser.eat_eos()  # must be full match
-    return parsed
+def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
+    """Maps a type node tree structure to a flat list of type node data."""
+    nodes_data = OrderedDict()
+    for n in node.walk():
+        reference = node.reference
+        if isinstance(reference, language.TypeNode):
+            reference = reference.name
+        nodes_data[n.id] = TypeNodeData(
+            id=n.id,
+            name=n.name,
+            tag=n.tag,
+            description=n.description,
+            value=n.value,
+            reference=reference,
+            parent_id=None,  # will be set in second pass
+        )
+
+    # assign parent ids
+    for n in node.walk():
+        if n.children is not None:
+            child_order_keys = generate_n_keys_between(None, None, len(n.children))
+            for order_key, child in zip(child_order_keys, n.children):
+                nodes_data[child.id].parent_id = n.id
+
+    return list(nodes_data.values())
 
 
 #

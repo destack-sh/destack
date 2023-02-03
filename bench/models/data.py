@@ -65,6 +65,7 @@ class DatasetRecord(UUIDModel):
 
     dataset = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="records")
     index = models.IntegerField()
+    order_key = models.CharField(max_length=32, null=True, blank=True)  # in file/parent
     data = models.JSONField()
 
     def __str__(self):

@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import AsyncGenerator, Optional, Union
+from typing import AsyncGenerator, Optional
 from uuid import UUID
 
 import structlog
@@ -9,9 +9,8 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-import bench
 from bench import language
-from bench.api.statement import StatementType, SymbolType
+from bench.api.statement import StatementType, SymbolType, TypeTag
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.runtime.worker import ReqModuleRuntimePayload
@@ -25,7 +24,6 @@ from bench.zmq.messages import (
 )
 
 logger = structlog.get_logger(__name__)
-TypeTag = gql.enum(bench.language.type.TypeTag)
 
 
 @gql.type

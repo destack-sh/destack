@@ -44,6 +44,21 @@ class DatasetRecord:
     data: JSON
 
 
+TypeTag = gql.enum(language.type.TypeTag)
+
+
+@gql.type
+class TypeNodeData:
+    id: UUID
+    name: Optional[str]
+    tag: TypeTag
+    description: Optional[str]
+    value: Optional[JSON]
+    reference: Optional[str]
+    parent_id: Optional[UUID]
+    order_key: Optional[str]
+
+
 @gql.django.type(models.Statement)
 class Statement(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
@@ -72,7 +87,7 @@ class Statement(gql.Node):
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
-    btl: auto
+    type_nodes: list[TypeNodeData]
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
 

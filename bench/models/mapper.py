@@ -16,7 +16,6 @@ from bench import language, models
 from bench.language import wire
 from bench.language.parse import index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
-from bench.language.wire import render_symbol_type_node
 from bench.models.project import Project, ProjectVersion
 
 
@@ -75,7 +74,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
 
 @transaction.atomic
 def write_module(
-    files: list[wire.FileData], project_version: models.ProjectVersion
+    files: list[wire.FileData], project_version: models.ProjectVersion, overwrite: bool = False
 ) -> list[models.File]:
     """Write the wire files (and their contents) as models to the database."""
     wire_statements: dict[UUID, wire.StatementData] = {}
@@ -89,7 +88,13 @@ def write_module(
         path = file_data.path
         if "." in path:
             path = file_data.path.rsplit(".", 1)[0]
-        model_files[file_data.id] = project_version.create_file_from_path(path, id=file_data.id)
+        model_files[file_data.id] = project_version.create_file_from_path(
+            path, exists_ok=overwrite, id=file_data.id
+        )
+
+    # wipe existing statements if overwrite and not empty
+    if overwrite:
+        models.Statement.objects.filter(file_id__in=model_files.keys()).delete()
 
     # map statements
     for stmt_data in chain.from_iterable(file.statements for file in files):
@@ -172,7 +177,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.code_builtin_id = statement.code_builtin_id
     data.provider = statement.provider
     data.external_name = statement.external_name
-    data.type_node = statement.btl
+    data.type_nodes = statement.type_nodes
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATASET:
         data.records = list(statement.records.all().values_list("data", flat=True))
@@ -206,11 +211,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.provider = data.provider
     statement.external_name = data.external_name
     statement.on = data.on
-    if isinstance(data.type_node, language.TypeNode):
-        # render type node to string
-        statement.btl = render_symbol_type_node(data.symbol_type, data.type_node)
-    else:
-        statement.btl = data.type_node
+    statement.type_nodes = data.type_nodes
 
     # copy relational data
     if data.records:
