@@ -40,12 +40,12 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-const statementsById = computed(() => {
-  const statementsById: Record<string, StatementContentFragment> = {};
+const symbolsById = computed(() => {
+  const symbolsById: Record<string, StatementContentFragment> = {};
   statements.value.forEach((statement) => {
-    statementsById[statement.id] = statement;
+    symbolsById[statement.id] = statement;
   });
-  return statementsById;
+  return symbolsById;
 });
 
 const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
@@ -154,7 +154,7 @@ async function insertOrFocusStatementEnd() {
       <StatementInterface
         :file="(fileHeader as any)"
         :statement="(positioned.statement as any)"
-        :reference="(statementsById[positioned.statement.reference?.id] as any)"
+        :reference="(symbolsById[positioned.statement.reference?.id] as any)"
         :depth="positioned.depth"
         :isFirstInGroup="positioned.isFirstInGroup"
         :isLastInGroup="positioned.isLastInGroup"

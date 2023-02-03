@@ -1136,6 +1136,18 @@ class ModuleIndex:
             raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
         return symbol
 
+    def symbol_by_id(
+        self, symbol_id: UUID, symbol_t: typing.Type[SymbolT] | None = None
+    ) -> SymbolT:
+        if not self.interpreted:
+            raise RuntimeError(f"module index is not interpreted: {self}")
+        symbol = self.symbols.get(symbol_id)
+        if symbol is None:
+            raise KeyError(f"no symbol found for id {symbol_id}")
+        if symbol_t is not None and not isinstance(symbol, symbol_t):
+            raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
+        return symbol
+
 
 def resolve(
     module: Module,
@@ -1397,6 +1409,9 @@ def interp(
                 # use name from source type node
                 **source_content.type_node.deepcopy().__dict__,
             )
+            # otherwise use name from source statement
+            if not type_symbol.name:
+                type_symbol.name = statement.name
             source_kwargs = source_content.deepcopy().__dict__
             # also point type_node to the type symbol
             source_kwargs["type_node"] = type_symbol

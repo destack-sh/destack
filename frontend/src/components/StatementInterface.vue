@@ -8,7 +8,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import TypeInterface from "@/components/TypeInterface.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementModifier, StatementType, SymbolType, type InterpStatement } from "@/gql/graphql";
+import { StatementModifier, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import {
   MODIFIER_BY_KEYWORD,
@@ -20,7 +20,7 @@ import {
 } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
-import { relativePath, InterpStatementContentType, localErrorsOf, useCurrentModuleRuntime } from "@/state/runtime";
+import { relativePath, InterpSymbolContentType, localErrorsOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import {
@@ -313,24 +313,22 @@ watchEffect(() => {
 
 // possible reference targets & filters
 const runtime = useCurrentModuleRuntime();
-const availableSymbols: Ref<InterpStatement[]> = computed(() => {
+const availableSymbols: Ref<InterpSymbol[]> = computed(() => {
   if (statement.value.type == StatementType.Reference || statement.value.type == StatementType.Definition) {
     // for references & definitions all definitions & imports within the file are available
     return runtime.module.value?.files
       .find((f) => f.id == file.value.id)
-      ?.statements.map((s) => useFragment(InterpStatementContentType, s))
+      ?.symbols.map((s) => useFragment(InterpSymbolContentType, s))
       .filter((s) => s.type == StatementType.Definition || s.type == StatementType.Import);
   } else if (statement.value.type == StatementType.Import) {
     // for imports all definitions outside this file are available (incl. deps)
     const dependenciesDefinitions = runtime.dependenciesIndex.value?.flatMap((d) =>
-      Object.values(d.statementsById).filter((s) => s.type == StatementType.Definition)
+      Object.values(d.symbolsById).filter((s) => s.type == StatementType.Definition)
     );
     const otherFileDefinitions = (runtime.module.value?.files ?? [])
       .filter((f) => f.id != file.value.id)
       .flatMap((f) =>
-        f.statements
-          .map((s) => useFragment(InterpStatementContentType, s))
-          .filter((s) => s.type == StatementType.Definition)
+        f.symbols.map((s) => useFragment(InterpSymbolContentType, s)).filter((s) => s.type == StatementType.Definition)
       );
     return [...dependenciesDefinitions, ...otherFileDefinitions];
   } else {
@@ -669,12 +667,8 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
         class="decoration-none text-no-wrap relative flex flex-row items-baseline justify-start py-0.5 text-sm text-black"
       >
         <!-- Decorations for statement (on declaration) -->
-        <!-- Squiggly error line -->
-        <span v-if="hasLocalErrors" class="absolute -bottom-1 left-0 h-2 w-full text-red-700">
-          <svg viewBox="0 0 100 1" preserveAspectRatio="none">
-            <path d="M0 0h100v100h-100z" fill="currentColor" />
-          </svg>
-        </span>
+        <!-- Error underline -->
+        <span v-if="hasLocalErrors" class="absolute -bottom-0 left-0 h-0.5 w-full bg-red-700" />
         <!-- Statement prefixxes (types & modifiers) -->
         <span class="mr-1 text-orange-600" v-if="isImport">import</span>
         <span class="mr-1 text-orange-600" v-if="statement.modifier">{{ modifierKeyword }}</span>

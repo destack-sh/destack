@@ -12,8 +12,9 @@ from bench import language
 from bench.language import wire
 from bench.language.error import ParseError
 from bench.language.parse import ErrorCollector, interp, resolve
-from bench.language.type import StatementPath, SymbolType
+from bench.language.type import Compilation, StatementPath, SymbolType
 from bench.language.wire import ModuleReference, parse_symbol_type_node
+from bench.runtime.compile import compile
 from bench.zmq import (
     ZMessage,
     ZMessageType,
@@ -25,8 +26,11 @@ from bench.zmq import (
 from bench.zmq.messages import (
     ModuleChangedPayload,
     ModuleRuntimeChangedPayload,
+    RepModuleCompilePayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
+    ReqModuleCompilePayload,
+    ReqModuleRunPayload,
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
 )
@@ -50,6 +54,10 @@ class ModuleWorkerState:
     wire_module: wire.ModuleData | None = None
     wire_errors: list[wire.ErrorData] | None = None
     wire_dependencies: dict[UUID, wire.ModuleData] = field(default_factory=dict)
+
+    @property
+    def interpreted(self) -> bool:
+        return self.interp.module_idx is not None
 
     def derive_wire(self):
         """Re-derives wire state from interpreted state"""
@@ -248,8 +256,7 @@ class RuntimeWorker:
                 state = await self.init_worker_state(change.module_id, change.module)
             else:
                 state = await self.get_worker_state(change.module_id)
-                # TODO @Robustness: hacky way of setting module state source
-                #  :PartialModuleUpdates
+                # TODO @Robustness: overwriting entire module source is not great :PartialModuleUpdates
                 state.source = change.module
                 await self.update_runtime(state)
             send_message(
@@ -262,11 +269,32 @@ class RuntimeWorker:
                     state.wire_errors,
                 ),
             )
+        elif msg.type == ZMessageType.REQ_MODULE_COMPILE:
+            payload = msg.payload_as(ReqModuleCompilePayload)
+            state = await self.get_worker_state(payload.module_id)
+            if not state.interpreted:
+                send_message(
+                    self.rep_sock,
+                    ZMessageType.REP_MODULE_COMPILE,
+                    RepModuleCompilePayload(success=False),
+                )
+                return
+
+            compilation = state.interp.module_idx.symbol_by_id(payload.compilation_id, Compilation)
+            result = await compile(compilation)
+            send_message(
+                self.rep_sock,
+                ZMessageType.REP_MODULE_COMPILE,
+                RepModuleCompilePayload(success=True),
+            )
+            # TODO @Incomplete: write back compilation results (to internal server)
+            send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE)
+        elif msg.type == ZMessageType.REQ_MODULE_RUN:
+            payload = msg.payload_as(ReqModuleRunPayload)
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
         # TODO @Incomplete: trigger jobs and send out consequent job and runtime changes
-        # TODO @Incomplete: write back compilation results (to internal server)
         # TODO @Incomplete: stream back runtime results & frames (to api server)
 
     async def stop(self):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import enum
 import json
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Optional, Union
@@ -74,8 +75,17 @@ class CompileError(ValueError):
 @dataclass
 class CompilationState:
     compilation: Compilation
+    candidates: list[CompilationCandidate] = field(default_factory=list)
+    best_candidate: Optional[CompilationCandidate] = None
+
+
+@dataclass
+class CompilationCandidate:
+    state: CompilationState
+    compilation: Compilation
     task: Task
     model: Model
+    candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
     # TODO @Incomplete: track source mappings during compilation
     source_mappings: list[SourceMapping] = field(default_factory=list)
@@ -109,6 +119,17 @@ class CompilationState:
         ast.parse(code.code)
         self.target_symbols.append(code)
         return code
+
+    def to_result(self) -> CompilationResult:
+        return CompilationResult(
+            target_symbols=self.target_symbols, source_mappings=self.source_mappings
+        )
+
+
+@dataclass
+class CompilationResult:
+    target_symbols: list[InterpSymbol]
+    source_mappings: list[SourceMapping]
 
 
 class DataBuilder:
@@ -254,17 +275,19 @@ class PromptBuilder:
         self.blank()
 
 
-async def compile(compilation: Compilation) -> tuple[list[InterpSymbol], list[SourceMapping]]:
+async def compile(compilation: Compilation) -> CompilationResult:
     logger.debug("compile.start", compilation=compilation)
     if len(compilation.tasks) != 1 or len(compilation.models) != 1:
         raise CompileError(CompileErrorType.INTERNAL, compilation)
 
-    state = CompilationState(
-        compilation=compilation, task=(compilation.tasks[0]), model=(compilation.models[0])
+    state = CompilationState(compilation=compilation)
+    candidate = CompilationCandidate(
+        state=state, compilation=compilation, task=compilation.tasks[0], model=compilation.models[0]
     )
-    await _compile_task(state, state.task)
-    logger.debug("compile.end", compilation=compilation, state=state)
-    return state.target_symbols, state.source_mappings
+    await _compile_task(candidate, candidate.task)
+    state.best_candidate = candidate
+    logger.debug("compile.end", compilation=compilation, state=candidate)
+    return state.best_candidate.to_result()
 
 
 Expect = Union[Task, Code, Dataset, Expectation]
@@ -282,7 +305,7 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
     return expects
 
 
-async def _compile_task(state: CompilationState, task: Task) -> None:
+async def _compile_task(state: CompilationCandidate, task: Task) -> None:
     target_code = PromptBuilder(name=task.name, type_node=task.type)
     target_code.comment("Task metadata")
     target_code.emit(f'task "{task.name}"\n')

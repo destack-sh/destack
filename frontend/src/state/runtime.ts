@@ -1,5 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import type { InterpFile, InterpModule, InterpStatement, StatementType, SymbolType } from "@/gql/graphql";
+import type { InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -31,8 +31,8 @@ export const TypeNodeContent = graphql(/* GraphQL */ `
   }
 `);
 
-export const InterpStatementContentType = graphql(/* GraphQL */ `
-  fragment InterpStatementContent on InterpStatement {
+export const InterpSymbolContentType = graphql(/* GraphQL */ `
+  fragment InterpSymbolContent on InterpSymbol {
     id
     name
     type
@@ -51,8 +51,8 @@ export const InterpModuleContentType = graphql(/* GraphQL */ `
     files {
       id
       path
-      statements {
-        ...InterpStatementContent
+      symbols {
+        ...InterpSymbolContent
       }
     }
   }
@@ -62,8 +62,8 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
   fragment InterpErrorContent on InterpError {
     type
     message
-    statement {
-      ...InterpStatementContent
+    symbol {
+      ...InterpSymbolContent
     }
   }
 `);
@@ -71,20 +71,20 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
 type ModuleIndex = {
   id: string;
   module: InterpModule;
-  statementsById: Record<string, InterpStatement>;
+  symbolsById: Record<string, InterpSymbol>;
   fileByStatementId: Record<string, InterpFile>;
 };
 
 function indexModule(module: InterpModule): ModuleIndex {
-  const statementsById: Record<string, InterpStatement> = {};
+  const symbolsById: Record<string, InterpSymbol> = {};
   const fileByStatementId: Record<string, InterpFile> = {};
   for (const file of module.files) {
-    for (const statement of file.statements) {
-      statementsById[statement.id] = statement;
-      fileByStatementId[statement.id] = file;
+    for (const symbol of file.symbols) {
+      symbolsById[symbol.id] = symbol;
+      fileByStatementId[symbol.id] = file;
     }
   }
-  return { id: module.id, module, statementsById, fileByStatementId };
+  return { id: module.id, module, symbolsById, fileByStatementId };
 }
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates
@@ -142,25 +142,25 @@ export function useCurrentModuleRuntime() {
   return useModuleRuntime(toRef(editor, "currentProjectVersionId"));
 }
 
-export function fileOf(statement: InterpStatement) {
+export function fileOf(symbol: InterpSymbol) {
   const { moduleIndex } = useCurrentModuleRuntime();
-  return moduleIndex.value?.fileByStatementId[statement.id];
+  return moduleIndex.value?.fileByStatementId[symbol.id];
 }
 
-export function moduleAndFileOf(statement: InterpStatement) {
+export function moduleAndFileOf(symbol: InterpSymbol) {
   const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
-    if (idx && statement.id in idx.fileByStatementId) {
+    if (idx && symbol.id in idx.fileByStatementId) {
       return {
         module: idx.module,
-        file: idx.fileByStatementId[statement.id],
+        file: idx.fileByStatementId[symbol.id],
       };
     }
   }
   return undefined;
 }
 
-export function relativePath(fromStmt: InterpStatement, toStmt: InterpStatement) {
+export function relativePath(fromStmt: InterpSymbol, toStmt: InterpSymbol) {
   const from = moduleAndFileOf(fromStmt);
   const to = moduleAndFileOf(toStmt);
   if (!from || !to) {
@@ -172,18 +172,18 @@ export function relativePath(fromStmt: InterpStatement, toStmt: InterpStatement)
   }
 }
 
-export function localErrorsOf(statement: Ref<{ id: string }>) {
+export function localErrorsOf(symbol: Ref<{ id: string }>) {
   const { errors } = useCurrentModuleRuntime();
-  return computed(() => errors.value?.filter((e) => e.statement?.id == statement.value.id));
+  return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
-export function statementsLike(filter: { types?: StatementType[]; symbolTypes?: SymbolType[] }) {
+export function symbolsLike(filter: { types?: StatementType[]; symbolTypes?: SymbolType[] }) {
   const { moduleIndex } = useCurrentModuleRuntime();
-  const statements = computed(() => {
+  const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
     }
-    return Object.values(moduleIndex.value.statementsById).filter((s) => {
+    return Object.values(moduleIndex.value.symbolsById).filter((s) => {
       if (filter.types != null && !filter.types.includes(s.type)) {
         return false;
       }
@@ -194,14 +194,14 @@ export function statementsLike(filter: { types?: StatementType[]; symbolTypes?: 
       return true;
     });
   });
-  return statements;
+  return symbols;
 }
 
-export function useRuntimeTypeOf(statement: Ref<{ id: string }>) {
+export function useRuntimeTypeOf(symbol: Ref<{ id: string }>) {
   const { moduleIndex } = useCurrentModuleRuntime();
   const typeNode = computed(() => {
     if (moduleIndex.value) {
-      return moduleIndex.value.statementsById[statement.value.id]?.typeNode;
+      return moduleIndex.value.symbolsById[symbol.value.id]?.typeNode;
     }
     return null;
   });

@@ -34,8 +34,10 @@ class ZMessageType(StrEnum):
 
     # Bench commands
     # API -> Worker
-    REQ_WORKER_COMPILE = "req_worker_compile"
-    REQ_WORKER_RUN = "req_worker_run"
+    REQ_MODULE_COMPILE = "req_module_compile"
+    REP_MODULE_COMPILE = "rep_module_compile"
+    REQ_MODULE_RUN = "req_module_run"
+    REP_MODULE_RUN = "rep_module_run"
 
     # Worker internal communication and orchestration
     # Worker <-> Internal
@@ -76,6 +78,30 @@ class ModuleChangedPayload:
     module: wire.ModuleData
 
 
+@_register_payload(ZMessageType.REQ_MODULE_COMPILE)
+class ReqModuleCompilePayload:
+    module_id: UUID
+    compilation_id: UUID
+
+
+@_register_payload(ZMessageType.REP_MODULE_COMPILE)
+class RepModuleCompilePayload:
+    success: bool
+
+
+@_register_payload(ZMessageType.REQ_MODULE_RUN)
+class ReqModuleRunPayload:
+    module_id: UUID
+    run_id: UUID
+    arguments: dict[str, wire.LiteralValue]
+
+
+@_register_payload(ZMessageType.REP_MODULE_RUN)
+class RepModuleRunPayload:
+    execution_id: UUID
+    output: wire.LiteralValue
+
+
 @_register_payload(ZMessageType.REQ_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
@@ -84,6 +110,12 @@ class ReqReadModulePayload:
 @_register_payload(ZMessageType.REP_READ_MODULE)
 class RepReadModulePayload:
     module: wire.ModuleData
+
+
+@_register_payload(ZMessageType.REQ_WRITE_MODULE)
+class ReqWriteModulePayload:
+    module_id: UUID
+    files: list[wire.FileData]
 
 
 @_register_payload(ZMessageType.REQ_MODULE_RUNTIME)
