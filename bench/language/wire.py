@@ -166,8 +166,10 @@ def wmap_module(data: ModuleData) -> language.Module:
             if data_statement.parent_id is not None:
                 statement.parent = statements[data_statement.parent_id]
             if isinstance(data_statement.reference, UUID):
-                # errors if it was a module-external reference (that's not a statement path)
-                statement.reference = statements[data_statement.reference_id]
+                # ignore references we couldn't find since are either
+                #  1) refs to "deleted" statements or
+                #  2) refs to statements in other modules (which should be by path anyway, but we can't check here)
+                statement.reference = statements.get(data_statement.reference, None)
 
     return module
 

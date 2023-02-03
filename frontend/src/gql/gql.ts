@@ -38,6 +38,8 @@ const documents = {
     types.DeleteFileDocument,
   "\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          ... on File {\n            id\n            ...FileHeader\n            statements {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreFileDocument,
+  "\n      mutation compile($projectVersionId: GlobalID!, $compilationId: GlobalID!) {\n        compile(input: { projectVersionId: $projectVersionId, compilationId: $compilationId }) {\n          ... on CompileState {\n            success\n          }\n        }\n      }\n    ":
+    types.CompileDocument,
   "\n      mutation createStatement(\n        $id: GlobalID\n        $fileId: GlobalID!\n        $parentId: GlobalID\n        $index: Int\n        $type: StatementType!\n        $name: String\n      ) {\n        createStatement(\n          input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }\n        ) {\n          ... on Statement {\n            id\n            ...StatementHeader\n            text\n            revision\n            file {\n              id\n              path\n              # should match FileInterface query\n              statements(filters: { isVisible: true }) {\n                id\n                index\n              }\n            }\n            parent {\n              id\n            }\n          }\n        }\n      }\n    ":
     types.CreateStatementDocument,
   "\n      mutation morphStatement($id: GlobalID!, $type: StatementType!, $symbolType: SymbolType) {\n        morphStatement(input: { id: $id, type: $type, symbolType: $symbolType }) {\n          ... on Statement {\n            id\n            ...StatementHeader\n            text\n            code\n            codeBuiltinId\n            description\n            btl\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -70,11 +72,11 @@ const documents = {
     types.TypeNodeContentInnerFragmentDoc,
   "\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n":
     types.TypeNodeContentFragmentDoc,
-  "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n":
-    types.InterpStatementContentFragmentDoc,
-  "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n":
+  "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n":
+    types.InterpSymbolContentFragmentDoc,
+  "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n":
     types.InterpModuleContentFragmentDoc,
-  "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n":
+  "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n":
     types.InterpErrorContentFragmentDoc,
   "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    ":
     types.ModuleRuntimeChangedDocument,
@@ -135,6 +137,9 @@ export function graphql(
   source: "\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          ... on File {\n            id\n            ...FileHeader\n            statements {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          ... on File {\n            id\n            ...FileHeader\n            statements {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 export function graphql(
+  source: "\n      mutation compile($projectVersionId: GlobalID!, $compilationId: GlobalID!) {\n        compile(input: { projectVersionId: $projectVersionId, compilationId: $compilationId }) {\n          ... on CompileState {\n            success\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation compile($projectVersionId: GlobalID!, $compilationId: GlobalID!) {\n        compile(input: { projectVersionId: $projectVersionId, compilationId: $compilationId }) {\n          ... on CompileState {\n            success\n          }\n        }\n      }\n    "];
+export function graphql(
   source: "\n      mutation createStatement(\n        $id: GlobalID\n        $fileId: GlobalID!\n        $parentId: GlobalID\n        $index: Int\n        $type: StatementType!\n        $name: String\n      ) {\n        createStatement(\n          input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }\n        ) {\n          ... on Statement {\n            id\n            ...StatementHeader\n            text\n            revision\n            file {\n              id\n              path\n              # should match FileInterface query\n              statements(filters: { isVisible: true }) {\n                id\n                index\n              }\n            }\n            parent {\n              id\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation createStatement(\n        $id: GlobalID\n        $fileId: GlobalID!\n        $parentId: GlobalID\n        $index: Int\n        $type: StatementType!\n        $name: String\n      ) {\n        createStatement(\n          input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }\n        ) {\n          ... on Statement {\n            id\n            ...StatementHeader\n            text\n            revision\n            file {\n              id\n              path\n              # should match FileInterface query\n              statements(filters: { isVisible: true }) {\n                id\n                index\n              }\n            }\n            parent {\n              id\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
@@ -183,14 +188,14 @@ export function graphql(
   source: "\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment TypeNodeContent on TypeNode {\n    ...TypeNodeContentInner\n    children {\n      ...TypeNodeContentInner\n      children {\n        ...TypeNodeContentInner\n        children {\n          ...TypeNodeContentInner\n        }\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment InterpStatementContent on InterpStatement {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpStatementContent on InterpStatement {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"];
+  source: "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    modifier\n    symbolType\n    typeNode {\n      ...TypeNodeContent\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      statements {\n        ...InterpStatementContent\n      }\n    }\n  }\n"];
+  source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n"];
 export function graphql(
-  source: "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    statement {\n      ...InterpStatementContent\n    }\n  }\n"];
+  source: "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"];
 export function graphql(
   source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "
 ): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "];

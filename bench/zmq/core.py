@@ -102,18 +102,18 @@ async def recv_message(sock: zmq.asyncio.Socket) -> ZMessage:
 
 
 async def recv_message_with(
-    sock: zmq.asyncio.Socket, typ: ZMessageType | typing.Type[PayloadT]
+    sock: zmq.asyncio.Socket, cls: ZMessageType | typing.Type[PayloadT]
 ) -> tuple[ZMessage, PayloadT]:
     msg = await recv_message(sock)
-    if isinstance(typ, ZMessageType):
-        z_type = typ
-        payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(typ)
+    if isinstance(cls, ZMessageType):
+        z_type = cls
+        payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(cls)
     else:
-        z_type = MESSAGE_TYPE_BY_PAYLOAD_CLASS[typ]
-        payload_cls = typ
+        z_type = MESSAGE_TYPE_BY_PAYLOAD_CLASS[cls]
+        payload_cls = cls
     if msg.type != z_type:
         raise ValueError(f"expected message type {z_type}, got {msg}")
-    payload = msg.payload_as(typ) if payload_cls else None
+    payload = msg.payload_as(payload_cls) if payload_cls else None
     return msg, payload
 
 

@@ -1,5 +1,5 @@
-import { useCompilationOps } from "@/state/operations/compilation";
 import { useFileOps } from "@/state/operations/file";
+import { useRuntimeOps } from "@/state/operations/runtime";
 import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
 import { useProjectVersionOps } from "@/state/operations/version";
@@ -103,7 +103,7 @@ export function useOperations() {
     file: useFileOps(),
     content: useSymbolContentOps(),
     statement: useStatementOps(),
-    compilation: useCompilationOps(),
+    runtime: useRuntimeOps(),
     version: useProjectVersionOps(),
   };
 }

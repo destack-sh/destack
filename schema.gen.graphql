@@ -10,6 +10,19 @@ type CommitPayload {
   newWorkingVersion: ProjectVersion!
 }
 
+input CompileInput {
+  projectVersionId: GlobalID!
+  compilationId: GlobalID!
+}
+
+type CompileState {
+  projectVersionId: GlobalID!
+  compilationId: GlobalID!
+  success: Boolean!
+}
+
+union CompileStateOperationInfo = CompileState | OperationInfo
+
 type DatasetRecord {
   index: Int!
   data: JSON!
@@ -95,14 +108,14 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 type InterpError {
   type: ErrorType!
   message: String!
-  statement: InterpStatement
+  symbol: InterpSymbol
 }
 
 type InterpFile {
   id: GlobalID!
   module: InterpModule!
   path: String!
-  statements: [InterpStatement!]!
+  symbols: [InterpSymbol!]!
 }
 
 type InterpModule {
@@ -111,7 +124,7 @@ type InterpModule {
   files: [InterpFile!]!
 }
 
-type InterpStatement {
+type InterpSymbol {
   id: GlobalID!
   file: InterpFile!
   name: String
@@ -154,6 +167,8 @@ type Mutation {
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
   commit(input: CommitInput!): CommitPayload!
+  compile(input: CompileInput!): CompileStateOperationInfo!
+  run(input: RunInput!): RunStateOperationInfo!
 }
 
 """An object with a Globally Unique ID"""
@@ -329,6 +344,21 @@ type RefMapping {
   source: GlobalID!
   target: GlobalID!
 }
+
+input RunInput {
+  projectVersionId: GlobalID!
+  runconfigId: GlobalID!
+  arguments: JSON!
+}
+
+type RunState {
+  projectVersionId: GlobalID!
+  runconfigId: GlobalID!
+  success: Boolean!
+  output: JSON!
+}
+
+union RunStateOperationInfo = RunState | OperationInfo
 
 type SourceMapping {
   sourceId: UUID!

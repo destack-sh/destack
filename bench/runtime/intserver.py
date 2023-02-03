@@ -79,6 +79,9 @@ class InternalServer:
                 ZMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(module_id=module.id, module=module),
             )
+        elif msg.type == ZMessageType.REQ_WRITE_MODULE:
+            # TODO @Incomplete: write module to DB
+            raise NotImplementedError
         else:
             raise ValueError(f"unexpected message: {msg}")
 

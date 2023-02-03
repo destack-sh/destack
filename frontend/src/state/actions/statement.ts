@@ -22,7 +22,7 @@ export function provideStatementActions(
     };
   }
 
-  const statementsById: Ref<Record<string, StatementHeader>> = computed(() => {
+  const symbolsById: Ref<Record<string, StatementHeader>> = computed(() => {
     if (!enabled.value) return {};
     const result: Record<string, StatementHeader> = {};
     for (const statement of orderedStatements.value) {
@@ -43,7 +43,7 @@ export function provideStatementActions(
   });
 
   // actions for currently focused statement
-  const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
+  const statement = computed(() => symbolsById.value[editor.focusedElementId as string]);
   const index = computed(() => statement.value?.index ?? -1);
   const siblings = computed(() => statementsByParentId.value[statement.value?.parent?.id ?? ""]);
   const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
@@ -87,8 +87,8 @@ export function provideStatementActions(
     enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
     registered: enabled,
     apply: async () => {
-      const parent = statementsById.value[statement.value.parent?.id];
-      const grandparent = statementsById.value[parent.parent?.id];
+      const parent = symbolsById.value[statement.value.parent?.id];
+      const grandparent = symbolsById.value[parent.parent?.id];
       // insert after parent (leave index undefined)
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
@@ -168,7 +168,7 @@ export function provideStatementActions(
     enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
     registered: enabled,
     apply: () => {
-      const parent = statementsById.value[statement.value.parent?.id];
+      const parent = symbolsById.value[statement.value.parent?.id];
       editor.focusElement(parent, true);
     },
   });

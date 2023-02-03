@@ -36,6 +36,20 @@ export type CommitPayload = {
   project: Project;
 };
 
+export type CompileInput = {
+  compilationId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type CompileState = {
+  __typename?: "CompileState";
+  compilationId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  success: Scalars["Boolean"];
+};
+
+export type CompileStateOperationInfo = CompileState | OperationInfo;
+
 export type DatasetRecord = {
   __typename?: "DatasetRecord";
   data: Scalars["JSON"];
@@ -119,7 +133,7 @@ export type FileRenameInput = {
 export type InterpError = {
   __typename?: "InterpError";
   message: Scalars["String"];
-  statement?: Maybe<InterpStatement>;
+  symbol?: Maybe<InterpSymbol>;
   type: ErrorType;
 };
 
@@ -128,7 +142,7 @@ export type InterpFile = {
   id: Scalars["GlobalID"];
   module: InterpModule;
   path: Scalars["String"];
-  statements: Array<InterpStatement>;
+  symbols: Array<InterpSymbol>;
 };
 
 export type InterpModule = {
@@ -138,8 +152,8 @@ export type InterpModule = {
   name: Scalars["String"];
 };
 
-export type InterpStatement = {
-  __typename?: "InterpStatement";
+export type InterpSymbol = {
+  __typename?: "InterpSymbol";
   file: InterpFile;
   id: Scalars["GlobalID"];
   modifier?: Maybe<StatementModifier>;
@@ -160,6 +174,7 @@ export type Mutation = {
   __typename?: "Mutation";
   commentStatement: StatementOperationInfo;
   commit: CommitPayload;
+  compile: CompileStateOperationInfo;
   createFile: FileOperationInfo;
   createStatement: StatementOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -169,6 +184,7 @@ export type Mutation = {
   renameStatement: StatementOperationInfo;
   restoreFile: FileOperationInfo;
   restoreStatement: StatementOperationInfo;
+  run: RunStateOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   updateStatementCode: StatementOperationInfo;
@@ -187,6 +203,10 @@ export type MutationCommentStatementArgs = {
 
 export type MutationCommitArgs = {
   input: CommitInput;
+};
+
+export type MutationCompileArgs = {
+  input: CompileInput;
 };
 
 export type MutationCreateFileArgs = {
@@ -223,6 +243,10 @@ export type MutationRestoreFileArgs = {
 
 export type MutationRestoreStatementArgs = {
   input: StatementRestoreInput;
+};
+
+export type MutationRunArgs = {
+  input: RunInput;
 };
 
 export type MutationSoftDeleteFileArgs = {
@@ -454,6 +478,22 @@ export type RefMapping = {
   source: Scalars["GlobalID"];
   target: Scalars["GlobalID"];
 };
+
+export type RunInput = {
+  arguments: Scalars["JSON"];
+  projectVersionId: Scalars["GlobalID"];
+  runconfigId: Scalars["GlobalID"];
+};
+
+export type RunState = {
+  __typename?: "RunState";
+  output: Scalars["JSON"];
+  projectVersionId: Scalars["GlobalID"];
+  runconfigId: Scalars["GlobalID"];
+  success: Scalars["Boolean"];
+};
+
+export type RunStateOperationInfo = OperationInfo | RunState;
 
 export type SourceMapping = {
   __typename?: "SourceMapping";
@@ -967,6 +1007,16 @@ export type RestoreFileMutation = {
       });
 };
 
+export type CompileMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  compilationId: Scalars["GlobalID"];
+}>;
+
+export type CompileMutation = {
+  __typename?: "Mutation";
+  compile: { __typename?: "CompileState"; success: boolean } | { __typename?: "OperationInfo" };
+};
+
 export type CreateStatementMutationVariables = Exact<{
   id?: InputMaybe<Scalars["GlobalID"]>;
   fileId: Scalars["GlobalID"];
@@ -1282,8 +1332,8 @@ export type TypeNodeContentFragment = ({
   " $fragmentName"?: "TypeNodeContentFragment";
 };
 
-export type InterpStatementContentFragment = {
-  __typename?: "InterpStatement";
+export type InterpSymbolContentFragment = {
+  __typename?: "InterpSymbol";
   id: any;
   name?: string | null;
   type: StatementType;
@@ -1292,7 +1342,7 @@ export type InterpStatementContentFragment = {
   typeNode?:
     | ({ __typename?: "TypeNode" } & { " $fragmentRefs"?: { TypeNodeContentFragment: TypeNodeContentFragment } })
     | null;
-} & { " $fragmentName"?: "InterpStatementContentFragment" };
+} & { " $fragmentName"?: "InterpSymbolContentFragment" };
 
 export type InterpModuleContentFragment = {
   __typename?: "InterpModule";
@@ -1302,9 +1352,9 @@ export type InterpModuleContentFragment = {
     __typename?: "InterpFile";
     id: any;
     path: string;
-    statements: Array<
-      { __typename?: "InterpStatement" } & {
-        " $fragmentRefs"?: { InterpStatementContentFragment: InterpStatementContentFragment };
+    symbols: Array<
+      { __typename?: "InterpSymbol" } & {
+        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
       }
     >;
   }>;
@@ -1314,9 +1364,9 @@ export type InterpErrorContentFragment = {
   __typename?: "InterpError";
   type: ErrorType;
   message: string;
-  statement?:
-    | ({ __typename?: "InterpStatement" } & {
-        " $fragmentRefs"?: { InterpStatementContentFragment: InterpStatementContentFragment };
+  symbol?:
+    | ({ __typename?: "InterpSymbol" } & {
+        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
       })
     | null;
 } & { " $fragmentName"?: "InterpErrorContentFragment" };
@@ -1738,13 +1788,13 @@ export const TypeNodeContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<TypeNodeContentFragment, unknown>;
-export const InterpStatementContentFragmentDoc = {
+export const InterpSymbolContentFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "InterpStatementContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpStatement" } },
+      name: { kind: "Name", value: "InterpSymbolContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpSymbol" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
@@ -1765,7 +1815,7 @@ export const InterpStatementContentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<InterpStatementContentFragment, unknown>;
+} as unknown as DocumentNode<InterpSymbolContentFragment, unknown>;
 export const InterpModuleContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1788,10 +1838,10 @@ export const InterpModuleContentFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "path" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "statements" },
+                  name: { kind: "Name", value: "symbols" },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatementContent" } }],
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } }],
                   },
                 },
               ],
@@ -1816,10 +1866,10 @@ export const InterpErrorContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "message" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "statement" },
+            name: { kind: "Name", value: "symbol" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatementContent" } }],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } }],
             },
           },
         ],
@@ -2414,6 +2464,71 @@ export const RestoreFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreFileMutation, RestoreFileMutationVariables>;
+export const CompileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "compile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "compile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "compilationId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CompileState" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "success" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<CompileMutation, CompileMutationVariables>;
 export const CreateStatementDocument = {
   kind: "Document",
   definitions: [
@@ -3789,7 +3904,7 @@ export const ModuleRuntimeChangedDocument = {
       },
     },
     ...InterpModuleContentFragmentDoc.definitions,
-    ...InterpStatementContentFragmentDoc.definitions,
+    ...InterpSymbolContentFragmentDoc.definitions,
     ...TypeNodeContentFragmentDoc.definitions,
     ...TypeNodeContentInnerFragmentDoc.definitions,
     ...InterpErrorContentFragmentDoc.definitions,

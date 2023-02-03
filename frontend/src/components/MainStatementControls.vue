@@ -1,25 +1,27 @@
 <script lang="ts" setup>
-import { StatementType, SymbolType } from "@/gql/graphql";
+import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
-import { fileOf, statementsLike, useCurrentModuleRuntime } from "@/state/runtime";
+import { useOperations } from "@/state/operations";
+import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { BeakerIcon, CheckIcon, ChevronUpDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref } from "vue";
 
 // statement selection
+const ops = useOperations();
 const editor = useEditorState();
 const runtime = useCurrentModuleRuntime();
-const mainStatement = computed(() => runtime.moduleIndex.value?.statementsById[editor.mainStatementId ?? ""]);
+const mainStatement = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainStatementId ?? ""]);
 
-const availableStatements = statementsLike({
+const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Runconfig, SymbolType.Compilation],
 });
 const query = ref("");
-const filteredStatements = computed(() =>
+const filteredSymbols = computed(() =>
   query.value === ""
-    ? availableStatements.value
-    : availableStatements.value.filter((s) => {
+    ? availableSymbols.value
+    : availableSymbols.value.filter((s) => {
         return s.name?.toLowerCase().includes(query.value.toLowerCase());
       })
 );
@@ -28,16 +30,16 @@ const mainActions = [
   {
     label: "Compile",
     icon: WrenchIcon,
-    enabled: true,
-    active: true,
+    enabled: computed(() => mainStatement.value?.symbolType === SymbolType.Compilation),
+    active: false,
     action: async () => {
-      console.log("compile");
+      await ops.runtime.compile(mainStatement.value?.id);
     },
   },
   {
     label: "Run",
     icon: PlayIcon,
-    enabled: true,
+    enabled: computed(() => mainStatement.value?.symbolType == SymbolType.Runconfig),
     active: false,
     action: async () => {
       console.log("run");
@@ -46,13 +48,23 @@ const mainActions = [
   {
     label: "Test",
     icon: BeakerIcon,
-    enabled: false,
+    enabled: computed(() => true),
     active: false,
     action: async () => {
       console.log("test");
     },
   },
 ];
+
+function symbolDeclr(symbol: InterpSymbol | undefined) {
+  if (symbol == null) {
+    return null;
+  } else if (symbol.symbolType != null) {
+    return SYMBOL_TYPE_KEYWORD[symbol.symbolType] + " " + symbol.name;
+  } else {
+    return symbol.name;
+  }
+}
 </script>
 <template>
   <!-- Select main statement -->
@@ -66,7 +78,7 @@ const mainActions = [
     <ComboboxInput
       class="max-w-fit rounded-sm border border-gray-300 py-1 pl-3 pr-10 font-mono outline-none ring-0 focus:border-orange-500 focus:ring-0 sm:text-sm"
       @change="query = $event.target.value"
-      :display-value="(stmt) => stmt?.name"
+      :display-value="(stmt) => symbolDeclr(stmt)"
       placeholder="select main..."
     />
     <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
@@ -74,11 +86,11 @@ const mainActions = [
     </ComboboxButton>
 
     <ComboboxOptions
-      v-if="filteredStatements.length > 0"
+      v-if="filteredSymbols.length > 0"
       class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
     >
       <ComboboxOption
-        v-for="stmt in filteredStatements"
+        v-for="stmt in filteredSymbols"
         :key="stmt.id"
         :value="stmt"
         as="template"
@@ -92,9 +104,7 @@ const mainActions = [
         >
           <div class="flex items-baseline justify-between">
             <span :class="['truncate', selected && 'font-semibold']">
-              <span v-if="stmt.symbolType != null">
-                {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
-              </span>
+              {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
               {{ stmt.name }}
             </span>
             <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
@@ -117,18 +127,18 @@ const mainActions = [
     :key="action.label"
     class="rounded-sm p-1 text-sm"
     :class="{
-      'hover:bg-orange-50': action.enabled,
+      'hover:bg-orange-50': action.enabled.value,
       'animate-pulse ': action.active,
     }"
-    :disabled="!action.enabled || action.active"
+    :disabled="!action.enabled.value || action.active"
     @click="action.action"
   >
     <component
       :is="action.icon"
       class="h-5 w-5"
       :class="{
-        'text-orange-500  ': action.enabled,
-        'text-gray-500': !action.enabled,
+        'text-orange-500  ': action.enabled.value,
+        'text-gray-500': !action.enabled.value,
       }"
     />
   </button>
