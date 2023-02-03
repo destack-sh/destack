@@ -122,14 +122,23 @@ class CompilationCandidate:
 
     def to_result(self) -> CompilationResult:
         return CompilationResult(
-            target_symbols=self.target_symbols, source_mappings=self.source_mappings
+            compilation=self.compilation,
+            target_symbols=self.target_symbols,
+            source_mappings=self.source_mappings,
         )
 
 
 @dataclass
 class CompilationResult:
+    compilation: Compilation
     target_symbols: list[InterpSymbol]
     source_mappings: list[SourceMapping]
+
+    def to_file(self, module: Module | None = None) -> File:
+        if module:
+            module = Module(name="<compilation>")
+        file = File(path=self.compilation.id.hex + ".gen", module=module)
+        return down(self.target_symbols, file)
 
 
 class DataBuilder:
@@ -419,9 +428,6 @@ def down(symbols: list[InterpSymbol], file: File | None = None) -> File:
             index=len(file.statements),
         )
         file.statements.append(statement)
-
-    # render relations
-    pass  # (not needed yet)
 
     return file
 
