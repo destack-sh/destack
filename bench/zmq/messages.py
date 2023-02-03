@@ -118,6 +118,11 @@ class ReqWriteModulePayload:
     files: list[wire.FileData]
 
 
+@_register_payload(ZMessageType.REP_WRITE_MODULE)
+class RepWriteModulePayload:
+    success: bool
+
+
 @_register_payload(ZMessageType.REQ_MODULE_RUNTIME)
 class ReqModuleRuntimePayload:
     module_id: UUID

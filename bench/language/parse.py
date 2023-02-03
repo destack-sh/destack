@@ -1411,7 +1411,7 @@ def interp(
             )
             # otherwise use name from source statement
             if not type_symbol.name:
-                type_symbol.name = statement.name
+                type_symbol.name = statement.name + " type"
             source_kwargs = source_content.deepcopy().__dict__
             # also point type_node to the type symbol
             source_kwargs["type_node"] = type_symbol

@@ -33,6 +33,7 @@ from bench.zmq.messages import (
     ReqModuleRunPayload,
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
+    ReqWriteModulePayload,
 )
 
 logger = structlog.get_logger(__name__)
@@ -273,6 +274,7 @@ class RuntimeWorker:
             payload = msg.payload_as(ReqModuleCompilePayload)
             state = await self.get_worker_state(payload.module_id)
             if not state.interpreted:
+                logger.debug("fail_compile", module_id=payload.module_id)
                 send_message(
                     self.rep_sock,
                     ZMessageType.REP_MODULE_COMPILE,
@@ -281,16 +283,21 @@ class RuntimeWorker:
                 return
 
             compilation = state.interp.module_idx.symbol_by_id(payload.compilation_id, Compilation)
-            result = await compile(compilation)
+            compile_result = await compile(compilation)
             send_message(
                 self.rep_sock,
                 ZMessageType.REP_MODULE_COMPILE,
                 RepModuleCompilePayload(success=True),
             )
-            # TODO @Incomplete: write back compilation results (to internal server)
-            send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE)
+            compiled_file = compile_result.to_file(module=state.interp.module_idx.module)
+            write = ReqWriteModulePayload(
+                module_id=state.source.id,
+                files=[wire.rmap_file(compiled_file)],
+            )
+            send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
         elif msg.type == ZMessageType.REQ_MODULE_RUN:
             payload = msg.payload_as(ReqModuleRunPayload)
+            raise NotImplementedError("TODO @Incomplete: implement REQ_MODULE_RUN")
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
