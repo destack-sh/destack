@@ -1,7 +1,8 @@
 # // see https://observablehq.com/@dgreensp/implementing-fractional-indexing
 # //  (licensed as CC-0)
-
 from typing import Optional
+
+import pytest
 
 BASE_10_DIGITS = "0123456789"
 BASE_62_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -19,7 +20,7 @@ def get_integer_length(head: str) -> int:
     elif "A" <= head <= "Z":
         return ord("Z") - ord(head) + 2
     else:
-        raise ValueError(f"Invalid order key head: {head}")
+        raise ValueError(f"invalid order key head: {head}")
 
 
 def validate_integer(int: str) -> None:
@@ -51,11 +52,12 @@ def midpoint(a: str, b: Optional[str], digits: str = BASE_95_DIGITS) -> str:
     digit_a = digits.index(a[0]) if a else 0
     digit_b = digits.index(b[0]) if b else len(digits)
     if digit_b - digit_a > 1:
-        mid_digit = round(0.5 * (digit_a + digit_b))
+        # use int(0.5 + ..) instead of round(..) because round(0.5) is 0 (??)
+        mid_digit = int(0.5 + 0.5 * (digit_a + digit_b))
         return digits[mid_digit]
     else:
         # first digits are consecutive
-        if b and len(b) > 1:
+        if b is not None and len(b) > 1:
             return b[0]
         else:
             # `b` is null or has length 1 (a single digit).
@@ -82,6 +84,7 @@ def increment_integer(x: str, digits: str = BASE_95_DIGITS) -> Optional[str]:
         else:
             digs[i] = digits[d]
             carry = False
+            break
     if carry:
         if head == "Z":
             return "a0"
@@ -219,21 +222,10 @@ def generate_n_keys_between(
     )
 
 
-def run_tests(big_string: str, func, digits: str = BASE_95_DIGITS) -> str:
-    def test(digits: str, *args: str) -> str:
-        result = args[-1]
-        try:
-            return "PASS" if func(*args[:-1], digits) == result else "FAIL"
-        except ValueError:
-            return "FAIL" if result == "!error" else "PASS"
-
-    return "\n".join([test(digits, *x.split(" ")) for x in big_string.split("\n") if x.strip()])
-
-
-print(
-    run_tests(
-        """
-| | a0
+# noinspection Assert
+@pytest.mark.parametrize(
+    "test_case",
+    """| | a0
 | a0 Zz
 a0 | a1
 a0 a1 a0V
@@ -256,9 +248,24 @@ zzzzzzzzzzzzzzzzzzzzzzzzzzz | zzzzzzzzzzzzzzzzzzzzzzzzzzzV
 a00 | !error
 a00 a1 !error
 0 1 !error
-a1 a0 !error
-""",
-        generate_key_between,
-        BASE_62_DIGITS,
-    )
+a1 a0 !error""".split(
+        "\n"
+    ),
 )
+def test_generate_key_between(test_case: str) -> None:
+    def _map_test_arg(x: str) -> str | None:
+        if x == "[":
+            return ""
+        elif x == "]" or x == "|":
+            return None
+        else:
+            return x
+
+    test_args = [_map_test_arg(c) for c in test_case.split(" ")]
+    expected = test_args[-1]
+    if expected == "!error":
+        with pytest.raises(ValueError):
+            generate_key_between(*test_args[:-1], BASE_62_DIGITS)
+    else:
+        actual = generate_key_between(*test_args[:-1], BASE_62_DIGITS)
+        assert actual == expected
