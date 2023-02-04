@@ -507,17 +507,16 @@ export type SourceMapping = {
 
 export type Statement = Node & {
   __typename?: "Statement";
-  btl?: Maybe<Scalars["String"]>;
   children: Array<Statement>;
   code?: Maybe<Scalars["String"]>;
   codeBuiltinId?: Maybe<Scalars["String"]>;
   commented: Scalars["Boolean"];
-  compiled: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
   descendants: Array<Statement>;
   description?: Maybe<Scalars["String"]>;
   file: File;
+  generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
   importPath?: Maybe<Scalars["String"]>;
   index?: Maybe<Scalars["Int"]>;
@@ -535,6 +534,7 @@ export type Statement = Node & {
   symbolType?: Maybe<SymbolType>;
   text?: Maybe<Scalars["String"]>;
   type: StatementType;
+  typeNodes: Array<TypeNodeData>;
   updatedAt: Scalars["DateTime"];
   value?: Maybe<Scalars["JSON"]>;
 };
@@ -691,6 +691,18 @@ export type TypeNode = {
   reference?: Maybe<Scalars["String"]>;
   required: Scalars["Boolean"];
   type: TypeTag;
+};
+
+export type TypeNodeData = {
+  __typename?: "TypeNodeData";
+  description?: Maybe<Scalars["String"]>;
+  id: Scalars["UUID"];
+  name?: Maybe<Scalars["String"]>;
+  orderKey?: Maybe<Scalars["String"]>;
+  parentId?: Maybe<Scalars["UUID"]>;
+  reference?: Maybe<Scalars["String"]>;
+  tag: TypeTag;
+  value?: Maybe<Scalars["JSON"]>;
 };
 
 /** The type of type node. */
@@ -896,16 +908,27 @@ export type StatementHeaderFragment = {
   deletedAt?: any | null;
   modifier?: StatementModifier | null;
   name?: string | null;
-  compiled: boolean;
+  generated: boolean;
   commented: boolean;
   index?: number | null;
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
-export type TypeContentFragment = { __typename?: "Type"; description?: string | null; btl: string } & {
+export type TypeContentFragment = { __typename?: "Type"; description?: string | null } & {
   " $fragmentName"?: "TypeContentFragment";
 };
+
+export type TypeNodeDataFragment = {
+  __typename?: "TypeNodeData";
+  id: any;
+  name?: string | null;
+  tag: TypeTag;
+  description?: string | null;
+  value?: any | null;
+  parentId?: any | null;
+  orderKey?: string | null;
+} & { " $fragmentName"?: "TypeNodeDataFragment" };
 
 export type StatementContentFragment = {
   __typename?: "Statement";
@@ -918,7 +941,7 @@ export type StatementContentFragment = {
   deletedAt?: any | null;
   name?: string | null;
   commented: boolean;
-  compiled: boolean;
+  generated: boolean;
   modifier?: StatementModifier | null;
   index?: number | null;
   importPath?: string | null;
@@ -928,10 +951,12 @@ export type StatementContentFragment = {
   codeBuiltinId?: string | null;
   description?: string | null;
   value?: any | null;
-  btl?: string | null;
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
+  typeNodes: Array<
+    { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
+  >;
   records: Array<{ __typename?: "DatasetRecord"; data: any }>;
 } & { " $fragmentName"?: "StatementContentFragment" };
 
@@ -1064,8 +1089,10 @@ export type MorphStatementMutation = {
         code?: string | null;
         codeBuiltinId?: string | null;
         description?: string | null;
-        btl?: string | null;
         revision: number;
+        typeNodes: Array<
+          { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
+        >;
       } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } });
 };
 
@@ -1231,7 +1258,14 @@ export type UpdateStatementTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; btl?: string | null; revision: number };
+    | {
+        __typename?: "Statement";
+        id: any;
+        revision: number;
+        typeNodes: Array<
+          { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
+        >;
+      };
 };
 
 export type UpdateStatementDescriptionMutationVariables = Exact<{
@@ -1614,7 +1648,7 @@ export const StatementHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "compiled" } },
+          { kind: "Field", name: { kind: "Name", value: "generated" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "index" } },
           {
@@ -1647,14 +1681,33 @@ export const TypeContentFragmentDoc = {
       typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Type" } },
       selectionSet: {
         kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "description" } },
-          { kind: "Field", name: { kind: "Name", value: "btl" } },
-        ],
+        selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
       },
     },
   ],
 } as unknown as DocumentNode<TypeContentFragment, unknown>;
+export const TypeNodeDataFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TypeNodeData" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "TypeNodeData" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "parentId" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TypeNodeDataFragment, unknown>;
 export const StatementContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -1674,7 +1727,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
-          { kind: "Field", name: { kind: "Name", value: "compiled" } },
+          { kind: "Field", name: { kind: "Name", value: "generated" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "index" } },
           {
@@ -1708,7 +1761,14 @@ export const StatementContentFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "btl" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "typeNodes" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "records" },
@@ -1941,6 +2001,7 @@ export const FileContentByIdDocument = {
     },
     ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
+    ...TypeNodeDataFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const ProjectVersionsDocument = {
@@ -2757,7 +2818,14 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "code" } },
                       { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
-                      { kind: "Field", name: { kind: "Name", value: "btl" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "typeNodes" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
+                        },
+                      },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
@@ -2770,6 +2838,7 @@ export const MorphStatementDocument = {
       },
     },
     ...StatementHeaderFragmentDoc.definitions,
+    ...TypeNodeDataFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MorphStatementMutation, MorphStatementMutationVariables>;
@@ -3498,7 +3567,14 @@ export const UpdateStatementTypeNodeDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "btl" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "typeNodes" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
+                        },
+                      },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
@@ -3510,6 +3586,7 @@ export const UpdateStatementTypeNodeDocument = {
         ],
       },
     },
+    ...TypeNodeDataFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateStatementTypeNodeMutation, UpdateStatementTypeNodeMutationVariables>;

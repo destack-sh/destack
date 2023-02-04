@@ -13,6 +13,7 @@ from bench import language
 from bench.api.statement import StatementType, SymbolType, TypeTag
 from bench.language import wire
 from bench.language.type import StatementModifier
+from bench.language.wire import wmap_type_node
 from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_PUB_ADDR, ZMQ_RUNTIME_WORKER_REP_ADDR
 from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
@@ -98,9 +99,6 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         interp_module.files.append(interp_file)
         for statement in file.statements:
             # only include type node if it's been parsed
-            type_node = (
-                statement.type_node if isinstance(statement.type_node, wire.TypeNode) else None
-            )
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
@@ -108,7 +106,7 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
                 modifier=statement.modifier,
                 type=statement.type,
                 symbol_type=statement.symbol_type,
-                type_node=type_node,  # no need to map since lang and api types match
+                type_node=wmap_type_node(statement.type_nodes) if statement.type_nodes else None,
             )
             interp_file.symbols.append(interp_symbol)
     return interp_module

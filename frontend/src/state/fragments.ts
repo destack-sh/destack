@@ -83,7 +83,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     deletedAt
     modifier
     name
-    compiled
+    generated
     commented
     index
     parent {
@@ -98,7 +98,18 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
 export const TypeContentType = graphql(/* GraphQL */ `
   fragment TypeContent on Type {
     description
-    btl
+  }
+`);
+
+export const TypeNodeDataType = graphql(/* GraphQL */ `
+  fragment TypeNodeData on TypeNodeData {
+    id
+    name
+    tag
+    description
+    value
+    parentId
+    orderKey
   }
 `);
 
@@ -113,7 +124,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     deletedAt
     name
     commented
-    compiled
+    generated
     modifier
     index
     parent {
@@ -133,7 +144,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
       id
     }
     value
-    btl
+    typeNodes {
+      ...TypeNodeData
+    }
     records {
       data
     }

@@ -13,7 +13,9 @@ export function useSymbolContentOps() {
         updateStatementTypeNode(input: { id: $id, btl: $btl }) {
           ... on Statement {
             id
-            btl
+            typeNodes {
+              ...TypeNodeData
+            }
             revision
           }
           ...OperationInfoContent

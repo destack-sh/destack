@@ -61,7 +61,9 @@ export function useStatementOps() {
             code
             codeBuiltinId
             description
-            btl
+            typeNodes {
+              ...TypeNodeData
+            }
             revision
           }
           ...OperationInfoContent
