@@ -81,7 +81,7 @@ class StatementData:
     id: UUID
     module_id: UUID
     file_id: UUID
-    index: int
+    order_key: str
     revision: int
     type: StatementType
     modifier: Optional[StatementModifier]
@@ -109,7 +109,8 @@ class StatementData:
         return self.reference if isinstance(self.reference, UUID) else None
 
     def __str__(self):
-        loc = str(self.file_id) + ":" + str(self.index)
+        parent_str = f"{self.parent_id}:" if self.parent_id else ""
+        loc = str(self.file_id) + ":" + parent_str + str(self.order_key)
         symbol_type_str = self.symbol_type.name if self.symbol_type else ""
         ref_str = f"ref={self.reference}" if self.reference else ""
         ref_module_str = f"ref_module={self.reference_module}" if self.reference_module else ""
@@ -194,7 +195,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
         file_id=statement.file.id,
         revision=1,
         id=statement.id,
-        index=statement.index,
+        order_key=statement.order_key,
         parent_id=statement.parent_id,
         type=statement.type,
         modifier=statement.modifier,
@@ -216,7 +217,7 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         file=file,
         parent=None,  # must be restored later
         reference=reference,  # also restored later if it was an id
-        index=data.index,
+        order_key=data.order_key,
         type=data.type,
         modifier=data.modifier,
         name=data.name,

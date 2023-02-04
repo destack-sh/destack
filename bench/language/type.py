@@ -263,7 +263,7 @@ class Statement(Generic[SymbolContentT]):
 
     file: File
     parent: Optional[Statement]
-    index: int
+    order_key: str
     type: StatementType
     modifier: Optional[StatementModifier] = None
     name: Optional[str] = None
@@ -375,8 +375,8 @@ class Statement(Generic[SymbolContentT]):
     @property
     def absolute_index(self) -> str:
         if self.parent:
-            return f"{self.parent.absolute_index}.{self.index}"
-        return str(self.index)
+            return f"{self.parent.absolute_index}.{self.order_key}"
+        return str(self.order_key)
 
 
 @dataclass(repr=False)

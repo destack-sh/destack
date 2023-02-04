@@ -26,7 +26,7 @@ def lookup_in_db_module(
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
-    # TODO @Performance: cache indexed module for lookup by version
+    # TODO @Performance: cache order_keyed module for lookup by version
     wire_module: wire.ModuleData = read_module(version, path)
     module = wire.wmap_module(wire_module)
     idx = index_module(module)
@@ -104,7 +104,7 @@ def write_module(
             project_version=project_version,
             file=model_files[stmt_data.file_id],
             parent=None,
-            index=stmt_data.index,
+            order_key=stmt_data.order_key,
             type=stmt_data.type,
             modifier=stmt_data.modifier,
             name=stmt_data.name,
@@ -155,7 +155,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         file_id=file.id,
         revision=statement.revision,
         parent_id=statement.parent.id if statement.parent else None,
-        index=statement.index,
+        order_key=statement.order_key,
         type=statement.type,
         modifier=statement.modifier,
         name=statement.name,
@@ -216,7 +216,8 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     # copy relational data
     if data.records:
         model_records = [
-            models.DatasetRecord(dataset=statement, index=i, data=data)
+            # nocheckin use correct order keys
+            models.DatasetRecord(dataset=statement, order_key=i, data=data)
             for i, data in enumerate(data.records)
         ]
         return model_records

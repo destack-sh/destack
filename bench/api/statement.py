@@ -75,7 +75,7 @@ class Statement(gql.Node):
     parent: Optional["Statement"]
     children: list["Statement"]
     descendants: list["Statement"]
-    index: auto
+    order_key: auto
     reference: Optional["Statement"]
     referenced_by: list["Statement"]
     symbol_type: Optional[SymbolType]
@@ -140,9 +140,9 @@ class StatementCreateInput:
     id: Optional[GlobalID] = None
     file_id: GlobalID
     type: StatementType
+    order_key: str
     name: Optional[str] = None
     parent_id: Optional[GlobalID] = None
-    index: Optional[int] = None
 
 
 @gql.input
@@ -170,7 +170,7 @@ class StatementRenameInput(gql.NodeInput):
 class StatementMoveInput(gql.NodeInput):
     file_id: GlobalID
     parent_id: Optional[GlobalID] = None
-    index: Optional[int] = None
+    order_key: Optional[str] = None
 
 
 @gql.input
@@ -205,7 +205,7 @@ class StatementMutation:
             type=input.type,
             name=input.name,
             parent=parent,
-            index=input.index,
+            order_key=input.order_key,
         )
         return statement
 
@@ -250,14 +250,12 @@ class StatementMutation:
         statement.set_commented(input.commented)
         return statement
 
-    @project_mutation(PMT.MOVE_STATEMENT, atomic=True)
+    @project_mutation(PMT.MOVE_STATEMENT)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        file = models.File.objects.get(id=input.file_id.node_id)
-        parent = (
-            models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
-        )
-        statement.move_to(file, parent, input.index)
+        statement.file_id = input.file_id
+        statement.parent_id = input.parent_id
+        statement.order_key = input.order_key
         return statement
 
     @project_mutation(PMT.RENAME_STATEMENT)
