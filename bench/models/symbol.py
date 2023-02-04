@@ -13,7 +13,14 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language import wire
-from bench.language.type import StatementModifier, StatementType, SymbolType
+from bench.language.type import (
+    EMPTY_FUNC_TYPE,
+    EMPTY_STRUCT_TYPE,
+    StatementModifier,
+    StatementType,
+    SymbolType,
+)
+from bench.language.wire import rmap_type_node
 from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
@@ -35,24 +42,19 @@ class StatementManager(models.Manager["Statement"]):
         project_version: ProjectVersion,
         file: File,
         parent: Optional[Statement],
-        index: Optional[int],
+        order_key: Optional[str],
         type: StatementType,
         name: Optional[str],
         **kwargs,
     ) -> Statement:
-        # auto set index if not passed
-        if index is None:
-            index = parent.children.count() if parent else file.root_statements.count()
-        else:
-            # make space
-            self.filter(file=file, parent=parent, index__gte=index).update(
-                index=models.F("index") + 1
-            )
+        if order_key is None:
+            # set order key to the end of siblings (parent/file children)
+            raise NotImplementedError("auto order key not implemented yet")
         return self.create(
             project_version=project_version,
             file=file,
             parent=parent,
-            index=index,
+            order_key=order_key,
             type=type,
             name=name,
             **kwargs,
@@ -122,7 +124,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     children: models.QuerySet[Statement]  # noqa via Statement.parent
-    index = models.IntegerField(null=True)  # index into file or parent statement
     order_key = models.CharField(max_length=64, null=True, blank=True)  # in file/parent
 
     symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
@@ -151,7 +152,7 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
 
     def __str__(self):
-        path = self.file.path + ":" + str(self.absolute_index)
+        path = self.file.path + ":" + str(self.order_key)
         if self.type == StatementType.DEFINITION:
             content_str = "()"  # should have some nice __str__ here
         elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
@@ -174,12 +175,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
             self.save()
 
     @property
-    def absolute_index(self) -> str:
-        if self.parent:
-            return f"{self.parent.absolute_index}.{self.index}"
-        return str(self.index)
-
-    @property
     def siblings(self) -> models.QuerySet[Statement]:
         return self.parent.children if self.parent else self.file.root_statements
 
@@ -200,55 +195,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         else:
             return self.reference.source_definition
 
-    def move_to(self, file: File, parent: Optional[Statement], index: Optional[int] = None) -> None:
-        """
-        Moves this statement to a new file and/or parent statement.
-        Updates children at both the old and new locations.
-        """
-        # TODO @Robustness: use repeatable read isolation to avoid concurrent moves
-        # (statement index swaps must be atomic to prevent duplicates)
-        # but it doesn't work with new mutations because they read before the tx starts
-        # but we will switch to fractional indices anyway so this doesn't matter for long
-        # cursor = connection.cursor()
-        # cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-
-        # check that we're keeping import semantics: can only refer to statements in the same file
-        if (
-            self.type == StatementType.REFERENCE
-            and self.reference is not None
-            and self.reference.file != file
-        ):
-            raise ValueError(f"can't move reference {self} to file {file}")
-
-        # reload self to get the latest location within transaction
-        self.refresh_from_db(fields=["file", "parent", "index"])
-
-        old_siblings = self.parent.children if self.parent else self.file.root_statements
-        new_siblings = parent.children if parent else file.root_statements
-        if index is None:
-            # if index not passed then insert at the end
-            index = new_siblings.count()
-
-        if self.file == file and self.parent == parent:
-            # if file and parent are the same just swap
-            if self.index == index:
-                # if index is the same then do nothing
-                return
-            other_statement = new_siblings.get(index=index)
-            self.index, other_statement.index = other_statement.index, self.index
-            self.save()
-            other_statement.save()
-        else:  # remove from old location and insert at new location
-            # make space at new location
-            new_siblings.filter(index__gte=index).update(index=models.F("index") + 1)
-            # fill space at old location
-            old_siblings.filter(index__gt=self.index).update(index=models.F("index") - 1)
-            # update self
-            self.file = file
-            self.parent = parent
-            self.index = index
-            self.save()
-
     def morph_to(
         self,
         type: StatementType,
@@ -268,21 +214,19 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
             self.description = ""
             if symbol_type == SymbolType.DATASET:
                 self.language = "jsonl"
-                self.btl = "()"
+                self.type_nodes = rmap_type_node(EMPTY_STRUCT_TYPE)
             elif symbol_type == SymbolType.CODE or symbol_type == SymbolType.TASK:
                 self.language = "python"
-                self.btl = "()"
+                self.type_nodes = rmap_type_node(EMPTY_FUNC_TYPE)
                 self.code = ""
             elif symbol_type == SymbolType.TYPE:
-                self.btl = ""
+                self.type_nodes = rmap_type_node(EMPTY_STRUCT_TYPE)
         self.save()
 
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         # soft delete descendants (that aren't yet deleted)
         self.descendants.filter(deleted_at=None).update(deleted_at=self.deleted_at)
-        # move siblings up
-        self.siblings.filter(index__gt=self.index).update(index=models.F("index") - 1)
         self.save()
 
     def restore(self):
@@ -292,9 +236,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         # restore descendants (that were deleted at the same time)
         self.descendants.filter(deleted_at=self.deleted_at).update(deleted_at=None)
         self.deleted_at = None
-        # move siblings down
-        # TODO @Robustness: statement restore assumes siblings were not changed - correct?
-        self.siblings.filter(index__gte=self.index).update(index=models.F("index") + 1)
         self.save()
 
     def set_commented(self, commented: bool):
@@ -306,9 +247,8 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     objects: StatementManager = StatementManager()
 
     class Meta:
-        ordering = ["index"]
+        ordering = ["order_key"]
         default_manager_name = "objects"
-        # TODO @Robustness: unique constraint on index when we switch to fractional indexes
         # no constraint on contents since statements may be partially defined
         #  (during creation, editing and after reference deletion)
         constraints = [

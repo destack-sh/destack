@@ -385,7 +385,7 @@ type Statement implements Node {
   parent: Statement
   children: [Statement!]!
   descendants: [Statement!]!
-  index: Int
+  orderKey: String
   reference: Statement
   referencedBy: [Statement!]!
   symbolType: SymbolType
@@ -411,9 +411,9 @@ input StatementCreateInput {
   id: GlobalID = null
   fileId: GlobalID!
   type: StatementType!
+  orderKey: String!
   name: String = null
   parentId: GlobalID = null
-  index: Int = null
 }
 
 input StatementFilter {
@@ -442,7 +442,7 @@ input StatementMoveInput {
   id: GlobalID!
   fileId: GlobalID!
   parentId: GlobalID = null
-  index: Int = null
+  orderKey: String = null
 }
 
 union StatementOperationInfo = Statement | OperationInfo

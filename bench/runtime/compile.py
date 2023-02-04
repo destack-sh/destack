@@ -33,6 +33,7 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.language.typer import check_type, fabricate
+from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
 
@@ -409,7 +410,8 @@ def down(symbols: list[InterpSymbol], file: File | None = None) -> File:
         file = File(module=Module(name="<generated>"), path="<generated>")
 
     # render symbols themselves
-    for symbol in symbols:
+    order_keys = generate_n_keys_between(None, None, len(symbols))
+    for order_key, symbol in zip(order_keys, symbols):
         if isinstance(symbol, Dataset):
             content = down_dataset_content(symbol)
         elif isinstance(symbol, Code):
@@ -425,7 +427,7 @@ def down(symbols: list[InterpSymbol], file: File | None = None) -> File:
             content=content,
             file=file,
             parent=None,
-            index=len(file.statements),
+            order_key=order_key,
         )
         file.statements.append(statement)
 

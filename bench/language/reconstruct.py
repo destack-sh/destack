@@ -54,7 +54,7 @@ def render_file(file: File) -> str:
         statements_by_parent[parent_id].append(statement)
     # sort by index
     for statements in statements_by_parent.values():
-        statements.sort(key=lambda s: s.index)
+        statements.sort(key=lambda s: s.order_key)
 
     def walk_dfs(statement: Statement, indent: int) -> Iterable[Statement]:
         yield statement, indent

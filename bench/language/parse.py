@@ -51,6 +51,7 @@ from bench.language.type import (
     ValueContent,
     parse_statement_path,
 )
+from bench.utils.fractional import increment_integer
 
 logger = structlog.get_logger(__name__)
 
@@ -373,11 +374,11 @@ class FileParseState:
         return self.ancestors[self.indent - 1] if self.indent > 0 else None
 
     @property
-    def index(self) -> int:
+    def next_order_key(self) -> str:
         if self.parent is None:
-            return len(self.root_statements)
+            return increment_integer(self.root_statements[-1].order_key)
         else:
-            return len(self.children(self.parent))
+            return increment_integer(self.children(self.parent)[-1].order_key)
 
     @property
     def root_statements(self) -> list[Statement]:
@@ -430,7 +431,7 @@ def preparse(
                 on_error=errors.append,
                 file=local.file,
                 parent=local.parent,
-                index=local.index,
+                order_key=local.next_order_key,
             )
             tokens.indent_level = 0  # skip only for statement parsing
 
@@ -1343,7 +1344,7 @@ def index_module(
     # populate scopes with expanded statements
     for statements in statements_by_parent_id.values():
         # (first sort all statements by index ascending inside their parent)
-        statements.sort(key=lambda s: s.index)
+        statements.sort(key=lambda s: s.order_key)
         for statement in statements:
             scope = idx.scopes[statement.id]
             scope.parent.statements[statement.name] = statement
