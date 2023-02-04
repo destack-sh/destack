@@ -13,6 +13,7 @@ from bench.models import Organization, Project, Statement
 from bench.models.mapper import lookup_in_db_module, write_module
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
 from bench.runtime.execute import ProviderKey
+from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
 
@@ -114,13 +115,14 @@ def create_model_providers():
         # TODO @Cleanup: use bench string instead of DB models to bootstrap model providers
         #  (not yet possible since models can't be expressed in bench yet)
         models_file = std_v.create_file(name="text")
-        for model_id in provider.models:
+        order_keys = generate_n_keys_between(None, None, len(provider.models))
+        for order_key, model_id in zip(order_keys, provider.models):
             provider_key = ProviderKey[provider.slug.upper()]
             statement = Statement.objects.create_statement(
                 project_version=std_v,
                 file=models_file,
                 parent=None,
-                index=None,
+                order_key=order_key,
                 type=StatementType.DEFINITION,
                 symbol_type=SymbolType.MODEL,
                 name=model_id,

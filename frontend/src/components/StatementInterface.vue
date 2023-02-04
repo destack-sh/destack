@@ -114,7 +114,7 @@ const operations = useOperations();
 
 const isFocused = computed(() => editorState.focusedElementId == statement.value?.id);
 const isEditing = computed(() => isFocused.value && editorState.editingElement);
-const readonly = computed(() => editorState.readonly || statement.value.compiled);
+const readonly = computed(() => editorState.readonly || statement.value.generated);
 
 const isRedefinition = computed(() => statement.value?.type == StatementType.Redefinition);
 const isDefinition = computed(() => statement.value?.type == StatementType.Definition || isRedefinition.value);
@@ -616,7 +616,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       {{ statement.type }}
       <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
       <template v-if="statement.name != null">{{ statement.name }}</template>
-      r:{{ statement.revision }} i:{{ statement.index }} d:{{ depth }}
+      r:{{ statement.revision }} i:{{ statement.orderKey }} d:{{ depth }}
     </span>
     <!-- Commented overlay -->
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />

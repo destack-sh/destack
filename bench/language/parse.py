@@ -51,7 +51,7 @@ from bench.language.type import (
     ValueContent,
     parse_statement_path,
 )
-from bench.utils.fractional import increment_integer
+from bench.utils.fractional import INTEGER_ZERO, increment_integer
 
 logger = structlog.get_logger(__name__)
 
@@ -376,9 +376,13 @@ class FileParseState:
     @property
     def next_order_key(self) -> str:
         if self.parent is None:
-            return increment_integer(self.root_statements[-1].order_key)
+            siblings = self.root_statements
         else:
-            return increment_integer(self.children(self.parent)[-1].order_key)
+            siblings = self.children(self.parent)
+        if len(siblings) == 0:
+            return INTEGER_ZERO
+        else:
+            return increment_integer(siblings[-1].order_key)
 
     @property
     def root_statements(self) -> list[Statement]:

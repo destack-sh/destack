@@ -40,7 +40,7 @@ class SourceMapping:
 
 @gql.django.type(models.DatasetRecord)
 class DatasetRecord:
-    index: int
+    order_key: str
     data: JSON
 
 
@@ -87,7 +87,7 @@ class Statement(gql.Node):
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
-    type_nodes: list[TypeNodeData]
+    type_nodes: Optional[list[TypeNodeData]]
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
 
@@ -255,6 +255,7 @@ class StatementMutation:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = input.file_id
         statement.parent_id = input.parent_id
+        # TODO @Robustness: return a different order key if conflict
         statement.order_key = input.order_key
         return statement
 

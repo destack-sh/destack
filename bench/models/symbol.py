@@ -72,11 +72,6 @@ class TypeNodesDataField(models.JSONField):
         value = super().from_db_value(value, expression, connection)
         return [from_dict(wire.TypeNodeData, val) for val in value]
 
-    def to_python(self, value):
-        if value is None:
-            return None
-        return [from_dict(wire.TypeNodeData, val) for val in value]
-
     def get_prep_value(self, value):
         if value is None:
             return None
@@ -124,7 +119,7 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     children: models.QuerySet[Statement]  # noqa via Statement.parent
-    order_key = models.CharField(max_length=64, null=True, blank=True)  # in file/parent
+    order_key = models.CharField(max_length=64)  # in file/parent
 
     symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
     reference = models.ForeignKey(
@@ -252,6 +247,17 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         # no constraint on contents since statements may be partially defined
         #  (during creation, editing and after reference deletion)
         constraints = [
+            # check that order key is unique within parent/file (if not "deleted")
+            models.UniqueConstraint(
+                fields=["file", "order_key"],
+                name="bench_statement_file_order_key_ak",
+                condition=models.Q(parent__isnull=True, deleted_at__isnull=True),
+            ),
+            models.UniqueConstraint(
+                fields=["parent", "order_key"],
+                name="bench_statement_parent_order_key_ak",
+                condition=models.Q(parent__isnull=False, deleted_at__isnull=True),
+            ),
             # if reference is set symbol type must also be set
             models.CheckConstraint(
                 check=models.Q(reference__isnull=True) | models.Q(symbol_type__isnull=False),

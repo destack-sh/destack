@@ -20,35 +20,69 @@ export function useStatementOps() {
         $id: GlobalID
         $fileId: GlobalID!
         $parentId: GlobalID
-        $index: Int
+        $orderKey: String!
         $type: StatementType!
         $name: String
       ) {
         createStatement(
-          input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index, type: $type, name: $name }
+          input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey, type: $type, name: $name }
         ) {
           ... on Statement {
-            id
-            ...StatementHeader
-            text
-            revision
-            file {
-              id
-              path
-              # should match FileInterface query
-              statements(filters: { isVisible: true }) {
-                id
-                index
-              }
-            }
-            parent {
-              id
-            }
+            ...StatementContent
           }
+          ...OperationInfoContent
         }
       }
     `)
   );
+
+  async function create(
+    id: string,
+    fileId: string,
+    parentId: string | null,
+    orderKey: string,
+    type: StatementType,
+    name?: string
+  ) {
+    async function apply() {
+      const create = await createStatementMut(
+        {
+          id,
+          fileId,
+          parentId,
+          orderKey,
+          type,
+          name,
+        },
+        {
+          update(cache, { data: createStatement }) {
+            console.log("update existing statements", createStatement);
+            cache.modify({
+              id: `File:${fileId}`,
+              fields: {
+                statements(currentStatements = []) {
+                  return [...currentStatements, createStatement?.createStatement];
+                },
+              },
+            });
+          },
+        }
+      );
+      if (create?.data?.createStatement == null || create?.data?.createStatement.__typename !== "Statement") {
+        // TODO @Robustness: unify error response handling
+        throw new Error("invalid response");
+      }
+      return useFragment(StatementHeaderType, create?.data?.createStatement);
+    }
+
+    return await operations.perform({
+      type: "statement.create",
+      do: apply,
+      undo: async () => {
+        await deleteStatementMut({ id });
+      },
+    });
+  }
 
   const { mutate: morphStatementMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -71,188 +105,6 @@ export function useStatementOps() {
       }
     `)
   );
-
-  const { mutate: updateStatementModifier } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation updateStatementModifier($id: GlobalID!, $modifier: StatementModifier) {
-        updateStatementModifier(input: { id: $id, modifier: $modifier }) {
-          ... on Statement {
-            id
-            modifier
-            revision
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: moveStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $index: Int) {
-        moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, index: $index }) {
-          ... on Statement {
-            id
-            index
-            revision
-            file {
-              id
-              path
-              # should match FileInterface query
-              statements(filters: { isVisible: true }) {
-                id
-                index
-              }
-            }
-            parent {
-              id
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: renameStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation renameStatement($id: GlobalID!, $name: String) {
-        renameStatement(input: { id: $id, name: $name }) {
-          ... on Statement {
-            id
-            name
-            revision
-            referencedBy {
-              id
-              name
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: deleteStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation deleteStatement($id: GlobalID!) {
-        softDeleteStatement(input: { id: $id }) {
-          ... on Statement {
-            id
-            deletedAt
-            revision
-            descendants {
-              id
-              deletedAt
-            }
-            # update all indices of statements in the same file
-            file {
-              id
-              statements(filters: { isVisible: true }) {
-                id
-                index
-              }
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: restoreStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation restoreStatement($id: GlobalID!) {
-        restoreStatement(input: { id: $id }) {
-          ... on Statement {
-            id
-            deletedAt
-            revision
-            descendants {
-              id
-              deletedAt
-            }
-            # update all indices of statements in the same file
-            file {
-              id
-              statements(filters: { isVisible: true }) {
-                id
-                index
-              }
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: commentStatementMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
-        commentStatement(input: { id: $id, commented: $commented }) {
-          ... on Statement {
-            id
-            commented
-            revision
-            descendants {
-              id
-              commented
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  const { mutate: setReferenceMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {
-        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
-          ... on Statement {
-            id
-            revision
-            reference {
-              ...StatementHeader
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  async function create(
-    id: string,
-    fileId: string,
-    parentId: string | null,
-    index: number | null,
-    type: StatementType,
-    name?: string
-  ) {
-    return await operations.perform({
-      type: "statement.create",
-      do: async () => {
-        const create = await createStatementMut({
-          id,
-          fileId,
-          parentId,
-          index,
-          type,
-          name,
-        });
-        if (create?.data?.createStatement == null || create?.data?.createStatement.__typename !== "Statement") {
-          // TODO @Robustness: unify error response handling
-          throw new Error("invalid response");
-        }
-        return useFragment(StatementHeaderType, create?.data?.createStatement);
-      },
-      undo: async () => {
-        await deleteStatementMut({ id });
-      },
-    });
-  }
 
   async function morph(
     id: string,
@@ -278,6 +130,21 @@ export function useStatementOps() {
     });
   }
 
+  const { mutate: updateStatementModifier } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateStatementModifier($id: GlobalID!, $modifier: StatementModifier) {
+        updateStatementModifier(input: { id: $id, modifier: $modifier }) {
+          ... on Statement {
+            id
+            modifier
+            revision
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
   async function modify(id: string, oldModifier: StatementModifier | null, newModifier: StatementModifier | null) {
     await operations.perform({
       type: "statement.modify",
@@ -290,22 +157,41 @@ export function useStatementOps() {
     });
   }
 
-  async function setReference(id: string, oldReferenceId: string | null, newReferenceId: string | null) {
-    await operations.perform({
-      type: "statement.setReference",
-      do: async () => {
-        await setReferenceMut({ id: id, referenceId: newReferenceId });
-      },
-      undo: async () => {
-        await setReferenceMut({ id: id, referenceId: oldReferenceId });
-      },
-    });
-  }
+  const { mutate: moveStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
+        moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
+          ... on Statement {
+            id
+            orderKey
+            revision
+            parent {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; fileId: string; parentId: string; orderKey: string }) => ({
+        __typename: "Statement",
+        id: vars.id,
+        orderKey: vars.id,
+        file: {
+          id: vars.fileId,
+        },
+        parent: {
+          id: vars.parentId,
+        },
+      }),
+    }
+  );
 
   async function move(
     id: string,
-    oldLoc: { fileId: string; parentId?: string; index?: number },
-    newLoc: { fileId: string; parentId?: string; index?: number }
+    oldLoc: { fileId: string; parentId?: string; orderKey: string },
+    newLoc: { fileId: string; parentId?: string; orderKey: string }
   ) {
     await operations.perform({
       type: "statement.move",
@@ -314,7 +200,7 @@ export function useStatementOps() {
           id: id,
           fileId: newLoc.fileId,
           parentId: newLoc.parentId,
-          index: newLoc.index,
+          orderKey: newLoc.orderKey,
         });
       },
       undo: async () => {
@@ -322,23 +208,26 @@ export function useStatementOps() {
           id: id,
           fileId: oldLoc.fileId,
           parentId: oldLoc.parentId,
-          index: oldLoc.index,
+          orderKey: oldLoc.orderKey,
         });
       },
     });
   }
 
-  async function comment(id: string, commented: boolean) {
-    await operations.perform({
-      type: "statement.comment",
-      do: async () => {
-        await commentStatementMut({ id: id, commented: commented });
-      },
-      undo: async () => {
-        await commentStatementMut({ id: id, commented: !commented });
-      },
-    });
-  }
+  const { mutate: renameStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation renameStatement($id: GlobalID!, $name: String) {
+        renameStatement(input: { id: $id, name: $name }) {
+          ... on Statement {
+            id
+            name
+            revision
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
 
   async function rename(id: string, oldName: string | null, newName: string | null) {
     await operations.perform({
@@ -352,6 +241,62 @@ export function useStatementOps() {
     });
   }
 
+  const { mutate: deleteStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation deleteStatement($id: GlobalID!) {
+        softDeleteStatement(input: { id: $id }) {
+          ... on Statement {
+            id
+            deletedAt
+            descendants {
+              id
+              deletedAt
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) => ({
+        softDeleteStatement: {
+          __typename: "Statement",
+          id: vars.id,
+          deletedAt: new Date().toISOString(),
+          descendants: [], // unknown
+        },
+      }),
+    }
+  );
+
+  const { mutate: restoreStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restoreStatement($id: GlobalID!) {
+        restoreStatement(input: { id: $id }) {
+          ... on Statement {
+            id
+            deletedAt
+            descendants {
+              id
+              deletedAt
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) => ({
+        restoreStatement: {
+          __typename: "Statement",
+          id: vars.id,
+          deletedAt: null,
+          descendants: [], // unknown
+        },
+      }),
+    }
+  );
+
   async function delete_(id: string) {
     await operations.perform({
       type: "statement.delete",
@@ -360,6 +305,66 @@ export function useStatementOps() {
       },
       undo: async () => {
         await restoreStatementMut({ id: id });
+      },
+    });
+  }
+
+  const { mutate: commentStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
+        commentStatement(input: { id: $id, commented: $commented }) {
+          ... on Statement {
+            id
+            commented
+            revision
+            descendants {
+              id
+              commented
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function comment(id: string, commented: boolean) {
+    await operations.perform({
+      type: "statement.comment",
+      do: async () => {
+        await commentStatementMut({ id: id, commented: commented });
+      },
+      undo: async () => {
+        await commentStatementMut({ id: id, commented: !commented });
+      },
+    });
+  }
+
+  const { mutate: setReferenceMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {
+        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
+          ... on Statement {
+            id
+            revision
+            reference {
+              ...StatementHeader
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function setReference(id: string, oldReferenceId: string | null, newReferenceId: string | null) {
+    await operations.perform({
+      type: "statement.setReference",
+      do: async () => {
+        await setReferenceMut({ id: id, referenceId: newReferenceId });
+      },
+      undo: async () => {
+        await setReferenceMut({ id: id, referenceId: oldReferenceId });
       },
     });
   }

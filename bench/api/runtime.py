@@ -30,8 +30,7 @@ logger = structlog.get_logger(__name__)
 @gql.type
 class TypeNode:
     name: Optional[str]
-    type: TypeTag
-    required: bool = True
+    tag: TypeTag
     description: Optional[str]
     reference: Optional[str] = None
     children: Optional[list["TypeNode"]] = None

@@ -9,18 +9,21 @@ import { provideStatementActions } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
+import { INTEGER_ZERO } from "@/utils/fractional";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
 const props = defineProps<{ fileId: string }>();
 
+// TODO @Broken: filter file.statements to only non-soft deleted statements
+//  (need to consider optimistic writes and other updates to statements array)
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
         id
         ...FileHeader
-        statements(filters: { isVisible: true }) {
+        statements {
           ...StatementContent
         }
       }
@@ -60,8 +63,8 @@ function getStatementContentLength(statement: StatementContentFragment) {
   if (statement.type == StatementType.Definition) {
     if (statement.symbolType == SymbolType.Code && statement.code != null) {
       return statement.code.split("\n").length;
-    } else if (statement.symbolType == SymbolType.Type && statement.btl != null) {
-      return statement.btl.split("\n").length;
+    } else if (statement.symbolType == SymbolType.Type && statement.typeNodes != null) {
+      return statement.typeNodes.length;
     } else if (statement.symbolType == SymbolType.Dataset && statement.records != null) {
       return statement.records.length;
     }
@@ -92,14 +95,14 @@ const positionedStatements = computed(() => {
     positionedStatements.push({ depth, lineNumberBase, statement, isFirstInGroup, isLastInGroup: isLastInRoot });
     lineNumberBase += 1 + getStatementContentLength(statement);
 
-    // sort by index
-    children.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    // sort by order key
+    children.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
     children.forEach((child, i) => walkDfs(child, depth + 1, isLast && i == children.length - 1));
   }
 
   // start with roots sorted by index
   const roots = rootStatements.value;
-  roots.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  roots.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
   roots.forEach((root) => walkDfs(root, 0, true));
 
   // group groupable sibling statements at root

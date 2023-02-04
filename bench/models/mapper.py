@@ -17,6 +17,7 @@ from bench.language import wire
 from bench.language.parse import index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.models.project import Project, ProjectVersion
+from bench.utils.fractional import generate_n_keys_between
 
 
 def lookup_in_db_module(
@@ -215,10 +216,10 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 
     # copy relational data
     if data.records:
+        order_keys = generate_n_keys_between(None, None, len(data.records))
         model_records = [
-            # nocheckin use correct order keys
-            models.DatasetRecord(dataset=statement, order_key=i, data=data)
-            for i, data in enumerate(data.records)
+            models.DatasetRecord(dataset=statement, order_key=order_key, data=data)
+            for order_key, data in zip(order_keys, data.records)
         ]
         return model_records
     elif data.generated_mappings:

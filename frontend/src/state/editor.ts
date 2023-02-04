@@ -28,8 +28,8 @@ export type StatementHeader = Pick<
   | "createdAt"
   | "updatedAt"
   | "deletedAt"
-  | "index"
-  | "compiled"
+  | "orderKey"
+  | "generated"
   | "commented"
   | "parent"
 >;

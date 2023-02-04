@@ -3,6 +3,7 @@ import { provideSingletonAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
+import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { computed, type Ref } from "vue";
 
 export function provideStatementActions(
@@ -18,7 +19,7 @@ export function provideStatementActions(
     return {
       fileId: file.value?.id,
       parentId: statement.parent?.id,
-      index: statement.index ?? 0,
+      orderKey: statement?.orderKey ?? INTEGER_ZERO,
     };
   }
 
@@ -44,7 +45,7 @@ export function provideStatementActions(
 
   // actions for currently focused statement
   const statement = computed(() => symbolsById.value[editor.focusedElementId as string]);
-  const index = computed(() => statement.value?.index ?? -1);
+  const orderKey = computed(() => statement.value?.orderKey ?? INTEGER_ZERO);
   const siblings = computed(() => statementsByParentId.value[statement.value?.parent?.id ?? ""]);
   const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
   const position = computed(() => orderedStatements.value.findIndex((s) => s.id === statement.value?.id));
@@ -55,7 +56,9 @@ export function provideStatementActions(
   const belowCurGroup = computed(() => {
     // next statement after this with depth <= this depth
     for (let i = position.value + 1; i < orderedStatements.value.length; i++) {
-      if (depths.value[i] <= depths.value[position.value]) return orderedStatements.value[i];
+      if (depths.value[i] <= depths.value[position.value]) {
+        return orderedStatements.value[i];
+      }
     }
     return undefined;
   });
@@ -66,15 +69,17 @@ export function provideStatementActions(
     label: "Move statement in",
     shortcuts: ["tab"],
     // we can only indent if there is a sibling above
-    enabled: computed(() => !editor.editingElement && !!statement.value && index.value > 0),
+    enabled: computed(() => !editor.editingElement && !!statement.value && above.value != null),
     registered: enabled,
     apply: async () => {
-      // insert at end of previous sibling's children (leave index undefined)
-      const previousSibling = siblings.value[index.value - 1];
+      // insert at end of previous sibling's children
+      const previousSibling = siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) - 1];
+      const previousSiblingChildren = statementsByParentId.value[previousSibling.id];
+      const lastPreviousSiblingChild = previousSiblingChildren.slice(-1)[0];
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
         parentId: previousSibling.id,
-        index: undefined,
+        orderKey: generateKeyBetween(lastPreviousSiblingChild.orderKey, null),
       });
     },
   });
@@ -89,11 +94,12 @@ export function provideStatementActions(
     apply: async () => {
       const parent = symbolsById.value[statement.value.parent?.id];
       const grandparent = symbolsById.value[parent.parent?.id];
-      // insert after parent (leave index undefined)
+      const parentNextSibling = statementsByParentId.value[parent.id].find((s) => s.orderKey > parent.orderKey);
+      // insert after parent
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
         parentId: grandparent?.id,
-        index: (parent.index ?? 0) + 1,
+        orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
       });
     },
   });
@@ -203,11 +209,11 @@ export function provideStatementActions(
     enabled: computed(() => !!statement.value && !editor.editingElement),
     registered: enabled,
     apply: async () => {
-      const above_ = above.value;
-      await operations.statement.delete(statement.value.id);
-      if (above_) {
-        editor.focusElement(above_);
+      const current = statement.value.id;
+      if (above.value) {
+        editor.focusElement(above.value);
       }
+      await operations.statement.delete(current);
     },
   });
 
@@ -223,7 +229,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
-        statement.value.index ?? 0,
+        generateKeyBetween(above.value?.orderKey ?? null, orderKey.value),
         StatementType.Blank
       );
       editor.editElement(newStatement as StatementHeader);
@@ -236,11 +242,13 @@ export function provideStatementActions(
     enabled: computed(() => !!file.value && !editor.editingElement),
     registered: enabled,
     apply: async () => {
+      const roots = statementsByParentId.value[""];
+      const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
       const newStatement = await operations.statement.create(
         newStatementId(),
         file.value?.id,
         null,
-        0,
+        generateKeyBetween(null, firstRootKey),
         StatementType.Blank
       );
       editor.editElement(newStatement as StatementHeader);
@@ -254,12 +262,12 @@ export function provideStatementActions(
     registered: enabled,
     apply: async () => {
       const roots = statementsByParentId.value[""];
-      const lastRootIndex = roots?.[roots.length - 1]?.index ?? -1;
+      const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
       const newStatement = await operations.statement.create(
         newStatementId(),
         file.value?.id,
         null,
-        lastRootIndex + 1,
+        generateKeyBetween(lastRootKey, null),
         StatementType.Blank
       );
       editor.editElement(newStatement as StatementHeader);
@@ -276,24 +284,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
-        (statement.value.index ?? 0) + 1,
-        StatementType.Blank
-      );
-      editor.editElement(newStatement as StatementHeader);
-    },
-  });
-  const insertChildCurrent = provideSingletonAction({
-    id: "statement.insertChildCurrent",
-    label: "Insert statement as child of current",
-    shortcuts: ["shift+i", "shift+b", "shift+plus"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
-    registered: enabled,
-    apply: async () => {
-      const newStatement = await operations.statement.create(
-        newStatementId(),
-        file.value?.id,
-        statement.value.id,
-        statementsByParentId.value[statement.value.id]?.length ?? 0,
+        generateKeyBetween(orderKey.value, below.value?.orderKey ?? null),
         StatementType.Blank
       );
       editor.editElement(newStatement as StatementHeader);
@@ -334,7 +325,6 @@ export function provideStatementActions(
     insertEnd,
     insertBeforeCurrent,
     insertAfterCurrent,
-    insertChildCurrent,
     toggleCommentedCurrent,
   };
 }
