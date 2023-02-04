@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pytz
 import structlog
-from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
 from django.db.models import Q
 from django_choices_field import TextChoicesField
@@ -61,39 +60,41 @@ class StatementManager(models.Manager["Statement"]):
 
 
 # Django field for our wire.TypeNodeData dataclass
-class TypeNodeDataField(models.JSONField):
+class TypeNodesDataField(models.JSONField):
+    def get_default(self):
+        return []
+
     def from_db_value(self, value, expression, connection):
         if value is None:
             return None
-        return from_dict(wire.TypeNodeData, value)
+        value = super().from_db_value(value, expression, connection)
+        return [from_dict(wire.TypeNodeData, val) for val in value]
 
     def to_python(self, value):
         if value is None:
             return None
-        return from_dict(wire.TypeNodeData, value)
+        return [from_dict(wire.TypeNodeData, val) for val in value]
 
     def get_prep_value(self, value):
         if value is None:
             return None
-        return to_dict(value)
+        return super().get_prep_value(to_dict(value, omit_empty=True))
 
 
 # sync with actual symbol content fields of Statement
-SYMBOL_CONTENT_VALUE_FIELDS = {
+SYMBOL_CONTENT_VALUE_FIELDS = (
     "language",
     "code",
     "code_builtin_id",
     "description",
     "value",
     "type_nodes",
-}
-SYMBOL_CONTENT_RELATION_1TOM_FIELDS = {
-    "reference_project_version",
-}
-SYMBOL_CONTENT_RELATION_MTOM_FIELDS = {
+)
+SYMBOL_CONTENT_RELATION_1TOM_FIELDS = ("reference_project_version",)
+SYMBOL_CONTENT_RELATION_MTOM_FIELDS = (
     "mappings",
     "compilations",
-}
+)
 
 
 class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
@@ -115,14 +116,14 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
     commented = models.BooleanField(default=False)
-    compiled = models.BooleanField(default=False)
+    generated = models.BooleanField(default=False)
 
     parent = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     index = models.IntegerField(null=True)  # index into file or parent statement
-    order_key = models.CharField(max_length=32, null=True, blank=True)  # in file/parent
+    order_key = models.CharField(max_length=64, null=True, blank=True)  # in file/parent
 
     symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
     reference = models.ForeignKey(
@@ -136,15 +137,15 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     text = models.TextField(null=True, blank=True)  # for comment
     # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
-    lang = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
-    code_builtin_id = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    code_builtin_id = models.CharField(max_length=64, null=True, blank=True)
     description = models.TextField(null=True, blank=True)  # for any descriptions
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     value = models.JSONField(null=True, blank=True)  # for value
-    type_nodes = ArrayField(TypeNodeDataField(), null=True, blank=True)  # for any type nodes
+    type_nodes = TypeNodesDataField(null=True, blank=True)
     on = models.TextField(null=True, blank=True)  # for expect-likes
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
