@@ -71,7 +71,7 @@ class Statement(gql.Node):
     updated_at: auto
     deleted_at: auto
     commented: auto
-    compiled: auto
+    generated: auto
     parent: Optional["Statement"]
     children: list["Statement"]
     descendants: list["Statement"]

@@ -18,7 +18,7 @@ from bench.language.type import (
     SymbolType,
     TypeTag,
 )
-from bench.utils.fractional import generate_n_keys_between
+from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 
 #
 # Stable, concise and flat language data structures for transit and storage.
@@ -30,11 +30,11 @@ class TypeNodeData:
     id: UUID
     name: Optional[str]
     tag: TypeTag
+    order_key: str
     description: Optional[str] = None
     value: Optional[LiteralValue] = None
     reference: Union[None, str] = None
     parent_id: Optional[UUID] = None
-    order_key: Optional[str] = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -231,10 +231,10 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
 def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
     if isinstance(content, language.TypeNode):
-        data.type_node = rmap_type_node(content)
+        data.type_nodes = rmap_type_node(content)
     elif isinstance(content, language.TaskContent):
         data.description = content.description
-        data.type_node = rmap_type_node(content.type_node)
+        data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.ExpectationContent):
         data.description = content.description
         data.on = content.on
@@ -243,7 +243,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.code = content.code
         data.code_builtin_id = content.builtin_id
-        data.type_node = rmap_type_node(content.type_node)
+        data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
         data.external_name = content.external_name
@@ -256,7 +256,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.description = content.description
         data.records = content.records
-        data.type_node = rmap_type_node(content.type_node)
+        data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.CompilationContent):
         data.generated_mappings = content.source_mappings
     elif isinstance(content, language.RequirementContent):
@@ -327,13 +327,17 @@ def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
             description=data.description,
             value=data.value,
             reference=data.reference,
+            source_reference=data.reference,
         )
         nodes_by_id[data.id] = node
 
     # assign children based on parent ids (sorted by order keys, which works per-parent)
     for data in sorted(nodes_data, key=lambda n: n.order_key):
         if data.parent_id is not None:
-            nodes_by_id[data.parent_id].children.append(nodes_by_id[data.id])
+            parent = nodes_by_id[data.parent_id]
+            if parent.children is None:
+                parent.children = []
+            parent.children.append(nodes_by_id[data.id])
 
     # find original root (the one with no parent)
     root = first(nodes_by_id.values(), lambda n: n.parent_id is None)
@@ -344,7 +348,7 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
     """Maps a type node tree structure to a flat list of type node data."""
     nodes_data = OrderedDict()
     for n in node.walk():
-        reference = node.reference
+        reference = n.reference
         if isinstance(reference, language.TypeNode):
             reference = reference.name
         nodes_data[n.id] = TypeNodeData(
@@ -355,6 +359,7 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
             value=n.value,
             reference=reference,
             parent_id=None,  # will be set in second pass
+            order_key=INTEGER_ZERO,  # will be set in second pass
         )
 
     # assign parent ids
@@ -362,6 +367,7 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
         if n.children is not None:
             child_order_keys = generate_n_keys_between(None, None, len(n.children))
             for order_key, child in zip(child_order_keys, n.children):
+                nodes_data[child.id].order_key = order_key
                 nodes_data[child.id].parent_id = n.id
 
     return list(nodes_data.values())

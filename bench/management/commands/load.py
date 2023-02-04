@@ -11,15 +11,16 @@ from django.db import transaction
 from bench import language
 from bench.language import lex, parse, wire
 from bench.language.lex import SourceFile
+from bench.language.reconstruct import render
 from bench.models import Organization, Project
-from bench.models.mapper import lookup_in_db_module, write_module
+from bench.models.mapper import lookup_in_db_module, read_module, write_module
 from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Loads a instructions from a file into a project"
+    help = "Load Bench files into a project"
 
     def add_arguments(self, parser: CommandParser):
         # project as organization/project
@@ -45,14 +46,19 @@ class Command(BaseCommand):
 
         project_v = project.create_version(name=version_id)
         project_v.reset()
-        module = language.Module(id=project_v.id, name=project_v.project.path)
+        lang_module = language.Module(id=project_v.id, name=project_v.project.path)
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        module, _ = parse(lex(source_file), module, lookup_in_db_module)
-        wire_module = wire.rmap_module(module)
+        lang_module, _ = parse(lex(source_file), lang_module, lookup_in_db_module)
+        wire_module = wire.rmap_module(lang_module)
         write_module(wire_module.files, project_v)
 
         # advance head to new version
         project.head = project_v
         project.save()
+
+        # try to recover original source (sanity check)
+        wire_module = read_module(project_v)
+        lang_module = wire.wmap_module(wire_module)
+        _ = render(lang_module.files)
 
         logger.info(f"Updated head to {project_v} in {project}")

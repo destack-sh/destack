@@ -32,15 +32,23 @@ def deepcopy(obj: typing.Any) -> typing.Any:
     return from_dict(cls, to_dict(obj))
 
 
-def to_dict(obj: typing.Any) -> typing.Any:
+def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
     """Convert any "reasonable" object to dict-able representation."""
     if dataclasses.is_dataclass(obj):
         fields = _prep_dataclass_fields(obj.__class__)
-        return {f.name: to_dict(getattr(obj, f.name)) for f in fields.values()}
+        return {
+            f.name: to_dict(getattr(obj, f.name), omit_empty)
+            for f in fields.values()
+            if not omit_empty or getattr(obj, f.name) is not None
+        }
     elif isinstance(obj, (list, tuple)):
-        return [to_dict(item) for item in obj]
+        return [to_dict(item, omit_empty) for item in obj]
     elif isinstance(obj, dict):
-        return {key: to_dict(value) for key, value in obj.items()}
+        return {
+            key: to_dict(value, omit_empty)
+            for key, value in obj.items()
+            if not omit_empty or value is not None
+        }
     elif isinstance(obj, (datetime, UUID)):
         return str(obj)
     elif isinstance(obj, (int, float, str, bool)):
