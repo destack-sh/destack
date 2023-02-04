@@ -91,7 +91,7 @@ class StatementData:
     text: Optional[str]
     symbol_type: Optional[SymbolType]
     # symbol contents
-    type_nodes: list[TypeNodeData] | None = None
+    type_nodes: Union[list[TypeNodeData], None] = None
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None

@@ -68,7 +68,9 @@ def parse_message(message_json: str) -> ZMessage:
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
     if payload_cls and message_dict.get("payload") is not None:
         try:
-            message_dict["payload"] = from_dict(payload_cls, message_dict["payload"])
+            message_dict["payload"] = from_dict(
+                payload_cls, message_dict["payload"], _path=["payload"]
+            )
         except (ValueError, TypeError, AttributeError) as e:
             logger.exception("parse_message_failed", exc_info=True, e=e)
             raise

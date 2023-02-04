@@ -381,7 +381,7 @@ type Statement implements Node {
   updatedAt: DateTime!
   deletedAt: DateTime
   commented: Boolean!
-  compiled: Boolean!
+  generated: Boolean!
   parent: Statement
   children: [Statement!]!
   descendants: [Statement!]!
