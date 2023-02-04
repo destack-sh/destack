@@ -8,9 +8,8 @@ import { computed, toRef, type Ref } from "vue";
 export const TypeNodeContentInnerType = graphql(/* GraphQL */ `
   fragment TypeNodeContentInner on TypeNode {
     name
-    type
+    tag
     description
-    required
     reference
   }
 `);

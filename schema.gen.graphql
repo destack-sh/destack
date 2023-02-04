@@ -24,7 +24,7 @@ type CompileState {
 union CompileStateOperationInfo = CompileState | OperationInfo
 
 type DatasetRecord {
-  index: Int!
+  orderKey: String!
   data: JSON!
 }
 
@@ -385,7 +385,7 @@ type Statement implements Node {
   parent: Statement
   children: [Statement!]!
   descendants: [Statement!]!
-  orderKey: String
+  orderKey: String!
   reference: Statement
   referencedBy: [Statement!]!
   symbolType: SymbolType
@@ -396,7 +396,7 @@ type Statement implements Node {
   description: String
   referenceProjectVersion: ProjectVersion
   value: JSON
-  typeNodes: [TypeNodeData!]!
+  typeNodes: [TypeNodeData!]
   records: [DatasetRecord!]!
   mappings: [SourceMapping!]!
   importPath: String
@@ -538,8 +538,7 @@ type Type {
 
 type TypeNode {
   name: String
-  type: TypeTag!
-  required: Boolean!
+  tag: TypeTag!
   description: String
   reference: String
   children: [TypeNode!]

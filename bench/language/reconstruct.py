@@ -39,7 +39,7 @@ def render(files: list[File]) -> str:
     for i, file in enumerate(files):
         if i != 0:
             lines.append("")
-        lines.append(f"--- {file.path} ---")
+        lines.append(f"--- {file.path}.x ---")
         lines.append(render_file(file))
     return "\n".join(lines)
 

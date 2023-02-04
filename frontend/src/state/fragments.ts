@@ -50,7 +50,7 @@ export const ProjectVersionContentType = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
-    files(filters: { isVisible: true }) {
+    files {
       id
       ...FileHeader
     }
@@ -85,7 +85,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     name
     generated
     commented
-    index
+    orderKey
     parent {
       id
     }
@@ -126,7 +126,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     commented
     generated
     modifier
-    index
+    orderKey
     parent {
       id
     }

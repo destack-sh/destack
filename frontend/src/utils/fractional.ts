@@ -3,6 +3,8 @@
 
 export const BASE_10_DIGITS = "0123456789";
 export const BASE_62_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+export const BASE_95_DIGITS =
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&'()*+,-./:;<=>?@[]^_`{|}~";
 
 export const INTEGER_ZERO = "a0";
 export const SMALLEST_INTEGER = "A00000000000000000000000000";
@@ -28,7 +30,7 @@ function validateInteger(int: string) {
 // no trailing zeros allowed.
 // digits is a string such as '0123456789' for base 10.  Digits must be in
 // ascending character code order!
-function midpoint(a: string, b: string | null, digits: string): string {
+function midpoint(a: string, b: string | null, digits: string = BASE_95_DIGITS): string {
   if (b !== null && a >= b) {
     throw new Error(a + " >= " + b);
   }
@@ -70,7 +72,7 @@ function midpoint(a: string, b: string | null, digits: string): string {
 }
 
 // note that this may return null, as there is a largest integer
-export function incrementInteger(x: string, digits: string): string | null {
+export function incrementInteger(x: string, digits: string = BASE_95_DIGITS): string | null {
   validateInteger(x);
   const [head, ...digs] = x.split("");
   let carry = true;
@@ -103,7 +105,7 @@ export function incrementInteger(x: string, digits: string): string | null {
 }
 
 // note that this may return null, as there is a smallest integer
-export function decrementInteger(x: string, digits: string): string | null {
+export function decrementInteger(x: string, digits: string = BASE_95_DIGITS): string | null {
   validateInteger(x);
   const [head, ...digs] = x.split("");
   let borrow = true;
@@ -160,9 +162,7 @@ function validateOrderKey(key: string) {
 // `a` is an order key or null (START).
 // `b` is an order key or null (END).
 // `a < b` lexicographically if both are non-null.
-// digits is a string such as '0123456789' for base 10.  Digits must be in
-// ascending character code order!
-export function generateKeyBetween(a: string, b: string, digits: string): string {
+export function generateKeyBetween(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
   if (a !== null) {
     validateOrderKey(a);
   }
@@ -176,12 +176,14 @@ export function generateKeyBetween(a: string, b: string, digits: string): string
     return INTEGER_ZERO;
   }
   if (a === null) {
+    b = b as string; // b can't be null here (see if above)
     const ib = getIntegerPart(b);
     const fb = b.slice(ib.length);
     if (ib === SMALLEST_INTEGER) {
       return ib + midpoint("", fb, digits);
     }
-    return ib < b ? ib : decrementInteger(ib, digits);
+    // decrement(ib) can't be null here since ib != SMALLEST_INTEGER
+    return ib < b ? ib : (decrementInteger(ib, digits) as string);
   }
   if (b === null) {
     const ia = getIntegerPart(a);
@@ -196,7 +198,8 @@ export function generateKeyBetween(a: string, b: string, digits: string): string
   if (ia === ib) {
     return ia + midpoint(fa, fb, digits);
   }
-  const i = incrementInteger(ia, digits);
+  // increment(ia) can'tbe null here since ia < ib < END
+  const i = incrementInteger(ia, digits) as string;
   return i < b ? i : ia + midpoint(fa, null, digits);
 }
 
@@ -204,10 +207,9 @@ export function generateKeyBetween(a: string, b: string, digits: string): string
 // n >= 0.
 // Returns an array of n distinct keys in sorted order.
 // If a and b are both null, returns [a0, a1, ...]
-// If one or the other is null, returns consecutive "integer"
-// keys.  Otherwise, returns relatively short keys between
-// a and b.
-export function generateNKeysBetween(a: string, b: string, n: number, digits: string): string[] {
+// If one or the other is null, returns consecutive "integer" keys.
+// Otherwise, returns relatively short keys between a and b.
+export function generateNKeysBetween(a: string, b: string, n: number, digits: string = BASE_95_DIGITS): string[] {
   if (n === 0) {
     return [];
   }
@@ -240,7 +242,7 @@ export function generateNKeysBetween(a: string, b: string, n: number, digits: st
 
 // tests
 
-function runTests(bigString: string, func, digits: string) {
+function runTests(bigString: string, func: any, digits: string = BASE_95_DIGITS) {
   function test(digits: string, ...args: string[]) {
     const result = args.pop();
     try {

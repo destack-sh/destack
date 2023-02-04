@@ -64,17 +64,21 @@ class DatasetRecord(UUIDModel):
     """
 
     dataset = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="records")
-    index = models.IntegerField()
     order_key = models.CharField(max_length=32, null=True, blank=True)  # in file/parent
     data = models.JSONField()
 
     def __str__(self):
-        return f"{self.dataset}@{self.id.hex}[{self.index}]"
+        return f"{self.dataset}@{self.id.hex}[{self.order_key}]"
 
     class Meta:
         # order by index ascending by default
-        ordering = ["index"]
+        ordering = ["order_key"]
         # TODO @Robustness: unique constraint on index when we switch to fractional indexes
         indexes = [
-            GinIndex(SearchVector("data", config="simple"), name="bench_record_data"),
+            GinIndex(SearchVector("data", config="simple"), name="bench_dataset_record_data"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset", "order_key"], name="bench_dataset_record_order_key_ak"
+            ),
         ]
