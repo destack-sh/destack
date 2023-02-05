@@ -605,16 +605,18 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <!-- Debug info -->
     <span
       v-if="editorState.debug"
-      class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm lowercase"
+      class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
     >
       <template v-if="isFocused">f({{ declarationFocused ? "d" : "" }}{{ contentFocused ? "c" : "" }}) </template>
       <template v-if="isEditing">e</template>
       <template v-if="isFirstInGroup">[</template>
       <template v-if="isLastInGroup">]</template>
       <template v-if="isCommented">#</template>
-      {{ statement.modifier }}
-      {{ statement.type }}
-      <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
+      <span class="lowercase">
+        {{ statement.modifier }}
+        {{ statement.type }}
+        <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
+      </span>
       <template v-if="statement.name != null">{{ statement.name }}</template>
       r:{{ statement.revision }} i:{{ statement.orderKey }} d:{{ depth }}
     </span>

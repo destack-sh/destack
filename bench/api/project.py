@@ -43,8 +43,6 @@ class Project(gql.Node):
 @gql.django.filter(models.Statement)
 class StatementFilter:
     is_visible: Optional[bool] = True
-    type: Optional[StatementType] = None
-    id: Optional[GlobalID]
 
     def filter(self, queryset):
         if self.is_visible is not UNSET and self.is_visible is not None:
@@ -52,10 +50,6 @@ class StatementFilter:
                 queryset = queryset.filter(deleted_at__isnull=True)
             else:
                 queryset = queryset.filter(deleted_at__isnull=False)
-        if self.type is not UNSET and self.type is not None:
-            queryset = queryset.filter(type=self.type)
-        if self.id is not UNSET and self.id is not None:
-            queryset = queryset.filter(id=self.id.node_id)
         return queryset
 
 
@@ -89,7 +83,7 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     dependencies: list["ProjectVersion"]
-    files: list["File", FileFilter] = gql.django.field(filters=FileFilter)
+    files: list["File"] = gql.django.field(filters=FileFilter)
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )

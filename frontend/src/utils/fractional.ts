@@ -1,10 +1,12 @@
 // see https://observablehq.com/@dgreensp/implementing-fractional-indexing
 //  (licensed as CC-0)
+// sync with fractional.py in backend
 
+// base digits in lexiographical order
 export const BASE_10_DIGITS = "0123456789";
 export const BASE_62_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 export const BASE_95_DIGITS =
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&'()*+,-./:;<=>?@[]^_`{|}~";
+  "!#$%&'()*+,-./:;<=>?@[]^_`{|}~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 export const INTEGER_ZERO = "a0";
 export const SMALLEST_INTEGER = "A00000000000000000000000000";

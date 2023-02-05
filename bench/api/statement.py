@@ -253,9 +253,9 @@ class StatementMutation:
     @project_mutation(PMT.MOVE_STATEMENT)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.file_id = input.file_id
-        statement.parent_id = input.parent_id
-        # TODO @Robustness: return a different order key if conflict
+        statement.file_id = input.file_id.node_id
+        statement.parent_id = input.parent_id.node_id if input.parent_id else None
+        # TODO @Robustness: return a different order key if conflict on move/insert
         statement.order_key = input.order_key
         return statement
 

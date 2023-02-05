@@ -418,8 +418,6 @@ input StatementCreateInput {
 
 input StatementFilter {
   isVisible: Boolean = true
-  type: StatementType = null
-  id: GlobalID
 }
 
 """A modifier to a Bench statement."""

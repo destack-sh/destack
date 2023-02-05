@@ -56,22 +56,19 @@ export function useStatementOps() {
         },
         {
           update(cache, { data: createStatement }) {
-            console.log("update existing statements", createStatement);
+            // extend File.statements array with (ref to) new statement
             cache.modify({
               id: `File:${fileId}`,
               fields: {
                 statements(currentStatements = []) {
-                  return [...currentStatements, createStatement?.createStatement];
+                  return [...currentStatements, { __ref: cache.identify(createStatement?.createStatement) }];
                 },
               },
             });
           },
         }
       );
-      if (create?.data?.createStatement == null || create?.data?.createStatement.__typename !== "Statement") {
-        // TODO @Robustness: unify error response handling
-        throw new Error("invalid response");
-      }
+      // TODO @Robustness: handle error responses (across mutations & queries)
       return useFragment(StatementHeaderType, create?.data?.createStatement);
     }
 
@@ -165,6 +162,9 @@ export function useStatementOps() {
             id
             orderKey
             revision
+            file {
+              id
+            }
             parent {
               id
             }
@@ -174,15 +174,16 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; fileId: string; parentId: string; orderKey: string }) => ({
-        __typename: "Statement",
-        id: vars.id,
-        orderKey: vars.id,
-        file: {
-          id: vars.fileId,
-        },
-        parent: {
-          id: vars.parentId,
+      optimisticResponse: (vars: { id: string; fileId: string; parentId?: string; orderKey: string }) => ({
+        moveStatement: {
+          __typename: "Statement",
+          id: vars.id,
+          orderKey: vars.orderKey,
+          file: {
+            id: vars.fileId,
+          },
+          revision: -1,
+          parent: vars.parentId ? { id: vars.parentId } : null,
         },
       }),
     }
