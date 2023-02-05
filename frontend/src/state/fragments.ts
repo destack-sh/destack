@@ -50,7 +50,7 @@ export const ProjectVersionContentType = graphql(/* GraphQL */ `
     createdAt
     committed
     committedAt
-    files {
+    files(filters: { isVisible: true }) {
       id
       ...FileHeader
     }

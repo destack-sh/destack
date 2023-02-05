@@ -15,15 +15,13 @@ import { computed } from "vue";
 
 const props = defineProps<{ fileId: string }>();
 
-// TODO @Broken: filter file.statements to only non-soft deleted statements
-//  (need to consider optimistic writes and other updates to statements array)
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
         id
         ...FileHeader
-        statements {
+        statements(filters: { isVisible: true }) {
           ...StatementContent
         }
       }

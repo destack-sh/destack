@@ -554,9 +554,7 @@ export type StatementCreateInput = {
 };
 
 export type StatementFilter = {
-  id?: InputMaybe<Scalars["GlobalID"]>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
-  type?: InputMaybe<StatementType>;
 };
 
 /** A modifier to a Bench statement. */
@@ -1117,6 +1115,7 @@ export type MoveStatementMutation = {
         id: any;
         orderKey: string;
         revision: number;
+        file: { __typename?: "File"; id: any };
         parent?: { __typename?: "Statement"; id: any } | null;
       };
 };
@@ -1564,6 +1563,22 @@ export const ProjectVersionContentFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "files" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -1919,6 +1934,22 @@ export const FileContentByIdDocument = {
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "statements" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isVisible" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } }],
@@ -2874,6 +2905,14 @@ export const MoveStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "file" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "parent" },

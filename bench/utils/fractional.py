@@ -1,13 +1,16 @@
-# // see https://observablehq.com/@dgreensp/implementing-fractional-indexing
-# //  (licensed as CC-0)
+# see https://observablehq.com/@dgreensp/implementing-fractional-indexing
+# (licensed as CC-0)
+# sync with fractional.ts in frontend
+
 from typing import Optional
 
 import pytest
 
+# base digits in lexicographical order
 BASE_10_DIGITS = "0123456789"
 BASE_62_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE_95_DIGITS = (
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&'()*+,-./:;<=>?@[]^_`{|}~"
+    "!#$%&'()*+,-./:;<=>?@[]^_`{|}~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
 
 INTEGER_ZERO = "a0"

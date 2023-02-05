@@ -32,6 +32,7 @@ export function provideStatementActions(
     return result;
   });
 
+  // statementsByParentId must be ordered like orderedStatements
   const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(() => {
     if (!enabled.value) return {};
     const result: Record<string, StatementHeader[]> = {};
@@ -68,18 +69,18 @@ export function provideStatementActions(
     id: "statement.moveCurrentIn",
     label: "Move statement in",
     shortcuts: ["tab"],
-    // we can only indent if there is a sibling above
     enabled: computed(() => !editor.editingElement && !!statement.value && above.value != null),
+    // we can only indent if there is a sibling above
     registered: enabled,
     apply: async () => {
-      // insert at end of previous sibling's children
+      // move to end of previous sibling's children
       const previousSibling = siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) - 1];
-      const previousSiblingChildren = statementsByParentId.value[previousSibling.id];
-      const lastPreviousSiblingChild = previousSiblingChildren.slice(-1)[0];
+      const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
+      const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
-        parentId: previousSibling.id,
-        orderKey: generateKeyBetween(lastPreviousSiblingChild.orderKey, null),
+        parentId: previousSibling?.id,
+        orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
       });
     },
   });
@@ -92,10 +93,11 @@ export function provideStatementActions(
     enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
     registered: enabled,
     apply: async () => {
+      // move to after parent in grandparent's children
       const parent = symbolsById.value[statement.value.parent?.id];
       const grandparent = symbolsById.value[parent.parent?.id];
-      const parentNextSibling = statementsByParentId.value[parent.id].find((s) => s.orderKey > parent.orderKey);
-      // insert after parent
+      const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
+      const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
         parentId: grandparent?.id,
@@ -111,7 +113,18 @@ export function provideStatementActions(
     enabled: computed(() => !!statement.value && above.value != null),
     registered: enabled,
     apply: async () => {
-      await operations.statement.move(statement.value.id, location.value, getLocation(above.value));
+      // insert between above and above prev sibling (if any)
+      const aboveSiblings = statementsByParentId.value[above.value.parent?.id ?? ""];
+      const abovePrevSibling = aboveSiblings
+        .slice()
+        .reverse()
+        .find((s) => s.orderKey < above.value.orderKey);
+      const targetLocation = {
+        fileId: file.value?.id,
+        parentId: above.value?.parent?.id,
+        orderKey: generateKeyBetween(abovePrevSibling?.orderKey ?? null, above.value.orderKey),
+      };
+      await operations.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
 
@@ -123,7 +136,15 @@ export function provideStatementActions(
     registered: enabled,
     apply: async () => {
       if (belowCurGroup.value == null) return;
-      await operations.statement.move(statement.value.id, location.value, getLocation(belowCurGroup.value));
+      // insert between the next group below and its next sibling (if any)
+      const belowSiblings = statementsByParentId.value[belowCurGroup.value.parent?.id ?? ""];
+      const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.value.orderKey);
+      const targetLocation = {
+        fileId: file.value?.id,
+        parentId: below.value?.parent?.id,
+        orderKey: generateKeyBetween(belowCurGroup.value.orderKey ?? null, belowNextSibling?.orderKey ?? null),
+      };
+      await operations.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
 
@@ -218,23 +239,6 @@ export function provideStatementActions(
   });
 
   // insert statement (as a sibling)
-  const insertBeforeCurrent = provideSingletonAction({
-    id: "statement.insertAboveCurrent",
-    label: "Insert statement above current",
-    shortcuts: ["a"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
-    registered: enabled,
-    apply: async () => {
-      const newStatement = await operations.statement.create(
-        newStatementId(),
-        file.value?.id,
-        statement.value.parent?.id ?? null,
-        generateKeyBetween(above.value?.orderKey ?? null, orderKey.value),
-        StatementType.Blank
-      );
-      editor.editElement(newStatement as StatementHeader);
-    },
-  });
   const insertStart = provideSingletonAction({
     id: "statement.insertStart",
     label: "Insert statement at start of file",
@@ -268,6 +272,23 @@ export function provideStatementActions(
         file.value?.id,
         null,
         generateKeyBetween(lastRootKey, null),
+        StatementType.Blank
+      );
+      editor.editElement(newStatement as StatementHeader);
+    },
+  });
+  const insertBeforeCurrent = provideSingletonAction({
+    id: "statement.insertAboveCurrent",
+    label: "Insert statement above current",
+    shortcuts: ["a"],
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    registered: enabled,
+    apply: async () => {
+      const newStatement = await operations.statement.create(
+        newStatementId(),
+        file.value?.id,
+        statement.value.parent?.id ?? null,
+        generateKeyBetween(above.value?.orderKey ?? null, orderKey.value),
         StatementType.Blank
       );
       editor.editElement(newStatement as StatementHeader);
