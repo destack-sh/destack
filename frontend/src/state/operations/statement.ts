@@ -56,6 +56,10 @@ export function useStatementOps() {
         },
         {
           update(cache, { data: createStatement }) {
+            if (createStatement?.createStatement.__typename != "Statement") {
+              return; // error
+            }
+
             // extend File.statements array with (ref to) new statement
             cache.modify({
               id: `File:${fileId}`,
@@ -69,6 +73,9 @@ export function useStatementOps() {
         }
       );
       // TODO @Robustness: handle error responses (across mutations & queries)
+      if (create?.data?.createStatement.__typename != "Statement") {
+        throw new Error(`expected Statement, got ${create?.data?.__typename}`);
+      }
       return useFragment(StatementHeaderType, create?.data?.createStatement);
     }
 

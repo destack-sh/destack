@@ -85,6 +85,12 @@ const positionedStatements = computed(() => {
 
   // depth first traversal
   function walkDfs(statement: StatementContentFragment, depth: number, isLast: boolean) {
+    if (statement?.id == null) {
+      // bail in case a bad statement ends in here due to some other bug to prevent recursion death
+      console.warn("got bad statement with null id", statement, depth, isLast);
+      return;
+    }
+
     const children = statements.value.filter((child) => child.parent?.id == statement.id);
 
     const isFirstInGroup = depth == 0;
@@ -98,7 +104,7 @@ const positionedStatements = computed(() => {
     children.forEach((child, i) => walkDfs(child, depth + 1, isLast && i == children.length - 1));
   }
 
-  // start with roots sorted by index
+  // start with roots sorted by order key
   const roots = rootStatements.value;
   roots.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
   roots.forEach((root) => walkDfs(root, 0, true));
