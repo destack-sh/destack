@@ -69,7 +69,7 @@ export function provideStatementActions(
     id: "statement.moveCurrentIn",
     label: "Move statement in",
     shortcuts: ["tab"],
-    enabled: computed(() => !editor.editingElement && !!statement.value && above.value != null),
+    enabled: computed(() => !!statement.value && above.value != null),
     // we can only indent if there is a sibling above
     registered: enabled,
     apply: async () => {
@@ -89,8 +89,7 @@ export function provideStatementActions(
     id: "statement.moveCurrentOut",
     label: "Move statement out",
     shortcuts: ["shift+tab"],
-    // we can only outdent if there is a parent
-    enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
+    enabled: computed(() => !!statement.value && !!statement.value.parent),
     registered: enabled,
     apply: async () => {
       // move to after parent in grandparent's children
@@ -218,7 +217,7 @@ export function provideStatementActions(
     enabled: computed(() => !!statement.value && editor.editingElement),
     registered: enabled,
     apply: () => {
-      editor.stopEditingElement();
+      editor.stopEditingElement(statement.value);
     },
   });
 

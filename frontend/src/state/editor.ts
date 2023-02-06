@@ -341,10 +341,13 @@ export const useEditorState = defineStore("editor", {
       console.log(`stop editing element ${element?.id}`);
     },
 
-    defocusElement() {
+    defocusElement(element?: StatementHeader | FileHeader) {
+      if (!element || element.id == this.focusedElementId) {
+        this.focusedElementId = null;
+        this.focusedElementType = null;
+        this.editingElement = false;
+      }
       console.log("defocus element");
-      this.focusedElementId = null;
-      this.editingElement = false;
     },
 
     setMainStatement(statement?: { id: string }): void {
