@@ -509,7 +509,6 @@ export type Statement = Node & {
   __typename?: "Statement";
   children: Array<Statement>;
   code?: Maybe<Scalars["String"]>;
-  codeBuiltinId?: Maybe<Scalars["String"]>;
   commented: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
@@ -622,7 +621,6 @@ export enum StatementType {
 
 export type StatementUpdateCodeInput = {
   code?: InputMaybe<Scalars["String"]>;
-  codeBuiltinId?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
 };
 
@@ -945,7 +943,6 @@ export type StatementContentFragment = {
   text?: string | null;
   lang?: string | null;
   code?: string | null;
-  codeBuiltinId?: string | null;
   description?: string | null;
   value?: any | null;
   parent?: { __typename?: "Statement"; id: any } | null;
@@ -1248,7 +1245,6 @@ export type UpdateStatementDescriptionMutation = {
 export type UpdateStatementCodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   code?: InputMaybe<Scalars["String"]>;
-  codeBuiltinId?: InputMaybe<Scalars["String"]>;
 }>;
 
 export type UpdateStatementCodeMutation = {
@@ -1257,7 +1253,7 @@ export type UpdateStatementCodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; code?: string | null; codeBuiltinId?: string | null; revision: number };
+    | { __typename?: "Statement"; id: any; code?: string | null; revision: number };
 };
 
 export type UpdateStatementRecordsMutationVariables = Exact<{
@@ -1712,7 +1708,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "lang" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
-          { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           {
             kind: "Field",
@@ -3474,11 +3469,6 @@ export const UpdateStatementCodeDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "codeBuiltinId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -3503,11 +3493,6 @@ export const UpdateStatementCodeDocument = {
                       name: { kind: "Name", value: "code" },
                       value: { kind: "Variable", name: { kind: "Name", value: "code" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "codeBuiltinId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "codeBuiltinId" } },
-                    },
                   ],
                 },
               },
@@ -3523,7 +3508,6 @@ export const UpdateStatementCodeDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
-                      { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },

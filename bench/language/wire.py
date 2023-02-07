@@ -95,7 +95,6 @@ class StatementData:
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
-    code_builtin_id: Optional[str] = None
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[dict]] = None
@@ -243,7 +242,6 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.description = content.description
         data.lang = content.language
         data.code = content.code
-        data.code_builtin_id = content.builtin_id
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
@@ -285,7 +283,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             language=data.lang,
             code=data.code,
             type_node=wmap_type_node(data.type_nodes),
-            builtin_id=data.code_builtin_id,
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(

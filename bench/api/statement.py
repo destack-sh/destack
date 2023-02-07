@@ -83,7 +83,6 @@ class Statement(gql.Node):
     # symbol contents
     lang: auto
     code: auto
-    code_builtin_id: auto
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
@@ -283,7 +282,6 @@ class StatementUpdateDescriptionInput(gql.NodeInput):
 
 @gql.input
 class StatementUpdateCodeInput(gql.NodeInput):
-    code_builtin_id: Optional[str] = None
     code: Optional[str] = None
 
 
@@ -322,7 +320,6 @@ class SymbolMutation:
     @project_mutation(PMT.UPDATE_STATEMENT_CODE)
     def update_statement_code(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.code_builtin_id = input.code_builtin_id
         statement.code = input.code
         return statement
 

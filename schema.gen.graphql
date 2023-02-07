@@ -392,7 +392,6 @@ type Statement implements Node {
   text: String
   lang: String
   code: String
-  codeBuiltinId: String
   description: String
   referenceProjectVersion: ProjectVersion
   value: JSON
@@ -485,7 +484,6 @@ enum StatementType {
 
 input StatementUpdateCodeInput {
   id: GlobalID!
-  codeBuiltinId: String = null
   code: String = null
 }
 

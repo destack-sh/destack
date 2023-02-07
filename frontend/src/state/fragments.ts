@@ -138,7 +138,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     # symbol contents
     lang
     code
-    codeBuiltinId
     description
     referenceProjectVersion {
       id

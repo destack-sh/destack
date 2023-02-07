@@ -244,13 +244,6 @@ def _instantiate_code_callable(
     Instantiates code into a Python callable in the context.
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
     """
-    if code.builtin_id:
-        # builtins are already defined and are just curried using the arguments
-        builtin = STATIC_BUILTINS.get(code.builtin_id)
-        if builtin is None:
-            raise ValueError(f"unknown builtin in {code}: {code.builtin_id}")
-        return None, builtin, None
-
     unwrapped_context = {name: unwrap(value) for name, value in context.items()}
     dynamic_context = {
         "source_context": context,

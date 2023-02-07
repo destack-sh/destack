@@ -619,15 +619,10 @@ class CodeContent(SymbolContent):
     description: Optional[str]
     language: Literal["python"] | Literal["bpl"]
     code: Optional[str]
-    builtin_id: Optional[str]
     type_node: TypeNode
 
     def __str__(self):
-        # copied almost verbatim from Code.__str__
-        if self.builtin_id:
-            return f"builtin={self.builtin_id}"
-        elif self.code:
-            return f"code={len(self.code)}"
+        return f"code={len(self.code)}"
 
 
 @dataclass(repr=False)
