@@ -147,18 +147,20 @@ type ModuleRuntime {
 
 type Mutation {
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
+  morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
   updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo!
   updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo!
-  morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
+  createStatementTypeNode(input: StatementTypeNodeDataCreateInput!): StatementOperationInfo!
+  updateStatementTypeNode(input: StatementTypeNodeDataUpdateInput!): StatementOperationInfo!
+  deleteStatementTypeNode(input: StatementTypeNodeDataDeleteInput!): StatementOperationInfo!
   updateStatementText(input: StatementTextInput!): StatementOperationInfo!
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
-  updateStatementTypeNode(input: StatementUpdateTypeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
   updateStatementRecords(input: StatementUpdateRecordsInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
@@ -406,12 +408,11 @@ input StatementCommentedInput {
   commented: Boolean!
 }
 
+"""Create a blank statement"""
 input StatementCreateInput {
   id: GlobalID = null
   fileId: GlobalID!
-  type: StatementType!
   orderKey: String!
-  name: String = null
   parentId: GlobalID = null
 }
 
@@ -433,6 +434,9 @@ input StatementMorphInput {
   id: GlobalID!
   type: StatementType!
   symbolType: SymbolType = null
+  name: String = null
+  typeNodes: [StatementTypeNodeDataCreateInput!] = null
+  language: String = null
 }
 
 input StatementMoveInput {
@@ -482,6 +486,35 @@ enum StatementType {
   BLANK
 }
 
+input StatementTypeNodeDataCreateInput {
+  id: GlobalID!
+  nodeId: GlobalID!
+  name: String = null
+  tag: TypeTag!
+  orderKey: String!
+  description: String = null
+  value: JSON = null
+  reference: String = null
+  parentId: UUID = null
+}
+
+input StatementTypeNodeDataDeleteInput {
+  id: GlobalID!
+  nodeId: GlobalID!
+}
+
+input StatementTypeNodeDataUpdateInput {
+  id: GlobalID!
+  nodeId: GlobalID!
+  name: String = null
+  tag: TypeTag = null
+  orderKey: String = null
+  description: String = null
+  value: JSON = null
+  reference: String = null
+  parentId: UUID = null
+}
+
 input StatementUpdateCodeInput {
   id: GlobalID!
   code: String = null
@@ -500,11 +533,6 @@ input StatementUpdateLanguageInput {
 input StatementUpdateRecordsInput {
   id: GlobalID!
   records: [JSON!]!
-}
-
-input StatementUpdateTypeInput {
-  id: GlobalID!
-  btl: String!
 }
 
 type Subscription {
@@ -548,7 +576,7 @@ type TypeNodeData {
   value: JSON
   reference: String
   parentId: UUID
-  orderKey: String
+  orderKey: String!
 }
 
 """The type of type node."""

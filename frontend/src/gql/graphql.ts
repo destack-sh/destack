@@ -177,6 +177,8 @@ export type Mutation = {
   compile: CompileStateOperationInfo;
   createFile: FileOperationInfo;
   createStatement: StatementOperationInfo;
+  createStatementTypeNode: StatementOperationInfo;
+  deleteStatementTypeNode: StatementOperationInfo;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
   moveStatement: StatementOperationInfo;
@@ -215,6 +217,14 @@ export type MutationCreateFileArgs = {
 
 export type MutationCreateStatementArgs = {
   input: StatementCreateInput;
+};
+
+export type MutationCreateStatementTypeNodeArgs = {
+  input: StatementTypeNodeDataCreateInput;
+};
+
+export type MutationDeleteStatementTypeNodeArgs = {
+  input: StatementTypeNodeDataDeleteInput;
 };
 
 export type MutationMorphStatementArgs = {
@@ -286,7 +296,7 @@ export type MutationUpdateStatementTextArgs = {
 };
 
 export type MutationUpdateStatementTypeNodeArgs = {
-  input: StatementUpdateTypeInput;
+  input: StatementTypeNodeDataUpdateInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -543,13 +553,12 @@ export type StatementCommentedInput = {
   id: Scalars["GlobalID"];
 };
 
+/** Create a blank statement */
 export type StatementCreateInput = {
   fileId: Scalars["GlobalID"];
   id?: InputMaybe<Scalars["GlobalID"]>;
-  name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
-  type: StatementType;
 };
 
 export type StatementFilter = {
@@ -568,8 +577,11 @@ export enum StatementModifier {
 
 export type StatementMorphInput = {
   id: Scalars["GlobalID"];
+  language?: InputMaybe<Scalars["String"]>;
+  name?: InputMaybe<Scalars["String"]>;
   symbolType?: InputMaybe<SymbolType>;
   type: StatementType;
+  typeNodes?: InputMaybe<Array<StatementTypeNodeDataCreateInput>>;
 };
 
 export type StatementMoveInput = {
@@ -619,6 +631,35 @@ export enum StatementType {
   Reference = "REFERENCE",
 }
 
+export type StatementTypeNodeDataCreateInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  nodeId: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+  parentId?: InputMaybe<Scalars["UUID"]>;
+  reference?: InputMaybe<Scalars["String"]>;
+  tag: TypeTag;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type StatementTypeNodeDataDeleteInput = {
+  id: Scalars["GlobalID"];
+  nodeId: Scalars["GlobalID"];
+};
+
+export type StatementTypeNodeDataUpdateInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  nodeId: Scalars["GlobalID"];
+  orderKey?: InputMaybe<Scalars["String"]>;
+  parentId?: InputMaybe<Scalars["UUID"]>;
+  reference?: InputMaybe<Scalars["String"]>;
+  tag?: InputMaybe<TypeTag>;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
 export type StatementUpdateCodeInput = {
   code?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
@@ -637,11 +678,6 @@ export type StatementUpdateLanguageInput = {
 export type StatementUpdateRecordsInput = {
   id: Scalars["GlobalID"];
   records: Array<Scalars["JSON"]>;
-};
-
-export type StatementUpdateTypeInput = {
-  btl: Scalars["String"];
-  id: Scalars["GlobalID"];
 };
 
 export type Subscription = {
@@ -693,7 +729,7 @@ export type TypeNodeData = {
   description?: Maybe<Scalars["String"]>;
   id: Scalars["UUID"];
   name?: Maybe<Scalars["String"]>;
-  orderKey?: Maybe<Scalars["String"]>;
+  orderKey: Scalars["String"];
   parentId?: Maybe<Scalars["UUID"]>;
   reference?: Maybe<Scalars["String"]>;
   tag: TypeTag;
@@ -922,7 +958,7 @@ export type TypeNodeDataFragment = {
   description?: string | null;
   value?: any | null;
   parentId?: any | null;
-  orderKey?: string | null;
+  orderKey: string;
 } & { " $fragmentName"?: "TypeNodeDataFragment" };
 
 export type StatementContentFragment = {
@@ -1041,8 +1077,6 @@ export type CreateStatementMutationVariables = Exact<{
   fileId: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
-  type: StatementType;
-  name?: InputMaybe<Scalars["String"]>;
 }>;
 
 export type CreateStatementMutation = {
@@ -1055,9 +1089,7 @@ export type CreateStatementMutation = {
 };
 
 export type MorphStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  type: StatementType;
-  symbolType?: InputMaybe<SymbolType>;
+  input: StatementMorphInput;
 }>;
 
 export type MorphStatementMutation = {
@@ -1066,17 +1098,17 @@ export type MorphStatementMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({
+    | {
         __typename?: "Statement";
         id: any;
-        text?: string | null;
-        code?: string | null;
-        description?: string | null;
-        revision: number;
+        type: StatementType;
+        symbolType?: SymbolType | null;
+        name?: string | null;
+        lang?: string | null;
         typeNodes?: Array<
           { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
         > | null;
-      } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } });
+      };
 };
 
 export type UpdateStatementModifierMutationVariables = Exact<{
@@ -1204,27 +1236,6 @@ export type SetReferenceMutation = {
         reference?:
           | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
           | null;
-      };
-};
-
-export type UpdateStatementTypeNodeMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  btl: Scalars["String"];
-}>;
-
-export type UpdateStatementTypeNodeMutation = {
-  __typename?: "Mutation";
-  updateStatementTypeNode:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | {
-        __typename?: "Statement";
-        id: any;
-        revision: number;
-        typeNodes?: Array<
-          { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
-        > | null;
       };
 };
 
@@ -2574,16 +2585,6 @@ export const CreateStatementDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -2617,16 +2618,6 @@ export const CreateStatementDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "orderKey" },
                       value: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "type" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "name" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
                   ],
                 },
@@ -2665,18 +2656,11 @@ export const MorphStatementDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "SymbolType" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "StatementMorphInput" } },
+          },
         },
       ],
       selectionSet: {
@@ -2689,26 +2673,7 @@ export const MorphStatementDocument = {
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "type" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "symbolType" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
-                    },
-                  ],
-                },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
               },
             ],
             selectionSet: {
@@ -2721,10 +2686,9 @@ export const MorphStatementDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } },
-                      { kind: "Field", name: { kind: "Name", value: "text" } },
-                      { kind: "Field", name: { kind: "Name", value: "code" } },
-                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "typeNodes" },
@@ -2733,7 +2697,7 @@ export const MorphStatementDocument = {
                           selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
                         },
                       },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "lang" } },
                     ],
                   },
                 },
@@ -2744,7 +2708,6 @@ export const MorphStatementDocument = {
         ],
       },
     },
-    ...StatementHeaderFragmentDoc.definitions,
     ...TypeNodeDataFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
@@ -3301,85 +3264,6 @@ export const SetReferenceDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SetReferenceMutation, SetReferenceMutationVariables>;
-export const UpdateStatementTypeNodeDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "updateStatementTypeNode" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "btl" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "updateStatementTypeNode" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "btl" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "btl" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "typeNodes" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
-                        },
-                      },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...TypeNodeDataFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<UpdateStatementTypeNodeMutation, UpdateStatementTypeNodeMutationVariables>;
 export const UpdateStatementDescriptionDocument = {
   kind: "Document",
   definitions: [

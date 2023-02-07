@@ -118,7 +118,7 @@ def create_model_providers():
         order_keys = generate_n_keys_between(None, None, len(provider.models))
         for order_key, model_id in zip(order_keys, provider.models):
             provider_key = ProviderKey[provider.slug.upper()]
-            statement = Statement.objects.create_statement(
+            Statement.objects.create(
                 project_version=std_v,
                 file=models_file,
                 parent=None,
@@ -126,10 +126,9 @@ def create_model_providers():
                 type=StatementType.DEFINITION,
                 symbol_type=SymbolType.MODEL,
                 name=model_id,
+                provider=provider_key,
+                external_name=model_id,
             )
-            statement.provider = provider_key
-            statement.external_name = model_id
-            statement.save()
 
         # advance head
         std_v.commit(version_id)

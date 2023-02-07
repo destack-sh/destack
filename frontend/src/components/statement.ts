@@ -3,6 +3,7 @@ import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
+import { symbolTypeAnnotation } from "@babel/types";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -56,7 +57,7 @@ export function useStatementContext() {
     actions.apply("statement.insertBeforeCurrent");
   }
 
-  // modifications
+  // self mutations
 
   async function morphToComment() {
     await operations.statement.morph(
@@ -66,11 +67,30 @@ export function useStatementContext() {
     );
   }
 
-  async function morphSetModifier(modifier: StatementModifier | null) {
+  async function morphToDefinition(symbolType: SymbolType | null, name: string) {
+    if (statement.value.type != StatementType.Blank || symbolType == null) {
+      throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
+    }
+    await operations.statement.morph(
+      statement.value.id,
+      {
+        type: statement.value.type,
+        symbolType: statement.value.symbolType ?? undefined,
+        name: undefined,
+      },
+      {
+        type: StatementType.Definition,
+        symbolType,
+        name,
+      }
+    );
+  }
+
+  async function setModifier(modifier: StatementModifier | null) {
     await operations.statement.modify(statement.value.id, statement.value.modifier ?? null, modifier);
   }
 
-  async function morphSetSymbolType(symbolType: SymbolType | null) {
+  async function setSymbolType(symbolType: SymbolType | null) {
     await operations.statement.morph(
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
@@ -126,8 +146,9 @@ export function useStatementContext() {
     navigateDown,
     escape,
     morphToComment,
-    morphSetModifier,
-    morphSetSymbolType,
+    morphToDefinition,
+    setModifier,
+    setSymbolType,
     setReference,
     syncName,
     syncCode,

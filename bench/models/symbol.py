@@ -13,14 +13,7 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language import wire
-from bench.language.type import (
-    EMPTY_FUNC_TYPE,
-    EMPTY_STRUCT_TYPE,
-    StatementModifier,
-    StatementType,
-    SymbolType,
-)
-from bench.language.wire import rmap_type_node
+from bench.language.type import StatementModifier, StatementType, SymbolType
 from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
@@ -187,34 +180,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
             raise ValueError(f"{self} has no reference")
         else:
             return self.reference.source_definition
-
-    def morph_to(
-        self,
-        type: StatementType,
-        symbol_type: SymbolType | None,
-    ):
-        """
-        Changes the type of the statement (new default content fields may overwrite old ones).
-        Since this overwrites overlapping fields, we only want to morph from blank statements to
-        preserve undo-ability. As this only applies in the UI, we don't check it here.
-        """
-
-        self.type = type
-        # set default content if not already set
-        self.symbol_type = symbol_type
-        # create default content for the given type if not already set
-        if symbol_type is not None and self.type == StatementType.DEFINITION:
-            self.description = ""
-            if symbol_type == SymbolType.DATASET:
-                self.language = "jsonl"
-                self.type_nodes = rmap_type_node(EMPTY_STRUCT_TYPE)
-            elif symbol_type == SymbolType.CODE or symbol_type == SymbolType.TASK:
-                self.language = "python"
-                self.type_nodes = rmap_type_node(EMPTY_FUNC_TYPE)
-                self.code = ""
-            elif symbol_type == SymbolType.TYPE:
-                self.type_nodes = rmap_type_node(EMPTY_STRUCT_TYPE)
-        self.save()
 
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)

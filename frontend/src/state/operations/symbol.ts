@@ -5,36 +5,7 @@ import { useMutation } from "@vue/apollo-composable";
 export function useSymbolContentOps() {
   const operations = useOperationsStore();
 
-  // schema mutations
-
-  const { mutate: updateStatementTypeNodeMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation updateStatementTypeNode($id: GlobalID!, $btl: String!) {
-        updateStatementTypeNode(input: { id: $id, btl: $btl }) {
-          ... on Statement {
-            id
-            typeNodes {
-              ...TypeNodeData
-            }
-            revision
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  async function updateStatementTypeNode(id: string, oldBtl: string, newBtl: string) {
-    await operations.perform({
-      type: "statement.updateTypeNode",
-      do: async () => {
-        await updateStatementTypeNodeMut({ id: id, btl: newBtl });
-      },
-      undo: async () => {
-        await updateStatementTypeNodeMut({ id: id, btl: oldBtl });
-      },
-    });
-  }
+  // type mutations
 
   const { mutate: updateStatementDescriptionMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -129,5 +100,5 @@ export function useSymbolContentOps() {
     });
   }
 
-  return { updateStatementTypeNode, updateStatementDescription, updateStatementCode, updateStatementRecords };
+  return { updateStatementDescription, updateStatementCode, updateStatementRecords };
 }

@@ -28,9 +28,11 @@ watch(content, (newContent) => {
 
   // if it matches an allowed keyword, apply the keyword
   if (endsInSpace && MODIFIER_BY_KEYWORD[contentTrim]) {
-    context.morphSetModifier(MODIFIER_BY_KEYWORD[contentTrim]);
+    context.setModifier(MODIFIER_BY_KEYWORD[contentTrim]);
+    content.value = "";
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
-    context.morphSetSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
+    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
+    content.value = "";
   }
 });
 
