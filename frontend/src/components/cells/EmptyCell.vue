@@ -20,6 +20,8 @@ watch(content, (newContent) => {
     context.setModifier(MODIFIER_BY_KEYWORD[contentTrim]);
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
+  } else if (endsInSpace && contentTrim == "enum") {
+    context.setSymbolTypeEnum();
   } else if (endsInSpace && (contentTrim == "#" || contentTrim == "//")) {
     context.morphToComment();
   }

@@ -5,10 +5,6 @@ import { computed } from "vue";
 
 const context = useStatementContext();
 const modifierKeyword = computed(() => MODIFIER_KEYWORD[context.statement.value.modifier]);
-
-defineExpose({
-  delete: () => context.morphSetModifier(null),
-});
 </script>
 <template>
   <span class="text-orange-600" :contenteditable="false">{{ modifierKeyword }}</span>

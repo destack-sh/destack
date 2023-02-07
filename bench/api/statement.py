@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
 from django import db
+from django.core.exceptions import ValidationError
 from django.db.models import F, Q, Value
 from django.db.models.functions import Concat
 from more_itertools import first
@@ -52,13 +53,13 @@ TypeTag = gql.enum(language.type.TypeTag)
 
 @gql.type
 class TypeNodeData:
-    id: UUID
+    id: GlobalID
     name: Optional[str]
     tag: TypeTag
     description: Optional[str]
     value: Optional[JSON]
     reference: Optional[str]
-    parent_id: Optional[UUID]
+    parent_id: Optional[GlobalID]
     order_key: str
 
 
@@ -89,9 +90,22 @@ class Statement(gql.Node):
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
-    type_nodes: Optional[list[TypeNodeData]]
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
+
+    @gql.field(name="typeNodes")
+    def type_nodes_(self) -> Optional[list[TypeNodeData]]:
+        # map ids to global ids
+        if self.type_nodes is None:
+            return None
+        return [
+            replace(
+                node,
+                id=GlobalID("TypeNodeData", str(node.id)),
+                parent_id=GlobalID("TypeNodeData", str(node.parent_id)) if node.parent_id else None,
+            )
+            for node in self.type_nodes
+        ]
 
     @gql.field
     def import_path(self) -> Optional[str]:
@@ -200,7 +214,7 @@ class StatementTypeNodeDataCreateInput(gql.NodeInput):
 
     node_id: GlobalID
     order_key: str
-    parent_id: Optional[UUID] = None
+    parent_id: Optional[GlobalID] = None
     name: Optional[str] = None
     tag: TypeTag
     description: Optional[str] = None
@@ -211,7 +225,7 @@ class StatementTypeNodeDataCreateInput(gql.NodeInput):
         return wire.TypeNodeData(
             id=UUID(self.node_id.node_id),
             order_key=self.order_key,
-            parent_id=self.parent_id,
+            parent_id=UUID(self.parent_id.node_id) if self.parent_id else None,
             name=self.name,
             tag=self.tag,
             description=self.description,
@@ -249,6 +263,13 @@ class StatementMutation:
     @project_mutation(PMT.MORPH_STATEMENT)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
+        if (
+            input.type == StatementType.DEFINITION
+            and input.symbol_type in (SymbolType.DATASET, SymbolType.CODE, SymbolType.TASK)
+            and input.type_nodes is None
+        ):
+            raise ValidationError(f"type_nodes is required for {input.symbol_type}")
+
         statement.type = input.type
         statement.symbol_type = input.symbol_type
         statement.name = input.name

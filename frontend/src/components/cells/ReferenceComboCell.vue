@@ -25,6 +25,7 @@ const selecting: Ref<boolean> = ref(false);
 
 // TODO @Feature: use proper search for all searches (like uFuzzy)
 const query = ref("");
+// TODO @Robustness: trim reference selection to reachable symbols (from runtime)
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
 });

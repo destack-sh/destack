@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import BlankCell from "@/components/cells/BlankCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
+import DefinitionCell from "@/components/cells/DefinitionCell.vue";
 import EmptyCell from "@/components/cells/EmptyCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
@@ -63,9 +64,13 @@ const rootCell: Ref<Cell> = computed(() => {
     return {
       component: ProtoCell,
     };
+  } else if (statement.value.type == StatementType.Definition) {
+    return {
+      component: DefinitionCell,
+    };
   }
 
-  // default to blank cell
+  // default to empty cell
   return {
     component: EmptyCell,
     props: { showDots: true },

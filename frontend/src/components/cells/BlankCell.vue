@@ -33,6 +33,8 @@ watch(content, (newContent) => {
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
     content.value = "";
+  } else if (endsInSpace && contentTrim == "enum") {
+    context.setSymbolTypeEnum();
   }
 });
 
