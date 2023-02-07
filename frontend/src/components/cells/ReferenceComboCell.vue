@@ -15,6 +15,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "deleteRight"): void;
+  (e: "defineInPlace", name: string): void;
 }>();
 
 const context = useStatementContext();
@@ -38,7 +39,7 @@ const filteredSymbols = computed(() =>
 function setReference(ref: { id: string } | null) {
   selecting.value = false;
   if (ref == null && props.canDefineInPlace) {
-    context.morphToDefinition(query.value);
+    emit("defineInPlace", query.value);
   } else {
     context.setReference(ref);
   }

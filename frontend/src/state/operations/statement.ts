@@ -1,5 +1,14 @@
 import { graphql, useFragment } from "@/gql";
-import type { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
+import type {
+  DeleteStatementMutation,
+  MoveStatementMutation,
+  RestoreStatementMutation,
+  StatementModifier,
+  StatementType,
+  StatementTypeNodeDataCreateInput,
+  SymbolType,
+  UpdateStatementModifierMutation,
+} from "@/gql/graphql";
 import { StatementHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -16,17 +25,8 @@ export function useStatementOps() {
 
   const { mutate: createStatementMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation createStatement(
-        $id: GlobalID
-        $fileId: GlobalID!
-        $parentId: GlobalID
-        $orderKey: String!
-        $type: StatementType!
-        $name: String
-      ) {
-        createStatement(
-          input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey, type: $type, name: $name }
-        ) {
+      mutation createStatement($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
+        createStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
           ... on Statement {
             ...StatementContent
           }
@@ -36,14 +36,7 @@ export function useStatementOps() {
     `)
   );
 
-  async function create(
-    id: string,
-    fileId: string,
-    parentId: string | null,
-    orderKey: string,
-    type: StatementType,
-    name?: string
-  ) {
+  async function create(id: string, fileId: string, parentId: string | null, orderKey: string) {
     async function apply() {
       const create = await createStatementMut(
         {
@@ -51,8 +44,6 @@ export function useStatementOps() {
           fileId,
           parentId,
           orderKey,
-          type,
-          name,
         },
         {
           update(cache, { data: createStatement }) {
@@ -90,18 +81,17 @@ export function useStatementOps() {
 
   const { mutate: morphStatementMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation morphStatement($id: GlobalID!, $type: StatementType!, $symbolType: SymbolType) {
-        morphStatement(input: { id: $id, type: $type, symbolType: $symbolType }) {
+      mutation morphStatement($input: StatementMorphInput!) {
+        morphStatement(input: $input) {
           ... on Statement {
             id
-            ...StatementHeader
-            text
-            code
-            description
+            type
+            symbolType
+            name
             typeNodes {
               ...TypeNodeData
             }
-            revision
+            lang
           }
           ...OperationInfoContent
         }
@@ -111,24 +101,28 @@ export function useStatementOps() {
 
   async function morph(
     id: string,
-    oldStatement: { type: StatementType; symbolType?: SymbolType },
-    newStatement: { type: StatementType; symbolType?: SymbolType }
+    oldStatement: {
+      type: StatementType;
+      symbolType?: SymbolType;
+      name?: string;
+      typeNodes?: [StatementTypeNodeDataCreateInput];
+      lang?: string;
+    },
+    newStatement: {
+      type: StatementType;
+      symbolType?: SymbolType;
+      name?: string;
+      typeNodes?: [StatementTypeNodeDataCreateInput];
+      lang?: string;
+    }
   ) {
     await operations.perform({
       type: "statement.morph",
       do: async () => {
-        await morphStatementMut({
-          id: id,
-          type: newStatement.type,
-          symbolType: newStatement.symbolType,
-        });
+        await morphStatementMut({ input: { id, ...newStatement } });
       },
       undo: async () => {
-        await morphStatementMut({
-          id: id,
-          type: oldStatement.type,
-          symbolType: oldStatement.symbolType,
-        });
+        await morphStatementMut({ input: { id, ...oldStatement } });
       },
     });
   }
@@ -145,7 +139,18 @@ export function useStatementOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; modifier: StatementModifier | null }) =>
+        ({
+          updateStatementModifier: {
+            __typename: "Statement",
+            id: vars.id,
+            modifier: vars.modifier,
+            revision: -1,
+          },
+        } as UpdateStatementModifierMutation),
+    }
   );
 
   async function modify(id: string, oldModifier: StatementModifier | null, newModifier: StatementModifier | null) {
@@ -180,18 +185,19 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; fileId: string; parentId?: string; orderKey: string }) => ({
-        moveStatement: {
-          __typename: "Statement",
-          id: vars.id,
-          orderKey: vars.orderKey,
-          file: {
-            id: vars.fileId,
+      optimisticResponse: (vars: { id: string; fileId: string; parentId?: string; orderKey: string }) =>
+        ({
+          moveStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            orderKey: vars.orderKey,
+            file: {
+              id: vars.fileId,
+            },
+            revision: -1,
+            parent: vars.parentId ? { id: vars.parentId } : null,
           },
-          revision: -1,
-          parent: vars.parentId ? { id: vars.parentId } : null,
-        },
-      }),
+        } as MoveStatementMutation),
     }
   );
 
@@ -265,14 +271,15 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string }) => ({
-        softDeleteStatement: {
-          __typename: "Statement",
-          id: vars.id,
-          deletedAt: new Date().toISOString(),
-          descendants: [], // unknown
-        },
-      }),
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          softDeleteStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+            descendants: [], // unknown
+          },
+        } as DeleteStatementMutation),
     }
   );
 
@@ -293,14 +300,15 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string }) => ({
-        restoreStatement: {
-          __typename: "Statement",
-          id: vars.id,
-          deletedAt: null,
-          descendants: [], // unknown
-        },
-      }),
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          restoreStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            deletedAt: null,
+            descendants: [], // unknown
+          },
+        } as RestoreStatementMutation),
     }
   );
 

@@ -13,7 +13,7 @@ const nameRef: Ref<InstanceType<typeof BlankCell> | null> = ref(null);
 
 function deleteModifierOrSelf() {
   if (context.statement.value.modifier != null) {
-    context.morphSetModifier(null);
+    context.setModifier(null);
   } else {
     context.deleteSelf();
   }
@@ -21,15 +21,29 @@ function deleteModifierOrSelf() {
 
 function deleteSymbolTypeOrModifier() {
   if (context.statement.value.symbolType != null) {
-    context.morphSetSymbolType(null);
+    context.setSymbolType(null);
   } else {
-    context.morphSetModifier(null);
+    context.setModifier(null);
   }
 }
 
+function morphToDefinition(name: string) {
+  context.morphToDefinition(context.statement.value.symbolType ?? null, name);
+}
+
 defineExpose({
-  focus: () => nameRef.value?.focus(),
-  defocus: () => nameRef.value?.defocus(),
+  focus: () => {
+    if (context.statement.value.symbolType == null) {
+      // prever gap if we don't have a symbol type declared yet
+      gapRef.value?.focus();
+    } else {
+      nameRef.value?.focus();
+    }
+  },
+  defocus: () => {
+    nameRef.value?.defocus();
+    gapRef.value?.defocus();
+  },
 });
 </script>
 <template>
@@ -45,12 +59,13 @@ defineExpose({
     />
     <SymbolTypeCell v-if="context.statement.value.symbolType" />
     <ReferenceComboCell
-      can-define-in-place
       ref="nameRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @delete-left="deleteSymbolTypeOrModifier"
       @navigate-left="gapRef?.focus()"
+      :can-define-in-place="context.statement.value.symbolType != null"
+      @define-in-place="morphToDefinition"
     />
   </span>
 </template>

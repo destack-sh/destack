@@ -1,9 +1,11 @@
+from dataclasses import replace
 from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
 from django import db
 from django.db.models import F, Q, Value
 from django.db.models.functions import Concat
+from more_itertools import first
 from strawberry import lazy
 from strawberry.scalars import JSON
 from strawberry_django_plus import gql
@@ -56,7 +58,7 @@ class TypeNodeData:
     value: Optional[JSON]
     reference: Optional[str]
     parent_id: Optional[UUID]
-    order_key: Optional[str]
+    order_key: str
 
 
 @gql.django.type(models.Statement)
@@ -136,11 +138,11 @@ class Statement(gql.Node):
 
 @gql.input
 class StatementCreateInput:
+    """Create a blank statement"""
+
     id: Optional[GlobalID] = None
     file_id: GlobalID
-    type: StatementType
     order_key: str
-    name: Optional[str] = None
     parent_id: Optional[GlobalID] = None
 
 
@@ -148,6 +150,9 @@ class StatementCreateInput:
 class StatementMorphInput(gql.NodeInput):
     type: StatementType
     symbol_type: Optional[SymbolType] = None
+    name: Optional[str] = None
+    type_nodes: Optional[list["StatementTypeNodeDataCreateInput"]] = None
+    language: Optional[str] = None
 
 
 @gql.input
@@ -187,9 +192,39 @@ class StatementCommentedInput(gql.NodeInput):
     commented: bool
 
 
+@gql.input
+class StatementTypeNodeDataCreateInput(gql.NodeInput):
+    node_id: GlobalID
+    name: Optional[str] = None
+    tag: TypeTag
+    order_key: str
+    description: Optional[str] = None
+    value: Optional[JSON] = None
+    reference: Optional[str] = None
+    parent_id: Optional[UUID] = None
+
+
+# TODO @Cleanup: type node mutations should be more atomic
+@gql.input
+class StatementTypeNodeDataUpdateInput(gql.NodeInput):
+    node_id: GlobalID
+    name: Optional[str] = None
+    tag: Optional[TypeTag] = None
+    order_key: Optional[str] = None
+    description: Optional[str] = None
+    value: Optional[JSON] = None
+    reference: Optional[str] = None
+    parent_id: Optional[UUID] = None
+
+
+@gql.input
+class StatementTypeNodeDataDeleteInput(gql.NodeInput):
+    node_id: GlobalID
+
+
 @gql.type
 class StatementMutation:
-    @project_mutation(PMT.CREATE_STATEMENT, atomic=True)
+    @project_mutation(PMT.CREATE_STATEMENT)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
@@ -197,15 +232,27 @@ class StatementMutation:
             models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
         )
         id = input.id.node_id if input.id else None
-        statement = models.Statement.objects.create_statement(
+        statement = models.Statement(
             id=id,
             project_version=project_version,
             file=file,
-            type=input.type,
-            name=input.name,
+            type=StatementType.BLANK,
+            name=None,
             parent=parent,
             order_key=input.order_key,
         )
+        return statement
+
+    @project_mutation(PMT.MORPH_STATEMENT)
+    def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.type = input.type
+        statement.symbol_type = input.symbol_type
+        statement.name = input.name
+        statement.type_nodes = (
+            [TypeNodeData(**d) for d in input.type_nodes] if input.type_nodes else None
+        )
+        statement.language = input.language
         return statement
 
     @project_mutation(PMT.SOFT_DELETE_STATEMENT, atomic=True)
@@ -237,12 +284,6 @@ class StatementMutation:
         statement.reference_id = input.reference_id.node_id if input.reference_id else None
         return statement
 
-    @project_mutation(PMT.MOVE_STATEMENT)
-    def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.morph_to(input.type, input.symbol_type)
-        return statement
-
     @project_mutation(PMT.COMMENT_STATEMENT, atomic=True)
     def comment_statement(self, input: StatementCommentedInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
@@ -262,6 +303,34 @@ class StatementMutation:
     def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.name = input.name
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def create_statement_type_node(
+        self, input: StatementTypeNodeDataCreateInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.type_nodes.append(TypeNodeData(**input.dict()))
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def update_statement_type_node(
+        self, input: StatementTypeNodeDataUpdateInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        node = first([n for n in statement.type_nodes if n == input.node_id.node_id])
+        node = replace(node, **input.dict())
+        # replace type node in array
+        statement.type_nodes = [n for n in statement.type_nodes if n.id != input.node_id.node_id]
+        statement.type_nodes.append(node)
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def delete_statement_type_node(
+        self, input: StatementTypeNodeDataDeleteInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.type_nodes = [n for n in statement.type_nodes if n.id != input.node_id.node_id]
         return statement
 
 
