@@ -22,7 +22,7 @@ const emit = defineEmits<{
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 
 const operations = useOperations();
-const monacoEditor = ref<InstanceType<typeof MonacoEditor> | null>(null);
+const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
 const code: Ref<string | null> = ref(null);
 
 function saveCode(code: string) {
@@ -41,13 +41,13 @@ watchEffect(() => {
 });
 
 defineExpose({
-  focus: () => monacoEditor.value?.focus(),
-  defocus: () => monacoEditor.value?.defocus(),
+  focus: () => monacoEditorRef.value?.focus(),
+  defocus: () => monacoEditorRef.value?.defocus(),
 });
 </script>
 <template>
   <MonacoEditor
-    ref="monacoEditor"
+    ref="monacoEditorRef"
     v-if="code != null"
     :line-number-offset="lineNumberBase + 1 /* for statement itself */"
     :line-number-shift-px="xOffset + 20"

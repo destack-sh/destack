@@ -81,25 +81,19 @@ export function useSymbolContentOps() {
     `)
   );
 
-  async function updateStatementCode(
-    id: string,
-    oldContent: { code?: string; codeBuiltinId?: string },
-    newContent: { code?: string; codeBuiltinId?: string }
-  ) {
+  async function updateStatementCode(id: string, oldCode: string, newCode: string) {
     await operations.perform({
       type: "statement.updateCode",
       do: async () => {
         await updateStatementCodeMut({
           id: id,
-          code: newContent.code,
-          codeBuiltinId: newContent.codeBuiltinId,
+          code: newCode,
         });
       },
       undo: async () => {
         await updateStatementCodeMut({
           id: id,
-          code: oldContent.code,
-          codeBuiltinId: oldContent.codeBuiltinId,
+          code: oldCode,
         });
       },
     });

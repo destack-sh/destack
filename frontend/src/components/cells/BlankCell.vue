@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
+import { MODIFIER_BY_KEYWORD, SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
 import { ref, watch, type Ref } from "vue";
 
 defineProps<{ showDots: boolean }>();
@@ -9,16 +10,21 @@ const context = useStatementContext();
 const content: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-function insertBelow() {
-  context.actions.apply("statement.insertBelowCurrent");
-}
-
-function deleteSelf() {
-  context.actions.apply("statement.deleteCurrent");
-}
-
+// apply content
 watch(content, (newContent) => {
-  console.log("content changed in " + context.statement.value.id, newContent);
+  // handle both breaking and non-breaking spaces
+  const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" ");
+  const contentTrim = newContent.trim();
+
+  // if it matches an allowed keyword, apply the keyword
+  if (endsInSpace && MODIFIER_BY_KEYWORD[contentTrim]) {
+    context.morphSetModifier(MODIFIER_BY_KEYWORD[contentTrim]);
+  } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
+    console.log("set symbol type ", SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
+    // TODO @Incomplete: set symbol type
+  } else if (endsInSpace && (contentTrim == "#" || contentTrim == "//")) {
+    context.morphToComment();
+  }
 });
 
 defineExpose({
@@ -31,8 +37,8 @@ defineExpose({
     ref="spanRef"
     v-model="content"
     :readonly="context.readonly.value"
-    @enter="insertBelow"
-    @delete-left="deleteSelf"
+    @enter="context.insertBelow"
+    @delete-left="context.deleteSelf"
     @navigate-up="context.navigateUp"
     @navigate-down="context.navigateDown"
     @escape="context.escape"
