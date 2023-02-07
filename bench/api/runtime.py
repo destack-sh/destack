@@ -51,6 +51,8 @@ class InterpFile:
     symbols: list["InterpSymbol"]
 
 
+# not to be confused with language.InterpSymbol
+# which is not what we get out of the runtime worker yet
 @gql.type
 class InterpSymbol:
     id: GlobalID
@@ -58,7 +60,7 @@ class InterpSymbol:
     name: Optional[str]
     type: StatementType
     modifier: Optional[StatementModifier]
-    symbol_type: SymbolType
+    symbol_type: Optional[SymbolType]
     type_node: Optional[TypeNode]
 
 

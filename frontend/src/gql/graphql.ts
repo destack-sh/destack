@@ -158,7 +158,7 @@ export type InterpSymbol = {
   id: Scalars["GlobalID"];
   modifier?: Maybe<StatementModifier>;
   name?: Maybe<Scalars["String"]>;
-  symbolType: SymbolType;
+  symbolType?: Maybe<SymbolType>;
   type: StatementType;
   typeNode?: Maybe<TypeNode>;
 };
@@ -1353,7 +1353,7 @@ export type InterpSymbolContentFragment = {
   name?: string | null;
   type: StatementType;
   modifier?: StatementModifier | null;
-  symbolType: SymbolType;
+  symbolType?: SymbolType | null;
   typeNode?:
     | ({ __typename?: "TypeNode" } & { " $fragmentRefs"?: { TypeNodeContentFragment: TypeNodeContentFragment } })
     | null;

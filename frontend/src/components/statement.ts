@@ -159,11 +159,11 @@ export function useStatementContext() {
 
   // one-way syncs from current state to backend (:Singleplayer)
 
-  function syncName(name: Ref<string>) {
+  function syncName(content: Ref<string>) {
     function syncName() {
-      operations.statement.rename(statement.value.id, statement.value.name ?? null, name.value);
+      operations.statement.rename(statement.value.id, statement.value.name ?? null, content.value);
     }
-    return useDebounceFn(syncName, 200, { maxWait: 500 });
+    watch(content, useDebounceFn(syncName, 200, { maxWait: 500 }));
   }
 
   function syncCode(content: Ref<string>) {
