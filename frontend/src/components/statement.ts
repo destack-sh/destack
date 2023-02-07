@@ -78,11 +78,15 @@ export function useStatementContext() {
     );
   }
 
+  async function setReference(reference: { id: string } | null) {
+    await operations.statement.setReference(statement.value.id, statement.value.reference?.id, reference?.id ?? null);
+  }
+
   // one-way syncs from current state to backend (:Singleplayer)
 
   function syncName(name: Ref<string>) {
     function syncName() {
-      operations.statement.rename(statement.value.id, statement.value.name, name.value);
+      operations.statement.rename(statement.value.id, statement.value.name ?? null, name.value);
     }
     return useDebounceFn(syncName, 200, { maxWait: 500 });
   }
@@ -124,6 +128,7 @@ export function useStatementContext() {
     morphToComment,
     morphSetModifier,
     morphSetSymbolType,
+    setReference,
     syncName,
     syncCode,
     syncDescription,

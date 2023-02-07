@@ -18,6 +18,8 @@ defineExpose({
 });
 </script>
 <template>
+  <!-- TODO @Robustness: fix brief flicker before comment cell monaco is loaded -->
+  <!-- unfortunately straightforward v-show instead of v-is seems to break focus -->
   <!-- Editing markdown -->
   <MonacoEditor
     v-if="context.editing.value"
@@ -36,5 +38,6 @@ defineExpose({
     hide-line-numbers
     language="markdown"
   />
+  <!-- Show rendered markdown -->
   <div v-else class="prose mt-[-1px] font-mono text-sm" v-html="sanitizedHtml" />
 </template>
