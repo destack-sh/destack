@@ -98,14 +98,18 @@ def write_module(
         models.Statement.objects.filter(file_id__in=model_files.keys()).delete()
 
     # map statements
-    for stmt_data in chain.from_iterable(file.statements for file in files):
+    # assign temporary global order keys to prevent conflicts (parents aren't assigned yet)
+    temp_order_keys = generate_n_keys_between(None, None, sum(len(f.statements) for f in files))
+    for ok, stmt_data in zip(
+        temp_order_keys, chain.from_iterable(file.statements for file in files)
+    ):
         wire_statements[stmt_data.id] = stmt_data
         model_statement = models.Statement(
             id=stmt_data.id,
             project_version=project_version,
             file=model_files[stmt_data.file_id],
             parent=None,
-            order_key=stmt_data.order_key,
+            order_key=ok,
             type=stmt_data.type,
             modifier=stmt_data.modifier,
             name=stmt_data.name,
@@ -125,11 +129,12 @@ def write_module(
     for relation_cls, relations in groupby(model_contents_relations, key=type):
         relation_cls.objects.bulk_create(relations)
 
-    # map references (incl. parent)
-    for wire_statement in wire_statements.values():
-        model_statement = model_statements[wire_statement.id]
-        model_statement.parent_id = wire_statement.parent_id
-        model_statement.reference_id = wire_statement.reference_id
+    # map actual order key, parent and references
+    for stmt_data in wire_statements.values():
+        model_statement = model_statements[stmt_data.id]
+        model_statement.order_key = stmt_data.order_key
+        model_statement.parent_id = stmt_data.parent_id
+        model_statement.reference_id = stmt_data.reference_id
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     return list(model_files.values())
