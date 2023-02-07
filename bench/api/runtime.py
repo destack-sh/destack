@@ -58,7 +58,7 @@ class InterpSymbol:
     name: Optional[str]
     type: StatementType
     modifier: Optional[StatementModifier]
-    symbol_type: Optional[SymbolType]
+    symbol_type: SymbolType
     type_node: Optional[TypeNode]
 
 

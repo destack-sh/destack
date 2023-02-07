@@ -130,7 +130,7 @@ type InterpSymbol {
   name: String
   type: StatementType!
   modifier: StatementModifier
-  symbolType: SymbolType
+  symbolType: SymbolType!
   typeNode: TypeNode
 }
 
