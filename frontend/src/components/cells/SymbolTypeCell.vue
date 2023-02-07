@@ -1,13 +1,16 @@
 <script lang="ts" setup>
 import { useStatementContext } from "@/components/statement";
+import { TypeTag } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { computed } from "vue";
 
 const context = useStatementContext();
-const symbolTypeKeyword = computed(() => SYMBOL_TYPE_KEYWORD[context.statement.value.symbolType]);
-
-defineExpose({
-  delete: () => context.morphSetSymbolType(null),
+const symbolTypeKeyword = computed(() => {
+  if (context.typeNodeHead.value?.tag == TypeTag.Enum) {
+    return "enum";
+  } else {
+    return SYMBOL_TYPE_KEYWORD[context.statement.value.symbolType];
+  }
 });
 </script>
 <template>

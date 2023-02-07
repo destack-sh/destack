@@ -399,10 +399,10 @@ type Statement implements Node {
   description: String
   referenceProjectVersion: ProjectVersion
   value: JSON
-  typeNodes: [TypeNodeData!]
   records: [DatasetRecord!]!
   mappings: [SourceMapping!]!
   importPath: String
+  typeNodes: [TypeNodeData!]
 }
 
 input StatementCommentedInput {
@@ -500,7 +500,7 @@ input StatementTypeNodeDataCreateInput {
   id: GlobalID!
   nodeId: GlobalID!
   orderKey: String!
-  parentId: UUID = null
+  parentId: GlobalID = null
   name: String = null
   tag: TypeTag!
   description: String = null
@@ -573,13 +573,13 @@ type TypeNode {
 }
 
 type TypeNodeData {
-  id: UUID!
+  id: GlobalID!
   name: String
   tag: TypeTag!
   description: String
   value: JSON
   reference: String
-  parentId: UUID
+  parentId: GlobalID
   orderKey: String!
 }
 

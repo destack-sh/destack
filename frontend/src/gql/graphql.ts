@@ -655,7 +655,7 @@ export type StatementTypeNodeDataCreateInput = {
   name?: InputMaybe<Scalars["String"]>;
   nodeId: Scalars["GlobalID"];
   orderKey: Scalars["String"];
-  parentId?: InputMaybe<Scalars["UUID"]>;
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
   reference?: InputMaybe<Scalars["String"]>;
   tag: TypeTag;
   value?: InputMaybe<Scalars["JSON"]>;
@@ -739,10 +739,10 @@ export type TypeNode = {
 export type TypeNodeData = {
   __typename?: "TypeNodeData";
   description?: Maybe<Scalars["String"]>;
-  id: Scalars["UUID"];
+  id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   orderKey: Scalars["String"];
-  parentId?: Maybe<Scalars["UUID"]>;
+  parentId?: Maybe<Scalars["GlobalID"]>;
   reference?: Maybe<Scalars["String"]>;
   tag: TypeTag;
   value?: Maybe<Scalars["JSON"]>;

@@ -8,7 +8,7 @@ import {
   type TypeNodeData,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { FileHeaderType, StatementContentType, StatementHeaderType, TypeNodeDataType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
@@ -36,12 +36,20 @@ export function useStatementContext() {
   if (context == null) {
     throw new Error("StatementContext is not available.");
   }
+
+  // state
+
   const statement = computed(() => useFragment(StatementContentType, context.value.statement));
   const file = computed(() => useFragment(FileHeaderType, context.value.file));
   const reference = computed(() => useFragment(StatementHeaderType, context.value.reference));
 
+  const typeNodeHead = computed(() =>
+    statement.value.typeNodes?.map((n) => useFragment(TypeNodeDataType, n)).find((n) => n.parentId == null)
+  );
+
+  // basic actions
+
   const actions = useActions();
-  const operations = useOperations();
 
   function navigateUp() {
     actions.apply("statement.moveFocusUp");
@@ -69,6 +77,8 @@ export function useStatementContext() {
 
   // self mutations
 
+  const operations = useOperations();
+
   async function morphToComment() {
     await operations.statement.morph(
       statement.value.id,
@@ -82,19 +92,31 @@ export function useStatementContext() {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
     const defaults = getDefaultSymbolDefinition(symbolType);
+    // set new type nodes to defaults if they aren't compatible
+    // we may keep previous type nodes because they may be used to mark the specific type
+    // e.g. for enums we create a regular type symbol but pre-morph its head type node to enum
+    const oldTypeNodes = statement.value.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
+    let newTypeNodes;
+    if (typeNodeHead.value?.tag != null && isTypeTagCompatible(typeNodeHead.value.tag, symbolType)) {
+      newTypeNodes = oldTypeNodes;
+    } else {
+      newTypeNodes = defaults.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
+    }
+
     await operations.statement.morph(
       statement.value.id,
       {
         type: statement.value.type,
         symbolType: statement.value.symbolType ?? undefined,
         name: undefined,
+        typeNodes: oldTypeNodes,
       },
       {
         type: StatementType.Definition,
         symbolType,
         name,
         language: defaults.language,
-        typeNodes: defaults.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n)),
+        typeNodes: newTypeNodes,
       }
     );
   }
@@ -108,6 +130,26 @@ export function useStatementContext() {
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
       { type: statement.value.type, symbolType: symbolType ?? undefined }
+    );
+  }
+
+  async function setSymbolTypeEnum() {
+    // morphs to type symbol with an enum as head type node
+    const oldTypeNodes = statement.value.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
+    await operations.statement.morph(
+      statement.value.id,
+      {
+        type: statement.value.type,
+        symbolType: statement.value.symbolType ?? undefined,
+        name: statement.value.name ?? undefined,
+        typeNodes: oldTypeNodes,
+      },
+      {
+        type: statement.value.type,
+        symbolType: SymbolType.Type,
+        name: statement.value.name ?? undefined,
+        typeNodes: [mapToTypeNodeDataInput(statement.value.id, makeTypeNodeData({ tag: TypeTag.Enum }))],
+      }
     );
   }
 
@@ -153,6 +195,7 @@ export function useStatementContext() {
     editing: computed(() => context.value.editing),
     xOffset: computed(() => context.value.xOffset),
     lineNumberBase: computed(() => context.value.lineNumberBase),
+    typeNodeHead,
     // actions
     actions,
     navigateUp,
@@ -162,6 +205,7 @@ export function useStatementContext() {
     morphToDefinition,
     setModifier,
     setSymbolType,
+    setSymbolTypeEnum,
     setReference,
     syncName,
     syncCode,
@@ -202,6 +246,18 @@ export function getDefaultSymbolDefinition(symbolType: SymbolType): { language?:
   } else {
     // no special content for other symbol types
     return {};
+  }
+}
+
+export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boolean {
+  if (symbolType == SymbolType.Code || symbolType == SymbolType.Task) {
+    return tag == TypeTag.Function;
+  } else if (symbolType == SymbolType.Dataset) {
+    return tag == TypeTag.Struct;
+  } else if (symbolType == SymbolType.Type) {
+    return tag == TypeTag.Struct || tag == TypeTag.Enum;
+  } else {
+    return false;
   }
 }
 
