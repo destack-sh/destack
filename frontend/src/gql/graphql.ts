@@ -177,6 +177,7 @@ export type Mutation = {
   compile: CompileStateOperationInfo;
   createFile: FileOperationInfo;
   createStatement: StatementOperationInfo;
+  createStatementRecord: StatementOperationInfo;
   createStatementTypeNode: StatementOperationInfo;
   deleteStatementTypeNode: StatementOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -193,6 +194,7 @@ export type Mutation = {
   updateStatementDescription: StatementOperationInfo;
   updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
+  updateStatementRecord: StatementOperationInfo;
   updateStatementRecords: StatementOperationInfo;
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
@@ -217,6 +219,10 @@ export type MutationCreateFileArgs = {
 
 export type MutationCreateStatementArgs = {
   input: StatementCreateInput;
+};
+
+export type MutationCreateStatementRecordArgs = {
+  input: StatementCreateRecordInput;
 };
 
 export type MutationCreateStatementTypeNodeArgs = {
@@ -283,6 +289,10 @@ export type MutationUpdateStatementModifierArgs = {
   input: StatementSetModifierInput;
 };
 
+export type MutationUpdateStatementRecordArgs = {
+  input: StatementUpdateRecordInput;
+};
+
 export type MutationUpdateStatementRecordsArgs = {
   input: StatementUpdateRecordsInput;
 };
@@ -296,7 +306,7 @@ export type MutationUpdateStatementTextArgs = {
 };
 
 export type MutationUpdateStatementTypeNodeArgs = {
-  input: StatementTypeNodeDataUpdateInput;
+  input: StatementTypeNodeDataCreateInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -561,6 +571,13 @@ export type StatementCreateInput = {
   parentId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
+export type StatementCreateRecordInput = {
+  data: Scalars["JSON"];
+  id: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+  recordId: Scalars["UUID"];
+};
+
 export type StatementFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
@@ -631,6 +648,7 @@ export enum StatementType {
   Reference = "REFERENCE",
 }
 
+/** Upsert a statement type node data */
 export type StatementTypeNodeDataCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
@@ -648,18 +666,6 @@ export type StatementTypeNodeDataDeleteInput = {
   nodeId: Scalars["GlobalID"];
 };
 
-export type StatementTypeNodeDataUpdateInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  nodeId: Scalars["GlobalID"];
-  orderKey?: InputMaybe<Scalars["String"]>;
-  parentId?: InputMaybe<Scalars["UUID"]>;
-  reference?: InputMaybe<Scalars["String"]>;
-  tag?: InputMaybe<TypeTag>;
-  value?: InputMaybe<Scalars["JSON"]>;
-};
-
 export type StatementUpdateCodeInput = {
   code?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
@@ -673,6 +679,12 @@ export type StatementUpdateDescriptionInput = {
 export type StatementUpdateLanguageInput = {
   id: Scalars["GlobalID"];
   language: Scalars["String"];
+};
+
+export type StatementUpdateRecordInput = {
+  data: Scalars["JSON"];
+  id: Scalars["GlobalID"];
+  recordId: Scalars["UUID"];
 };
 
 export type StatementUpdateRecordsInput = {

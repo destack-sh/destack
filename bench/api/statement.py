@@ -1,4 +1,4 @@
-from dataclasses import replace
+from dataclasses import asdict, replace
 from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
@@ -15,6 +15,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.sync import PMT, project_mutation
+from bench.language import wire
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -192,29 +193,31 @@ class StatementCommentedInput(gql.NodeInput):
     commented: bool
 
 
-@gql.input
-class StatementTypeNodeDataCreateInput(gql.NodeInput):
-    node_id: GlobalID
-    name: Optional[str] = None
-    tag: TypeTag
-    order_key: str
-    description: Optional[str] = None
-    value: Optional[JSON] = None
-    reference: Optional[str] = None
-    parent_id: Optional[UUID] = None
-
-
 # TODO @Cleanup: type node mutations should be more atomic
 @gql.input
-class StatementTypeNodeDataUpdateInput(gql.NodeInput):
+class StatementTypeNodeDataCreateInput(gql.NodeInput):
+    """Upsert a statement type node data"""
+
     node_id: GlobalID
+    order_key: str
+    parent_id: Optional[UUID] = None
     name: Optional[str] = None
-    tag: Optional[TypeTag] = None
-    order_key: Optional[str] = None
+    tag: TypeTag
     description: Optional[str] = None
     value: Optional[JSON] = None
     reference: Optional[str] = None
-    parent_id: Optional[UUID] = None
+
+    def to_type_node_data(self) -> wire.TypeNodeData:
+        return wire.TypeNodeData(
+            id=UUID(self.node_id.node_id),
+            order_key=self.order_key,
+            parent_id=self.parent_id,
+            name=self.name,
+            tag=self.tag,
+            description=self.description,
+            value=self.value,
+            reference=self.reference,
+        )
 
 
 @gql.input
@@ -250,7 +253,7 @@ class StatementMutation:
         statement.symbol_type = input.symbol_type
         statement.name = input.name
         statement.type_nodes = (
-            [TypeNodeData(**d) for d in input.type_nodes] if input.type_nodes else None
+            [d.to_type_node_data() for d in input.type_nodes] if input.type_nodes else None
         )
         statement.language = input.language
         return statement
@@ -310,16 +313,16 @@ class StatementMutation:
         self, input: StatementTypeNodeDataCreateInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.type_nodes.append(TypeNodeData(**input.dict()))
+        statement.type_nodes.append(input.to_type_node_data())
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
     def update_statement_type_node(
-        self, input: StatementTypeNodeDataUpdateInput
+        self, input: StatementTypeNodeDataCreateInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         node = first([n for n in statement.type_nodes if n == input.node_id.node_id])
-        node = replace(node, **input.dict())
+        node = replace(node, **asdict(input.to_type_node_data()))
         # replace type node in array
         statement.type_nodes = [n for n in statement.type_nodes if n.id != input.node_id.node_id]
         statement.type_nodes.append(node)
@@ -369,6 +372,24 @@ class StatementUpdateRecordsInput(gql.NodeInput):
     records: list[JSON]
 
 
+@gql.input
+class StatementCreateRecordInput(gql.NodeInput):
+    record_id: UUID
+    data: JSON
+    order_key: str
+
+
+@gql.input
+class StatementUpdateRecordInput(gql.NodeInput):
+    record_id: UUID
+    data: JSON
+
+
+@gql.input
+class StatementDeleteRecordInput(gql.NodeInput):
+    record_id: UUID
+
+
 @gql.type
 class SymbolMutation:
     # TODO @Cleanup: trivial statement field mutations should be much less code
@@ -408,6 +429,7 @@ class SymbolMutation:
         statement.language = input.language
         return statement
 
+    # TODO @Performance: separate statement record updates from regular statement updates
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def update_statement_records(
         self, input: StatementUpdateRecordsInput
@@ -416,4 +438,23 @@ class SymbolMutation:
         statement.records.all().delete()
         db_records = [models.DatasetRecord(dataset=statement, data=data) for data in input.records]
         models.DatasetRecord.objects.bulk_create(db_records)
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
+    def create_statement_record(
+        self, input: StatementCreateRecordInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        record = models.DatasetRecord(dataset=statement, id=input.record_id, data=input.data)
+        record.save()
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
+    def update_statement_record(
+        self, input: StatementUpdateRecordInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        record = statement.records.get_or_create(id=input.record_id, defaults={"data": input.data})
+        record.data = input.data
+        record.save()
         return statement

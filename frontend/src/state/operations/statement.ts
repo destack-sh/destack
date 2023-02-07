@@ -20,6 +20,12 @@ export function newStatementId(): string {
   return btoa(`Statement:${nodeId}`);
 }
 
+export function newTypeNodeDataId(): string {
+  /* Generates a new type node data global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`TypeNodeData:${nodeId}`);
+}
+
 export function useStatementOps() {
   const operations = useOperationsStore();
 
