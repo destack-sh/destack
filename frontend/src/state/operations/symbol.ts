@@ -67,12 +67,11 @@ export function useSymbolContentOps() {
 
   const { mutate: updateStatementCodeMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateStatementCode($id: GlobalID!, $code: String, $codeBuiltinId: String) {
-        updateStatementCode(input: { id: $id, code: $code, codeBuiltinId: $codeBuiltinId }) {
+      mutation updateStatementCode($id: GlobalID!, $code: String) {
+        updateStatementCode(input: { id: $id, code: $code }) {
           ... on Statement {
             id
             code
-            codeBuiltinId
             revision
           }
           ...OperationInfoContent

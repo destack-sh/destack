@@ -82,7 +82,6 @@ class TypeNodesDataField(models.JSONField):
 SYMBOL_CONTENT_VALUE_FIELDS = (
     "language",
     "code",
-    "code_builtin_id",
     "description",
     "value",
     "type_nodes",
@@ -135,7 +134,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
-    code_builtin_id = models.CharField(max_length=64, null=True, blank=True)
     description = models.TextField(null=True, blank=True)  # for any descriptions
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True

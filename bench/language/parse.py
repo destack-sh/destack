@@ -576,7 +576,6 @@ def _parse_definition_content(
         return CodeContent(
             description=description,
             language=lang,  # noqa
-            builtin_id=None,
             code=code_text,
             type_node=type,
         )

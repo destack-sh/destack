@@ -175,7 +175,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.description = statement.description
     data.lang = statement.lang
     data.code = statement.code
-    data.code_builtin_id = statement.code_builtin_id
     data.provider = statement.provider
     data.external_name = statement.external_name
     data.type_nodes = statement.type_nodes
@@ -208,7 +207,6 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.description = data.description
     statement.lang = data.lang
     statement.code = data.code
-    statement.code_builtin_id = data.code_builtin_id
     statement.provider = data.provider
     statement.external_name = data.external_name
     statement.on = data.on
