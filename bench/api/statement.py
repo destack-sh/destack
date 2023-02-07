@@ -266,7 +266,7 @@ class StatementMutation:
         if (
             input.type == StatementType.DEFINITION
             and input.symbol_type in (SymbolType.DATASET, SymbolType.CODE, SymbolType.TASK)
-            and input.type_nodes is None
+            and not input.type_nodes
         ):
             raise ValidationError(f"type_nodes is required for {input.symbol_type}")
 
