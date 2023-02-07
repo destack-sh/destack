@@ -1,11 +1,21 @@
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
+import {
+  StatementModifier,
+  StatementType,
+  SymbolType,
+  TypeTag,
+  type StatementTypeNodeDataCreateInput,
+  type TypeNodeData,
+} from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
-import { symbolTypeAnnotation } from "@babel/types";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
+
+import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { v4 as uuidv4 } from "uuid";
+import { newTypeNodeDataId } from "@/state/operations/statement";
 
 export const STATEMENT_CONTEXT = Symbol();
 
@@ -71,6 +81,7 @@ export function useStatementContext() {
     if (statement.value.type != StatementType.Blank || symbolType == null) {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
+    const defaults = getDefaultSymbolDefinition(symbolType);
     await operations.statement.morph(
       statement.value.id,
       {
@@ -82,6 +93,8 @@ export function useStatementContext() {
         type: StatementType.Definition,
         symbolType,
         name,
+        language: defaults.language,
+        typeNodes: defaults.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n)),
       }
     );
   }
@@ -157,4 +170,69 @@ export function useStatementContext() {
     insertAbove,
     insertBelow,
   };
+}
+
+function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): StatementTypeNodeDataCreateInput {
+  return {
+    id: id,
+    nodeId: typeNodeData.id,
+    tag: typeNodeData.tag,
+    parentId: typeNodeData.parentId,
+    name: typeNodeData.name,
+    value: typeNodeData.value,
+    orderKey: typeNodeData.orderKey,
+  };
+}
+
+export function getDefaultSymbolDefinition(symbolType: SymbolType): { language?: string; typeNodes?: TypeNodeData[] } {
+  if (symbolType == SymbolType.Code) {
+    return {
+      language: "python",
+      typeNodes: makeFunctionTypeNodeData(),
+    };
+  } else if (symbolType == SymbolType.Task) {
+    return {
+      typeNodes: makeFunctionTypeNodeData(),
+    };
+  } else if (symbolType == SymbolType.Dataset) {
+    return {
+      language: "jsonl",
+      typeNodes: [makeTypeNodeData({ name: "element", tag: TypeTag.Struct })],
+    };
+  } else {
+    // no special content for other symbol types
+    return {};
+  }
+}
+
+export function makeTypeNodeData(data: { name?: string; tag: TypeTag; parentId?: string; orderKey?: string }) {
+  const typeNodeData: TypeNodeData = {
+    __typename: "TypeNodeData",
+    id: newTypeNodeDataId(),
+    name: data.name ?? null,
+    tag: data.tag,
+    parentId: data.parentId ?? null,
+    orderKey: data.orderKey ?? INTEGER_ZERO,
+  };
+  return typeNodeData;
+}
+
+export function makeFunctionTypeNodeData(): TypeNodeData[] {
+  const functionType: TypeNodeData = makeTypeNodeData({
+    tag: TypeTag.Function,
+    orderKey: INTEGER_ZERO,
+  });
+  const inputType: TypeNodeData = makeTypeNodeData({
+    name: "input",
+    tag: TypeTag.Struct,
+    parentId: functionType.id,
+    orderKey: INTEGER_ZERO,
+  });
+  const outputType: TypeNodeData = makeTypeNodeData({
+    name: "output",
+    tag: TypeTag.Null,
+    parentId: functionType.id,
+    orderKey: generateKeyBetween(INTEGER_ZERO, null),
+  });
+  return [functionType, inputType, outputType];
 }

@@ -68,7 +68,7 @@ def project_mutation(
             raise TypeError(f"return must union with OperationInfo: {func}")
 
         @functools.wraps(func)
-        def wrapped(*args, **kwargs):
+        def wrapped_mutation(*args, **kwargs):
             thing = func(*args, **kwargs)
             if not isinstance(thing, (models.File, models.Statement)):
                 raise TypeError(f"thing must be File or Statement: {thing}")
@@ -99,14 +99,14 @@ def project_mutation(
         # wrap in atomic if needed
         if atomic:
 
-            @functools.wraps(wrapped)
+            @functools.wraps(wrapped_mutation)
             def wrapped_atomic(*args, **kwargs):
                 with transaction.atomic():
-                    return wrapped(*args, **kwargs)
+                    return wrapped_mutation(*args, **kwargs)
 
             rewrapped = wrapped_atomic
         else:
-            rewrapped = wrapped
+            rewrapped = wrapped_mutation
 
         return gql.mutation(async_safe(_wrap_exceptions(rewrapped)), directives=directives)
 

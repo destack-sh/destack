@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import contextlib
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 import pytz
 import structlog
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import Model, Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
@@ -64,6 +64,14 @@ class TypeNodesDataField(models.JSONField):
             return None
         value = super().from_db_value(value, expression, connection)
         return [from_dict(wire.TypeNodeData, val) for val in value]
+
+    def validate(self, value: Any, model_instance: Model | None) -> None:
+        # try to dump and load to validate
+        try:
+            dump = to_dict(value, omit_empty=True)
+            _ = [from_dict(wire.TypeNodeData, val) for val in dump]
+        except Exception as e:
+            raise ValueError(f"invalid type nodes data: {e}")
 
     def get_prep_value(self, value):
         if value is None:

@@ -156,13 +156,15 @@ type Mutation {
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
   createStatementTypeNode(input: StatementTypeNodeDataCreateInput!): StatementOperationInfo!
-  updateStatementTypeNode(input: StatementTypeNodeDataUpdateInput!): StatementOperationInfo!
+  updateStatementTypeNode(input: StatementTypeNodeDataCreateInput!): StatementOperationInfo!
   deleteStatementTypeNode(input: StatementTypeNodeDataDeleteInput!): StatementOperationInfo!
   updateStatementText(input: StatementTextInput!): StatementOperationInfo!
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
   updateStatementRecords(input: StatementUpdateRecordsInput!): StatementOperationInfo!
+  createStatementRecord(input: StatementCreateRecordInput!): StatementOperationInfo!
+  updateStatementRecord(input: StatementUpdateRecordInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!
@@ -416,6 +418,13 @@ input StatementCreateInput {
   parentId: GlobalID = null
 }
 
+input StatementCreateRecordInput {
+  id: GlobalID!
+  recordId: UUID!
+  data: JSON!
+  orderKey: String!
+}
+
 input StatementFilter {
   isVisible: Boolean = true
 }
@@ -486,33 +495,22 @@ enum StatementType {
   BLANK
 }
 
+"""Upsert a statement type node data"""
 input StatementTypeNodeDataCreateInput {
   id: GlobalID!
   nodeId: GlobalID!
+  orderKey: String!
+  parentId: UUID = null
   name: String = null
   tag: TypeTag!
-  orderKey: String!
   description: String = null
   value: JSON = null
   reference: String = null
-  parentId: UUID = null
 }
 
 input StatementTypeNodeDataDeleteInput {
   id: GlobalID!
   nodeId: GlobalID!
-}
-
-input StatementTypeNodeDataUpdateInput {
-  id: GlobalID!
-  nodeId: GlobalID!
-  name: String = null
-  tag: TypeTag = null
-  orderKey: String = null
-  description: String = null
-  value: JSON = null
-  reference: String = null
-  parentId: UUID = null
 }
 
 input StatementUpdateCodeInput {
@@ -528,6 +526,12 @@ input StatementUpdateDescriptionInput {
 input StatementUpdateLanguageInput {
   id: GlobalID!
   language: String!
+}
+
+input StatementUpdateRecordInput {
+  id: GlobalID!
+  recordId: UUID!
+  data: JSON!
 }
 
 input StatementUpdateRecordsInput {
