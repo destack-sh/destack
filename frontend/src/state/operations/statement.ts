@@ -97,7 +97,6 @@ export function useStatementOps() {
             ...StatementHeader
             text
             code
-            codeBuiltinId
             description
             typeNodes {
               ...TypeNodeData

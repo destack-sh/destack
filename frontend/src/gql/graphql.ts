@@ -1074,7 +1074,6 @@ export type MorphStatementMutation = {
         id: any;
         text?: string | null;
         code?: string | null;
-        codeBuiltinId?: string | null;
         description?: string | null;
         revision: number;
         typeNodes?: Array<
@@ -2730,7 +2729,6 @@ export const MorphStatementDocument = {
                       { kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
-                      { kind: "Field", name: { kind: "Name", value: "codeBuiltinId" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       {
                         kind: "Field",

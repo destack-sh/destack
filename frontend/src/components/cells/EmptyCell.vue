@@ -6,24 +6,13 @@ import { ref, watch, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();
 
-const emit = defineEmits<{
-  (e: "navigateUp", position?: number): void;
-  (e: "navigateDown", position?: number): void;
-  (e: "navigateLeft"): void;
-  (e: "navigateRight"): void;
-  (e: "enter"): void;
-  (e: "escape"): void;
-  (e: "deleteLeft"): void;
-  (e: "deleteRight"): void;
-}>();
-
 const context = useStatementContext();
 const content: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
 // handle content changes
 watch(content, (newContent) => {
-  const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
+  const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking cell
   const contentTrim = newContent.trim();
 
   // if it matches an allowed keyword, apply the keyword
@@ -31,6 +20,8 @@ watch(content, (newContent) => {
     context.morphSetModifier(MODIFIER_BY_KEYWORD[contentTrim]);
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
     context.morphSetSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
+  } else if (endsInSpace && (contentTrim == "#" || contentTrim == "//")) {
+    context.morphToComment();
   }
 });
 
@@ -44,13 +35,17 @@ defineExpose({
     ref="spanRef"
     v-model="content"
     :readonly="context.readonly.value"
-    @navigate-up="emit('navigateUp')"
-    @navigate-down="emit('navigateDown')"
-    @navigate-left="emit('navigateLeft')"
-    @navigate-right="emit('navigateRight')"
-    @enter="emit('enter')"
-    @escape="emit('escape')"
-    @delete-left="emit('deleteLeft')"
-    @delete-right="emit('deleteRight')"
+    @enter="context.insertBelow"
+    @delete-left="context.deleteSelf"
+    @navigate-up="context.navigateUp"
+    @navigate-down="context.navigateDown"
+    @escape="context.escape"
   />
+  <div
+    v-if="showDots && content.length == 0"
+    class="absolute bottom-0 mx-1 h-full w-full select-none text-gray-300 group-hover:opacity-100"
+    :class="{ 'opacity-100': context.focused.value, 'opacity-0': !context.focused.value }"
+  >
+    ...
+  </div>
 </template>
