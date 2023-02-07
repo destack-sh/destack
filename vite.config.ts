@@ -11,6 +11,8 @@ export default defineConfig(({ command, mode }) => {
     define: {
       __APP_ENV__: env.APP_ENV,
       __APP_VERSION__: env.APP_VERSION,
+      // I'm not sure why process.env is required suddenly, but it fixes an error in babel (?).
+      "process.env": {},
     },
     plugins: [vue(), monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] })],
     root: "./frontend",
