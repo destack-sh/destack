@@ -1,5 +1,5 @@
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementModifier, StatementType } from "@/gql/graphql";
+import { StatementModifier, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
@@ -52,6 +52,10 @@ export function useStatementContext() {
     actions.apply("statement.insertBelowCurrent");
   }
 
+  function insertAbove() {
+    actions.apply("statement.insertBeforeCurrent");
+  }
+
   // modifications
 
   async function morphToComment() {
@@ -66,7 +70,22 @@ export function useStatementContext() {
     await operations.statement.modify(statement.value.id, statement.value.modifier ?? null, modifier);
   }
 
+  async function morphSetSymbolType(symbolType: SymbolType | null) {
+    await operations.statement.morph(
+      statement.value.id,
+      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+      { type: statement.value.type, symbolType: symbolType ?? undefined }
+    );
+  }
+
   // one-way syncs from current state to backend (:Singleplayer)
+
+  function syncName(name: Ref<string>) {
+    function syncName() {
+      operations.statement.rename(statement.value.id, statement.value.name, name.value);
+    }
+    return useDebounceFn(syncName, 200, { maxWait: 500 });
+  }
 
   function syncCode(content: Ref<string>) {
     function saveCode() {
@@ -104,9 +123,12 @@ export function useStatementContext() {
     escape,
     morphToComment,
     morphSetModifier,
+    morphSetSymbolType,
+    syncName,
     syncCode,
     syncDescription,
     deleteSelf,
+    insertAbove,
     insertBelow,
   };
 }

@@ -283,14 +283,14 @@ export function provideStatementActions(
     enabled: computed(() => !!statement.value && !editor.editingElement),
     registered: enabled,
     apply: async () => {
-      const newStatement = await operations.statement.create(
+      await operations.statement.create(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
         generateKeyBetween(above.value?.orderKey ?? null, orderKey.value),
         StatementType.Blank
       );
-      editor.editElement(newStatement as StatementHeader);
+      // don't switch focus if inserting _before_ current
     },
   });
   const insertAfterCurrent = provideSingletonAction({
