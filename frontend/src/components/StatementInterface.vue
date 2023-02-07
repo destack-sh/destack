@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import BlankCell from "@/components/cells/BlankCell.vue";
+import CommentCell from "@/components/cells/CommentCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType } from "@/gql/graphql";
@@ -7,7 +8,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { localErrorsOf } from "@/state/runtime";
 import { onClickOutside, useFocusWithin, whenever } from "@vueuse/core";
-import { type Component, computed, provide, ref, toRef, watch, type Ref, watchEffect } from "vue";
+import { computed, provide, ref, toRef, watch, watchEffect, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -35,12 +36,32 @@ const context: Ref<StatementContext> = computed(() => ({
   focused: isFocused.value,
   editing: isEditing.value,
   depth: props.depth,
+  xOffset: depthOffsetX.value,
+  lineNumberBase: props.lineNumberBase,
   statement: props.statement,
   reference: props.reference,
   file: props.file,
 }));
 provide(STATEMENT_CONTEXT, context);
 
+type Cell = {
+  component: Component;
+  props?: any;
+};
+
+const rootCell: Ref<Cell> = computed(() => {
+  if (statement.value.type == StatementType.Comment) {
+    return {
+      component: CommentCell,
+    };
+  }
+
+  // default to blank cell
+  return {
+    component: BlankCell,
+    props: { showDots: true },
+  };
+});
 const rootCellRef = ref<InstanceType<typeof BlankCell>>();
 
 // forward focus / editing state
@@ -102,13 +123,13 @@ watch(
 );
 
 // errors
-const localErrors = localErrorsOf(toRef(props, "statement"));
+const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 </script>
 <template>
   <div
     ref="containerRef"
-    class="group relative min-h-[34px] border-x-0 border-gray-200 transition-colors"
+    class="group relative min-h-[30px] border-x-0 border-gray-200 transition-colors"
     :class="{
       // 'border-gray-200 ': !isFocused,
       // 'border-l-orange-500': isFamilyFocused,
@@ -124,7 +145,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
-      class="absolute top-[6px] w-6 select-none text-right font-mono text-sm not-italic"
+      class="absolute top-[3px] w-6 select-none text-right font-mono text-sm not-italic"
       :style="{ left: -30 + 'px' }"
       :class="{
         'text-orange-200': !isFocused && !(isComment || isCommented),
@@ -152,14 +173,11 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <div class="absolute top-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <!-- Main cell -->
-    <div class="py-1 px-1">
-      <BlankCell ref="rootCellRef" show-dots />
+    <div class="py-1 px-1 text-sm">
+      <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
     </div>
     <!-- Debug info -->
-    <span
-      v-if="editor.debug"
-      class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
-    >
+    <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isFocused">f</template>
       <template v-if="isEditing">e</template>
       <template v-if="isFirstInGroup">[</template>
@@ -172,6 +190,6 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       </span>
       <template v-if="statement.name != null">{{ statement.name }}</template>
       r:{{ statement.revision }} i:{{ statement.orderKey }} d:{{ depth }}
-    </span>
+    </div>
   </div>
 </template>

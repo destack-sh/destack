@@ -103,6 +103,7 @@ export function useOperations() {
     file: useFileOps(),
     content: useSymbolContentOps(),
     statement: useStatementOps(),
+    symbol: useSymbolContentOps(),
     runtime: useRuntimeOps(),
     version: useProjectVersionOps(),
   };

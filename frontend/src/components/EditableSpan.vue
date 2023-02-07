@@ -58,7 +58,7 @@ defineExpose({ focus: () => span.value?.focus(), defocus: () => span.value?.blur
     tabindex="-1"
     spellcheck="false"
     ref="span"
-    class="w-full"
+    class="w-full outline-none"
     :contenteditable="!readonly"
     @keydown.up.prevent="emit('navigateUp')"
     @keydown.down.prevent="emit('navigateDown')"
