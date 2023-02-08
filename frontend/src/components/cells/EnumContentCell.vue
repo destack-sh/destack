@@ -95,7 +95,17 @@ async function insertBelow(memberId?: string) {
   nextTick(() => focus(membersLength.value - 1, "name"));
 }
 
-function updateMemberField(memberId: string, field: FieldType, value: any) {
+// local copy of fields for immediate editing
+// TODO @Cleanup: apply member field updates immediately once done with individual "field edit mode"
+//  (separate statement editing from individual field editing)
+const memberFields: Ref<Record<string, any>> = ref({});
+for (const member of memberTypeNodes.value ?? []) {
+  for (const field of FIELDS_IN_ORDER) {
+    memberFields.value[member.id + "." + field] = member[field];
+  }
+}
+
+function _updateMemberField(memberId: string, field: FieldType, value: any) {
   const member = memberTypeNodes.value?.find((m) => m.id === memberId);
   if (!member) {
     return;
@@ -103,6 +113,16 @@ function updateMemberField(memberId: string, field: FieldType, value: any) {
   console.log("updateMemberField", memberId, field, value);
   const updatedMember = { ...member, [field]: value };
   context.updateTypeNode(updatedMember);
+}
+
+const _updateMemberFieldDebounced = useDebounceFn(_updateMemberField, 200, { maxWait: 1000 });
+function updateMemberField(memberId: string, field: FieldType, value: any) {
+  memberFields.value[memberId + "." + field] = value;
+  _updateMemberFieldDebounced(memberId, field, value);
+}
+
+function memberField(memberId: string, field: FieldType) {
+  return memberFields.value[memberId + "." + field];
 }
 
 function deleteMember(memberId: string) {
@@ -114,10 +134,6 @@ function deleteMember(memberId: string) {
   context.deleteTypeNode(member as any); // must exist
   focus(memberIdx - 1, "name"); // move focus above
 }
-
-// TODO @Cleanup: apply member field updates immediately but only once confirmed
-//  (separate statement editing from individual field editing)
-const updateMemberFieldDebounced = useDebounceFn(updateMemberField, 200, { maxWait: 1000 });
 
 defineExpose({
   focus: () => descriptionRef.value?.focus(),
@@ -148,8 +164,8 @@ defineExpose({
     <template v-for="member of memberTypeNodes" :key="member.id">
       <EditableSpan
         :ref="(el: any) => nameRefs[member.id] = el ?? undefined"
-        :model-value="member.name ?? ''"
-        @update:model-value="(val) => updateMemberFieldDebounced(member.id, 'name', val)"
+        :model-value="memberField(member.id, 'name') ?? ''"
+        @update:model-value="(val) => updateMemberField(member.id, 'name', val)"
         :readonly="context.readonly.value"
         @navigate-up="navigateUp(member.id, 'name')"
         @navigate-down="navigateDown(member.id, 'name')"
@@ -164,8 +180,8 @@ defineExpose({
       <div>
         <EditableSpan
           :ref="(el: any) => descriptionRefs[member.id] = el ?? undefined"
-          :model-value="member.description ?? ''"
-          @update:model-value="(val) => updateMemberFieldDebounced(member.id, 'description', val)"
+          :model-value="memberField(member.id, 'description') ?? ''"
+          @update:model-value="(val) => updateMemberField(member.id, 'description', val)"
           :readonly="context.readonly.value"
           @navigate-up="navigateUp(member.id, 'description')"
           @navigate-down="navigateDown(member.id, 'description')"
