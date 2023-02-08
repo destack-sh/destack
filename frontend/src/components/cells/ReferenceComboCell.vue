@@ -4,7 +4,7 @@ import { StatementType } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { useFocus } from "@vueuse/core";
+import { onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ canDefineInPlace?: boolean }>();
@@ -85,6 +85,13 @@ function open() {
     inputRefFocus.focused.value = true;
   });
 }
+
+// auto-open if the user starts typing and this is focused
+onStartTyping(() => {
+  if (query.value.length == 0 && inputRefFocus.focused.value) {
+    open();
+  }
+});
 
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
