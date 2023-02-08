@@ -67,12 +67,16 @@ export function useStatementContext() {
     actions.apply("statement.deleteCurrent");
   }
 
+  function tryDeleteAbove() {
+    // TODO @Incomplete: implement try delete above
+  }
+
   function insertBelow() {
     actions.apply("statement.insertBelowCurrent");
   }
 
   function insertAbove() {
-    actions.apply("statement.insertBeforeCurrent");
+    actions.apply("statement.insertAboveCurrent");
   }
 
   // self mutations
@@ -211,6 +215,7 @@ export function useStatementContext() {
     syncCode,
     syncDescription,
     deleteSelf,
+    tryDeleteAbove,
     insertAbove,
     insertBelow,
   };

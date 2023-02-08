@@ -10,14 +10,15 @@ const context = useStatementContext();
 
 const name: Ref<string> = ref(context.statement.value.name ?? "");
 context.syncName(name);
+const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-function deleteModifierOrSelf() {
+function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
     context.setModifier(null);
   } else {
-    context.deleteSelf();
+    context.tryDeleteAbove();
   }
 }
 
@@ -31,14 +32,30 @@ defineExpose({
 </script>
 <template>
   <div class="flex flex-row flex-wrap gap-1">
+    <EditableSpan
+      :model-value="''"
+      ref="startRef"
+      class="-mx-0.5"
+      v-if="context.statement.value.modifier != null"
+      @navigate-up="context.navigateUp"
+      @navigate-down="context.navigateDown"
+      @navigate-right="gapRef?.focus()"
+      @delete-left="context.tryDeleteAbove"
+      @delete-right="context.setModifier(null)"
+      @enter="context.insertAbove"
+      @escape="context.escape"
+      :readonly="context.readonly.value"
+    />
     <ModifierCell v-if="context.statement.value.modifier" />
     <SelectTypeCell
       class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
+      @navigate-left="startRef?.focus()"
       @navigate-right="nameRef?.focus()"
-      @delete-left="deleteModifierOrSelf"
+      @delete-left="deleteModifierOrAbove"
+      @enter="context.insertAbove"
       @escape="context.escape"
     />
     <SymbolTypeCell />

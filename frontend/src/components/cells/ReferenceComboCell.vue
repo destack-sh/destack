@@ -4,9 +4,8 @@ import { StatementType } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { CheckIcon } from "@heroicons/vue/24/outline";
-import { useFocus } from "@vueuse/core";
-import { computed, ref, type Ref } from "vue";
+import { useFocus, useFocusWithin } from "@vueuse/core";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ canDefineInPlace?: boolean }>();
 const emit = defineEmits<{
@@ -28,16 +27,34 @@ const query = ref("");
 // TODO @Robustness: trim reference selection to reachable symbols (from runtime)
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
+  symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
 });
 const filteredSymbols = computed(() =>
   query.value === ""
-    ? availableSymbols.value
-    : availableSymbols.value.filter((s) => {
-        return s.name?.toLowerCase().includes(query.value.toLowerCase());
-      })
+    ? availableSymbols.value.filter((s) => s.id != context.statement.value.id)
+    : availableSymbols.value
+        .filter((s) => s.id != context.statement.value.id)
+        .filter((s) => {
+          return s.name?.toLowerCase().includes(query.value.toLowerCase());
+        })
+);
+
+// define in place if query ends with :
+watch(
+  () => [query.value, props.canDefineInPlace],
+  () => {
+    if (props.canDefineInPlace && query.value.length > 1 && query.value.endsWith(":")) {
+      emit("defineInPlace", query.value.slice(0, -1));
+    }
+  }
 );
 
 function setReference(ref: { id: string } | null) {
+  if (ref == null && query.value.length < 1) {
+    // headless ui auto-selects an option when it matches the name
+    // but we don't want that if we are defining in place
+    return;
+  }
   selecting.value = false;
   if (ref == null && props.canDefineInPlace) {
     emit("defineInPlace", query.value);
@@ -47,26 +64,40 @@ function setReference(ref: { id: string } | null) {
 }
 
 function escape() {
+  console.log("escape");
   if (selecting.value) {
     selecting.value = false;
+    // focus button once we've switched back
+    nextTick(() => {
+      inputRefFocus.focused.value = true;
+    });
   } else {
     emit("escape");
   }
 }
 
+function open() {
+  selecting.value = true;
+  // focus input ref once we've switched to the combobox
+  nextTick(() => {
+    inputRefFocus.focused.value = true;
+  });
+}
+
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
-  defocus: () => (inputRefFocus.focused.value = false),
+  defocus: () => ((inputRefFocus.focused.value = false), (selecting.value = false)),
+  open,
 });
 </script>
 <template>
   <button
     ref="inputRef"
-    v-if="!context.editing.value || !selecting"
+    v-if="!selecting"
     @keydown.left.prevent="emit('navigateLeft')"
     @keydown.right.prevent="emit('navigateRight')"
-    @keydown.enter.prevent="selecting = true"
-    @click="selecting = true"
+    @keydown.enter.prevent="open"
+    @click="open"
     class="rounded-sm outline-transparent focus:underline"
   >
     {{ context.reference.value?.name ?? "..." }}
@@ -86,18 +117,18 @@ defineExpose({
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."
-      @keyup.escape="escape"
+      @keydown.escape.prevent=""
+      @keyup.escape.prevent="escape"
     />
-    <!-- <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
-      <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
-    </ComboboxButton> -->
-
     <ComboboxOptions
+      ref="optionsRef"
       v-if="filteredSymbols.length > 0 || canDefineInPlace"
-      class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      static
+      v-show="selecting"
     >
-      <!-- define in-place option (weirdly, value must be null not {} or headlessui will freak) -->
-      <ComboboxOption :key="0" :value="null" v-slot="{ active }">
+      <!-- define in-place option (weirdly, value must not be {} or headlessui will freak) -->
+      <ComboboxOption v-if="query.length > 0" :key="0" :value="null" v-slot="{ active }">
         <li
           :class="[
             'relative flex cursor-default select-none items-baseline justify-between py-0.5 px-2 font-mono text-sm',
@@ -120,7 +151,7 @@ defineExpose({
       >
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 pr-9 font-mono text-sm',
+            'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
           ]"
         >
@@ -133,13 +164,6 @@ defineExpose({
               {{ fileOf(stmt)?.path }}
             </span>
           </div>
-
-          <span
-            v-if="selected"
-            :class="['absolute inset-y-0 right-0 flex items-center pr-2', active ? 'text-white' : 'text-orange-600']"
-          >
-            <CheckIcon class="h-4 w-4" aria-hidden="true" />
-          </span>
         </li>
       </ComboboxOption>
     </ComboboxOptions>

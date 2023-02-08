@@ -251,8 +251,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         null,
-        generateKeyBetween(null, firstRootKey),
-        StatementType.Blank
+        generateKeyBetween(null, firstRootKey)
       );
       editor.editElement(newStatement as StatementHeader);
     },
@@ -270,8 +269,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         null,
-        generateKeyBetween(lastRootKey, null),
-        StatementType.Blank
+        generateKeyBetween(lastRootKey, null)
       );
       editor.editElement(newStatement as StatementHeader);
     },
@@ -287,8 +285,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
-        generateKeyBetween(above.value?.orderKey ?? null, orderKey.value),
-        StatementType.Blank
+        generateKeyBetween(above.value?.orderKey ?? null, orderKey.value)
       );
       // don't switch focus if inserting _before_ current
     },
@@ -304,8 +301,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
-        generateKeyBetween(orderKey.value, below.value?.orderKey ?? null),
-        StatementType.Blank
+        generateKeyBetween(orderKey.value, below.value?.orderKey ?? null)
       );
       editor.editElement(newStatement as StatementHeader);
     },
