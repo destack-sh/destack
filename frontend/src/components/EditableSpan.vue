@@ -70,7 +70,7 @@ defineExpose({ focus: () => span.value?.focus(), defocus: () => span.value?.blur
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.exact.left="navigateLeftIfAtStart"
     @keydown.exact.right="navigateRightIfAtEnd"
-    @keydown.enter.prevent="emit('enter', modelValue)"
+    @keydown.enter.exact.prevent="emit('enter', modelValue)"
     @keydown.backspace="deleteLeftIfEmpty"
     @keydown.delete="deleteRightIfAtEnd"
     @keydown.escape.prevent="emit('escape')"

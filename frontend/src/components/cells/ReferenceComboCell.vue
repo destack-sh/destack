@@ -96,11 +96,12 @@ defineExpose({
   <button
     ref="inputRef"
     v-if="!selecting"
+    tabeindex="-1"
     @keydown.left.exact.prevent="emit('navigateLeft')"
     @keydown.right.exact.prevent="emit('navigateRight')"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
-    @keydown.enter.prevent="open"
+    @keydown.enter.exact.prevent="open"
     @click="open"
     class="rounded-sm outline-transparent focus:underline"
   >

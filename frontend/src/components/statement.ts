@@ -13,9 +13,8 @@ import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
 
-import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { v4 as uuidv4 } from "uuid";
 import { newTypeNodeDataId } from "@/state/operations/statement";
+import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 
 export const STATEMENT_CONTEXT = Symbol();
 
@@ -43,8 +42,12 @@ export function useStatementContext() {
   const file = computed(() => useFragment(FileHeaderType, context.value.file));
   const reference = computed(() => useFragment(StatementHeaderType, context.value.reference));
 
-  const typeNodeHead = computed(() =>
-    statement.value.typeNodes?.map((n) => useFragment(TypeNodeDataType, n)).find((n) => n.parentId == null)
+  const typeNodes = computed(() => statement.value.typeNodes?.map((n) => useFragment(TypeNodeDataType, n)));
+  const typeNodeRoot = computed(() => typeNodes.value?.find((n) => n.parentId == null));
+  const typeNodesChildren = computed(() =>
+    typeNodes.value
+      ?.filter((n) => n.parentId == typeNodeRoot.value?.id)
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
   );
 
   // basic actions
@@ -102,7 +105,7 @@ export function useStatementContext() {
     // e.g. for enums we create a regular type symbol but pre-morph its head type node to enum
     const oldTypeNodes = statement.value.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
     let newTypeNodes;
-    if (typeNodeHead.value?.tag != null && isTypeTagCompatible(typeNodeHead.value.tag, symbolType)) {
+    if (typeNodeRoot.value?.tag != null && isTypeTagCompatible(typeNodeRoot.value.tag, symbolType)) {
       newTypeNodes = oldTypeNodes;
     } else {
       newTypeNodes = defaults.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
@@ -200,7 +203,9 @@ export function useStatementContext() {
     editing: computed(() => context.value.editing),
     xOffset: computed(() => context.value.xOffset),
     lineNumberBase: computed(() => context.value.lineNumberBase),
-    typeNodeHead,
+    typeNodes,
+    typeNodeRoot,
+    typeNodesChildren,
     // actions
     actions,
     navigateUp,
@@ -282,19 +287,28 @@ export function makeTypeNodeData(data: { name?: string; tag: TypeTag; parentId?:
 export function makeFunctionTypeNodeData(): TypeNodeData[] {
   const functionType: TypeNodeData = makeTypeNodeData({
     tag: TypeTag.Function,
-    orderKey: INTEGER_ZERO,
   });
   const inputType: TypeNodeData = makeTypeNodeData({
     name: "input",
     tag: TypeTag.Struct,
     parentId: functionType.id,
-    orderKey: INTEGER_ZERO,
   });
   const outputType: TypeNodeData = makeTypeNodeData({
     name: "output",
     tag: TypeTag.Null,
     parentId: functionType.id,
-    orderKey: generateKeyBetween(INTEGER_ZERO, null),
+    orderKey: generateKeyBetween(inputType.orderKey, null),
   });
   return [functionType, inputType, outputType];
+}
+
+export function makeEnumTypeNodeData(memberType: TypeTag = TypeTag.String): TypeNodeData[] {
+  const enumType: TypeNodeData = makeTypeNodeData({
+    tag: TypeTag.Enum,
+  });
+  const headType = makeTypeNodeData({
+    tag: memberType,
+    parentId: enumType.id,
+  });
+  return [enumType, headType];
 }

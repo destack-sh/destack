@@ -131,7 +131,7 @@ provideGlobalAction({
             :class="{
               'select-all': renaming && editor?.focusedElementId == file.id,
             }"
-            @keydown.enter.prevent="onNameEnter"
+            @keydown.enter.exact.prevent="onNameEnter"
           >
             {{ file.name }}
           </span>

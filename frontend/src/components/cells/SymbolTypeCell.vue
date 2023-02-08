@@ -6,7 +6,7 @@ import { computed } from "vue";
 
 const context = useStatementContext();
 const symbolTypeKeyword = computed(() => {
-  if (context.typeNodeHead.value?.tag == TypeTag.Enum) {
+  if (context.typeNodeRoot.value?.tag == TypeTag.Enum) {
     return "enum";
   } else {
     return SYMBOL_TYPE_KEYWORD[context.statement.value.symbolType];
