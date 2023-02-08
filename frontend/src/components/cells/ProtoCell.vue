@@ -4,8 +4,10 @@ import ModifierCell from "@/components/cells/ModifierCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import { useStatementContext } from "@/components/statement";
-import { ref, type Ref } from "vue";
+import { nextTick, ref, type Ref } from "vue";
 import EditableSpan from "@/components/EditableSpan.vue";
+
+defineProps<{ showDots?: boolean }>();
 
 const context = useStatementContext();
 
@@ -77,13 +79,11 @@ defineExpose({
       @navigate-right="nameRef?.focus()"
       @enter="context.insertAbove"
       @escape="context.escape"
-      @configured="
-        nameRef?.focus();
-        nameRef?.open();
-      "
+      @morphed="nameRef?.open()"
     />
-    <SymbolTypeCell v-if="context.statement.value.symbolType" />
+    <SymbolTypeCell v-show="context.statement.value.symbolType" />
     <ReferenceComboCell
+      v-show="context.statement.value.symbolType"
       ref="nameRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
@@ -93,5 +93,13 @@ defineExpose({
       @define-in-place="morphToDefinition"
       @escape="context.escape"
     />
+    <!-- Empty dots -->
+    <div
+      v-if="showDots && gapRef?.content.length == 0"
+      class="absolute bottom-0 mx-1 h-full w-full select-none text-gray-300 group-hover:opacity-100"
+      :class="{ 'opacity-100': context.focused.value, 'opacity-0': !context.focused.value }"
+    >
+      ...
+    </div>
   </span>
 </template>

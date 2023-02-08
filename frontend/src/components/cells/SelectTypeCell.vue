@@ -15,7 +15,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "deleteRight"): void;
-  (e: "configured"): void;
+  (e: "morphed"): void;
 }>();
 
 const context = useStatementContext();
@@ -34,17 +34,20 @@ watch(content, (newContent) => {
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
     content.value = "";
-    emit("configured");
+    emit("morphed");
   } else if (endsInSpace && contentTrim == "enum") {
     context.setSymbolTypeEnum();
     content.value = "";
-    emit("configured");
+    emit("morphed");
+  } else if (endsInSpace && (contentTrim == "#" || contentTrim == "//")) {
+    context.morphToComment();
   }
 });
 
 defineExpose({
   focus: () => spanRef.value?.focus(),
   defocus: () => spanRef.value?.defocus(),
+  content,
 });
 </script>
 <template>
