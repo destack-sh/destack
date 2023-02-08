@@ -259,11 +259,11 @@ def _instantiate_code_callable(
     # transform to python code if necessary
     prompt = None
     if code.language == "python":
-        python_code = code.code
+        python_code = code.code or ""
         locals = {**STATIC_BUILTINS, **dynamic_context}
         is_async = "await " in python_code  # TODO @Cleanup: detect async python code properly
     elif code.language == "bpl":
-        prompt = parse_bpl(code.code, dynamic_context)
+        prompt = parse_bpl(code.code or "", dynamic_context)
         python_code = prompt.python_code
         locals = {**STATIC_BUILTINS, **BPL_BUILTINS, **dynamic_context}
         is_async = True
