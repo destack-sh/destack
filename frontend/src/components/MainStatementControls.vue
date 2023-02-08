@@ -98,7 +98,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       >
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 pl-3 pr-9 font-mono text-sm',
+            'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
           ]"
         >
@@ -111,13 +111,6 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
               {{ fileOf(stmt)?.path }}
             </span>
           </div>
-
-          <span
-            v-if="selected"
-            :class="['absolute inset-y-0 right-0 flex items-center pr-2', active ? 'text-white' : 'text-orange-600']"
-          >
-            <CheckIcon class="h-4 w-4" aria-hidden="true" />
-          </span>
         </li>
       </ComboboxOption>
     </ComboboxOptions>

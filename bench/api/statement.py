@@ -315,10 +315,12 @@ class StatementMutation:
         statement.set_commented(input.commented)
         return statement
 
-    @project_mutation(PMT.MOVE_STATEMENT)
+    @project_mutation(PMT.MOVE_STATEMENT, atomic=True)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = input.file_id.node_id
+        # :CircularAncestry
+        # TODO @Robustness:: check for circular ancestry via parent_id on move
         statement.parent_id = input.parent_id.node_id if input.parent_id else None
         # TODO @Robustness: return a different order key if conflict on move/insert
         statement.order_key = input.order_key

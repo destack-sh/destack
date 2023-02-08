@@ -278,7 +278,7 @@ class Statement(Generic[SymbolContentT]):
     def __str__(self):
         from bench.language.reconstruct import render_statement
 
-        loc = self.file.path + ":" + str(self.absolute_index)
+        loc = self.file.path + ":" + str(self.infile_path)
         try:
             content = render_statement(self, include_content=False)
         except ValueError:
@@ -292,8 +292,15 @@ class Statement(Generic[SymbolContentT]):
     def infile_path(self) -> str:
         parent = self.parent
         ancestor_parts = [self.name]
+        seen_ids = {self.id}
         while parent is not None:
+            if parent.id in seen_ids:
+                # :CircularAncestry
+                # circuit breaker: ignore here because this is an error in indexing
+                ancestor_parts.append("<!loop>")
+                break
             ancestor_parts.append(parent.name)
+            seen_ids.add(parent.id)
             parent = parent.parent
         return ".".join(reversed(ancestor_parts))
 
@@ -371,12 +378,6 @@ class Statement(Generic[SymbolContentT]):
             return self.reference.name != self.name
         else:
             return False
-
-    @property
-    def absolute_index(self) -> str:
-        if self.parent:
-            return f"{self.parent.absolute_index}.{self.order_key}"
-        return str(self.order_key)
 
 
 @dataclass(repr=False)

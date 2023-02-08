@@ -77,6 +77,7 @@ class ErrorType(enum.Enum):
     UNEXPECTED_STATEMENT = 74, "unexpected statement"
     COMPILATION_MISSING_MODEL = 75, "missing model"
     COMPILATION_MISSING_TASK = 76, "missing task"
+    CIRCULAR_ANCESTRY = 77, "Dark season 2 via {path}"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)

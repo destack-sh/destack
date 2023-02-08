@@ -103,6 +103,7 @@ def interp_runtime(
     """Interprets the given module source with the given dependencies"""
     # TODO @Performance: interp and exec jobs should probably happen in a separate thread
     # resolve
+    logger.info("interp_runtime", module=source)
     interp_module = wire.wmap_module(source)
     collector = ErrorCollector()
     module = lookup_in_dependencies(dependencies)

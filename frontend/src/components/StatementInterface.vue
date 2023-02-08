@@ -86,6 +86,10 @@ const { focused: containerFocused } = useFocusWithin(containerRef);
 watch(
   () => [isEditing.value, containerFocused.value],
   () => {
+    // TODO @Broken: containerFocused is false while focus is in enum cell
+    // which causes us to re-assert focus to its root, re-focusing the name..
+    // but if we don't check containerFocused then blank statement and similar don't work
+    // if you click outside their bounds
     if (isEditing.value && !containerFocused.value) {
       rootCellRef.value?.focus();
     }
