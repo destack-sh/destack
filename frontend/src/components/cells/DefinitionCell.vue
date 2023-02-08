@@ -5,6 +5,8 @@ import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { ref, type Ref } from "vue";
+import EnumContentCell from "@/components/cells/EnumContentCell.vue";
+import { TypeTag } from "@/gql/graphql";
 
 const context = useStatementContext();
 
@@ -25,6 +27,7 @@ function deleteModifierOrAbove() {
 defineExpose({
   focus: () => nameRef.value?.focus(),
   defocus: () => {
+    startRef.value?.defocus();
     nameRef.value?.defocus();
     gapRef.value?.defocus();
   },
@@ -69,4 +72,5 @@ defineExpose({
       @escape="context.escape"
     />
   </div>
+  <EnumContentCell v-if="context.typeNodeRoot.value?.tag == TypeTag.Enum" />
 </template>

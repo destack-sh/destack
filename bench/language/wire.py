@@ -231,6 +231,7 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
 def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
     if isinstance(content, language.TypeNode):
+        data.description = content.description
         data.type_nodes = rmap_type_node(content)
     elif isinstance(content, language.TaskContent):
         data.description = content.description
@@ -270,7 +271,9 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
-        return wmap_type_node(data.type_nodes)
+        type_node = wmap_type_node(data.type_nodes)
+        type_node.description = data.description  # prefer type node from wire
+        return type_node
     elif data.symbol_type == SymbolType.TASK:
         return language.TaskContent(
             type_node=wmap_type_node(data.type_nodes), description=data.description

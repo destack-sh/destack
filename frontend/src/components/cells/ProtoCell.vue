@@ -43,6 +43,7 @@ defineExpose({
     }
   },
   defocus: () => {
+    startRef.value?.defocus();
     nameRef.value?.defocus();
     gapRef.value?.defocus();
   },
