@@ -97,8 +97,13 @@ def from_dict(
                     obj, key, from_dict(field.type, data[key], _path + [key] if _path else None)
                 )
         return obj
-    elif cls in (str, int, float, bool, UUID, datetime):
+    elif cls in (str, int, float, UUID, datetime):
         return cls(data)
+    elif cls == bool:
+        # bools are retained exactly as is
+        if not isinstance(data, bool):
+            raise TypeError(f"expected bool, got {type(data)} in {data}")
+        return data
     elif isinstance(cls, type) and issubclass(cls, enum.Enum):
         return cls(data)
     elif typing.get_origin(cls) is typing.Union:
