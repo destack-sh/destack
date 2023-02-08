@@ -180,7 +180,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             raise ValueError(f"source version must be committed: {source}")
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  (generally good, but also especially for dataset records, mappings and other relations)
-        # TODO @Cleanup: content created_at/updated_at are not copied correctly (they are set to now)
+        # TODO @Cleanup: created_at/updated_at are not copied correctly (they are set to now)
+        #  (could control them manually in project mutation wrapper)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
         for file in walk_children_bfs(source.files.filter(deleted_at=None), "files"):
@@ -234,6 +235,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         # 3. re-assign references
         for old in source.statements.filter(deleted_at=None):
+            if old.id not in new_statements:
+                # skip ghost statement whose parent was deleted or lost somehow
+                # TODO @Cleanup: fix/prevent ghost orphan statements on insert
+                continue
             new = new_statements[old.id]
             new.parent = new_statements.get(old.parent_id)  # may be null
             # replace ref (default to same ref if not in refs since library refs are not copied)
