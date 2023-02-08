@@ -68,7 +68,8 @@ export function useStatementContext() {
   }
 
   function tryDeleteAbove() {
-    // TODO @Incomplete: implement try delete above
+    // should really be handled here :MissingStatementContext
+    actions.apply("statement.deleteAboveCurrent");
   }
 
   function insertBelow() {
