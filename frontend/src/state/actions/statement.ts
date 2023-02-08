@@ -292,7 +292,7 @@ export function provideStatementActions(
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertBeforeCurrent = provideSingletonAction({
+  const insertAboveCurrent = provideSingletonAction({
     id: "statement.insertAboveCurrent",
     label: "Insert statement above current",
     shortcuts: ["a"],
@@ -308,7 +308,7 @@ export function provideStatementActions(
       // don't switch focus if inserting _before_ current
     },
   });
-  const insertAfterCurrent = provideSingletonAction({
+  const insertBelowCurrent = provideSingletonAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
@@ -358,8 +358,8 @@ export function provideStatementActions(
     deleteAboveCurrent,
     insertStart,
     insertEnd,
-    insertBeforeCurrent,
-    insertAfterCurrent,
+    insertAboveCurrent,
+    insertBelowCurrent,
     toggleCommentedCurrent,
   };
 }
