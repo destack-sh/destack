@@ -1315,10 +1315,10 @@ def index_module(
         if statement.parent_id is None:
             continue
         seen_ancestors = set()
-        path = [statement.name]
+        path = [f"{statement.id}:{statement.name or '<empty>'}"]
         parent = statement.parent
         while parent is not None:
-            path.append(parent.name)
+            path.append(f"{parent.id}:{parent.name or '<empty>'}")
             if parent.id in seen_ancestors:
                 _error(ET.CIRCULAR_ANCESTRY, statement, path=".".join(reversed(path)))
                 has_circular_ancestry = True

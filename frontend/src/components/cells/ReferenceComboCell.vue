@@ -66,7 +66,6 @@ function setReference(ref: { id: string } | null) {
 }
 
 function escape() {
-  console.log("escape");
   if (selecting.value) {
     selecting.value = false;
     // focus button once we've switched back
@@ -149,7 +148,7 @@ defineExpose({
         >
           {{ query }}:
           <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
-            define
+            (define)
           </span>
         </li>
       </ComboboxOption>

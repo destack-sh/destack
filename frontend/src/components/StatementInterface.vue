@@ -56,13 +56,6 @@ const rootCell: Ref<Cell> = computed(() => {
     return {
       component: CommentCell,
     };
-  } else if (
-    statement.value.type == StatementType.Blank &&
-    (statement.value.symbolType != null || statement.value.modifier != null)
-  ) {
-    return {
-      component: ProtoCell,
-    };
   } else if (statement.value.type == StatementType.Definition) {
     return {
       component: DefinitionCell,
@@ -71,7 +64,7 @@ const rootCell: Ref<Cell> = computed(() => {
 
   // default to empty cell
   return {
-    component: EmptyCell,
+    component: ProtoCell,
     props: { showDots: true },
   };
 });
