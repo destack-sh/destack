@@ -4,13 +4,15 @@ import { StatementType } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { useFocus, useFocusWithin } from "@vueuse/core";
+import { useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ canDefineInPlace?: boolean }>();
 const emit = defineEmits<{
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
+  (e: "navigateUp"): void;
+  (e: "navigateDown"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "deleteRight"): void;
@@ -94,8 +96,10 @@ defineExpose({
   <button
     ref="inputRef"
     v-if="!selecting"
-    @keydown.left.prevent="emit('navigateLeft')"
-    @keydown.right.prevent="emit('navigateRight')"
+    @keydown.left.exact.prevent="emit('navigateLeft')"
+    @keydown.right.exact.prevent="emit('navigateRight')"
+    @keydown.up.exact.prevent="emit('navigateUp')"
+    @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.enter.prevent="open"
     @click="open"
     class="rounded-sm outline-transparent focus:underline"
