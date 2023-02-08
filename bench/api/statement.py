@@ -345,10 +345,11 @@ class StatementMutation:
         self, input: StatementTypeNodeDataCreateInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        node = first([n for n in statement.type_nodes if n == input.node_id.node_id])
+        node_id = UUID(input.node_id.node_id)
+        node = first([n for n in statement.type_nodes if n.id == node_id])
         node = replace(node, **asdict(input.to_type_node_data()))
         # replace type node in array
-        statement.type_nodes = [n for n in statement.type_nodes if n.id != input.node_id.node_id]
+        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
         statement.type_nodes.append(node)
         return statement
 
@@ -357,7 +358,8 @@ class StatementMutation:
         self, input: StatementTypeNodeDataDeleteInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.type_nodes = [n for n in statement.type_nodes if n.id != input.node_id.node_id]
+        node_id = UUID(input.node_id.node_id)
+        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
         return statement
 
 
@@ -379,11 +381,6 @@ class StatementUpdateDescriptionInput(gql.NodeInput):
 @gql.input
 class StatementUpdateCodeInput(gql.NodeInput):
     code: Optional[str] = None
-
-
-@gql.input
-class StatementUpdateTypeInput(gql.NodeInput):
-    btl: str
 
 
 @gql.input
@@ -435,14 +432,6 @@ class SymbolMutation:
     def update_statement_code(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
-        return statement
-
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def update_statement_type_node(
-        self, input: StatementUpdateTypeInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.btl = input.btl
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_LANGUAGE)

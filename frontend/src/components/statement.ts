@@ -192,6 +192,32 @@ export function useStatementContext() {
     watch(content, useDebounceFn(saveDescription, 200, { maxWait: 1000 }));
   }
 
+  // one-way writes to backend (:Singleplayer)
+
+  async function createTypeNode(typeNode: TypeNodeData) {
+    await operations.statement.createTypeNode(statement.value.id, mapToTypeNodeDataInput(statement.value.id, typeNode));
+  }
+
+  async function updateTypeNode(typeNode: TypeNodeData) {
+    const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
+    if (!oldTypeNode) {
+      throw new Error("cannot update type node that doesn't exist");
+    }
+    await operations.statement.updateTypeNode(
+      statement.value.id,
+      mapToTypeNodeDataInput(statement.value.id, oldTypeNode),
+      mapToTypeNodeDataInput(statement.value.id, typeNode)
+    );
+  }
+
+  async function deleteTypeNode(typeNode: TypeNodeData) {
+    const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
+    if (!oldTypeNode) {
+      throw new Error("cannot delete type node that doesn't exist");
+    }
+    await operations.statement.deleteTypeNode(statement.value.id, mapToTypeNodeDataInput(statement.value.id, typeNode));
+  }
+
   return {
     // state
     statement,
@@ -220,6 +246,9 @@ export function useStatementContext() {
     syncName,
     syncCode,
     syncDescription,
+    createTypeNode,
+    updateTypeNode,
+    deleteTypeNode,
     deleteSelf,
     tryDeleteAbove,
     insertAbove,
@@ -233,6 +262,7 @@ function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): Stateme
     nodeId: typeNodeData.id,
     tag: typeNodeData.tag,
     parentId: typeNodeData.parentId,
+    description: typeNodeData.description,
     name: typeNodeData.name,
     value: typeNodeData.value,
     orderKey: typeNodeData.orderKey,

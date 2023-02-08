@@ -1252,6 +1252,61 @@ export type SetReferenceMutation = {
       };
 };
 
+export type UpdateTypeNodeMutationVariables = Exact<{
+  typeNode: StatementTypeNodeDataCreateInput;
+}>;
+
+export type UpdateTypeNodeMutation = {
+  __typename?: "Mutation";
+  updateStatementTypeNode:
+    | { __typename?: "OperationInfo" }
+    | {
+        __typename?: "Statement";
+        id: any;
+        revision: number;
+        typeNodes?: Array<
+          { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
+        > | null;
+      };
+};
+
+export type CreateTypeNodeMutationVariables = Exact<{
+  typeNode: StatementTypeNodeDataCreateInput;
+}>;
+
+export type CreateTypeNodeMutation = {
+  __typename?: "Mutation";
+  createStatementTypeNode:
+    | { __typename?: "OperationInfo" }
+    | {
+        __typename?: "Statement";
+        id: any;
+        revision: number;
+        typeNodes?: Array<
+          { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
+        > | null;
+      };
+};
+
+export type DeleteTypeNodeMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  nodeId: Scalars["GlobalID"];
+}>;
+
+export type DeleteTypeNodeMutation = {
+  __typename?: "Mutation";
+  deleteStatementTypeNode:
+    | { __typename?: "OperationInfo" }
+    | {
+        __typename?: "Statement";
+        id: any;
+        revision: number;
+        typeNodes?: Array<
+          { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
+        > | null;
+      };
+};
+
 export type UpdateStatementDescriptionMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   description: Scalars["String"];
@@ -3277,6 +3332,205 @@ export const SetReferenceDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SetReferenceMutation, SetReferenceMutationVariables>;
+export const UpdateTypeNodeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateTypeNode" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "StatementTypeNodeDataCreateInput" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateStatementTypeNode" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "typeNodes" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...TypeNodeDataFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateTypeNodeMutation, UpdateTypeNodeMutationVariables>;
+export const CreateTypeNodeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createTypeNode" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "StatementTypeNodeDataCreateInput" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createStatementTypeNode" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "typeNodes" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...TypeNodeDataFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateTypeNodeMutation, CreateTypeNodeMutationVariables>;
+export const DeleteTypeNodeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "deleteTypeNode" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "nodeId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteStatementTypeNode" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "nodeId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "nodeId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "typeNodes" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TypeNodeData" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...TypeNodeDataFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<DeleteTypeNodeMutation, DeleteTypeNodeMutationVariables>;
 export const UpdateStatementDescriptionDocument = {
   kind: "Document",
   definitions: [
