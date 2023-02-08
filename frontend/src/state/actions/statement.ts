@@ -236,6 +236,24 @@ export function provideStatementActions(
       await operations.statement.delete(current);
     },
   });
+  // TODO @Cleanup: provide statement surrounding context to all statements
+  //  This very specific deleteAboveCurrent action is testatment to the
+  //  slightly clumsiness of only having the relevant above/below context in
+  //  statement actions because it's provided by the FileInterface. We should
+  //  introduce an intermediate statement local context that statement interfaces
+  //  can use as well. :MissingStatementContext
+  const deleteAboveCurrent = provideSingletonAction({
+    id: "statement.deleteAboveCurrent",
+    label: "Delete statement above current statement",
+    shortcuts: ["shift+backspace", "shift+delete"],
+    enabled: computed(() => !!statement.value && above.value != null),
+    registered: enabled,
+    apply: async () => {
+      if (above.value) {
+        await operations.statement.delete(above.value.id);
+      }
+    },
+  });
 
   // insert statement (as a sibling)
   const insertStart = provideSingletonAction({
@@ -337,6 +355,7 @@ export function provideStatementActions(
     editCurrent,
     stopEditingCurrent,
     deleteCurrent,
+    deleteAboveCurrent,
     insertStart,
     insertEnd,
     insertBeforeCurrent,
