@@ -171,14 +171,14 @@ export function useStatementContext() {
     function syncName() {
       operations.statement.rename(statement.value.id, statement.value.name ?? null, content.value);
     }
-    watch(content, useDebounceFn(syncName, 200, { maxWait: 500 }));
+    watch(content, useDebounceFn(syncName, 200, { maxWait: 1000 }));
   }
 
   function syncCode(content: Ref<string>) {
     function saveCode() {
       operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", content.value);
     }
-    watch(content, useDebounceFn(saveCode, 200, { maxWait: 500 }));
+    watch(content, useDebounceFn(saveCode, 200, { maxWait: 1000 }));
   }
 
   function syncDescription(content: Ref<string>) {
@@ -189,7 +189,7 @@ export function useStatementContext() {
         content.value
       );
     }
-    watch(content, useDebounceFn(saveDescription, 200, { maxWait: 500 }));
+    watch(content, useDebounceFn(saveDescription, 200, { maxWait: 1000 }));
   }
 
   return {

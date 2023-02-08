@@ -59,6 +59,7 @@ export type DatasetRecord = {
 export enum ErrorType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
   AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
+  CircularAncestry = "CIRCULAR_ANCESTRY",
   CompilationMissingModel = "COMPILATION_MISSING_MODEL",
   CompilationMissingTask = "COMPILATION_MISSING_TASK",
   ExpectedArguments = "EXPECTED_ARGUMENTS",

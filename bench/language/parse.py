@@ -7,6 +7,7 @@ import re
 import typing
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
+from itertools import chain
 from pathlib import Path
 from typing import Callable, Optional
 from uuid import UUID
@@ -1306,6 +1307,26 @@ def index_module(
         on_error(SemanticError(_t, subject, cause, **error_args))
 
     idx = ModuleIndex(module=module)
+
+    # check for circular ancestry errors
+    # :CircularAncestry
+    has_circular_ancestry = False
+    for statement in chain.from_iterable(file.statements for file in module.files):
+        if statement.parent_id is None:
+            continue
+        seen_ancestors = set()
+        path = [statement.name]
+        parent = statement.parent
+        while parent is not None:
+            path.append(parent.name)
+            if parent.id in seen_ancestors:
+                _error(ET.CIRCULAR_ANCESTRY, statement, path=".".join(reversed(path)))
+                has_circular_ancestry = True
+                break
+            seen_ancestors.add(parent.id)
+            parent = parent.parent
+    if has_circular_ancestry:
+        return idx  # bail
 
     # create scopes for files and statements (but don't populate nested statements them yet)
     statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
