@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import BlankCell from "@/components/cells/BlankCell.vue";
+import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
@@ -8,8 +8,8 @@ import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
 
-const gapRef: Ref<InstanceType<typeof BlankCell> | null> = ref(null);
-const nameRef: Ref<InstanceType<typeof BlankCell> | null> = ref(null);
+const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
+const nameRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 
 function deleteModifierOrSelf() {
   if (context.statement.value.modifier != null) {
@@ -49,7 +49,7 @@ defineExpose({
 <template>
   <span class="flex flex-row gap-1 outline-none">
     <ModifierCell v-if="context.statement.value.modifier" />
-    <BlankCell
+    <SelectTypeCell
       class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"

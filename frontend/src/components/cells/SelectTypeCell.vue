@@ -35,6 +35,7 @@ watch(content, (newContent) => {
     content.value = "";
   } else if (endsInSpace && contentTrim == "enum") {
     context.setSymbolTypeEnum();
+    content.value = "";
   }
 });
 

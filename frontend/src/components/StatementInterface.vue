@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import BlankCell from "@/components/cells/BlankCell.vue";
+import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
 import DefinitionCell from "@/components/cells/DefinitionCell.vue";
 import EmptyCell from "@/components/cells/EmptyCell.vue";
@@ -11,7 +11,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { localErrorsOf } from "@/state/runtime";
 import { onClickOutside, useFocusWithin, whenever } from "@vueuse/core";
-import { computed, provide, ref, toRef, watch, watchEffect, type Component, type Ref } from "vue";
+import { computed, provide, ref, watch, watchEffect, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -76,7 +76,7 @@ const rootCell: Ref<Cell> = computed(() => {
     props: { showDots: true },
   };
 });
-const rootCellRef = ref<InstanceType<typeof BlankCell>>();
+const rootCellRef = ref<InstanceType<typeof SelectTypeCell>>();
 
 // forward focus / editing state
 
