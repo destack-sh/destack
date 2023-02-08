@@ -33,19 +33,23 @@ function deleteRightIfAtEnd() {
   }
 }
 
-function navigateLeftIfAtStart() {
+function navigateLeftIfAtStart(event: any) {
   // check if cursor is at the start of the text
   const selection = window.getSelection();
   if (selection && selection.anchorOffset == 0) {
     emit("navigateLeft");
+    event.preventDefault();
+    event.stopPropagation();
   }
 }
 
-function navigateRightIfAtEnd() {
+function navigateRightIfAtEnd(event: any) {
   // check if cursor is at the end of the text
   const selection = window.getSelection();
   if (selection && selection.anchorOffset == props.modelValue.length) {
     emit("navigateRight");
+    event.preventDefault();
+    event.stopPropagation();
   }
 }
 
@@ -54,16 +58,18 @@ const span = ref<HTMLElement | null>(null);
 defineExpose({ focus: () => span.value?.focus(), defocus: () => span.value?.blur() });
 </script>
 <template>
+  <!-- mousetrap class to enable keyboard shortcuts while editing -->
+  <!-- https://craig.is/killing/mice#api.trigger -->
   <span
     tabindex="-1"
     spellcheck="false"
     ref="span"
-    class="outline-none"
+    class="mousetrap outline-none"
     :contenteditable="!readonly"
-    @keydown.up.prevent="emit('navigateUp')"
-    @keydown.down.prevent="emit('navigateDown')"
-    @keydown.left="navigateLeftIfAtStart"
-    @keydown.right="navigateRightIfAtEnd"
+    @keydown.up.exact.prevent="emit('navigateUp')"
+    @keydown.down.exact.prevent="emit('navigateDown')"
+    @keydown.exact.left="navigateLeftIfAtStart"
+    @keydown.exact.right="navigateRightIfAtEnd"
     @keydown.enter.prevent="emit('enter', modelValue)"
     @keydown.backspace="deleteLeftIfEmpty"
     @keydown.delete="deleteRightIfAtEnd"

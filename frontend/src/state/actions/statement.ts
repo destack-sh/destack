@@ -75,6 +75,10 @@ export function provideStatementActions(
     apply: async () => {
       // move to end of previous sibling's children
       const previousSibling = siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) - 1];
+      if (previousSibling == null) {
+        // cannot move
+        return;
+      }
       const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
       const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
       await operations.statement.move(statement.value.id, location.value, {
@@ -152,6 +156,7 @@ export function provideStatementActions(
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
+    enabled: computed(() => !editor.editingElement),
     registered: enabled,
     apply: () => {
       if (above.value != null) {
@@ -165,6 +170,7 @@ export function provideStatementActions(
   const moveFocusDown = provideSingletonAction({
     id: "statement.moveFocusDown",
     label: "Move focus down",
+    enabled: computed(() => !editor.editingElement),
     shortcuts: ["down"],
     registered: enabled,
     apply: () => {
