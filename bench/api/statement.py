@@ -98,14 +98,15 @@ class Statement(gql.Node):
         # map ids to global ids
         if self.type_nodes is None:
             return None
-        return [
-            replace(
+        type_nodes = []
+        for node in self.type_nodes:
+            node = replace(
                 node,
                 id=GlobalID("TypeNodeData", str(node.id)),
                 parent_id=GlobalID("TypeNodeData", str(node.parent_id)) if node.parent_id else None,
             )
-            for node in self.type_nodes
-        ]
+            type_nodes.append(node)
+        return type_nodes
 
     @gql.field
     def import_path(self) -> Optional[str]:

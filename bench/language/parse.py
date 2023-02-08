@@ -332,7 +332,7 @@ def parser_from_string(string: str) -> TokenParser:
     return TokenParser(lex_string(string), start_pos=0, indent_level=0)
 
 
-def _clean_literal_indent(text: str, indent_level: int) -> str:
+def _strip_literal_indent(text: str, indent_level: int) -> str:
     """Removes indentation up to the given level (4 spaces or 1 tab)."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -572,7 +572,7 @@ def _parse_definition_content(
             raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
         if lang not in ("python", "bpl"):
             raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
-        code_text = _clean_literal_indent(literal.value, tokens.indent_level)
+        code_text = _strip_literal_indent(literal.value, tokens.indent_level)
         return CodeContent(
             description=description,
             language=lang,  # noqa
@@ -623,7 +623,7 @@ def _parse_dataset_records(
     tokens: TokenParser, type: TypeNode, lang: str | None, literal: Token
 ) -> list[dict[str, LiteralValue]]:
     """Parses the language and records from a dataset literal."""
-    value_str = _clean_literal_indent(literal.value, tokens.indent_level)
+    value_str = _strip_literal_indent(literal.value, tokens.indent_level)
     try:
         if lang is None:
             raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
