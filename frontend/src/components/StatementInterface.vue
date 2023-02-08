@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
 import DefinitionCell from "@/components/cells/DefinitionCell.vue";
 import EmptyCell from "@/components/cells/EmptyCell.vue";
@@ -11,7 +10,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { localErrorsOf } from "@/state/runtime";
 import { onClickOutside, useFocusWithin, whenever } from "@vueuse/core";
-import { computed, provide, ref, watch, watchEffect, type Component, type Ref } from "vue";
+import { computed, provide, ref, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -76,26 +75,32 @@ const rootCell: Ref<Cell> = computed(() => {
     props: { showDots: true },
   };
 });
-const rootCellRef = ref<InstanceType<typeof SelectTypeCell>>();
+const rootCellRef = ref<InstanceType<typeof EmptyCell>>();
 
 // forward focus / editing state
 
 const containerRef = ref<HTMLElement | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
 
-// focus root cell if focused in editor but not in container
-watchEffect(() => {
-  if (isFocused.value && !containerFocused.value) {
-    rootCellRef.value?.focus();
+// focus root cell if editing in editor but not in container
+watch(
+  () => [isEditing.value, containerFocused.value],
+  () => {
+    if (isEditing.value && !containerFocused.value) {
+      rootCellRef.value?.focus();
+    }
   }
-});
+);
 
-// defocus root cell if focused in container but not in editor
-watchEffect(() => {
-  if (!isFocused.value && containerFocused.value) {
-    rootCellRef.value?.defocus();
+// defocus root cell if focused in container but no longer editing (or focused)
+watch(
+  () => [isEditing.value, containerFocused.value],
+  () => {
+    if (!isEditing.value && containerFocused.value) {
+      rootCellRef.value?.defocus();
+    }
   }
-});
+);
 
 // cancel focus if clicked outside
 onClickOutside(containerRef, () => {
@@ -105,10 +110,12 @@ onClickOutside(containerRef, () => {
   }
 });
 
-// if anything inside the container is focused, enable editing mode
+// if anything inside the container becomes focused, enable editing mode
 whenever(containerFocused, () => {
-  if (!isEditing.value) {
+  if (!isFocused.value) {
     focusInEditor();
+  }
+  if (!isEditing.value) {
     editor.editElement(statement.value as StatementHeader);
   }
 });

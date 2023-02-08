@@ -15,13 +15,14 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "deleteRight"): void;
+  (e: "configured"): void;
 }>();
 
 const context = useStatementContext();
 const content: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-// handle content changes
+// handle content changes :ParseStatementInput
 watch(content, (newContent) => {
   const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
   const contentTrim = newContent.trim();
@@ -33,9 +34,11 @@ watch(content, (newContent) => {
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
     content.value = "";
+    emit("configured");
   } else if (endsInSpace && contentTrim == "enum") {
     context.setSymbolTypeEnum();
     content.value = "";
+    emit("configured");
   }
 });
 
