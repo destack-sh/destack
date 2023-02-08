@@ -144,7 +144,7 @@ export function provideStatementActions(
       const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.value.orderKey);
       const targetLocation = {
         fileId: file.value?.id,
-        parentId: below.value?.parent?.id,
+        parentId: belowCurGroup.value?.parent?.id,
         orderKey: generateKeyBetween(belowCurGroup.value.orderKey ?? null, belowNextSibling?.orderKey ?? null),
       };
       await operations.statement.move(statement.value.id, location.value, targetLocation);

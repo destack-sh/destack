@@ -81,7 +81,7 @@ defineExpose({
       @escape="context.escape"
       @morphed="nameRef?.open()"
     />
-    <SymbolTypeCell v-show="context.statement.value.symbolType" />
+    <SymbolTypeCell v-if="context.statement.value.symbolType" />
     <ReferenceComboCell
       v-show="context.statement.value.symbolType"
       ref="nameRef"
