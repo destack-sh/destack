@@ -390,5 +390,105 @@ export function useStatementOps() {
     });
   }
 
-  return { create, morph, modify, setReference, move, comment, rename, delete: delete_ };
+  const { mutate: updateTypeNodeMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateTypeNode($typeNode: StatementTypeNodeDataCreateInput!) {
+        updateStatementTypeNode(input: $typeNode) {
+          ... on Statement {
+            id
+            revision
+            typeNodes {
+              ...TypeNodeData
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  async function updateTypeNode(
+    id: string,
+    oldTypeNode: StatementTypeNodeDataCreateInput,
+    newTypeNode: StatementTypeNodeDataCreateInput
+  ) {
+    await operations.perform({
+      type: "statement.updateTypeNode",
+      do: async () => {
+        await updateTypeNodeMut({ typeNode: newTypeNode });
+      },
+      undo: async () => {
+        await updateTypeNodeMut({ typeNode: oldTypeNode });
+      },
+    });
+  }
+
+  const { mutate: createTypeNodeMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation createTypeNode($typeNode: StatementTypeNodeDataCreateInput!) {
+        createStatementTypeNode(input: $typeNode) {
+          ... on Statement {
+            id
+            revision
+            typeNodes {
+              ...TypeNodeData
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  const { mutate: deleteTypeNodeMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation deleteTypeNode($id: GlobalID!, $nodeId: GlobalID!) {
+        deleteStatementTypeNode(input: { id: $id, nodeId: $nodeId }) {
+          ... on Statement {
+            id
+            revision
+            typeNodes {
+              ...TypeNodeData
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  async function createTypeNode(id: string, typeNode: StatementTypeNodeDataCreateInput) {
+    await operations.perform({
+      type: "statement.createTypeNode",
+      do: async () => {
+        await createTypeNodeMut({ typeNode: typeNode });
+      },
+      undo: async () => {
+        await deleteTypeNodeMut({ id: id, nodeId: typeNode.nodeId });
+      },
+    });
+  }
+
+  async function deleteTypeNode(id: string, typeNode: StatementTypeNodeDataCreateInput) {
+    await operations.perform({
+      type: "statement.deleteTypeNode",
+      do: async () => {
+        await deleteTypeNodeMut({ id: id, nodeId: typeNode.nodeId });
+      },
+      undo: async () => {
+        await createTypeNodeMut({ typeNode });
+      },
+    });
+  }
+
+  return {
+    create,
+    morph,
+    modify,
+    setReference,
+    move,
+    comment,
+    rename,
+    delete: delete_,
+    createTypeNode,
+    updateTypeNode,
+    deleteTypeNode,
+  };
 }

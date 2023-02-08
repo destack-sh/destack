@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
+import EnumContentCell from "@/components/cells/EnumContentCell.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
+import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { ref, type Ref } from "vue";
-import EnumContentCell from "@/components/cells/EnumContentCell.vue";
 import { TypeTag } from "@/gql/graphql";
+import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
 

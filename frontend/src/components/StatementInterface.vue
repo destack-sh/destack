@@ -83,18 +83,11 @@ const containerRef = ref<HTMLElement | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
 
 // focus root cell if editing in editor but not in container
-watch(
-  () => [isEditing.value, containerFocused.value],
-  () => {
-    // TODO @Broken: containerFocused is false while focus is in enum cell
-    // which causes us to re-assert focus to its root, re-focusing the name..
-    // but if we don't check containerFocused then blank statement and similar don't work
-    // if you click outside their bounds
-    if (isEditing.value && !containerFocused.value) {
-      rootCellRef.value?.focus();
-    }
+whenever(isEditing, () => {
+  if (isEditing.value && !containerFocused.value) {
+    rootCellRef.value?.focus();
   }
-);
+});
 
 // defocus root cell if focused in container but no longer editing (or focused)
 watch(
@@ -108,7 +101,7 @@ watch(
 
 // cancel focus if clicked outside
 onClickOutside(containerRef, () => {
-  if (isFocused.value && containerFocused.value) {
+  if (isFocused.value) {
     rootCellRef.value?.defocus();
     editor.defocusElement(statement.value as StatementHeader);
   }
@@ -133,6 +126,9 @@ function onClickContainer() {
   if (!isFocused.value) {
     focusInEditor();
     editor.editElement(statement.value as StatementHeader);
+  }
+  if (!containerFocused.value) {
+    rootCellRef.value?.focus();
   }
 }
 
@@ -198,12 +194,13 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <div class="absolute top-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
     <!-- Main cell -->
-    <div class="py-1 px-1 text-sm">
+    <div class="py-1 px-2 text-sm">
       <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
     </div>
     <!-- Debug info -->
     <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isFocused">f</template>
+      <template v-if="containerFocused">*</template>
       <template v-if="isEditing">e</template>
       <template v-if="isFirstInGroup">[</template>
       <template v-if="isLastInGroup">]</template>
