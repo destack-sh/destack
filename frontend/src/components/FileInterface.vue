@@ -57,16 +57,7 @@ function restore() {
 }
 
 function getStatementContentLength(statement: StatementContentFragment) {
-  // TODO @UX: statement content length is only updated after its representation is debounced
-  if (statement.type == StatementType.Definition) {
-    if (statement.symbolType == SymbolType.Code && statement.code != null) {
-      return statement.code.split("\n").length;
-    } else if (statement.symbolType == SymbolType.Type && statement.typeNodes != null) {
-      return statement.typeNodes.length;
-    } else if (statement.symbolType == SymbolType.Dataset && statement.records != null) {
-      return statement.records.length;
-    }
-  }
+  // TODO @UX: test whether line numbers are actually useful
   return 0;
 }
 
