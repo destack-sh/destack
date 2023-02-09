@@ -80,7 +80,7 @@ function focus(index: number | string, column: ColumnType) {
 function navigateUp(memberId: string, column: ColumnType) {
   const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId);
   if (!memberIdx) {
-    context.navigateUp();
+    gridNavigateUp();
   } else {
     focus(memberIdx - 1, column);
   }
@@ -89,7 +89,7 @@ function navigateUp(memberId: string, column: ColumnType) {
 function navigateDown(memberId: string, column: ColumnType) {
   const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId) ?? 0;
   if (memberIdx == membersLength.value - 1) {
-    context.navigateDown();
+    gridNavigateDown();
   } else {
     focus(memberIdx + 1, column);
   }
@@ -183,6 +183,22 @@ function focusFirstIfExists() {
   }
 }
 
+function focusLast() {
+  if (membersLength.value > 0) {
+    focus(membersLength.value - 1, columnsInOrder.value[0]);
+  } else {
+    descriptionRef.value?.focus();
+  }
+}
+
+function gridNavigateUp() {
+  descriptionRef.value?.focus();
+}
+
+function gridNavigateDown() {
+  addMemberRef.value?.focus();
+}
+
 defineExpose({
   focus: () => descriptionRef.value?.focus(),
   defocus: () => {
@@ -214,7 +230,7 @@ defineExpose({
     class="my-2 grid w-fit gap-x-3"
     :class="{
       'grid-cols-[160px_minmax(160px,1fr)]': isEnum,
-      'grid-cols-[160px_160px_1fr]': isStruct,
+      'grid-cols-[160px_160px_minmax(160px,1fr)]': isStruct,
     }"
   >
     <template v-for="member of memberTypeNodes" :key="member.id">
@@ -225,14 +241,16 @@ defineExpose({
           @update:model-value="(val) => updateMemberColumn(member.id, column, val)"
           :readonly="context.readonly.value"
           :editing="false"
+          :placeholder-value="context.focused.value ? column : null"
           :type="STRING_TYPE_NODE"
           @navigate-left="navigateLeft(member.id, column)"
           @navigate-right="navigateRight(member.id, column)"
           @navigate-up="navigateUp(member.id, column)"
           @navigate-down="navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
+          @keydown.delete.exact.prevent="deleteMember(member.id)"
           :class="{
-            'w-full rounded-sm border border-transparent py-0.5': true,
+            'w-full rounded-sm border border-transparent py-0.5 outline-none ring-0': true,
             'focus:border-dashed focus:border-gray-700 focus:bg-orange-50': true,
           }"
         />
@@ -245,6 +263,8 @@ defineExpose({
       class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
       @click="insertBelow()"
       @enter="insertBelow()"
+      @keydown.up.exact="focusLast"
+      @keydown.down.exact="context.navigateDown"
     >
       +{{ isEnum ? "option" : "field" }}
     </button>

@@ -2,10 +2,11 @@
 import EditableSpan from "@/components/EditableSpan.vue";
 import { TypeTag, type TypeNode } from "@/gql/graphql";
 import { whenever } from "@vueuse/shared";
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: any;
+  placeholderValue?: any;
   type: TypeNode;
   readonly: boolean;
   editing: boolean;
@@ -27,6 +28,18 @@ const emit = defineEmits<{
 const value: Ref<any> = ref(props.modelValue);
 const containerRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const readValue = computed(() => {
+  if (!props.editing && !value.value && props.placeholderValue) {
+    return props.placeholderValue;
+  } else {
+    return value.value;
+  }
+});
+
+function writeValue(val: any) {
+  value.value = val;
+  emit("update:modelValue", val);
+}
 
 // focus value when we start editing
 whenever(
@@ -53,6 +66,7 @@ defineExpose({
   <component
     :is="editing ? 'div' : 'button'"
     class="z-10 text-left outline-transparent"
+    :class="readValue == placeholderValue ? 'opacity-20' : 'opacity-100'"
     ref="containerRef"
     @click="emit('edit')"
     @keydown.enter.exact.prevent="emit('edit')"
@@ -65,7 +79,8 @@ defineExpose({
     <EditableSpan
       ref="valueRef"
       v-if="type.tag == TypeTag.String"
-      v-model="value"
+      :model-value="readValue"
+      @update:model-value="writeValue"
       :readonly="!editing"
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
@@ -75,6 +90,6 @@ defineExpose({
       @enter="emit('enter')"
       @escape="emit('escape')"
     />
-    <div ref="valueRef" v-else class="text-red-500">barf</div>
+    <div ref="valueRef" v-else class="text-red-500">{{ value }}</div>
   </component>
 </template>

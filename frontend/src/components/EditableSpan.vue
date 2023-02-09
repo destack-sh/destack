@@ -3,7 +3,6 @@ import { ref, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
-  placeholder?: string;
   readonly: boolean;
 }>();
 
