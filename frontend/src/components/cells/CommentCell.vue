@@ -14,7 +14,7 @@ const sanitizedHtml = computed(() => DOMPurify.sanitize(marked.parse(content.val
 
 defineExpose({
   focus: () => monacoEditorRef.value?.focus(),
-  defocus: () => monacoEditorRef.value?.defocus(),
+  blur: () => monacoEditorRef.value?.blur(),
 });
 </script>
 <template>

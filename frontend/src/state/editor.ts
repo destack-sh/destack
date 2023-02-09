@@ -246,7 +246,7 @@ export const useEditorState = defineStore("editor", {
         // if editor was focused, focus new active editor
         if (editor == this.focusedEditor) {
           this.focusedEditor = group.activeEditor;
-          // defocus element
+          // blur element
           this.focusedElementId = null;
         }
       }
@@ -341,13 +341,13 @@ export const useEditorState = defineStore("editor", {
       console.log(`stop editing element ${element?.id}`);
     },
 
-    defocusElement(element?: StatementHeader | FileHeader) {
+    blurElement(element?: StatementHeader | FileHeader) {
       if (!element || element.id == this.focusedElementId) {
         this.focusedElementId = null;
         this.focusedElementType = null;
         this.editingElement = false;
       }
-      console.log("defocus element");
+      console.log("blur element");
     },
 
     setMainStatement(statement?: { id: string }): void {

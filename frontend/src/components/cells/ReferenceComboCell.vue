@@ -94,7 +94,7 @@ onStartTyping(() => {
 
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
-  defocus: () => ((inputRefFocus.focused.value = false), (selecting.value = false)),
+  blur: () => ((inputRefFocus.focused.value = false), (selecting.value = false)),
   open,
 });
 </script>

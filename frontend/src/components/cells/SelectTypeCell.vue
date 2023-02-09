@@ -46,7 +46,7 @@ watch(content, (newContent) => {
 
 defineExpose({
   focus: () => spanRef.value?.focus(),
-  defocus: () => spanRef.value?.defocus(),
+  blur: () => spanRef.value?.blur(),
   content,
 });
 </script>

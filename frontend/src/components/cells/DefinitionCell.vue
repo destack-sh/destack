@@ -33,11 +33,11 @@ function navigateDown() {
 
 defineExpose({
   focus: () => nameRef.value?.focus(),
-  defocus: () => {
-    startRef.value?.defocus();
-    nameRef.value?.defocus();
-    gapRef.value?.defocus();
-    contentRef.value?.defocus();
+  blur: () => {
+    startRef.value?.blur();
+    nameRef.value?.blur();
+    gapRef.value?.blur();
+    contentRef.value?.blur();
   },
 });
 </script>

@@ -92,12 +92,12 @@ whenever(isEditing, () => {
   }
 });
 
-// defocus root cell if focused in container but no longer editing (or focused)
+// blur root cell if focused in container but no longer editing (or focused)
 watch(
   () => [isEditing.value, containerFocused.value],
   () => {
     if (!isEditing.value && containerFocused.value) {
-      rootCellRef.value?.defocus();
+      rootCellRef.value?.blur();
     }
   }
 );
@@ -105,8 +105,8 @@ watch(
 // cancel focus if clicked outside
 onClickOutside(containerRef, () => {
   if (isFocused.value) {
-    rootCellRef.value?.defocus();
-    editor.defocusElement(statement.value as StatementHeader);
+    rootCellRef.value?.blur();
+    editor.blurElement(statement.value as StatementHeader);
   }
 });
 
