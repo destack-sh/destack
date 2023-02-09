@@ -1,8 +1,9 @@
 <script lang="ts" setup>
+import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { makeTypeNodeData, mapToTypeNode, useStatementContext } from "@/components/statement";
-import { TypeTag } from "@/gql/graphql";
+import { TypeTag, type TypeNodeData } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -165,7 +166,16 @@ function _updateMemberColumn(memberId: string, column: ColumnType, value: any) {
 }
 
 const _updateMemberColumnDebounced = useDebounceFn(_updateMemberColumn, 200, { maxWait: 1000 });
-function updateMemberColumn(memberId: string, column: ColumnType, value: any) {
+
+function readColumn(member: TypeNodeData, column: ColumnType) {
+  if (column == "type") {
+    return member;
+  } else {
+    return member[column];
+  }
+}
+
+function writeColumn(memberId: string, column: ColumnType, value: any) {
   _updateMemberColumnDebounced(memberId, column, value);
 }
 
@@ -258,12 +268,16 @@ defineExpose({
       'grid-cols-[160px_160px_minmax(160px,1fr)]': isStruct,
     }"
   >
+    <!-- Rows -->
     <template v-for="member of memberTypeNodes" :key="member.id">
+      <!-- Columns -->
       <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
-        <InlineValueCell
+        <!-- Individual column: a bit messy -->
+        <component
+          :is="column == 'type' ? InlineTypeCell : InlineValueCell"
+          :model-value="readColumn(member, column)"
+          @update:model-value="(val: any) => writeColumn(member.id, column, val)"
           :ref="(el: any) => registerColumnRef(member.id, column, el)"
-          :model-value="member[column] ?? ''"
-          @update:model-value="(val) => updateMemberColumn(member.id, column, val)"
           :readonly="context.readonly.value"
           :editing="editingColumn == member.id + '.' + column"
           @edit="editColumn(member.id, column)"
@@ -282,6 +296,7 @@ defineExpose({
               editingColumn != member.id + '.' + column,
           }"
         />
+        <!-- Note the :EditableCellStyle above (should be symmetric) -->
       </template>
     </template>
     <!-- Add a member -->

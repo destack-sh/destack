@@ -34,39 +34,29 @@ const readValue = computed(() => {
     return value.value;
   }
 });
-
 function writeValue(val: any) {
   value.value = val;
   emit("update:modelValue", val);
 }
 
-onClickOutside(valueRef, () => {
-  if (props.editing) {
-    emit("escape");
-  }
-});
+onClickOutside(valueRef, () => emit("escape"));
 
-// focus when we start/stop editing
+// re-focus when we start/stop editing
 watch(
   () => props.editing,
-  () =>
-    nextTick(() => {
-      if (props.editing) {
-        valueRef.value?.focus();
-      } else {
-        buttonRef.value?.focus();
-      }
-    })
+  () => nextTick(focus)
 );
 
+function focus() {
+  if (!props.editing) {
+    buttonRef.value?.focus();
+  } else {
+    valueRef.value?.focus();
+  }
+}
+
 defineExpose({
-  focus: () => {
-    if (!props.editing) {
-      buttonRef.value?.focus();
-    } else {
-      valueRef.value?.focus();
-    }
-  },
+  focus,
   blur: () => {
     buttonRef.value?.blur();
     valueRef.value?.blur();
@@ -93,13 +83,13 @@ defineExpose({
       <!-- Can't render this type! -->
       <span ref="valueRef" v-else class="text-red-500">{{ readValue }}</span>
     </button>
-    <!-- Editable content (takes over) -->
+    <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 w-80 rounded-sm border border-solid border-black bg-orange-50 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 w-40 rounded-sm border border-solid border-black bg-orange-50 p-1"
       v-if="editing"
       @click.prevent="emit('edit')"
     >
-      <!-- TODO @Incomplete: support other types -->
+      <!-- TODO @Incomplete: support other types & type constraints (e.g. length) -->
       <input
         :value="readValue"
         @input="(e) => writeValue(e.target?.value)"
@@ -107,6 +97,8 @@ defineExpose({
         type="text"
         class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
         @keydown.escape.exact.prevent="emit('escape')"
+        @keydown.enter.exact.prevent="emit('escape')"
+        :placeholder="placeholderValue ?? ''"
       />
     </div>
   </div>
