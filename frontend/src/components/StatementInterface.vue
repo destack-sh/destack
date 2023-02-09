@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import CommentCell from "@/components/cells/CommentCell.vue";
 import DefinitionCell from "@/components/cells/DefinitionCell.vue";
-import EmptyCell from "@/components/cells/EmptyCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
@@ -68,7 +67,7 @@ const rootCell: Ref<Cell> = computed(() => {
     props: { showDots: true },
   };
 });
-const rootCellRef = ref<InstanceType<typeof EmptyCell>>();
+const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
 
 // forward focus / editing state
 
@@ -194,9 +193,13 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       class="absolute top-0 left-0 h-full w-1"
       :class="isFocused && !isEditing ? 'bg-orange-100' : 'bg-transparent'"
     />
-    <!-- Statement focus indicator (top and bottom if editing) -->
-    <div class="absolute top-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
-    <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isEditing ? 'bg-orange-100' : 'bg-transparent'" />
+    <!-- Statement focus indicator (all around if editing) -->
+    <template v-if="isEditing">
+      <div class="absolute top-0 left-0 h-0.5 w-full bg-orange-100" />
+      <div class="absolute bottom-0 left-0 h-0.5 w-full bg-orange-100" />
+      <div class="absolute top-0 left-0 h-full w-0.5 bg-orange-100" />
+      <div class="absolute right-0 top-0 h-full w-0.5 bg-orange-100" />
+    </template>
     <!-- Main cell -->
     <div class="py-1 px-2 text-sm">
       <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />

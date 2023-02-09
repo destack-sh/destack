@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import { ref, type Ref } from "vue";
+import { ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
   readonly: boolean;
+  suppressShortcuts?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -54,15 +55,10 @@ function navigateRightIfAtEnd(event: any) {
 
 const span = ref<HTMLElement | null>(null);
 
-// copy of span's actual inner text
-// useful when modelValue may diverge from what's shown (e.g. when it's the actual synced value)
-const innerText: Ref<string> = ref(props.modelValue);
-
 defineExpose({
   focus: () => span.value?.focus(),
   defocus: () => span.value?.blur(),
   modelValue: props.modelValue,
-  innerText,
 });
 </script>
 <template>
@@ -72,7 +68,8 @@ defineExpose({
     tabindex="-1"
     spellcheck="false"
     ref="span"
-    class="mousetrap outline-none"
+    class="outline-none"
+    :class="suppressShortcuts ? '' : 'mousetrap'"
     :contenteditable="!readonly"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
@@ -82,10 +79,7 @@ defineExpose({
     @keydown.backspace="deleteLeftIfEmpty"
     @keydown.delete="deleteRightIfAtEnd"
     @keydown.escape.prevent="emit('escape')"
-    @input="
-      emit('update:modelValue', span?.innerText ?? '');
-      innerText = span?.innerText ?? '';
-    "
+    @input="emit('update:modelValue', span?.innerText ?? '')"
   >
     {{ modelValue }}
   </span>

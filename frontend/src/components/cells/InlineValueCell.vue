@@ -2,7 +2,7 @@
 import EditableSpan from "@/components/EditableSpan.vue";
 import { TypeTag, type TypeNode } from "@/gql/graphql";
 import { whenever } from "@vueuse/shared";
-import { computed, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: any;
@@ -41,10 +41,17 @@ function writeValue(val: any) {
   emit("update:modelValue", val);
 }
 
-// focus value when we start editing
-whenever(
+// focus when we start/stop editing
+watch(
   () => props.editing,
-  () => valueRef.value?.focus()
+  () =>
+    nextTick(() => {
+      if (props.editing) {
+        valueRef.value?.focus();
+      } else {
+        containerRef.value?.focus();
+      }
+    })
 );
 
 defineExpose({
@@ -66,17 +73,21 @@ defineExpose({
   <component
     :is="editing ? 'div' : 'button'"
     class="z-10 text-left outline-transparent"
-    :class="readValue == placeholderValue ? 'opacity-20' : 'opacity-100'"
+    :class="readValue == placeholderValue ? 'text-gray-300' : ''"
     ref="containerRef"
-    @click="emit('edit')"
-    @keydown.enter.exact.prevent="emit('edit')"
-    @keydown.left.exact.prevent="emit('navigateLeft')"
-    @keydown.right.exact.prevent="emit('navigateRight')"
-    @keydown.up.exact.prevent="emit('navigateUp')"
-    @keydown.down.exact.prevent="emit('navigateDown')"
+    @click.capture.prevent="
+      emit('edit');
+      valueRef?.focus();
+    "
+    @keydown.enter.exact="editing || emit('edit')"
+    @keydown.left.exact="editing || emit('navigateLeft')"
+    @keydown.right.exact="editing || emit('navigateRight')"
+    @keydown.up.exact="editing || emit('navigateUp')"
+    @keydown.down.exact="editing || emit('navigateDown')"
   >
     <!-- Actual content (may be editable if not readonly and editing) -->
     <EditableSpan
+      suppress-shortcuts
       ref="valueRef"
       v-if="type.tag == TypeTag.String"
       :model-value="readValue"
@@ -86,10 +97,11 @@ defineExpose({
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
-      @delete-left="emit('deleteLeft')"
       @enter="emit('enter')"
       @escape="emit('escape')"
     />
+    <!-- TODO @Incomplete: support other data -->
+    <!-- Can't render this type! -->
     <div ref="valueRef" v-else class="text-red-500">{{ value }}</div>
   </component>
 </template>
