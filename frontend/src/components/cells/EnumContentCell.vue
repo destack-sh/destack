@@ -139,6 +139,9 @@ defineExpose({
   focus: () => descriptionRef.value?.focus(),
   defocus: () => {
     descriptionRef.value?.defocus();
+    addMemberRef.value?.blur();
+    Object.values(nameRefs.value).forEach((r) => r.defocus());
+    Object.values(descriptionRefs.value).forEach((r) => r.defocus());
   },
 });
 </script>

@@ -1114,6 +1114,7 @@ export type MorphStatementMutation = {
     | {
         __typename?: "Statement";
         id: any;
+        revision: number;
         type: StatementType;
         symbolType?: SymbolType | null;
         name?: string | null;
@@ -2754,6 +2755,7 @@ export const MorphStatementDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "symbolType" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },

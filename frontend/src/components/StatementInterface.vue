@@ -10,7 +10,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { localErrorsOf } from "@/state/runtime";
 import { onClickOutside, useFocusWithin, whenever } from "@vueuse/core";
-import { computed, provide, ref, watch, type Component, type Ref } from "vue";
+import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -74,6 +74,17 @@ const rootCellRef = ref<InstanceType<typeof EmptyCell>>();
 
 const containerRef = ref<HTMLElement | null>(null);
 const { focused: containerFocused } = useFocusWithin(containerRef);
+
+// refocus if root cell changed and we're editing
+watch(
+  () => rootCell.value.component,
+  (oldComponent, newComponent) => {
+    if (isEditing.value && oldComponent !== newComponent) {
+      nextTick(() => rootCellRef.value?.focus());
+    }
+  },
+  { deep: false }
+);
 
 // focus root cell if editing in editor but not in container
 whenever(isEditing, () => {

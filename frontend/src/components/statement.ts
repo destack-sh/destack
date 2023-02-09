@@ -156,7 +156,7 @@ export function useStatementContext() {
         type: statement.value.type,
         symbolType: SymbolType.Type,
         name: statement.value.name ?? undefined,
-        typeNodes: [mapToTypeNodeDataInput(statement.value.id, makeTypeNodeData({ tag: TypeTag.Enum }))],
+        typeNodes: makeEnumTypeNodeData().map((n) => mapToTypeNodeDataInput(statement.value.id, n)),
       }
     );
   }
