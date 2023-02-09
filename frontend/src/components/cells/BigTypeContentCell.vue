@@ -5,7 +5,7 @@ import { makeTypeNodeData, mapToTypeNode, useStatementContext } from "@/componen
 import { TypeTag } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -49,7 +49,7 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
 const STRING_TYPE_NODE = mapToTypeNode([makeTypeNodeData({ tag: TypeTag.String })]);
 
 // TODO @Incomplete: track and manage editing column
-const editingColumn: Ref<[string, string] | null> = ref(null);
+const editingColumn: Ref<string | null> = ref(null);
 const columnRefs: Ref<Record<string, InstanceType<typeof InlineValueCell>>> = ref({});
 
 function registerColumnRef(
@@ -58,7 +58,11 @@ function registerColumnRef(
   ref: InstanceType<typeof InlineValueCell> | undefined
 ) {
   const columnId = memberId + "." + column;
-  columnRefs.value[columnId] = ref ?? undefined;
+  if (ref != undefined) {
+    columnRefs.value[columnId] = ref;
+  } else {
+    delete columnRefs.value[columnId];
+  }
 }
 
 function focus(index: number | string, column: ColumnType) {
@@ -165,6 +169,11 @@ function updateMemberColumn(memberId: string, column: ColumnType, value: any) {
   _updateMemberColumnDebounced(memberId, column, value);
 }
 
+function editColumn(memberId: string, column: ColumnType) {
+  console.log("edit column", memberId, column);
+  editingColumn.value = memberId + "." + column;
+}
+
 function deleteMember(memberId: string) {
   const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId);
   if (memberIdx == null || memberIdx < 0) {
@@ -173,6 +182,12 @@ function deleteMember(memberId: string) {
   const member = memberTypeNodes.value?.[memberIdx];
   context.deleteTypeNode(member as any); // must exist
   focus(memberIdx - 1, "name"); // move focus above
+}
+
+function deleteMemberIfNotEditing(memberId: string) {
+  if (editingColumn.value == null) {
+    deleteMember(memberId);
+  }
 }
 
 function focusFirstIfExists() {
@@ -199,6 +214,16 @@ function gridNavigateDown() {
   addMemberRef.value?.focus();
 }
 
+// stop editing if defocused
+watch(
+  () => context.focused.value,
+  () => {
+    if (!context.focused.value) {
+      editingColumn.value = null;
+    }
+  }
+);
+
 defineExpose({
   focus: () => descriptionRef.value?.focus(),
   defocus: () => {
@@ -223,7 +248,7 @@ defineExpose({
     @click="descriptionRef?.focus()"
     class="w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
   >
-    +describe
+    +description
   </button>
   <!-- Enum options -->
   <div
@@ -240,18 +265,21 @@ defineExpose({
           :model-value="member[column] ?? ''"
           @update:model-value="(val) => updateMemberColumn(member.id, column, val)"
           :readonly="context.readonly.value"
-          :editing="false"
-          :placeholder-value="context.focused.value ? column : null"
+          :editing="editingColumn == member.id + '.' + column"
+          @edit="editColumn(member.id, column)"
+          :placeholder-value="context.editing.value ? '+' + column : null"
           :type="STRING_TYPE_NODE"
           @navigate-left="navigateLeft(member.id, column)"
           @navigate-right="navigateRight(member.id, column)"
           @navigate-up="navigateUp(member.id, column)"
           @navigate-down="navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
-          @keydown.delete.exact.prevent="deleteMember(member.id)"
+          @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
+          @escape="editingColumn = null"
           :class="{
-            'w-full rounded-sm border border-transparent py-0.5 outline-none ring-0': true,
-            'focus:border-dashed focus:border-gray-700 focus:bg-orange-50': true,
+            'w-full rounded-sm border border-transparent py-0.5 outline-none ring-0 focus-within:border-gray-700 focus-within:bg-orange-50': true,
+            'focus-within:border-solid': editingColumn == member.id + '.' + column,
+            'focus-within:border-dashed': editingColumn != member.id + '.' + column,
           }"
         />
       </template>
