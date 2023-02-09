@@ -35,6 +35,14 @@ function morphToDefinition(name: string) {
   context.morphToDefinition(context.statement.value.symbolType ?? null, name);
 }
 
+function morphed() {
+  // ReferenceComboCell for entering name is v-if on symbolType != null
+  // so it's only available in the next frame. Using v-show instead works
+  // immediately but leads to weird runtime directive errors while editing
+  // the input field in ReferenceComboCell.
+  nextTick(() => nameRef.value?.focus());
+}
+
 defineExpose({
   focus: () => {
     if (context.statement.value.symbolType == null) {
@@ -79,11 +87,11 @@ defineExpose({
       @navigate-right="nameRef?.focus()"
       @enter="context.insertAbove"
       @escape="context.escape"
-      @morphed="nameRef?.open()"
+      @morphed="morphed"
     />
     <SymbolTypeCell v-if="context.statement.value.symbolType" />
     <ReferenceComboCell
-      v-show="context.statement.value.symbolType"
+      v-if="context.statement.value.symbolType"
       ref="nameRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"

@@ -1,9 +1,12 @@
 import { graphql, useFragment } from "@/gql";
 import type {
   DeleteStatementMutation,
+  MorphStatementMutation,
   MoveStatementMutation,
+  RenameStatementMutation,
   RestoreStatementMutation,
   StatementModifier,
+  StatementMorphInput,
   StatementType,
   StatementTypeNodeDataCreateInput,
   SymbolType,
@@ -25,6 +28,8 @@ export function newTypeNodeDataId(): string {
   const nodeId = uuidv4();
   return btoa(`TypeNodeData:${nodeId}`);
 }
+
+const PENDING_REVISION = -1;
 
 export function useStatementOps() {
   const operations = useOperationsStore();
@@ -91,6 +96,7 @@ export function useStatementOps() {
         morphStatement(input: $input) {
           ... on Statement {
             id
+            revision
             type
             symbolType
             name
@@ -102,7 +108,22 @@ export function useStatementOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { input: StatementMorphInput }) =>
+        ({
+          morphStatement: {
+            __typename: "Statement",
+            id: vars.input.id,
+            revision: PENDING_REVISION,
+            type: vars.input.type,
+            symbolType: vars.input.symbolType ?? null,
+            name: vars.input.name ?? null,
+            typeNodes: vars.input.typeNodes ?? null,
+            lang: vars.input.language ?? null,
+          },
+        } as MorphStatementMutation),
+    }
   );
 
   async function morph(
@@ -153,7 +174,7 @@ export function useStatementOps() {
             __typename: "Statement",
             id: vars.id,
             modifier: vars.modifier,
-            revision: -1,
+            revision: PENDING_REVISION,
           },
         } as UpdateStatementModifierMutation),
     }
@@ -200,7 +221,7 @@ export function useStatementOps() {
             file: {
               id: vars.fileId,
             },
-            revision: -1,
+            revision: PENDING_REVISION,
             parent: vars.parentId ? { id: vars.parentId } : null,
           },
         } as MoveStatementMutation),
@@ -245,7 +266,18 @@ export function useStatementOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; name: string | null }) =>
+        ({
+          renameStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            name: vars.name,
+            revision: PENDING_REVISION,
+          },
+        } as RenameStatementMutation),
+    }
   );
 
   async function rename(id: string, oldName: string | null, newName: string | null) {

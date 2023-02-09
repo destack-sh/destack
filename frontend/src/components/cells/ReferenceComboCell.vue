@@ -117,7 +117,7 @@ defineExpose({
     v-else
     as="div"
     class="relative"
-    :model-value="context.reference"
+    :model-value="context.reference.value"
     @update:model-value="setReference"
     nullable
   >
