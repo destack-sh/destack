@@ -169,7 +169,7 @@ function initMonaco(monaco: Monaco) {
       }
     } else if (e.keyCode === monaco.KeyCode.Escape) {
       emit("escape");
-      // defocus editor
+      // blur editor
       document.activeElement?.blur();
     }
   });
@@ -219,11 +219,11 @@ onBeforeUnmount(() => {
 function focus() {
   editor.value?.focus();
 }
-function defocus() {
+function blur() {
   // no op?
 }
 
-defineExpose({ focus, defocus });
+defineExpose({ focus, blur });
 </script>
 
 <template>

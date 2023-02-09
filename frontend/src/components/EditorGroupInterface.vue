@@ -28,8 +28,8 @@ const focused = computed(() => editorState.focusedEditor?.groupId == props.group
 
 function focus(editor: Editor) {
   editorState.focusEditor(editor);
-  // defocus any focused element when clicking on a tab
-  editorState.defocusElement();
+  // blur any focused element when clicking on a tab
+  editorState.blurElement();
 }
 
 // load panels (i.e. disallow unmounting) after 2s to load active panel first

@@ -57,7 +57,7 @@ const span = ref<HTMLElement | null>(null);
 
 defineExpose({
   focus: () => span.value?.focus(),
-  defocus: () => span.value?.blur(),
+  blur: () => span.value?.blur(),
   modelValue: props.modelValue,
 });
 </script>

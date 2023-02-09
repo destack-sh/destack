@@ -46,7 +46,7 @@ watchEffect(() => {
 
 defineExpose({
   focus: () => descriptionRef.value?.focus(),
-  defocus: () => descriptionRef.value?.defocus(),
+  blur: () => descriptionRef.value?.blur(),
 });
 </script>
 <template>

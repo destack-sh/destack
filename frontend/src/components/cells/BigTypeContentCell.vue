@@ -214,7 +214,7 @@ function gridNavigateDown() {
   addMemberRef.value?.focus();
 }
 
-// stop editing if defocused
+// stop editing if blured
 watch(
   () => context.focused.value,
   () => {
@@ -226,10 +226,10 @@ watch(
 
 defineExpose({
   focus: () => descriptionRef.value?.focus(),
-  defocus: () => {
-    descriptionRef.value?.defocus();
+  blur: () => {
+    descriptionRef.value?.blur();
     addMemberRef.value?.blur();
-    Object.values(columnRefs.value).forEach((r) => r.defocus());
+    Object.values(columnRefs.value).forEach((r) => r.blur());
   },
 });
 </script>
@@ -277,9 +277,9 @@ defineExpose({
           @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
           @escape="editingColumn = null"
           :class="{
-            'w-full rounded-sm border border-transparent py-0.5 outline-none ring-0 focus-within:border-gray-700 focus-within:bg-orange-50': true,
-            'focus-within:border-solid': editingColumn == member.id + '.' + column,
-            'focus-within:border-dashed': editingColumn != member.id + '.' + column,
+            'w-full rounded-sm border border-transparent py-0.5': true,
+            'focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50':
+              editingColumn != member.id + '.' + column,
           }"
         />
       </template>

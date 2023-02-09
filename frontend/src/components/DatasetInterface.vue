@@ -69,7 +69,7 @@ const state = useDatasetInterfaceState(statement);
 
 defineExpose({
   focus: () => monacoEditor.value?.focus(),
-  defocus: () => monacoEditor.value?.defocus(),
+  blur: () => monacoEditor.value?.blur(),
 });
 </script>
 <template>

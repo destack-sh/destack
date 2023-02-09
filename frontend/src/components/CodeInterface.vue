@@ -42,7 +42,7 @@ watchEffect(() => {
 
 defineExpose({
   focus: () => monacoEditorRef.value?.focus(),
-  defocus: () => monacoEditorRef.value?.defocus(),
+  blur: () => monacoEditorRef.value?.blur(),
 });
 </script>
 <template>
