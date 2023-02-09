@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import EnumContentCell from "@/components/cells/EnumContentCell.vue";
+import BigTypeContentCell from "@/components/cells/BigTypeContentCell.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { TypeTag } from "@/gql/graphql";
+import { SymbolType } from "@/gql/graphql";
 import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -15,7 +15,7 @@ context.syncName(name);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const contentRef: Ref<InstanceType<typeof EnumContentCell> | null> = ref(null);
+const contentRef: Ref<InstanceType<typeof BigTypeContentCell> | null> = ref(null);
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
@@ -80,5 +80,5 @@ defineExpose({
       @escape="context.escape"
     />
   </div>
-  <EnumContentCell ref="contentRef" v-if="context.typeNodeRoot.value?.tag == TypeTag.Enum" />
+  <BigTypeContentCell ref="contentRef" v-if="context.statement.value.symbolType == SymbolType.Type" />
 </template>

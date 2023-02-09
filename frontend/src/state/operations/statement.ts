@@ -76,7 +76,7 @@ export function useStatementOps() {
       );
       // TODO @Robustness: handle error responses (across mutations & queries)
       if (create?.data?.createStatement.__typename != "Statement") {
-        throw new Error(`expected Statement, got ${create?.data?.__typename}`);
+        throw new Error(`expected Statement, got ${create}`);
       }
       return useFragment(StatementHeaderType, create?.data?.createStatement);
     }

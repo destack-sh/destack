@@ -5,6 +5,7 @@ import {
   SymbolType,
   TypeTag,
   type StatementTypeNodeDataCreateInput,
+  type TypeNode,
   type TypeNodeData,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
@@ -261,11 +262,11 @@ function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): Stateme
     id: id,
     nodeId: typeNodeData.id,
     tag: typeNodeData.tag,
-    parentId: typeNodeData.parentId,
-    description: typeNodeData.description,
-    name: typeNodeData.name,
-    value: typeNodeData.value,
     orderKey: typeNodeData.orderKey,
+    parentId: typeNodeData.parentId ?? null,
+    description: typeNodeData.description ?? null,
+    name: typeNodeData.name ?? null,
+    value: typeNodeData.value ?? null,
   };
 }
 
@@ -283,6 +284,11 @@ export function getDefaultSymbolDefinition(symbolType: SymbolType): { language?:
     return {
       language: "jsonl",
       typeNodes: [makeTypeNodeData({ name: "element", tag: TypeTag.Struct })],
+    };
+  } else if (symbolType == SymbolType.Type) {
+    // default to struct
+    return {
+      typeNodes: [makeTypeNodeData({ tag: TypeTag.Struct })],
     };
   } else {
     // no special content for other symbol types
@@ -302,7 +308,49 @@ export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boole
   }
 }
 
-export function makeTypeNodeData(data: { name?: string; tag: TypeTag; parentId?: string; orderKey?: string }) {
+export function mapToTypeNode(typeNodes: TypeNodeData[], rootId?: string): TypeNode {
+  let rootNodeData;
+  if (rootId == null) {
+    rootNodeData = typeNodes.find((n) => n.parentId == null);
+  } else {
+    rootNodeData = typeNodes.find((n) => n.id == rootId);
+  }
+  if (!rootNodeData) {
+    throw new Error("type nodes do not contain root node");
+  }
+
+  const mappedNodes: Record<string, TypeNode> = {};
+  function walkMap(typeNode: TypeNodeData) {
+    if (typeNode.id in mappedNodes) {
+      throw new Error("circular type nodes"); // just in case
+    }
+    const mapped = {
+      name: typeNode.name ?? null,
+      tag: typeNode.tag,
+      description: typeNode.description ?? null,
+      reference: typeNode.reference ?? null,
+      children: null,
+    } as TypeNode;
+    mappedNodes[typeNode.id] = mapped;
+
+    const children = typeNodes.filter((n) => n.parentId == typeNode.id);
+    if (children) {
+      mapped.children = children.map((c) => walkMap(c));
+    }
+    return mapped;
+  }
+
+  return walkMap(rootNodeData);
+}
+
+export function makeTypeNodeData(data: {
+  name?: string;
+  tag: TypeTag;
+  parentId?: string;
+  orderKey?: string;
+  value?: any;
+  reference?: string;
+}) {
   const typeNodeData: TypeNodeData = {
     __typename: "TypeNodeData",
     id: newTypeNodeDataId(),
@@ -310,6 +358,8 @@ export function makeTypeNodeData(data: { name?: string; tag: TypeTag; parentId?:
     tag: data.tag,
     parentId: data.parentId ?? null,
     orderKey: data.orderKey ?? INTEGER_ZERO,
+    value: data.value ?? null,
+    reference: data.reference ?? null,
   };
   return typeNodeData;
 }
