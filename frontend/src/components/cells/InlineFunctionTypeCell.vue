@@ -6,13 +6,15 @@ import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { TypeTag } from "@/gql/graphql";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { useNavigationGrid } from "@/components/cells/grid";
 const context = useStatementContext();
 
 const inputNode = computed(() => context.typeNodesChildren.value?.find((n) => n.name === "input"));
-const inputNodes = computed(() =>
-  context.typeNodes.value
-    ?.filter((n) => n.parentId == inputNode.value?.id)
-    .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+const inputNodes = computed(
+  () =>
+    context.typeNodes.value
+      ?.filter((n) => n.parentId == inputNode.value?.id)
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
 );
 const lastInputNode = computed(() => inputNodes.value?.[inputNodes.value.length - 1]);
 const outputNode = computed(() => context.typeNodesChildren.value?.find((n) => n.name === "output"));
@@ -26,31 +28,15 @@ const emit = defineEmits<{
 }>();
 
 const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
-const inputRefs: Ref<Record<string, InstanceType<typeof InlineTypeCell>>> = ref({});
 const outputRef: Ref<HTMLButtonElement | null> = ref(null);
-
-function registerInputRef(nodeId: string, ref: InstanceType<typeof InlineTypeCell> | undefined) {
-  if (ref != null) {
-    inputRefs.value[nodeId] = ref;
-  } else {
-    delete inputRefs.value[nodeId];
-  }
-}
-
-function focusInputRefRel(nodeId: string, offset: number) {
-  const index = inputRefs.value.findIndex((r) => r.$el === ref);
-  if (index == -1) {
-    throw new Error("unexpected ref: " + ref);
-  }
-  const nextRef = inputRefs.value[index + offset];
-  if (nextRef != null) {
-    nextRef.focus();
-  } else if (offset > 0) {
-    outputRef?.value?.focus();
-  } else if (offset < 0) {
-    emit("navigateLeft");
-  }
-}
+const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(
+  computed(() => ["name", "type"]),
+  inputNodes,
+  () => emit("navigateUp"),
+  () => emit("navigateDown"),
+  () => emit("navigateLeft"),
+  () => addInputRef.value?.focus()
+);
 
 function insertInput() {
   if (outputNode.value == null) {
@@ -75,16 +61,20 @@ function insertOutput() {
 }
 
 function focusLastInputOrNavigateLeft() {
-  if (inputRefs.value.length > 0) {
-    inputRefs.value[inputRefs.value.length - 1].focus();
+  if (inputGrid.refs.value.length > 0) {
+    inputGrid.focus(-1, "type");
   } else {
     emit("navigateLeft");
   }
 }
 
+function isEditingInput(memberId: string, column: string): boolean {
+  return inputGrid.getRef(memberId, column)?.editing;
+}
+
 function focus() {
-  if (inputRefs.value.length > 0) {
-    inputRefs.value[inputRefs.value.length - 1].focus();
+  if (inputGrid.refs.value.length > 0) {
+    inputGrid.focus(0, "name");
   } else {
     addInputRef.value?.focus();
   }
@@ -94,7 +84,7 @@ defineExpose({
   focus,
   blur: () => {
     addInputRef.value?.blur();
-    Object.values(inputRefs.value).forEach((ref) => ref.blur());
+    inputGrid.blur();
     outputRef.value?.blur();
   },
 });
@@ -104,7 +94,7 @@ defineExpose({
     <!-- Inputs  -->
     <span v-for="inputNode in inputNodes" :key="inputNode.id" class="inline-flex gap-1 focus-within:bg-orange-50">
       <InlineValueCell
-        :ref="(el: any) => registerInputRef(inputNode.id, el)"
+        :ref="(el: any) => inputGrid.registerColumnRef(inputNode.id, 'name', el)"
         :model-value="inputNode.name ?? ''"
         :type="STRING_TYPE_NODE"
         :readonly="context.readonly.value"
@@ -112,20 +102,34 @@ defineExpose({
         :immediate="false"
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
-        @navigate-right="focusInputRefRel(inputNode.id, 1)"
-        @navigate-left="focusInputRefRel(inputNode.id, -1)"
+        @navigate-right="inputGrid.navigateRight(inputNode.id, 'name')"
+        @navigate-left="inputGrid.navigateLeft(inputNode.id, 'name')"
+        :class="{
+          'w-full self-start rounded-sm border border-transparent py-0.5': true,
+          'focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50': !isEditingInput(
+            inputNode.id,
+            'name'
+          ),
+        }"
       />
+      <!-- Note :EditableCellStyle (should be symmetric) -->
       <InlineTypeCell
-        :ref="(el: any) => registerInputRef(inputNode.id, el)"
+        :ref="(el: any) => inputGrid.registerColumnRef(inputNode.id, 'type', el)"
         :model-value="inputNode"
         :readonly="context.readonly.value"
         :editing="false"
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
-        @navigate-right="focusInputRefRel(inputNode.id, 1)"
-        @navigate-left="focusInputRefRel(inputNode.id, -1)"
+        @navigate-right="inputGrid.navigateRight(inputNode.id, 'type')"
+        @navigate-left="inputGrid.navigateLeft(inputNode.id, 'type')"
+        :class="{
+          'w-full self-start rounded-sm border border-transparent py-0.5': true,
+          'focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50': !isEditingInput(
+            inputNode.id,
+            'type'
+          ),
+        }"
       />
-      <!-- TODO @Incomplete: navigate inputs -->
     </span>
     <!-- Add input button -->
     <button

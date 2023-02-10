@@ -1,21 +1,28 @@
 import { computed, ref, type Ref } from "vue";
 
-export function useNavigationGrid<ColumnType = string>(
+export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElement>(
   columnsInOrder: Ref<ColumnType[]>,
   rows: Ref<{ id: string }[]>,
   gridNavigateUp: () => void = () => ({}),
-  gridNavigateDown: () => void = () => ({})
+  gridNavigateDown: () => void = () => ({}),
+  gridNavigateLeft: () => void = () => ({}),
+  gridNavigateRight: () => void = () => ({})
 ) {
-  const columnRefs: Ref<Record<string, HTMLInputElement>> = ref({});
+  const columnRefs: Ref<Record<string, RefType>> = ref({});
   const rowsLength = computed(() => rows.value?.length ?? 0);
 
-  function registerColumnRef(rowId: string, column: ColumnType, ref: HTMLInputElement | undefined) {
+  function registerColumnRef(rowId: string, column: ColumnType, ref: RefType | undefined) {
     const columnId = rowId + "." + column;
     if (ref != undefined) {
       columnRefs.value[columnId] = ref;
     } else {
       delete columnRefs.value[columnId];
     }
+  }
+
+  function getRef(rowId: string, column: ColumnType): RefType {
+    const columnId = rowId + "." + column;
+    return columnRefs.value[columnId];
   }
 
   function blur() {
@@ -27,6 +34,10 @@ export function useNavigationGrid<ColumnType = string>(
     if (typeof index == "string") {
       row = rows.value?.find((m) => m.id == index);
     } else {
+      if (index < 0) {
+        // if index is negative, start from the last row
+        index = rows.value?.length + index;
+      }
       row = rows.value?.[index];
     }
 
@@ -62,6 +73,8 @@ export function useNavigationGrid<ColumnType = string>(
     if (columnIdx == columnsInOrder.value.length - 1) {
       if (rowIdx != rowsLength.value - 1) {
         focus(rowIdx + 1, columnsInOrder.value[0]);
+      } else {
+        gridNavigateRight();
       }
     } else {
       focus(rowIdx, columnsInOrder.value[columnIdx + 1]);
@@ -74,6 +87,8 @@ export function useNavigationGrid<ColumnType = string>(
     if (columnIdx == 0) {
       if (rowIdx != 0) {
         focus(rowIdx - 1, columnsInOrder.value[columnsInOrder.value.length - 1]);
+      } else {
+        gridNavigateLeft();
       }
     } else {
       focus(rowIdx, columnsInOrder.value[columnIdx - 1]);
@@ -82,6 +97,8 @@ export function useNavigationGrid<ColumnType = string>(
 
   return {
     registerColumnRef,
+    refs: computed(() => Object.values(columnRefs.value)),
+    getRef,
     focus,
     blur,
     navigateUp,

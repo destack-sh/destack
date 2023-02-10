@@ -8,7 +8,6 @@ const props = defineProps<{
   placeholderValue?: any;
   type: TypeNode;
   readonly: boolean;
-  editing: boolean;
   immediate: boolean;
 }>();
 
@@ -26,10 +25,11 @@ const emit = defineEmits<{
 
 // local copy of value
 const value: Ref<any> = ref(props.modelValue);
+const editing: Ref<boolean> = ref(false);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
 const readValue = computed(() => {
-  if (!props.editing && !props.modelValue && props.placeholderValue) {
+  if (!editing.value && !props.modelValue && props.placeholderValue) {
     return props.placeholderValue;
   } else {
     return props.modelValue;
@@ -46,28 +46,33 @@ function confirm() {
   if (!props.immediate) {
     emit("update:modelValue", value.value);
   }
-  nextTick(() => emit("escape"));
+  editing.value = false;
+  nextTick(() => {
+    emit("escape");
+    buttonRef.value?.focus();
+  });
 }
 
 function cancel() {
   emit("escape");
+  editing.value = false;
   value.value = props.modelValue;
+  nextTick(() => buttonRef.value?.focus());
 }
 
 onClickOutside(valueRef, () => {
-  if (props.editing) {
+  if (editing.value) {
     cancel();
   }
 });
 
-// re-focus when we start/stop editing
-watch(
-  () => props.editing,
-  () => nextTick(focus)
-);
+function edit() {
+  editing.value = true;
+  nextTick(() => valueRef.value?.focus());
+}
 
 function focus() {
-  if (!props.editing) {
+  if (!editing.value) {
     buttonRef.value?.focus();
   } else {
     valueRef.value?.focus();
@@ -75,6 +80,7 @@ function focus() {
 }
 
 defineExpose({
+  editing,
   focus,
   blur: () => {
     buttonRef.value?.blur();
@@ -90,8 +96,8 @@ defineExpose({
       :class="readValue == placeholderValue ? 'text-gray-300' : ''"
       tabindex="-1"
       ref="buttonRef"
-      @click="emit('edit')"
-      @keydown.enter.exact="editing || emit('edit')"
+      @click="edit"
+      @keydown.enter.exact="edit"
       @keydown.left.exact="editing || emit('navigateLeft')"
       @keydown.right.exact="editing || emit('navigateRight')"
       @keydown.up.exact="editing || emit('navigateUp')"
@@ -105,7 +111,7 @@ defineExpose({
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 flex w-40 flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit min-w-[100px] flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
       v-if="editing"
       @click.prevent="emit('edit')"
     >
