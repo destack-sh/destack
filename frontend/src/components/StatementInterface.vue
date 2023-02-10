@@ -201,8 +201,9 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
         'font-bold text-orange-600': isFocused && !(isComment || isCommented),
         'font-bold text-gray-400': isFocused && (isComment || isCommented),
       }"
-      >{{ lineNumberBase + 1 }}</span
     >
+      {{ lineNumberBase + 1 }}
+    </span>
     <!-- Gutter indicators on the right margin -->
     <span
       class="absolute right-0 top-[6px] select-none text-left text-sm font-bold not-italic"
@@ -214,8 +215,11 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     </span>
     <!-- Statement focus indicator (left side if not editing) -->
     <div
-      class="absolute top-0 left-0 h-full w-1"
-      :class="isFocused && !isEditing ? 'bg-orange-100' : 'bg-transparent'"
+      class="absolute -left-0.5 top-0 h-full w-1.5"
+      :class="{
+        'group-hover:bg-orange-50': !isEditing,
+        'bg-orange-100': isFocused && !isEditing,
+      }"
     />
     <!-- Statement focus indicator (all around if editing) -->
     <template v-if="isEditing">
