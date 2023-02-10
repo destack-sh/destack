@@ -53,6 +53,7 @@ export type CompileStateOperationInfo = CompileState | OperationInfo;
 export type DatasetRecord = {
   __typename?: "DatasetRecord";
   data: Scalars["JSON"];
+  id: Scalars["UUID"];
   orderKey: Scalars["String"];
 };
 

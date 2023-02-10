@@ -24,6 +24,7 @@ type CompileState {
 union CompileStateOperationInfo = CompileState | OperationInfo
 
 type DatasetRecord {
+  id: UUID!
   orderKey: String!
   data: JSON!
 }

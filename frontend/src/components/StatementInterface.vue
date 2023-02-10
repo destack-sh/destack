@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
+import DatasetDefinitionCell from "@/components/cells/DatasetDefinitionCell.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
@@ -33,6 +34,9 @@ const isFocused = computed(() => editor.focusedElementId == statement.value?.id)
 const isEditing = computed(() => isFocused.value && editor.editingElement);
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
 const isCommented = computed(() => statement.value?.commented);
+const isCommentish = computed(
+  () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
+);
 
 // manage cells
 const context: Ref<StatementContext> = computed(() => ({
@@ -76,6 +80,10 @@ const rootCell: Ref<Cell> = computed(() => {
     } else if (statement.value.symbolType == SymbolType.Code) {
       return {
         component: CodeDefinitionCell,
+      };
+    } else if (statement.value.symbolType == SymbolType.Dataset) {
+      return {
+        component: DatasetDefinitionCell,
       };
     }
 
@@ -196,10 +204,10 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       class="absolute top-[3px] w-6 select-none text-right font-mono text-sm not-italic"
       :style="{ left: -30 + 'px' }"
       :class="{
-        'text-orange-200': !isFocused && !(isComment || isCommented),
-        'text-gray-200': !isFocused && (isComment || isCommented),
-        'font-bold text-orange-600': isFocused && !(isComment || isCommented),
-        'font-bold text-gray-400': isFocused && (isComment || isCommented),
+        'text-orange-200': !isFocused && !isCommentish,
+        'text-gray-200': !isFocused && isCommentish,
+        'font-bold text-orange-600': isFocused && !isCommentish,
+        'font-bold text-gray-400': isFocused && isCommentish,
       }"
     >
       {{ lineNumberBase + 1 }}

@@ -44,6 +44,7 @@ class SourceMapping:
 
 @gql.django.type(models.DatasetRecord)
 class DatasetRecord:
+    id: UUID
     order_key: str
     data: JSON
 
