@@ -66,7 +66,7 @@ const rootCell: Ref<Cell> = computed(() => {
     } else if (statement.value.symbolType == SymbolType.Task) {
       return {
         component: TaskDefinitionCell,
-        props: { isTyped: false },
+        props: { isTyped: true },
       };
     } else if (statement.value.symbolType == SymbolType.Expectation) {
       return {

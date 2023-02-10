@@ -32,34 +32,38 @@ defineExpose({
   <!-- Declaration -->
   <DeclarationCell
     ref="declarationRef"
-    @navigate-down="descriptionRef?.focus()"
-    @navigate-right="descriptionRef?.focus"
+    class="inline-flex"
+    @navigate-down="descriptionRef?.focus"
+    @navigate-right="typeRef?.focus"
   />
   <!-- Inline type -->
   <InlineFunctionTypeCell
-    class="ml-2 inline-flex"
     v-if="isTyped"
     ref="typeRef"
+    class="ml-2 inline-flex"
     @navigate-up="context.navigateUp"
     @navigate-down="descriptionRef?.focus"
     @navigate-right="descriptionRef?.focus"
     @navigate-left="declarationRef?.focus"
   />
   <!-- Description -->
-  <EditableSpan
-    ref="descriptionRef"
-    v-model="description"
-    :readonly="context.readonly.value"
-    @navigate-left="declarationRef?.focus()"
-    @navigate-up="declarationRef?.focus()"
-    @navigate-down="context.navigateDown"
-  />
-  <button
-    tabindex="-1"
-    v-if="description.trim().length == 0"
-    @click="descriptionRef?.focus()"
-    class="w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
-  >
-    +description
-  </button>
+  <div>
+    <EditableSpan
+      ref="descriptionRef"
+      v-model="description"
+      :readonly="context.readonly.value"
+      @navigate-left="typeRef?.focus"
+      @navigate-up="declarationRef?.focus"
+      @navigate-down="context.navigateDown"
+      @enter="context.insertBelow"
+    />
+    <button
+      tabindex="-1"
+      v-if="description.trim().length == 0"
+      @click="descriptionRef?.focus()"
+      class="w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
+    >
+      +description
+    </button>
+  </div>
 </template>

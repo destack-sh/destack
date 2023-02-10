@@ -71,9 +71,9 @@ export function useStatementContext() {
     actions.apply("statement.deleteCurrent");
   }
 
-  function tryDeleteAbove() {
+  function tryDeleteLeft() {
     // should really be handled here :MissingStatementContext
-    actions.apply("statement.deleteAboveCurrent");
+    actions.apply("statement.deleteCurrentLeft");
   }
 
   function insertBelow() {
@@ -251,7 +251,7 @@ export function useStatementContext() {
     updateTypeNode,
     deleteTypeNode,
     deleteSelf,
-    tryDeleteAbove,
+    tryDeleteLeft,
     insertAbove,
     insertBelow,
   };
