@@ -3,7 +3,7 @@ import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { computed, ref, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
@@ -12,17 +12,21 @@ context.syncCode(content);
 
 const sanitizedHtml = computed(() => DOMPurify.sanitize(marked.parse(content.value || "")));
 
+function focus() {
+  // not sure why we need both, but acquiring focus is not stable iwth only one
+  monacoEditorRef.value?.focus();
+  nextTick(() => monacoEditorRef.value?.focus());
+}
+
 defineExpose({
-  focus: () => monacoEditorRef.value?.focus(),
+  focus,
   blur: () => monacoEditorRef.value?.blur(),
 });
 </script>
 <template>
-  <!-- TODO @Robustness: fix brief flicker before comment cell monaco is loaded -->
-  <!-- unfortunately straightforward v-show instead of v-is seems to break focus -->
-  <!-- Editing markdown -->
+  <!-- Editing source markdown -->
   <MonacoEditor
-    v-if="context.editing.value"
+    v-show="context.editing.value"
     ref="monacoEditorRef"
     :model-value="content || ''"
     @update:model-value="content = $event"
@@ -38,6 +42,6 @@ defineExpose({
     hide-line-numbers
     language="markdown"
   />
-  <!-- Show rendered markdown -->
-  <div v-else class="prose mt-[-1px] font-mono text-sm" v-html="sanitizedHtml" />
+  <!-- Show rendered markdown if not editing -->
+  <div v-if="!context.editing.value" class="prose mt-[-1px] font-mono text-sm" v-html="sanitizedHtml" />
 </template>

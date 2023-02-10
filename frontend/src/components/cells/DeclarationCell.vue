@@ -37,7 +37,8 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-row flex-wrap gap-1">
+  <div class="flex flex-row gap-1">
+    <!-- Start trap -->
     <EditableSpan
       :model-value="''"
       ref="startRef"
@@ -52,6 +53,7 @@ defineExpose({
       @escape="context.escape"
       :readonly="context.readonly.value"
     />
+    <!-- Modifier -->
     <ModifierCell v-if="context.statement.value.modifier" />
     <SelectTypeCell
       class="-mx-0.5"
@@ -65,8 +67,10 @@ defineExpose({
       @escape="context.escape"
     />
     <SymbolTypeCell />
+    <!-- Name or ref -->
     <EditableSpan
       ref="nameRef"
+      class="mx-0.5"
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"

@@ -93,6 +93,7 @@ defineExpose({
     <ReferenceComboCell
       v-if="context.statement.value.symbolType || context.statement.value.modifier"
       ref="nameRef"
+      class="mx-0.5"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @delete-left="deleteSymbolTypeOrModifier"
