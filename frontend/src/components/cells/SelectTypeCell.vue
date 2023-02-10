@@ -31,6 +31,7 @@ watch(content, (newContent) => {
   if (endsInSpace && MODIFIER_BY_KEYWORD[contentTrim]) {
     context.setModifier(MODIFIER_BY_KEYWORD[contentTrim]);
     content.value = "";
+    emit("morphed");
   } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
     content.value = "";

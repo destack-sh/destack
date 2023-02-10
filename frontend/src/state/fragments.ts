@@ -110,6 +110,7 @@ export const TypeNodeDataType = graphql(/* GraphQL */ `
     value
     parentId
     orderKey
+    reference
   }
 `);
 

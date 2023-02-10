@@ -144,7 +144,7 @@ async function insertBelow(memberId?: string) {
     });
   } else {
     newMemberNode = makeTypeNodeData({
-      name: "Field " + (membersLength.value + 1),
+      name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
       parentId: context.typeNodeRoot.value?.id,
@@ -155,18 +155,6 @@ async function insertBelow(memberId?: string) {
   nextTick(() => focus(membersLength.value - 1, "name"));
 }
 
-function _updateMemberColumn(memberId: string, column: ColumnType, value: any) {
-  const member = memberTypeNodes.value?.find((m) => m.id === memberId);
-  if (!member) {
-    return;
-  }
-  console.log("updateMemberColumn", memberId, column, value);
-  const updatedMember = { ...member, [column]: value };
-  context.updateTypeNode(updatedMember);
-}
-
-const _updateMemberColumnDebounced = useDebounceFn(_updateMemberColumn, 200, { maxWait: 1000 });
-
 function readColumn(member: TypeNodeData, column: ColumnType) {
   if (column == "type") {
     return member;
@@ -176,7 +164,24 @@ function readColumn(member: TypeNodeData, column: ColumnType) {
 }
 
 function writeColumn(memberId: string, column: ColumnType, value: any) {
-  _updateMemberColumnDebounced(memberId, column, value);
+  const member = memberTypeNodes.value?.find((m) => m.id === memberId);
+  if (!member) {
+    return;
+  }
+  console.log("writeColumn", memberId, column, value);
+  if (column == "type") {
+    // special case because it touches the underlying type node data
+    value = value as TypeNodeData;
+    const updatedMember = {
+      ...member,
+      tag: value.tag,
+      reference: value.reference,
+    };
+    context.updateTypeNode(updatedMember);
+  } else {
+    const updatedMember = { ...member, [column]: value };
+    context.updateTypeNode(updatedMember);
+  }
 }
 
 function editColumn(memberId: string, column: ColumnType) {
