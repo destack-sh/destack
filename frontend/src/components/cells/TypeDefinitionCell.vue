@@ -1,14 +1,15 @@
 <script lang="ts" setup>
+import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { makeTypeNodeData, mapToTypeNode, useStatementContext } from "@/components/statement";
 import { TypeTag, type TypeNodeData } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
-import { useDebounceFn } from "@vueuse/shared";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
+const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(description);
@@ -16,13 +17,6 @@ context.syncDescription(description);
 // enums have a "head type", structs do not
 const isEnum = computed(() => context.typeNodeRoot.value?.tag == TypeTag.Enum);
 const isStruct = computed(() => context.typeNodeRoot.value?.tag == TypeTag.Struct);
-const headTypeNode = computed(() => {
-  if (isEnum.value) {
-    return context.typeNodesChildren.value?.[0];
-  } else {
-    return undefined;
-  }
-});
 const memberTypeNodes = computed(() => {
   if (isEnum.value) {
     return context.typeNodesChildren.value?.slice(1) ?? [];
@@ -240,8 +234,9 @@ watch(
 );
 
 defineExpose({
-  focus: () => descriptionRef.value?.focus(),
+  focus: () => declarationRef.value?.focus(),
   blur: () => {
+    declarationRef.value?.blur();
     descriptionRef.value?.blur();
     addMemberRef.value?.blur();
     Object.values(columnRefs.value).forEach((r) => r.blur());
@@ -249,12 +244,19 @@ defineExpose({
 });
 </script>
 <template>
+  <!-- Declaration -->
+  <DeclarationCell
+    ref="declarationRef"
+    @navigate-down="descriptionRef?.focus()"
+    @navigate-right="descriptionRef?.focus()"
+  />
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"
     v-model="description"
     :readonly="context.readonly.value"
-    @navigate-up="context.navigateUp"
+    @navigate-left="declarationRef?.focus()"
+    @navigate-up="declarationRef?.focus()"
     @navigate-down="focusFirstIfExists"
   />
   <button
@@ -265,7 +267,7 @@ defineExpose({
   >
     +description
   </button>
-  <!-- Enum options -->
+  <!-- Members (enum options or struct fields) -->
   <div
     class="my-2 grid w-fit gap-x-3"
     :class="{

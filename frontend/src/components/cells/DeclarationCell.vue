@@ -1,21 +1,23 @@
 <script lang="ts" setup>
-import BigTypeContentCell from "@/components/cells/BigTypeContentCell.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { SymbolType } from "@/gql/graphql";
 import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
+
+const emit = defineEmits<{
+  (e: "navigateDown"): void;
+  (e: "navigateRight"): void;
+}>();
 
 const name: Ref<string> = ref(context.statement.value.name ?? "");
 context.syncName(name);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const contentRef: Ref<InstanceType<typeof BigTypeContentCell> | null> = ref(null);
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
@@ -25,19 +27,12 @@ function deleteModifierOrAbove() {
   }
 }
 
-function navigateDown() {
-  if (contentRef.value != null) {
-    contentRef.value.focus();
-  }
-}
-
 defineExpose({
   focus: () => nameRef.value?.focus(),
   blur: () => {
     startRef.value?.blur();
     nameRef.value?.blur();
     gapRef.value?.blur();
-    contentRef.value?.blur();
   },
 });
 </script>
@@ -49,7 +44,7 @@ defineExpose({
       class="-mx-0.5"
       v-if="context.statement.value.modifier != null"
       @navigate-up="context.navigateUp"
-      @navigate-down="navigateDown"
+      @navigate-down="emit('navigateDown')"
       @navigate-right="gapRef?.focus()"
       @delete-left="context.tryDeleteAbove"
       @delete-right="context.setModifier(null)"
@@ -62,7 +57,7 @@ defineExpose({
       class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"
-      @navigate-down="navigateDown"
+      @navigate-down="emit('navigateDown')"
       @navigate-left="startRef?.focus()"
       @navigate-right="nameRef?.focus()"
       @delete-left="deleteModifierOrAbove"
@@ -75,10 +70,10 @@ defineExpose({
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"
-      @navigate-down="navigateDown"
+      @navigate-down="emit('navigateDown')"
       @navigate-left="gapRef?.focus"
+      @navigate-right="emit('navigateRight')"
       @escape="context.escape"
     />
   </div>
-  <BigTypeContentCell ref="contentRef" v-if="context.statement.value.symbolType == SymbolType.Type" />
 </template>
