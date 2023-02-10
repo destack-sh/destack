@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
-import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
+import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
 import { TypeTag, type TypeNodeData } from "@/gql/graphql";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { useNavigationGrid } from "@/components/cells/grid";
+import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
+import { computed, nextTick, ref, type Ref } from "vue";
 const context = useStatementContext();
 
 const inputNode = computed(() => context.typeNodesChildren.value?.find((n) => n.name === "input"));
@@ -38,11 +38,11 @@ const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>
   () => addInputRef.value?.focus()
 );
 
-function insertInput() {
+async function insertInput() {
   if (outputNode.value == null) {
     throw new Error("invalid function: input node is null");
   }
-  context.createTypeNode(
+  await context.createTypeNode(
     makeTypeNodeData({
       name: "input" + inputNodes.value?.length,
       tag: TypeTag.String,
@@ -53,15 +53,15 @@ function insertInput() {
   nextTick(() => inputGrid.focus(-1, "name"));
 }
 
-function insertOutput() {
+async function insertOutput() {
   if (outputNode.value == null) {
     throw new Error("invalid function: output node is null");
   }
-  context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Any });
+  await context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Any });
   nextTick(() => outputRef?.value?.focus());
 }
 
-function deleteNodeIfNotEditing(node: TypeNodeData) {
+async function deleteNodeIfNotEditing(node: TypeNodeData) {
   if (!inputGrid.refs.value.find((r) => r.editing) && !outputRef.value?.editing) {
     const inputIndex = inputNodes.value.findIndex((n) => n.id == node.id);
     if (node.name == "output" || inputIndex <= 0) {
@@ -69,13 +69,13 @@ function deleteNodeIfNotEditing(node: TypeNodeData) {
     } else {
       inputGrid.focus(inputIndex - 1, "name");
     }
-    context.deleteTypeNode(node);
+    await context.deleteTypeNode(node);
   }
 }
 
-function nullNodeIfNotEditing(node: TypeNodeData) {
+async function nullNodeIfNotEditing(node: TypeNodeData) {
   if (!inputGrid.refs.value.find((r) => r.editing) && !outputRef.value?.editing) {
-    context.updateTypeNode({ ...node, tag: TypeTag.Null });
+    await context.updateTypeNode({ ...node, tag: TypeTag.Null });
     nextTick(() => outputRef.value?.focus());
   }
 }

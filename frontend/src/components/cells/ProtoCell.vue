@@ -19,7 +19,7 @@ function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
     context.setModifier(null);
   } else {
-    context.tryDeleteAbove();
+    context.tryDeleteLeft();
   }
 }
 
@@ -70,7 +70,7 @@ defineExpose({
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @navigate-right="gapRef?.focus()"
-      @delete-left="context.tryDeleteAbove"
+      @delete-left="context.tryDeleteLeft"
       @delete-right="context.setModifier(null)"
       @enter="context.insertAbove"
       @escape="context.escape"

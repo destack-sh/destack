@@ -26,15 +26,15 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <DeclarationCell
-    class="inline-flex"
     ref="declarationRef"
-    @navigate-down="monacoRef?.focus()"
+    class="inline-flex"
+    @navigate-down="monacoRef?.focus"
     @navigate-right="typeRef?.focus"
   />
   <!-- Inline type -->
   <InlineFunctionTypeCell
-    class="ml-2 inline-flex"
     ref="typeRef"
+    class="ml-2 inline-flex"
     @navigate-up="context.navigateUp"
     @navigate-down="monacoRef?.focus"
     @navigate-right="monacoRef?.focus"

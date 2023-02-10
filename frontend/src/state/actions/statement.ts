@@ -244,23 +244,25 @@ export function provideStatementActions(
       await operations.statement.delete(current);
     },
   });
-  // TODO @Cleanup: provide statement surrounding context to all statements
-  //  This very specific deleteAboveCurrent action is testatment to the
-  //  slightly clumsiness of only having the relevant above/below context in
-  //  statement actions because it's provided by the FileInterface. We should
-  //  introduce an intermediate statement local context that statement interfaces
+  // TODO @Cleanup @Incomplete: provide statement surrounding context to all statements
+  //  deleteAboveCurrent action very specific because we don't have
+  //  the relevant above/below context in the statement and have no way of
+  //  telling other statements what to focus on specifically (start, end, content, etc.)
+  //  We should introduce an intermediate statement local context that statement interfaces
   //  can use as well, which could also reduce move focus up/down latency.
   //  :MissingStatementContext
   const deleteAboveCurrent = provideSingletonAction({
-    id: "statement.deleteAboveCurrent",
-    label: "Delete statement above current statement",
+    id: "statement.deleteCurrentLeft",
+    label: "Delete current statement and move to end of above statement",
     shortcuts: [],
     enabled: computed(() => !!statement.value && above.value != null),
     registered: enabled,
     apply: async () => {
+      const current = statement.value.id;
       if (above.value) {
-        await operations.statement.delete(above.value.id);
+        editor.focusElement(above.value, true);
       }
+      await operations.statement.delete(current);
     },
   });
 
