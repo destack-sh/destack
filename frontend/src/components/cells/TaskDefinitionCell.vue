@@ -5,6 +5,8 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { ref, type Ref } from "vue";
 
+// all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
+// which are implicitly typed only for now
 defineProps<{
   isTyped: boolean;
 }>();
@@ -15,6 +17,7 @@ const description: Ref<string> = ref(context.statement.value.description ?? "");
 context.syncDescription(description);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
+const typeRef: Ref<InstanceType<typeof InlineFunctionTypeCell> | null> = ref(null);
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
 defineExpose({
@@ -33,7 +36,15 @@ defineExpose({
     @navigate-right="descriptionRef?.focus"
   />
   <!-- Inline type -->
-  <InlineFunctionTypeCell v-if="isTyped" />
+  <InlineFunctionTypeCell
+    class="ml-2 inline-flex"
+    v-if="isTyped"
+    ref="typeRef"
+    @navigate-up="context.navigateUp"
+    @navigate-down="descriptionRef?.focus"
+    @navigate-right="descriptionRef?.focus"
+    @navigate-left="declarationRef?.focus"
+  />
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"

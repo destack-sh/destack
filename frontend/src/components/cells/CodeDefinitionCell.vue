@@ -11,12 +11,14 @@ const code: Ref<string> = ref(context.statement.value.code ?? "");
 context.syncCode(code);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
+const typeRef: Ref<InstanceType<typeof InlineFunctionTypeCell> | null> = ref(null);
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
     declarationRef.value?.blur();
+    typeRef.value?.blur();
     monacoRef.value?.blur();
   },
 });
@@ -27,10 +29,17 @@ defineExpose({
     class="inline-flex"
     ref="declarationRef"
     @navigate-down="monacoRef?.focus()"
-    @navigate-right="monacoRef?.focus"
+    @navigate-right="typeRef?.focus"
   />
   <!-- Inline type -->
-  <InlineFunctionTypeCell class="ml-2 inline-flex" />
+  <InlineFunctionTypeCell
+    class="ml-2 inline-flex"
+    ref="typeRef"
+    @navigate-up="context.navigateUp"
+    @navigate-down="monacoRef?.focus"
+    @navigate-right="monacoRef?.focus"
+    @navigate-left="declarationRef?.focus"
+  />
   <!-- Code -->
   <MonacoEditor
     ref="monacoRef"
@@ -38,8 +47,9 @@ defineExpose({
     :lineNumberOffset="0"
     :line-number-shift-px="context.xOffset.value - 20"
     v-model="code"
-    @navigateUp="declarationRef?.focus"
-    @navigateDown="context.navigateDown"
+    @navigate-up="declarationRef?.focus"
+    @navigate-down="context.navigateDown"
+    @navigate-left="typeRef?.focus"
     @escape="context.escape"
     language="python"
     :focused="context.focused.value"
