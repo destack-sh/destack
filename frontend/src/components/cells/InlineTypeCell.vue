@@ -207,6 +207,7 @@ defineExpose({
           :class="[
             'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
+            selected ? 'underline' : '',
           ]"
         >
           {{ mtype.rendered }}
