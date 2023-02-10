@@ -9,6 +9,7 @@ const props = defineProps<{
   type: TypeNode;
   readonly: boolean;
   editing: boolean;
+  immediate: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -28,20 +29,34 @@ const value: Ref<any> = ref(props.modelValue);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
 const readValue = computed(() => {
-  if (!props.editing && !value.value && props.placeholderValue) {
+  if (!props.editing && !props.modelValue && props.placeholderValue) {
     return props.placeholderValue;
   } else {
-    return value.value;
+    return props.modelValue;
   }
 });
 function writeValue(val: any) {
   value.value = val;
-  emit("update:modelValue", val);
+  if (props.immediate) {
+    emit("update:modelValue", val);
+  }
+}
+
+function confirm() {
+  if (!props.immediate) {
+    emit("update:modelValue", value.value);
+  }
+  nextTick(() => emit("escape"));
+}
+
+function cancel() {
+  emit("escape");
+  value.value = props.modelValue;
 }
 
 onClickOutside(valueRef, () => {
   if (props.editing) {
-    emit("escape");
+    cancel();
   }
 });
 
@@ -73,6 +88,7 @@ defineExpose({
     <button
       class="h-full w-full text-left outline-none outline-transparent ring-0"
       :class="readValue == placeholderValue ? 'text-gray-300' : ''"
+      tabindex="-1"
       ref="buttonRef"
       @click="emit('edit')"
       @keydown.enter.exact="editing || emit('edit')"
@@ -89,19 +105,21 @@ defineExpose({
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 w-40 rounded-sm border border-solid border-black bg-orange-50 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex w-40 flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
       v-if="editing"
       @click.prevent="emit('edit')"
     >
+      <!-- Button to confirm if not immediate -->
+      <button class="absolute bottom-1.5 right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate">!</button>
       <!-- TODO @Incomplete: support other types & type constraints (e.g. length) -->
       <input
-        :value="readValue"
+        :value="value"
         @input="(e) => writeValue(e.target?.value)"
         ref="valueRef"
         type="text"
-        class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
-        @keydown.escape.exact.prevent="emit('escape')"
-        @keydown.enter.exact.prevent="emit('escape')"
+        class="mousetrap w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
+        @keydown.enter.exact.prevent="confirm"
+        @keydown.escape.exact.prevent="cancel"
         :placeholder="placeholderValue ?? ''"
       />
     </div>

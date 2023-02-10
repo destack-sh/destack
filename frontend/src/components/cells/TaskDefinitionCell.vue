@@ -1,8 +1,13 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
+import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { ref, type Ref } from "vue";
+
+defineProps<{
+  isTyped: boolean;
+}>();
 
 const context = useStatementContext();
 
@@ -28,7 +33,7 @@ defineExpose({
     @navigate-right="descriptionRef?.focus"
   />
   <!-- Inline type -->
-  <!-- TODO @Incomplete: task type -->
+  <InlineFunctionTypeCell v-if="isTyped" />
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"
@@ -40,7 +45,7 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="description.length == 0"
+    v-if="description.trim().length == 0"
     @click="descriptionRef?.focus()"
     class="w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
   >

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
+import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
 import { ref, type Ref } from "vue";
@@ -22,9 +23,14 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <DeclarationCell ref="declarationRef" @navigate-down="monacoRef?.focus()" @navigate-right="monacoRef?.focus" />
+  <DeclarationCell
+    class="inline-flex"
+    ref="declarationRef"
+    @navigate-down="monacoRef?.focus()"
+    @navigate-right="monacoRef?.focus"
+  />
   <!-- Inline type -->
-  <!-- TODO @Incomplete: code type -->
+  <InlineFunctionTypeCell class="ml-2 inline-flex" />
   <!-- Code -->
   <MonacoEditor
     ref="monacoRef"

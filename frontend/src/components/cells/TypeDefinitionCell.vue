@@ -271,8 +271,8 @@ defineExpose({
   <div
     class="my-2 grid w-fit gap-x-3"
     :class="{
-      'grid-cols-[160px_minmax(160px,1fr)]': isEnum,
-      'grid-cols-[160px_160px_minmax(160px,1fr)]': isStruct,
+      'grid-cols-[minmax(80px,160px)_minmax(160px,1fr)]': isEnum,
+      'grid-cols-[minmax(80px,160px)_120px_minmax(160px,1fr)]': isStruct,
     }"
   >
     <!-- Rows -->
@@ -286,6 +286,7 @@ defineExpose({
           @update:model-value="(val: any) => writeColumn(member.id, column, val)"
           :ref="(el: any) => registerColumnRef(member.id, column, el)"
           :readonly="context.readonly.value"
+          :immediate="false"
           :editing="editingColumn == member.id + '.' + column"
           @edit="editColumn(member.id, column)"
           :placeholder-value="context.editing.value ? '+' + column : null"
@@ -298,7 +299,7 @@ defineExpose({
           @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
           @escape="editingColumn = null"
           :class="{
-            'w-full rounded-sm border border-transparent py-0.5': true,
+            'w-full self-start rounded-sm border border-transparent py-0.5': true,
             'focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50':
               editingColumn != member.id + '.' + column,
           }"
