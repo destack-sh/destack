@@ -48,6 +48,10 @@ export function provideStatementActions(
   const statement = computed(() => symbolsById.value[editor.focusedElementId as string]);
   const orderKey = computed(() => statement.value?.orderKey ?? INTEGER_ZERO);
   const siblings = computed(() => statementsByParentId.value[statement.value?.parent?.id ?? ""]);
+  const previousSibling = computed(
+    () => siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) - 1]
+  );
+  const nextSibling = computed(() => siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) + 1]);
   const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
   const position = computed(() => orderedStatements.value.findIndex((s) => s.id === statement.value?.id));
   const location = computed(() => getLocation(statement.value));
@@ -74,16 +78,14 @@ export function provideStatementActions(
     registered: enabled,
     apply: async () => {
       // move to end of previous sibling's children
-      const previousSibling = siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) - 1];
-      if (previousSibling == null) {
-        // cannot move
+      if (previousSibling.value == null) {
         return;
       }
-      const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
+      const previousSiblingChildren = statementsByParentId.value[previousSibling.value.id] ?? [];
       const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
       await operations.statement.move(statement.value.id, location.value, {
         fileId: file.value?.id,
-        parentId: previousSibling?.id,
+        parentId: previousSibling.value?.id,
         orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
       });
     },
@@ -247,11 +249,12 @@ export function provideStatementActions(
   //  slightly clumsiness of only having the relevant above/below context in
   //  statement actions because it's provided by the FileInterface. We should
   //  introduce an intermediate statement local context that statement interfaces
-  //  can use as well. :MissingStatementContext
+  //  can use as well, which could also reduce move focus up/down latency.
+  //  :MissingStatementContext
   const deleteAboveCurrent = provideSingletonAction({
     id: "statement.deleteAboveCurrent",
     label: "Delete statement above current statement",
-    shortcuts: ["shift+backspace", "shift+delete"],
+    shortcuts: [],
     enabled: computed(() => !!statement.value && above.value != null),
     registered: enabled,
     apply: async () => {
@@ -309,7 +312,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
-        generateKeyBetween(above.value?.orderKey ?? null, orderKey.value)
+        generateKeyBetween(previousSibling.value?.orderKey ?? null, orderKey.value)
       );
       // don't switch focus if inserting _before_ current
     },
@@ -325,7 +328,7 @@ export function provideStatementActions(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
-        generateKeyBetween(orderKey.value, below.value?.orderKey ?? null)
+        generateKeyBetween(orderKey.value, nextSibling.value?.orderKey ?? null)
       );
       editor.editElement(newStatement as StatementHeader);
     },
