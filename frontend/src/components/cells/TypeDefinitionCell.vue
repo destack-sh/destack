@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
+import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
@@ -40,79 +41,7 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
     throw new Error("unexpected type node tag: " + context.typeNodeRoot.value?.tag);
   }
 });
-
-const columnRefs: Ref<Record<string, InstanceType<typeof InlineValueCell>>> = ref({});
-
-function registerColumnRef(
-  memberId: string,
-  column: ColumnType,
-  ref: InstanceType<typeof InlineValueCell> | undefined
-) {
-  const columnId = memberId + "." + column;
-  if (ref != undefined) {
-    columnRefs.value[columnId] = ref;
-  } else {
-    delete columnRefs.value[columnId];
-  }
-}
-
-function focus(index: number | string, column: ColumnType) {
-  let member;
-  if (typeof index == "string") {
-    member = memberTypeNodes.value?.find((m) => m.id == index);
-  } else {
-    member = memberTypeNodes.value?.[index];
-  }
-
-  if (!member) {
-    console.warn("no member found for index", index);
-    return;
-  }
-  const columnId = member.id + "." + column;
-  columnRefs.value?.[columnId]?.focus();
-}
-
-function navigateUp(memberId: string, column: ColumnType) {
-  const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId);
-  if (!memberIdx) {
-    gridNavigateUp();
-  } else {
-    focus(memberIdx - 1, column);
-  }
-}
-
-function navigateDown(memberId: string, column: ColumnType) {
-  const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId) ?? 0;
-  if (memberIdx == membersLength.value - 1) {
-    gridNavigateDown();
-  } else {
-    focus(memberIdx + 1, column);
-  }
-}
-
-function navigateRight(memberId: string, column: ColumnType) {
-  const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId) ?? -1;
-  const columnIdx = columnsInOrder.value.findIndex((f) => f === column);
-  if (columnIdx == columnsInOrder.value.length - 1) {
-    if (memberIdx != membersLength.value - 1) {
-      focus(memberIdx + 1, columnsInOrder.value[0]);
-    }
-  } else {
-    focus(memberIdx, columnsInOrder.value[columnIdx + 1]);
-  }
-}
-
-function navigateLeft(memberId: string, column: ColumnType) {
-  const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId) ?? -1;
-  const columnIdx = columnsInOrder.value.findIndex((f) => f === column);
-  if (columnIdx == 0) {
-    if (memberIdx != 0) {
-      focus(memberIdx - 1, columnsInOrder.value[columnsInOrder.value.length - 1]);
-    }
-  } else {
-    focus(memberIdx, columnsInOrder.value[columnIdx - 1]);
-  }
-}
+const grid = useNavigationGrid(columnsInOrder, memberTypeNodes, gridNavigateUp, gridNavigateDown);
 
 async function insertBelow(memberId?: string) {
   let orderKey;
@@ -142,7 +71,7 @@ async function insertBelow(memberId?: string) {
   }
 
   await context.createTypeNode(newMemberNode);
-  nextTick(() => focus(membersLength.value - 1, "name"));
+  nextTick(() => grid.focus(membersLength.value - 1, "name"));
 }
 
 function readColumn(member: TypeNodeData, column: ColumnType) {
@@ -187,7 +116,7 @@ function deleteMember(memberId: string) {
   }
   const member = memberTypeNodes.value?.[memberIdx];
   context.deleteTypeNode(member as any); // must exist
-  focus(memberIdx - 1, "name"); // move focus above
+  grid.focus(memberIdx - 1, "name"); // move focus above
 }
 
 function deleteMemberIfNotEditing(memberId: string) {
@@ -200,13 +129,13 @@ function focusFirstIfExists() {
   if (membersLength.value == 0) {
     addMemberRef.value?.focus();
   } else {
-    focus(0, columnsInOrder.value[0]);
+    grid.focus(0, columnsInOrder.value[0]);
   }
 }
 
 function focusLast() {
   if (membersLength.value > 0) {
-    focus(membersLength.value - 1, columnsInOrder.value[0]);
+    grid.focus(membersLength.value - 1, columnsInOrder.value[0]);
   } else {
     descriptionRef.value?.focus();
   }
@@ -236,7 +165,7 @@ defineExpose({
     declarationRef.value?.blur();
     descriptionRef.value?.blur();
     addMemberRef.value?.blur();
-    Object.values(columnRefs.value).forEach((r) => r.blur());
+    grid.blur();
   },
 });
 </script>
@@ -287,17 +216,17 @@ defineExpose({
           :is="column == 'type' ? InlineTypeCell : InlineValueCell"
           :model-value="readColumn(member, column)"
           @update:model-value="(val: any) => writeColumn(member.id, column, val)"
-          :ref="(el: any) => registerColumnRef(member.id, column, el)"
+          :ref="(el: any) => grid.registerColumnRef(member.id, column, el)"
           :readonly="context.readonly.value"
           :immediate="false"
           :editing="editingColumn == member.id + '.' + column"
           @edit="editColumn(member.id, column)"
           :placeholder-value="context.editing.value ? '+' + column : null"
           :type="STRING_TYPE_NODE"
-          @navigate-left="navigateLeft(member.id, column)"
-          @navigate-right="navigateRight(member.id, column)"
-          @navigate-up="navigateUp(member.id, column)"
-          @navigate-down="navigateDown(member.id, column)"
+          @navigate-left="grid.navigateLeft(member.id, column)"
+          @navigate-right="grid.navigateRight(member.id, column)"
+          @navigate-up="grid.navigateUp(member.id, column)"
+          @navigate-down="grid.navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
           @escape="editingColumn = null"
