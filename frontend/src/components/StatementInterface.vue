@@ -217,7 +217,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <div
       class="absolute -left-0.5 top-0 h-full w-1.5"
       :class="{
-        'group-hover:bg-orange-50': !isEditing,
+        'group-hover:bg-orange-50': !isFocused,
         'bg-orange-100': isFocused && !isEditing,
       }"
     />
