@@ -41,7 +41,12 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
     throw new Error("unexpected type node tag: " + context.typeNodeRoot.value?.tag);
   }
 });
-const grid = useNavigationGrid(columnsInOrder, memberTypeNodes, gridNavigateUp, gridNavigateDown);
+const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
+  columnsInOrder,
+  memberTypeNodes,
+  gridNavigateUp,
+  gridNavigateDown
+);
 
 async function insertBelow(memberId?: string) {
   let orderKey;
@@ -102,13 +107,6 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
   }
 }
 
-const editingColumn: Ref<string | null> = ref(null);
-
-function editColumn(memberId: string, column: ColumnType) {
-  console.log("edit column", memberId, column);
-  editingColumn.value = memberId + "." + column;
-}
-
 function deleteMember(memberId: string) {
   const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId);
   if (memberIdx == null || memberIdx < 0) {
@@ -119,8 +117,12 @@ function deleteMember(memberId: string) {
   grid.focus(memberIdx - 1, "name"); // move focus above
 }
 
+function isEditing(memberId: string, column: ColumnType): boolean {
+  return grid.getRef(memberId, column)?.editing;
+}
+
 function deleteMemberIfNotEditing(memberId: string) {
-  if (editingColumn.value == null) {
+  if (!grid.refs.value.find((n) => n.editing)) {
     deleteMember(memberId);
   }
 }
@@ -148,16 +150,6 @@ function gridNavigateUp() {
 function gridNavigateDown() {
   addMemberRef.value?.focus();
 }
-
-// stop editing if blured
-watch(
-  () => context.focused.value,
-  () => {
-    if (!context.focused.value) {
-      editingColumn.value = null;
-    }
-  }
-);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
@@ -219,8 +211,6 @@ defineExpose({
           :ref="(el: any) => grid.registerColumnRef(member.id, column, el)"
           :readonly="context.readonly.value"
           :immediate="false"
-          :editing="editingColumn == member.id + '.' + column"
-          @edit="editColumn(member.id, column)"
           :placeholder-value="context.editing.value ? '+' + column : null"
           :type="STRING_TYPE_NODE"
           @navigate-left="grid.navigateLeft(member.id, column)"
@@ -229,11 +219,12 @@ defineExpose({
           @navigate-down="grid.navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
-          @escape="editingColumn = null"
           :class="{
             'w-full self-start rounded-sm border border-transparent py-0.5': true,
-            'focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50':
-              editingColumn != member.id + '.' + column,
+            'focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50': !isEditing(
+              member.id,
+              column
+            ),
           }"
         />
         <!-- Note the :EditableCellStyle above (should be symmetric) -->
