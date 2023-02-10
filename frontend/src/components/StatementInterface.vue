@@ -1,10 +1,13 @@
 <script lang="ts" setup>
+import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
-import DefinitionCell from "@/components/cells/DefinitionCell.vue";
+import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
+import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
+import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementType } from "@/gql/graphql";
+import { StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { localErrorsOf } from "@/state/runtime";
@@ -56,8 +59,23 @@ const rootCell: Ref<Cell> = computed(() => {
       component: CommentCell,
     };
   } else if (statement.value.type == StatementType.Definition) {
+    if (statement.value.symbolType == SymbolType.Type) {
+      return {
+        component: TypeDefinitionCell,
+      };
+    } else if (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Expectation) {
+      return {
+        component: TaskDefinitionCell,
+      };
+    } else if (statement.value.symbolType == SymbolType.Code) {
+      return {
+        component: CodeDefinitionCell,
+      };
+    }
+
+    // default to just declaration cell
     return {
-      component: DefinitionCell,
+      component: DeclarationCell,
     };
   }
 
@@ -201,7 +219,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       <div class="absolute right-0 top-0 h-full w-0.5 bg-orange-100" />
     </template>
     <!-- Main cell -->
-    <div class="py-1 px-2 text-sm">
+    <div class="relative py-1 px-2 text-sm">
       <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
     </div>
     <!-- Debug info -->

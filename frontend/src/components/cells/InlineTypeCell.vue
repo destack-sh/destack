@@ -3,7 +3,7 @@ import { StatementType, SymbolType, TypeTag, type TypeNodeData } from "@/gql/gra
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { useFocus } from "@vueuse/core";
+import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
