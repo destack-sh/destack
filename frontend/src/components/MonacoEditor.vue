@@ -147,7 +147,7 @@ function initMonaco(monaco: Monaco) {
 
   editor.value.onDidChangeModelContent(() => {
     const value = editor.value?.getValue();
-    if (value && editorContainer.value) {
+    if (value != null && editorContainer.value != null) {
       updateEditorHeight(editorContainer.value, value);
       emit("update:modelValue", value);
     }
