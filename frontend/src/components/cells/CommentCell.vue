@@ -33,6 +33,7 @@ defineExpose({
     @navigateUp="context.navigateUp"
     @navigateDown="context.navigateDown"
     @escape="context.escape"
+    @enter="context.insertBelow"
     @delete-if-empty="context.deleteSelf"
     :focused="context.focused.value"
     :readonly="context.readonly.value"

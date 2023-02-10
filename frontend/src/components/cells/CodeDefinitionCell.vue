@@ -51,6 +51,7 @@ defineExpose({
     @navigate-down="context.navigateDown"
     @navigate-left="typeRef?.focus"
     @escape="context.escape"
+    @enter="context.insertBelow"
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"

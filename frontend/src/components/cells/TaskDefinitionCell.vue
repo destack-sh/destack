@@ -55,6 +55,7 @@ defineExpose({
       @navigate-left="typeRef?.focus"
       @navigate-up="declarationRef?.focus"
       @navigate-down="context.navigateDown"
+      @delete-left="declarationRef?.focus"
       @enter="context.insertBelow"
     />
     <button
