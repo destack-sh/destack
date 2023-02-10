@@ -28,7 +28,7 @@ const documents = {
   "\n  fragment StatementHeader on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    generated\n    commented\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n  }\n":
     types.StatementHeaderFragmentDoc,
   "\n  fragment TypeContent on Type {\n    description\n  }\n": types.TypeContentFragmentDoc,
-  "\n  fragment TypeNodeData on TypeNodeData {\n    id\n    name\n    tag\n    description\n    value\n    parentId\n    orderKey\n  }\n":
+  "\n  fragment TypeNodeData on TypeNodeData {\n    id\n    name\n    tag\n    description\n    value\n    parentId\n    orderKey\n    reference\n  }\n":
     types.TypeNodeDataFragmentDoc,
   "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    importPath\n    text\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    typeNodes {\n      ...TypeNodeData\n    }\n    records {\n      data\n    }\n  }\n":
     types.StatementContentFragmentDoc,
@@ -128,8 +128,8 @@ export function graphql(
   source: "\n  fragment TypeContent on Type {\n    description\n  }\n"
 ): typeof documents["\n  fragment TypeContent on Type {\n    description\n  }\n"];
 export function graphql(
-  source: "\n  fragment TypeNodeData on TypeNodeData {\n    id\n    name\n    tag\n    description\n    value\n    parentId\n    orderKey\n  }\n"
-): typeof documents["\n  fragment TypeNodeData on TypeNodeData {\n    id\n    name\n    tag\n    description\n    value\n    parentId\n    orderKey\n  }\n"];
+  source: "\n  fragment TypeNodeData on TypeNodeData {\n    id\n    name\n    tag\n    description\n    value\n    parentId\n    orderKey\n    reference\n  }\n"
+): typeof documents["\n  fragment TypeNodeData on TypeNodeData {\n    id\n    name\n    tag\n    description\n    value\n    parentId\n    orderKey\n    reference\n  }\n"];
 export function graphql(
   source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    importPath\n    text\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    typeNodes {\n      ...TypeNodeData\n    }\n    records {\n      data\n    }\n  }\n"
 ): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    importPath\n    text\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    typeNodes {\n      ...TypeNodeData\n    }\n    records {\n      data\n    }\n  }\n"];

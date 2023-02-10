@@ -39,7 +39,11 @@ function writeValue(val: any) {
   emit("update:modelValue", val);
 }
 
-onClickOutside(valueRef, () => emit("escape"));
+onClickOutside(valueRef, () => {
+  if (props.editing) {
+    emit("escape");
+  }
+});
 
 // re-focus when we start/stop editing
 watch(

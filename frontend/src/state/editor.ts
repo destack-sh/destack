@@ -1,6 +1,7 @@
 import {
   StatementModifier,
   SymbolType,
+  TypeTag,
   type File,
   type Project,
   type ProjectVersion,
@@ -58,6 +59,16 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Extend]: "extend",
 };
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
+export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
+  [TypeTag.Any]: "anything",
+  [TypeTag.Null]: "nothing",
+  [TypeTag.Boolean]: "boolean",
+  [TypeTag.String]: "text",
+  [TypeTag.Number]: "number",
+  [TypeTag.Array]: "list",
+  [TypeTag.TypeReference]: "reference",
+};
+export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 
 export type RunConfiguration = {
   name: string;

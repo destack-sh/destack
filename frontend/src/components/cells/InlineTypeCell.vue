@@ -1,8 +1,10 @@
 <script lang="ts" setup>
-import { TypeTag, type TypeNodeData } from "@/gql/graphql";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { StatementType, SymbolType, TypeTag, type TypeNodeData } from "@/gql/graphql";
+import { TYPETAG_KEYWORD } from "@/state/editor";
+import { symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: TypeNodeData;
@@ -11,7 +13,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: any): void;
+  (e: "update:modelValue", value: Pick<TypeNodeData, "tag" | "reference">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -24,48 +26,100 @@ const emit = defineEmits<{
 
 const PRIMITIVE_TYPES = [TypeTag.Any, TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.Null];
 
-function mapToMiniType(node: TypeNodeData): MiniType {
-  if (PRIMITIVE_TYPES.includes(node.tag)) {
-    return {
+function mapToMiniType(node: TypeNodeData): RenderedMiniType {
+  if (PRIMITIVE_TYPES.includes(node.tag) || node.tag == TypeTag.TypeReference) {
+    return renderMiniType({
       tag: node.tag,
-      rendered: node.tag,
-    };
+      reference: node.reference ?? undefined,
+    });
   } else {
     console.warn(`unexpected type node ${node.tag}`, node);
-    return {
+    return renderMiniType({
       tag: TypeTag.Any,
-      rendered: "unknown",
-    };
+    });
   }
 }
 
-const value: Ref<MiniType> = ref(mapToMiniType(props.modelValue));
+const value: Ref<RenderedMiniType> = ref(mapToMiniType(props.modelValue));
 const query: Ref<string> = ref("");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
 const valueRefFocused = useFocus(valueRef);
 
+// TODO @Cleanup: MiniType indicates that we want a simpler TypeNodeData representation
+//  for the UI & DB. Likely with proper references (instead of strings) as well.
 type MiniType = {
   tag: TypeTag;
   reference?: string;
   isArray?: boolean;
+  isUnionWithNull?: boolean;
+};
+
+type RenderedMiniType = MiniType & {
   rendered: string;
 };
 
-const availableTypes: MiniType[] = [];
+function renderMiniType(mtype: MiniType): RenderedMiniType {
+  let renderedElement: string;
+  if (PRIMITIVE_TYPES.includes(mtype.tag)) {
+    renderedElement = TYPETAG_KEYWORD[mtype.tag];
+  } else if (mtype.tag == TypeTag.TypeReference) {
+    renderedElement = mtype.reference ?? "...";
+  } else {
+    throw new Error(`unexpected type node ${mtype.tag}`);
+  }
 
-for (const primitiveType of PRIMITIVE_TYPES) {
-  availableTypes.push({
-    tag: primitiveType,
-    rendered: primitiveType, // TODO @Incomplete: render types properly
-  });
+  let rendered: string;
+  if (mtype.isArray) {
+    rendered = "list of " + renderedElement;
+  } else {
+    rendered = renderedElement;
+  }
+  return { ...mtype, rendered };
 }
 
-const filteredTypes = computed(() => availableTypes.filter((t) => t.rendered.includes(query.value)));
+const availableSymbols = symbolsLike({
+  types: [StatementType.Definition],
+  symbolTypes: [SymbolType.Type],
+});
+const availableTypes: Ref<RenderedMiniType[]> = computed(() => {
+  const availableTypes = [];
 
-function writeValue(mtype: MiniType) {
-  console.log("writeValue", mtype);
-  // TODO @Incomplete: write type properly
+  // primitives
+  for (const primitiveType of PRIMITIVE_TYPES) {
+    availableTypes.push(
+      renderMiniType({
+        tag: primitiveType,
+      })
+    );
+  }
+
+  // references
+  for (const symbol of availableSymbols.value) {
+    if (symbol.name == null) {
+      continue; // ignore
+    }
+    availableTypes.push(
+      renderMiniType({
+        tag: TypeTag.TypeReference,
+        reference: symbol.name,
+      })
+    );
+  }
+
+  // TODO @Incomplete: edit list of primitives & lists of references
+
+  return availableTypes;
+});
+
+const filteredTypes = computed(() => availableTypes.value.filter((t) => t.rendered.includes(query.value)));
+
+function writeValue(mtype: RenderedMiniType) {
+  if (mtype.isArray) {
+    throw new Error("arrays not implemented");
+  }
+  value.value = mtype;
+  emit("update:modelValue", mtype);
   emit("escape");
 }
 
@@ -109,7 +163,7 @@ defineExpose({
     {{ value.rendered }}
   </button>
   <!-- Editable type :EditableCellStyle -->
-  <Combobox v-else as="div" class="relative" :model-value="value" @update:model-value="writeValue" nullable>
+  <Combobox v-else as="div" class="relative" :model-value="value" @update:model-value="writeValue">
     <ComboboxInput
       as="input"
       ref="valueRef"

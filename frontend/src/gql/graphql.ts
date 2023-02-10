@@ -972,6 +972,7 @@ export type TypeNodeDataFragment = {
   value?: any | null;
   parentId?: any | null;
   orderKey: string;
+  reference?: string | null;
 } & { " $fragmentName"?: "TypeNodeDataFragment" };
 
 export type StatementContentFragment = {
@@ -1741,6 +1742,7 @@ export const TypeNodeDataFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "parentId" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "reference" } },
         ],
       },
     },

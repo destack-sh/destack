@@ -264,6 +264,7 @@ function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): Stateme
     tag: typeNodeData.tag,
     orderKey: typeNodeData.orderKey,
     parentId: typeNodeData.parentId ?? null,
+    reference: typeNodeData.reference ?? null,
     description: typeNodeData.description ?? null,
     name: typeNodeData.name ?? null,
     value: typeNodeData.value ?? null,

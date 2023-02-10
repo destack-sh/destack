@@ -91,7 +91,7 @@ defineExpose({
     />
     <SymbolTypeCell v-if="context.statement.value.symbolType" />
     <ReferenceComboCell
-      v-if="context.statement.value.symbolType"
+      v-if="context.statement.value.symbolType || context.statement.value.modifier"
       ref="nameRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
