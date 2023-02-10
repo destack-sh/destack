@@ -46,8 +46,9 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
 const valueRefFocused = useFocus(valueRef);
 
-// TODO @Cleanup: MiniType indicates that we want a simpler TypeNodeData representation
-//  for the UI & DB. Likely with proper references (instead of strings) as well.
+// TODO @Cleanup: MiniType indicates that we may want a simpler TypeNodeData representation
+//  for the UI & DB. Likely with proper references (instead of strings) as well. These are
+//  not mutually dependent. More complex references (like functions) are useful as well..
 type MiniType = {
   tag: TypeTag;
   reference?: string;
