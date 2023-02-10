@@ -76,8 +76,14 @@ async function createFileInEditorGroup() {
       </TabList>
       <!-- Contents -->
       <TabPanels class="relative h-full w-full flex-1">
-        <TabPanel v-for="editor in group.editors" :key="editor.id" :unmount="!mountAllPanels">
-          <EditorInterface class="absolute left-0 top-0 h-full w-full overflow-auto" :editor="editor" />
+        <TabPanel
+          as="div"
+          class="h-full w-full overflow-auto bg-white"
+          v-for="editor in group.editors"
+          :key="editor.id"
+          :unmount="!mountAllPanels"
+        >
+          <EditorInterface :editor="editor" />
         </TabPanel>
       </TabPanels>
     </TabGroup>
