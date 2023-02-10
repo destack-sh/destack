@@ -393,3 +393,5 @@ export function makeEnumTypeNodeData(memberType: TypeTag = TypeTag.String): Type
   });
   return [enumType, headType];
 }
+
+export const STRING_TYPE_NODE = mapToTypeNode([makeTypeNodeData({ tag: TypeTag.String })]);

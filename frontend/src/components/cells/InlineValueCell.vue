@@ -110,14 +110,14 @@ defineExpose({
       @click.prevent="emit('edit')"
     >
       <!-- Button to confirm if not immediate -->
-      <button class="absolute bottom-1.5 right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate">!</button>
+      <button class="absolute right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate">*</button>
       <!-- TODO @Incomplete: support other types & type constraints (e.g. length) -->
       <input
         :value="value"
         @input="(e) => writeValue(e.target?.value)"
         ref="valueRef"
         type="text"
-        class="mousetrap w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
+        class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="cancel"
         :placeholder="placeholderValue ?? ''"

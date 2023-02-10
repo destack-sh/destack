@@ -3,7 +3,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { makeTypeNodeData, mapToTypeNode, useStatementContext } from "@/components/statement";
+import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
 import { TypeTag, type TypeNodeData } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -41,10 +41,6 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
   }
 });
 
-const STRING_TYPE_NODE = mapToTypeNode([makeTypeNodeData({ tag: TypeTag.String })]);
-
-// TODO @Incomplete: track and manage editing column
-const editingColumn: Ref<string | null> = ref(null);
 const columnRefs: Ref<Record<string, InstanceType<typeof InlineValueCell>>> = ref({});
 
 function registerColumnRef(
@@ -162,7 +158,6 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
   if (!member) {
     return;
   }
-  console.log("writeColumn", memberId, column, value);
   if (column == "type") {
     // special case because it touches the underlying type node data
     value = value as TypeNodeData;
@@ -177,6 +172,8 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
     context.updateTypeNode(updatedMember);
   }
 }
+
+const editingColumn: Ref<string | null> = ref(null);
 
 function editColumn(memberId: string, column: ColumnType) {
   console.log("edit column", memberId, column);
@@ -269,12 +266,18 @@ defineExpose({
   </button>
   <!-- Members (enum options or struct fields) -->
   <div
-    class="my-2 grid w-fit gap-x-3"
+    class="my-1 grid w-fit gap-x-3"
     :class="{
       'grid-cols-[minmax(80px,160px)_minmax(160px,1fr)]': isEnum,
       'grid-cols-[minmax(80px,160px)_120px_minmax(160px,1fr)]': isStruct,
     }"
   >
+    <!-- Not sure whether to include column headers... -->
+    <template v-if="false">
+      <span v-for="column in columnsInOrder" :key="column" class="text-xs text-gray-400">
+        {{ column }}
+      </span>
+    </template>
     <!-- Rows -->
     <template v-for="member of memberTypeNodes" :key="member.id">
       <!-- Columns -->
