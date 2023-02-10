@@ -115,8 +115,10 @@ defineExpose({
       v-if="editing"
       @click.prevent="emit('edit')"
     >
-      <!-- Button to confirm if not immediate -->
-      <button class="absolute right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate">*</button>
+      <!-- Button to confirm if not immediate and there are pending changes -->
+      <button class="absolute right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate && value != modelValue">
+        *
+      </button>
       <!-- TODO @Incomplete: support other types & type constraints (e.g. length) -->
       <input
         :value="value"
