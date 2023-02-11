@@ -71,5 +71,124 @@ export function useSymbolContentOps() {
 
   // dataset mutations (aka records)
 
-  return { updateStatementDescription, updateStatementCode };
+  // TODO @Cleanup: record updates should be object-level updates (not via statement)
+
+  const { mutate: createRecordMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
+        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
+          ... on Statement {
+            id
+            orderKey
+            revision
+            records {
+              id
+              orderKey
+              data
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  const { mutate: updateRecordMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $data: JSON!) {
+        updateStatementRecord(input: { id: $id, statementId: $statementId, data: $data }) {
+          ... on Statement {
+            id
+            orderKey
+            revision
+            records {
+              id
+              orderKey
+              data
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  const { mutate: deleteRecordMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation deleteRecord($id: GlobalID!, $statementId: GlobalID!) {
+        deleteStatementRecord(input: { id: $id, statementId: $statementId }) {
+          ... on Statement {
+            id
+            orderKey
+            revision
+            records {
+              id
+              orderKey
+              data
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function createRecord(id: string, statementId: string, orderKey: string, data: JSON) {
+    await operations.perform({
+      type: "statement.createRecord",
+      do: async () => {
+        await createRecordMut({
+          id: id,
+          statementId: statementId,
+          orderKey: orderKey,
+          data: data,
+        });
+      },
+      undo: async () => {
+        await deleteRecordMut({ id: id, statementId: statementId });
+      },
+    });
+  }
+
+  async function updateRecord(id: string, statementId: string, oldData: JSON, newData: JSON) {
+    await operations.perform({
+      type: "statement.updateRecord",
+      do: async () => {
+        await updateRecordMut({
+          id: id,
+          statementId: statementId,
+          data: newData,
+        });
+      },
+      undo: async () => {
+        await updateRecordMut({
+          id: id,
+          statementId: statementId,
+          data: oldData,
+        });
+      },
+    });
+  }
+
+  async function deleteRecord(id: string, statementId: string, orderKey: string, data: JSON) {
+    await operations.perform({
+      type: "statement.deleteRecord",
+      do: async () => {
+        await deleteRecordMut({
+          id: id,
+          statementId: statementId,
+        });
+      },
+      undo: async () => {
+        await createRecordMut({
+          id,
+          statementId,
+          orderKey,
+          data,
+        });
+      },
+    });
+  }
+
+  return { updateStatementDescription, updateStatementCode, createRecord, updateRecord, deleteRecord };
 }

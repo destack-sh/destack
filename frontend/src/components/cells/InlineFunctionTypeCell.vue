@@ -83,19 +83,12 @@ async function nullNodeIfNotEditing(node: TypeNodeData) {
 }
 
 function updateNodeName(node: TypeNodeData, name: string) {
-  const updatedNode = {
-    ...node,
-    name,
-  };
+  const updatedNode = { ...node, name };
   context.updateTypeNode(updatedNode);
 }
 
 function updateNodeType(inputNode: TypeNodeData, changed: Pick<TypeNodeData, "tag" | "reference">) {
-  const updatedMember = {
-    ...inputNode,
-    tag: changed.tag,
-    reference: changed.reference,
-  };
+  const updatedMember = { ...inputNode, tag: changed.tag, reference: changed.reference };
   context.updateTypeNode(updatedMember);
 }
 
@@ -145,7 +138,7 @@ defineExpose({
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'name')"
         @navigate-left="inputGrid.navigateLeft(inputNode.id, 'name')"
-        class="rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
       />
       <!-- Note :EditableCellStyle (should be symmetric) -->
       <InlineTypeCell
@@ -158,7 +151,7 @@ defineExpose({
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'type')"
         @navigate-left="inputGrid.navigateLeft(inputNode.id, 'type')"
-        class="rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent text-gray-400 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
       />
     </span>
     <!-- Add input button -->

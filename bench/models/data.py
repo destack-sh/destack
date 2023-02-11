@@ -63,8 +63,10 @@ class DatasetRecord(UUIDModel):
     The references are resolved using dataset.annotations.
     """
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     dataset = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="records")
-    order_key = models.CharField(max_length=32, null=True, blank=True)  # in file/parent
+    order_key = models.CharField(max_length=64)
     data = models.JSONField()
 
     def __str__(self):

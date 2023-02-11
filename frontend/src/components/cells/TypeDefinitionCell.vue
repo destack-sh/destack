@@ -183,8 +183,8 @@ defineExpose({
   <div
     class="my-1 grid w-fit gap-x-3"
     :class="{
-      'grid-cols-[minmax(80px,160px)_minmax(160px,1fr)]': isEnum,
-      'grid-cols-[minmax(80px,160px)_120px_minmax(160px,1fr)]': isStruct,
+      'grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]': isEnum,
+      'grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]': isStruct,
     }"
   >
     <!-- Not sure whether to include column headers... -->
@@ -214,6 +214,9 @@ defineExpose({
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
           class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+          :class="{
+            'text-gray-400': column == 'type',
+          }"
         />
         <!-- Note the :EditableCellStyle above (should be symmetric) -->
       </template>
