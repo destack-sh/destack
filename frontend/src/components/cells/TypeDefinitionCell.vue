@@ -41,12 +41,10 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
     throw new Error("unexpected type node tag: " + context.typeNodeRoot.value?.tag);
   }
 });
-const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
-  columnsInOrder,
-  memberTypeNodes,
+const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(columnsInOrder, memberTypeNodes, {
   gridNavigateUp,
-  gridNavigateDown
-);
+  gridNavigateDown,
+});
 
 async function insertBelow(memberId?: string) {
   let orderKey;

@@ -32,10 +32,12 @@ const outputRef: Ref<HTMLButtonElement | null> = ref(null);
 const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(
   computed(() => ["name", "type"]),
   inputNodes,
-  () => emit("navigateUp"),
-  () => emit("navigateDown"),
-  () => emit("navigateLeft"),
-  () => addInputRef.value?.focus()
+  {
+    gridNavigateUp: () => emit("navigateUp"),
+    gridNavigateDown: () => emit("navigateDown"),
+    gridNavigateLeft: () => emit("navigateLeft"),
+    gridNavigateRight: () => addInputRef.value?.focus(),
+  }
 );
 
 async function insertInput() {
