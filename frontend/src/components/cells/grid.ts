@@ -3,10 +3,12 @@ import { computed, ref, type Ref } from "vue";
 export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElement>(
   columnsInOrder: Ref<ColumnType[]>,
   rows: Ref<{ id: string }[]>,
-  gridNavigateUp: () => void = () => ({}),
-  gridNavigateDown: () => void = () => ({}),
-  gridNavigateLeft: () => void = () => ({}),
-  gridNavigateRight: () => void = () => ({})
+  options: {
+    gridNavigateUp?: (column: ColumnType, columnIndex: number) => void;
+    gridNavigateDown?: (column: ColumnType, columnIndex: number) => void;
+    gridNavigateLeft?: () => void;
+    gridNavigateRight?: () => void;
+  }
 ) {
   const columnRefs: Ref<Record<string, RefType>> = ref({});
   const rowsLength = computed(() => rows.value?.length ?? 0);
@@ -52,7 +54,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   function navigateUp(rowId: string, column: ColumnType) {
     const rowIdx = rows.value?.findIndex((m) => m.id === rowId);
     if (!rowIdx) {
-      gridNavigateUp();
+      options?.gridNavigateUp?.(column, columnsInOrder.value.indexOf(column));
     } else {
       focus(rowIdx - 1, column);
     }
@@ -61,7 +63,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   function navigateDown(rowId: string, column: ColumnType) {
     const rowIdx = rows.value?.findIndex((m) => m.id === rowId) ?? 0;
     if (rowIdx == rowsLength.value - 1) {
-      gridNavigateDown();
+      options?.gridNavigateDown?.(column, columnsInOrder.value.indexOf(column));
     } else {
       focus(rowIdx + 1, column);
     }
@@ -74,7 +76,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
       if (rowIdx != rowsLength.value - 1) {
         focus(rowIdx + 1, columnsInOrder.value[0]);
       } else {
-        gridNavigateRight();
+        options?.gridNavigateRight?.();
       }
     } else {
       focus(rowIdx, columnsInOrder.value[columnIdx + 1]);
@@ -88,7 +90,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
       if (rowIdx != 0) {
         focus(rowIdx - 1, columnsInOrder.value[columnsInOrder.value.length - 1]);
       } else {
-        gridNavigateLeft();
+        options?.gridNavigateLeft?.();
       }
     } else {
       focus(rowIdx, columnsInOrder.value[columnIdx - 1]);
