@@ -358,7 +358,6 @@ export const useEditorState = defineStore("editor", {
         this.focusedElementType = null;
         this.editingElement = false;
       }
-      console.log("blur element");
     },
 
     setMainStatement(statement?: { id: string }): void {

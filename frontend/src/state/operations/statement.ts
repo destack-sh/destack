@@ -1,16 +1,17 @@
 import { graphql, useFragment } from "@/gql";
-import type {
-  DeleteStatementMutation,
-  MorphStatementMutation,
-  MoveStatementMutation,
-  RenameStatementMutation,
-  RestoreStatementMutation,
-  StatementModifier,
-  StatementMorphInput,
+import {
   StatementType,
-  StatementTypeNodeDataCreateInput,
-  SymbolType,
-  UpdateStatementModifierMutation,
+  type CreateStatementMutation,
+  type DeleteStatementMutation,
+  type MorphStatementMutation,
+  type MoveStatementMutation,
+  type RenameStatementMutation,
+  type RestoreStatementMutation,
+  type StatementModifier,
+  type StatementMorphInput,
+  type StatementTypeNodeDataCreateInput,
+  type SymbolType,
+  type UpdateStatementModifierMutation,
 } from "@/gql/graphql";
 import { StatementHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
@@ -39,41 +40,93 @@ export function useStatementOps() {
       mutation createStatement($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
         createStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
           ... on Statement {
+            id
+            type
+            symbolType
+            revision
+            orderKey
+            file {
+              id
+            }
+            parent {
+              id
+            }
             ...StatementContent
           }
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; fileId: string; parentId: string | null; orderKey: string }) =>
+        ({
+          __typename: "Mutation",
+          createStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            file: {
+              __typename: "File",
+              id: vars.fileId,
+            },
+            parent:
+              vars.parentId == null
+                ? null
+                : {
+                    __typename: "Statement",
+                    id: vars.parentId,
+                  },
+            revision: -1,
+            orderKey: vars.orderKey,
+            // default new fields (all! fields in StatementContent fragment)
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            type: StatementType.Blank,
+            modifier: null,
+            name: null,
+            symbolType: null,
+            description: null,
+            value: null,
+            code: null,
+            referenceProjectVersion: null,
+            records: [],
+            typeNodes: [],
+            lang: null,
+            reference: null,
+            text: null,
+            importPath: null,
+            generated: false,
+            commented: false,
+          },
+        } as CreateStatementMutation),
+      update(cache, { data: createStatement }) {
+        if (createStatement?.createStatement.__typename != "Statement") {
+          return; // error
+        }
+        // extend File.statements array with (ref to) new statement
+        // note that we must ensure that all relevant fields are present
+        // (Apollo doesn't check for us here)
+        cache.modify({
+          id: cache.identify(createStatement.createStatement?.file),
+          fields: {
+            statements(currentStatements = []) {
+              return [...currentStatements, { __ref: cache.identify(createStatement?.createStatement) }];
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
   );
 
   async function create(id: string, fileId: string, parentId: string | null, orderKey: string) {
     async function apply() {
-      const create = await createStatementMut(
-        {
-          id,
-          fileId,
-          parentId,
-          orderKey,
-        },
-        {
-          update(cache, { data: createStatement }) {
-            if (createStatement?.createStatement.__typename != "Statement") {
-              return; // error
-            }
-
-            // extend File.statements array with (ref to) new statement
-            cache.modify({
-              id: `File:${fileId}`,
-              fields: {
-                statements(currentStatements = []) {
-                  return [...currentStatements, { __ref: cache.identify(createStatement?.createStatement) }];
-                },
-              },
-            });
-          },
-        }
-      );
+      const create = await createStatementMut({
+        id,
+        fileId,
+        parentId,
+        orderKey,
+      });
       // TODO @Robustness: handle error responses (across mutations & queries)
       if (create?.data?.createStatement.__typename != "Statement") {
         throw new Error(`expected Statement, got ${create}`);
