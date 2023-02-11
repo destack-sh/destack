@@ -7,7 +7,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
 import { TypeTag, type TypeNodeData } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);

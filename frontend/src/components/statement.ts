@@ -4,7 +4,7 @@ import {
   StatementType,
   SymbolType,
   TypeTag,
-  type StatementTypeNodeDataCreateInput,
+  type TypeNodeDataCreateInput,
   type TypeNode,
   type TypeNodeData,
 } from "@/gql/graphql";
@@ -257,10 +257,10 @@ export function useStatementContext() {
   };
 }
 
-function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): StatementTypeNodeDataCreateInput {
+function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): TypeNodeDataCreateInput {
   return {
-    id: id,
-    nodeId: typeNodeData.id,
+    statementId: id,
+    id: typeNodeData.id,
     tag: typeNodeData.tag,
     orderKey: typeNodeData.orderKey,
     parentId: typeNodeData.parentId ?? null,

@@ -168,7 +168,7 @@ class StatementMorphInput(gql.NodeInput):
     type: StatementType
     symbol_type: Optional[SymbolType] = None
     name: Optional[str] = None
-    type_nodes: Optional[list["StatementTypeNodeDataCreateInput"]] = None
+    type_nodes: Optional[list["TypeNodeDataCreateInput"]] = None
     language: Optional[str] = None
 
 
@@ -207,38 +207,6 @@ class StatementRestoreInput(gql.NodeInput):
 @gql.input
 class StatementCommentedInput(gql.NodeInput):
     commented: bool
-
-
-# TODO @Cleanup: type node mutations should be more atomic
-@gql.input
-class StatementTypeNodeDataCreateInput(gql.NodeInput):
-    """Upsert a statement type node data"""
-
-    node_id: GlobalID
-    order_key: str
-    parent_id: Optional[GlobalID] = None
-    name: Optional[str] = None
-    tag: TypeTag
-    description: Optional[str] = None
-    value: Optional[JSON] = None
-    reference: Optional[str] = None
-
-    def to_type_node_data(self) -> wire.TypeNodeData:
-        return wire.TypeNodeData(
-            id=UUID(self.node_id.node_id),
-            order_key=self.order_key,
-            parent_id=UUID(self.parent_id.node_id) if self.parent_id else None,
-            name=self.name,
-            tag=self.tag,
-            description=self.description,
-            value=self.value,
-            reference=self.reference,
-        )
-
-
-@gql.input
-class StatementTypeNodeDataDeleteInput(gql.NodeInput):
-    node_id: GlobalID
 
 
 @gql.type
@@ -335,36 +303,6 @@ class StatementMutation:
         statement.name = input.name
         return statement
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def create_statement_type_node(
-        self, input: StatementTypeNodeDataCreateInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.type_nodes.append(input.to_type_node_data())
-        return statement
-
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def update_statement_type_node(
-        self, input: StatementTypeNodeDataCreateInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        node_id = UUID(input.node_id.node_id)
-        node = first([n for n in statement.type_nodes if n.id == node_id])
-        node = replace(node, **asdict(input.to_type_node_data()))
-        # replace type node in array
-        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
-        statement.type_nodes.append(node)
-        return statement
-
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def delete_statement_type_node(
-        self, input: StatementTypeNodeDataDeleteInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        node_id = UUID(input.node_id.node_id)
-        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
-        return statement
-
 
 #
 # Statement content / symbol mutations
@@ -392,26 +330,59 @@ class StatementUpdateLanguageInput(gql.NodeInput):
 
 
 @gql.input
-class StatementUpdateRecordsInput(gql.NodeInput):
-    records: list[JSON]
-
-
-@gql.input
-class StatementCreateRecordInput(gql.NodeInput):
-    record_id: UUID
+class RecordCreateInput(gql.NodeInput):
+    statement_id: GlobalID
     data: JSON
     order_key: str
 
 
 @gql.input
-class StatementUpdateRecordInput(gql.NodeInput):
-    record_id: UUID
+class RecordUpdateInput(gql.NodeInput):
+    statement_id: GlobalID
     data: JSON
 
 
 @gql.input
-class StatementDeleteRecordInput(gql.NodeInput):
-    record_id: UUID
+class RecordMoveInput(gql.NodeInput):
+    statement_id: GlobalID
+    order_key: str
+
+
+@gql.input
+class RecordDeleteInput(gql.NodeInput):
+    statement_id: GlobalID
+
+
+# TODO @Cleanup: type node mutations should be more atomic
+@gql.input
+class TypeNodeDataCreateInput(gql.NodeInput):
+    """Upsert a statement type node data"""
+
+    statement_id: GlobalID
+    order_key: str
+    parent_id: Optional[GlobalID] = None
+    name: Optional[str] = None
+    tag: TypeTag
+    description: Optional[str] = None
+    value: Optional[JSON] = None
+    reference: Optional[str] = None
+
+    def to_type_node_data(self) -> wire.TypeNodeData:
+        return wire.TypeNodeData(
+            id=UUID(self.id.node_id),
+            order_key=self.order_key,
+            parent_id=UUID(self.parent_id.node_id) if self.parent_id else None,
+            name=self.name,
+            tag=self.tag,
+            description=self.description,
+            value=self.value,
+            reference=self.reference,
+        )
+
+
+@gql.input
+class TypeNodeDataDeleteInput(gql.NodeInput):
+    statement_id: GlobalID
 
 
 @gql.type
@@ -445,32 +416,61 @@ class SymbolMutation:
         statement.language = input.language
         return statement
 
-    # TODO @Performance: separate statement record updates from regular statement updates
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def update_statement_records(
-        self, input: StatementUpdateRecordsInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.records.all().delete()
-        db_records = [models.DatasetRecord(dataset=statement, data=data) for data in input.records]
-        models.DatasetRecord.objects.bulk_create(db_records)
-        return statement
-
-    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def create_statement_record(
-        self, input: StatementCreateRecordInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+    def create_statement_record(self, input: RecordCreateInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
         record = models.DatasetRecord(dataset=statement, id=input.record_id, data=input.data)
         record.save()
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def update_statement_record(
-        self, input: StatementUpdateRecordInput
-    ) -> Statement | OperationInfo:
+    def update_statement_record(self, input: RecordUpdateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         record = statement.records.get_or_create(id=input.record_id, defaults={"data": input.data})
         record.data = input.data
         record.save()
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
+    def move_statement_record(self, input: RecordMoveInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        record = statement.records.get(id=input.record_id)
+        record.order_key = input.order_key
+        record.save()
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
+    def delete_statement_record(self, input: RecordDeleteInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        _ = statement.records.filter(id=input.record_id).delete()
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def create_statement_type_node(
+        self, input: TypeNodeDataCreateInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        statement.type_nodes.append(input.to_type_node_data())
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def update_statement_type_node(
+        self, input: TypeNodeDataCreateInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        node_id = UUID(input.id.node_id)
+        node = first([n for n in statement.type_nodes if n.id == node_id])
+        node = replace(node, **asdict(input.to_type_node_data()))
+        # replace type node in array
+        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
+        statement.type_nodes.append(node)
+        return statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def delete_statement_type_node(
+        self, input: TypeNodeDataDeleteInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        node_id = UUID(input.id.node_id)
+        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
         return statement
