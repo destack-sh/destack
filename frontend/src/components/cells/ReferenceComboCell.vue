@@ -15,7 +15,6 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
-  (e: "deleteRight"): void;
   (e: "defineInPlace", name: string): void;
 }>();
 

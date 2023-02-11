@@ -14,7 +14,6 @@ const emit = defineEmits<{
   (e: "enter"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
-  (e: "deleteRight"): void;
   (e: "morphed"): void;
 }>();
 
@@ -63,6 +62,5 @@ defineExpose({
     @enter="emit('enter')"
     @escape="emit('escape')"
     @delete-left="emit('deleteLeft')"
-    @delete-right="emit('deleteRight')"
   />
 </template>

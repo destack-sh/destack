@@ -71,7 +71,6 @@ defineExpose({
       @navigate-down="context.navigateDown"
       @navigate-right="gapRef?.focus()"
       @delete-left="context.tryDeleteLeft"
-      @delete-right="context.setModifier(null)"
       @enter="context.insertAbove"
       @escape="context.escape"
       :readonly="context.readonly.value"

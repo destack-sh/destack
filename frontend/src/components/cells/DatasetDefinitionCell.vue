@@ -42,6 +42,7 @@ defineExpose({
     @navigate-left="declarationRef?.focus()"
     @navigate-up="declarationRef?.focus()"
     @navigate-down="focusFirstIfExists"
+    @enter="context.insertBelow"
   />
   <button
     tabindex="-1"
