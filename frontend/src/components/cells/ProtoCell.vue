@@ -6,6 +6,7 @@ import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import { useStatementContext } from "@/components/statement";
 import { nextTick, ref, type Ref } from "vue";
 import EditableSpan from "@/components/EditableSpan.vue";
+import type { InterpSymbol, SymbolType } from "@/gql/graphql";
 
 defineProps<{ showDots?: boolean }>();
 
@@ -33,6 +34,13 @@ function deleteSymbolTypeOrModifier() {
 
 function morphToDefinition(name: string) {
   context.morphToDefinition(context.statement.value.symbolType ?? null, name);
+}
+
+function morphToReference(symbol: InterpSymbol) {
+  if (symbol.symbolType == null || symbol.name == null) {
+    throw new Error("cannot set reference to: " + symbol);
+  }
+  context.morphToReference(symbol.symbolType, symbol.name);
 }
 
 function morphed() {
@@ -99,6 +107,7 @@ defineExpose({
       @navigate-left="gapRef?.focus"
       :can-define-in-place="context.statement.value.symbolType != null"
       @define-in-place="morphToDefinition"
+      @reference-set="morphToReference"
       @escape="context.escape"
     />
     <!-- Empty dots -->
