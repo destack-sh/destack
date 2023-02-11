@@ -69,7 +69,7 @@ defineExpose({
       v-if="context.statement.value.modifier != null"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
-      @navigate-right="gapRef?.focus()"
+      @navigate-right="gapRef?.focus"
       @delete-left="context.tryDeleteLeft"
       @enter="context.insertAbove"
       @escape="context.escape"
@@ -82,8 +82,8 @@ defineExpose({
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @delete-left="deleteModifierOrAbove"
-      @navigate-left="startRef?.focus()"
-      @navigate-right="nameRef?.focus()"
+      @navigate-left="startRef?.focus"
+      @navigate-right="nameRef?.focus"
       @enter="context.insertAbove"
       @escape="context.escape"
       @morphed="morphed"
@@ -96,14 +96,14 @@ defineExpose({
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @delete-left="deleteSymbolTypeOrModifier"
-      @navigate-left="gapRef?.focus()"
+      @navigate-left="gapRef?.focus"
       :can-define-in-place="context.statement.value.symbolType != null"
       @define-in-place="morphToDefinition"
       @escape="context.escape"
     />
     <!-- Empty dots -->
     <div
-      v-if="showDots && gapRef?.content.length == 0"
+      v-if="showDots && gapRef?.content?.length == 0"
       class="absolute bottom-0 mx-1 h-full w-full select-none text-gray-300 group-hover:opacity-100"
       :class="{ 'opacity-100': context.focused.value, 'opacity-0': !context.focused.value }"
     >
