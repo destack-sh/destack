@@ -130,6 +130,17 @@ export function useStatementContext() {
     );
   }
 
+  async function morphToReference(symbolType: SymbolType, name: string) {
+    if (statement.value.type != StatementType.Blank) {
+      throw new Error("cannot morph from non-blank to reference: " + statement.value.id);
+    }
+    await operations.statement.morph(
+      statement.value.id,
+      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+      { type: StatementType.Reference, symbolType, name }
+    );
+  }
+
   async function setModifier(modifier: StatementModifier | null) {
     await operations.statement.modify(statement.value.id, statement.value.modifier ?? null, modifier);
   }
@@ -240,6 +251,7 @@ export function useStatementContext() {
     escape,
     morphToComment,
     morphToDefinition,
+    morphToReference,
     setModifier,
     setSymbolType,
     setSymbolTypeEnum,

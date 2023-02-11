@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useStatementContext } from "@/components/statement";
-import { StatementType } from "@/gql/graphql";
+import { StatementType, type InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
@@ -16,6 +16,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "defineInPlace", name: string): void;
+  (e: "referenceSet", ref: InterpSymbol): void;
 }>();
 
 const context = useStatementContext();
@@ -50,7 +51,7 @@ watch(
   }
 );
 
-function setReference(ref: { id: string } | null) {
+function setReference(ref: InterpSymbol | null) {
   if (ref == null && query.value.length < 1) {
     // headless ui auto-selects an option when it matches the name
     // but we don't want that if we are defining in place
@@ -61,6 +62,19 @@ function setReference(ref: { id: string } | null) {
     emit("defineInPlace", query.value);
   } else {
     context.setReference(ref);
+    if (ref != null) {
+      emit("referenceSet", ref);
+    }
+  }
+}
+
+function deleteLeftIfAtStart(event: KeyboardEvent) {
+  // check if cursor is at start of the text
+  const selection = window.getSelection();
+  if (selection && selection.anchorOffset == 0) {
+    emit("deleteLeft");
+    event.preventDefault();
+    event.stopPropagation();
   }
 }
 
@@ -129,6 +143,7 @@ defineExpose({
       placeholder="..."
       @keydown.escape.prevent=""
       @keyup.escape.prevent="escape"
+      @keydown.delete="deleteLeftIfAtStart"
     />
     <ComboboxOptions
       ref="optionsRef"
