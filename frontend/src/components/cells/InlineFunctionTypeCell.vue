@@ -204,7 +204,7 @@ defineExpose({
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
         @navigate-right="emit('navigateRight')"
-        class="rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
       />
     </span>
   </div>
