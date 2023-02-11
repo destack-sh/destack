@@ -71,34 +71,5 @@ export function useSymbolContentOps() {
 
   // dataset mutations (aka records)
 
-  const { mutate: updateStatementRecordsMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation updateStatementRecords($id: GlobalID!, $records: [JSON!]!) {
-        updateStatementRecords(input: { id: $id, records: $records }) {
-          ... on Statement {
-            id
-            revision
-            records {
-              data
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
-
-  async function updateStatementRecords(id: string, oldRecords: Array<JSON>, newRecords: Array<JSON>) {
-    await operations.perform({
-      type: "statement.updateRecords",
-      do: async () => {
-        await updateStatementRecordsMut({ id: id, records: newRecords });
-      },
-      undo: async () => {
-        await updateStatementRecordsMut({ id: id, records: oldRecords });
-      },
-    });
-  }
-
-  return { updateStatementDescription, updateStatementCode, updateStatementRecords };
+  return { updateStatementDescription, updateStatementCode };
 }

@@ -181,10 +181,12 @@ export type Mutation = {
   createStatement: StatementOperationInfo;
   createStatementRecord: StatementOperationInfo;
   createStatementTypeNode: StatementOperationInfo;
+  deleteStatementRecord: StatementOperationInfo;
   deleteStatementTypeNode: StatementOperationInfo;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
   moveStatement: StatementOperationInfo;
+  moveStatementRecord: StatementOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
   restoreFile: FileOperationInfo;
@@ -197,7 +199,6 @@ export type Mutation = {
   updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
   updateStatementRecord: StatementOperationInfo;
-  updateStatementRecords: StatementOperationInfo;
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
@@ -224,15 +225,19 @@ export type MutationCreateStatementArgs = {
 };
 
 export type MutationCreateStatementRecordArgs = {
-  input: StatementCreateRecordInput;
+  input: RecordCreateInput;
 };
 
 export type MutationCreateStatementTypeNodeArgs = {
-  input: StatementTypeNodeDataCreateInput;
+  input: TypeNodeDataCreateInput;
+};
+
+export type MutationDeleteStatementRecordArgs = {
+  input: RecordDeleteInput;
 };
 
 export type MutationDeleteStatementTypeNodeArgs = {
-  input: StatementTypeNodeDataDeleteInput;
+  input: TypeNodeDataDeleteInput;
 };
 
 export type MutationMorphStatementArgs = {
@@ -245,6 +250,10 @@ export type MutationMoveFileArgs = {
 
 export type MutationMoveStatementArgs = {
   input: StatementMoveInput;
+};
+
+export type MutationMoveStatementRecordArgs = {
+  input: RecordMoveInput;
 };
 
 export type MutationRenameFileArgs = {
@@ -292,11 +301,7 @@ export type MutationUpdateStatementModifierArgs = {
 };
 
 export type MutationUpdateStatementRecordArgs = {
-  input: StatementUpdateRecordInput;
-};
-
-export type MutationUpdateStatementRecordsArgs = {
-  input: StatementUpdateRecordsInput;
+  input: RecordUpdateInput;
 };
 
 export type MutationUpdateStatementReferenceArgs = {
@@ -308,7 +313,7 @@ export type MutationUpdateStatementTextArgs = {
 };
 
 export type MutationUpdateStatementTypeNodeArgs = {
-  input: StatementTypeNodeDataCreateInput;
+  input: TypeNodeDataCreateInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -495,6 +500,30 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type RecordCreateInput = {
+  data: Scalars["JSON"];
+  id: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+  statementId: Scalars["GlobalID"];
+};
+
+export type RecordDeleteInput = {
+  id: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
+};
+
+export type RecordMoveInput = {
+  id: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+  statementId: Scalars["GlobalID"];
+};
+
+export type RecordUpdateInput = {
+  data: Scalars["JSON"];
+  id: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
+};
+
 export type RefMapping = {
   __typename?: "RefMapping";
   source: Scalars["GlobalID"];
@@ -573,13 +602,6 @@ export type StatementCreateInput = {
   parentId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
-export type StatementCreateRecordInput = {
-  data: Scalars["JSON"];
-  id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
-  recordId: Scalars["UUID"];
-};
-
 export type StatementFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
@@ -600,7 +622,7 @@ export type StatementMorphInput = {
   name?: InputMaybe<Scalars["String"]>;
   symbolType?: InputMaybe<SymbolType>;
   type: StatementType;
-  typeNodes?: InputMaybe<Array<StatementTypeNodeDataCreateInput>>;
+  typeNodes?: InputMaybe<Array<TypeNodeDataCreateInput>>;
 };
 
 export type StatementMoveInput = {
@@ -650,24 +672,6 @@ export enum StatementType {
   Reference = "REFERENCE",
 }
 
-/** Upsert a statement type node data */
-export type StatementTypeNodeDataCreateInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  nodeId: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-  reference?: InputMaybe<Scalars["String"]>;
-  tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
-};
-
-export type StatementTypeNodeDataDeleteInput = {
-  id: Scalars["GlobalID"];
-  nodeId: Scalars["GlobalID"];
-};
-
 export type StatementUpdateCodeInput = {
   code?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
@@ -681,17 +685,6 @@ export type StatementUpdateDescriptionInput = {
 export type StatementUpdateLanguageInput = {
   id: Scalars["GlobalID"];
   language: Scalars["String"];
-};
-
-export type StatementUpdateRecordInput = {
-  data: Scalars["JSON"];
-  id: Scalars["GlobalID"];
-  recordId: Scalars["UUID"];
-};
-
-export type StatementUpdateRecordsInput = {
-  id: Scalars["GlobalID"];
-  records: Array<Scalars["JSON"]>;
 };
 
 export type Subscription = {
@@ -748,6 +741,24 @@ export type TypeNodeData = {
   reference?: Maybe<Scalars["String"]>;
   tag: TypeTag;
   value?: Maybe<Scalars["JSON"]>;
+};
+
+/** Upsert a statement type node data */
+export type TypeNodeDataCreateInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  orderKey: Scalars["String"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  reference?: InputMaybe<Scalars["String"]>;
+  statementId: Scalars["GlobalID"];
+  tag: TypeTag;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type TypeNodeDataDeleteInput = {
+  id: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
 };
 
 /** The type of type node. */
@@ -1265,7 +1276,7 @@ export type SetReferenceMutation = {
 };
 
 export type UpdateTypeNodeMutationVariables = Exact<{
-  typeNode: StatementTypeNodeDataCreateInput;
+  typeNode: TypeNodeDataCreateInput;
 }>;
 
 export type UpdateTypeNodeMutation = {
@@ -1283,7 +1294,7 @@ export type UpdateTypeNodeMutation = {
 };
 
 export type CreateTypeNodeMutationVariables = Exact<{
-  typeNode: StatementTypeNodeDataCreateInput;
+  typeNode: TypeNodeDataCreateInput;
 }>;
 
 export type CreateTypeNodeMutation = {
@@ -1302,7 +1313,7 @@ export type CreateTypeNodeMutation = {
 
 export type DeleteTypeNodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  nodeId: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
 }>;
 
 export type DeleteTypeNodeMutation = {
@@ -1345,25 +1356,6 @@ export type UpdateStatementCodeMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Statement"; id: any; code?: string | null; revision: number };
-};
-
-export type UpdateStatementRecordsMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  records: Array<Scalars["JSON"]> | Scalars["JSON"];
-}>;
-
-export type UpdateStatementRecordsMutation = {
-  __typename?: "Mutation";
-  updateStatementRecords:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | {
-        __typename?: "Statement";
-        id: any;
-        revision: number;
-        records: Array<{ __typename?: "DatasetRecord"; data: any }>;
-      };
 };
 
 export type CommitMutationVariables = Exact<{
@@ -3386,7 +3378,7 @@ export const UpdateTypeNodeDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
           type: {
             kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "StatementTypeNodeDataCreateInput" } },
+            type: { kind: "NamedType", name: { kind: "Name", value: "TypeNodeDataCreateInput" } },
           },
         },
       ],
@@ -3447,7 +3439,7 @@ export const CreateTypeNodeDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
           type: {
             kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "StatementTypeNodeDataCreateInput" } },
+            type: { kind: "NamedType", name: { kind: "Name", value: "TypeNodeDataCreateInput" } },
           },
         },
       ],
@@ -3510,7 +3502,7 @@ export const DeleteTypeNodeDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "nodeId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
       ],
@@ -3534,8 +3526,8 @@ export const DeleteTypeNodeDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "nodeId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "nodeId" } },
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
                     },
                   ],
                 },
@@ -3714,90 +3706,6 @@ export const UpdateStatementCodeDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateStatementCodeMutation, UpdateStatementCodeMutationVariables>;
-export const UpdateStatementRecordsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "updateStatementRecords" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "records" } },
-          type: {
-            kind: "NonNullType",
-            type: {
-              kind: "ListType",
-              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
-            },
-          },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "updateStatementRecords" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "records" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "records" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "data" } }],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<UpdateStatementRecordsMutation, UpdateStatementRecordsMutationVariables>;
 export const CommitDocument = {
   kind: "Document",
   definitions: [

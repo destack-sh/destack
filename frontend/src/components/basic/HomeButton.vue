@@ -1,11 +1,11 @@
 <script lang="ts" setup></script>
 <template>
-  <div class="flex flex-shrink-0 items-center px-[15px] py-2 hover:bg-gray-50">
+  <div class="flex flex-shrink-0 items-center px-[13px] py-2 hover:bg-gray-50">
     <a href="#">
-      <div class="text-lg font-extrabold text-orange-600">
-        <span class="text-emerald-900">[</span>
-        <span class="text-xl">x</span>
-        <span class="text-emerald-900">]</span>
+      <div class="font-mono text-lg font-bold">
+        <span class="-mx-0.5 text-gray-900">[</span>
+        <span class="text-xl text-orange-600">x</span>
+        <span class="-mx-0.5 text-gray-900">]</span>
       </div>
     </a>
   </div>

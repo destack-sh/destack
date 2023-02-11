@@ -157,16 +157,17 @@ type Mutation {
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
-  createStatementTypeNode(input: StatementTypeNodeDataCreateInput!): StatementOperationInfo!
-  updateStatementTypeNode(input: StatementTypeNodeDataCreateInput!): StatementOperationInfo!
-  deleteStatementTypeNode(input: StatementTypeNodeDataDeleteInput!): StatementOperationInfo!
   updateStatementText(input: StatementTextInput!): StatementOperationInfo!
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
-  updateStatementRecords(input: StatementUpdateRecordsInput!): StatementOperationInfo!
-  createStatementRecord(input: StatementCreateRecordInput!): StatementOperationInfo!
-  updateStatementRecord(input: StatementUpdateRecordInput!): StatementOperationInfo!
+  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo!
+  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo!
+  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo!
+  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo!
+  createStatementTypeNode(input: TypeNodeDataCreateInput!): StatementOperationInfo!
+  updateStatementTypeNode(input: TypeNodeDataCreateInput!): StatementOperationInfo!
+  deleteStatementTypeNode(input: TypeNodeDataDeleteInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!
@@ -346,6 +347,30 @@ type Query {
   ): File
 }
 
+input RecordCreateInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  data: JSON!
+  orderKey: String!
+}
+
+input RecordDeleteInput {
+  id: GlobalID!
+  statementId: GlobalID!
+}
+
+input RecordMoveInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  orderKey: String!
+}
+
+input RecordUpdateInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  data: JSON!
+}
+
 type RefMapping {
   source: GlobalID!
   target: GlobalID!
@@ -420,13 +445,6 @@ input StatementCreateInput {
   parentId: GlobalID = null
 }
 
-input StatementCreateRecordInput {
-  id: GlobalID!
-  recordId: UUID!
-  data: JSON!
-  orderKey: String!
-}
-
 input StatementFilter {
   isVisible: Boolean = true
 }
@@ -446,7 +464,7 @@ input StatementMorphInput {
   type: StatementType!
   symbolType: SymbolType = null
   name: String = null
-  typeNodes: [StatementTypeNodeDataCreateInput!] = null
+  typeNodes: [TypeNodeDataCreateInput!] = null
   language: String = null
 }
 
@@ -497,24 +515,6 @@ enum StatementType {
   BLANK
 }
 
-"""Upsert a statement type node data"""
-input StatementTypeNodeDataCreateInput {
-  id: GlobalID!
-  nodeId: GlobalID!
-  orderKey: String!
-  parentId: GlobalID = null
-  name: String = null
-  tag: TypeTag!
-  description: String = null
-  value: JSON = null
-  reference: String = null
-}
-
-input StatementTypeNodeDataDeleteInput {
-  id: GlobalID!
-  nodeId: GlobalID!
-}
-
 input StatementUpdateCodeInput {
   id: GlobalID!
   code: String = null
@@ -528,17 +528,6 @@ input StatementUpdateDescriptionInput {
 input StatementUpdateLanguageInput {
   id: GlobalID!
   language: String!
-}
-
-input StatementUpdateRecordInput {
-  id: GlobalID!
-  recordId: UUID!
-  data: JSON!
-}
-
-input StatementUpdateRecordsInput {
-  id: GlobalID!
-  records: [JSON!]!
 }
 
 type Subscription {
@@ -583,6 +572,24 @@ type TypeNodeData {
   reference: String
   parentId: GlobalID
   orderKey: String!
+}
+
+"""Upsert a statement type node data"""
+input TypeNodeDataCreateInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  orderKey: String!
+  parentId: GlobalID = null
+  name: String = null
+  tag: TypeTag!
+  description: String = null
+  value: JSON = null
+  reference: String = null
+}
+
+input TypeNodeDataDeleteInput {
+  id: GlobalID!
+  statementId: GlobalID!
 }
 
 """The type of type node."""
