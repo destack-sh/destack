@@ -1002,7 +1002,7 @@ export type StatementContentFragment = {
   typeNodes?: Array<
     { __typename?: "TypeNodeData" } & { " $fragmentRefs"?: { TypeNodeDataFragment: TypeNodeDataFragment } }
   > | null;
-  records: Array<{ __typename?: "DatasetRecord"; data: any }>;
+  records: Array<{ __typename?: "DatasetRecord"; id: any; orderKey: string; data: any }>;
 } & { " $fragmentName"?: "StatementContentFragment" };
 
 export type CreateFileMutationVariables = Exact<{
@@ -1823,7 +1823,11 @@ export const StatementContentFragmentDoc = {
             name: { kind: "Name", value: "records" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "data" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                { kind: "Field", name: { kind: "Name", value: "data" } },
+              ],
             },
           },
         ],

@@ -148,6 +148,8 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ...TypeNodeData
     }
     records {
+      id
+      orderKey
       data
     }
   }
