@@ -4,7 +4,7 @@ import { useEditorState, type FileHeader, type StatementHeader } from "@/state/e
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { computed, type Ref } from "vue";
+import { computed, nextTick, type Ref } from "vue";
 
 export function provideStatementActions(
   enabled: Ref<boolean>,
@@ -266,6 +266,13 @@ export function provideStatementActions(
     },
   });
 
+  // optimistic insert that doesn't wait for the server response
+  function _insertOptimistic(parentId: string | null, orderKey: string): { __typename: string; id: string } {
+    const newStatement = { __typename: "Statement", id: newStatementId() };
+    operations.statement.create(newStatement.id, file.value?.id, parentId, orderKey);
+    return newStatement;
+  }
+
   // insert statement (as a sibling)
   const insertStart = provideSingletonAction({
     id: "statement.insertStart",
@@ -273,15 +280,10 @@ export function provideStatementActions(
     shortcuts: [],
     enabled: computed(() => !!file.value && !editor.editingElement),
     registered: enabled,
-    apply: async () => {
+    apply: () => {
       const roots = statementsByParentId.value[""];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
-      const newStatement = await operations.statement.create(
-        newStatementId(),
-        file.value?.id,
-        null,
-        generateKeyBetween(null, firstRootKey)
-      );
+      const newStatement = _insertOptimistic(null, generateKeyBetween(null, firstRootKey));
       editor.editElement(newStatement as StatementHeader);
     },
   });
@@ -291,15 +293,10 @@ export function provideStatementActions(
     shortcuts: [],
     enabled: computed(() => !!file.value && !editor.editingElement),
     registered: enabled,
-    apply: async () => {
+    apply: () => {
       const roots = statementsByParentId.value[""];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
-      const newStatement = await operations.statement.create(
-        newStatementId(),
-        file.value?.id,
-        null,
-        generateKeyBetween(lastRootKey, null)
-      );
+      const newStatement = _insertOptimistic(null, generateKeyBetween(lastRootKey, null));
       editor.editElement(newStatement as StatementHeader);
     },
   });
@@ -309,8 +306,8 @@ export function provideStatementActions(
     shortcuts: ["a"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
     registered: enabled,
-    apply: async () => {
-      await operations.statement.create(
+    apply: () => {
+      operations.statement.create(
         newStatementId(),
         file.value?.id,
         statement.value.parent?.id ?? null,
@@ -323,16 +320,16 @@ export function provideStatementActions(
     id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
     registered: enabled,
-    apply: async () => {
-      const newStatement = await operations.statement.create(
-        newStatementId(),
-        file.value?.id,
+    enabled: computed(() => !!statement.value && !editor.editingElement),
+    apply: () => {
+      const newStatement = _insertOptimistic(
         statement.value.parent?.id ?? null,
         generateKeyBetween(orderKey.value, nextSibling.value?.orderKey ?? null)
       );
-      editor.editElement(newStatement as StatementHeader);
+      // wait for next tick to ensure there is something to focus
+      // this feels a bit hacky, but focus management will likely be overhauled anyway
+      nextTick(() => editor.editElement(newStatement as StatementHeader));
     },
   });
 
