@@ -68,11 +68,12 @@ export const useOperationsStore = defineStore("operations", {
       operation = { ...operation, id: operation.id ?? Math.random().toString(16).substring(2, 8) };
       console.log(`perform ${operation.type} (id=${operation.id})`);
 
-      const ret = await this._do(operation);
+      // enable undo even before the operation is performed (for responsiveness)
       if (operation.undo != null) {
         this.undoStack.push(operation);
       }
-      this.redoStack = []; // reset redo stack
+      const ret = await this._do(operation);
+      this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
       return ret;
     },
 

@@ -1100,7 +1100,16 @@ export type CreateStatementMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } });
+    | ({
+        __typename?: "Statement";
+        id: any;
+        type: StatementType;
+        symbolType?: SymbolType | null;
+        revision: number;
+        orderKey: string;
+        file: { __typename?: "File"; id: any };
+        parent?: { __typename?: "Statement"; id: any } | null;
+      } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } });
 };
 
 export type MorphStatementMutationVariables = Exact<{
@@ -2703,7 +2712,30 @@ export const CreateStatementDocument = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "file" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
+                    ],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
