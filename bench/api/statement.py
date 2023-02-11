@@ -43,8 +43,10 @@ class SourceMapping:
 
 
 @gql.django.type(models.DatasetRecord)
-class DatasetRecord:
-    id: UUID
+class DatasetRecord(gql.Node):
+    id: GlobalID
+    created_at: auto
+    updated_at: auto
     order_key: str
     data: JSON
 
@@ -419,30 +421,32 @@ class SymbolMutation:
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def create_statement_record(self, input: RecordCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        record = models.DatasetRecord(dataset=statement, id=input.record_id, data=input.data)
+        record = models.DatasetRecord(
+            dataset=statement, id=UUID(input.id.node_id), data=input.data, order_key=input.order_key
+        )
         record.save()
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def update_statement_record(self, input: RecordUpdateInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        record = statement.records.get_or_create(id=input.record_id, defaults={"data": input.data})
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        record = statement.records.get(id=UUID(input.id.node_id))
         record.data = input.data
         record.save()
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def move_statement_record(self, input: RecordMoveInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        record = statement.records.get(id=input.record_id)
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        record = statement.records.get(id=input.id)
         record.order_key = input.order_key
         record.save()
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def delete_statement_record(self, input: RecordDeleteInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        _ = statement.records.filter(id=input.record_id).delete()
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        _ = statement.records.filter(id=input.id).delete()
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)

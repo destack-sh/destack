@@ -30,6 +30,12 @@ export function newTypeNodeDataId(): string {
   return btoa(`TypeNodeData:${nodeId}`);
 }
 
+export function newDatasetRecordId(): string {
+  /* Generates a new dataset record global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`DatasetRecord:${nodeId}`);
+}
+
 const PENDING_REVISION = -1;
 
 export function useStatementOps() {

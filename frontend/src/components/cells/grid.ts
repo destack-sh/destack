@@ -8,7 +8,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     gridNavigateDown?: (column: ColumnType, columnIndex: number) => void;
     gridNavigateLeft?: () => void;
     gridNavigateRight?: () => void;
-  }
+  } = {}
 ) {
   const columnRefs: Ref<Record<string, RefType>> = ref({});
   const rowsLength = computed(() => rows.value?.length ?? 0);

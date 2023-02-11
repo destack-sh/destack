@@ -23,8 +23,10 @@ type CompileState {
 
 union CompileStateOperationInfo = CompileState | OperationInfo
 
-type DatasetRecord {
-  id: UUID!
+type DatasetRecord implements Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
   orderKey: String!
   data: JSON!
 }

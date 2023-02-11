@@ -291,7 +291,7 @@ class Statement(Generic[SymbolContentT]):
     @property
     def infile_path(self) -> str:
         parent = self.parent
-        ancestor_parts = [self.name]
+        ancestor_parts = [self.name or "<anon>"]
         seen_ids = {self.id}
         while parent is not None:
             if parent.id in seen_ids:
@@ -299,7 +299,7 @@ class Statement(Generic[SymbolContentT]):
                 # circuit breaker: ignore here because this is an error in indexing
                 ancestor_parts.append("<!loop>")
                 break
-            ancestor_parts.append(parent.name)
+            ancestor_parts.append(parent.name or "<anon>")
             seen_ids.add(parent.id)
             parent = parent.parent
         return ".".join(reversed(ancestor_parts))
