@@ -24,22 +24,22 @@ const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 // handle content changes :ParseStatementInput
 watch(content, (newContent) => {
   const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
-  const contentTrim = newContent.trim();
+  newContent = newContent.trim();
 
   // if it matches an allowed keyword, apply the keyword
-  if (endsInSpace && MODIFIER_BY_KEYWORD[contentTrim]) {
-    context.setModifier(MODIFIER_BY_KEYWORD[contentTrim]);
+  if (endsInSpace && MODIFIER_BY_KEYWORD[newContent]) {
+    context.setModifier(MODIFIER_BY_KEYWORD[newContent]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[contentTrim]) {
-    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[contentTrim]);
+  } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
+    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && contentTrim == "enum") {
+  } else if (endsInSpace && newContent == "enum") {
     context.setSymbolTypeEnum();
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && (contentTrim == "#" || contentTrim == "//")) {
+  } else if (endsInSpace && (newContent == "#" || newContent == "//")) {
     context.morphToComment();
   }
 });

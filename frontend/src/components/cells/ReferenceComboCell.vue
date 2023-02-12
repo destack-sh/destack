@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useStatementContext } from "@/components/statement";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
+import { SYMBOL_TYPE_BY_KEYWORD, SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onStartTyping, useFocus } from "@vueuse/core";
@@ -41,6 +41,24 @@ const filteredSymbols = computed(() =>
         })
 );
 
+// set symbol type if query starts with it and it's not yet set (like in SelectTypeCell)
+// (used in ProtoCell)
+watch(query, (newContent) => {
+  if (context.statement.value.type != StatementType.Blank || context.statement.value.symbolType != null) {
+    return;
+  }
+  // :ParseStatementInput
+  const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
+  newContent = newContent.trim();
+  if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
+    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
+    // reset query
+    query.value = "";
+    // inputRef must be a ComboboxInput
+    (inputRef.value?.$el as HTMLInputElement).value = "";
+  }
+});
+
 // define in place if query ends with :
 watch(
   () => [query.value, props.canDefineInPlace],
@@ -70,11 +88,11 @@ function setReference(ref: InterpSymbol | null) {
 
 function deleteLeftIfAtStart(event: KeyboardEvent) {
   // check if cursor is at start of the text
-  const selection = window.getSelection();
-  if (selection && selection.anchorOffset == 0) {
-    emit("deleteLeft");
+  const input = event.target as HTMLInputElement;
+  if (input.selectionStart == input.selectionEnd && input.selectionStart == 0) {
     event.preventDefault();
     event.stopPropagation();
+    emit("deleteLeft");
   }
 }
 
