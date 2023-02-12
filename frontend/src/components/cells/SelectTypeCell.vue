@@ -21,7 +21,7 @@ const context = useStatementContext();
 const content: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-// handle content changes :ParseStatementInput
+// parse content changes :ParseStatementInput
 watch(content, (newContent) => {
   const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
   newContent = newContent.trim();
