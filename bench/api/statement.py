@@ -54,16 +54,20 @@ class DatasetRecord(gql.Node):
 TypeTag = gql.enum(language.type.TypeTag)
 
 
-@gql.type
-class TypeNodeData:
-    id: GlobalID
-    name: Optional[str]
+@gql.django.type(models.SimpleTypeNode)
+class SimpleTypeNode(gql.Node):
+    statement: auto
+    created_at: auto
+    updated_at: auto
+    name: auto
+    order_key: auto
     tag: TypeTag
-    description: Optional[str]
-    value: Optional[JSON]
-    reference: Optional[str]
-    parent_id: Optional[GlobalID]
-    order_key: str
+    is_output: auto
+    is_array: auto
+    is_nullable: auto
+    description: auto
+    value: auto
+    reference: auto
 
 
 @gql.django.type(models.Statement)
@@ -93,23 +97,9 @@ class Statement(gql.Node):
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
+    type_nodes: list[SimpleTypeNode]
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
-
-    @gql.field(name="typeNodes")
-    def type_nodes_(self) -> Optional[list[TypeNodeData]]:
-        # map ids to global ids
-        if self.type_nodes is None:
-            return None
-        type_nodes = []
-        for node in self.type_nodes:
-            node = replace(
-                node,
-                id=GlobalID("TypeNodeData", str(node.id)),
-                parent_id=GlobalID("TypeNodeData", str(node.parent_id)) if node.parent_id else None,
-            )
-            type_nodes.append(node)
-        return type_nodes
 
     @gql.field
     def import_path(self) -> Optional[str]:

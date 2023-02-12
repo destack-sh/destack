@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchVector
 from django.db import connection, models, transaction
 from django.db.models import Count, F
 
@@ -63,24 +61,20 @@ class DatasetRecord(UUIDModel):
     The references are resolved using dataset.annotations.
     """
 
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="records")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    dataset = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="records")
     order_key = models.CharField(max_length=64)
     data = models.JSONField()
 
     def __str__(self):
-        return f"{self.dataset}@{self.id.hex}[{self.order_key}]"
+        return f"{self.statement}@{self.id.hex}[{self.order_key}]"
 
     class Meta:
-        # order by index ascending by default
         ordering = ["order_key"]
-        # TODO @Robustness: unique constraint on index when we switch to fractional indexes
-        indexes = [
-            GinIndex(SearchVector("data", config="simple"), name="bench_dataset_record_data"),
-        ]
         constraints = [
             models.UniqueConstraint(
-                fields=["dataset", "order_key"], name="bench_dataset_record_order_key_ak"
+                fields=["statement", "order_key"],
+                name="bench_statement_dataset_record_order_key_ak",
             ),
         ]

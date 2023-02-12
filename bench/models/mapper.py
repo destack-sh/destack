@@ -15,7 +15,7 @@ from django.db import transaction
 from bench import language, models
 from bench.language import wire
 from bench.language.parse import index_module
-from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.type import StatementPath, StatementType, SymbolType, TypeTag
 from bench.models.project import Project, ProjectVersion
 from bench.utils.fractional import generate_n_keys_between
 
@@ -182,7 +182,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.code = statement.code
     data.provider = statement.provider
     data.external_name = statement.external_name
-    data.type_nodes = statement.type_nodes
+    data.type_nodes = rmap_type_nodes(statement.root_type_tag, statement.type_nodes)
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATASET:
         data.records = list(statement.records.all().values_list("data", flat=True))
@@ -215,13 +215,13 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.provider = data.provider
     statement.external_name = data.external_name
     statement.on = data.on
-    statement.type_nodes = data.type_nodes
+    statement.root_type_tag, statement.type_nodes = wmap_type_nodes(data.type_nodes)
 
     # copy relational data
     if data.records:
         order_keys = generate_n_keys_between(None, None, len(data.records))
         model_records = [
-            models.DatasetRecord(dataset=statement, order_key=order_key, data=data)
+            models.DatasetRecord(statement=statement, order_key=order_key, data=data)
             for order_key, data in zip(order_keys, data.records)
         ]
         return model_records
@@ -247,3 +247,17 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             )
 
     return []
+
+
+def wmap_type_nodes(
+    type_nodes: list[wire.TypeNodeData],
+) -> tuple[TypeTag, list[models.SimpleTypeNode]]:
+    """Writes a wire type node into a database type node."""
+    raise NotImplementedError
+
+
+def rmap_type_nodes(
+    root_type_tag: TypeTag, type_nodes: list[models.SimpleTypeNode]
+) -> list[wire.TypeNodeData]:
+    """Reads a database type node into a wire type node."""
+    raise NotImplementedError

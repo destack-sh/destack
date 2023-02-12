@@ -2,22 +2,20 @@ from __future__ import annotations
 
 import contextlib
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import pytz
 import structlog
 from django.db import models, transaction
-from django.db.models import Model, Q
+from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.language import wire
-from bench.language.type import StatementModifier, StatementType, SymbolType
+from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
 from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
-from bench.zmq.serialize import from_dict, to_dict
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion
@@ -54,29 +52,37 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
-# Django field for our wire.TypeNodeData dataclass
-class TypeNodesDataField(models.JSONField):
-    def get_default(self):
-        return []
+class SimpleTypeNode(UUIDModel):
+    """
+    A simplified and interaction-optimized variant of TypeNode
+    """
 
-    def from_db_value(self, value, expression, connection):
-        if value is None:
-            return None
-        value = super().from_db_value(value, expression, connection)
-        return [from_dict(wire.TypeNodeData, val) for val in value]
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="type_nodes")
+    created_at = models.DateTimeField(default=datetime.now, editable=False)
+    updated_at = models.DateTimeField(default=datetime.now, editable=False)
+    name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    order_key = models.CharField(max_length=MAX_NAME_LENGTH)
+    tag = TextChoicesField(choices_enum=TypeTag)
+    is_output = models.BooleanField(default=False)
+    is_array = models.BooleanField(default=False)
+    is_nullable = models.BooleanField(default=False)
+    description = models.TextField(null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
+    reference = models.ForeignKey(
+        "Statement",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="type_node_references+",
+    )
 
-    def validate(self, value: Any, model_instance: Model | None) -> None:
-        # try to dump and load to validate
-        try:
-            dump = to_dict(value, omit_empty=True)
-            _ = [from_dict(wire.TypeNodeData, val) for val in dump]
-        except Exception as e:
-            raise ValueError(f"invalid type nodes data: {e}")
-
-    def get_prep_value(self, value):
-        if value is None:
-            return None
-        return super().get_prep_value(to_dict(value, omit_empty=True))
+    class Meta:
+        ordering = ["order_key"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["statement", "order_key"], name="bench_statement_type_node_order_key_ak"
+            ),
+        ]
 
 
 # sync with actual symbol content fields of Statement
@@ -133,6 +139,8 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     text = models.TextField(null=True, blank=True)  # for comment
     # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
+    root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
+    type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)  # for any descriptions
@@ -140,7 +148,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     value = models.JSONField(null=True, blank=True)  # for value
-    type_nodes = TypeNodesDataField(null=True, blank=True)
     on = models.TextField(null=True, blank=True)  # for expect-likes
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
