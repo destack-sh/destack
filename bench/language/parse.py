@@ -1231,7 +1231,7 @@ def resolve_statement_reference(
 
 def resolve_type_references_rec(
     scope: Scope,
-    type: Type,
+    type: TypeNode,
     idx: ModuleIndex,
     on_error: Callable[[SemanticError], None],
 ) -> None:
@@ -1460,6 +1460,12 @@ def interp(
             resolve_type_references_rec(scope, symbol, idx, on_error)
         elif isinstance(symbol, (Dataset, Task, Code)):
             resolve_type_references_rec(scope, symbol.type, idx, on_error)
+
+        # also resolve in source type nodes
+        if isinstance(scope.statement.content, TypeNode):
+            resolve_type_references_rec(scope, scope.statement.content, idx, on_error)
+        elif isinstance(scope.statement.content, (DatasetContent, TaskContent, CodeContent)):
+            resolve_type_references_rec(scope, scope.statement.content.type_node, idx, on_error)
 
     # interp symbol contents using related symbols
     for id, symbol in symbols.items():

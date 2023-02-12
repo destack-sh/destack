@@ -15,7 +15,14 @@ from django.db import transaction
 from bench import language, models
 from bench.language import wire
 from bench.language.parse import index_module
-from bench.language.type import StatementPath, StatementType, SymbolType, TypeTag
+from bench.language.type import (
+    PRIMITIVE_TYPES,
+    StatementPath,
+    StatementType,
+    SymbolType,
+    TypeNode,
+    TypeTag,
+)
 from bench.models.project import Project, ProjectVersion
 from bench.utils.fractional import generate_n_keys_between
 
@@ -182,7 +189,9 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.code = statement.code
     data.provider = statement.provider
     data.external_name = statement.external_name
-    data.type_nodes = rmap_type_nodes(statement.root_type_tag, statement.type_nodes)
+    data.type_nodes = rmap_type_nodes(
+        statement.id, statement.root_type_tag, statement.type_nodes.all()
+    )
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATASET:
         data.records = list(statement.records.all().values_list("data", flat=True))
@@ -209,13 +218,17 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
 
 def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[typing.Any]:
     """Writes a wire statement's symbol into a database statement."""
+    relations = []
+
     statement.description = data.description
     statement.lang = data.lang
     statement.code = data.code
     statement.provider = data.provider
     statement.external_name = data.external_name
     statement.on = data.on
-    statement.root_type_tag, statement.type_nodes = wmap_type_nodes(data.type_nodes)
+    statement.root_type_tag, type_nodes = wmap_type_nodes(statement, data.type_nodes)
+    if type_nodes:
+        relations.extend(type_nodes)
 
     # copy relational data
     if data.records:
@@ -224,7 +237,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             models.DatasetRecord(statement=statement, order_key=order_key, data=data)
             for order_key, data in zip(order_keys, data.records)
         ]
-        return model_records
+        relations.extend(model_records)
     elif data.generated_mappings:
         mappings = [
             models.SourceMapping(
@@ -237,7 +250,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             )
             for m in data.generated_mappings
         ]
-        return mappings
+        relations.extend(mappings)
     elif data.reference_module:
         if isinstance(data.reference_module, UUID):
             statement.reference_project_version_id = data.reference_module
@@ -246,18 +259,126 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
                 data.reference_module.name, data.reference_module.version
             )
 
-    return []
+    return relations
 
 
 def wmap_type_nodes(
-    type_nodes: list[wire.TypeNodeData],
-) -> tuple[TypeTag, list[models.SimpleTypeNode]]:
+    statement: models.Statement,
+    type_nodes: list[wire.TypeNodeData] | None,
+) -> tuple[TypeTag | None, list[models.SimpleTypeNode] | None]:
     """Writes a wire type node into a database type node."""
-    raise NotImplementedError
+    if not type_nodes:
+        return None, None
+
+    root: language.TypeNode = wire.wmap_type_node(type_nodes)
+    root_type_tag = root.tag
+    child_nodes: list[models.SimpleTypeNode] = []
+
+    def _wmap_child_node(node: language.TypeNode, **kwargs) -> models.SimpleTypeNode:
+        if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
+            return models.SimpleTypeNode(
+                statement=statement,
+                id=node.id,
+                name=node.name,
+                tag=node.tag,
+                description=node.description,
+                value=node.value,
+                **kwargs,
+            )
+        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
+            # retain resolved references (we trust it's a valid foreign key, else the save will fail)
+            if not isinstance(node.reference, UUID):
+                raise ValueError(f"reference must be resolved: {node} -> {node.reference}")
+            return models.SimpleTypeNode(
+                statement=statement,
+                id=node.id,
+                name=node.name,
+                tag=TypeTag.TYPE_REFERENCE,
+                description=node.description,
+                reference_id=node.reference,
+                **kwargs,
+            )
+        elif node.tag == TypeTag.ARRAY:
+            return _wmap_child_node(node.head_type, is_array=True, **kwargs)
+        elif node.is_union_with_null:
+            return _wmap_child_node(node.head_type, is_nullable=True, **kwargs)
+        else:
+            raise ValueError(f"type node cannot be represented simply: {node}")
+
+    if root.tag == TypeTag.STRUCT:
+        child_order_keys = generate_n_keys_between(None, None, len(root.children))
+        for child, order_key in zip(root.children, child_order_keys):
+            child_nodes.append(_wmap_child_node(child, order_key=order_key))
+    elif root.tag == TypeTag.ENUM:
+        if root.head_type.tag != TypeTag.STRING:
+            raise ValueError(f"non-string enum head type cannot be represented simply: {root}")
+        child_order_keys = generate_n_keys_between(None, None, len(root.members))
+        for member, order_key in zip(root.members, child_order_keys):
+            child_nodes.append(_wmap_child_node(member, order_key=order_key))
+    elif root.tag == TypeTag.FUNCTION:
+        # assume there is exactly one output type
+        child_order_keys = generate_n_keys_between(None, None, len(root.input.children) + 1)
+        for child, order_key in zip(root.input.children, child_order_keys):
+            child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=False))
+        child_nodes.append(
+            _wmap_child_node(root.output, order_key=child_order_keys[-1], is_output=True)
+        )
+    else:
+        raise ValueError(f"type node cannot be represented simply: {type_nodes}")
+
+    return root_type_tag, child_nodes
 
 
 def rmap_type_nodes(
-    root_type_tag: TypeTag, type_nodes: list[models.SimpleTypeNode]
+    root_id: UUID, root_type_tag: TypeTag | None, type_nodes: list[models.SimpleTypeNode] | None
 ) -> list[wire.TypeNodeData]:
     """Reads a database type node into a wire type node."""
-    raise NotImplementedError
+    if root_type_tag is None:
+        return []
+
+    def _rmap_child_node(node: models.SimpleTypeNode) -> language.TypeNode:
+        if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
+            lang_node = language.TypeNode(
+                id=node.id, tag=node.tag, name=node.name, value=node.value
+            )
+        elif node.tag == TypeTag.TYPE_REFERENCE:
+            lang_node = language.TypeNode(
+                id=node.id, tag=node.tag, name=node.name, reference=node.reference.name
+            )
+        else:
+            raise ValueError(f"type node is not represented simply: {node}")
+
+        if node.is_array:  # hoist into array
+            lang_node.name = None
+            lang_node = language.TypeNode(
+                id=node.id, tag=TypeTag.ARRAY, name=node.name, children=[lang_node]
+            )
+        if node.is_nullable:  # hoist into union
+            lang_node.name = None
+            lang_node = language.TypeNode(
+                id=node.id,
+                tag=TypeTag.UNION,
+                name=node.name,
+                children=[lang_node, language.TypeNode(tag=TypeTag.NULL, name=None)],
+            )
+        return lang_node
+
+    if root_type_tag == TypeTag.STRUCT:
+        children = [_rmap_child_node(node) for node in type_nodes]
+    elif root_type_tag == TypeTag.ENUM:
+        # assumes string enums only
+        head_type = TypeNode(name=None, tag=TypeTag.STRING)
+        children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
+    elif root_type_tag == TypeTag.FUNCTION:
+        input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
+        output_children = [_rmap_child_node(node) for node in type_nodes if node.is_output]
+        if len(output_children) != 1:
+            raise ValueError(f"function must have exactly one output type {output_children}")
+        input = language.TypeNode(tag=TypeTag.STRUCT, name="input", children=input_children)
+        output = language.TypeNode(tag=TypeTag.STRUCT, name="output", children=output_children)
+        children = [input, output]
+    else:
+        raise ValueError(f"type node is not represented simply: {type_nodes}")
+
+    root = language.TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
+    return wire.rmap_type_node(root)
