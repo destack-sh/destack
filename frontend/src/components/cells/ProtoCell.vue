@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
+import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
-import { useStatementContext } from "@/components/statement";
-import { nextTick, ref, type Ref } from "vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import type { InterpSymbol, SymbolType } from "@/gql/graphql";
+import { useStatementContext } from "@/components/statement";
+import type { InterpSymbol } from "@/gql/graphql";
+import { nextTick, ref, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();
 

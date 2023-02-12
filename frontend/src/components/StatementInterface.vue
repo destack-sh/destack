@@ -91,6 +91,10 @@ const rootCell: Ref<Cell> = computed(() => {
     return {
       component: DeclarationCell,
     };
+  } else if (statement.value.type == StatementType.Reference) {
+    return {
+      component: DeclarationCell,
+    };
   }
 
   // default to empty cell

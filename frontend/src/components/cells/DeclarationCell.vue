@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import ModifierCell from "@/components/cells/ModifierCell.vue";
+import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
+import { StatementType } from "@/gql/graphql";
 import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -68,6 +70,7 @@ defineExpose({
     <SymbolTypeCell />
     <!-- Name or ref -->
     <EditableSpan
+      v-if="context.statement.value.type == StatementType.Definition"
       ref="nameRef"
       class="mx-0.5"
       v-model="name"
@@ -79,5 +82,17 @@ defineExpose({
       @escape="context.escape"
       @enter="context.insertBelow"
     />
+    <ReferenceComboCell
+      v-else-if="context.statement.value.type == StatementType.Reference"
+      ref="nameRef"
+      :readonly="context.readonly.value"
+      @navigate-up="context.navigateUp"
+      @navigate-down="emit('navigateDown')"
+      @navigate-left="gapRef?.focus"
+      @navigate-right="emit('navigateRight')"
+      @escape="context.escape"
+      @enter="context.insertBelow"
+    />
+    <span v-else class="text-red-500">panic!</span>
   </div>
 </template>

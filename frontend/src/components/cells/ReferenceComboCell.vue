@@ -2,6 +2,7 @@
 import { useStatementContext } from "@/components/statement";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_BY_KEYWORD, SYMBOL_TYPE_KEYWORD } from "@/state/editor";
+import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onStartTyping, useFocus } from "@vueuse/core";
@@ -69,6 +70,7 @@ watch(
   }
 );
 
+const operations = useOperations();
 function setReference(ref: InterpSymbol | null) {
   if (ref == null && query.value.length < 1) {
     // headless ui auto-selects an option when it matches the name
@@ -79,6 +81,9 @@ function setReference(ref: InterpSymbol | null) {
   if (ref == null && props.canDefineInPlace) {
     emit("defineInPlace", query.value);
   } else {
+    // TODO @Cleanup: setting reference and naming a reference shouldn't be separate
+    //  Indeed, we probably don't want names on references at all (creates weird aliasing).
+    operations.statement.rename(context.statement.value.id, context.statement.value.name ?? null, ref.name);
     context.setReference(ref);
     if (ref != null) {
       emit("referenceSet", ref);
@@ -142,7 +147,7 @@ defineExpose({
     @click="open"
     class="rounded-sm outline-transparent focus:underline"
   >
-    {{ context.reference.value?.name ?? "..." }}
+    {{ context.reference.value?.name ?? context.statement.value.name ?? "..." }}
   </button>
   <Combobox
     v-else
