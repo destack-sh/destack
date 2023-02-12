@@ -409,7 +409,7 @@ class SymbolContent:
 
 
 LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
-PRIMITIVE_TYPES = [TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
+PRIMITIVE_TYPES = [TypeTag.ANY, TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
 
 
 @dataclass
@@ -480,7 +480,7 @@ class TypeNode(SymbolContent):
         return self.children[1:]
 
     @property
-    def is_union_with_none(self) -> bool:
+    def is_union_with_null(self) -> bool:
         return self.tag == TypeTag.UNION and any(
             child.tag == TypeTag.NULL for child in self.children
         )

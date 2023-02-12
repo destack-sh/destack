@@ -58,8 +58,8 @@ class SimpleTypeNode(UUIDModel):
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="type_nodes")
-    created_at = models.DateTimeField(default=datetime.now, editable=False)
-    updated_at = models.DateTimeField(default=datetime.now, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)

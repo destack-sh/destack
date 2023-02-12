@@ -33,7 +33,7 @@ class TypeNodeData:
     order_key: str
     description: Optional[str] = None
     value: Optional[LiteralValue] = None
-    reference: Union[None, str] = None
+    reference: Union[None, str, UUID] = None
     parent_id: Optional[UUID] = None
 
     def __str__(self):
@@ -350,8 +350,8 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
     nodes_data = OrderedDict()
     for n in node.walk():
         reference = n.reference
-        if isinstance(reference, language.TypeNode):
-            reference = reference.name
+        if isinstance(reference, (language.TypeNode, language.Type)):
+            reference = reference.id
         nodes_data[n.id] = TypeNodeData(
             id=n.id,
             name=n.name,
