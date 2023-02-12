@@ -6,7 +6,6 @@ import re
 import typing
 import uuid
 from dataclasses import dataclass, field
-from enum import Enum
 from functools import cached_property
 from typing import (
     Any,
@@ -173,7 +172,7 @@ class SymbolType(models.TextChoices):
     RUNCONFIG = "run"
 
 
-class TypeTag(Enum):
+class TypeTag(models.TextChoices):
     """The type of type node."""
 
     STRING = "string"
