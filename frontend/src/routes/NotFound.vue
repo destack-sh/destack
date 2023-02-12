@@ -11,7 +11,7 @@ export default defineComponent({
       <div class="flex flex-shrink-0 justify-center">
         <a href="/" class="inline-flex">
           <span class="sr-only">Bench</span>
-          <img class="h-12 w-auto" src="/android-chrome-192x192.png" alt="" />
+          <!-- <img class="h-12 w-auto" src="/android-chrome-192x192.png" alt="" /> -->
         </a>
       </div>
       <div class="py-16">
