@@ -10,6 +10,8 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     id
     name
     type
+    orderKey
+    parentId
     modifier
     symbolType
     rootTypeTag
@@ -102,6 +104,7 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   });
 
   return {
+    connected: computed(() => !!runtime.value),
     module,
     dependencies,
     errors,

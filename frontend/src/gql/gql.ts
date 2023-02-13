@@ -78,7 +78,7 @@ const documents = {
     types.DeleteRecordDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
     types.CommitDocument,
-  "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n":
+  "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n":
     types.InterpSymbolContentFragmentDoc,
   "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n":
     types.InterpModuleContentFragmentDoc,
@@ -203,8 +203,8 @@ export function graphql(
   source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n"];
+  source: "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n"];

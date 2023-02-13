@@ -162,6 +162,8 @@ export type InterpSymbol = SimplyTyped & {
   id: Scalars["GlobalID"];
   modifier?: Maybe<StatementModifier>;
   name?: Maybe<Scalars["String"]>;
+  orderKey: Scalars["String"];
+  parentId?: Maybe<Scalars["GlobalID"]>;
   rootTypeTag?: Maybe<TypeTag>;
   symbolType?: Maybe<SymbolType>;
   type: StatementType;
@@ -1513,6 +1515,8 @@ export type InterpSymbolContentFragment = {
   id: any;
   name?: string | null;
   type: StatementType;
+  orderKey: string;
+  parentId?: any | null;
   modifier?: StatementModifier | null;
   symbolType?: SymbolType | null;
   rootTypeTag?: TypeTag | null;
@@ -1954,6 +1958,8 @@ export const InterpSymbolContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "parentId" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },

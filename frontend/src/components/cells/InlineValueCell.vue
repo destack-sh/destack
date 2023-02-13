@@ -115,7 +115,7 @@ defineExpose({
       <!-- Default content if empty -->
       <span v-if="!readValue">&nbsp;</span>
       <!-- Content preview -->
-      <!-- TODO @Incomplete: support all basic types -->
+      <!-- TODO @Incomplete: support all basic types (missing enum) -->
       <span ref="valueRef" class="text-left" v-if="type.tag == TypeTag.String">{{ readValue }}</span>
       <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
       <input
@@ -125,13 +125,13 @@ defineExpose({
         v-else-if="type.tag == TypeTag.Boolean"
         :checked="readValue"
       />
-      <span ref="valueRef" class="text-center" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
+      <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
       <!-- Can't render this type! -->
       <span ref="valueRef" v-else class="text-red-500">{{ readValue }}</span>
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 flex min-w-[100px] flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex min-w-[180px] flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
       v-if="editing"
       @click.prevent="emit('edit')"
     >
