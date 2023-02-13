@@ -14,7 +14,7 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language import SymbolType
-from bench.models.symbol import Statement, StatementType
+from bench.models.statement import Statement, StatementType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 

@@ -4,7 +4,7 @@ from .execution import Execution, ExecutionStatus
 from .model import ModelInference
 from .organization import Organization
 from .project import File, Project, ProjectVersion
-from .symbol import SimpleTypeNode, Statement, StatementType, SymbolType
+from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
 from .tag import Tag, TaggableMixin, TaggedItem
 from .user import User
 
