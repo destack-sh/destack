@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypedDict, TypeVar
 from uuid import UUID, uuid4
 
 import pytz
-from django import db
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language import SymbolType
-from bench.models.statement import Statement, StatementType
+from bench.models import DatasetRecord, SourceMapping
+from bench.models.statement import SimpleTypeNode, Statement, StatementType
 from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
@@ -175,7 +175,9 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             slug=version,
         )
 
-    def copy(self, source: ProjectVersion, target: ProjectVersion) -> dict[UUID, File | Statement]:
+    def copy(
+        self, source: ProjectVersion, target: ProjectVersion
+    ) -> dict[UUID, File | Statement | DatasetRecord | SimpleTypeNode]:
         if not source.committed:
             raise ValueError(f"source version must be committed: {source}")
         # TODO @Performance: copy project version on commit server-side (in SQL)
@@ -201,9 +203,36 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statement.id: uuid4() for statement in statements_bfs
         }
         new_statements: dict[UUID, Statement] = {}
-        new_contents: list[db.models.Model] = []
+        new_contents: dict[UUID, DatasetRecord | SimpleTypeNode] = {}
+        new_mappings: list[SourceMapping] = []
         for statement in statements_bfs:
+            # copy statement contents/relations
+            if statement.type == StatementType.DEFINITION:
+                # the relations are saved below after statement creation
+                if statement.root_type_tag is not None:
+                    for type_node in statement.type_nodes.all():
+                        old_id = type_node.id
+                        type_node.pk = None
+                        type_node.statement_id = new_statements_ids[statement.id]
+                        new_contents[old_id] = type_node
+                if statement.symbol_type == SymbolType.DATASET:
+                    for record in statement.records.all():
+                        old_id = record.id
+                        record.pk = None
+                        record.statement_id = new_statements_ids[statement.id]
+                        new_contents[old_id] = record
+                elif statement.symbol_type == SymbolType.COMPILATION:
+                    for mapping in statement.generated_mappings.all():
+                        mapping.pk = None
+                        mapping.statement = new_statements_ids[mapping.compilation_id]
+                        mapping.source_id = new_statements_ids[mapping.source_id]
+                        mapping.target_id = new_statements_ids[mapping.target_id]
+                        mapping.source_revision = 0
+                        mapping.target_revision = 0
+                        new_mappings.append(mapping)
+
             # copy statement
+            # automatically copies all non-relational columns
             old_id = statement.id
             statement.pk = new_statements_ids[old_id]
             statement._state.adding = True
@@ -212,24 +241,6 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statement.project_version = target
             statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
-            # if statement is a definition, add relations to save in batch later
-            # all other symbol contents are value fields (copied automatically above)
-            if statement.type == StatementType.DEFINITION:
-                # the relations are saved below in step 4 (after statement creation)
-                if statement.symbol_type == SymbolType.DATASET:
-                    for record in statement.records.all():
-                        record.pk = None
-                        record.dataset = statement
-                        new_contents.append(record)
-                elif statement.symbol_type == SymbolType.COMPILATION:
-                    for mapping in statement.generated_mappings.all():
-                        mapping.pk = None
-                        mapping.compilation = statement
-                        mapping.source_id = new_statements_ids[mapping.source_id]
-                        mapping.target_id = new_statements_ids[mapping.target_id]
-                        mapping.source_revision = 0
-                        mapping.target_revision = 0
-                        new_contents.append(mapping)
             statement.save()
             new_statements[old_id] = statement
 
@@ -245,11 +256,12 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             new.reference = new_statements.get(old.reference_id, old.reference)
         Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
 
-        # 4. save content relations
-        for relation_cls, relations in groupby(new_contents, key=type):
+        # 4. save statement's relations
+        for relation_cls, relations in groupby(new_contents.values(), key=type):
             relation_cls.objects.bulk_create(relations)
+        SourceMapping.objects.bulk_create(new_mappings)
 
-        return {**new_statements, **new_files}
+        return {**new_statements, **new_files, **new_contents}
 
 
 class ProjectVersion(TaggableMixin, UUIDModel):
