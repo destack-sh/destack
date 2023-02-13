@@ -150,7 +150,7 @@ defineExpose({
     @navigate-right="descriptionRef?.focus"
   />
   <!-- Reference type -->
-  <!-- TODO @Incomplete: set dataset type to reference -->
+  <!-- TODO @Incomplete: set dataset type to type reference -->
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"
