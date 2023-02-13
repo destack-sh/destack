@@ -2,7 +2,7 @@
 import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TYPETAG_KEYWORD } from "@/state/editor";
-import { symbolsLike } from "@/state/runtime";
+import { contextOf, symbolsLike, useModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -13,7 +13,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:simpleType", value: Pick<SimpleType, "tag" | "reference">): void;
+  (e: "update:modelValue", value: Pick<SimpleType, "tag" | "reference">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -39,7 +39,11 @@ function renderTypeNode(node: SimpleType): string {
   if (PRIMITIVE_TYPES.includes(node.tag)) {
     renderedElement = TYPETAG_KEYWORD[node.tag];
   } else if (node.tag == TypeTag.TypeReference) {
-    renderedElement = node.reference?.name ?? "...";
+    if (node.reference != null) {
+      renderedElement = contextOf(node.reference)?.symbol.name ?? "???";
+    } else {
+      renderedElement = node.reference?.name ?? "...";
+    }
   } else {
     throw new Error(`unexpected type node ${node.tag}`);
   }
@@ -91,7 +95,7 @@ function writeValue(type: SimpleTypeNode) {
   editing.value = false;
   nextTick(() => buttonRef.value?.focus());
   value.value = type;
-  emit("update:simpleType", type);
+  emit("update:modelValue", type);
   emit("escape");
 }
 
