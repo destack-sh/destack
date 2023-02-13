@@ -22,7 +22,7 @@ class DatasetContentMixin:
         # create db_records with incrementing index
         for i, record in enumerate(records):
             db_records.append(
-                DatasetRecord(dataset=self, index=Count(F("records")) + 1, data=record)
+                DatasetRecord(statement=self, index=Count(F("records")) + 1, data=record)
             )
         DatasetRecord.objects.bulk_create(db_records)
 

@@ -5,31 +5,6 @@ import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, toRef, type Ref } from "vue";
 
-export const TypeNodeContentInnerType = graphql(/* GraphQL */ `
-  fragment TypeNodeContentInner on TypeNode {
-    name
-    tag
-    description
-    reference
-  }
-`);
-
-// Nested TypeNodeContent with up to 3 levels of children
-export const TypeNodeContent = graphql(/* GraphQL */ `
-  fragment TypeNodeContent on TypeNode {
-    ...TypeNodeContentInner
-    children {
-      ...TypeNodeContentInner
-      children {
-        ...TypeNodeContentInner
-        children {
-          ...TypeNodeContentInner
-        }
-      }
-    }
-  }
-`);
-
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
     id
@@ -37,8 +12,9 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     type
     modifier
     symbolType
-    typeNode {
-      ...TypeNodeContent
+    rootTypeTag
+    typeNodes {
+      ...SimpleTypeNodeContent
     }
   }
 `);

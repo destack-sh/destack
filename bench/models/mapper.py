@@ -264,7 +264,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 
 
 def wmap_type_nodes(
-    statement: models.Statement,
+    statement: models.Statement | None,
     type_nodes: list[wire.TypeNodeData] | None,
 ) -> tuple[TypeTag | None, list[models.SimpleTypeNode] | None]:
     """Writes a wire type node into a database type node."""

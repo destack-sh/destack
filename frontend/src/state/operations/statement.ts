@@ -98,6 +98,7 @@ export function useStatementOps() {
             code: null,
             referenceProjectVersion: null,
             records: [],
+            rootTypeTag: null,
             typeNodes: [],
             lang: null,
             reference: null,
@@ -179,7 +180,7 @@ export function useStatementOps() {
             symbolType: vars.input.symbolType ?? null,
             name: vars.input.name ?? null,
             rootTypeTag: vars.input.rootTypeTag ?? null,
-            lang: vars.input.language ?? null,
+            lang: vars.input.lang ?? null,
           },
         } as MorphStatementMutation),
     }
@@ -493,6 +494,7 @@ export function useStatementOps() {
               ...SimpleTypeNodeContent
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -509,6 +511,7 @@ export function useStatementOps() {
               ...SimpleTypeNodeContent
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -549,6 +552,7 @@ export function useStatementOps() {
               ...SimpleTypeNodeContent
             }
           }
+          ...OperationInfoContent
         }
       }
     `)

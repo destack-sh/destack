@@ -10,10 +10,10 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import language
-from bench.api.statement import StatementType, SymbolType, TypeTag
+from bench.api.statement import SimpleType, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.language import wire
 from bench.language.type import StatementModifier
-from bench.language.wire import wmap_type_node
+from bench.models import mapper
 from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_RUNTIME_WORKER_PUB_ADDR, ZMQ_RUNTIME_WORKER_REP_ADDR
 from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
@@ -25,15 +25,6 @@ from bench.zmq.messages import (
 )
 
 logger = structlog.get_logger(__name__)
-
-
-@gql.type
-class TypeNode:
-    name: Optional[str]
-    tag: TypeTag
-    description: Optional[str]
-    reference: Optional[str] = None
-    children: Optional[list["TypeNode"]] = None
 
 
 @gql.type
@@ -54,15 +45,15 @@ class InterpFile:
 # not to be confused with language.InterpSymbol
 # which is not what we get out of the runtime worker yet
 @gql.type
-class InterpSymbol:
+class InterpSymbol(SimplyTyped):
     id: GlobalID
     file: InterpFile
     name: Optional[str]
     type: StatementType
     modifier: Optional[StatementModifier]
     symbol_type: Optional[SymbolType]
-    # TODO @Incomplete: type node should be SimpleTypeNode
-    type_node: Optional[TypeNode]
+    root_type_tag: Optional[TypeTag]
+    type_nodes: Optional[list[SimpleType]]
 
 
 InterpErrorType = gql.enum(language.ErrorType)
@@ -100,7 +91,7 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         )
         interp_module.files.append(interp_file)
         for statement in file.statements:
-            # only include type node if it's been parsed
+            root_type_tag, type_nodes = mapper.wmap_type_nodes(None, statement.type_nodes)
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
@@ -108,7 +99,8 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
                 modifier=statement.modifier,
                 type=statement.type,
                 symbol_type=statement.symbol_type,
-                type_node=wmap_type_node(statement.type_nodes) if statement.type_nodes else None,
+                root_type_tag=root_type_tag,
+                type_nodes=type_nodes,
             )
             interp_file.symbols.append(interp_symbol)
     return interp_module

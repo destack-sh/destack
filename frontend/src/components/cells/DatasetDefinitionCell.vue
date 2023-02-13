@@ -19,8 +19,8 @@ context.syncDescription(description);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
-const fieldTypeNodes = computed(() => context.typeNodes.value ?? []);
-const lastFieldTypeNode = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
+const fieldTypeNodes = computed(() => context.typeNodes.value?.map((n) => n as SimpleType) ?? []);
+const lastField = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
 const records = computed(() =>
   context.statement.value.records.slice().sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
 );
@@ -44,6 +44,9 @@ const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell
   },
   gridNavigateDown: () => addRecordRef.value?.focus(),
 });
+const isEditing = computed(
+  () => typeGrid.refs.value.find((n) => n.editing) || recordGrid.refs.value.find((n) => n.editing)
+);
 
 function focusFirst() {
   if (typeGrid.refs.value.length > 0) {
@@ -78,7 +81,7 @@ async function insertField() {
     makeTypeNode({
       name: "field " + fieldTypeNodes.value?.length,
       tag: TypeTag.String,
-      orderKey: generateKeyBetween(lastFieldTypeNode.value?.orderKey ?? INTEGER_ZERO, null),
+      orderKey: generateKeyBetween(lastField.value?.orderKey ?? INTEGER_ZERO, null),
     })
   );
   nextTick(() => typeGrid.focus(-1, "name"));
@@ -92,6 +95,12 @@ function updateFieldName(node: SimpleType, name: string) {
 function updateFieldType(node: SimpleType, changed: SimpleType) {
   const updatedMember = { ...node, tag: changed.tag, reference: changed.reference };
   context.updateTypeNode(updatedMember);
+}
+
+function deleteField(node: SimpleType) {
+  const fieldIdx = fieldTypeNodes.value?.findIndex((n) => n.id === node.id);
+  context.deleteTypeNode(node);
+  typeGrid.focus(fieldIdx - 1, "name");
 }
 
 function insertRecord(belowRecordId?: string) {
@@ -168,47 +177,49 @@ defineExpose({
     }"
   >
     <!-- Field types -->
-    <div v-for="fieldNode in fieldTypeNodes" :key="fieldNode?.id" class="flex flex-row gap-1 focus-within:bg-orange-50">
+    <div v-for="field in fieldTypeNodes" :key="field?.id" class="flex flex-row gap-1 focus-within:bg-orange-50">
       <InlineValueCell
-        :ref="(el: any) => typeGrid.registerColumnRef(fieldNode?.id, 'name', el)"
+        :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
         :immediate="false"
         :type="STRING_TYPE_NODE"
-        :model-value="fieldNode.name"
+        :model-value="field.name"
         :readonly="context.readonly.value"
-        @update:model-value="(val: any) => updateFieldName(fieldNode, val)"
+        @update:model-value="(val: any) => updateFieldName(field, val)"
         class="rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
-        @navigate-left="typeGrid.navigateLeft(fieldNode?.id, 'name')"
-        @navigate-right="typeGrid.navigateRight(fieldNode?.id, 'name')"
-        @navigate-up="typeGrid.navigateUp(fieldNode?.id, 'name')"
-        @navigate-down="typeGrid.navigateDown(fieldNode?.id, 'name')"
+        @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
+        @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
+        @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
+        @navigate-down="typeGrid.navigateDown(field?.id, 'name')"
+        @keydown.delete.exact="isEditing || deleteField(field)"
       />
       <InlineTypeCell
-        :ref="(el: any) => typeGrid.registerColumnRef(fieldNode?.id, 'type', el)"
-        :type="fieldNode"
+        :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
+        :type="field"
         :readonly="context.readonly.value"
         class="rounded-sm border border-transparent py-0.5 text-gray-400 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
-        :model-value="fieldNode"
-        @update:model-value="(node: any) => updateFieldType(fieldNode, node)"
-        @navigate-left="typeGrid.navigateLeft(fieldNode?.id, 'type')"
-        @navigate-right="typeGrid.navigateRight(fieldNode?.id, 'type')"
-        @navigate-up="typeGrid.navigateUp(fieldNode?.id, 'type')"
-        @navigate-down="typeGrid.navigateDown(fieldNode?.id, 'type')"
+        :model-value="field"
+        @update:model-value="(node: any) => updateFieldType(field, node)"
+        @navigate-left="typeGrid.navigateLeft(field?.id, 'type')"
+        @navigate-right="typeGrid.navigateRight(field?.id, 'type')"
+        @navigate-up="typeGrid.navigateUp(field?.id, 'type')"
+        @navigate-down="typeGrid.navigateDown(field?.id, 'type')"
+        @keydown.delete.exact="isEditing || deleteField(field)"
       />
     </div>
     <!-- Records -->
     <template v-for="record in records" :key="record.id">
-      <template v-for="fieldNode in fieldTypeNodes" :key="record.id + '.' + fieldNode?.id">
+      <template v-for="field in fieldTypeNodes" :key="record.id + '.' + field?.id">
         <InlineValueCell
-          :ref="(el: any) => recordGrid.registerColumnRef(record.id, fieldNode.name, el)"
-          :model-value="record.data?.[fieldNode.name]"
-          @update:model-value="(val) => writeRecordField(record.id, fieldNode.name, val)"
-          :type="fieldNode"
+          :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"
+          :model-value="record.data?.[field.name as string]"
+          @update:model-value="(val) => writeRecordField(record.id, field.name as string, val)"
+          :type="field"
           :readonly="context.readonly.value"
           immediate
-          @navigate-left="recordGrid.navigateLeft(record.id, fieldNode.name)"
-          @navigate-right="recordGrid.navigateRight(record.id, fieldNode.name)"
-          @navigate-up="recordGrid.navigateUp(record.id, fieldNode.name)"
-          @navigate-down="recordGrid.navigateDown(record.id, fieldNode.name)"
+          @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
+          @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"
+          @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
+          @navigate-down="recordGrid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
           class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
         />

@@ -51,8 +51,29 @@ class DatasetRecord(gql.Node):
 TypeTag = gql.enum(language.type.TypeTag)
 
 
+@gql.interface
+class SimplyTyped:
+    """Anything typed using SimpleType nodes."""
+
+    root_type_tag: Optional[TypeTag]
+    type_nodes: Optional[list["SimpleType"]]
+
+
+@gql.interface
+class SimpleType:
+    name: Optional[str]
+    order_key: str
+    tag: TypeTag
+    is_output: bool
+    is_array: bool
+    is_nullable: bool
+    description: Optional[str]
+    value: Optional[JSON]
+    reference: Optional["Statement"]
+
+
 @gql.django.type(models.SimpleTypeNode)
-class SimpleTypeNode(gql.Node):
+class SimpleTypeNode(gql.Node, SimpleType):
     statement: auto
     created_at: auto
     updated_at: auto
@@ -68,7 +89,7 @@ class SimpleTypeNode(gql.Node):
 
 
 @gql.django.type(models.Statement)
-class Statement(gql.Node):
+class Statement(gql.Node, SimplyTyped):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
     revision: auto
@@ -160,7 +181,7 @@ class StatementMorphInput(gql.NodeInput):
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     type_nodes: Optional[list["TypeNodeCreateInput"]] = None
-    language: Optional[str] = None
+    lang: Optional[str] = None
 
 
 @gql.input
@@ -227,9 +248,9 @@ class StatementMutation:
         if (
             input.type == StatementType.DEFINITION
             and input.symbol_type in (SymbolType.DATASET, SymbolType.CODE, SymbolType.TASK)
-            and not input.type_nodes
+            and input.root_type_tag is None
         ):
-            raise ValidationError(f"type_nodes is required for {input.symbol_type}")
+            raise ValidationError(f"root_type_tag is required for {input.type} {input.symbol_type}")
 
         statement.type = input.type
         statement.symbol_type = input.symbol_type
@@ -245,7 +266,7 @@ class StatementMutation:
                 type_node.full_clean()
                 model_type_nodes.append(type_node)
             SimpleTypeNode.objects.bulk_create(model_type_nodes)
-        statement.language = input.language
+        statement.lang = input.lang
         return statement
 
     @project_mutation(PMT.SOFT_DELETE_STATEMENT, atomic=True)
@@ -368,8 +389,8 @@ class TypeNodeCreateInput:
     value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
-    def to_model(self) -> SimpleTypeNode:
-        return SimpleTypeNode(
+    def to_model(self) -> models.SimpleTypeNode:
+        return models.SimpleTypeNode(
             order_key=self.order_key,
             name=self.name,
             description=self.description,
@@ -378,7 +399,7 @@ class TypeNodeCreateInput:
             is_nullable=self.is_nullable,
             is_array=self.is_array,
             value=self.value,
-            reference=self.reference_id.node_id if self.reference_id else None,
+            reference_id=UUID(self.reference_id.node_id) if self.reference_id else None,
         )
 
 
@@ -440,10 +461,18 @@ class SymbolMutation:
     def create_statement_record(self, input: RecordCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         record = models.DatasetRecord(
-            dataset=statement, id=UUID(input.id.node_id), data=input.data, order_key=input.order_key
+            statement=statement,
+            id=UUID(input.id.node_id),
+            data=input.data,
+            order_key=input.order_key,
         )
         record.save()
         return statement
+
+    # TODO @Cleanup @Performance: DatasetRecord and TypeNode want to be their own objects in updates
+    #  But we encapsulate them in Statement for unified save & revision updates.
+    #  Maybe they they should have their own revisions (additionally?), though that may complicate syncing.
+    #  Right now they're nested inside Statement so we need to run updates as atomic which is inefficient.
 
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def update_statement_record(self, input: RecordUpdateInput) -> Statement | OperationInfo:
@@ -464,7 +493,7 @@ class SymbolMutation:
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def delete_statement_record(self, input: RecordDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        _ = statement.records.filter(id=input.id).delete()
+        _ = statement.records.filter(id=UUID(input.id.node_id)).delete()
         return statement
 
     @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
@@ -472,7 +501,7 @@ class SymbolMutation:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         type_node = input.to_model()
         type_node.statement = statement
-        type_node.full_clean()
+        type_node.full_clean(validate_unique=False, validate_constraints=False)
         type_node.save()
         return statement
 
@@ -486,8 +515,8 @@ class SymbolMutation:
         type_node.is_nullable = input.is_nullable
         type_node.is_array = input.is_array
         type_node.value = input.value
-        type_node.reference = input.reference_id.node_id if input.reference_id else None
-        type_node.full_clean()
+        type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        type_node.full_clean(validate_unique=False, validate_constraints=False)
         type_node.save()
         return type_node.statement
 
