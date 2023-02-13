@@ -61,6 +61,7 @@ class InterpSymbol:
     type: StatementType
     modifier: Optional[StatementModifier]
     symbol_type: Optional[SymbolType]
+    # TODO @Incomplete: type node should be SimpleTypeNode
     type_node: Optional[TypeNode]
 
 

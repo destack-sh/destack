@@ -2,22 +2,22 @@
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
-import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
-import { TypeTag, type TypeNodeData } from "@/gql/graphql";
+import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 const context = useStatementContext();
 
-const inputNode = computed(() => context.typeNodesChildren.value?.find((n) => n.name === "input"));
 const inputNodes = computed(
   () =>
     context.typeNodes.value
-      ?.filter((n) => n.parentId == inputNode.value?.id)
-      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+      ?.filter((n) => !n.isOutput)
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+      .map((n) => n as SimpleTypeNode) ?? []
 );
 const lastInputNode = computed(() => inputNodes.value?.[inputNodes.value.length - 1]);
-const outputNode = computed(() => context.typeNodesChildren.value?.find((n) => n.name === "output"));
+const outputNode = computed(() => context.typeNodes.value?.map((n) => n as SimpleTypeNode).find((n) => n.isOutput));
 const hasOutput = computed(() => outputNode.value != null && outputNode.value.tag != TypeTag.Null);
 
 const emit = defineEmits<{
@@ -39,57 +39,74 @@ const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>
     gridNavigateRight: () => addInputRef.value?.focus(),
   }
 );
+const isEditing = computed(() => inputGrid.refs.value.find((r) => r.editing) && !outputRef.value?.editing);
 
 async function insertInput() {
   if (outputNode.value == null) {
     throw new Error("invalid function: input node is null");
   }
   await context.createTypeNode(
-    makeTypeNodeData({
+    makeTypeNode({
       name: "input" + inputNodes.value?.length,
       tag: TypeTag.String,
-      parentId: inputNode.value?.id,
       orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
     })
   );
   nextTick(() => inputGrid.focus(-1, "name"));
 }
 
-async function insertOutput() {
+async function insertOutput(node: Partial<SimpleType> = {}) {
   if (outputNode.value == null) {
     throw new Error("invalid function: output node is null");
   }
-  await context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Any });
+  if (outputNode.value != null) {
+    await context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Any, ...node });
+  } else {
+    await context.createTypeNode(
+      makeTypeNode({
+        tag: TypeTag.Any,
+        orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
+        isOutput: true,
+        ...node,
+      })
+    );
+  }
   nextTick(() => outputRef?.value?.focus());
 }
 
-async function deleteNodeIfNotEditing(node: TypeNodeData) {
-  if (!inputGrid.refs.value.find((r) => r.editing) && !outputRef.value?.editing) {
-    const inputIndex = inputNodes.value.findIndex((n) => n.id == node.id);
-    if (node.name == "output" || inputIndex <= 0) {
-      addInputRef.value?.focus();
-    } else {
-      inputGrid.focus(inputIndex - 1, "name");
-    }
-    await context.deleteTypeNode(node);
+async function deleteNode(node: SimpleTypeNode) {
+  const inputIndex = inputNodes.value.findIndex((n) => n.id == node.id);
+  if (node.name == "output" || inputIndex <= 0) {
+    addInputRef.value?.focus();
+  } else {
+    inputGrid.focus(inputIndex - 1, "name");
   }
+  await context.deleteTypeNode(node);
 }
 
-async function nullNodeIfNotEditing(node: TypeNodeData) {
-  if (!inputGrid.refs.value.find((r) => r.editing) && !outputRef.value?.editing) {
-    await context.updateTypeNode({ ...node, tag: TypeTag.Null });
-    nextTick(() => outputRef.value?.focus());
-  }
-}
-
-function updateNodeName(node: TypeNodeData, name: string) {
+function updateInputName(node: SimpleTypeNode, name: string) {
   const updatedNode = { ...node, name };
   context.updateTypeNode(updatedNode);
 }
 
-function updateNodeType(inputNode: TypeNodeData, changed: Pick<TypeNodeData, "tag" | "reference">) {
+function updateInputType(inputNode: SimpleTypeNode, changed: SimpleType) {
   const updatedMember = { ...inputNode, tag: changed.tag, reference: changed.reference };
   context.updateTypeNode(updatedMember);
+}
+
+function updateOutputType(changed: Pick<SimpleTypeNode, "tag" | "reference">) {
+  if (outputNode.value == null) {
+  } else {
+    const updatedNode = { ...outputNode.value, tag: changed.tag, reference: changed.reference };
+    context.updateTypeNode(updatedNode);
+  }
+}
+
+async function nullOutputType() {
+  if (!isEditing.value && outputNode.value != null) {
+    await context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Null });
+    nextTick(() => outputRef.value?.focus());
+  }
 }
 
 function focusLastInputOrNavigateLeft() {
@@ -124,12 +141,12 @@ defineExpose({
       v-for="inputNode in inputNodes"
       :key="inputNode.id"
       class="inline-flex gap-1 focus-within:bg-orange-50"
-      @keydown.delete.exact="deleteNodeIfNotEditing(inputNode)"
+      @keydown.delete.exact="isEditing || deleteNode(inputNode)"
     >
       <InlineValueCell
         :ref="(el: any) => inputGrid.registerColumnRef(inputNode.id, 'name', el)"
         :model-value="inputNode.name ?? ''"
-        @update:model-value="(name) => updateNodeName(inputNode, name)"
+        @update:model-value="(name) => updateInputName(inputNode, name)"
         :type="STRING_TYPE_NODE"
         :readonly="context.readonly.value"
         :editing="false"
@@ -144,7 +161,7 @@ defineExpose({
       <InlineTypeCell
         :ref="(el: any) => inputGrid.registerColumnRef(inputNode.id, 'type', el)"
         :model-value="inputNode"
-        @update:model-value="(node) => updateNodeType(inputNode, node)"
+        @update:model-value="(node) => updateInputType(inputNode, node)"
         :readonly="context.readonly.value"
         :editing="false"
         @navigate-up="emit('navigateUp')"
@@ -191,8 +208,8 @@ defineExpose({
       <InlineTypeCell
         ref="outputRef"
         :model-value="outputNode"
-        @update:model-value="(node) => updateNodeType(outputNode, node)"
-        @keydown.delete.exact="nullNodeIfNotEditing(outputNode)"
+        @update:model-value="(node) => updateOutputType(node)"
+        @keydown.delete.exact="isEditing || nullOutputType"
         :readonly="context.readonly.value"
         :editing="false"
         @navigate-left="addInputRef?.focus()"

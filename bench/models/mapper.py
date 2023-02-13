@@ -380,8 +380,12 @@ def rmap_type_nodes(
         children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
     elif root_type_tag == TypeTag.FUNCTION:
         input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
-        output = _rmap_child_node(first(node for node in type_nodes if node.is_output))
-        output.name = "output"  # restore name
+        output = first((node for node in type_nodes if node.is_output), None)
+        if output is not None:
+            output = _rmap_child_node(output)
+            output.name = "output"  # restore name
+        else:  # default optional output to null (no output)
+            output = language.TypeNode(tag=TypeTag.NULL, name="output")
         input = language.TypeNode(tag=TypeTag.STRUCT, name="input", children=input_children)
         children = [input, output]
     else:

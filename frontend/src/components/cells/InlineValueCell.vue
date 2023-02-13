@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { TypeTag, type TypeNode } from "@/gql/graphql";
+import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { onClickOutside } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: any;
   placeholderValue?: any;
-  type: TypeNode;
+  type: SimpleTypeNode;
   readonly: boolean;
   immediate: boolean;
 }>();

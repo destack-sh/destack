@@ -101,16 +101,20 @@ export const TypeContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export const TypeNodeDataType = graphql(/* GraphQL */ `
-  fragment TypeNodeData on TypeNodeData {
+export const SimpleTypeNodeType = graphql(/* GraphQL */ `
+  fragment SimpleTypeNodeContent on SimpleTypeNode {
     id
     name
     tag
     description
     value
-    parentId
     orderKey
-    reference
+    reference {
+      id
+    }
+    isOutput
+    isArray
+    isNullable
   }
 `);
 
@@ -144,8 +148,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
       id
     }
     value
+    rootTypeTag
     typeNodes {
-      ...TypeNodeData
+      ...SimpleTypeNodeContent
     }
     records {
       id
