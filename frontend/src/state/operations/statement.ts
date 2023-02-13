@@ -1,6 +1,7 @@
 import { graphql, useFragment } from "@/gql";
 import {
   StatementType,
+  TypeTag,
   type CreateStatementMutation,
   type DeleteStatementMutation,
   type MorphStatementMutation,
@@ -9,8 +10,9 @@ import {
   type RestoreStatementMutation,
   type StatementModifier,
   type StatementMorphInput,
-  type TypeNodeDataCreateInput,
   type SymbolType,
+  type TypeNodeCreateInput,
+  type TypeNodeUpdateInput,
   type UpdateStatementModifierMutation,
 } from "@/gql/graphql";
 import { StatementHeaderType } from "@/state/fragments";
@@ -24,10 +26,10 @@ export function newStatementId(): string {
   return btoa(`Statement:${nodeId}`);
 }
 
-export function newTypeNodeDataId(): string {
+export function newTypeNodeId(): string {
   /* Generates a new type node data global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
-  return btoa(`TypeNodeData:${nodeId}`);
+  return btoa(`SimpleTypeNode:${nodeId}`);
 }
 
 export function newDatasetRecordId(): string {
@@ -159,9 +161,7 @@ export function useStatementOps() {
             type
             symbolType
             name
-            typeNodes {
-              ...TypeNodeData
-            }
+            rootTypeTag
             lang
           }
           ...OperationInfoContent
@@ -178,7 +178,7 @@ export function useStatementOps() {
             type: vars.input.type,
             symbolType: vars.input.symbolType ?? null,
             name: vars.input.name ?? null,
-            typeNodes: vars.input.typeNodes ?? null,
+            rootTypeTag: vars.input.rootTypeTag ?? null,
             lang: vars.input.language ?? null,
           },
         } as MorphStatementMutation),
@@ -191,14 +191,14 @@ export function useStatementOps() {
       type: StatementType;
       symbolType?: SymbolType;
       name?: string;
-      typeNodes?: [TypeNodeDataCreateInput];
+      rootTypeTag?: TypeTag;
       lang?: string;
     },
     newStatement: {
       type: StatementType;
       symbolType?: SymbolType;
       name?: string;
-      typeNodes?: [TypeNodeDataCreateInput];
+      rootTypeTag?: TypeTag;
       lang?: string;
     }
   ) {
@@ -481,47 +481,16 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: updateTypeNodeMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation updateTypeNode($typeNode: TypeNodeDataCreateInput!) {
-        updateStatementTypeNode(input: $typeNode) {
-          ... on Statement {
-            id
-            revision
-            typeNodes {
-              ...TypeNodeData
-            }
-          }
-        }
-      }
-    `)
-  );
-
-  async function updateTypeNode(
-    id: string,
-    oldTypeNode: TypeNodeDataCreateInput,
-    newTypeNode: TypeNodeDataCreateInput
-  ) {
-    await operations.perform({
-      type: "statement.updateTypeNode",
-      do: async () => {
-        await updateTypeNodeMut({ typeNode: newTypeNode });
-      },
-      undo: async () => {
-        await updateTypeNodeMut({ typeNode: oldTypeNode });
-      },
-    });
-  }
-
+  // TODO @Performance: mutate type nodes optimistically
   const { mutate: createTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation createTypeNode($typeNode: TypeNodeDataCreateInput!) {
+      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
         createStatementTypeNode(input: $typeNode) {
           ... on Statement {
             id
             revision
             typeNodes {
-              ...TypeNodeData
+              ...SimpleTypeNodeContent
             }
           }
         }
@@ -537,7 +506,7 @@ export function useStatementOps() {
             id
             revision
             typeNodes {
-              ...TypeNodeData
+              ...SimpleTypeNodeContent
             }
           }
         }
@@ -545,7 +514,7 @@ export function useStatementOps() {
     `)
   );
 
-  async function createTypeNode(statementId: string, typeNode: TypeNodeDataCreateInput) {
+  async function createTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
     await operations.perform({
       type: "statement.createTypeNode",
       do: async () => {
@@ -557,7 +526,7 @@ export function useStatementOps() {
     });
   }
 
-  async function deleteTypeNode(statementId: string, typeNode: TypeNodeDataCreateInput) {
+  async function deleteTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
     await operations.perform({
       type: "statement.deleteTypeNode",
       do: async () => {
@@ -565,6 +534,34 @@ export function useStatementOps() {
       },
       undo: async () => {
         await createTypeNodeMut({ typeNode });
+      },
+    });
+  }
+
+  const { mutate: updateTypeNodeMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {
+        updateStatementTypeNode(input: $typeNode) {
+          ... on Statement {
+            id
+            revision
+            typeNodes {
+              ...SimpleTypeNodeContent
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  async function updateTypeNode(oldTypeNode: TypeNodeUpdateInput, newTypeNode: TypeNodeUpdateInput) {
+    await operations.perform({
+      type: "statement.updateTypeNode",
+      do: async () => {
+        await updateTypeNodeMut({ typeNode: newTypeNode });
+      },
+      undo: async () => {
+        await updateTypeNodeMut({ typeNode: oldTypeNode });
       },
     });
   }

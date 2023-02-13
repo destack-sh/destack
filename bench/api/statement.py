@@ -1,4 +1,3 @@
-from dataclasses import asdict, replace
 from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
@@ -6,7 +5,6 @@ from django import db
 from django.core.exceptions import ValidationError
 from django.db.models import F, Q, Value
 from django.db.models.functions import Concat
-from more_itertools import first
 from strawberry import lazy
 from strawberry.scalars import JSON
 from strawberry_django_plus import gql
@@ -16,7 +14,6 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.sync import PMT, project_mutation
-from bench.language import wire
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -67,7 +64,7 @@ class SimpleTypeNode(gql.Node):
     is_nullable: auto
     description: auto
     value: auto
-    reference: auto
+    reference: Optional["Statement"]
 
 
 @gql.django.type(models.Statement)
@@ -92,12 +89,13 @@ class Statement(gql.Node):
     symbol_type: Optional[SymbolType]
     text: auto
     # symbol contents
+    root_type_tag: Optional[TypeTag]
+    type_nodes: list[SimpleTypeNode]
     lang: auto
     code: auto
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
-    type_nodes: list[SimpleTypeNode]
     records: list[DatasetRecord]
     mappings: list[SourceMapping]
 
@@ -147,7 +145,7 @@ class Statement(gql.Node):
 
 @gql.input
 class StatementCreateInput:
-    """Create a blank statement"""
+    """Creates a blank statement"""
 
     id: Optional[GlobalID] = None
     file_id: GlobalID
@@ -160,7 +158,8 @@ class StatementMorphInput(gql.NodeInput):
     type: StatementType
     symbol_type: Optional[SymbolType] = None
     name: Optional[str] = None
-    type_nodes: Optional[list["TypeNodeDataCreateInput"]] = None
+    root_type_tag: Optional[TypeTag] = None
+    type_nodes: Optional[list["TypeNodeCreateInput"]] = None
     language: Optional[str] = None
 
 
@@ -222,7 +221,7 @@ class StatementMutation:
         )
         return statement
 
-    @project_mutation(PMT.MORPH_STATEMENT)
+    @project_mutation(PMT.MORPH_STATEMENT, atomic=True)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         if (
@@ -235,9 +234,17 @@ class StatementMutation:
         statement.type = input.type
         statement.symbol_type = input.symbol_type
         statement.name = input.name
-        statement.type_nodes = (
-            [d.to_type_node_data() for d in input.type_nodes] if input.type_nodes else None
-        )
+        statement.root_type_tag = input.root_type_tag
+        # update related type nodes
+        if input.type_nodes:
+            SimpleTypeNode.objects.filter(statement=statement).delete()
+            model_type_nodes = []
+            for type_node in input.type_nodes:
+                type_node = type_node.to_model()
+                type_node.statement = statement
+                type_node.full_clean()
+                model_type_nodes.append(type_node)
+            SimpleTypeNode.objects.bulk_create(model_type_nodes)
         statement.language = input.language
         return statement
 
@@ -345,35 +352,56 @@ class RecordDeleteInput(gql.NodeInput):
     statement_id: GlobalID
 
 
-# TODO @Cleanup: type node mutations should be more atomic
 @gql.input
-class TypeNodeDataCreateInput(gql.NodeInput):
+class TypeNodeCreateInput:
     """Upsert a statement type node data"""
 
-    statement_id: GlobalID
+    id: GlobalID
     order_key: str
-    parent_id: Optional[GlobalID] = None
+    statement_id: GlobalID
     name: Optional[str] = None
     tag: TypeTag
     description: Optional[str] = None
+    is_output: bool = False
+    is_nullable: bool = False
+    is_array: bool = False
     value: Optional[JSON] = None
-    reference: Optional[str] = None
+    reference_id: Optional[GlobalID] = None
 
-    def to_type_node_data(self) -> wire.TypeNodeData:
-        return wire.TypeNodeData(
-            id=UUID(self.id.node_id),
+    def to_model(self) -> SimpleTypeNode:
+        return SimpleTypeNode(
             order_key=self.order_key,
-            parent_id=UUID(self.parent_id.node_id) if self.parent_id else None,
             name=self.name,
-            tag=self.tag,
             description=self.description,
+            tag=self.tag,
+            is_output=self.is_output,
+            is_nullable=self.is_nullable,
+            is_array=self.is_array,
             value=self.value,
-            reference=self.reference,
+            reference=self.reference_id.node_id if self.reference_id else None,
         )
 
 
 @gql.input
-class TypeNodeDataDeleteInput(gql.NodeInput):
+class TypeNodeUpdateInput(gql.NodeInput):
+    name: Optional[str] = None
+    tag: TypeTag
+    description: Optional[str] = None
+    is_output: bool = False
+    is_nullable: bool = False
+    is_array: bool = False
+    value: Optional[JSON] = None
+    reference_id: Optional[GlobalID] = None
+
+
+@gql.input
+class TypeNodeMoveInput(gql.NodeInput):
+    statement_id: GlobalID
+    order_key: str
+
+
+@gql.input
+class TypeNodeDeleteInput(gql.NodeInput):
     statement_id: GlobalID
 
 
@@ -439,32 +467,39 @@ class SymbolMutation:
         _ = statement.records.filter(id=input.id).delete()
         return statement
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def create_statement_type_node(
-        self, input: TypeNodeDataCreateInput
-    ) -> Statement | OperationInfo:
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
+    def create_statement_type_node(self, input: TypeNodeCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        statement.type_nodes.append(input.to_type_node_data())
+        type_node = input.to_model()
+        type_node.statement = statement
+        type_node.full_clean()
+        type_node.save()
         return statement
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def update_statement_type_node(
-        self, input: TypeNodeDataCreateInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        node_id = UUID(input.id.node_id)
-        node = first([n for n in statement.type_nodes if n.id == node_id])
-        node = replace(node, **asdict(input.to_type_node_data()))
-        # replace type node in array
-        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
-        statement.type_nodes.append(node)
-        return statement
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
+    def update_statement_type_node(self, input: TypeNodeUpdateInput) -> Statement | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.name = input.name
+        type_node.description = input.description
+        type_node.tag = input.tag
+        type_node.is_output = input.is_output
+        type_node.is_nullable = input.is_nullable
+        type_node.is_array = input.is_array
+        type_node.value = input.value
+        type_node.reference = input.reference_id.node_id if input.reference_id else None
+        type_node.full_clean()
+        type_node.save()
+        return type_node.statement
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
-    def delete_statement_type_node(
-        self, input: TypeNodeDataDeleteInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        node_id = UUID(input.id.node_id)
-        statement.type_nodes = [n for n in statement.type_nodes if n.id != node_id]
-        return statement
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
+    def move_statement_type_node(self, input: TypeNodeMoveInput) -> Statement | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.order_key = input.order_key
+        type_node.save()
+        return type_node.statement
+
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
+    def delete_statement_type_node(self, input: TypeNodeDeleteInput) -> Statement | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.delete()
+        return type_node.statement

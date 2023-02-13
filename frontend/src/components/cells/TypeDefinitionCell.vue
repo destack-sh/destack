@@ -4,8 +4,8 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
-import { TypeTag, type TypeNodeData } from "@/gql/graphql";
+import { makeTypeNode, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
+import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -15,18 +15,9 @@ const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(description);
 
-// enums have a "head type", structs do not
-const isEnum = computed(() => context.typeNodeRoot.value?.tag == TypeTag.Enum);
-const isStruct = computed(() => context.typeNodeRoot.value?.tag == TypeTag.Struct);
-const memberTypeNodes = computed(() => {
-  if (isEnum.value) {
-    return context.typeNodesChildren.value?.slice(1) ?? [];
-  } else if (isStruct.value) {
-    return context.typeNodesChildren.value ?? [];
-  } else {
-    return [];
-  }
-});
+const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
+const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);
+const memberTypeNodes = computed(() => context.typeNodes.value ?? []);
 const membersLength = computed(() => memberTypeNodes.value?.length ?? 0);
 const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 
@@ -38,7 +29,7 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
   } else if (isStruct.value) {
     return ["name", "type", "description"];
   } else {
-    throw new Error("unexpected type node tag: " + context.typeNodeRoot.value?.tag);
+    throw new Error("unexpected type node tag: " + context.typeRootTag.value);
   }
 });
 const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(columnsInOrder, memberTypeNodes, {
@@ -58,18 +49,16 @@ async function insertBelow(memberId?: string) {
 
   let newMemberNode;
   if (isEnum.value) {
-    newMemberNode = makeTypeNodeData({
+    newMemberNode = makeTypeNode({
       name: "Option " + (membersLength.value + 1),
       tag: TypeTag.Literal,
       orderKey,
-      parentId: context.typeNodeRoot.value?.id,
     });
   } else {
-    newMemberNode = makeTypeNodeData({
+    newMemberNode = makeTypeNode({
       name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
-      parentId: context.typeNodeRoot.value?.id,
     });
   }
 
@@ -77,7 +66,7 @@ async function insertBelow(memberId?: string) {
   nextTick(() => grid.focus(membersLength.value - 1, "name"));
 }
 
-function readColumn(member: TypeNodeData, column: ColumnType) {
+function readColumn(member: SimpleTypeNode, column: ColumnType) {
   if (column == "type") {
     return member;
   } else {
@@ -92,7 +81,7 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
   }
   if (column == "type") {
     // special case because it touches the underlying type node data
-    value = value as TypeNodeData;
+    value = value as SimpleTypeNode;
     const updatedMember = {
       ...member,
       tag: value.tag,
@@ -200,7 +189,7 @@ defineExpose({
         <!-- Individual column: a bit messy -->
         <component
           :is="column == 'type' ? InlineTypeCell : InlineValueCell"
-          :model-value="readColumn(member, column)"
+          :model-value="readColumn(member as SimpleTypeNode, column)"
           @update:model-value="(val: any) => writeColumn(member.id, column, val)"
           :ref="(el: any) => grid.registerColumnRef(member.id, column, el)"
           :readonly="context.readonly.value"

@@ -4,8 +4,8 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { makeTypeNodeData, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
-import { TypeTag, type TypeNodeData } from "@/gql/graphql";
+import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import { TypeTag } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
@@ -19,11 +19,7 @@ context.syncDescription(description);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
-// assumes this is a struct dataset
-if (context.typeNodeRoot.value?.tag != TypeTag.Struct) {
-  throw new Error("unexpected type node tag: " + context.typeNodeRoot.value?.tag);
-}
-const fieldTypeNodes = computed(() => context.typeNodesChildren.value ?? []);
+const fieldTypeNodes = computed(() => context.typeNodes.value ?? []);
 const lastFieldTypeNode = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
 const records = computed(() =>
   context.statement.value.records.slice().sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
@@ -79,22 +75,21 @@ const operations = useOperations();
 
 async function insertField() {
   await context.createTypeNode(
-    makeTypeNodeData({
+    makeTypeNode({
       name: "field " + fieldTypeNodes.value?.length,
       tag: TypeTag.String,
-      parentId: context.typeNodeRoot.value?.id,
       orderKey: generateKeyBetween(lastFieldTypeNode.value?.orderKey ?? INTEGER_ZERO, null),
     })
   );
   nextTick(() => typeGrid.focus(-1, "name"));
 }
 
-function updateFieldName(node: TypeNodeData, name: string) {
+function updateFieldName(node: SimpleType, name: string) {
   const updatedNode = { ...node, name };
   context.updateTypeNode(updatedNode);
 }
 
-function updateFieldType(node: TypeNodeData, changed: TypeNodeData) {
+function updateFieldType(node: SimpleType, changed: SimpleType) {
   const updatedMember = { ...node, tag: changed.tag, reference: changed.reference };
   context.updateTypeNode(updatedMember);
 }

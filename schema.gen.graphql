@@ -167,9 +167,10 @@ type Mutation {
   updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo!
   moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo!
   deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo!
-  createStatementTypeNode(input: TypeNodeDataCreateInput!): StatementOperationInfo!
-  updateStatementTypeNode(input: TypeNodeDataCreateInput!): StatementOperationInfo!
-  deleteStatementTypeNode(input: TypeNodeDataDeleteInput!): StatementOperationInfo!
+  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo!
+  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo!
+  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo!
+  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!
@@ -411,7 +412,7 @@ type SimpleTypeNode implements Node {
   isNullable: Boolean!
   description: String
   value: JSON
-  reference: NodeType
+  reference: Statement
 }
 
 type SourceMapping {
@@ -444,12 +445,13 @@ type Statement implements Node {
   referencedBy: [Statement!]!
   symbolType: SymbolType
   text: String
+  rootTypeTag: TypeTag
+  typeNodes: [SimpleTypeNode!]!
   lang: String
   code: String
   description: String
   referenceProjectVersion: ProjectVersion
   value: JSON
-  typeNodes: [SimpleTypeNode!]!
   records: [DatasetRecord!]!
   mappings: [SourceMapping!]!
   importPath: String
@@ -460,7 +462,7 @@ input StatementCommentedInput {
   commented: Boolean!
 }
 
-"""Create a blank statement"""
+"""Creates a blank statement"""
 input StatementCreateInput {
   id: GlobalID = null
   fileId: GlobalID!
@@ -487,7 +489,8 @@ input StatementMorphInput {
   type: StatementType!
   symbolType: SymbolType = null
   name: String = null
-  typeNodes: [TypeNodeDataCreateInput!] = null
+  rootTypeTag: TypeTag = null
+  typeNodes: [TypeNodeCreateInput!] = null
   language: String = null
 }
 
@@ -587,21 +590,41 @@ type TypeNode {
 }
 
 """Upsert a statement type node data"""
-input TypeNodeDataCreateInput {
+input TypeNodeCreateInput {
   id: GlobalID!
-  statementId: GlobalID!
   orderKey: String!
-  parentId: GlobalID = null
+  statementId: GlobalID!
   name: String = null
   tag: TypeTag!
   description: String = null
+  isOutput: Boolean! = false
+  isNullable: Boolean! = false
+  isArray: Boolean! = false
   value: JSON = null
-  reference: String = null
+  referenceId: GlobalID = null
 }
 
-input TypeNodeDataDeleteInput {
+input TypeNodeDeleteInput {
   id: GlobalID!
   statementId: GlobalID!
+}
+
+input TypeNodeMoveInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  orderKey: String!
+}
+
+input TypeNodeUpdateInput {
+  id: GlobalID!
+  name: String = null
+  tag: TypeTag!
+  description: String = null
+  isOutput: Boolean! = false
+  isNullable: Boolean! = false
+  isArray: Boolean! = false
+  value: JSON = null
+  referenceId: GlobalID = null
 }
 
 """The type of type node."""

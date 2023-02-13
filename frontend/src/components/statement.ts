@@ -4,18 +4,20 @@ import {
   StatementType,
   SymbolType,
   TypeTag,
-  type TypeNodeDataCreateInput,
+  type NodeType,
+  type SimpleTypeNode,
   type TypeNode,
-  type TypeNodeData,
+  type TypeNodeCreateInput,
+  type TypeNodeUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { FileHeaderType, StatementContentType, StatementHeaderType, TypeNodeDataType } from "@/state/fragments";
+import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
 
-import { newTypeNodeDataId } from "@/state/operations/statement";
-import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { INTEGER_ZERO } from "@/utils/fractional";
+import { newTypeNodeId } from "@/state/operations/statement";
 
 export const STATEMENT_CONTEXT = Symbol();
 
@@ -43,13 +45,8 @@ export function useStatementContext() {
   const file = computed(() => useFragment(FileHeaderType, context.value.file));
   const reference = computed(() => useFragment(StatementHeaderType, context.value.reference));
 
-  const typeNodes = computed(() => statement.value.typeNodes?.map((n) => useFragment(TypeNodeDataType, n)));
-  const typeNodeRoot = computed(() => typeNodes.value?.find((n) => n.parentId == null));
-  const typeNodesChildren = computed(() =>
-    typeNodes.value
-      ?.filter((n) => n.parentId == typeNodeRoot.value?.id)
-      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
-  );
+  const rootTypeTag = computed(() => statement.value.rootTypeTag);
+  const typeNodes = computed(() => statement.value.typeNodes?.map((n) => useFragment(SimpleTypeNodeType, n)));
 
   // basic actions
 
@@ -101,31 +98,22 @@ export function useStatementContext() {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
     const defaults = getDefaultSymbolDefinition(symbolType);
-    // set new type nodes to defaults if they aren't compatible
-    // we may keep previous type nodes because they may be used to mark the specific type
-    // e.g. for enums we create a regular type symbol but pre-morph its head type node to enum
-    const oldTypeNodes = statement.value.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
-    let newTypeNodes;
-    if (typeNodeRoot.value?.tag != null && isTypeTagCompatible(typeNodeRoot.value.tag, symbolType)) {
-      newTypeNodes = oldTypeNodes;
-    } else {
-      newTypeNodes = defaults.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
-    }
-
+    const newTypeTag = isTypeTagCompatible(rootTypeTag.value, symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
     await operations.statement.morph(
       statement.value.id,
       {
         type: statement.value.type,
         symbolType: statement.value.symbolType ?? undefined,
         name: undefined,
-        typeNodes: oldTypeNodes,
+        lang: statement.value.lang ?? undefined,
+        rootTypeTag: statement.value.rootTypeTag,
       },
       {
         type: StatementType.Definition,
         symbolType,
         name,
-        language: defaults.language,
-        typeNodes: newTypeNodes,
+        lang: defaults.language,
+        rootTypeTag: newTypeTag,
       }
     );
   }
@@ -155,20 +143,19 @@ export function useStatementContext() {
 
   async function setSymbolTypeEnum() {
     // morphs to type symbol with an enum as head type node
-    const oldTypeNodes = statement.value.typeNodes?.map((n) => mapToTypeNodeDataInput(statement.value.id, n));
     await operations.statement.morph(
       statement.value.id,
       {
         type: statement.value.type,
         symbolType: statement.value.symbolType ?? undefined,
         name: statement.value.name ?? undefined,
-        typeNodes: oldTypeNodes,
+        rootTypeTag: statement.value.rootTypeTag ?? undefined,
       },
       {
         type: statement.value.type,
         symbolType: SymbolType.Type,
         name: statement.value.name ?? undefined,
-        typeNodes: makeEnumTypeNodeData().map((n) => mapToTypeNodeDataInput(statement.value.id, n)),
+        rootTypeTag: TypeTag.Enum,
       }
     );
   }
@@ -206,28 +193,27 @@ export function useStatementContext() {
 
   // one-way writes to backend (:Singleplayer)
 
-  async function createTypeNode(typeNode: TypeNodeData) {
-    await operations.statement.createTypeNode(statement.value.id, mapToTypeNodeDataInput(statement.value.id, typeNode));
+  async function createTypeNode(typeNode: SimpleType) {
+    await operations.statement.createTypeNode(statement.value.id, { ...typeNode, statementId: statement.value.id });
   }
 
-  async function updateTypeNode(typeNode: TypeNodeData) {
+  async function updateTypeNode(typeNode: SimpleType) {
     const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
     if (!oldTypeNode) {
       throw new Error("cannot update type node that doesn't exist");
     }
     await operations.statement.updateTypeNode(
-      statement.value.id,
-      mapToTypeNodeDataInput(statement.value.id, oldTypeNode),
-      mapToTypeNodeDataInput(statement.value.id, typeNode)
+      makeTypeNodeUpdate(oldTypeNode as SimpleTypeNode),
+      makeTypeNodeUpdate(typeNode as SimpleTypeNode)
     );
   }
 
-  async function deleteTypeNode(typeNode: TypeNodeData) {
+  async function deleteTypeNode(typeNode: { id: string }) {
     const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
     if (!oldTypeNode) {
       throw new Error("cannot delete type node that doesn't exist");
     }
-    await operations.statement.deleteTypeNode(statement.value.id, mapToTypeNodeDataInput(statement.value.id, typeNode));
+    await operations.statement.deleteTypeNode(statement.value.id, makeTypeNodeInput(statement.value.id, oldTypeNode));
   }
 
   return {
@@ -241,9 +227,8 @@ export function useStatementContext() {
     editing: computed(() => context.value.editing),
     xOffset: computed(() => context.value.xOffset),
     lineNumberBase: computed(() => context.value.lineNumberBase),
+    typeRootTag: rootTypeTag,
     typeNodes,
-    typeNodeRoot,
-    typeNodesChildren,
     // actions
     actions,
     navigateUp,
@@ -269,39 +254,58 @@ export function useStatementContext() {
   };
 }
 
-function mapToTypeNodeDataInput(id: string, typeNodeData: TypeNodeData): TypeNodeDataCreateInput {
+function makeTypeNodeInput(id: string, typeNode: SimpleType): TypeNodeCreateInput {
   return {
     statementId: id,
-    id: typeNodeData.id,
-    tag: typeNodeData.tag,
-    orderKey: typeNodeData.orderKey,
-    parentId: typeNodeData.parentId ?? null,
-    reference: typeNodeData.reference ?? null,
-    description: typeNodeData.description ?? null,
-    name: typeNodeData.name ?? null,
-    value: typeNodeData.value ?? null,
+    id: typeNode.id,
+    tag: typeNode.tag,
+    orderKey: typeNode.orderKey,
+    referenceId: typeNode.reference?.id ?? null,
+    description: typeNode.description ?? null,
+    name: typeNode.name ?? null,
+    value: typeNode.value ?? null,
+    isArray: typeNode.isArray ?? false,
+    isNullable: typeNode.isNullable ?? false,
+    isOutput: typeNode.isOutput ?? false,
   };
 }
 
-export function getDefaultSymbolDefinition(symbolType: SymbolType): { language?: string; typeNodes?: TypeNodeData[] } {
+function makeTypeNodeUpdate(typeNode: SimpleType): TypeNodeUpdateInput {
+  return {
+    id: typeNode.id,
+    tag: typeNode.tag,
+    referenceId: typeNode.reference?.id ?? null,
+    description: typeNode.description ?? null,
+    name: typeNode.name ?? null,
+    value: typeNode.value ?? null,
+    isArray: typeNode.isArray ?? false,
+    isNullable: typeNode.isNullable ?? false,
+    isOutput: typeNode.isOutput ?? false,
+  };
+}
+
+export function getDefaultSymbolDefinition(symbolType: SymbolType): {
+  language?: string;
+  rootTypeTag?: TypeTag;
+} {
   if (symbolType == SymbolType.Code) {
     return {
       language: "python",
-      typeNodes: makeFunctionTypeNodeData(),
+      rootTypeTag: TypeTag.Function,
     };
   } else if (symbolType == SymbolType.Task) {
     return {
-      typeNodes: makeFunctionTypeNodeData(),
+      rootTypeTag: TypeTag.Function,
     };
   } else if (symbolType == SymbolType.Dataset) {
     return {
       language: "jsonl",
-      typeNodes: [makeTypeNodeData({ name: "element", tag: TypeTag.Struct })],
+      rootTypeTag: TypeTag.Struct,
     };
   } else if (symbolType == SymbolType.Type) {
     // default to struct
     return {
-      typeNodes: [makeTypeNodeData({ tag: TypeTag.Struct })],
+      rootTypeTag: TypeTag.Struct,
     };
   } else {
     // no special content for other symbol types
@@ -321,89 +325,34 @@ export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boole
   }
 }
 
-export function mapToTypeNode(typeNodes: TypeNodeData[], rootId?: string): TypeNode {
-  let rootNodeData;
-  if (rootId == null) {
-    rootNodeData = typeNodes.find((n) => n.parentId == null);
-  } else {
-    rootNodeData = typeNodes.find((n) => n.id == rootId);
-  }
-  if (!rootNodeData) {
-    throw new Error("type nodes do not contain root node");
-  }
-
-  const mappedNodes: Record<string, TypeNode> = {};
-  function walkMap(typeNode: TypeNodeData) {
-    if (typeNode.id in mappedNodes) {
-      throw new Error("circular type nodes"); // just in case
-    }
-    const mapped = {
-      name: typeNode.name ?? null,
-      tag: typeNode.tag,
-      description: typeNode.description ?? null,
-      reference: typeNode.reference ?? null,
-      children: null,
-    } as TypeNode;
-    mappedNodes[typeNode.id] = mapped;
-
-    const children = typeNodes.filter((n) => n.parentId == typeNode.id);
-    if (children) {
-      mapped.children = children.map((c) => walkMap(c));
-    }
-    return mapped;
-  }
-
-  return walkMap(rootNodeData);
-}
-
-export function makeTypeNodeData(data: {
-  name?: string;
+export function makeTypeNode(data: {
+  name?: string | null;
   tag: TypeTag;
-  parentId?: string;
   orderKey?: string;
   value?: any;
-  reference?: string;
-}) {
-  const typeNodeData: TypeNodeData = {
-    __typename: "TypeNodeData",
-    id: newTypeNodeDataId(),
+  reference?: { id: string; name?: string };
+  isOutput?: boolean;
+  isNullable?: boolean;
+  isArray?: boolean;
+}): SimpleType {
+  const typeNodeData: SimpleType = {
+    id: newTypeNodeId(),
     name: data.name ?? null,
     tag: data.tag,
-    parentId: data.parentId ?? null,
     orderKey: data.orderKey ?? INTEGER_ZERO,
     value: data.value ?? null,
-    reference: data.reference ?? null,
+    reference: data.reference,
+    isOutput: data.isOutput ?? false,
+    isNullable: data.isNullable ?? false,
+    isArray: data.isArray ?? false,
   };
   return typeNodeData;
 }
 
-export function makeFunctionTypeNodeData(): TypeNodeData[] {
-  const functionType: TypeNodeData = makeTypeNodeData({
-    tag: TypeTag.Function,
-  });
-  const inputType: TypeNodeData = makeTypeNodeData({
-    name: "input",
-    tag: TypeTag.Struct,
-    parentId: functionType.id,
-  });
-  const outputType: TypeNodeData = makeTypeNodeData({
-    name: "output",
-    tag: TypeTag.Null,
-    parentId: functionType.id,
-    orderKey: generateKeyBetween(inputType.orderKey, null),
-  });
-  return [functionType, inputType, outputType];
-}
+export type SimpleType = Omit<SimpleTypeNode, "statement" | "createdAt" | "updatedAt" | "__typename">;
 
-export function makeEnumTypeNodeData(memberType: TypeTag = TypeTag.String): TypeNodeData[] {
-  const enumType: TypeNodeData = makeTypeNodeData({
-    tag: TypeTag.Enum,
-  });
-  const headType = makeTypeNodeData({
-    tag: memberType,
-    parentId: enumType.id,
-  });
-  return [enumType, headType];
-}
-
-export const STRING_TYPE_NODE = mapToTypeNode([makeTypeNodeData({ tag: TypeTag.String })]);
+export const STRING_TYPE_NODE = makeTypeNode({ tag: TypeTag.String });
+export const NUMBER_TYPE_NODE = makeTypeNode({ tag: TypeTag.Number });
+export const BOOLEAN_TYPE_NODE = makeTypeNode({ tag: TypeTag.Boolean });
+export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
+export const NULL_TYPE_NODE = makeTypeNode({ tag: TypeTag.Null });

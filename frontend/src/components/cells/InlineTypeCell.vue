@@ -1,18 +1,19 @@
 <script lang="ts" setup>
-import { StatementType, SymbolType, TypeTag, type TypeNodeData } from "@/gql/graphql";
+import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
+import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
-  modelValue: TypeNodeData;
+  simpleType?: SimpleType;
   readonly: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<TypeNodeData, "tag" | "reference">): void;
+  (e: "update:simpleType", value: Pick<SimpleType, "tag" | "reference">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -23,22 +24,9 @@ const emit = defineEmits<{
 }>();
 
 const PRIMITIVE_TYPES = [TypeTag.Any, TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.Null];
+const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
 
-function mapToMiniType(node: TypeNodeData): RenderedMiniType {
-  if (PRIMITIVE_TYPES.includes(node.tag) || node.tag == TypeTag.TypeReference) {
-    return renderMiniType({
-      tag: node.tag,
-      reference: node.reference ?? undefined,
-    });
-  } else {
-    console.warn(`unexpected type node ${node.tag}`, node);
-    return renderMiniType({
-      tag: TypeTag.Any,
-    });
-  }
-}
-
-const value: Ref<RenderedMiniType> = ref(mapToMiniType(props.modelValue));
+const value: Ref<SimpleType> = ref(props.simpleType ?? ANY_TYPE_NODE);
 const editing: Ref<boolean> = ref(false);
 const query: Ref<string> = ref("");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -46,83 +34,63 @@ const valueRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const valueRefFocused = useFocus(valueRef);
 const optionsRef: Ref<HTMLDivElement | null> = ref(null);
 
-// TODO @Cleanup: MiniType indicates that we may want a simpler TypeNodeData representation
-//  for the UI & DB. Likely with proper references (instead of strings) as well. These are
-//  not mutually dependent. More complex references (like functions) are useful as well..
-type MiniType = {
-  tag: TypeTag;
-  reference?: string;
-  isArray?: boolean;
-  isUnionWithNull?: boolean;
-};
-
-type RenderedMiniType = MiniType & {
-  rendered: string;
-};
-
-function renderMiniType(mtype: MiniType): RenderedMiniType {
+function renderTypeNode(node: SimpleType): string {
   let renderedElement: string;
-  if (PRIMITIVE_TYPES.includes(mtype.tag)) {
-    renderedElement = TYPETAG_KEYWORD[mtype.tag];
-  } else if (mtype.tag == TypeTag.TypeReference) {
-    renderedElement = mtype.reference ?? "...";
+  if (PRIMITIVE_TYPES.includes(node.tag)) {
+    renderedElement = TYPETAG_KEYWORD[node.tag];
+  } else if (node.tag == TypeTag.TypeReference) {
+    renderedElement = node.reference?.name ?? "...";
   } else {
-    throw new Error(`unexpected type node ${mtype.tag}`);
+    throw new Error(`unexpected type node ${node.tag}`);
   }
 
-  let rendered: string;
-  if (mtype.isArray) {
-    rendered = "list of " + renderedElement;
-  } else {
-    rendered = renderedElement;
+  let rendered: string = renderedElement;
+  if (node.isArray) {
+    rendered = "list " + renderedElement;
   }
-  return { ...mtype, rendered };
+  if (node.isNullable) {
+    rendered = rendered + "?";
+  }
+
+  return rendered;
 }
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Type],
 });
-const availableTypes: Ref<RenderedMiniType[]> = computed(() => {
-  const availableTypes = [];
-
-  // primitives
-  for (const primitiveType of PRIMITIVE_TYPES) {
-    availableTypes.push(
-      renderMiniType({
-        tag: primitiveType,
-      })
-    );
-  }
-
+const availableTypes: Ref<SimpleType[]> = computed(() => {
+  const basicTypes = [...PRIMITIVE_TYPE_NODES];
   // references
   for (const symbol of availableSymbols.value) {
     if (symbol.name == null) {
-      continue; // ignore
+      continue; // ignore, shouldn't happen
     }
-    availableTypes.push(
-      renderMiniType({
+    basicTypes.push(
+      makeTypeNode({
         tag: TypeTag.TypeReference,
-        reference: symbol.name,
+        reference: symbol as { id: string; name: string },
       })
     );
   }
-
-  // TODO @Incomplete: edit list of primitives & lists of references
-
-  return availableTypes;
+  // combine basic types with nullable & array options
+  return [
+    ...basicTypes,
+    ...basicTypes.map((t) => makeTypeNode({ ...t, isNullable: true })),
+    ...basicTypes.map((t) => makeTypeNode({ ...t, isArray: true })),
+  ];
 });
 
-const filteredTypes = computed(() => availableTypes.value.filter((t) => t.rendered.includes(query.value)));
+const filteredTypes = computed(() => availableTypes.value.filter((t) => renderTypeNode(t).includes(query.value)));
 
-function writeValue(mtype: RenderedMiniType) {
+function writeValue(mtype: SimpleTypeNode) {
   if (mtype.isArray) {
     throw new Error("arrays not implemented");
   }
   editing.value = false;
   nextTick(() => buttonRef.value?.focus());
   value.value = mtype;
-  emit("update:modelValue", mtype);
+  emit("update:simpleType", mtype);
   emit("escape");
 }
 
@@ -176,14 +144,14 @@ defineExpose({
     @click="edit"
     class="text-left outline-none"
   >
-    {{ value.rendered }}
+    {{ renderTypeNode(value) }}
   </button>
   <!-- Editable type :EditableCellStyle -->
   <Combobox v-else as="div" class="relative" :model-value="value" @update:model-value="writeValue">
     <ComboboxInput
       as="input"
       ref="valueRef"
-      class="w-f absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 py-0 px-1 font-mono outline-none ring-0 focus:border-black focus:ring-0"
+      class="w-f absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 py-0 px-1 font-mono outline-none ring-0 focus:border-black focus:underline focus:ring-0"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."
@@ -197,9 +165,9 @@ defineExpose({
       v-show="editing"
     >
       <ComboboxOption
-        v-for="mtype in filteredTypes"
-        :key="mtype.rendered"
-        :value="mtype"
+        v-for="node in filteredTypes"
+        :key="node.id"
+        :value="node"
         as="template"
         v-slot="{ active, selected }"
       >
@@ -210,7 +178,7 @@ defineExpose({
             selected ? 'underline' : '',
           ]"
         >
-          {{ mtype.rendered }}
+          {{ renderTypeNode(node) }}
         </li>
       </ComboboxOption>
     </ComboboxOptions>
