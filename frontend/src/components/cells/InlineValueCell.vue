@@ -68,6 +68,12 @@ onClickOutside(valueRef, () => {
 });
 
 function edit() {
+  if (props.type.tag == TypeTag.Boolean) {
+    writeValue(!readValue.value);
+    confirm();
+    return;
+  }
+
   editing.value = true;
   nextTick(() => valueRef.value?.focus());
 }
@@ -93,7 +99,7 @@ defineExpose({
   <!-- Wrapper for selectable value container -->
   <div class="relative">
     <button
-      class="h-full w-full text-left outline-none outline-transparent ring-0"
+      class="h-full w-full outline-none outline-transparent ring-0"
       :class="readValue == placeholderValue ? 'text-gray-300' : ''"
       tabindex="-1"
       ref="buttonRef"
@@ -109,8 +115,17 @@ defineExpose({
       <!-- Default content if empty -->
       <span v-if="!readValue">&nbsp;</span>
       <!-- Content preview -->
-      <!-- TODO @Incomplete: support other types -->
-      <span ref="valueRef" v-if="type.tag == TypeTag.String">{{ readValue }}</span>
+      <!-- TODO @Incomplete: support all basic types -->
+      <span ref="valueRef" class="text-left" v-if="type.tag == TypeTag.String">{{ readValue }}</span>
+      <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
+      <input
+        ref="valueRef"
+        type="checkbox"
+        class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+        v-else-if="type.tag == TypeTag.Boolean"
+        :checked="readValue"
+      />
+      <span ref="valueRef" class="text-center" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
       <!-- Can't render this type! -->
       <span ref="valueRef" v-else class="text-red-500">{{ readValue }}</span>
     </button>
@@ -124,17 +139,19 @@ defineExpose({
       <button class="absolute right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate && value != modelValue">
         *
       </button>
-      <!-- TODO @Incomplete: support other types & type constraints (e.g. length) -->
       <input
+        v-if="type.tag == TypeTag.String || type.tag == TypeTag.Number"
         :value="value"
-        @input="(e) => writeValue(e.target?.value)"
+        @input="(e: any) => writeValue(e.target?.value)"
         ref="valueRef"
-        type="text"
+        :type="type.tag == TypeTag.String ? 'text' : 'number'"
         class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="cancel"
         :placeholder="placeholderValue ?? ''"
       />
+      <!-- Uneditable -->
+      <span v-else class="text-red-500">{{ readValue || "panic!" }}</span>
     </div>
   </div>
 </template>

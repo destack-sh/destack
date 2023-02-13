@@ -71,8 +71,7 @@ export function useSymbolContentOps() {
 
   // dataset mutations (aka records)
 
-  // TODO @Cleanup: record updates should be object-level updates (not via statement)
-
+  // TODO @Performance: mutate records optimistically
   const { mutate: createRecordMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
