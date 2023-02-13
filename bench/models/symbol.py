@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import contextlib
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 import pytz
 import structlog
-from django.db import models, transaction
+from django.db import models
 from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
@@ -75,6 +74,18 @@ class SimpleTypeNode(UUIDModel):
         blank=True,
         related_name="type_node_references+",
     )
+
+    def __str__(self):
+        output_str = "output" if self.is_output else ""
+        array_str = "array" if self.is_array else ""
+        nullable_str = "nullable" if self.is_nullable else ""
+        flags_str = ", ".join([f for f in [output_str, array_str, nullable_str] if f])
+        flags_str = f" ({flags_str})" if flags_str else ""
+        name_str = f"{self.name} " if self.name else ""
+        return f"{self.statement} {name_str}{self.tag.value}{flags_str}"
+
+    def __repr__(self):
+        return f"<SimpleTypeNode {str(self)}>"
 
     class Meta:
         ordering = ["order_key"]
@@ -154,31 +165,18 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
 
     def __str__(self):
-        path = self.file.path + ":" + str(self.order_key)
         if self.type == StatementType.DEFINITION:
             content_str = "()"  # should have some nice __str__ here
         elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
             content_str = f"{self.reference}"
         elif self.type == StatementType.COMMENT:
-            content_str = f"{len(self.text)}"
+            content_str = ""
         elif self.type == StatementType.BLANK:
             content_str = ""
         else:
             raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""
-        return f"{path}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
-
-    @contextlib.contextmanager
-    def edit(self):
-        """Edits a statement and saves it with a new revision when done"""
-        with transaction.atomic():
-            yield self
-            self.revision += 1
-            self.save()
-
-    @property
-    def siblings(self) -> models.QuerySet[Statement]:
-        return self.parent.children if self.parent else self.file.root_statements
+        return f"{self.path}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:
@@ -186,6 +184,10 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
         return Statement._base_manager.filter(
             Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
         )
+
+    @property
+    def path(self) -> str:
+        return self.file.path + ":" + str(self.order_key)
 
     @gql.model_property(only=["type", "reference"], select_related=["reference"])
     def source_definition(self) -> Statement:
