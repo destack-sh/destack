@@ -8,7 +8,7 @@ import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
-  simpleType?: SimpleType;
+  modelValue?: SimpleType;
   readonly: boolean;
 }>();
 
@@ -26,12 +26,12 @@ const emit = defineEmits<{
 const PRIMITIVE_TYPES = [TypeTag.Any, TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.Null];
 const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
 
-const value: Ref<SimpleType> = ref(props.simpleType ?? ANY_TYPE_NODE);
+const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const editing: Ref<boolean> = ref(false);
 const query: Ref<string> = ref("");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
-const valueRefFocused = useFocus(valueRef);
+const valueRefFocused = useFocus(valueRef as any);
 const optionsRef: Ref<HTMLDivElement | null> = ref(null);
 
 function renderTypeNode(node: SimpleType): string {
@@ -152,7 +152,7 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="valueRef"
-      class="w-f absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 py-0 px-1 font-mono outline-none ring-0 focus:border-black focus:underline focus:ring-0"
+      class="w-f absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 p-1 font-mono text-sm outline-none ring-0 placeholder:text-sm focus:border-black focus:underline focus:ring-0"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."

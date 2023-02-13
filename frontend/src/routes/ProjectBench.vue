@@ -5,7 +5,7 @@ import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import GlobalControls from "@/components/GlobalControls.vue";
-import MainStatementControls from "@/components/MainStatementControls.vue";
+import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import ViewExplorer from "@/components/ViewExplorer.vue";
 import ViewHistory from "@/components/ViewHistory.vue";
 import { graphql, useFragment } from "@/gql";
@@ -321,7 +321,7 @@ watchEffect(async () => {
       <template v-slot:right>
         <!-- Current "main" statement controls -->
         <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
-          <MainStatementControls />
+          <MainSymbolControls />
         </div>
 
         <!-- Global controls -->

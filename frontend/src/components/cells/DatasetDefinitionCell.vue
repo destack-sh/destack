@@ -88,13 +88,11 @@ async function insertField() {
 }
 
 function updateFieldName(node: SimpleType, name: string) {
-  const updatedNode = { ...node, name };
-  context.updateTypeNode(updatedNode);
+  context.updateTypeNode(node, { ...node, name });
 }
 
 function updateFieldType(node: SimpleType, changed: SimpleType) {
-  const updatedMember = { ...node, tag: changed.tag, reference: changed.reference };
-  context.updateTypeNode(updatedMember);
+  context.updateTypeNode(node, changed);
 }
 
 function deleteField(node: SimpleType) {
