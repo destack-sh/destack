@@ -60,7 +60,7 @@ async function insertOutput(node: Partial<SimpleType> = {}) {
     throw new Error("invalid function: output node is null");
   }
   if (outputNode.value != null) {
-    await context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Any, ...node });
+    await context.updateTypeNode(outputNode.value, { ...outputNode.value, tag: TypeTag.Any, ...node });
   } else {
     await context.createTypeNode(
       makeTypeNode({
@@ -68,7 +68,7 @@ async function insertOutput(node: Partial<SimpleType> = {}) {
         orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
         isOutput: true,
         ...node,
-      })
+      } as unknown as SimpleType)
     );
   }
   nextTick(() => outputRef?.value?.focus());
@@ -85,26 +85,24 @@ async function deleteNode(node: SimpleTypeNode) {
 }
 
 function updateInputName(node: SimpleTypeNode, name: string) {
-  const updatedNode = { ...node, name };
-  context.updateTypeNode(updatedNode);
+  context.updateTypeNode(node, { ...node, name });
 }
 
-function updateInputType(inputNode: SimpleTypeNode, changed: SimpleType) {
-  const updatedMember = { ...inputNode, tag: changed.tag, reference: changed.reference };
-  context.updateTypeNode(updatedMember);
+function updateInputType(oldNode: SimpleTypeNode, newNode: SimpleType) {
+  context.updateTypeNode(oldNode, newNode);
 }
 
-function updateOutputType(changed: Pick<SimpleTypeNode, "tag" | "reference">) {
+function updateOutputType(newNode: SimpleType) {
   if (outputNode.value == null) {
+    context.createTypeNode(newNode);
   } else {
-    const updatedNode = { ...outputNode.value, tag: changed.tag, reference: changed.reference };
-    context.updateTypeNode(updatedNode);
+    context.updateTypeNode(outputNode.value, newNode);
   }
 }
 
 async function nullOutputType() {
   if (!isEditing.value && outputNode.value != null) {
-    await context.updateTypeNode({ ...outputNode.value, tag: TypeTag.Null });
+    await context.updateTypeNode(outputNode.value, { ...outputNode.value, tag: TypeTag.Null });
     nextTick(() => outputRef.value?.focus());
   }
 }
@@ -161,7 +159,7 @@ defineExpose({
       <InlineTypeCell
         :ref="(el: any) => inputGrid.registerColumnRef(inputNode.id, 'type', el)"
         :model-value="inputNode"
-        @update:model-value="(node) => updateInputType(inputNode, node)"
+        @update:model-value="(node: any) => updateInputType(inputNode, node)"
         :readonly="context.readonly.value"
         :editing="false"
         @navigate-up="emit('navigateUp')"
@@ -194,9 +192,9 @@ defineExpose({
       @keydown.right.exact.prevent="outputRef?.focus()"
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
-      @keydown.enter.exact.prevent="insertOutput"
+      @keydown.enter.exact.prevent="insertOutput()"
       tabindex="-1"
-      @click="insertOutput"
+      @click="insertOutput()"
       class="relative w-fit items-baseline rounded-sm px-0.5 pl-5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
     >
       <ArrowLongRightIcon v-if="!hasOutput" class="absolute left-0 top-0.5 h-4 w-4 text-gray-600" />
@@ -208,7 +206,7 @@ defineExpose({
       <InlineTypeCell
         ref="outputRef"
         :model-value="outputNode"
-        @update:model-value="(node) => updateOutputType(node)"
+        @update:model-value="(node: any) => updateOutputType(node)"
         @keydown.delete.exact="isEditing || nullOutputType"
         :readonly="context.readonly.value"
         :editing="false"

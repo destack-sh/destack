@@ -4,7 +4,14 @@ import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { BeakerIcon, CheckIcon, ChevronUpDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
+import {
+  BeakerIcon,
+  CheckBadgeIcon,
+  CheckIcon,
+  ChevronUpDownIcon,
+  PlayIcon,
+  WrenchIcon,
+} from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
 
 // statement selection
@@ -47,8 +54,8 @@ const mainActions = [
   },
   {
     label: "Test",
-    icon: BeakerIcon,
-    enabled: computed(() => true),
+    icon: CheckBadgeIcon,
+    enabled: computed(() => false),
     active: false,
     action: async () => {
       console.log("test");

@@ -202,14 +202,24 @@ export function useStatementContext() {
     await operations.statement.createTypeNode(statement.value.id, { ...typeNode, statementId: statement.value.id });
   }
 
-  async function updateTypeNode(typeNode: SimpleType) {
+  async function updateTypeNode(typeNode: SimpleType, newTypeNode: SimpleType) {
     const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
     if (!oldTypeNode) {
       throw new Error("cannot update type node that doesn't exist");
     }
+    newTypeNode = {
+      ...oldTypeNode,
+      tag: newTypeNode.tag ?? oldTypeNode.tag,
+      name: newTypeNode.name ?? oldTypeNode.name,
+      description: newTypeNode.description ?? oldTypeNode.description,
+      reference: newTypeNode.reference,
+      isArray: newTypeNode.isArray,
+      isNullable: newTypeNode.isNullable,
+      isOutput: newTypeNode.isOutput,
+    };
     await operations.statement.updateTypeNode(
       makeTypeNodeUpdate(oldTypeNode as SimpleTypeNode),
-      makeTypeNodeUpdate(typeNode as SimpleTypeNode)
+      makeTypeNodeUpdate(newTypeNode as SimpleTypeNode)
     );
   }
 

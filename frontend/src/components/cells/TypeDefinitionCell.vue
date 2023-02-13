@@ -4,7 +4,7 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { makeTypeNode, STRING_TYPE_NODE, useStatementContext } from "@/components/statement";
+import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { generateKeyBetween } from "@/utils/fractional";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -81,17 +81,9 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
     return;
   }
   if (column == "type") {
-    // special case because it touches the underlying type node data
-    value = value as SimpleTypeNode;
-    const updatedMember = {
-      ...member,
-      tag: value.tag,
-      reference: value.reference,
-    };
-    context.updateTypeNode(updatedMember);
+    context.updateTypeNode(member, value as SimpleType);
   } else {
-    const updatedMember = { ...member, [column]: value };
-    context.updateTypeNode(updatedMember);
+    context.updateTypeNode(member, { [column]: value });
   }
 }
 
