@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { SymbolType } from "@/gql/graphql";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { CloudArrowUpIcon, ShareIcon } from "@heroicons/vue/24/outline";
 import { useClipboard } from "@vueuse/core";
@@ -6,6 +7,9 @@ import { computed } from "vue";
 
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
+const hasRunconfigs = computed(() =>
+  Object.values(runtime.moduleIndex.value?.symbolsById ?? {}).find((s) => s.symbolType == SymbolType.Runconfig)
+);
 
 const { copy } = useClipboard();
 
@@ -31,8 +35,9 @@ function deploy() {
   <button
     class="rounded-sm p-1 text-sm"
     :class="{
-      'text-green-900 hover:bg-green-50': canDeploy,
       'text-gray-500': !canDeploy,
+      'text-orange-900 hover:bg-orange-50': canDeploy && !hasRunconfigs,
+      'text-green-900 hover:bg-green-50': canDeploy && hasRunconfigs,
     }"
     :disabled="!canDeploy"
     @click="deploy"

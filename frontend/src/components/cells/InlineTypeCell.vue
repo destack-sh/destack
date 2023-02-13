@@ -2,7 +2,7 @@
 import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TYPETAG_KEYWORD } from "@/state/editor";
-import { contextOf, symbolsLike, useModuleRuntime } from "@/state/runtime";
+import { contextOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -156,7 +156,7 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="valueRef"
-      class="w-f absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 p-1 font-mono text-sm outline-none ring-0 placeholder:text-sm focus:border-black focus:underline focus:ring-0"
+      class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 p-1 font-mono text-sm outline-none ring-0 placeholder:text-sm focus:border-black focus:underline focus:ring-0"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."
@@ -169,13 +169,7 @@ defineExpose({
       static
       v-show="editing"
     >
-      <ComboboxOption
-        v-for="node in filteredTypes"
-        :key="node.id"
-        :value="node"
-        as="template"
-        v-slot="{ active, selected }"
-      >
+      <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[
             'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',

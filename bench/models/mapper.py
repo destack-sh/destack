@@ -277,14 +277,14 @@ def wmap_type_nodes(
 
     # map inner nodes (children)
     def _wmap_child_node(node: language.TypeNode, **kwargs) -> models.SimpleTypeNode:
-        if node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
-            # retain resolved references (we trust it's a valid foreign key, else the save will fail)
-            reference_id = node.reference if isinstance(node.reference, UUID) else None
+        # retain resolved references (we trust it's a valid foreign key, else the save will fail)
+        reference_id = node.reference if isinstance(node.reference, UUID) else None
+        if node.tag == TypeTag.TYPE_REFERENCE or reference_id is not None:
             return models.SimpleTypeNode(
                 statement=statement,
                 id=node.id,
                 name=node.name,
-                tag=TypeTag.TYPE_REFERENCE,
+                tag=node.tag,
                 description=node.description,
                 reference_id=reference_id,
                 **kwargs,
@@ -297,6 +297,7 @@ def wmap_type_nodes(
                 tag=node.tag,
                 description=node.description,
                 value=node.value,
+                reference_id=reference_id,
                 **kwargs,
             )
         elif node.tag == TypeTag.ARRAY:
@@ -316,7 +317,7 @@ def wmap_type_nodes(
         for child, order_key in zip(root.children or [], child_order_keys):
             child_nodes.append(_wmap_child_node(child, order_key=order_key))
     elif root.tag == TypeTag.ENUM:
-        if root.head_type.tag != TypeTag.STRING:
+        if root.head_type.tag != TypeTag.STRING:  # :LiteralStringEnum
             raise ValueError(f"non-string enum head type cannot be represented simply: {root}")
         child_order_keys = generate_n_keys_between(None, None, len(root.members))
         for member, order_key in zip(root.members, child_order_keys):
@@ -374,7 +375,7 @@ def rmap_type_nodes(
     if root_type_tag == TypeTag.STRUCT:
         children = [_rmap_child_node(node) for node in type_nodes]
     elif root_type_tag == TypeTag.ENUM:
-        # assumes string enums only
+        # assumes literal string enums only :LiteralStringEnum
         head_type = TypeNode(name=None, tag=TypeTag.STRING)
         children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
     elif root_type_tag == TypeTag.FUNCTION:

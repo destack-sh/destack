@@ -139,6 +139,16 @@ export function contextOf(symbol: Pick<InterpSymbol, "id">) {
   return undefined;
 }
 
+export function symbolOf(id: string) {
+  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
+  for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
+    if (idx && id in idx.symbolsById) {
+      return idx.symbolsById[id];
+    }
+  }
+  return undefined;
+}
+
 export function relativePath(fromStmt: InterpSymbol, toStmt: InterpSymbol) {
   const from = contextOf(fromStmt);
   const to = contextOf(toStmt);

@@ -50,9 +50,11 @@ async function insertBelow(memberId?: string) {
 
   let newMemberNode;
   if (isEnum.value) {
+    const name = "Option " + (membersLength.value + 1);
     newMemberNode = makeTypeNode({
-      name: "Option " + (membersLength.value + 1),
+      name,
       tag: TypeTag.Literal,
+      value: name, // :LiteralStringEnum
       orderKey,
     });
   } else {
@@ -83,7 +85,7 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
   if (column == "type") {
     context.updateTypeNode(member as SimpleType, value as SimpleType);
   } else if (column == "name" && isEnum.value) {
-    // copy name over to value for literal string enums
+    // copy name over to value for literal string enums :LiteralStringEnum
     context.updateTypeNode(member as SimpleType, { ...member, [column]: value, value: value } as SimpleType);
   } else {
     context.updateTypeNode(member as SimpleType, { ...member, [column]: value } as SimpleType);

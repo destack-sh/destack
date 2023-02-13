@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { TypeTag, type SimpleType } from "@/gql/graphql";
-import { onClickOutside } from "@vueuse/core";
+import { symbolOf } from "@/state/runtime";
+import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
@@ -29,6 +31,9 @@ const value: Ref<any> = ref(props.modelValue);
 const editing: Ref<boolean> = ref(false);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
+const valueRefFocused = useFocus(valueRef as any);
+const editableContainerRef: Ref<HTMLDivElement | null> = ref(null);
+
 const readValue = computed(() => {
   if (!editing.value && !props.modelValue && props.placeholderValue) {
     return props.placeholderValue;
@@ -61,7 +66,7 @@ function cancel() {
   nextTick(() => buttonRef.value?.focus());
 }
 
-onClickOutside(valueRef, () => {
+onClickOutside(editableContainerRef, () => {
   if (editing.value) {
     cancel();
   }
@@ -75,23 +80,32 @@ function edit() {
   }
 
   editing.value = true;
-  nextTick(() => valueRef.value?.focus());
+  nextTick(focus);
 }
 
 function focus() {
   if (!editing.value) {
     buttonRef.value?.focus();
   } else {
-    valueRef.value?.focus();
+    valueRefFocused.focused.value = true;
   }
 }
+
+// get enum members from runtime type of reference
+const enumMembers = computed(() => {
+  if (props.type.tag != TypeTag.Enum || props.type.reference == null) {
+    return [];
+  }
+  const runtimeType = symbolOf(props.type.reference?.id);
+  return runtimeType?.typeNodes ?? [];
+});
 
 defineExpose({
   editing,
   focus,
   blur: () => {
     buttonRef.value?.blur();
-    valueRef.value?.blur();
+    valueRefFocused.focused.value = false;
   },
 });
 </script>
@@ -99,7 +113,7 @@ defineExpose({
   <!-- Wrapper for selectable value container -->
   <div class="relative">
     <button
-      class="h-full w-full outline-none outline-transparent ring-0"
+      class="flex h-full w-full outline-none outline-transparent ring-0"
       :class="readValue == placeholderValue ? 'text-gray-300' : ''"
       tabindex="-1"
       ref="buttonRef"
@@ -112,10 +126,10 @@ defineExpose({
       @keydown.backspace.exact="editing || emit('deleteLeft')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
     >
-      <!-- Default content if empty -->
-      <span v-if="!readValue">&nbsp;</span>
+      <!-- Default content if empty and no special rendering-->
+      <span v-if="readValue == null && type.tag != TypeTag.Boolean">&nbsp;</span>
       <!-- Content preview -->
-      <!-- TODO @Incomplete: support all basic types (missing enum) -->
+      <!-- TODO @Incomplete: edit array values (missing enum) -->
       <span ref="valueRef" class="text-left" v-if="type.tag == TypeTag.String">{{ readValue }}</span>
       <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
       <input
@@ -132,6 +146,7 @@ defineExpose({
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
       class="absolute -left-0.5 -top-0.5 z-20 flex min-w-[180px] flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
+      ref="editableContainerRef"
       v-if="editing"
       @click.prevent="emit('edit')"
     >
@@ -139,6 +154,7 @@ defineExpose({
       <button class="absolute right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate && value != modelValue">
         *
       </button>
+      <!-- Strings and numbers -->
       <input
         v-if="type.tag == TypeTag.String || type.tag == TypeTag.Number"
         :value="value"
@@ -150,6 +166,42 @@ defineExpose({
         @keydown.escape.exact.prevent="cancel"
         :placeholder="placeholderValue ?? ''"
       />
+      <!-- Enum options -->
+      <Combobox
+        v-else-if="type.tag == TypeTag.Enum"
+        as="div"
+        class="flex flex-col"
+        :model-value="enumMembers.find((n) => n.value == value)"
+        @update:model-value="(val: SimpleType) => (writeValue(val?.value), confirm())"
+      >
+        <ComboboxInput
+          as="input"
+          ref="valueRef"
+          class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
+          :display-value="(val: any) => val?.name"
+          :placeholder="placeholderValue ?? '...'"
+          @keyup.escape.prevent="cancel"
+        >
+        </ComboboxInput>
+        <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 text-base focus:outline-none sm:text-sm" static>
+          <ComboboxOption
+            v-for="member in enumMembers"
+            :key="member.name"
+            :value="member"
+            v-slot="{ active, selected }"
+          >
+            <li
+              :class="[
+                'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
+                active ? 'bg-orange-600 text-white' : 'text-gray-900',
+                selected ? 'underline' : '',
+              ]"
+            >
+              {{ member.name }}
+            </li>
+          </ComboboxOption>
+        </ComboboxOptions>
+      </Combobox>
       <!-- Uneditable -->
       <span v-else class="text-red-500">{{ readValue || "panic!" }}</span>
     </div>
