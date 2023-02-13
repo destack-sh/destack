@@ -9,7 +9,7 @@ const runtime = useCurrentModuleRuntime();
 const allSymbols = computed(() => {
   const symbols = [];
 
-  // TODO @Cleanup: order symbols
+  // TODO @Cleanup: order and group symbols
   for (const file of runtime.moduleIndex.value?.module.files ?? []) {
     for (const symbol of file.symbols) {
       if (symbol.name == null || symbol.type != StatementType.Definition) {

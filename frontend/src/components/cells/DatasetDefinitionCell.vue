@@ -8,6 +8,7 @@ import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } 
 import { TypeTag } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
+import { symbolOf } from "@/state/runtime";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -77,11 +78,12 @@ function focusLastRecord() {
 const operations = useOperations();
 
 async function insertField() {
+  const nextOrderKey = generateKeyBetween(lastField.value?.orderKey ?? INTEGER_ZERO, null);
   await context.createTypeNode(
     makeTypeNode({
       name: "field " + fieldTypeNodes.value?.length,
       tag: TypeTag.String,
-      orderKey: generateKeyBetween(lastField.value?.orderKey ?? INTEGER_ZERO, null),
+      orderKey: nextOrderKey,
     })
   );
   nextTick(() => typeGrid.focus(-1, "name"));
@@ -126,6 +128,13 @@ function deleteRecord(recordId: string) {
   if (!record) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   operations.symbol.deleteRecord(recordId, context.statement.value.id, record.orderKey, oldData);
+}
+
+// map the field type to its actual runtime type
+// children cannot be imputed into SimpleTypeNode but we still want to know the actual type
+const datasetSymbol = computed(() => symbolOf(context.statement.value.id));
+function runtimeTypeOf(field: SimpleType) {
+  return datasetSymbol.value?.typeNodes?.find((n) => n.name == field.name) ?? field;
 }
 
 defineExpose({
@@ -211,7 +220,7 @@ defineExpose({
           :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"
           :model-value="record.data?.[field.name as string]"
           @update:model-value="(val) => writeRecordField(record.id, field.name as string, val)"
-          :type="field"
+          :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :immediate="false"
           @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"

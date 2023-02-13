@@ -60,7 +60,7 @@ const panels: Panel[] = [
               class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
               @click.prevent="action.action"
             >
-              <component :is="action.icon" class="h-4 w-4 text-gray-500" />
+              <component :is="action.icon" class="h-4 w-4 text-gray-400" />
               <span class="sr-only pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
             </button>
           </span>
