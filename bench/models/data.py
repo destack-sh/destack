@@ -68,7 +68,10 @@ class DatasetRecord(UUIDModel):
     data = models.JSONField()
 
     def __str__(self):
-        return f"{self.statement}@{self.id.hex}[{self.order_key}]"
+        return f"{self.statement} record[{self.order_key}]"
+
+    def __repr__(self):
+        return f"<DatasetRecord {str(self)}>"
 
     class Meta:
         ordering = ["order_key"]

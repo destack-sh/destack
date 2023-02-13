@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import typing
 from itertools import chain, groupby
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.db import transaction
+from more_itertools import first
 
 from bench import language, models
 from bench.language import wire
@@ -274,18 +275,9 @@ def wmap_type_nodes(
     root_type_tag = root.tag
     child_nodes: list[models.SimpleTypeNode] = []
 
+    # map inner nodes (children)
     def _wmap_child_node(node: language.TypeNode, **kwargs) -> models.SimpleTypeNode:
-        if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
-            return models.SimpleTypeNode(
-                statement=statement,
-                id=node.id,
-                name=node.name,
-                tag=node.tag,
-                description=node.description,
-                value=node.value,
-                **kwargs,
-            )
-        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
+        if node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
             # retain resolved references (we trust it's a valid foreign key, else the save will fail)
             if not isinstance(node.reference, UUID):
                 raise ValueError(f"reference must be resolved: {node} -> {node.reference}")
@@ -298,13 +290,28 @@ def wmap_type_nodes(
                 reference_id=node.reference,
                 **kwargs,
             )
+        elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
+            return models.SimpleTypeNode(
+                statement=statement,
+                id=node.id,
+                name=node.name,
+                tag=node.tag,
+                description=node.description,
+                value=node.value,
+                **kwargs,
+            )
         elif node.tag == TypeTag.ARRAY:
-            return _wmap_child_node(node.head_type, is_array=True, **kwargs)
+            child_node = _wmap_child_node(node.head_type, is_array=True, **kwargs)
+            child_node.name = node.name
+            return child_node
         elif node.is_union_with_null:
-            return _wmap_child_node(node.head_type, is_nullable=True, **kwargs)
+            child_node = _wmap_child_node(node.head_type, is_nullable=True, **kwargs)
+            child_node.name = node.name
+            return child_node
         else:
             raise ValueError(f"type node cannot be represented simply: {node}")
 
+    # map root node
     if root.tag == TypeTag.STRUCT:
         child_order_keys = generate_n_keys_between(None, None, len(root.children))
         for child, order_key in zip(root.children, child_order_keys):
@@ -320,11 +327,11 @@ def wmap_type_nodes(
         child_order_keys = generate_n_keys_between(None, None, len(root.input.children) + 1)
         for child, order_key in zip(root.input.children, child_order_keys):
             child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=False))
-        child_nodes.append(
-            _wmap_child_node(root.output, order_key=child_order_keys[-1], is_output=True)
-        )
+        output_node = _wmap_child_node(root.output, order_key=child_order_keys[-1], is_output=True)
+        output_node.name = None  # simple output is unnamed
+        child_nodes.append(output_node)
     else:
-        raise ValueError(f"type node cannot be represented simply: {type_nodes}")
+        raise ValueError(f"root type node cannot be represented simply: {type_nodes}")
 
     return root_type_tag, child_nodes
 
@@ -350,11 +357,13 @@ def rmap_type_nodes(
 
         if node.is_array:  # hoist into array
             lang_node.name = None
+            lang_node.id = uuid4()
             lang_node = language.TypeNode(
                 id=node.id, tag=TypeTag.ARRAY, name=node.name, children=[lang_node]
             )
         if node.is_nullable:  # hoist into union
             lang_node.name = None
+            lang_node.id = uuid4()
             lang_node = language.TypeNode(
                 id=node.id,
                 tag=TypeTag.UNION,
@@ -371,14 +380,12 @@ def rmap_type_nodes(
         children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
     elif root_type_tag == TypeTag.FUNCTION:
         input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
-        output_children = [_rmap_child_node(node) for node in type_nodes if node.is_output]
-        if len(output_children) != 1:
-            raise ValueError(f"function must have exactly one output type {output_children}")
+        output = _rmap_child_node(first(node for node in type_nodes if node.is_output))
+        output.name = "output"  # restore name
         input = language.TypeNode(tag=TypeTag.STRUCT, name="input", children=input_children)
-        output = language.TypeNode(tag=TypeTag.STRUCT, name="output", children=output_children)
         children = [input, output]
     else:
-        raise ValueError(f"type node is not represented simply: {type_nodes}")
+        raise ValueError(f"root type node is not represented simply: {type_nodes}")
 
     root = language.TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
     return wire.rmap_type_node(root)
