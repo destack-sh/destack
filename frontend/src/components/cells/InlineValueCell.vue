@@ -106,6 +106,8 @@ defineExpose({
       @keydown.backspace.exact="editing || emit('deleteLeft')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
     >
+      <!-- Default content if empty -->
+      <span v-if="!readValue">&nbsp;</span>
       <!-- Content preview -->
       <!-- TODO @Incomplete: support other types -->
       <span ref="valueRef" v-if="type.tag == TypeTag.String">{{ readValue }}</span>
