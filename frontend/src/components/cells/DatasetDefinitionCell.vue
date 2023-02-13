@@ -163,7 +163,7 @@ defineExpose({
     tabindex="-1"
     v-if="description.length == 0"
     @click="descriptionRef?.focus()"
-    class="w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
+    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
     +description
   </button>
@@ -229,7 +229,7 @@ defineExpose({
   <button
     tabindex="-1"
     ref="addRecordRef"
-    class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+    class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
     @click="insertRecord()"
     @enter="insertRecord()"
     @keydown.up.exact="focusLastRecord"
@@ -242,7 +242,7 @@ defineExpose({
   <button
     tabindex="-1"
     ref="addFieldRef"
-    class="ml-1 w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+    class="ml-1 w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
     @click="insertField()"
     @enter="insertField()"
     @keydown.up.exact="focusLastRecord"

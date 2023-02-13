@@ -189,7 +189,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 <template>
   <div
     ref="containerRef"
-    class="group relative min-h-[30px] border-x-0 border-gray-200 transition-colors"
+    class="group/statement relative min-h-[30px] border-x-0 border-gray-200 transition-colors"
     :class="{
       // 'border-gray-200 ': !isFocused,
       // 'border-l-orange-500': isFamilyFocused,
@@ -229,7 +229,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <div
       class="absolute -left-0.5 top-0 h-full w-1.5"
       :class="{
-        'group-hover:bg-orange-50': !isFocused,
+        'group-hover/statement:bg-orange-50': !isFocused,
         'bg-orange-100': isFocused && !isEditing,
       }"
     />

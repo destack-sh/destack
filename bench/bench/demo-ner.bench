@@ -1,10 +1,11 @@
 --- lib.x ---
+# literal enums can only be
 enum EntityType :: string:
 "Type of an entity"
-Person = `"PER"`
-Location = `"LOC"`
-Organization = `"ORG"`
-Misc = `"MISC"`
+Person = `"Person"`
+Location = `"Location"`
+Organization = `"Organization"`
+Misc = `"Misc"`
 
 type Entity:
 "A named entity in a text"
@@ -13,9 +14,9 @@ name: string "Canonical name of the entity"
     like data samples :: (name: string, 'type': EntityType):
     "Common uses of {Entity}"
     ```csv
-    "Barack Obama","PER"
-    "London","LOC"
-    "Google","ORG"
+    "Barack Obama","Person"
+    "London","Location"
+    "Google","Organization"
     ```
 
 task 'extract entities' :: (input: string) -> [Entity]:

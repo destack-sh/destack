@@ -62,7 +62,7 @@ defineExpose({
       tabindex="-1"
       v-if="description.trim().length == 0"
       @click="descriptionRef?.focus()"
-      class="w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
+      class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
       +description
     </button>
