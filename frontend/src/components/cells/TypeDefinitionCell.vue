@@ -81,9 +81,12 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
     return;
   }
   if (column == "type") {
-    context.updateTypeNode(member, value as SimpleType);
+    context.updateTypeNode(member as SimpleType, value as SimpleType);
+  } else if (column == "name" && isEnum.value) {
+    // copy name over to value for literal string enums
+    context.updateTypeNode(member as SimpleType, { ...member, [column]: value, value: value } as SimpleType);
   } else {
-    context.updateTypeNode(member, { [column]: value });
+    context.updateTypeNode(member as SimpleType, { ...member, [column]: value } as SimpleType);
   }
 }
 
@@ -201,7 +204,7 @@ defineExpose({
     <button
       tabindex="-1"
       ref="addMemberRef"
-      class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+      class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
       @click="insertBelow()"
       @enter="insertBelow()"
       @keydown.up.exact="focusLast"

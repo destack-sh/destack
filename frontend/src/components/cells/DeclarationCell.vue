@@ -6,6 +6,7 @@ import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementType } from "@/gql/graphql";
+import { localErrorsOf } from "@/state/runtime";
 import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -29,6 +30,8 @@ function deleteModifierOrAbove() {
   }
 }
 
+const localErrors = localErrorsOf(context.statement);
+
 defineExpose({
   focus: () => nameRef.value?.focus(),
   blur: () => {
@@ -39,7 +42,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-row gap-1">
+  <div class="relative flex w-fit flex-row gap-1">
     <!-- Start trap -->
     <EditableSpan
       :model-value="''"
@@ -93,6 +96,10 @@ defineExpose({
       @escape="context.escape"
       @enter="context.insertBelow"
     />
-    <span v-else class="text-red-500">panic!</span>
+    <!-- Error underline for declaration if unlocated -->
+    <div
+      v-if="localErrors != null && localErrors.length > 0"
+      class="absolute bottom-0 left-0 h-0.5 w-full bg-red-600"
+    />
   </div>
 </template>
