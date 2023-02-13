@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { onClickOutside } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: any;
   placeholderValue?: any;
-  type: SimpleTypeNode;
+  type: SimpleType;
   readonly: boolean;
   immediate: boolean;
 }>();
@@ -18,6 +18,7 @@ const emit = defineEmits<{
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
   (e: "deleteLeft"): void;
+  (e: "deleteSelf"): void;
   (e: "enter"): void;
   (e: "escape"): void;
   (e: "edit"): void;
@@ -102,6 +103,8 @@ defineExpose({
       @keydown.right.exact="editing || emit('navigateRight')"
       @keydown.up.exact="editing || emit('navigateUp')"
       @keydown.down.exact="editing || emit('navigateDown')"
+      @keydown.backspace.exact="editing || emit('deleteLeft')"
+      @keydown.delete.exact="editing || emit('deleteSelf')"
     >
       <!-- Content preview -->
       <!-- TODO @Incomplete: support other types -->

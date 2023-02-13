@@ -128,14 +128,15 @@ type InterpModule {
   files: [InterpFile!]!
 }
 
-type InterpSymbol {
+type InterpSymbol implements SimplyTyped {
+  rootTypeTag: TypeTag
+  typeNodes: [SimpleType!]
   id: GlobalID!
   file: InterpFile!
   name: String
   type: StatementType!
   modifier: StatementModifier
   symbolType: SymbolType
-  typeNode: TypeNode
 }
 
 """
@@ -399,11 +400,7 @@ type RunState {
 
 union RunStateOperationInfo = RunState | OperationInfo
 
-type SimpleTypeNode implements Node {
-  id: GlobalID!
-  statement: NodeType!
-  createdAt: DateTime!
-  updatedAt: DateTime!
+interface SimpleType {
   name: String
   orderKey: String!
   tag: TypeTag!
@@ -415,6 +412,28 @@ type SimpleTypeNode implements Node {
   reference: Statement
 }
 
+type SimpleTypeNode implements Node & SimpleType {
+  id: GlobalID!
+  name: String
+  orderKey: String!
+  tag: TypeTag!
+  isOutput: Boolean!
+  isArray: Boolean!
+  isNullable: Boolean!
+  description: String
+  value: JSON
+  reference: Statement
+  statement: NodeType!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""Anything typed using SimpleType nodes."""
+interface SimplyTyped {
+  rootTypeTag: TypeTag
+  typeNodes: [SimpleType!]
+}
+
 type SourceMapping {
   sourceId: UUID!
   sourcePath: JSON!
@@ -424,8 +443,10 @@ type SourceMapping {
   targetRevision: Int!
 }
 
-type Statement implements Node {
+type Statement implements Node & SimplyTyped {
   id: GlobalID!
+  rootTypeTag: TypeTag
+  typeNodes: [SimpleTypeNode!]!
   projectVersion: ProjectVersion!
   file: File!
   revision: Int!
@@ -445,8 +466,6 @@ type Statement implements Node {
   referencedBy: [Statement!]!
   symbolType: SymbolType
   text: String
-  rootTypeTag: TypeTag
-  typeNodes: [SimpleTypeNode!]!
   lang: String
   code: String
   description: String
@@ -491,7 +510,7 @@ input StatementMorphInput {
   name: String = null
   rootTypeTag: TypeTag = null
   typeNodes: [TypeNodeCreateInput!] = null
-  language: String = null
+  lang: String = null
 }
 
 input StatementMoveInput {
@@ -579,14 +598,6 @@ enum SymbolType {
 type Type {
   description: String
   btl: String!
-}
-
-type TypeNode {
-  name: String
-  tag: TypeTag!
-  description: String
-  reference: String
-  children: [TypeNode!]
 }
 
 """Upsert a statement type node data"""

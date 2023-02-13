@@ -36,6 +36,7 @@ const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
   gridNavigateUp,
   gridNavigateDown,
 });
+const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
 async function insertBelow(memberId?: string) {
   let orderKey;
@@ -102,12 +103,6 @@ function deleteMember(memberId: string) {
   const member = memberTypeNodes.value?.[memberIdx];
   context.deleteTypeNode(member as any); // must exist
   grid.focus(memberIdx - 1, "name"); // move focus above
-}
-
-function deleteMemberIfNotEditing(memberId: string) {
-  if (!grid.refs.value.find((n) => n.editing)) {
-    deleteMember(memberId);
-  }
 }
 
 function focusFirstIfExists() {
@@ -201,7 +196,7 @@ defineExpose({
           @navigate-up="grid.navigateUp(member.id, column)"
           @navigate-down="grid.navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
-          @keydown.delete.exact="deleteMemberIfNotEditing(member.id)"
+          @keydown.delete.exact="isEditing || deleteMember(member.id)"
           class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
           :class="{
             'text-gray-400': column == 'type',

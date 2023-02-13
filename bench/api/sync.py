@@ -81,7 +81,7 @@ def project_mutation(
                 raise PermissionDenied("cannot mutate committed project version")
 
             # validate
-            thing.full_clean()
+            thing.full_clean(validate_unique=False, validate_constraints=False)
 
             # save and bump revision (if not new)
             is_new = thing._state.adding

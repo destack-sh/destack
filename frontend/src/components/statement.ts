@@ -98,7 +98,12 @@ export function useStatementContext() {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
     const defaults = getDefaultSymbolDefinition(symbolType);
-    const newTypeTag = isTypeTagCompatible(rootTypeTag.value, symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
+    let newTypeTag;
+    if (rootTypeTag.value == null) {
+      newTypeTag = defaults.rootTypeTag;
+    } else {
+      newTypeTag = isTypeTagCompatible(rootTypeTag.value, symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
+    }
     await operations.statement.morph(
       statement.value.id,
       {

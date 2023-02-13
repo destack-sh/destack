@@ -83,14 +83,11 @@ const availableTypes: Ref<SimpleType[]> = computed(() => {
 
 const filteredTypes = computed(() => availableTypes.value.filter((t) => renderTypeNode(t).includes(query.value)));
 
-function writeValue(mtype: SimpleTypeNode) {
-  if (mtype.isArray) {
-    throw new Error("arrays not implemented");
-  }
+function writeValue(type: SimpleTypeNode) {
   editing.value = false;
   nextTick(() => buttonRef.value?.focus());
-  value.value = mtype;
-  emit("update:simpleType", mtype);
+  value.value = type;
+  emit("update:simpleType", type);
   emit("escape");
 }
 
