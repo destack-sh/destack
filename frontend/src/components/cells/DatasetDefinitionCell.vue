@@ -30,7 +30,7 @@ const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTy
   computed(() => ["name", "type"]),
   fieldTypeNodes,
   {
-    gridNavigateUp: focusLastRecord,
+    gridNavigateUp: () => descriptionRef.value?.focus(),
     gridNavigateDown: focusFirstRecord,
   }
 );
@@ -215,7 +215,7 @@ defineExpose({
           @update:model-value="(val) => writeRecordField(record.id, field.name as string, val)"
           :type="field"
           :readonly="context.readonly.value"
-          immediate
+          :immediate="false"
           @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
           @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
@@ -227,31 +227,31 @@ defineExpose({
       </template>
     </template>
     <!-- Insert button -->
-    <button
-      tabindex="-1"
-      ref="addRecordRef"
-      class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
-      @click="insertRecord()"
-      @enter="insertRecord()"
-      @keydown.up.exact="focusLastRecord"
-      @keydown.right.exact="addFieldRef?.focus"
-      @keydown.down.exact="context.navigateDown"
-    >
-      +record
-    </button>
-    <!-- Add field button -->
-    <button
-      tabindex="-1"
-      ref="addFieldRef"
-      class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
-      @click="insertField()"
-      @enter="insertField()"
-      @keydown.up.exact="focusLastRecord"
-      @keydown.left.exact="addRecordRef?.focus"
-      @keydown.down.exact="context.navigateDown"
-    >
-      +field
-    </button>
   </div>
+  <button
+    tabindex="-1"
+    ref="addRecordRef"
+    class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+    @click="insertRecord()"
+    @enter="insertRecord()"
+    @keydown.up.exact="focusLastRecord"
+    @keydown.right.exact="addFieldRef?.focus"
+    @keydown.down.exact="context.navigateDown"
+  >
+    +record
+  </button>
+  <!-- Add field button -->
+  <button
+    tabindex="-1"
+    ref="addFieldRef"
+    class="ml-1 w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+    @click="insertField()"
+    @enter="insertField()"
+    @keydown.up.exact="focusLastRecord"
+    @keydown.left.exact="addRecordRef?.focus"
+    @keydown.down.exact="context.navigateDown"
+  >
+    +field
+  </button>
   <!-- TODO @Incomplete: dataset record editing -->
 </template>

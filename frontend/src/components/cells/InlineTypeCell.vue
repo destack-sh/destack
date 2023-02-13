@@ -76,8 +76,12 @@ const availableTypes: Ref<SimpleType[]> = computed(() => {
   // combine basic types with nullable & array options
   return [
     ...basicTypes,
-    ...basicTypes.map((t) => makeTypeNode({ ...t, isNullable: true })),
-    ...basicTypes.map((t) => makeTypeNode({ ...t, isArray: true })),
+    ...basicTypes
+      .filter((t) => t.tag != TypeTag.Any && t.tag != TypeTag.Null)
+      .map((t) => makeTypeNode({ ...t, isNullable: true })),
+    ...basicTypes
+      .filter((t) => t.tag != TypeTag.Any && t.tag != TypeTag.Null)
+      .map((t) => makeTypeNode({ ...t, isArray: true })),
   ];
 });
 
