@@ -78,6 +78,7 @@ class SimpleTypeNode(UUIDModel):
 
     class Meta:
         ordering = ["order_key"]
+        indexes = [models.Index(fields=["statement"])]
         constraints = [
             models.UniqueConstraint(
                 fields=["statement", "order_key"], name="bench_statement_type_node_order_key_ak"

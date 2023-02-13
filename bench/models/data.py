@@ -72,6 +72,7 @@ class DatasetRecord(UUIDModel):
 
     class Meta:
         ordering = ["order_key"]
+        indexes = [models.Index(fields=["statement"])]
         constraints = [
             models.UniqueConstraint(
                 fields=["statement", "order_key"],
