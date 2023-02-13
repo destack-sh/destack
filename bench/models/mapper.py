@@ -312,8 +312,8 @@ def wmap_type_nodes(
 
     # map root node
     if root.tag == TypeTag.STRUCT:
-        child_order_keys = generate_n_keys_between(None, None, len(root.children))
-        for child, order_key in zip(root.children, child_order_keys):
+        child_order_keys = generate_n_keys_between(None, None, len(root.children or []))
+        for child, order_key in zip(root.children or [], child_order_keys):
             child_nodes.append(_wmap_child_node(child, order_key=order_key))
     elif root.tag == TypeTag.ENUM:
         if root.head_type.tag != TypeTag.STRING:
@@ -323,8 +323,8 @@ def wmap_type_nodes(
             child_nodes.append(_wmap_child_node(member, order_key=order_key))
     elif root.tag == TypeTag.FUNCTION:
         # assume there is exactly one output type
-        child_order_keys = generate_n_keys_between(None, None, len(root.input.children) + 1)
-        for child, order_key in zip(root.input.children, child_order_keys):
+        child_order_keys = generate_n_keys_between(None, None, len(root.input.children or []) + 1)
+        for child, order_key in zip(root.input.children or [], child_order_keys):
             child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=False))
         output_node = _wmap_child_node(root.output, order_key=child_order_keys[-1], is_output=True)
         output_node.name = None  # simple output is unnamed

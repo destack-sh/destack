@@ -48,6 +48,8 @@ class InterpFile:
 class InterpSymbol(SimplyTyped):
     id: GlobalID
     file: InterpFile
+    order_key: str
+    parent_id: Optional[GlobalID]
     name: Optional[str]
     type: StatementType
     modifier: Optional[StatementModifier]
@@ -95,6 +97,8 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
+                order_key=statement.order_key,
+                parent_id=statement.parent_id,
                 name=statement.name,
                 modifier=statement.modifier,
                 type=statement.type,
