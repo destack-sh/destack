@@ -117,18 +117,19 @@ export function useCurrentModuleRuntime() {
   return useModuleRuntime(toRef(editor, "currentProjectVersionId"));
 }
 
-export function fileOf(symbol: InterpSymbol) {
+export function fileOf(symbol: Pick<InterpSymbol, "id">) {
   const { moduleIndex } = useCurrentModuleRuntime();
   return moduleIndex.value?.fileByStatementId[symbol.id];
 }
 
-export function moduleAndFileOf(symbol: InterpSymbol) {
+export function contextOf(symbol: Pick<InterpSymbol, "id">) {
   const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && symbol.id in idx.fileByStatementId) {
       return {
         module: idx.module,
         file: idx.fileByStatementId[symbol.id],
+        symbol: idx.symbolsById[symbol.id],
       };
     }
   }
@@ -136,8 +137,8 @@ export function moduleAndFileOf(symbol: InterpSymbol) {
 }
 
 export function relativePath(fromStmt: InterpSymbol, toStmt: InterpSymbol) {
-  const from = moduleAndFileOf(fromStmt);
-  const to = moduleAndFileOf(toStmt);
+  const from = contextOf(fromStmt);
+  const to = contextOf(toStmt);
   if (!from || !to) {
     return undefined;
   } else if (from.module.id == to.module.id) {

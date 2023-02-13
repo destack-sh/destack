@@ -18,11 +18,6 @@ name: string "Canonical name of the entity"
     "Google","ORG"
     ```
 
---- main.x ---
-# Describe what to do
-import type Entity from .lib
-import type EntityType from .lib
-
 task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
     expect 'no duplicates' on output:
@@ -33,7 +28,6 @@ task 'extract entities' :: (input: string) -> [Entity]:
         entities_by_name = {e.name: e for e in entities}
         return len(entities_by_name) == len(entities)
         ```
-
 # Build
 require openai.std@latest
 import model text-davinci-003 from openai.std.text
@@ -45,84 +39,3 @@ compile prod:
 run ner-prod:
     task 'extract entities'
     compile prod
-
---- compiled.x ---
-import model text-davinci-003 as llm from openai.std.text
-import type Entity from .lib
-import type EntityType from .lib
-
-# do we need to copy all deps? or is import enough?
-
-# copied from real
-data 'Entity examples' :: (name: string "Canonical name of the entity", 'type': EntityType):
-```jsonl
-{"name": "Barack Obama", "type": "PER"}
-{"name": "London", "type": "LOC"}
-{"name": "Google", "type": "ORG"}
-```
-data 'extract entities examples' :: (input: string, output: [Entity]):
-```jsonl
-
-```
-code 'extract entities' :: (input: string) -> [Entity]:
-```bpl
-pragma(temperature=0.5, max_tokens=2048, max_generated_tokens=1024, model=context["llm"])
-# Task metadata
-"task \"extract entities\"\n"
-"Extract the distinct entities from the text\n"
-
-# Task type instruction
-"type Entity:"
-"name: string \"Canonical name of the entity\"\n"
-"'type': EntityType\n"
-"\n"
-
-"enum EntityType:"
-"Person = `\"PER\"`\n"
-"Location = `\"LOC\"`\n"
-"Organization = `\"ORG\"`\n"
-"Misc = `\"MISC\"`\n"
-"\n"
-
-"Entity should be used like this:"
-"data 'Entity examples' :: (name: string \"Canonical name of the entity\"\n'type': EntityType):\n"
-"```jsonl\n"
-for record in context['Entity examples']:
-    _record_as_json = json.dumps(record, indent=2)
-    "|{_record_as_json}|\n"
-"```\n"
-
-# Task inference
-"Perform the task extract entities as described above to complete the output with the correct types. Consider the instructions carefully:\n"
-"Extract the distinct entities from the text\n"
-" - The entities are distinct\n"
-" - The entities are distinct\n"
-# Task type example stub
-"The data should look like this (with real values obviously):\n"
-"value example :: (input: string, output: [Entity]):\n"
-"```json\n"
-"{\n"
-"  \"input\": \"lorem ipsum\",\n"
-"  \"output\": [\n"
-"    {\n"
-"      \"name\": \"lorem ipsum\",\n"
-"      \"type\": \"PER\"\n"
-"    }\n"
-"  ]\n"
-"}\n"
-"\n```\n"
-
-
-"value :: (input: string, output: [Entity]):\n"
-"```json\n"
-"{\n"
-"  \"input\": |{input}|,\n"
-"  \"output\": |[final_output: [Entity]]|\n"
-"}\n"
-"```"
-
-return final_output
-```
-
-
-

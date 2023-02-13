@@ -279,15 +279,14 @@ def wmap_type_nodes(
     def _wmap_child_node(node: language.TypeNode, **kwargs) -> models.SimpleTypeNode:
         if node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
             # retain resolved references (we trust it's a valid foreign key, else the save will fail)
-            if not isinstance(node.reference, UUID):
-                raise ValueError(f"reference must be resolved: {node} -> {node.reference}")
+            reference_id = node.reference if isinstance(node.reference, UUID) else None
             return models.SimpleTypeNode(
                 statement=statement,
                 id=node.id,
                 name=node.name,
                 tag=TypeTag.TYPE_REFERENCE,
                 description=node.description,
-                reference_id=node.reference,
+                reference_id=reference_id,
                 **kwargs,
             )
         elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
