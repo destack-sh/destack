@@ -1100,9 +1100,10 @@ class ModuleIndex:
     def __repr__(self):
         return f"<ModuleIndex {self.module}>"
 
-    def add_scope(self, scope: Scope) -> None:
+    def add_scope(self, scope: Scope, anonymous: bool = False) -> None:
         self.scopes[scope.id] = scope
-        self.scopes_by_name[scope.name] = scope
+        if not anonymous:
+            self.scopes_by_name[scope.name] = scope
 
     def add_imported_scope(self, scope: Scope) -> None:
         # only make imported scopes available by id
@@ -1355,8 +1356,9 @@ def index_module(
             )
             if statement_scope.name in idx.scopes_by_name:
                 _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_scope.name)
-                continue
-            idx.add_scope(statement_scope)
+                idx.add_scope(statement_scope, anonymous=True)
+            else:
+                idx.add_scope(statement_scope)
 
     # set parent scope to statement parent (if it exists)
     for statement in idx.statements.values():

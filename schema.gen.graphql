@@ -133,6 +133,8 @@ type InterpSymbol implements SimplyTyped {
   typeNodes: [SimpleType!]
   id: GlobalID!
   file: InterpFile!
+  orderKey: String!
+  parentId: GlobalID
   name: String
   type: StatementType!
   modifier: StatementModifier
