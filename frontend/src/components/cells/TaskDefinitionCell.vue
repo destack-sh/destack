@@ -24,6 +24,7 @@ defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
     declarationRef.value?.blur();
+    typeRef.value?.blur();
     descriptionRef.value?.blur();
   },
 });

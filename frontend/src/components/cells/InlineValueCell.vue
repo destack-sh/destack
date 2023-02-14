@@ -177,6 +177,7 @@ defineExpose({
         <ComboboxInput
           as="input"
           ref="valueRef"
+          spellcheck="false"
           class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
           :display-value="(val: any) => val?.name"
           :placeholder="placeholderValue ?? '...'"
