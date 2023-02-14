@@ -149,7 +149,6 @@ class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
     )
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
-    text = models.TextField(null=True, blank=True)  # for comment
     # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement

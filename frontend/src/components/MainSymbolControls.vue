@@ -86,7 +86,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     nullable
   >
     <ComboboxInput
-      class="max-w-fit rounded-sm border-none py-1 pl-3 pr-6 text-right text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0"
+      class="max-w-fit rounded-sm border-none py-1 pl-3 pr-6 text-right text-sm font-bold text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0"
       @change="query = $event.target.value"
       :display-value="(stmt) => symbolDeclr(stmt)"
       :placeholder="mainSymbolMissing ? '???' : 'main...'"

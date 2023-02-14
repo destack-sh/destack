@@ -102,7 +102,6 @@ export function useStatementOps() {
             typeNodes: [],
             lang: null,
             reference: null,
-            text: null,
             importPath: null,
             generated: false,
             commented: false,

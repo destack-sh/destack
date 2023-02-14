@@ -138,8 +138,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     reference {
       id
     }
-    importPath
-    text
     # symbol contents
     lang
     code

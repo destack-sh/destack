@@ -15,6 +15,6 @@ task 'identify animal speaker' :: (input: string) -> string | null "The type of 
 require openai.std@latest
 import model text-davinci-003 from openai.std.text
 
-compile main:
+build main:
     model text-davinci-003
     task 'identify animal speaker'

@@ -121,7 +121,7 @@ def write_module(
             type=stmt_data.type,
             modifier=stmt_data.modifier,
             name=stmt_data.name,
-            text=stmt_data.text,
+            code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
             symbol_type=stmt_data.symbol_type,
             reference=None,
         )
@@ -173,7 +173,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         type=statement.type,
         modifier=statement.modifier,
         name=statement.name,
-        text=statement.text,
+        text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
         reference=reference,
         reference_module=statement.reference_project_version_id,
@@ -199,7 +199,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     elif statement.symbol_type == SymbolType.COMPILATION:
         data.generated_mappings = [
             models.SourceMapping(
-                compilation=statement,
+                statement=statement,
                 source_id=m.source_id,
                 source_path=m.source_path,
                 source_revision=m.source_revision,
@@ -227,6 +227,8 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.provider = data.provider
     statement.external_name = data.external_name
     statement.on = data.on
+    if data.type == StatementType.COMMENT:
+        statement.code = data.text
     statement.root_type_tag, type_nodes = wmap_type_nodes(statement, data.type_nodes)
     if type_nodes:
         relations.extend(type_nodes)
@@ -266,6 +268,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 def wmap_type_nodes(
     statement: models.Statement | None,
     type_nodes: list[wire.TypeNodeData] | None,
+    impute_type_reference: bool = False,
 ) -> tuple[TypeTag | None, list[models.SimpleTypeNode] | None]:
     """Writes a wire type node into a database type node."""
     if not type_nodes:
@@ -284,7 +287,7 @@ def wmap_type_nodes(
                 statement=statement,
                 id=node.id,
                 name=node.name,
-                tag=node.tag,
+                tag=node.tag if impute_type_reference else TypeTag.TYPE_REFERENCE,
                 description=node.description,
                 reference_id=reference_id,
                 **kwargs,
@@ -348,7 +351,7 @@ def rmap_type_nodes(
             lang_node = language.TypeNode(
                 id=node.id, tag=node.tag, name=node.name, value=node.value
             )
-        elif node.tag == TypeTag.TYPE_REFERENCE:
+        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference_id is not None:
             lang_node = language.TypeNode(
                 id=node.id, tag=node.tag, name=node.name, reference=node.reference.name
             )

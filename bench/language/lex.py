@@ -33,7 +33,7 @@ KEYWORDS = {
     "import": StatementType.IMPORT,
     "require": SymbolType.REQUIREMENT,
     "run": SymbolType.RUNCONFIG,
-    "compile": SymbolType.COMPILATION,
+    "build": SymbolType.COMPILATION,
     # ValueType
     "string": TypeTag.STRING,
     "number": TypeTag.NUMBER,
