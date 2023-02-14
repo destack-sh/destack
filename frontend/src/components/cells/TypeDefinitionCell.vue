@@ -17,8 +17,8 @@ context.syncDescription(description);
 
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);
-const memberTypeNodes = computed(() => context.typeNodes.value ?? []);
-const membersLength = computed(() => memberTypeNodes.value?.length ?? 0);
+const members = computed(() => context.typeNodes.value ?? []);
+const membersLength = computed(() => members.value?.length ?? 0);
 const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 
 // dynamic member refs for names, values & descriptions for each member
@@ -32,7 +32,7 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
     throw new Error("unexpected type node tag: " + context.typeRootTag.value);
   }
 });
-const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(columnsInOrder, memberTypeNodes, {
+const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(columnsInOrder, members, {
   gridNavigateUp,
   gridNavigateDown,
 });
@@ -41,10 +41,10 @@ const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 async function insertBelow(memberId?: string) {
   let orderKey;
   if (memberId == null) {
-    const lastMember = memberTypeNodes.value?.[membersLength.value - 1];
+    const lastMember = members.value?.[membersLength.value - 1];
     orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   } else {
-    const member = memberTypeNodes.value?.find((m) => m.id === memberId);
+    const member = members.value?.find((m) => m.id === memberId);
     orderKey = generateKeyBetween(member?.orderKey ?? null, null);
   }
 
@@ -78,7 +78,7 @@ function readColumn(member: SimpleTypeNode, column: ColumnType) {
 }
 
 function writeColumn(memberId: string, column: ColumnType, value: any) {
-  const member = memberTypeNodes.value?.find((m) => m.id === memberId);
+  const member = members.value?.find((m) => m.id === memberId);
   if (!member) {
     return;
   }
@@ -93,11 +93,11 @@ function writeColumn(memberId: string, column: ColumnType, value: any) {
 }
 
 function deleteMember(memberId: string) {
-  const memberIdx = memberTypeNodes.value?.findIndex((m) => m.id === memberId);
+  const memberIdx = members.value?.findIndex((m) => m.id === memberId);
   if (memberIdx == null || memberIdx < 0) {
     return;
   }
-  const member = memberTypeNodes.value?.[memberIdx];
+  const member = members.value?.[memberIdx];
   context.deleteTypeNode(member as any); // must exist
   grid.focus(memberIdx - 1, "name"); // move focus above
 }
@@ -175,7 +175,7 @@ defineExpose({
       </span>
     </template>
     <!-- Rows -->
-    <template v-for="member of memberTypeNodes" :key="member.id">
+    <template v-for="member of members" :key="member.id">
       <!-- Columns -->
       <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
         <!-- Individual column: a bit messy -->

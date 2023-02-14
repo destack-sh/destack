@@ -46,7 +46,11 @@ export function useStatementContext() {
   const reference = computed(() => useFragment(StatementHeaderType, context.value.reference));
 
   const rootTypeTag = computed(() => statement.value.rootTypeTag);
-  const typeNodes = computed(() => statement.value.typeNodes?.map((n) => useFragment(SimpleTypeNodeType, n)));
+  const typeNodes = computed(() =>
+    statement.value.typeNodes
+      ?.map((n) => useFragment(SimpleTypeNodeType, n))
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+  );
 
   // basic actions
 

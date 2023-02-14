@@ -128,9 +128,26 @@ type InterpModule {
   files: [InterpFile!]!
 }
 
+"""
+Proxy type to SimpleType to avoid overwriting source SimpleType references
+(no extra fields yet but needed since (SimpleType, id) global id would be the same
+ for the simple types output by the runtime and by the source types put in).
+"""
+type InterpSimpleType implements SimpleType {
+  name: String
+  orderKey: String!
+  tag: TypeTag!
+  isOutput: Boolean!
+  isArray: Boolean!
+  isNullable: Boolean!
+  description: String
+  value: JSON
+  reference: Statement
+}
+
 type InterpSymbol implements SimplyTyped {
   rootTypeTag: TypeTag
-  typeNodes: [SimpleType!]
+  typeNodes: [InterpSimpleType!]
   id: GlobalID!
   file: InterpFile!
   orderKey: String!
