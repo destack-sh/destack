@@ -1,3 +1,4 @@
+from datetime import datetime
 from itertools import chain
 from typing import AsyncGenerator, Optional
 from uuid import UUID
@@ -9,8 +10,8 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import language, models
-from bench.api.statement import SimpleType, SimplyTyped, StatementType, SymbolType, TypeTag
+from bench import language
+from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import mapper
@@ -43,7 +44,7 @@ class InterpFile:
 
 
 @gql.type
-class InterpSimpleType(SimpleType):
+class InterpSimpleType(SimpleTypeNode):
     """
     Proxy type to SimpleType to avoid overwriting source SimpleType references
     (no extra fields yet but needed since (SimpleType, id) global id would be the same
@@ -83,6 +84,7 @@ class InterpError:
 #  Right now it's all intermingled.
 @gql.type
 class ModuleRuntime:
+    updated_at: datetime
     module: InterpModule
     dependencies: list[InterpModule]
     errors: list["InterpError"]
@@ -105,9 +107,6 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         interp_module.files.append(interp_file)
         for statement in file.statements:
             root_type_tag, type_nodes = mapper.wmap_type_nodes(None, statement.type_nodes)
-            if type_nodes:
-                type_nodes = [rmap_simple_type(node) for node in type_nodes]
-
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
@@ -122,15 +121,6 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
             )
             interp_file.symbols.append(interp_symbol)
     return interp_module
-
-
-def rmap_simple_type(model_type: models.SimpleTypeNode) -> InterpSimpleType:
-    """Maps a wire simple type into a GQL simple type"""
-    # hackily change class of type nodes to InterpSimpleType
-    # we can't trivially map here or we would lose the statement reference lookup
-    # but strawberry only needs to know that this is not a SimpleType
-    model_type.__class__ = InterpSimpleType
-    return model_type
 
 
 def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list[InterpError]:
@@ -226,7 +216,9 @@ class ModuleRuntimeSubscription:
         module = rmap_module(payload.module)
         dependencies = [rmap_module(dep) for dep in payload.dependencies]
         errors = rmap_errors(payload.errors, module)
-        yield ModuleRuntime(module=module, dependencies=dependencies, errors=errors)
+        yield ModuleRuntime(
+            updated_at=payload.updated_at, module=module, dependencies=dependencies, errors=errors
+        )
 
         # get runtime changes
         try:
@@ -239,7 +231,12 @@ class ModuleRuntimeSubscription:
                 module = rmap_module(update.module)
                 dependencies = [rmap_module(dep) for dep in update.dependencies]
                 errors = rmap_errors(update.errors, module)
-                yield ModuleRuntime(module=module, dependencies=dependencies, errors=errors)
+                yield ModuleRuntime(
+                    updated_at=payload.updated_at,
+                    module=module,
+                    dependencies=dependencies,
+                    errors=errors,
+                )
         finally:
             logger.info("close", project_version_id=project_version_id)
             worker_req_sock.close()

@@ -122,7 +122,8 @@ const files = computed(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actions = useActions();
 const operationsStore = useOperationsStore();
-const anyInflightOps = computed(() => operationsStore.hasInflight);
+const { connected: runtimeConnected } = useCurrentModuleRuntime();
+const hasStaleInflightOps = computed(() => operationsStore.hasInflightStale);
 
 // set up editor state
 const state = useEditorState();
@@ -293,14 +294,28 @@ watchEffect(async () => {
         </Menu>
         <!-- Status -->
         <div class="ml-2 flex items-center">
-          <span class="p-1 transition-all" v-if="state.debug">
+          <!-- should use nicer icons here -->
+          <!-- Operations status -->
+          <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightOps">
             <svg
               viewBox="0 0 100 100"
               class="h-1 w-1"
-              :class="{ 'text-gray-400': !anyInflightOps, 'text-orange-400': anyInflightOps }"
+              :class="{ 'text-green-700': !hasStaleInflightOps, 'text-orange-400': hasStaleInflightOps }"
             >
               <circle cx="50" cy="50" r="40" fill="currentColor" />
             </svg>
+            <span class="text-sm text-gray-500">saving</span>
+          </span>
+          <!-- Runtime status -->
+          <span class="flex items-center gap-1 p-1 transition-all">
+            <svg
+              viewBox="0 0 100 100"
+              class="h-1 w-1"
+              :class="{ 'text-green-700': runtimeConnected, 'text-orange-400': !runtimeConnected }"
+            >
+              <circle cx="50" cy="50" r="40" fill="currentColor" />
+            </svg>
+            <span class="text-sm text-gray-500" v-show="!runtimeConnected">connecting</span>
           </span>
         </div>
         <!-- Comments/issues, warnings/lints, errors -->

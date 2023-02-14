@@ -156,6 +156,29 @@ export type InterpModule = {
   name: Scalars["String"];
 };
 
+/**
+ * Proxy type to SimpleType to avoid overwriting source SimpleType references
+ * (no extra fields yet but needed since (SimpleType, id) global id would be the same
+ *  for the simple types output by the runtime and by the source types put in).
+ */
+export type InterpSimpleType = Node &
+  SimpleType & {
+    __typename?: "InterpSimpleType";
+    createdAt: Scalars["DateTime"];
+    description?: Maybe<Scalars["String"]>;
+    id: Scalars["GlobalID"];
+    isArray: Scalars["Boolean"];
+    isNullable: Scalars["Boolean"];
+    isOutput: Scalars["Boolean"];
+    name?: Maybe<Scalars["String"]>;
+    orderKey: Scalars["String"];
+    reference?: Maybe<Statement>;
+    statement: NodeType;
+    tag: TypeTag;
+    updatedAt: Scalars["DateTime"];
+    value?: Maybe<Scalars["JSON"]>;
+  };
+
 export type InterpSymbol = SimplyTyped & {
   __typename?: "InterpSymbol";
   file: InterpFile;
@@ -167,7 +190,7 @@ export type InterpSymbol = SimplyTyped & {
   rootTypeTag?: Maybe<TypeTag>;
   symbolType?: Maybe<SymbolType>;
   type: StatementType;
-  typeNodes?: Maybe<Array<SimpleType>>;
+  typeNodes?: Maybe<Array<InterpSimpleType>>;
 };
 
 export type ModuleRuntime = {
@@ -175,6 +198,7 @@ export type ModuleRuntime = {
   dependencies: Array<InterpModule>;
   errors: Array<InterpError>;
   module: InterpModule;
+  updatedAt: Scalars["DateTime"];
 };
 
 export type Mutation = {
@@ -564,6 +588,7 @@ export type RunStateOperationInfo = OperationInfo | RunState;
 
 export type SimpleType = {
   description?: Maybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
   isArray: Scalars["Boolean"];
   isNullable: Scalars["Boolean"];
   isOutput: Scalars["Boolean"];
@@ -1520,11 +1545,19 @@ export type InterpSymbolContentFragment = {
   modifier?: StatementModifier | null;
   symbolType?: SymbolType | null;
   rootTypeTag?: TypeTag | null;
-  typeNodes?: Array<
-    { __typename?: "SimpleTypeNode" } & {
-      " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-    }
-  > | null;
+  typeNodes?: Array<{
+    __typename?: "InterpSimpleType";
+    id: any;
+    name?: string | null;
+    tag: TypeTag;
+    description?: string | null;
+    value?: any | null;
+    orderKey: string;
+    isOutput: boolean;
+    isArray: boolean;
+    isNullable: boolean;
+    reference?: { __typename?: "Statement"; id: any } | null;
+  }> | null;
 } & { " $fragmentName"?: "InterpSymbolContentFragment" };
 
 export type InterpModuleContentFragment = {
@@ -1562,6 +1595,7 @@ export type ModuleRuntimeChangedSubscription = {
   __typename?: "Subscription";
   moduleRuntimeChanged: {
     __typename?: "ModuleRuntime";
+    updatedAt: any;
     module: { __typename?: "InterpModule" } & {
       " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
     };
@@ -1968,7 +2002,25 @@ export const InterpSymbolContentFragmentDoc = {
             name: { kind: "Name", value: "typeNodes" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "value" } },
+                { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                { kind: "Field", name: { kind: "Name", value: "isOutput" } },
+                { kind: "Field", name: { kind: "Name", value: "isArray" } },
+                { kind: "Field", name: { kind: "Name", value: "isNullable" } },
+              ],
             },
           },
         ],
@@ -4168,6 +4220,7 @@ export const ModuleRuntimeChangedDocument = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "module" },
@@ -4200,7 +4253,6 @@ export const ModuleRuntimeChangedDocument = {
     },
     ...InterpModuleContentFragmentDoc.definitions,
     ...InterpSymbolContentFragmentDoc.definitions,
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...InterpErrorContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleRuntimeChangedSubscription, ModuleRuntimeChangedSubscriptionVariables>;

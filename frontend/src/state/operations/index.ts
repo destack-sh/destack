@@ -3,11 +3,14 @@ import { useRuntimeOps } from "@/state/operations/runtime";
 import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
 import { useProjectVersionOps } from "@/state/operations/version";
+import { DateTime } from "luxon";
 import { defineStore } from "pinia";
+import { ref, type Ref } from "vue";
 
 type Operation<T> = {
   id?: string;
   type: string;
+  startedAt?: DateTime;
   key?: string | Record<string, string>;
   do(): Promise<T>;
   ret?: T;
@@ -15,6 +18,12 @@ type Operation<T> = {
 };
 
 const COMPLETED_STACK_SIZE = 500;
+const STALE_TIME_SECONDS = 1;
+
+// keep reactive now (can't use useNow because it attaches to component)
+const now: Ref<DateTime> = ref(DateTime.now());
+setInterval(() => (now.value = DateTime.now()), 100);
+
 export const useOperationsStore = defineStore("operations", {
   state: () => ({
     inflight: [] as Operation<unknown>[],
@@ -31,6 +40,13 @@ export const useOperationsStore = defineStore("operations", {
     },
     hasInflight(state): boolean {
       return state.inflight.length > 0;
+    },
+    inflightStale(state): Operation<unknown>[] {
+      const oneSecondAgo = now.value.minus({ seconds: STALE_TIME_SECONDS });
+      return state.inflight.filter((op) => (op.startedAt as DateTime) < oneSecondAgo);
+    },
+    hasInflightStale(state): boolean {
+      return this.inflightStale.length > 0;
     },
     completedLike(state): (type: string, key?: string) => Operation<unknown> {
       return (type, key) => state.completed.filter((op) => op.type === type && (!key || op.key === key))[0];
@@ -51,6 +67,7 @@ export const useOperationsStore = defineStore("operations", {
     },
 
     async _do<T>(operation: Operation<T>): Promise<T> {
+      operation = { ...operation, startedAt: DateTime.now() };
       this.inflight.push(operation);
       const ret = await operation.do();
       operation.ret = ret;
@@ -60,7 +77,6 @@ export const useOperationsStore = defineStore("operations", {
       if (this.completed.length > COMPLETED_STACK_SIZE) {
         this.completed = this.completed.slice(this.completed.length - COMPLETED_STACK_SIZE);
       }
-
       return ret;
     },
 

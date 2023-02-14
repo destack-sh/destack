@@ -97,7 +97,9 @@ def from_dict(
                     obj, key, from_dict(field.type, data[key], _path + [key] if _path else None)
                 )
         return obj
-    elif cls in (str, int, float, UUID, datetime):
+    elif cls == datetime:
+        return datetime.fromisoformat(data)
+    elif cls in (str, int, float, UUID):
         return cls(data)
     elif cls == bool:
         # bools are retained exactly as is

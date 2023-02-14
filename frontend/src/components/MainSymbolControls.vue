@@ -4,14 +4,7 @@ import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import {
-  BeakerIcon,
-  CheckBadgeIcon,
-  CheckIcon,
-  ChevronUpDownIcon,
-  PlayIcon,
-  WrenchIcon,
-} from "@heroicons/vue/24/outline";
+import { CheckBadgeIcon, ChevronUpDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
 
 // statement selection
@@ -83,10 +76,10 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     nullable
   >
     <ComboboxInput
-      class="max-w-fit rounded-sm border border-gray-300 py-1 pl-3 pr-10 font-mono outline-none ring-0 focus:border-orange-500 focus:ring-0 sm:text-sm"
+      class="max-w-fit rounded-sm border-none py-1 pl-3 pr-8 text-right font-mono outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0 sm:text-sm"
       @change="query = $event.target.value"
       :display-value="(stmt) => symbolDeclr(stmt)"
-      placeholder="select main..."
+      placeholder="main..."
     />
     <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
       <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
