@@ -5,6 +5,7 @@ from itertools import chain
 from typing import Optional
 from uuid import UUID
 
+import pytz
 import structlog
 import zmq
 import zmq.asyncio
@@ -225,7 +226,7 @@ class RuntimeWorker:
                 self.rep_sock,
                 ZMessageType.REP_MODULE_RUNTIME,
                 RepModuleRuntimePayload(
-                    updated_at=datetime.now(),
+                    updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
                     module=state.wire_module,
                     dependencies=list(state.wire_dependencies.values()),
                     errors=state.wire_errors,
@@ -245,7 +246,7 @@ class RuntimeWorker:
                 ZMessageType.MODULE_RUNTIME_CHANGED,
                 ModuleRuntimeChangedPayload(
                     module_id=state.source.id,
-                    updated_at=datetime.now(),
+                    updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
                     module=state.wire_module,
                     dependencies=list(state.wire_dependencies.values()),
                     errors=state.wire_errors,

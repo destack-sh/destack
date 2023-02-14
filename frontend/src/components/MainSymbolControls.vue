@@ -15,7 +15,7 @@ const mainStatement = computed(() => runtime.moduleIndex.value?.symbolsById[edit
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Runconfig, SymbolType.Compilation],
+  symbolTypes: [SymbolType.Runconfig, SymbolType.Compilation, SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
 const filteredSymbols = computed(() =>
@@ -76,7 +76,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     nullable
   >
     <ComboboxInput
-      class="max-w-fit rounded-sm border-none py-1 pl-3 pr-8 text-right font-mono outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0 sm:text-sm"
+      class="max-w-fit rounded-sm border-none py-1 pl-3 pr-6 text-right text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0"
       @change="query = $event.target.value"
       :display-value="(stmt) => symbolDeclr(stmt)"
       placeholder="main..."
@@ -86,9 +86,10 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     </ComboboxButton>
 
     <ComboboxOptions
-      v-if="filteredSymbols.length > 0"
-      class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
     >
+      <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>
+      <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">no matching symbols</div>
       <ComboboxOption
         v-for="stmt in filteredSymbols"
         :key="stmt.id"
@@ -103,7 +104,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           ]"
         >
           <div class="flex items-baseline justify-between">
-            <span :class="['truncate', selected && 'font-semibold']">
+            <span :class="['truncate', selected && 'underline']">
               {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
               {{ stmt.name }}
             </span>

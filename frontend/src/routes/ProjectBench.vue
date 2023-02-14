@@ -8,6 +8,7 @@ import GlobalControls from "@/components/GlobalControls.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
+import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
@@ -51,10 +52,10 @@ const views: View[] = [
   { id: "history", name: "History", icon: ClockIcon },
 ];
 const activeView: ComputedRef<View> = computed(() => {
-  const view = views.find((v) => v.id == state.activeViewId);
+  const view = views.find((v) => v.id == editor.activeViewId);
   if (!view) {
-    console.error("invalid view id: " + state.activeViewId);
-    state.setActiveView(views[0].id);
+    console.error("invalid view id: " + editor.activeViewId);
+    editor.setActiveView(views[0].id);
     return views[0];
   }
   return view;
@@ -64,13 +65,13 @@ provideAction({
   id: "editor.view.openExplorer",
   label: "View Explorer",
   shortcuts: ["alt+1"],
-  apply: () => state.setActiveView("explorer"),
+  apply: () => editor.setActiveView("explorer"),
 });
 provideAction({
   id: "editor.view.openHistory",
   label: "View History",
   shortcuts: ["alt+2"],
-  apply: () => state.setActiveView("history"),
+  apply: () => editor.setActiveView("history"),
 });
 
 // get project header
@@ -122,16 +123,17 @@ const files = computed(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actions = useActions();
 const operationsStore = useOperationsStore();
-const { connected: runtimeConnected } = useCurrentModuleRuntime();
+const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurrentModuleRuntime();
 const hasStaleInflightOps = computed(() => operationsStore.hasInflightStale);
+const { getTimeFromNowString } = useTimeFromNow();
 
 // set up editor state
-const state = useEditorState();
+const editor = useEditorState();
 
 // sync editor paths
 watchEffect(() => {
   if (!files.value) return;
-  state.editors.forEach((editor) => {
+  editor.editors.forEach((editor) => {
     if (editor.type == "file") {
       const fileEditor = editor as FileEditor;
       const file = files.value.find((f) => f.id == fileEditor.fileId);
@@ -149,16 +151,16 @@ watchEffect(() => {
   if (hash && files.value) {
     const path = hash.slice(1).slice(0, -"x".length - 1);
     const file = files.value.find((file) => file.path === path);
-    if (file && state.focusedEditor == null) {
-      state.focusFile(file);
+    if (file && editor.focusedEditor == null) {
+      editor.focusFile(file);
     }
   }
 });
 
 // change url if focused editor changes
 watchEffect(() => {
-  if (state.focusedEditor) {
-    router.replace({ hash: `#${state.focusedEditor.path}` });
+  if (editor.focusedEditor) {
+    router.replace({ hash: `#${editor.focusedEditor.path}` });
   }
 });
 
@@ -206,14 +208,14 @@ watch(
 
     if (projectMigrationError.value != null) {
       console.error("unable to migrate, error getting intermediate refs", projectMigrationError.value);
-      await state.migrateTo(projectHead.value, undefined);
+      await editor.migrateTo(projectHead.value, undefined);
       migrating.value = false;
     } else if (projectMigrationRefs.value) {
       const intermediateVersions = [...(projectMigrationRefs.value?.project?.versions ?? [])];
       const intermediateRefs = intermediateVersions
         ?.sort((a, b) => a.createdAt - b.createdAt)
         .map((v) => v.parentsRefs);
-      await state.migrateTo(projectHead.value, intermediateRefs);
+      await editor.migrateTo(projectHead.value, intermediateRefs);
       console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
       migrating.value = false;
     }
@@ -226,15 +228,15 @@ watchEffect(async () => {
   const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
   if (
     loaded &&
-    (state.currentProjectId != projectHeader.value.id || state.currentProjectVersionId != projectHead.value.id)
+    (editor.currentProjectId != projectHeader.value.id || editor.currentProjectVersionId != projectHead.value.id)
   ) {
     // try to load editor state
-    state.setProject(projectHeader.value, projectHead.value);
+    editor.setProject(projectHeader.value, projectHead.value);
     load();
     console.log(`loaded editor state for project ${projectHeader.value.id} version ${projectHead.value.id}`);
-    if (state.currentProjectId == projectHeader.value?.id) {
+    if (editor.currentProjectId == projectHeader.value?.id) {
       // migrate if there is a new version
-      if (state.currentProjectVersionId != projectHead.value?.id) {
+      if (editor.currentProjectVersionId != projectHead.value?.id) {
         console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
         migrating.value = true;
         // get all ref mappings
@@ -242,7 +244,7 @@ watchEffect(async () => {
           undefined,
           {
             projectId: projectHeader.value.id,
-            afterId: state.currentProjectVersionId,
+            afterId: editor.currentProjectVersionId,
           },
           { fetchPolicy: "network-only" }
         );
@@ -316,6 +318,9 @@ watchEffect(async () => {
               <circle cx="50" cy="50" r="40" fill="currentColor" />
             </svg>
             <span class="text-sm text-gray-500" v-show="!runtimeConnected">connecting</span>
+            <span class="text-sm text-gray-500" v-if="editor.debug && runtimeLastUpdated != null">
+              {{ getTimeFromNowString(runtimeLastUpdated) }}
+            </span>
           </span>
         </div>
         <!-- Comments/issues, warnings/lints, errors -->
@@ -360,7 +365,7 @@ watchEffect(async () => {
               :class="view.name == activeView.name ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
               v-for="view in views"
               :key="view.name"
-              @click="state.setActiveView(view.id)"
+              @click="editor.setActiveView(view.id)"
             >
               <span class="sr-only">{{ view.name }}</span>
               <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
@@ -394,13 +399,13 @@ watchEffect(async () => {
         <!-- Left editor group -->
         <div class="relative flex-1">
           <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
-            <EditorGroupInterface :group="state.left" class="h-full w-full" />
+            <EditorGroupInterface :group="editor.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
-        <div class="relative flex-1" v-if="state.right.editors.length > 0">
+        <div class="relative flex-1" v-if="editor.right.editors.length > 0">
           <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
-            <EditorGroupInterface :group="state.right" class="h-full w-full" />
+            <EditorGroupInterface :group="editor.right" class="h-full w-full" />
           </div>
         </div>
       </main>
