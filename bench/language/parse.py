@@ -1145,11 +1145,18 @@ class ModuleIndex:
     def symbol_by_id(
         self, symbol_id: UUID, symbol_t: typing.Type[SymbolT] | None = None
     ) -> SymbolT:
+        return self.get_symbol_by_id(symbol_id, symbol_t=symbol_t, required=True)
+
+    def get_symbol_by_id(
+        self, symbol_id: UUID, symbol_t: typing.Type[SymbolT] | None = None, required: bool = True
+    ) -> SymbolT | None:
         if not self.interpreted:
             raise RuntimeError(f"module index is not interpreted: {self}")
         symbol = self.symbols.get(symbol_id)
         if symbol is None:
-            raise KeyError(f"no symbol found for id {symbol_id}")
+            if required:
+                raise KeyError(f"no symbol found for id {symbol_id}")
+            return None
         if symbol_t is not None and not isinstance(symbol, symbol_t):
             raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
         return symbol

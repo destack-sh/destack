@@ -20,9 +20,11 @@ from bench.settings import ZMQ_RUNTIME_WORKER_PUB_ADDR, ZMQ_RUNTIME_WORKER_REP_A
 from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.zmq.messages import (
     ModuleRuntimeChangedPayload,
-    RepModuleCompilePayload,
+    RepModuleBuildPayload,
+    RepModuleRunPayload,
     RepModuleRuntimePayload,
-    ReqModuleCompilePayload,
+    ReqModuleBuildPayload,
+    ReqModuleRunPayload,
 )
 
 logger = structlog.get_logger(__name__)
@@ -140,22 +142,25 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
 
 
 @gql.input
-class CompileInput:
+class BuildInput:
     project_version_id: GlobalID
-    compilation_id: GlobalID
+    build_id: Optional[GlobalID] = None
+    buildable_id: Optional[GlobalID] = None
 
 
 @gql.type
-class CompileState:
+class BuildState:
     project_version_id: GlobalID
-    compilation_id: GlobalID
+    build_ids: list[GlobalID]
     success: bool
 
 
 @gql.input
 class RunInput:
     project_version_id: GlobalID
-    runconfig_id: GlobalID
+    runconfig_id: Optional[GlobalID] = None
+    runnable_id: Optional[GlobalID] = None
+    build_id: Optional[GlobalID] = None
     arguments: JSON
 
 
@@ -163,26 +168,27 @@ class RunInput:
 class RunState:
     project_version_id: GlobalID
     runconfig_id: GlobalID
-    success: bool
     output: JSON
+    success: bool
 
 
 @gql.type
 class ModuleRuntimeMutation:
     @gql.mutation
-    async def compile(self, input: CompileInput) -> CompileState | OperationInfo:
-        project_version_id = UUID(input.project_version_id.node_id)
+    async def build(self, input: BuildInput) -> BuildState | OperationInfo:
+        # TODO @Cleanup @Performance: manage worker sockets across requests
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
+        project_version_id = UUID(input.project_version_id.node_id)
         send_message(
             worker_req_sock,
-            ZMessageType.REQ_MODULE_COMPILE,
-            ReqModuleCompilePayload(
+            ZMessageType.REQ_MODULE_BUILD,
+            ReqModuleBuildPayload(
                 module_id=project_version_id, compilation_id=input.compilation_id.node_id
             ),
         )
-        _, rep = await recv_message_with(worker_req_sock, RepModuleCompilePayload)
-        return CompileState(
+        _, rep = await recv_message_with(worker_req_sock, RepModuleBuildPayload)
+        return BuildState(
             project_version_id=input.project_version_id,
             compilation_id=input.compilation_id,
             success=rep.success,
@@ -190,7 +196,28 @@ class ModuleRuntimeMutation:
 
     @gql.mutation
     async def run(self, input: RunInput) -> RunState | OperationInfo:
-        raise NotImplementedError
+        worker_req_sock = zmq_ctx.socket(zmq.REQ)
+        worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
+        project_version_id = UUID(input.project_version_id.node_id)
+        send_message(
+            worker_req_sock,
+            ZMessageType.REQ_MODULE_RUN,
+            ReqModuleRunPayload(
+                module_id=project_version_id,
+                runconfig_id=UUID(input.runconfig_id.node_id) if input.runconfig_id else None,
+                runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
+                build_id=UUID(input.build_id.node_id) if input.build_id else None,
+                arguments=input.arguments,
+                blocking=True,
+            ),
+        )
+        _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
+        return RunState(
+            project_version_id=input.project_version_id,
+            runconfig_id=input.runconfig_id,
+            success=rep.success,
+            output=rep.output,
+        )
 
 
 @gql.type
@@ -205,7 +232,7 @@ class ModuleRuntimeSubscription:
         worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
         worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_PUB_ADDR)
-        # TODO @Performance: filter subscription messages properly (in all sites)
+        # TODO @Performance @Robustness: filter subscription messages properly (in all sites)
         worker_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
 
         # get initial runtime

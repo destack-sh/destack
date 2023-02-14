@@ -144,7 +144,7 @@ async function insertOrFocusStatementEnd() {
 </script>
 
 <template>
-  <div class="flex flex-col bg-white px-8 pb-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+  <div class="flex flex-col bg-white px-12 pb-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
     <!-- Add statement to start -->
     <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
     <!-- File's statements -->

@@ -1,6 +1,7 @@
 import typing
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import partial
 from itertools import chain
 from typing import Optional
 from uuid import UUID
@@ -16,6 +17,7 @@ from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import Compilation, StatementPath, SymbolType
 from bench.language.wire import ModuleReference
 from bench.runtime.compile import compile
+from bench.runtime.execute import instantiate, run
 from bench.zmq import (
     ZMessage,
     ZMessageType,
@@ -25,12 +27,15 @@ from bench.zmq import (
     zmq_ctx,
 )
 from bench.zmq.messages import (
+    ModuleBuildErrorType,
     ModuleChangedPayload,
+    ModuleRunErrorType,
     ModuleRuntimeChangedPayload,
-    RepModuleCompilePayload,
+    RepModuleBuildPayload,
+    RepModuleRunPayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
-    ReqModuleCompilePayload,
+    ReqModuleBuildPayload,
     ReqModuleRunPayload,
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
@@ -252,39 +257,63 @@ class RuntimeWorker:
                     errors=state.wire_errors,
                 ),
             )
-        elif msg.type == ZMessageType.REQ_MODULE_COMPILE:
-            payload = msg.payload_as(ReqModuleCompilePayload)
+        elif msg.type == ZMessageType.REQ_MODULE_BUILD:
+            payload = msg.payload_as(ReqModuleBuildPayload)
             state = await self.get_worker_state(payload.module_id)
-            if not state.interpreted:
-                logger.debug("fail_compile", module_id=payload.module_id)
-                send_message(
-                    self.rep_sock,
-                    ZMessageType.REP_MODULE_COMPILE,
-                    RepModuleCompilePayload(success=False),
-                )
-                return
+            send_rep = partial(send_message, self.rep_sock, ZMessageType.REP_MODULE_BUILD)
 
+            # get the compilations to run
+            if not state.interpreted:
+                logger.debug("fail_build", module_id=payload.module_id)
+                send_rep(RepModuleBuildPayload(error=ModuleBuildErrorType.NOT_READY))
+                return
             compilation = state.interp.module_idx.symbol_by_id(payload.compilation_id, Compilation)
-            compile_result = await compile(compilation)
-            send_message(
-                self.rep_sock,
-                ZMessageType.REP_MODULE_COMPILE,
-                RepModuleCompilePayload(success=True),
-            )
-            compiled_file = compile_result.to_file(module=state.interp.module_idx.module)
+
+            # actually build
+            build_result = await compile(compilation)
+            send_rep(RepModuleBuildPayload(error=None))
+
+            # write back results
+            generated_file = build_result.to_file(module=state.interp.module_idx.module)
             write = ReqWriteModulePayload(
                 module_id=state.source.id,
-                files=[wire.rmap_file(compiled_file)],
+                files=[wire.rmap_file(generated_file)],
             )
             send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
         elif msg.type == ZMessageType.REQ_MODULE_RUN:
             payload = msg.payload_as(ReqModuleRunPayload)
-            raise NotImplementedError("TODO @Incomplete: implement REQ_MODULE_RUN")
+            state = await self.get_worker_state(payload.module_id)
+            send_rep = partial(send_message, self.rep_sock, ZMessageType.REP_MODULE_RUN)
+
+            # get the runconfig to run (implicit or explicit)
+            if not state.interpreted:
+                logger.debug("fail_run", module_id=payload.module_id)
+                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.NOT_READY))
+                return
+            if payload.runconfig_id is not None:
+                runconfig = state.interp.module_idx.symbol_by_id(
+                    payload.runconfig_id, language.Runconfig
+                )
+                raise RuntimeError(f"explicit runconfigs not yet supported: {runconfig}")
+            else:  # assemble runconfig from runnable and associated build (if given)
+                build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Compilation)
+                runnable = state.interp.module_idx.symbol_by_id(payload.runnable_id)
+                # if it's a task get the actual runnable from the build
+                if isinstance(runnable, language.Task):
+                    if build is None:
+                        send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
+                        return
+                    target_id = build.map(runnable.id)
+                    runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
+
+            # run it
+            code_instance = instantiate(runnable)
+            await run(code_instance)
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
-        # TODO @Incomplete: trigger jobs and send out consequent job and runtime changes
-        # TODO @Incomplete: stream back runtime results & frames (to api server)
+        # TODO @Incomplete: auto-trigger jobs and send out consequent job and runtime changes
+        # TODO @Incomplete: stream back runtime results & frames (via api server?)
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)

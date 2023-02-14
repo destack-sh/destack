@@ -47,7 +47,7 @@ function restoreScroll() {
 }
 onMounted(() => {
   // wait a bit to make sure the container is rendered
-  // TODO @UX: get signal from child interfaces when they are ready
+  // TODO @UX: fire scroll restore on some readiness signal (from child interfaces?)
   setTimeout(restoreScroll, 1000);
 });
 
