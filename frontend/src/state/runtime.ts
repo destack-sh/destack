@@ -3,7 +3,6 @@ import type { InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType 
 import { useEditorState } from "@/state/editor";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import type { DateTime } from "luxon";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `

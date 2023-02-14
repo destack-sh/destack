@@ -35,8 +35,12 @@ export const useOperationsStore = defineStore("operations", {
     inflightLike(state): (type: string, key?: string) => Operation<unknown> | undefined {
       return (type, key) => state.inflight.filter((op) => op.type === type && (!key || op.key === key))[0];
     },
-    hasInflightLike(state): (type: string, key?: string) => boolean {
-      return (type, key) => state.inflight.some((op) => op.type === type && (!key || op.key === key));
+    hasInflightLike(state): (type: string, key?: string, stale?: boolean) => boolean {
+      const oneSecondAgo = now.value.minus({ seconds: STALE_TIME_SECONDS });
+      return (type, key, stale) =>
+        state.inflight.some(
+          (op) => op.type === type && (!key || op.key === key) && (!stale || (op.startedAt as DateTime) < oneSecondAgo)
+        );
     },
     hasInflight(state): boolean {
       return state.inflight.length > 0;

@@ -14,6 +14,7 @@ import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
+import monacoLoader from "@monaco-editor/loader";
 
 function createApolloClient() {
   // split requests between http and ws
@@ -75,6 +76,9 @@ async function init() {
 
   // capture ctrl + s
   applyShortcuts();
+
+  // init monaco once the app is mounted (for faster response if once a monaco editor is opened)
+  monacoLoader.init();
 }
 
 init();

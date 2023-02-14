@@ -11,7 +11,17 @@ import { computed, ref } from "vue";
 const ops = useOperations();
 const editor = useEditorState();
 const runtime = useCurrentModuleRuntime();
-const mainStatement = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainStatementId ?? ""]);
+const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
+const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
+const canCompile = computed(
+  () =>
+    mainSymbol.value?.symbolType == SymbolType.Task ||
+    mainSymbol.value?.symbolType == SymbolType.Compilation ||
+    mainSymbol.value?.symbolType == SymbolType.Runconfig
+);
+const canRun = computed(
+  () => mainSymbol.value?.symbolType == SymbolType.Task || mainSymbol.value?.symbolType == SymbolType.Code
+);
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
@@ -30,16 +40,16 @@ const mainActions = [
   {
     label: "Compile",
     icon: WrenchIcon,
-    enabled: computed(() => mainStatement.value?.symbolType === SymbolType.Compilation),
+    enabled: canCompile,
     active: false,
     action: async () => {
-      await ops.runtime.compile(mainStatement.value?.id);
+      await ops.runtime.compile(mainSymbol.value?.id);
     },
   },
   {
     label: "Run",
     icon: PlayIcon,
-    enabled: computed(() => mainStatement.value?.symbolType == SymbolType.Runconfig),
+    enabled: canRun,
     active: false,
     action: async () => {
       console.log("run");
@@ -71,21 +81,23 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
   <Combobox
     as="div"
     class="relative"
-    :model-value="mainStatement"
-    @update:model-value="(stmt) => editor.setMainStatement(stmt)"
+    :model-value="mainSymbol"
+    @update:model-value="(stmt) => editor.setMainSymbol(stmt)"
     nullable
   >
     <ComboboxInput
       class="max-w-fit rounded-sm border-none py-1 pl-3 pr-6 text-right text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0"
       @change="query = $event.target.value"
       :display-value="(stmt) => symbolDeclr(stmt)"
-      placeholder="main..."
+      :placeholder="mainSymbolMissing ? '???' : 'main...'"
+      :disabled="!runtime.connected.value"
     />
     <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
       <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
     </ComboboxButton>
 
     <ComboboxOptions
+      v-show="runtime.connected.value"
       class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
     >
       <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>

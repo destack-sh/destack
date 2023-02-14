@@ -1,11 +1,13 @@
 import { graphql } from "@/gql";
+import type { UpdateStatementCodeMutation, UpdateStatementDescriptionMutation } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
+const PENDING_REVISION = -1;
 
 export function useSymbolContentOps() {
   const operations = useOperationsStore();
 
-  // type mutations
+  // symbol content mutations
 
   const { mutate: updateStatementDescriptionMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -19,7 +21,18 @@ export function useSymbolContentOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; description: string }) =>
+        ({
+          updateStatementDescription: {
+            __typename: "Statement",
+            id: vars.id,
+            description: vars.description,
+            revision: PENDING_REVISION,
+          },
+        } as UpdateStatementDescriptionMutation),
+    }
   );
 
   async function updateStatementDescription(id: string, oldDescription: string, newDescription: string) {
@@ -48,7 +61,18 @@ export function useSymbolContentOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; code: string }) =>
+        ({
+          updateStatementCode: {
+            __typename: "Statement",
+            id: vars.id,
+            code: vars.code,
+            revision: PENDING_REVISION,
+          },
+        } as UpdateStatementCodeMutation),
+    }
   );
 
   async function updateStatementCode(id: string, oldCode: string, newCode: string) {
@@ -69,7 +93,7 @@ export function useSymbolContentOps() {
     });
   }
 
-  // dataset mutations (aka records)
+  // record mutations
 
   // TODO @Performance: mutate records optimistically
   const { mutate: createRecordMut } = useMutation(

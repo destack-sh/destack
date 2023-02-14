@@ -34,7 +34,7 @@ defineExpose({
   <!-- Inline type -->
   <InlineFunctionTypeCell
     ref="typeRef"
-    class="ml-2 inline-flex"
+    class="ml-3 inline-flex"
     @navigate-up="context.navigateUp"
     @navigate-down="monacoRef?.focus"
     @navigate-right="monacoRef?.focus"

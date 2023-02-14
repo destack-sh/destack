@@ -47,7 +47,7 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Capability]: "capability",
   [SymbolType.Requirement]: "require",
   [SymbolType.Runconfig]: "run",
-  [SymbolType.Compilation]: "compile",
+  [SymbolType.Compilation]: "build",
 };
 export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
 export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
@@ -67,6 +67,8 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Number]: "number",
   [TypeTag.Array]: "list",
   [TypeTag.TypeReference]: "reference",
+  [TypeTag.Enum]: "enum",
+  [TypeTag.Map]: "map",
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 
@@ -165,7 +167,7 @@ export const useEditorState = defineStore("editor", {
       focusedEditor: null as Editor | null,
       focusedElementId: null as string | null,
       focusedElementType: null as string | null,
-      mainStatementId: null as string | null,
+      mainSymbolId: null as string | null,
       editingElement: false,
       readonly: false,
       debug: false,
@@ -360,9 +362,9 @@ export const useEditorState = defineStore("editor", {
       }
     },
 
-    setMainStatement(statement?: { id: string }): void {
-      console.log("set main statement", statement);
-      this.mainStatementId = statement?.id ?? null;
+    setMainSymbol(symbol?: { id: string }): void {
+      console.log("set main symbol", symbol?.id);
+      this.mainSymbolId = symbol?.id ?? null;
     },
   },
 });

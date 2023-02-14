@@ -166,6 +166,7 @@ defineExpose({
       placeholder="..."
       @keydown.escape.prevent=""
       @keyup.escape.prevent="escape"
+      @keydown.shift.enter.exact.prevent="context.insertBelow"
       @keydown.delete="deleteLeftIfAtStart"
     />
     <ComboboxOptions

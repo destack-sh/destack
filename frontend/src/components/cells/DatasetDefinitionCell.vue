@@ -178,7 +178,7 @@ defineExpose({
   </button>
   <!-- Dataset type and records -->
   <div
-    class="grid w-fit min-w-fit gap-x-3"
+    class="grid min-w-fit gap-x-3"
     :style="{
       'grid-template-columns': `repeat(${columnsInOrder.length}, minmax(40px, 1fr))`,
     }"
