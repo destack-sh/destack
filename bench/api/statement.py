@@ -391,6 +391,7 @@ class TypeNodeCreateInput:
 
     def to_model(self) -> models.SimpleTypeNode:
         return models.SimpleTypeNode(
+            id=UUID(self.id.node_id),
             order_key=self.order_key,
             name=self.name,
             description=self.description,
