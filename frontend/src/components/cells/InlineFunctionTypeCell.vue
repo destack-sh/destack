@@ -28,7 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
-const outputRef: Ref<HTMLButtonElement | null> = ref(null);
+const outputRef: Ref<HTMLButtonElement | InstanceType<typeof InlineTypeCell> | null> = ref(null);
 const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(
   computed(() => ["name", "type"]),
   inputNodes,
@@ -39,12 +39,9 @@ const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>
     gridNavigateRight: () => addInputRef.value?.focus(),
   }
 );
-const isEditing = computed(() => inputGrid.refs.value.find((r) => r.editing) && !outputRef.value?.editing);
+const isEditing = computed(() => inputGrid.refs.value.find((r) => r.editing) && !(outputRef.value as any)?.editing);
 
 async function insertInput() {
-  if (outputNode.value == null) {
-    throw new Error("invalid function: input node is null");
-  }
   await context.createTypeNode(
     makeTypeNode({
       name: "input" + inputNodes.value?.length,
@@ -56,21 +53,17 @@ async function insertInput() {
 }
 
 async function insertOutput(node: Partial<SimpleType> = {}) {
-  if (outputNode.value == null) {
-    throw new Error("invalid function: output node is null");
-  }
   if (outputNode.value != null) {
-    await context.updateTypeNode(outputNode.value, { ...outputNode.value, tag: TypeTag.Any, ...node });
-  } else {
-    await context.createTypeNode(
-      makeTypeNode({
-        tag: TypeTag.Any,
-        orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
-        isOutput: true,
-        ...node,
-      } as unknown as SimpleType)
-    );
+    return;
   }
+  await context.createTypeNode(
+    makeTypeNode({
+      tag: TypeTag.Any,
+      orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
+      isOutput: true,
+      ...node,
+    } as any)
+  );
   nextTick(() => outputRef?.value?.focus());
 }
 
@@ -94,9 +87,9 @@ function updateInputType(oldNode: SimpleTypeNode, newNode: SimpleType) {
 
 function updateOutputType(newNode: SimpleType) {
   if (outputNode.value == null) {
-    context.createTypeNode(newNode);
+    insertOutput(newNode);
   } else {
-    context.updateTypeNode(outputNode.value, newNode);
+    context.updateTypeNode(outputNode.value, { ...newNode, orderKey: outputNode.value.orderKey, isOutput: true });
   }
 }
 
