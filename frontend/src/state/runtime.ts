@@ -3,7 +3,8 @@ import type { InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType 
 import { useEditorState } from "@/state/editor";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, toRef, type Ref } from "vue";
+import type { DateTime } from "luxon";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
@@ -16,7 +17,20 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     symbolType
     rootTypeTag
     typeNodes {
-      ...SimpleTypeNodeContent
+      # not using SimpleTypeNodeContent fragment because it's for the editable node
+      # and using a shared fragment seems overkill
+      id
+      name
+      tag
+      description
+      value
+      orderKey
+      reference {
+        id
+      }
+      isOutput
+      isArray
+      isNullable
     }
   }
 `);
@@ -66,10 +80,17 @@ function indexModule(module: InterpModule): ModuleIndex {
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates
 function _useModuleRuntime(projectVersionId: Ref<string | null>) {
-  const { result: runtime } = useSubscription(
+  const {
+    result: runtime,
+    error,
+    start,
+    stop,
+    onResult: runtimeUpdated,
+  } = useSubscription(
     graphql(/* GraphQL */ `
       subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {
         moduleRuntimeChanged(projectVersionId: $projectVersionId) {
+          updatedAt
           module {
             ...InterpModuleContent
           }
@@ -82,8 +103,25 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
         }
       }
     `),
-    { projectVersionId }
+    { projectVersionId },
+    {}
   );
+  // enable/disable subscription when projectVersionId changes
+  watch(
+    projectVersionId,
+    () => {
+      if (projectVersionId.value != null) {
+        start();
+      } else {
+        stop();
+      }
+    },
+    { immediate: true }
+  );
+
+  const connected = computed(() => !!runtime.value && !error.value && projectVersionId.value != null);
+  const lastUpdated: Ref<DateTime | null> = ref(null);
+  runtimeUpdated(() => (lastUpdated.value = runtime.value?.moduleRuntimeChanged.updatedAt));
 
   const module = computed(() => useFragment(InterpModuleContentType, runtime.value?.moduleRuntimeChanged.module));
   const dependencies = computed(() =>
@@ -104,7 +142,8 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   });
 
   return {
-    connected: computed(() => !!runtime.value),
+    connected,
+    lastUpdated,
     module,
     dependencies,
     errors,

@@ -1,6 +1,7 @@
 # increment when making backwards-incompatible changes to messages
 import typing
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -130,6 +131,7 @@ class ReqModuleRuntimePayload:
 
 @_register_payload(ZMessageType.REP_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
+    updated_at: datetime
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
@@ -138,6 +140,7 @@ class RepModuleRuntimePayload:
 @_register_payload(ZMessageType.MODULE_RUNTIME_CHANGED)
 class ModuleRuntimeChangedPayload:
     module_id: UUID
+    updated_at: datetime
     #  :PartialModuleUpdates
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]

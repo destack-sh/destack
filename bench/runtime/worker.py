@@ -1,5 +1,6 @@
 import typing
 from dataclasses import dataclass, field
+from datetime import datetime
 from itertools import chain
 from typing import Optional
 from uuid import UUID
@@ -224,7 +225,10 @@ class RuntimeWorker:
                 self.rep_sock,
                 ZMessageType.REP_MODULE_RUNTIME,
                 RepModuleRuntimePayload(
-                    state.wire_module, list(state.wire_dependencies.values()), state.wire_errors
+                    updated_at=datetime.now(),
+                    module=state.wire_module,
+                    dependencies=list(state.wire_dependencies.values()),
+                    errors=state.wire_errors,
                 ),
             )
         elif msg.type == ZMessageType.MODULE_CHANGED:
@@ -240,10 +244,11 @@ class RuntimeWorker:
                 self.pub_sock,
                 ZMessageType.MODULE_RUNTIME_CHANGED,
                 ModuleRuntimeChangedPayload(
-                    state.source.id,
-                    state.wire_module,
-                    list(state.wire_dependencies.values()),
-                    state.wire_errors,
+                    module_id=state.source.id,
+                    updated_at=datetime.now(),
+                    module=state.wire_module,
+                    dependencies=list(state.wire_dependencies.values()),
+                    errors=state.wire_errors,
                 ),
             )
         elif msg.type == ZMessageType.REQ_MODULE_COMPILE:

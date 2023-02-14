@@ -78,13 +78,13 @@ const documents = {
     types.DeleteRecordDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
     types.CommitDocument,
-  "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n":
+  "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      # not using SimpleTypeNodeContent fragment because it's for the editable node\n      # and using a shared fragment seems overkill\n      id\n      name\n      tag\n      description\n      value\n      orderKey\n      reference {\n        id\n      }\n      isOutput\n      isArray\n      isNullable\n    }\n  }\n":
     types.InterpSymbolContentFragmentDoc,
   "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n":
     types.InterpModuleContentFragmentDoc,
   "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n":
     types.InterpErrorContentFragmentDoc,
-  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    ":
+  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    ":
     types.ModuleRuntimeChangedDocument,
 };
 
@@ -203,8 +203,8 @@ export function graphql(
   source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
 ): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          project {\n            ...ProjectHeader\n          }\n          committedVersion {\n            ...ProjectVersionHeader\n          }\n          newWorkingVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
 export function graphql(
-  source: "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      ...SimpleTypeNodeContent\n    }\n  }\n"];
+  source: "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      # not using SimpleTypeNodeContent fragment because it's for the editable node\n      # and using a shared fragment seems overkill\n      id\n      name\n      tag\n      description\n      value\n      orderKey\n      reference {\n        id\n      }\n      isOutput\n      isArray\n      isNullable\n    }\n  }\n"
+): typeof documents["\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    typeNodes {\n      # not using SimpleTypeNodeContent fragment because it's for the editable node\n      # and using a shared fragment seems overkill\n      id\n      name\n      tag\n      description\n      value\n      orderKey\n      reference {\n        id\n      }\n      isOutput\n      isArray\n      isNullable\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment InterpModuleContent on InterpModule {\n    id\n    name\n    files {\n      id\n      path\n      symbols {\n        ...InterpSymbolContent\n      }\n    }\n  }\n"];
@@ -212,8 +212,8 @@ export function graphql(
   source: "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"
 ): typeof documents["\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"];
 export function graphql(
-  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "
-): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "];
+  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "];
 
 export function graphql(source: string): unknown;
 export function graphql(source: string) {

@@ -61,6 +61,7 @@ class SimplyTyped:
 
 @gql.interface
 class SimpleType:
+    id: GlobalID
     name: Optional[str]
     order_key: str
     tag: TypeTag

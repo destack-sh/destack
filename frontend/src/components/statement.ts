@@ -4,9 +4,7 @@ import {
   StatementType,
   SymbolType,
   TypeTag,
-  type NodeType,
   type SimpleTypeNode,
-  type TypeNode,
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
 } from "@/gql/graphql";
@@ -16,8 +14,8 @@ import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
 
-import { INTEGER_ZERO } from "@/utils/fractional";
 import { newTypeNodeId } from "@/state/operations/statement";
+import { INTEGER_ZERO } from "@/utils/fractional";
 
 export const STATEMENT_CONTEXT = Symbol();
 
