@@ -7,8 +7,10 @@ import { computed } from "vue";
 
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
-const hasRunconfigs = computed(() =>
-  Object.values(runtime.moduleIndex.value?.symbolsById ?? {}).find((s) => s.symbolType == SymbolType.Runconfig)
+const hasRunnables = computed(() =>
+  Object.values(runtime.moduleIndex.value?.symbolsById ?? {}).find(
+    (s) => s.symbolType == SymbolType.Runconfig || s.symbolType == SymbolType.Compilation
+  )
 );
 
 const { copy } = useClipboard();
@@ -36,8 +38,8 @@ function deploy() {
     class="rounded-sm p-1 text-sm"
     :class="{
       'text-gray-500': !canDeploy,
-      'text-blue-700 hover:bg-orange-50': canDeploy && !hasRunconfigs,
-      'text-green-700 hover:bg-green-50': canDeploy && hasRunconfigs,
+      'text-blue-700 hover:bg-orange-50': canDeploy && !hasRunnables,
+      'text-green-700 hover:bg-green-50': canDeploy && hasRunnables,
     }"
     :disabled="!canDeploy"
     @click="deploy"

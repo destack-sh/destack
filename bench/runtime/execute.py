@@ -9,12 +9,13 @@ from asyncio import iscoroutinefunction
 from collections import OrderedDict
 from dataclasses import replace
 from random import Random
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 import structlog
 from django.db import models
 
+from bench.language import ModuleIndex
 from bench.language.type import (
     Code,
     Dataset,
@@ -405,3 +406,12 @@ def _do_execute(code: str, globals: dict):
         raise RuntimeError("exec outside sandbox is not allowed")
 
     exec(code, globals)
+
+
+def map_runnable(
+    idx: ModuleIndex,
+    runconfig_id: Optional[UUID],
+    runnable_id: Optional[UUID],
+    build_id: Optional[UUID],
+):
+    pass

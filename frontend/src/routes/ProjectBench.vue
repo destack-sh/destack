@@ -356,7 +356,7 @@ watchEffect(async () => {
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
-      <aside class="flex h-full w-64 resize-x border-r border-gray-200 lg:w-72">
+      <aside class="flex h-full w-64 resize-x border-r border-gray-200 lg:w-80">
         <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
           <div class="flex flex-1 flex-col">

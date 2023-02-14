@@ -1,3 +1,17 @@
+input BuildInput {
+  projectVersionId: GlobalID!
+  buildId: GlobalID = null
+  buildableId: GlobalID = null
+}
+
+type BuildState {
+  projectVersionId: GlobalID!
+  buildIds: [GlobalID!]!
+  success: Boolean!
+}
+
+union BuildStateOperationInfo = BuildState | OperationInfo
+
 input CommitInput {
   projectVersionId: GlobalID!
   name: String!
@@ -9,19 +23,6 @@ type CommitPayload {
   committedVersion: ProjectVersion!
   newWorkingVersion: ProjectVersion!
 }
-
-input CompileInput {
-  projectVersionId: GlobalID!
-  compilationId: GlobalID!
-}
-
-type CompileState {
-  projectVersionId: GlobalID!
-  compilationId: GlobalID!
-  success: Boolean!
-}
-
-union CompileStateOperationInfo = CompileState | OperationInfo
 
 type DatasetRecord implements Node {
   id: GlobalID!
@@ -202,7 +203,7 @@ type Mutation {
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
   commit(input: CommitInput!): CommitPayload!
-  compile(input: CompileInput!): CompileStateOperationInfo!
+  build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
 }
 
@@ -411,15 +412,17 @@ type RefMapping {
 
 input RunInput {
   projectVersionId: GlobalID!
-  runconfigId: GlobalID!
+  runconfigId: GlobalID = null
+  runnableId: GlobalID = null
+  buildId: GlobalID = null
   arguments: JSON!
 }
 
 type RunState {
   projectVersionId: GlobalID!
   runconfigId: GlobalID!
-  success: Boolean!
   output: JSON!
+  success: Boolean!
 }
 
 union RunStateOperationInfo = RunState | OperationInfo

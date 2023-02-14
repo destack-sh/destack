@@ -408,7 +408,7 @@ class SymbolContent:
         return self.__class__(**self.__dict__)  # type: ignore
 
 
-LiteralValue = Union[dict[str, str], list["LiteralValue"], int, float, bool, str, None]
+LiteralValue = Union[dict[str, Any], list[Any], int, float, bool, str, None]
 PRIMITIVE_TYPES = [TypeTag.ANY, TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
 
 
@@ -660,6 +660,13 @@ class Runconfig(InterpSymbol, RunconfigContent):
 @dataclass(repr=False)
 class CompilationContent(SymbolContent):
     source_mappings: list["SourceMapping"]
+
+    def map(self, source_id: UUID) -> UUID:
+        # TODO @Performance: use a dict to map source/target ids
+        for mapping in self.source_mappings:
+            if mapping.source_id == source_id:
+                return mapping.target_id
+        raise KeyError(f"source_id {source_id} not found in {self}")
 
     def __str__(self):
         return ""

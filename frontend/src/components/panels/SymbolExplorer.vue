@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { StatementType, SymbolType } from "@/gql/graphql";
+import { StatementType } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { computed } from "vue";

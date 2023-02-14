@@ -1,8 +1,10 @@
 # increment when making backwards-incompatible changes to messages
+import enum
 import typing
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Optional
 from uuid import UUID
 
 from bench.language import wire
@@ -35,8 +37,8 @@ class ZMessageType(StrEnum):
 
     # Bench commands
     # API -> Worker
-    REQ_MODULE_COMPILE = "req_module_compile"
-    REP_MODULE_COMPILE = "rep_module_compile"
+    REQ_MODULE_BUILD = "req_module_build"
+    REP_MODULE_BUILD = "rep_module_build"
     REQ_MODULE_RUN = "req_module_run"
     REP_MODULE_RUN = "rep_module_run"
 
@@ -79,28 +81,44 @@ class ModuleChangedPayload:
     module: wire.ModuleData
 
 
-@_register_payload(ZMessageType.REQ_MODULE_COMPILE)
-class ReqModuleCompilePayload:
+@_register_payload(ZMessageType.REQ_MODULE_BUILD)
+class ReqModuleBuildPayload:
     module_id: UUID
-    compilation_id: UUID
+    build_id: Optional[UUID]
+    buildable_id: Optional[UUID]
 
 
-@_register_payload(ZMessageType.REP_MODULE_COMPILE)
-class RepModuleCompilePayload:
-    success: bool
+class ModuleBuildErrorType(enum.Enum):
+    NOT_READY = "not_ready"
+    INVALID_BUILDABLE = "invalid_buildable"
+
+
+@_register_payload(ZMessageType.REP_MODULE_BUILD)
+class RepModuleBuildPayload:
+    error: Optional[ModuleBuildErrorType]
 
 
 @_register_payload(ZMessageType.REQ_MODULE_RUN)
 class ReqModuleRunPayload:
     module_id: UUID
-    run_id: UUID
+    runconfig_id: Optional[UUID]
+    runnable_id: Optional[UUID]
+    build_id: Optional[UUID]
     arguments: dict[str, wire.LiteralValue]
+    blocking: bool
+
+
+class ModuleRunErrorType(enum.Enum):
+    NOT_READY = "not_ready"
+    INVALID_RUNCONFIG = "invalid_runconfig"
+    RUNTIME_ERROR = "runtime_error"
 
 
 @_register_payload(ZMessageType.REP_MODULE_RUN)
 class RepModuleRunPayload:
-    execution_id: UUID
-    output: wire.LiteralValue
+    error_type: Optional[ModuleRunErrorType]
+    execution_id: Optional[UUID]
+    output: Optional[wire.LiteralValue]
 
 
 @_register_payload(ZMessageType.REQ_READ_MODULE)
