@@ -3,6 +3,8 @@ import { provideGlobalAction } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newFileId } from "@/state/operations/file";
+import { newStatementId } from "@/state/operations/statement";
+import { INTEGER_ZERO } from "@/utils/fractional";
 
 export function useFileActions() {
   const editor = useEditorState();
@@ -12,11 +14,15 @@ export function useFileActions() {
     id: "file.new",
     label: "New file...",
     shortcuts: ["ctrl+n", "meta+n"],
-    apply: async () => {
-      const randomName = getRandomName();
-      const file = await operations.file.create(newFileId(), editor.currentProjectVersionId as string, randomName);
+    apply: async (name: string = getRandomName()) => {
+      const file = await operations.file.create(newFileId(), editor.currentProjectVersionId as string, name);
       editor.focusFile(file);
-      editor.focusElement(file);
+      // create default blank statement (likely we'll want more options later on like in Notion?)
+      const statementId = newStatementId();
+      const statementCreate = operations.statement.create(statementId, file.id, null, INTEGER_ZERO);
+      editor.editElement({ __typename: "Statement", id: statementId } as any);
+      await statementCreate;
+      return file;
     },
   });
 
