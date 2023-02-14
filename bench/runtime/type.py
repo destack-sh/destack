@@ -62,6 +62,7 @@ class ModelInstance(SymbolInstance, Model):
 class CodeInstance(SymbolInstance, Code):
     transformed_code: str = required_field()
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
+    is_async: bool = required_field()
     prompt: typing.Optional[DynamicPrompt] = required_field()
 
     @property

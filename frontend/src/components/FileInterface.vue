@@ -41,12 +41,12 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-const symbolsById = computed(() => {
-  const symbolsById: Record<string, StatementContentFragment> = {};
+const statementsById = computed(() => {
+  const statementsById: Record<string, StatementContentFragment> = {};
   statements.value.forEach((statement) => {
-    symbolsById[statement.id] = statement;
+    statementsById[statement.id] = statement;
   });
-  return symbolsById;
+  return statementsById;
 });
 
 const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
@@ -56,13 +56,7 @@ function restore() {
   operations.file.restore(fileHeader.value?.id);
 }
 
-function getStatementContentLength(statement: StatementContentFragment) {
-  // TODO @UX: test whether line numbers are actually useful
-  return 0;
-}
-
 /* Statements are hierarchical but laid out linearly (in one column) */
-/* Certain statements may be grouped outside the hierarchy */
 type PositionedStatement = {
   depth: number;
   lineNumberBase: number;
@@ -88,7 +82,7 @@ const positionedStatements = computed(() => {
     const isLastInRoot = isLast && children.length == 0;
 
     positionedStatements.push({ depth, lineNumberBase, statement, isFirstInGroup, isLastInGroup: isLastInRoot });
-    lineNumberBase += 1 + getStatementContentLength(statement);
+    lineNumberBase += 1;
 
     // sort by order key
     children.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
@@ -152,7 +146,7 @@ async function insertOrFocusStatementEnd() {
       <StatementInterface
         :file="(fileHeader as any)"
         :statement="(positioned.statement as any)"
-        :reference="(symbolsById[positioned.statement.reference?.id] as any)"
+        :reference="(statementsById[positioned.statement.reference?.id] as any)"
         :depth="positioned.depth"
         :isFirstInGroup="positioned.isFirstInGroup"
         :isLastInGroup="positioned.isLastInGroup"

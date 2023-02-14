@@ -1,8 +1,13 @@
 <script lang="ts" setup>
-import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
+import {
+  ANY_TYPE_NODE,
+  makeTypeNode,
+  PRIMITIVE_TYPE_NODES,
+  renderSimpleType,
+  type SimpleType,
+} from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
-import { TYPETAG_KEYWORD } from "@/state/editor";
-import { contextOf, symbolsLike } from "@/state/runtime";
+import { symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -23,9 +28,6 @@ const emit = defineEmits<{
   (e: "escape"): void;
 }>();
 
-const PRIMITIVE_TYPES = [TypeTag.Any, TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.Null];
-const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
-
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const editing: Ref<boolean> = ref(false);
 const query: Ref<string> = ref("");
@@ -33,31 +35,6 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const valueRefFocused = useFocus(valueRef as any);
 const optionsRef: Ref<HTMLDivElement | null> = ref(null);
-
-function renderTypeNode(node: SimpleType): string {
-  let renderedElement: string;
-  if (PRIMITIVE_TYPES.includes(node.tag)) {
-    renderedElement = TYPETAG_KEYWORD[node.tag];
-  } else if (node.tag == TypeTag.TypeReference || node.reference != null) {
-    if (node.reference != null) {
-      renderedElement = contextOf(node.reference)?.symbol.name ?? "???";
-    } else {
-      renderedElement = node.reference?.name ?? "...";
-    }
-  } else {
-    throw new Error(`unexpected type node ${node.tag}`);
-  }
-
-  let rendered: string = renderedElement;
-  if (node.isArray) {
-    rendered = "list " + renderedElement;
-  }
-  if (node.isNullable) {
-    rendered = rendered + "?";
-  }
-
-  return rendered;
-}
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
@@ -89,7 +66,7 @@ const availableTypes: Ref<SimpleType[]> = computed(() => {
   ];
 });
 
-const filteredTypes = computed(() => availableTypes.value.filter((t) => renderTypeNode(t).includes(query.value)));
+const filteredTypes = computed(() => availableTypes.value.filter((t) => renderSimpleType(t).includes(query.value)));
 
 function writeValue(type: SimpleTypeNode) {
   editing.value = false;
@@ -149,7 +126,7 @@ defineExpose({
     @click="edit"
     class="text-left outline-none"
   >
-    {{ renderTypeNode(value) }}
+    {{ renderSimpleType(value) }}
   </button>
   <!-- Editable type :EditableCellStyle -->
   <Combobox v-else as="div" class="relative" :model-value="value" @update:model-value="writeValue">
@@ -177,7 +154,7 @@ defineExpose({
             selected ? 'underline' : '',
           ]"
         >
-          {{ renderTypeNode(node) }}
+          {{ renderSimpleType(node) }}
         </li>
       </ComboboxOption>
     </ComboboxOptions>

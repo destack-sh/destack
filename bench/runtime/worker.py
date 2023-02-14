@@ -308,7 +308,13 @@ class RuntimeWorker:
 
             # run it
             code_instance = instantiate(runnable)
-            await run(code_instance)
+            try:
+                ret = await run(code_instance, payload.arguments)
+            except Exception as e:
+                logger.exception("run", exc_info=e)
+                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.RUNTIME_ERROR))
+                return
+            send_rep(RepModuleRunPayload(error=None, output=ret))
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 

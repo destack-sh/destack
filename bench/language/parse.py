@@ -1148,7 +1148,7 @@ class ModuleIndex:
         return self.get_symbol_by_id(symbol_id, symbol_t=symbol_t, required=True)
 
     def get_symbol_by_id(
-        self, symbol_id: UUID, symbol_t: typing.Type[SymbolT] | None = None, required: bool = True
+        self, symbol_id: UUID, symbol_t: typing.Type[SymbolT] | None = None, required: bool = False
     ) -> SymbolT | None:
         if not self.interpreted:
             raise RuntimeError(f"module index is not interpreted: {self}")

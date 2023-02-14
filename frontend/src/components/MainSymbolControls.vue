@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
@@ -8,19 +9,22 @@ import { CheckBadgeIcon, ChevronUpDownIcon, PlayIcon, WrenchIcon } from "@heroic
 import { computed, ref } from "vue";
 
 // statement selection
-const ops = useOperations();
+const operations = useOperations();
 const editor = useEditorState();
 const runtime = useCurrentModuleRuntime();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
-const canCompile = computed(
+const canBuild = computed(
   () =>
-    mainSymbol.value?.symbolType == SymbolType.Task ||
-    mainSymbol.value?.symbolType == SymbolType.Compilation ||
-    mainSymbol.value?.symbolType == SymbolType.Runconfig
+    runtime.connected &&
+    (mainSymbol.value?.symbolType == SymbolType.Task ||
+      mainSymbol.value?.symbolType == SymbolType.Compilation ||
+      mainSymbol.value?.symbolType == SymbolType.Runconfig)
 );
 const canRun = computed(
-  () => mainSymbol.value?.symbolType == SymbolType.Task || mainSymbol.value?.symbolType == SymbolType.Code
+  () =>
+    runtime.connected &&
+    (mainSymbol.value?.symbolType == SymbolType.Task || mainSymbol.value?.symbolType == SymbolType.Code)
 );
 
 const availableSymbols = symbolsLike({
@@ -36,33 +40,59 @@ const filteredSymbols = computed(() =>
       })
 );
 
+const buildMain = provideGlobalAction({
+  id: "symbol.buildMain",
+  label: computed(() => "Build " + mainSymbol.value?.name),
+  shortcuts: ["F6"],
+  enabled: canBuild,
+  apply: async () => {
+    console.log("build");
+  },
+});
+
+const runMain = provideGlobalAction({
+  id: "symbol.runMain",
+  label: computed(() => "Run " + mainSymbol.value?.name),
+  shortcuts: ["F7"],
+  enabled: canRun,
+  apply: async () => {
+    console.log("run " + mainSymbol.value?.name);
+    const runEditor = editor.openRun(mainSymbol.value as any);
+    editor.focusEditor(runEditor);
+  },
+});
+
+const testMain = provideGlobalAction({
+  id: "symbol.testMain",
+  label: computed(() => "Test " + mainSymbol.value?.name),
+  shortcuts: ["F8"],
+  enabled: computed(() => false),
+  apply: async () => {
+    console.log("test");
+  },
+});
+
 const mainActions = [
   {
-    label: "Compile",
+    label: "Build",
     icon: WrenchIcon,
-    enabled: canCompile,
+    enabled: canBuild,
     active: false,
-    action: async () => {
-      await ops.runtime.compile(mainSymbol.value?.id);
-    },
+    action: () => buildMain.value.apply(),
   },
   {
     label: "Run",
     icon: PlayIcon,
     enabled: canRun,
     active: false,
-    action: async () => {
-      console.log("run");
-    },
+    action: () => runMain.value.apply(),
   },
   {
     label: "Test",
     icon: CheckBadgeIcon,
-    enabled: computed(() => false),
+    enabled: computed(() => testMain.value.enabled),
     active: false,
-    action: async () => {
-      console.log("test");
-    },
+    action: () => testMain.value.apply(),
   },
 ];
 

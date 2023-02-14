@@ -420,8 +420,10 @@ input RunInput {
 
 type RunState {
   projectVersionId: GlobalID!
-  runconfigId: GlobalID!
-  output: JSON!
+  runconfigId: GlobalID
+  runnableId: GlobalID
+  buildId: GlobalID
+  output: JSON
   success: Boolean!
 }
 

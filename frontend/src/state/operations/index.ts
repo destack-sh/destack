@@ -3,6 +3,7 @@ import { useRuntimeOps } from "@/state/operations/runtime";
 import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
 import { useProjectVersionOps } from "@/state/operations/version";
+import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
 import { ref, type Ref } from "vue";
@@ -119,7 +120,7 @@ export const useOperationsStore = defineStore("operations", {
   },
 });
 
-export function useOperations() {
+export function _useOperations() {
   return {
     file: useFileOps(),
     content: useSymbolContentOps(),
@@ -129,3 +130,5 @@ export function useOperations() {
     version: useProjectVersionOps(),
   };
 }
+
+export const useOperations = createSharedComposable(_useOperations);
