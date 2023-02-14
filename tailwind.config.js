@@ -5,7 +5,7 @@ module.exports = {
   theme: {
     fontFamily: {
       sans: ["IBM Plex Sans", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-      mono: ["Druid Sans Mono", "monospace"],
+      mono: ["Droid Sans Mono", "monospace"],
     },
     extend: {
       colors: {

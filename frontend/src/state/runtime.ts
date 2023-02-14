@@ -120,7 +120,7 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   );
 
   const connected = computed(() => !!runtime.value && !error.value && projectVersionId.value != null);
-  const lastUpdated: Ref<DateTime | null> = ref(null);
+  const lastUpdated: Ref<string | null> = ref(null);
   runtimeUpdated(() => (lastUpdated.value = runtime.value?.moduleRuntimeChanged.updatedAt));
 
   const module = computed(() => useFragment(InterpModuleContentType, runtime.value?.moduleRuntimeChanged.module));
