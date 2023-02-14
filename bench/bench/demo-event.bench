@@ -39,6 +39,6 @@ task 'extract events' :: (input: string) -> [Event]:
 require openai.std@latest
 import model text-davinci-003 from openai.std.text
 
-compile main:
+build main:
     task 'extract events'
     model text-davinci-003

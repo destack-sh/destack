@@ -23,7 +23,7 @@ import capability 'basic math' from .math
 task 'count fruits' :: (input: string) -> number:
 "Count the number of distinct fruits mentioned"
 
-# compile main:
+# build main:
 #    pass
 
 # # meta statements

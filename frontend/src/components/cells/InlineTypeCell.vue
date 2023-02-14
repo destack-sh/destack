@@ -38,7 +38,7 @@ function renderTypeNode(node: SimpleType): string {
   let renderedElement: string;
   if (PRIMITIVE_TYPES.includes(node.tag)) {
     renderedElement = TYPETAG_KEYWORD[node.tag];
-  } else if (node.tag == TypeTag.TypeReference) {
+  } else if (node.tag == TypeTag.TypeReference || node.reference != null) {
     if (node.reference != null) {
       renderedElement = contextOf(node.reference)?.symbol.name ?? "???";
     } else {

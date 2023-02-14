@@ -1,5 +1,9 @@
---- lib.x ---
-# literal enums can only be
+--- ner.x ---
+
+# # Classic NER
+
+# ## 1. Instruct
+
 enum EntityType :: string:
 "Type of an entity"
 Person = `"Person"`
@@ -23,20 +27,17 @@ task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
     expect 'no duplicates' on output:
     "The entities are distinct"
-        check code check_no_duplicates :: (entities: [Entity]) -> boolean:
-        "Check that the entities are distinct (very crudely)"
-        ```python
-        entities_by_name = {e.name: e for e in entities}
-        return len(entities_by_name) == len(entities)
-        ```
-# Build
+
+
+# ## 2. Build and run
+
 require openai.std@latest
 import model text-davinci-003 from openai.std.text
 
-compile prod:
+build prod:
     task 'extract entities'
     model text-davinci-003
 
 run ner-prod:
     task 'extract entities'
-    compile prod
+    build prod

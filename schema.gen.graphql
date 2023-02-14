@@ -490,7 +490,6 @@ type Statement implements Node & SimplyTyped {
   reference: Statement
   referencedBy: [Statement!]!
   symbolType: SymbolType
-  text: String
   lang: String
   code: String
   description: String

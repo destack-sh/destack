@@ -106,7 +106,9 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         )
         interp_module.files.append(interp_file)
         for statement in file.statements:
-            root_type_tag, type_nodes = mapper.wmap_type_nodes(None, statement.type_nodes)
+            root_type_tag, type_nodes = mapper.wmap_type_nodes(
+                None, statement.type_nodes, impute_type_reference=True
+            )
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,

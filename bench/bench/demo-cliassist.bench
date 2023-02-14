@@ -6,11 +6,11 @@ require openai.std@latest
 import task 'generate command' from .main
 import model text-davinci-003 from openai.std.text
 
-# compile test-codegen:
+# build test-codegen:
 #    with model codegen
 #    task 'generate command'
 
-compile prod:
+build prod:
     model text-davinci-003
     task 'generate command'
 
@@ -18,7 +18,7 @@ compile prod:
 run main:
     task 'generate command'
 
-#   [with compile prod]
+#   [with build prod]
 
 --- main.x ---
 import expect 'safe output' from .safety

@@ -1,4 +1,4 @@
---- complete.x ---
+--- codecomplete.x ---
 
 enum CodeLanguage :: string:
 PYTHON = `"python"`

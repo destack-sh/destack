@@ -661,7 +661,6 @@ export type Statement = Node &
     revision: Scalars["Int"];
     rootTypeTag?: Maybe<TypeTag>;
     symbolType?: Maybe<SymbolType>;
-    text?: Maybe<Scalars["String"]>;
     type: StatementType;
     typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
@@ -1082,8 +1081,6 @@ export type StatementContentFragment = {
   generated: boolean;
   modifier?: StatementModifier | null;
   orderKey: string;
-  importPath?: string | null;
-  text?: string | null;
   lang?: string | null;
   code?: string | null;
   description?: string | null;
@@ -1939,8 +1936,6 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "importPath" } },
-          { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "lang" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },

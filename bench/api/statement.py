@@ -109,7 +109,6 @@ class Statement(gql.Node, SimplyTyped):
     reference: Optional["Statement"]
     referenced_by: list["Statement"]
     symbol_type: Optional[SymbolType]
-    text: auto
     # symbol contents
     root_type_tag: Optional[TypeTag]
     type_nodes: list[SimpleTypeNode]

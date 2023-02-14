@@ -1,4 +1,4 @@
---- lib.x ---
+--- react.x ---
 # # Bench port of [ReAct](https://arxiv.org/pdf/2210.03629.pdf) as a library
 
 enum ReactMode :: string:
