@@ -13,9 +13,12 @@ context.syncCode(content);
 const sanitizedHtml = computed(() => DOMPurify.sanitize(marked.parse(content.value || "")));
 
 function focus() {
-  // not sure why we need both, but acquiring focus is not stable iwth only one
-  monacoEditorRef.value?.focus();
-  nextTick(() => monacoEditorRef.value?.focus());
+  // focus the end of the content if we just updated it, which puts it in pending state
+  // (likely due to a morph to comment where we want to keep editing smoothly)
+  const focusEnd = context.statement.value.revision < 0;
+  // not sure why we need both, but acquiring focus doesn't always succeed otherwise
+  monacoEditorRef.value?.focus(focusEnd);
+  nextTick(() => monacoEditorRef.value?.focus(focusEnd));
 }
 
 defineExpose({

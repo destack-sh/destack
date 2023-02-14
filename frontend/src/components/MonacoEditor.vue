@@ -218,8 +218,14 @@ onBeforeUnmount(() => {
   }
 });
 
-function focus() {
+function focus(end?: boolean) {
   editor.value?.focus();
+  if (end) {
+    editor.value?.setPosition({
+      lineNumber: editor.value?.getModel()?.getLineCount() ?? 1,
+      column: editor.value?.getModel()?.getLineMaxColumn(editor.value?.getModel()?.getLineCount() ?? 1) ?? 0,
+    });
+  }
 }
 function blur() {
   // no op?

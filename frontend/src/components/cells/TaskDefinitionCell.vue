@@ -41,7 +41,7 @@ defineExpose({
   <InlineFunctionTypeCell
     v-if="isTyped"
     ref="typeRef"
-    class="ml-2 inline-flex"
+    class="ml-3 inline-flex"
     @navigate-up="context.navigateUp"
     @navigate-down="descriptionRef?.focus"
     @navigate-right="descriptionRef?.focus"

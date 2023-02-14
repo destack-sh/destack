@@ -87,12 +87,14 @@ export function useStatementContext() {
 
   const operations = useOperations();
 
-  async function morphToComment() {
-    await operations.statement.morph(
+  async function morphToComment(text?: string) {
+    const updateCode = operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", text);
+    const morphType = operations.statement.morph(
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
       { type: StatementType.Comment }
     );
+    await Promise.all([morphType, updateCode]);
   }
 
   async function morphToDefinition(symbolType: SymbolType | null, name: string) {

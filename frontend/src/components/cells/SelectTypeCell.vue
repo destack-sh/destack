@@ -21,26 +21,35 @@ const context = useStatementContext();
 const content: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
+const MAX_KEYWORD_LENGTH = [...Object.keys(MODIFIER_BY_KEYWORD), ...Object.keys(SYMBOL_TYPE_BY_KEYWORD)].reduce(
+  (max, keyword) => Math.max(max, keyword.length),
+  0
+);
+
 // parse content changes :ParseStatementInput
 watch(content, (newContent) => {
   const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
-  newContent = newContent.trim();
+  const includesNonalpha = !newContent.match(/^[a-zA-Z]*$/);
+  const tooLong = newContent.length > MAX_KEYWORD_LENGTH;
+  const newContentTrim = newContent.trim();
 
   // if it matches an allowed keyword, apply the keyword
-  if (endsInSpace && MODIFIER_BY_KEYWORD[newContent]) {
-    context.setModifier(MODIFIER_BY_KEYWORD[newContent]);
+  if (endsInSpace && MODIFIER_BY_KEYWORD[newContentTrim]) {
+    context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
-    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
+  } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContentTrim]) {
+    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContentTrim]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && newContent == "enum") {
+  } else if (endsInSpace && newContentTrim == "enum") {
     context.setSymbolTypeEnum();
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && (newContent == "#" || newContent == "//")) {
-    context.morphToComment();
+  } else if (includesNonalpha || tooLong) {
+    // auto-convert to comment if it can't be parsed anymore (keep content)
+    newContent = newContent.replace(" ", " "); // replace non-breaking spaces
+    context.morphToComment(newContent);
   }
 });
 
