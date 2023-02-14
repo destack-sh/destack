@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import functools
+import inspect
 import textwrap
 import time
 import typing
@@ -344,6 +345,7 @@ def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInsta
             **symbol.__dict__,
             transformed_code=code_str,
             code_callable=code_callable,
+            is_async=inspect.iscoroutinefunction(code_callable),
             prompt=prompt,
         )
         return proxy.proxy_code(code_instance)
@@ -363,6 +365,8 @@ def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInsta
 def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
     arguments = arguments or {}
     try:
+        if code.is_async:
+            raise RuntimeError(f"cannot run async code synchronously: {code}")
         return code.py_handle(**arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
@@ -371,7 +375,10 @@ def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = Non
 async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
     arguments = arguments or {}
     try:
-        return await code.py_handle(**arguments)
+        if code.is_async:
+            return await code.py_handle(**arguments)
+        else:
+            return code.py_handle(**arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 

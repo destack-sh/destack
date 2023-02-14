@@ -95,7 +95,7 @@ class ModuleBuildErrorType(enum.Enum):
 
 @_register_payload(ZMessageType.REP_MODULE_BUILD)
 class RepModuleBuildPayload:
-    error: Optional[ModuleBuildErrorType]
+    error: Optional[ModuleBuildErrorType] = None
 
 
 @_register_payload(ZMessageType.REQ_MODULE_RUN)
@@ -116,9 +116,9 @@ class ModuleRunErrorType(enum.Enum):
 
 @_register_payload(ZMessageType.REP_MODULE_RUN)
 class RepModuleRunPayload:
-    error_type: Optional[ModuleRunErrorType]
-    execution_id: Optional[UUID]
-    output: Optional[wire.LiteralValue]
+    error: Optional[ModuleRunErrorType] = None
+    execution_id: Optional[UUID] = None
+    output: Optional[wire.LiteralValue] = None
 
 
 @_register_payload(ZMessageType.REQ_READ_MODULE)

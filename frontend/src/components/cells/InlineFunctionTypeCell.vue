@@ -16,7 +16,7 @@ const inputNodes = computed(
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
       .map((n) => n as SimpleTypeNode) ?? []
 );
-const lastInputNode = computed(() => inputNodes.value?.[inputNodes.value.length - 1]);
+const lastNode = computed(() => context.typeNodes.value?.[context.typeNodes.value.length - 1]);
 const outputNode = computed(() => context.typeNodes.value?.map((n) => n as SimpleTypeNode).find((n) => n.isOutput));
 const hasOutput = computed(() => outputNode.value != null && outputNode.value.tag != TypeTag.Null);
 
@@ -46,7 +46,7 @@ async function insertInput() {
     makeTypeNode({
       name: "input" + inputNodes.value?.length,
       tag: TypeTag.String,
-      orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
+      orderKey: generateKeyBetween(lastNode.value?.orderKey ?? INTEGER_ZERO, null),
     })
   );
   nextTick(() => inputGrid.focus(-1, "name"));
@@ -59,7 +59,7 @@ async function insertOutput(node: Partial<SimpleType> = {}) {
   await context.createTypeNode(
     makeTypeNode({
       tag: TypeTag.Any,
-      orderKey: generateKeyBetween(lastInputNode.value?.orderKey ?? INTEGER_ZERO, null),
+      orderKey: generateKeyBetween(lastNode.value?.orderKey ?? INTEGER_ZERO, null),
       isOutput: true,
       ...node,
     } as any)

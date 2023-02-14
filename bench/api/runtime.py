@@ -167,8 +167,10 @@ class RunInput:
 @gql.type
 class RunState:
     project_version_id: GlobalID
-    runconfig_id: GlobalID
-    output: JSON
+    runconfig_id: Optional[GlobalID]
+    runnable_id: Optional[GlobalID]
+    build_id: Optional[GlobalID]
+    output: Optional[JSON]
     success: bool
 
 
@@ -191,7 +193,7 @@ class ModuleRuntimeMutation:
         return BuildState(
             project_version_id=input.project_version_id,
             compilation_id=input.compilation_id,
-            success=rep.success,
+            success=rep.error is None,
         )
 
     @gql.mutation
@@ -215,7 +217,9 @@ class ModuleRuntimeMutation:
         return RunState(
             project_version_id=input.project_version_id,
             runconfig_id=input.runconfig_id,
-            success=rep.success,
+            runnable_id=input.runnable_id,
+            build_id=input.build_id,
+            success=rep.error is None,
             output=rep.output,
         )
 

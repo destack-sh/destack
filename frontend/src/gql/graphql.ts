@@ -23,6 +23,21 @@ export type Scalars = {
   Void: any;
 };
 
+export type BuildInput = {
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  buildableId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type BuildState = {
+  __typename?: "BuildState";
+  buildIds: Array<Scalars["GlobalID"]>;
+  projectVersionId: Scalars["GlobalID"];
+  success: Scalars["Boolean"];
+};
+
+export type BuildStateOperationInfo = BuildState | OperationInfo;
+
 export type CommitInput = {
   description?: InputMaybe<Scalars["String"]>;
   name: Scalars["String"];
@@ -35,20 +50,6 @@ export type CommitPayload = {
   newWorkingVersion: ProjectVersion;
   project: Project;
 };
-
-export type CompileInput = {
-  compilationId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-};
-
-export type CompileState = {
-  __typename?: "CompileState";
-  compilationId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  success: Scalars["Boolean"];
-};
-
-export type CompileStateOperationInfo = CompileState | OperationInfo;
 
 export type DatasetRecord = Node & {
   __typename?: "DatasetRecord";
@@ -203,9 +204,9 @@ export type ModuleRuntime = {
 
 export type Mutation = {
   __typename?: "Mutation";
+  build: BuildStateOperationInfo;
   commentStatement: StatementOperationInfo;
   commit: CommitPayload;
-  compile: CompileStateOperationInfo;
   createFile: FileOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementRecord: StatementOperationInfo;
@@ -234,16 +235,16 @@ export type Mutation = {
   updateStatementTypeNode: StatementOperationInfo;
 };
 
+export type MutationBuildArgs = {
+  input: BuildInput;
+};
+
 export type MutationCommentStatementArgs = {
   input: StatementCommentedInput;
 };
 
 export type MutationCommitArgs = {
   input: CommitInput;
-};
-
-export type MutationCompileArgs = {
-  input: CompileInput;
 };
 
 export type MutationCreateFileArgs = {
@@ -572,15 +573,19 @@ export type RefMapping = {
 
 export type RunInput = {
   arguments: Scalars["JSON"];
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
-  runconfigId: Scalars["GlobalID"];
+  runconfigId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type RunState = {
   __typename?: "RunState";
-  output: Scalars["JSON"];
+  buildId?: Maybe<Scalars["GlobalID"]>;
+  output?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
-  runconfigId: Scalars["GlobalID"];
+  runconfigId?: Maybe<Scalars["GlobalID"]>;
+  runnableId?: Maybe<Scalars["GlobalID"]>;
   success: Scalars["Boolean"];
 };
 
@@ -1169,14 +1174,40 @@ export type RestoreFileMutation = {
       });
 };
 
-export type CompileMutationVariables = Exact<{
+export type BuildMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  compilationId: Scalars["GlobalID"];
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  buildableId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
-export type CompileMutation = {
+export type BuildMutation = {
   __typename?: "Mutation";
-  compile: { __typename?: "CompileState"; success: boolean } | { __typename?: "OperationInfo" };
+  build:
+    | { __typename?: "BuildState"; projectVersionId: any; success: boolean; buildIds: Array<any> }
+    | { __typename?: "OperationInfo" };
+};
+
+export type RunMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  runconfigId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  arguments: Scalars["JSON"];
+}>;
+
+export type RunMutation = {
+  __typename?: "Mutation";
+  run:
+    | { __typename?: "OperationInfo" }
+    | {
+        __typename?: "RunState";
+        projectVersionId: any;
+        runconfigId?: any | null;
+        runnableId?: any | null;
+        buildId?: any | null;
+        output?: any | null;
+        success: boolean;
+      };
 };
 
 export type CreateStatementMutationVariables = Exact<{
@@ -2672,13 +2703,13 @@ export const RestoreFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreFileMutation, RestoreFileMutationVariables>;
-export const CompileDocument = {
+export const BuildDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "compile" },
+      name: { kind: "Name", value: "build" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -2687,8 +2718,13 @@ export const CompileDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildableId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
       ],
       selectionSet: {
@@ -2696,7 +2732,7 @@ export const CompileDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "compile" },
+            name: { kind: "Name", value: "build" },
             arguments: [
               {
                 kind: "Argument",
@@ -2711,8 +2747,13 @@ export const CompileDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "compilationId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "compilationId" } },
+                      name: { kind: "Name", value: "buildId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "buildableId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "buildableId" } },
                     },
                   ],
                 },
@@ -2723,10 +2764,14 @@ export const CompileDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CompileState" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "BuildState" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "success" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+                      { kind: "Field", name: { kind: "Name", value: "success" } },
+                      { kind: "Field", name: { kind: "Name", value: "buildIds" } },
+                    ],
                   },
                 },
               ],
@@ -2736,7 +2781,109 @@ export const CompileDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<CompileMutation, CompileMutationVariables>;
+} as unknown as DocumentNode<BuildMutation, BuildMutationVariables>;
+export const RunDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "run" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runconfigId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "run" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runconfigId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runconfigId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runnableId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "buildId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "arguments" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RunState" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+                      { kind: "Field", name: { kind: "Name", value: "runconfigId" } },
+                      { kind: "Field", name: { kind: "Name", value: "runnableId" } },
+                      { kind: "Field", name: { kind: "Name", value: "buildId" } },
+                      { kind: "Field", name: { kind: "Name", value: "output" } },
+                      { kind: "Field", name: { kind: "Name", value: "success" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RunMutation, RunMutationVariables>;
 export const CreateStatementDocument = {
   kind: "Document",
   definitions: [

@@ -7,11 +7,57 @@ export function useRuntimeOps() {
   const editor = useEditorState();
   const operations = useOperationsStore();
 
-  const { mutate: compileMut } = useMutation(
+  const { mutate: buildMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation compile($projectVersionId: GlobalID!, $compilationId: GlobalID!) {
-        compile(input: { projectVersionId: $projectVersionId, compilationId: $compilationId }) {
-          ... on CompileState {
+      mutation build($projectVersionId: GlobalID!, $buildId: GlobalID, $buildableId: GlobalID) {
+        build(input: { projectVersionId: $projectVersionId, buildId: $buildId, buildableId: $buildableId }) {
+          ... on BuildState {
+            projectVersionId
+            success
+            buildIds
+          }
+        }
+      }
+    `)
+  );
+
+  async function build(buildId?: string, buildableId?: string) {
+    return await operations.perform({
+      type: "runtime.build",
+      do: async () => {
+        await buildMut({
+          projectVersionId: editor.currentProjectVersionId,
+          buildId,
+          buildableId,
+        });
+      },
+    });
+  }
+
+  const { mutate: runMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation run(
+        $projectVersionId: GlobalID!
+        $runconfigId: GlobalID
+        $runnableId: GlobalID
+        $buildId: GlobalID
+        $arguments: JSON!
+      ) {
+        run(
+          input: {
+            projectVersionId: $projectVersionId
+            runconfigId: $runconfigId
+            runnableId: $runnableId
+            buildId: $buildId
+            arguments: $arguments
+          }
+        ) {
+          ... on RunState {
+            projectVersionId
+            runconfigId
+            runnableId
+            buildId
+            output
             success
           }
         }
@@ -19,32 +65,23 @@ export function useRuntimeOps() {
     `)
   );
 
-  async function compile(compilationId: string) {
+  async function run(runconfigId?: string, runnableId?: string, buildId?: string, arguments_?: Record<string, any>) {
     return await operations.perform({
-      type: "compile",
+      type: "runtime.run",
       do: async () => {
-        await compileMut({
+        return await runMut({
           projectVersionId: editor.currentProjectVersionId,
-          compilationId,
+          runconfigId,
+          runnableId,
+          buildId,
+          arguments: arguments_,
         });
       },
     });
   }
 
-  // const { mutate: runMut } = useMutation(
-  //   graphql(/* GraphQL */ `
-  //     # mutation run($projectVersionId: GlobalID!, $runconfigId: GlobalID!, arguments: JSON!) {
-  //     #   run(input: { projectVersionId: $projectVersionId, runconfigId: $runconfigId, arguments: $arguments }) {
-  //     #     ... on RunState {
-  //     #       success
-  //     #       output
-  //     #     }
-  //     #   }
-  //     # }
-  //   `)
-  // );
-
   return {
-    compile,
+    build,
+    run,
   };
 }

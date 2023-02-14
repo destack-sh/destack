@@ -16,6 +16,8 @@ import { computed, inject, watch, type Ref } from "vue";
 
 import { newTypeNodeId } from "@/state/operations/statement";
 import { INTEGER_ZERO } from "@/utils/fractional";
+import { TYPETAG_KEYWORD } from "@/state/editor";
+import { contextOf } from "@/state/runtime";
 
 export const STATEMENT_CONTEXT = Symbol();
 
@@ -375,3 +377,31 @@ export const NUMBER_TYPE_NODE = makeTypeNode({ tag: TypeTag.Number });
 export const BOOLEAN_TYPE_NODE = makeTypeNode({ tag: TypeTag.Boolean });
 export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
 export const NULL_TYPE_NODE = makeTypeNode({ tag: TypeTag.Null });
+
+export const PRIMITIVE_TYPES = [TypeTag.Any, TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.Null];
+export const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
+
+export function renderSimpleType(node: SimpleType): string {
+  let renderedElement: string;
+  if (PRIMITIVE_TYPES.includes(node.tag)) {
+    renderedElement = TYPETAG_KEYWORD[node.tag];
+  } else if (node.tag == TypeTag.TypeReference || node.reference != null) {
+    if (node.reference != null) {
+      renderedElement = contextOf(node.reference)?.symbol.name ?? "???";
+    } else {
+      renderedElement = node.reference?.name ?? "...";
+    }
+  } else {
+    throw new Error(`unexpected type node ${node.tag}`);
+  }
+
+  let rendered: string = renderedElement;
+  if (node.isArray) {
+    rendered = "list " + renderedElement;
+  }
+  if (node.isNullable) {
+    rendered = rendered + "?";
+  }
+
+  return rendered;
+}

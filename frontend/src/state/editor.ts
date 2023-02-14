@@ -72,15 +72,10 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 
-export type RunConfiguration = {
-  name: string;
-  symbolId: string;
-};
-
 export type ViewId = "explorer" | "history";
 
 export type Editor = {
-  type: "file" | "execute";
+  type: "file" | "run";
   id: string;
   path: string;
   scroll?: { x: number; y: number };
@@ -99,14 +94,10 @@ export type FileEditor = Editor & {
   fileId: string;
 };
 
-export type SymbolEditor = Editor & {
-  type: "symbol";
-  symbolId: string;
-};
-
 export type RunEditor = Editor & {
-  type: "execute";
-  config: RunConfiguration;
+  type: "run";
+  symbolId: string;
+  symbolType: SymbolType;
 };
 
 export type EditorGroup = {
@@ -137,19 +128,14 @@ export function makeFileEditor(file: FileHeader): FileEditor {
   } as FileEditor;
 }
 
-export function makeRunConfiguration(statement: StatementHeader): RunConfiguration {
+export function makeRunEditor(symbol: { id: string; name: string; symbolType: SymbolType }): RunEditor {
   return {
-    name: `Run: ${statement.name}`,
-    symbolId: statement.id,
-  } as RunConfiguration;
-}
-
-export function makeRunEditor(config: RunConfiguration): RunEditor {
-  return {
-    id: "execute-" + config.symbolId + Math.random().toString(16),
-    type: "execute",
-    path: config.name,
-    config: config,
+    // append random string to enable multiple editors for the same symbol
+    id: symbol.id + "-" + Math.random().toString(16).substring(2, 8),
+    type: "run",
+    symbolId: symbol.id,
+    symbolType: symbol.symbolType,
+    path: "run " + symbol.name,
     localState: {},
     groupId: null,
   } as RunEditor;
@@ -189,6 +175,9 @@ export const useEditorState = defineStore("editor", {
     },
     focusedFileId(state): string | null {
       return state.focusedEditor?.type == "file" ? (state.focusedEditor as FileEditor).fileId : null;
+    },
+    focusedRunId(state): string | null {
+      return state.focusedEditor?.type == "run" ? (state.focusedEditor as RunEditor).symbolId : null;
     },
     focusedGroup(): EditorGroup | undefined {
       if (this.focusedEditor?.groupId == null) return undefined;
@@ -266,9 +255,13 @@ export const useEditorState = defineStore("editor", {
       editor.groupId = null;
     },
 
-    openEditor(editor: Editor, group?: EditorGroup): void {
+    openEditor(editor: Editor, group?: EditorGroup): Editor {
+      // if group wasn't passed, just return the editor if it's already open
+      if (group == null && editor.groupId != null) {
+        return editor;
+      }
       console.log(`open editor ${editor.path} in group ${group?.id}`);
-      group = group || this.left;
+      group = group || this.focusedGroup || this.left;
       // change editor group if different
       if (editor.groupId != group.id) {
         if (editor.groupId != null) {
@@ -278,6 +271,7 @@ export const useEditorState = defineStore("editor", {
         editor.groupId = group.id;
         group.editors.push(editor);
       }
+      return editor;
     },
 
     closeEditor(editor: Editor): void {
@@ -301,17 +295,16 @@ export const useEditorState = defineStore("editor", {
         console.log(`create new file editor for ${file.id} ${file.path}`);
         editor = makeFileEditor(file);
       }
-      // if group wasn't passed, just return the editor if it's already open
-      if (!group && editor.groupId) {
-        return editor;
-      } else {
-        // otherwise open in the group or the fallback group
-        group = group || this.focusedGroup || this.left; // use active group if available
-        if (editor.groupId != group.id) {
-          this.openEditor(editor, group);
-        }
-        return editor;
+      return this.openEditor(editor, group);
+    },
+
+    openRun(symbol: { id: string; name: string; symbolType: SymbolType }, group?: EditorGroup): Editor {
+      let editor = this.editors.find((e) => e.type == "run" && (e as RunEditor).symbolId == symbol.id);
+      if (!editor) {
+        console.log(`create new run editor for ${symbol.id} ${symbol.name}`);
+        editor = makeRunEditor(symbol);
       }
+      return this.openEditor(editor, group);
     },
 
     focusEditor(editor: Editor): void {
