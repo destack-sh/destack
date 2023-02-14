@@ -214,6 +214,11 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                         old_id = type_node.id
                         type_node.pk = None
                         type_node.statement_id = new_statements_ids[statement.id]
+                        if type_node.reference_id is not None:
+                            # replace type node reference if it was copied (default to same for externals)
+                            type_node.reference_id = new_statements_ids.get(
+                                type_node.reference_id, type_node.reference_id
+                            )
                         new_contents[old_id] = type_node
                 if statement.symbol_type == SymbolType.DATASET:
                     for record in statement.records.all():
