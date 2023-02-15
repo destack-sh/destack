@@ -1,3 +1,4 @@
+import asyncio
 import typing
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -258,30 +259,45 @@ class RuntimeWorker:
                 ),
             )
         elif msg.type == ZMessageType.REQ_MODULE_BUILD:
-            payload = msg.payload_as(ReqModuleBuildPayload)
+            payload: ReqModuleBuildPayload = msg.payload_as(ReqModuleBuildPayload)
             state = await self.get_worker_state(payload.module_id)
             send_rep = partial(send_message, self.rep_sock, ZMessageType.REP_MODULE_BUILD)
 
             # get the compilations to run
             if not state.interpreted:
-                logger.debug("fail_build", module_id=payload.module_id)
+                logger.debug("fail_build", module_id=payload.module_id, msg=msg)
                 send_rep(RepModuleBuildPayload(error=ModuleBuildErrorType.NOT_READY))
                 return
-            compilation = state.interp.module_idx.symbol_by_id(payload.compilation_id, Compilation)
+            buildable = state.interp.module_idx.symbol_by_id(payload.buildable_id)
+            if isinstance(buildable, language.Task):
+                # collect any compilations that contain this task
+                builds = []
+                for compilation in state.interp.module_idx.symbols_of_type(Compilation):
+                    if any(t.definition.id == buildable.id for t in compilation.tasks):
+                        builds.append(compilation)
+            elif isinstance(buildable, language.Compilation):
+                builds = [buildable]
+            else:
+                logger.debug("fail_build", module_id=payload.module_id, msg=msg)
+                send_rep(RepModuleBuildPayload(error=ModuleBuildErrorType.INVALID_BUILDABLE))
+                return
 
-            # actually build
-            build_result = await compile(compilation)
-            send_rep(RepModuleBuildPayload(error=None))
+            # actually build (concurrently)
+            compiles = [compile(compilation) for compilation in builds]
+            build_results = await asyncio.gather(*compiles)
+            build_ids = [r.id for r in builds]
+            send_rep(RepModuleBuildPayload(error=None, build_ids=build_ids))
 
             # write back results
-            generated_file = build_result.to_file(module=state.interp.module_idx.module)
-            write = ReqWriteModulePayload(
-                module_id=state.source.id,
-                files=[wire.rmap_file(generated_file)],
-            )
-            send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
+            for build_result in build_results:
+                generated_file = build_result.to_file(module=state.interp.module_idx.module)
+                write = ReqWriteModulePayload(
+                    module_id=state.source.id,
+                    files=[wire.rmap_file(generated_file)],
+                )
+                send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
         elif msg.type == ZMessageType.REQ_MODULE_RUN:
-            payload = msg.payload_as(ReqModuleRunPayload)
+            payload: ReqModuleRunPayload = msg.payload_as(ReqModuleRunPayload)
             state = await self.get_worker_state(payload.module_id)
             send_rep = partial(send_message, self.rep_sock, ZMessageType.REP_MODULE_RUN)
 

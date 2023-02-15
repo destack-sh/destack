@@ -46,7 +46,8 @@ const buildMain = provideGlobalAction({
   shortcuts: ["F6"],
   enabled: canBuild,
   apply: async () => {
-    console.log("build");
+    console.log("build " + mainSymbol.value?.name);
+    operations.runtime.build(mainSymbol.value?.id);
   },
 });
 
@@ -77,21 +78,21 @@ const mainActions = [
     label: "Build",
     icon: WrenchIcon,
     enabled: canBuild,
-    active: false,
+    active: computed(() => operations.state.hasInflightLike({ types: ["runtime.build"] })),
     action: () => buildMain.value.apply(),
   },
   {
     label: "Run",
     icon: PlayIcon,
     enabled: canRun,
-    active: false,
+    active: computed(() => operations.state.hasInflightLike({ types: ["runtime.run"] })),
     action: () => runMain.value.apply(),
   },
   {
     label: "Test",
     icon: CheckBadgeIcon,
     enabled: computed(() => testMain.value.enabled),
-    active: false,
+    active: ref(false),
     action: () => testMain.value.apply(),
   },
 ];
@@ -164,9 +165,9 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     class="rounded-sm p-1 text-sm"
     :class="{
       'hover:bg-orange-50': action.enabled.value,
-      'animate-pulse ': action.active,
+      'animate-pulse ': action.active.value,
     }"
-    :disabled="!action.enabled.value || action.active"
+    :disabled="!action.enabled.value || action.active.value"
     @click="action.action"
   >
     <component

@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { renderSimpleType } from "@/components/statement";
-import { SymbolType } from "@/gql/graphql";
-import { EDITOR_INTERFACE_STATE, SYMBOL_TYPE_KEYWORD, type EditorInterfaceState } from "@/state/editor";
+import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { EDITOR_INTERFACE_STATE, type EditorInterfaceState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { symbolOf } from "@/state/runtime";
+import { symbolOf, symbolsLike } from "@/state/runtime";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, inject, type Ref } from "vue";
 
@@ -12,16 +12,24 @@ const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
 const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
-const interfaceState = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
-if (interfaceState == null) {
+const availableBuilds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Compilation] });
+
+// local run interface state
+const state = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
+if (state == null) {
   throw new Error("need interface state context");
 }
-const arguments_: Ref<Record<string, any>> = computed(() => interfaceState.get("arguments", {}) as Record<string, any>);
+
+const build: Ref<InterpSymbol | undefined> = computed(() => symbolOf(state.get("buildId", "")));
+function setBuild(build: InterpSymbol) {
+  state?.set("buildId", build.id);
+}
+const arguments_: Ref<Record<string, any>> = computed(() => state.get("arguments", {}) as Record<string, any>);
 function setArgument(key: string, value: string) {
   console.log("update argument", key, value);
   const args = { ...arguments_.value };
   args[key] = value;
-  interfaceState?.set("arguments", args);
+  state?.set("arguments", args);
 }
 
 const ops = useOperations();
@@ -35,7 +43,7 @@ async function run() {
   if (symbol.value.symbolType == SymbolType.Task) {
     throw new Error("selecting build for tasks is not implemented yet");
   }
-  await ops.runtime.run(undefined, symbol.value.id, buildId, arguments_.value);
+  await ops.runtime.run(symbol.value.id, buildId, arguments_.value);
 }
 </script>
 <template>
@@ -43,7 +51,6 @@ async function run() {
     <!-- Header -->
     <div class="flex flex-row gap-1">
       <button class="rounded-sm text-orange-600 outline-none hover:bg-orange-50" @click="run">run</button>
-      <span>{{ SYMBOL_TYPE_KEYWORD[props.runnableType] }}</span>
       <span>{{ symbol?.name ?? "???" }}</span>
       <button
         class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
@@ -53,13 +60,13 @@ async function run() {
       </button>
     </div>
     <!-- Arguments -->
-    <div class="grid-w-fit my-1 grid grid-cols-[minmax(40px,auto)_1fr] gap-x-3">
+    <div class="grid-w-fit my-1 grid grid-cols-[minmax(40px,auto)_10px_1fr] gap-x-2">
       <template v-for="field in inputFields" :key="field.id">
         <div class="flex flex-row gap-1">
           <span>{{ field.name }}</span>
           <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
-          <span>=</span>
         </div>
+        <span>=</span>
         <InlineValueCell
           :model-value="arguments_[field.name as string]"
           @update:model-value="(val: any) => setArgument(field.name as string, val)"

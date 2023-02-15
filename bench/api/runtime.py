@@ -144,7 +144,6 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
 @gql.input
 class BuildInput:
     project_version_id: GlobalID
-    build_id: Optional[GlobalID] = None
     buildable_id: Optional[GlobalID] = None
 
 
@@ -158,7 +157,6 @@ class BuildState:
 @gql.input
 class RunInput:
     project_version_id: GlobalID
-    runconfig_id: Optional[GlobalID] = None
     runnable_id: Optional[GlobalID] = None
     build_id: Optional[GlobalID] = None
     arguments: JSON
@@ -167,7 +165,6 @@ class RunInput:
 @gql.type
 class RunState:
     project_version_id: GlobalID
-    runconfig_id: Optional[GlobalID]
     runnable_id: Optional[GlobalID]
     build_id: Optional[GlobalID]
     output: Optional[JSON]
@@ -186,13 +183,13 @@ class ModuleRuntimeMutation:
             worker_req_sock,
             ZMessageType.REQ_MODULE_BUILD,
             ReqModuleBuildPayload(
-                module_id=project_version_id, compilation_id=input.compilation_id.node_id
+                module_id=project_version_id, buildable_id=input.buildable_id.node_id
             ),
         )
         _, rep = await recv_message_with(worker_req_sock, RepModuleBuildPayload)
         return BuildState(
             project_version_id=input.project_version_id,
-            compilation_id=input.compilation_id,
+            build_ids=rep.build_ids,
             success=rep.error is None,
         )
 

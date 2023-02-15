@@ -124,7 +124,7 @@ const files = computed(
 const actions = useActions();
 const operationsStore = useOperationsStore();
 const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurrentModuleRuntime();
-const hasStaleInflightOps = computed(() => operationsStore.hasInflightStale);
+const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
 
 // set up editor state
@@ -298,11 +298,11 @@ watchEffect(async () => {
         <div class="ml-2 flex items-center">
           <!-- should use nicer icons here -->
           <!-- Operations status -->
-          <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightOps">
+          <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
             <svg
               viewBox="0 0 100 100"
               class="h-1 w-1"
-              :class="{ 'text-green-700': !hasStaleInflightOps, 'text-orange-400': hasStaleInflightOps }"
+              :class="{ 'text-green-700': !hasStaleInflightStateOps, 'text-orange-400': hasStaleInflightStateOps }"
             >
               <circle cx="50" cy="50" r="40" fill="currentColor" />
             </svg>
