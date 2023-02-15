@@ -63,9 +63,11 @@ class FileData:
     module_id: UUID
     path: str
     statements: list["StatementData"]
+    generated: bool
 
     def __str__(self):
-        return f"{self.module_id}/{self.path}"
+        generated_str = ".gen" if self.generated else ""
+        return f"{self.module_id}/{self.path}{generated_str}"
 
     def __repr__(self):
         return f"<File {str(self)}>"
@@ -90,6 +92,7 @@ class StatementData:
     reference: Union[None, StatementPath, UUID]
     text: Optional[str]
     symbol_type: Optional[SymbolType]
+    generated: bool
     # symbol contents
     type_nodes: Union[list[TypeNodeData], None] = None
     description: Optional[str] = None
@@ -169,6 +172,7 @@ def rmap_file(file: language.File) -> FileData:
         id=file.id,
         module_id=file.module.id,
         path=file.path,
+        generated=file.generated,
         statements=[rmap_statement(statement) for statement in file.statements],
     )
 
@@ -178,6 +182,7 @@ def wmap_file(data: FileData, module: language.Module) -> language.File:
         id=data.id,
         module=module,
         path=data.path,
+        generated=data.generated,
     )
     file.statements = [wmap_statement(statement, file) for statement in data.statements]
     return file
@@ -202,6 +207,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
         name=statement.name,
         text=statement.text,
         symbol_type=statement.symbol_type,
+        generated=statement.generated,
     )
     if statement.content is not None:
         rmap_symbol(statement.content, data)
@@ -222,6 +228,7 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         name=data.name,
         text=data.text,
         symbol_type=data.symbol_type,
+        generated=data.generated,
     )
     if statement.type == StatementType.DEFINITION:
         statement.content = wmap_symbol(data)

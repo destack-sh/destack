@@ -66,7 +66,11 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
     # map files
     for file in project_v.files.all():
         wire_file = wire.FileData(
-            module_id=wire_module.id, id=file.id, path=file.path, statements=[]
+            module_id=wire_module.id,
+            id=file.id,
+            path=file.path,
+            statements=[],
+            generated=file.generated,
         )
         wire_files[file.id] = wire_file
         wire_module.files.append(wire_file)
@@ -97,9 +101,14 @@ def write_module(
         path = file_data.path
         if "." in path:
             path = file_data.path.rsplit(".", 1)[0]
-        file = project_v.create_file_from_path(path, exists_ok=overwrite, id=file_data.id)
+        file = project_v.create_file_from_path(path, exists_ok=True, id=file_data.id)
+        if file.id != file_data.id:
+            # delete old file
+            file.delete()
+            file.id = file_data.id
         model_files[file_data.id] = file
-        file.generated = ".gen" in file_data.path  # :GenFile
+        file.generated = file_data.generated
+        file.save()
 
     # wipe existing statements if overwrite and not empty
     if overwrite:
@@ -124,6 +133,7 @@ def write_module(
             code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
             symbol_type=stmt_data.symbol_type,
             reference=None,
+            generated=stmt_data.generated,
         )
         model_statements[stmt_data.id] = model_statement
 
@@ -177,6 +187,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         symbol_type=statement.symbol_type,
         reference=reference,
         reference_module=statement.reference_project_version_id,
+        generated=statement.generated,
     )
     if statement.type == StatementType.DEFINITION:
         rmap_symbol(statement, data)

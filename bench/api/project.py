@@ -110,6 +110,7 @@ class File(gql.Node):
     created_at: auto
     updated_at: auto
     deleted_at: auto
+    generated: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(

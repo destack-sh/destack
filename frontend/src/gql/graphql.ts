@@ -96,6 +96,7 @@ export type File = Node & {
   createdAt: Scalars["DateTime"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
   files: Array<File>;
+  generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
   parent?: Maybe<File>;
@@ -182,6 +183,7 @@ export type InterpSimpleType = Node &
 export type InterpSymbol = SimplyTyped & {
   __typename?: "InterpSymbol";
   file: InterpFile;
+  generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
   modifier?: Maybe<StatementModifier>;
   name?: Maybe<Scalars["String"]>;
@@ -1030,6 +1032,7 @@ export type FileHeaderFragment = {
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
+  generated: boolean;
   projectVersion: { __typename?: "ProjectVersion"; id: any };
 } & { " $fragmentName"?: "FileHeaderFragment" };
 
@@ -1567,6 +1570,7 @@ export type InterpSymbolContentFragment = {
   modifier?: StatementModifier | null;
   symbolType?: SymbolType | null;
   rootTypeTag?: TypeTag | null;
+  generated: boolean;
   typeNodes?: Array<{
     __typename?: "InterpSimpleType";
     id: any;
@@ -1773,6 +1777,7 @@ export const FileHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "generated" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "projectVersion" },
@@ -2017,6 +2022,7 @@ export const InterpSymbolContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+          { kind: "Field", name: { kind: "Name", value: "generated" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "typeNodes" },
