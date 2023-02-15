@@ -311,26 +311,26 @@ class RuntimeWorker:
             state = await self.get_worker_state(payload.module_id)
             send_rep = partial(send_message, self.rep_sock, ZMessageType.REP_MODULE_RUN)
 
-            # get the runconfig to run (implicit or explicit)
+            # get the runconfig to run
             if not state.interpreted:
-                logger.debug("fail_run", module_id=payload.module_id)
                 send_rep(RepModuleRunPayload(error=ModuleRunErrorType.NOT_READY))
                 return
-            if payload.runconfig_id is not None:
-                runconfig = state.interp.module_idx.symbol_by_id(
-                    payload.runconfig_id, language.Runconfig
-                )
-                raise RuntimeError(f"explicit runconfigs not yet supported: {runconfig}")
-            else:  # assemble runconfig from runnable and associated build (if given)
-                build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Build)
-                runnable = state.interp.module_idx.symbol_by_id(payload.runnable_id)
+            build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Build)
+            runnable = state.interp.module_idx.symbol_by_id(payload.runnable_id)
+
+            if isinstance(runnable, language.Task):
                 # if it's a task get the actual runnable from the build
-                if isinstance(runnable, language.Task):
-                    if build is None:
-                        send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
-                        return
-                    target_id = build.map(runnable.id)
-                    runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
+                if build is None:
+                    send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
+                    return
+                target_id = build.map(runnable.id)
+                if target_id is None:
+                    send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
+                    return
+                runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
+            elif not isinstance(runnable, language.Code):
+                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
+                return
 
             # run it
             code_instance = instantiate(runnable)

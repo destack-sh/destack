@@ -65,6 +65,7 @@ function createApolloClient() {
 }
 
 async function init() {
+  console.info("Starting Bench...");
   const apolloClient = createApolloClient();
   const pinia = createPinia();
 

@@ -37,16 +37,11 @@ async function run() {
     return;
   }
   console.log("run " + symbol.value?.name, arguments_.value);
-
-  let buildId = undefined; // TODO @Incomplete: select buildid for tasks
-  if (symbol.value.symbolType == SymbolType.Task) {
-    throw new Error("selecting build for tasks is not implemented yet");
-  }
-  await ops.runtime.run(symbol.value.id, buildId, arguments_.value);
+  await ops.runtime.run(symbol.value.id, build.value?.id, arguments_.value);
 }
 </script>
 <template>
-  <div class="flex flex-col bg-white px-12 py-8 font-mono text-sm">
+  <div class="flex flex-col items-baseline bg-white px-12 py-8 font-mono text-sm">
     <!-- Header -->
     <div class="flex flex-row gap-1">
       <button class="rounded-sm text-orange-600 outline-none hover:bg-orange-50" @click="run">run</button>

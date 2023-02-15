@@ -207,7 +207,6 @@ class ModuleRuntimeMutation:
             ZMessageType.REQ_MODULE_RUN,
             ReqModuleRunPayload(
                 module_id=project_version_id,
-                runconfig_id=UUID(input.runconfig_id.node_id) if input.runconfig_id else None,
                 runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
                 build_id=UUID(input.build_id.node_id) if input.build_id else None,
                 arguments=input.arguments,
@@ -217,7 +216,6 @@ class ModuleRuntimeMutation:
         _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
         return RunState(
             project_version_id=input.project_version_id,
-            runconfig_id=input.runconfig_id,
             runnable_id=input.runnable_id,
             build_id=input.build_id,
             success=rep.error is None,

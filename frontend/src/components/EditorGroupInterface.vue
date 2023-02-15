@@ -20,7 +20,8 @@ watch(
       }
       selectedTab.value = activeEditorIndex;
     }
-  }
+  },
+  { immediate: true }
 );
 const focused = computed(() => editorState.focusedEditor?.groupId == props.group.id);
 
