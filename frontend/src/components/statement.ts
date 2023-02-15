@@ -14,10 +14,10 @@ import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, inject, watch, type Ref } from "vue";
 
-import { newTypeNodeId } from "@/state/operations/statement";
-import { INTEGER_ZERO } from "@/utils/fractional";
 import { TYPETAG_KEYWORD } from "@/state/editor";
+import { newTypeNodeId } from "@/state/operations/statement";
 import { contextOf } from "@/state/runtime";
+import { INTEGER_ZERO } from "@/utils/fractional";
 
 export const STATEMENT_CONTEXT = Symbol();
 
@@ -171,7 +171,10 @@ export function useStatementContext() {
     );
   }
 
-  async function setReference(reference: { id: string } | null) {
+  async function setReference(reference: { id: string; name: string } | null) {
+    // TODO @Cleanup: setting reference and naming a reference shouldn't be separate
+    //  Indeed, we probably don't want names on references at all (creates weird aliasing).
+    operations.statement.rename(statement.value.id, statement.value.name ?? null, reference?.name ?? null);
     await operations.statement.setReference(statement.value.id, statement.value.reference?.id, reference?.id ?? null);
   }
 

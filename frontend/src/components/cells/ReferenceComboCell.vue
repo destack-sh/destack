@@ -1,14 +1,13 @@
 <script lang="ts" setup>
 import { useStatementContext } from "@/components/statement";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { SYMBOL_TYPE_BY_KEYWORD, SYMBOL_TYPE_KEYWORD } from "@/state/editor";
-import { useOperations } from "@/state/operations";
+import { SYMBOL_TYPE_KEYWORD, type StatementHeader } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ canDefineInPlace?: boolean }>();
+const props = defineProps<{ self?: StatementHeader; reference: StatementHeader | null; canDefineInPlace?: boolean }>();
 const emit = defineEmits<{
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
@@ -17,7 +16,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "defineInPlace", name: string): void;
-  (e: "referenceSet", ref: InterpSymbol): void;
+  (e: "setReference", ref: InterpSymbol | null): void;
 }>();
 
 const context = useStatementContext();
@@ -34,31 +33,13 @@ const availableSymbols = symbolsLike({
 });
 const filteredSymbols = computed(() =>
   query.value === ""
-    ? availableSymbols.value.filter((s) => s.id != context.statement.value.id)
+    ? availableSymbols.value.filter((s) => s.id != props.self?.id)
     : availableSymbols.value
-        .filter((s) => s.id != context.statement.value.id)
+        .filter((s) => s.id != props.self?.id)
         .filter((s) => {
           return s.name?.toLowerCase().includes(query.value.toLowerCase());
         })
 );
-
-// set symbol type if query starts with it and it's not yet set (like in SelectTypeCell)
-// (used in ProtoCell)
-watch(query, (newContent) => {
-  if (context.statement.value.type != StatementType.Blank || context.statement.value.symbolType != null) {
-    return;
-  }
-  // :ParseStatementInput
-  const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
-  newContent = newContent.trim();
-  if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
-    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
-    // reset query
-    query.value = "";
-    // inputRef must be a ComboboxInput
-    (inputRef.value?.$el as HTMLInputElement).value = "";
-  }
-});
 
 // define in place if query ends with :
 watch(
@@ -70,7 +51,6 @@ watch(
   }
 );
 
-const operations = useOperations();
 function setReference(ref: InterpSymbol | null) {
   if (ref == null && query.value.length < 1) {
     // headless ui auto-selects an option when it matches the name
@@ -81,13 +61,7 @@ function setReference(ref: InterpSymbol | null) {
   if (ref == null && props.canDefineInPlace) {
     emit("defineInPlace", query.value);
   } else {
-    // TODO @Cleanup: setting reference and naming a reference shouldn't be separate
-    //  Indeed, we probably don't want names on references at all (creates weird aliasing).
-    operations.statement.rename(context.statement.value.id, context.statement.value.name ?? null, ref.name);
-    context.setReference(ref);
-    if (ref != null) {
-      emit("referenceSet", ref);
-    }
+    emit("setReference", ref);
   }
 }
 
@@ -128,10 +102,18 @@ onStartTyping(() => {
   }
 });
 
+function clearQuery() {
+  query.value = "";
+  // inputRef must be a ComboboxInput
+  (inputRef.value?.$el as HTMLInputElement).value = "";
+}
+
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
   blur: () => ((inputRefFocus.focused.value = false), (selecting.value = false)),
   open,
+  query,
+  clearQuery,
 });
 </script>
 <template>
@@ -148,16 +130,9 @@ defineExpose({
     @click="open"
     class="rounded-sm outline-transparent focus:underline"
   >
-    {{ context.reference.value?.name ?? context.statement.value.name ?? "..." }}
+    {{ reference?.name ?? self?.name ?? "..." }}
   </button>
-  <Combobox
-    v-else
-    as="div"
-    class="relative"
-    :model-value="context.reference.value"
-    @update:model-value="setReference"
-    nullable
-  >
+  <Combobox v-else as="div" class="relative" :model-value="reference" @update:model-value="setReference" nullable>
     <ComboboxInput
       as="input"
       ref="inputRef"
@@ -193,9 +168,9 @@ defineExpose({
       </ComboboxOption>
       <!-- actual reference options -->
       <ComboboxOption
-        v-for="stmt in filteredSymbols"
-        :key="stmt.id"
-        :value="stmt"
+        v-for="symbol in filteredSymbols"
+        :key="symbol.id"
+        :value="symbol"
         as="template"
         v-slot="{ active, selected }"
       >
@@ -207,11 +182,11 @@ defineExpose({
         >
           <div class="flex items-baseline justify-between">
             <span :class="['truncate', selected && 'font-semibold']">
-              {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
-              {{ stmt.name }}
+              {{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}
+              {{ symbol.name }}
             </span>
             <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
-              {{ fileOf(stmt)?.path }}
+              {{ fileOf(symbol)?.path }}
             </span>
           </div>
         </li>
