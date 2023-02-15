@@ -66,6 +66,7 @@ class InterpSymbol(SimplyTyped):
     parent_id: Optional[GlobalID]
     name: Optional[str]
     type: StatementType
+    generated: bool
     modifier: Optional[StatementModifier]
     symbol_type: Optional[SymbolType]
     root_type_tag: Optional[TypeTag]
@@ -108,6 +109,8 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         )
         interp_module.files.append(interp_file)
         for statement in file.statements:
+            if statement.type in (StatementType.COMMENT, StatementType.BLANK):
+                continue  # ignore non-symbol statements
             root_type_tag, type_nodes = mapper.wmap_type_nodes(
                 None, statement.type_nodes, impute_type_reference=True
             )
@@ -117,8 +120,9 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
                 order_key=statement.order_key,
                 parent_id=statement.parent_id,
                 name=statement.name,
-                modifier=statement.modifier,
                 type=statement.type,
+                generated=statement.generated,
+                modifier=statement.modifier,
                 symbol_type=statement.symbol_type,
                 root_type_tag=root_type_tag,
                 type_nodes=type_nodes,
@@ -228,7 +232,7 @@ class ModuleRuntimeSubscription:
         self, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
-        logger.info("subscribe", project_version_id=project_version_id)
+        logger.info("subscribe_runtime", project_version_id=project_version_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
@@ -252,7 +256,7 @@ class ModuleRuntimeSubscription:
 
         # get runtime changes
         try:
-            logger.info("listen", project_version_id=project_version_id)
+            logger.info("listen_runtime", project_version_id=project_version_id)
             while True:
                 _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
                 logger.debug("update", project_version_id=project_version_id)

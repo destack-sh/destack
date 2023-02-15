@@ -137,9 +137,8 @@ class BuildResult:
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
-        # :GenFile
-        file = File(path=self.build.id.hex[:8] + ".gen", module=module)
-        return down(self.target_symbols, file)
+        file = File(path=self.build.id.hex[:8], generated=True, module=module)
+        return generate(self.target_symbols, file)
 
 
 class DataBuilder:
@@ -405,7 +404,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     state.create_code(target_code)
 
 
-def down(symbols: list[InterpSymbol], file: File | None = None) -> File:
+def generate(symbols: list[InterpSymbol], file: File | None = None) -> File:
     """Map high-level interpreted symbols back to lower level statements."""
 
     if file is None:
@@ -430,6 +429,7 @@ def down(symbols: list[InterpSymbol], file: File | None = None) -> File:
             file=file,
             parent=None,
             order_key=order_key,
+            generated=True,
         )
         file.statements.append(statement)
 

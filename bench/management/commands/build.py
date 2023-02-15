@@ -7,7 +7,7 @@ from bench.language.parse import parse_file
 from bench.language.reconstruct import render_file
 from bench.language.type import Build
 from bench.models.mapper import lookup_in_db_module
-from bench.runtime.build import down, make_build
+from bench.runtime.build import generate, make_build
 
 
 class Command(BaseCommand):
@@ -21,5 +21,5 @@ class Command(BaseCommand):
         lang_module, idx = parse_file(path, lookup_in_module=lookup_in_db_module)
         build = make_build(idx.symbol(compile_path, Build))
         gen_symbols, mappings = asyncio.get_event_loop().run_until_complete(build)
-        gen_file = down(gen_symbols)
+        gen_file = generate(gen_symbols)
         print(render_file(gen_file))

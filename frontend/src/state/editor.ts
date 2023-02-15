@@ -17,7 +17,10 @@ export type ProjectVersionHeader = Pick<
   ProjectVersion,
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
-export type FileHeader = Pick<File, "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt">;
+export type FileHeader = Pick<
+  File,
+  "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt" | "deletedAt" | "generated"
+>;
 export type StatementHeader = Pick<
   Statement,
   | "__typename"
@@ -157,6 +160,7 @@ export const useEditorState = defineStore("editor", {
       editingElement: false,
       readonly: false,
       debug: false,
+      showGenerated: false,
     };
   },
   getters: {

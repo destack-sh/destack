@@ -36,7 +36,7 @@ export function useEditorActions() {
     label: "Toggle Debug Mode",
     shortcuts: ["shift+d shift+d"],
     enabled: computed(() => true),
-    apply: () => (editor.debug = !editor.debug),
+    apply: () => ((editor.debug = !editor.debug), (editor.showGenerated = editor.debug)),
   });
 
   return {

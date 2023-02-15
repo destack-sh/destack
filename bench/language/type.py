@@ -214,6 +214,7 @@ class File:
     path: str
     statements: list[Statement] = field(default_factory=list)
     id: UUID = field(default_factory=uuid.uuid4)
+    generated: bool = False
 
     def __str__(self):
         return f"{self.module.name}/{self.path}"
@@ -271,6 +272,7 @@ class Statement(Generic[SymbolContentT]):
     content: Optional[SymbolContentT] = None
     reference: Optional[Statement | StatementPath] = None
     id: UUID = field(default_factory=uuid.uuid4)
+    generated: bool = False
 
     _source: Optional[Any] = None
 

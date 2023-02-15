@@ -75,6 +75,7 @@ type File implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
+  generated: Boolean!
   parent: File
   files: [File!]!
   statements(filters: StatementFilter): [Statement!]!
@@ -158,6 +159,7 @@ type InterpSymbol implements SimplyTyped {
   parentId: GlobalID
   name: String
   type: StatementType!
+  generated: Boolean!
   modifier: StatementModifier
   symbolType: SymbolType
 }

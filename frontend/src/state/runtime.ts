@@ -16,6 +16,7 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     modifier
     symbolType
     rootTypeTag
+    generated
     typeNodes {
       # not using SimpleTypeNodeContent fragment because it's for the editable node
       # and using a shared fragment seems overkill

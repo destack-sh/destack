@@ -72,7 +72,7 @@ class InternalServer:
             )
         elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
             # reload project version as module
-            # TODO @Performance: send partial module updates instead of full reloads
+            # TODO @Performance: send partial module updates :PartialModuleUpdates
             module_id = msg.payload_as(ProjectVersionChangedPayload).project_version_id
             project_v = await ProjectVersion.objects.aget(id=module_id)
             module = await sync_to_async(read_module)(project_v)
@@ -84,8 +84,8 @@ class InternalServer:
         elif msg.type == ZMessageType.REQ_WRITE_MODULE:
             write = msg.payload_as(ReqWriteModulePayload)
             logger.info("write_module", files=write.files, module_id=write.module_id)
+            project_v = await ProjectVersion.objects.aget(id=write.module_id)
             try:
-                project_v = await ProjectVersion.objects.aget(id=write.module_id)
                 await sync_to_async(write_module)(write.files, project_v, overwrite=True)
                 success = True
             except Exception as e:
@@ -93,6 +93,13 @@ class InternalServer:
                 success = False
             send_message(
                 self.rep_sock, ZMessageType.REP_WRITE_MODULE, RepWriteModulePayload(success=success)
+            )
+            # notify module changed :PartialModuleUpdates
+            module = await sync_to_async(read_module)(project_v)
+            send_message(
+                self.pub_sock,
+                ZMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(module_id=module.id, module=module),
             )
         else:
             raise ValueError(f"unexpected message: {msg}")

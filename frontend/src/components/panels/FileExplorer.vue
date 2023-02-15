@@ -9,14 +9,14 @@ const props = defineProps<{
   files: FileHeader[];
 }>();
 
+const editor = useEditorState();
+
 const filesSorted = computed(() => {
-  const files = [...props.files];
+  const files = props.files.filter((f) => f.deletedAt == null && (editor.showGenerated || !f.generated));
   return files.sort((a, b) => {
     return a.path.localeCompare(b.path);
   });
 });
-
-const editor = useEditorState();
 
 const renaming = ref(false);
 const container = ref(null);

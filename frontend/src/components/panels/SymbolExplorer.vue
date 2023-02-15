@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { StatementType } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
+import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { computed } from "vue";
 
 const runtime = useCurrentModuleRuntime();
+const editor = useEditorState();
 
 const allSymbols = computed(() => {
   const symbols = [];
@@ -12,7 +13,11 @@ const allSymbols = computed(() => {
   // TODO @Cleanup: order and group symbols
   for (const file of runtime.moduleIndex.value?.module.files ?? []) {
     for (const symbol of file.symbols) {
-      if (symbol.name == null || symbol.type != StatementType.Definition) {
+      if (
+        symbol.name == null ||
+        symbol.type != StatementType.Definition ||
+        (!editor.showGenerated && symbol.generated)
+      ) {
         continue;
       }
       symbols.push(symbol);
