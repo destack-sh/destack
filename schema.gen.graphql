@@ -1,6 +1,5 @@
 input BuildInput {
   projectVersionId: GlobalID!
-  buildId: GlobalID = null
   buildableId: GlobalID = null
 }
 
@@ -412,7 +411,6 @@ type RefMapping {
 
 input RunInput {
   projectVersionId: GlobalID!
-  runconfigId: GlobalID = null
   runnableId: GlobalID = null
   buildId: GlobalID = null
   arguments: JSON!
@@ -420,7 +418,6 @@ input RunInput {
 
 type RunState {
   projectVersionId: GlobalID!
-  runconfigId: GlobalID
   runnableId: GlobalID
   buildId: GlobalID
   output: JSON

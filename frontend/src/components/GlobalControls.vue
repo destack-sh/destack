@@ -19,7 +19,7 @@ function share() {
   // should probably open a share & permissions menu
   // but just copy current url to clipboard for now
   copy(window.location.href);
-  // should probably give a notification here
+  // should probably give a :Notification here
   console.log("share");
 }
 

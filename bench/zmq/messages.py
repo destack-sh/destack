@@ -84,7 +84,6 @@ class ModuleChangedPayload:
 @_register_payload(ZMessageType.REQ_MODULE_BUILD)
 class ReqModuleBuildPayload:
     module_id: UUID
-    build_id: Optional[UUID]
     buildable_id: Optional[UUID]
 
 
@@ -95,13 +94,13 @@ class ModuleBuildErrorType(enum.Enum):
 
 @_register_payload(ZMessageType.REP_MODULE_BUILD)
 class RepModuleBuildPayload:
+    build_ids: list[UUID]
     error: Optional[ModuleBuildErrorType] = None
 
 
 @_register_payload(ZMessageType.REQ_MODULE_RUN)
 class ReqModuleRunPayload:
     module_id: UUID
-    runconfig_id: Optional[UUID]
     runnable_id: Optional[UUID]
     build_id: Optional[UUID]
     arguments: dict[str, wire.LiteralValue]

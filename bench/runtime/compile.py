@@ -113,7 +113,6 @@ class CompilationCandidate:
             type=builder.type_node.to_type(),
             language="bpl",
             code=builder.to_code_content(),
-            builtin_id=None,
             description=None,
         )
         # try to parse code
@@ -449,5 +448,4 @@ def down_code_content(code: Code) -> CodeContent:
         language=code.language,
         type_node=code.type_node,
         code=code.code,
-        builtin_id=code.builtin_id,
     )

@@ -24,7 +24,6 @@ export type Scalars = {
 };
 
 export type BuildInput = {
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
   buildableId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
 };
@@ -575,7 +574,6 @@ export type RunInput = {
   arguments: Scalars["JSON"];
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
-  runconfigId?: InputMaybe<Scalars["GlobalID"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
@@ -584,7 +582,6 @@ export type RunState = {
   buildId?: Maybe<Scalars["GlobalID"]>;
   output?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
-  runconfigId?: Maybe<Scalars["GlobalID"]>;
   runnableId?: Maybe<Scalars["GlobalID"]>;
   success: Scalars["Boolean"];
 };
@@ -1176,7 +1173,6 @@ export type RestoreFileMutation = {
 
 export type BuildMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
   buildableId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
@@ -1189,7 +1185,6 @@ export type BuildMutation = {
 
 export type RunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  runconfigId?: InputMaybe<Scalars["GlobalID"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   arguments: Scalars["JSON"];
@@ -1202,7 +1197,6 @@ export type RunMutation = {
     | {
         __typename?: "RunState";
         projectVersionId: any;
-        runconfigId?: any | null;
         runnableId?: any | null;
         buildId?: any | null;
         output?: any | null;
@@ -2718,11 +2712,6 @@ export const BuildDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "buildableId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -2744,11 +2733,6 @@ export const BuildDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "projectVersionId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "buildId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
                     },
                     {
                       kind: "ObjectField",
@@ -2797,11 +2781,6 @@ export const RunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runconfigId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -2836,11 +2815,6 @@ export const RunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "runconfigId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runconfigId" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "runnableId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
                     },
@@ -2868,7 +2842,6 @@ export const RunDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
-                      { kind: "Field", name: { kind: "Name", value: "runconfigId" } },
                       { kind: "Field", name: { kind: "Name", value: "runnableId" } },
                       { kind: "Field", name: { kind: "Name", value: "buildId" } },
                       { kind: "Field", name: { kind: "Name", value: "output" } },

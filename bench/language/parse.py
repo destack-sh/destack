@@ -1105,7 +1105,7 @@ class ModuleIndex:
         if not anonymous:
             self.scopes_by_name[scope.name] = scope
 
-    def add_imported_scope(self, scope: Scope) -> None:
+    def import_scope(self, scope: Scope) -> None:
         # only make imported scopes available by id
         self.scopes[scope.id] = scope
 
@@ -1124,6 +1124,9 @@ class ModuleIndex:
         if statement is None:
             return None
         return self.scopes.get(statement.id)
+
+    def symbols_of_type(self, symbol_t: typing.Type[SymbolT]) -> list[SymbolT]:
+        return [s for s in self.symbols.values() if isinstance(s, symbol_t)]
 
     def symbol(
         self, path: StatementPath | str, symbol_t: typing.Type[SymbolT] | None = None
@@ -1225,7 +1228,7 @@ def resolve_statement_reference(
         if resolved_scope is None:
             _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
             return
-        idx.add_imported_scope(resolved_scope)
+        idx.import_scope(resolved_scope)
 
     statement.reference = resolved_scope.statement
     # check if the reference has the correct type
@@ -1406,20 +1409,17 @@ def interp(
     def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, subject, cause, **error_args))
 
-    symbols = idx.symbols
-
     # create symbol shells for proper statements (without symbol-specific fields)
     for statement in idx.statements.values():
         if not statement.is_proper:
             continue
 
         # TODO @Incomplete: implement abstraction/variable templating :Variables
+        abstract = False
         scope = idx.scopes[statement.id]
         if scope.parameters or scope.arguments:
             _error(ET.UNEXPECTED_PARAMETERS, statement)
             continue
-        abstract = False
-
         if statement.underlying_definition is None:
             # definition is not available, probably due to some reference or load error
             # we ignore here since this is already an error upstream
@@ -1460,7 +1460,18 @@ def interp(
             symbol = symbol_cls(**base_symbol.__dict__, **source_content.deepcopy().__dict__)  # type: ignore
 
         scope.parent.symbols[symbol.name] = symbol
-        symbols[statement.id] = symbol
+        idx.symbols[statement.id] = symbol
+
+    # set symbol definition sites
+    for symbol in idx.symbols.values():
+        # definition site is the last non-abstract reference or definition
+        #  excluding plain references without parameters
+        definition_stmt = symbol.source.underlying_definition
+        if definition_stmt.id not in idx.symbols:
+            continue  # symbol is not part of this module
+        symbol.definition = idx.symbols[definition_stmt.id]
+        if symbol.definition.abstract:
+            raise NotImplementedError("TODO @Incomplete: implement abstraction :Variables")
 
     # resolve type references (now that we have Type instances)
     for symbol in idx.symbols.values():
@@ -1477,7 +1488,7 @@ def interp(
             resolve_type_references_rec(scope, scope.statement.content.type_node, idx, on_error)
 
     # interp symbol contents using related symbols
-    for id, symbol in symbols.items():
+    for id, symbol in idx.symbols.items():
         statement = idx.statements[id]
         if statement.type == StatementType.DEFINITION:
             scope = idx.scopes[id]
@@ -1531,7 +1542,7 @@ def interp(
                 continue
 
     # add symbol context for those who need it
-    for id, symbol in symbols.items():
+    for id, symbol in idx.symbols.items():
         needs_context = symbol.symbol_type == SymbolType.CODE
         if not needs_context:
             continue

@@ -387,6 +387,7 @@ class InterpSymbol:
     name: str = required_field()
     abstract: bool = field(default=False)
     modifier: Optional[StatementModifier] = None
+    definition: Optional[InterpSymbol] = None
     context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
     source: Optional[Statement] = None
 
