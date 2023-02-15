@@ -33,7 +33,12 @@ defineExpose({
 </script>
 <template>
   <ul role="list" class="flex flex-col gap-1 py-1 text-sm">
-    <li v-for="symbol in allSymbols" :key="symbol.id" class="flex flex-row gap-1 px-3 text-gray-700">
+    <li
+      v-for="symbol in allSymbols"
+      :key="symbol.id"
+      class="flex flex-row gap-1 px-3 text-gray-700"
+      :class="{ 'border-l-2 border-orange-200 pl-2.5': symbol.generated }"
+    >
       <span class="text-gray-500">{{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}</span>
       <span class="">{{ symbol.name }}</span>
     </li>

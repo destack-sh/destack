@@ -92,6 +92,7 @@ defineExpose({
         'bg-orange-100 text-orange-600': file.id == editor?.focusedFileId,
         'text-gray-700 hover:text-orange-600': file.id != editor?.focusedFileId,
         'border-orange-600': file.id == editor?.focusedElementId,
+        'border-l-2 border-l-orange-200 pl-2.5': file.generated,
       }"
       @click="focus(file)"
     >

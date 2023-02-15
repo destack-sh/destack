@@ -63,7 +63,7 @@ def raise_error(error: ValueError):
     raise error
 
 
-def do_nothing(*args, **kwargs):
+def ignore_error(*args, **kwargs):
     pass
 
 
@@ -1294,7 +1294,7 @@ def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
 
     # error? if reference is an unresolved reference
     if node.reference.tag == TypeTag.TYPE_REFERENCE:
-        # TODO @Incomplete: could just impute that as well? but then we'd need to break circles?
+        # could just impute that as well? but then we'd need to break circles?
         raise ValueError(f"reference is unresolved type reference: {node}")
 
     node.tag = node.reference.tag
@@ -1480,11 +1480,11 @@ def interp(
         elif isinstance(symbol, (Dataset, Task, Code)):
             resolve_type_references_rec(scope, symbol.type, idx, on_error)
 
-        # also resolve in source type nodes
+        # also resolve in source type nodes (ignore errors here since they're the same)
         if isinstance(scope.statement.content, TypeNode):
-            resolve_type_references_rec(scope, scope.statement.content, idx, on_error)
+            resolve_type_references_rec(scope, scope.statement.content, idx, ignore_error)
         elif isinstance(scope.statement.content, (DatasetContent, TaskContent, CodeContent)):
-            resolve_type_references_rec(scope, scope.statement.content.type_node, idx, on_error)
+            resolve_type_references_rec(scope, scope.statement.content.type_node, idx, ignore_error)
 
     # interp symbol contents using related symbols
     for id, symbol in idx.symbols.items():

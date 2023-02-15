@@ -146,6 +146,7 @@ class RuntimeWorker:
         _, payload = await recv_message_with(self.intserver_req_sock, RepReadModulePayload)
         return payload.module
 
+    # TODO @Cleanup: runtime worker should be more functional
     async def get_interp_module(self, module_id: UUID, cache: bool) -> InterpModule:
         """Gets a complete interpreted module incl. dependencies (optional caching)"""
         logger.info("interp_module", module_id=module_id, cache=cache)
