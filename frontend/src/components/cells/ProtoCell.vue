@@ -5,8 +5,9 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import type { InterpSymbol } from "@/gql/graphql";
-import { nextTick, ref, type Ref } from "vue";
+import { StatementType, type InterpSymbol } from "@/gql/graphql";
+import { SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
+import { nextTick, ref, watch, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();
 
@@ -15,6 +16,28 @@ const context = useStatementContext();
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof ReferenceComboCell> | null> = ref(null);
+
+// set symbol type if query starts with it and it's not yet set (like in SelectTypeCell)
+// define in place if it ends with :
+watch(
+  () => nameRef.value?.query,
+  (newContent) => {
+    if (
+      newContent == null ||
+      context.statement.value.type != StatementType.Blank ||
+      context.statement.value.symbolType != null
+    ) {
+      return;
+    }
+    // :ParseStatementInput
+    const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
+    newContent = newContent.trim();
+    if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
+      context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
+      nameRef.value?.clearQuery();
+    }
+  }
+);
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
@@ -101,6 +124,8 @@ defineExpose({
     <ReferenceComboCell
       v-if="context.statement.value.symbolType || context.statement.value.modifier"
       ref="nameRef"
+      :reference="context.reference.value"
+      :self="context.statement.value"
       class="mx-0.5"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
@@ -108,7 +133,7 @@ defineExpose({
       @navigate-left="gapRef?.focus"
       :can-define-in-place="context.statement.value.symbolType != null"
       @define-in-place="morphToDefinition"
-      @reference-set="morphToReference"
+      @set-reference="(ref) => ref == null || morphToReference(ref)"
       @escape="context.escape"
     />
     <!-- Empty dots -->

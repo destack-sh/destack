@@ -5,7 +5,8 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { StatementType } from "@/gql/graphql";
+import { StatementType, type InterpSymbol } from "@/gql/graphql";
+import { useOperations } from "@/state/operations";
 import { localErrorsOf } from "@/state/runtime";
 import { ref, type Ref } from "vue";
 
@@ -88,6 +89,8 @@ defineExpose({
     <ReferenceComboCell
       v-else-if="context.statement.value.type == StatementType.Reference"
       ref="nameRef"
+      :self="context.statement.value"
+      :reference="context.reference.value"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"
       @navigate-down="emit('navigateDown')"
@@ -95,6 +98,7 @@ defineExpose({
       @navigate-right="emit('navigateRight')"
       @escape="context.escape"
       @enter="context.insertBelow"
+      @set-reference="context.setReference"
     />
     <!-- Error underline for declaration if unlocated -->
     <div
