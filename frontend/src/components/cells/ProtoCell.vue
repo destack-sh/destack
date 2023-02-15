@@ -30,6 +30,7 @@ function deleteSymbolTypeOrModifier() {
   } else {
     context.setModifier(null);
   }
+  gapRef.value?.focus();
 }
 
 function morphToDefinition(name: string) {
