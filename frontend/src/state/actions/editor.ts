@@ -34,9 +34,13 @@ export function useEditorActions() {
   const toggleDebugMode = provideGlobalAction({
     id: "editor.toggleDebugMode",
     label: "Toggle Debug Mode",
-    shortcuts: ["shift+d shift+d"],
+    shortcuts: ["ctrl+shift+d"],
     enabled: computed(() => true),
-    apply: () => ((editor.debug = !editor.debug), (editor.showGenerated = editor.debug)),
+    apply: () => {
+      console.log("toggle debug mode");
+      editor.debug = !editor.debug;
+      editor.showGenerated = editor.debug;
+    },
   });
 
   return {
