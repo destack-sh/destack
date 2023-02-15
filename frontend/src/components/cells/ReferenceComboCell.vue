@@ -144,6 +144,7 @@ defineExpose({
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.enter.exact.prevent="open"
+    @keydown.delete.exact.prevent="emit('deleteLeft')"
     @click="open"
     class="rounded-sm outline-transparent focus:underline"
   >
