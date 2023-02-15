@@ -257,7 +257,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.description = content.description
         data.records = content.records
         data.type_nodes = rmap_type_node(content.type_node)
-    elif isinstance(content, language.CompilationContent):
+    elif isinstance(content, language.BuildContent):
         data.generated_mappings = content.source_mappings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
@@ -303,8 +303,8 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             type_node=wmap_type_node(data.type_nodes),
             records=data.records,
         )
-    elif data.symbol_type == SymbolType.COMPILATION:
-        return language.CompilationContent(source_mappings=data.generated_mappings)
+    elif data.symbol_type == SymbolType.BUILD:
+        return language.BuildContent(source_mappings=data.generated_mappings)
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(
             module_name=data.reference_module.name if data.reference_module else None,

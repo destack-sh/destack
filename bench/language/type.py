@@ -168,7 +168,7 @@ class SymbolType(models.TextChoices):
     DATASET = "data"
     VALUE = "value"
     REQUIREMENT = "require"
-    COMPILATION = "compile"
+    BUILD = "build"
     RUNCONFIG = "run"
 
 
@@ -655,11 +655,11 @@ class RunconfigContent(SymbolContent):
 class Runconfig(InterpSymbol, RunconfigContent):
     codes: list[Code] = field(default_factory=list)
     tasks: list[Task] = field(default_factory=list)
-    compilations: list[Compilation] = field(default_factory=list)
+    builds: list[Build] = field(default_factory=list)
 
 
 @dataclass(repr=False)
-class CompilationContent(SymbolContent):
+class BuildContent(SymbolContent):
     source_mappings: list["SourceMapping"]
 
     def map(self, source_id: UUID) -> UUID:
@@ -674,7 +674,7 @@ class CompilationContent(SymbolContent):
 
 
 @dataclass(repr=False)
-class Compilation(InterpSymbol, CompilationContent):
+class Build(InterpSymbol, BuildContent):
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
 
@@ -700,7 +700,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.CODE: Code,
     SymbolType.REQUIREMENT: Requirement,
     SymbolType.RUNCONFIG: Runconfig,
-    SymbolType.COMPILATION: Compilation,
+    SymbolType.BUILD: Build,
 }
 SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()

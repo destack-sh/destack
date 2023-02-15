@@ -13,9 +13,9 @@ from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
 from bench.language.type import (
     PRIMITIVE_TYPES,
+    BuildContent,
     CapabilityContent,
     CodeContent,
-    CompilationContent,
     DatasetContent,
     ExpectationContent,
     RequirementContent,
@@ -195,7 +195,7 @@ def render_symbol_content(content: SymbolContent) -> Optional[str]:
             return f"{render_description(content.description)}\n{rendered_value}"
         else:
             return rendered_value
-    elif isinstance(content, (CompilationContent, RunconfigContent, RequirementContent)):
+    elif isinstance(content, (BuildContent, RunconfigContent, RequirementContent)):
         return None
     else:
         raise ValueError(f"unexpected symbol content type: {type(content)} {content}")

@@ -18,7 +18,7 @@ const canBuild = computed(
   () =>
     runtime.connected &&
     (mainSymbol.value?.symbolType == SymbolType.Task ||
-      mainSymbol.value?.symbolType == SymbolType.Compilation ||
+      mainSymbol.value?.symbolType == SymbolType.Build ||
       mainSymbol.value?.symbolType == SymbolType.Runconfig)
 );
 const canRun = computed(
@@ -29,7 +29,7 @@ const canRun = computed(
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Runconfig, SymbolType.Compilation, SymbolType.Task, SymbolType.Code],
+  symbolTypes: [SymbolType.Runconfig, SymbolType.Build, SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
 const filteredSymbols = computed(() =>

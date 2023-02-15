@@ -12,8 +12,8 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
-from bench.models.compile import CompilationContentMixin
 from bench.models.data import DatasetContentMixin
+from bench.models.generated import GeneratedContentMixin
 from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
@@ -108,11 +108,11 @@ SYMBOL_CONTENT_VALUE_FIELDS = (
 SYMBOL_CONTENT_RELATION_1TOM_FIELDS = ("reference_project_version",)
 SYMBOL_CONTENT_RELATION_MTOM_FIELDS = (
     "mappings",
-    "compilations",
+    "builds",
 )
 
 
-class Statement(UUIDModel, DatasetContentMixin, CompilationContentMixin):
+class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     """
     A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
