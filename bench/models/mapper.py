@@ -196,7 +196,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATASET:
         data.records = list(statement.records.all().values_list("data", flat=True))
-    elif statement.symbol_type == SymbolType.COMPILATION:
+    elif statement.symbol_type == SymbolType.BUILD:
         data.generated_mappings = [
             models.SourceMapping(
                 statement=statement,

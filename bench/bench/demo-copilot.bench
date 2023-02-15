@@ -61,7 +61,7 @@ code check_repetition :: (prev_code: string, completion: str) -> boolean:
 return input not in prev_code
 ```
 
---- compiled.x ---
+--- buildd.x ---
 
 data 'idiomatic code__best_samples' :: (code: string, language: CodeLanguage) -> boolean:
 ```jsonl

@@ -12,7 +12,7 @@ const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
 const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
-const availableBuilds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Compilation] });
+const availableBuilds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Build] });
 
 // local run interface state
 const state = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);

@@ -47,7 +47,7 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Capability]: "capability",
   [SymbolType.Requirement]: "require",
   [SymbolType.Runconfig]: "run",
-  [SymbolType.Compilation]: "build",
+  [SymbolType.Build]: "build",
 };
 export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
 export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {

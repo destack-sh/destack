@@ -9,7 +9,7 @@ const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
 const hasRunnables = computed(() =>
   Object.values(runtime.moduleIndex.value?.symbolsById ?? {}).find(
-    (s) => s.symbolType == SymbolType.Runconfig || s.symbolType == SymbolType.Compilation
+    (s) => s.symbolType == SymbolType.Runconfig || s.symbolType == SymbolType.Build
   )
 );
 

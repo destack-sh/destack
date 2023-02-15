@@ -15,9 +15,9 @@ import zmq.asyncio
 from bench import language
 from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
-from bench.language.type import Compilation, StatementPath, SymbolType
+from bench.language.type import Build, StatementPath, SymbolType
 from bench.language.wire import ModuleReference
-from bench.runtime.compile import compile
+from bench.runtime.build import make_build
 from bench.runtime.execute import instantiate, run
 from bench.zmq import (
     ZMessage,
@@ -263,19 +263,19 @@ class RuntimeWorker:
             state = await self.get_worker_state(payload.module_id)
             send_rep = partial(send_message, self.rep_sock, ZMessageType.REP_MODULE_BUILD)
 
-            # get the compilations to run
+            # get the builds to run
             if not state.interpreted:
                 logger.debug("fail_build", module_id=payload.module_id, msg=msg)
                 send_rep(RepModuleBuildPayload(error=ModuleBuildErrorType.NOT_READY))
                 return
             buildable = state.interp.module_idx.symbol_by_id(payload.buildable_id)
             if isinstance(buildable, language.Task):
-                # collect any compilations that contain this task
+                # collect any builds that contain this task
                 builds = []
-                for compilation in state.interp.module_idx.symbols_of_type(Compilation):
-                    if any(t.definition.id == buildable.id for t in compilation.tasks):
-                        builds.append(compilation)
-            elif isinstance(buildable, language.Compilation):
+                for build in state.interp.module_idx.symbols_of_type(Build):
+                    if any(t.definition.id == buildable.id for t in build.tasks):
+                        builds.append(build)
+            elif isinstance(buildable, language.Build):
                 builds = [buildable]
             else:
                 logger.debug("fail_build", module_id=payload.module_id, msg=msg)
@@ -283,8 +283,8 @@ class RuntimeWorker:
                 return
 
             # actually build (concurrently)
-            compiles = [compile(compilation) for compilation in builds]
-            build_results = await asyncio.gather(*compiles)
+            build_processes = [make_build(build) for build in builds]
+            build_results = await asyncio.gather(*build_processes)
             build_ids = [r.id for r in builds]
             send_rep(RepModuleBuildPayload(error=None, build_ids=build_ids))
 
@@ -312,7 +312,7 @@ class RuntimeWorker:
                 )
                 raise RuntimeError(f"explicit runconfigs not yet supported: {runconfig}")
             else:  # assemble runconfig from runnable and associated build (if given)
-                build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Compilation)
+                build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Build)
                 runnable = state.interp.module_idx.symbol_by_id(payload.runnable_id)
                 # if it's a task get the actual runnable from the build
                 if isinstance(runnable, language.Task):

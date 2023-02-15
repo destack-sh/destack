@@ -62,9 +62,9 @@ export type DatasetRecord = Node & {
 export enum ErrorType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
   AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
+  BuildMissingModel = "BUILD_MISSING_MODEL",
+  BuildMissingTask = "BUILD_MISSING_TASK",
   CircularAncestry = "CIRCULAR_ANCESTRY",
-  CompilationMissingModel = "COMPILATION_MISSING_MODEL",
-  CompilationMissingTask = "COMPILATION_MISSING_TASK",
   ExpectedArguments = "EXPECTED_ARGUMENTS",
   ExpectedBlank = "EXPECTED_BLANK",
   ExpectedParameters = "EXPECTED_PARAMETERS",
@@ -784,9 +784,9 @@ export type SubscriptionModuleRuntimeChangedArgs = {
 
 /** The type of symbol content. */
 export enum SymbolType {
+  Build = "BUILD",
   Capability = "CAPABILITY",
   Code = "CODE",
-  Compilation = "COMPILATION",
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Model = "MODEL",

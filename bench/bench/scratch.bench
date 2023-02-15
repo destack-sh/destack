@@ -16,7 +16,7 @@ capability 'basic math':
 import capability 'basic math' from .math
 
 # 'using' applies a symbol to the current scope
-# should the using apply to the task? compile? both?
+# should the using apply to the task? build? both?
 # what about 'using' for other symbols?
 # using capability 'basic math'
 

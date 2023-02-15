@@ -5,15 +5,15 @@ from django.db import models
 from bench.models.utils import UUIDModel
 
 
-class CompilationContentMixin:
-    """Compilation content of mappings."""
+class GeneratedContentMixin:
+    """Build content of mappings."""
 
-    generated_mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.compilation
+    generated_mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.build
 
 
 class SourceMapping(UUIDModel):
     """
-    A source map for compilations to track the mapping between source and target instructions.
+    A source map for builds to track the mapping between source and target instructions.
     """
 
     statement = models.ForeignKey(

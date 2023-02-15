@@ -12,9 +12,9 @@ import structlog
 
 from bench.language.reconstruct import render_type_node, render_type_node_struct
 from bench.language.type import (
+    Build,
     Code,
     CodeContent,
-    Compilation,
     Dataset,
     DatasetContent,
     Expectation,
@@ -39,17 +39,17 @@ logger = structlog.get_logger(__name__)
 
 
 #
-# Compilation
+# Build
 #
-# On a high level, compilation is a meta-program that takes a compilation and produces optimal
-# executable code (and any other symbols) for a task given the compilation constraints.
+# On a high level, build is a meta-program that takes a build and produces optimal
+# artifacts and executable code (and any other symbols) for tasks/artifacts given constraints.
 #
-# More formally: compile is a function of task to executable code given a compilation.
-# Implementing compile equals some/many forms of optimization problem, we'll see.
+# More formally: build is a function of task to executable code given a build.
+# Implementing build entails optimization problems, we'll see...
 #
 
 
-class CompileErrorType(enum.Enum):
+class BuildErrorType(enum.Enum):
     INTERNAL = 0, "Internal error"
     RUN = 1, "Error running user code"
 
@@ -60,10 +60,10 @@ class CompileErrorType(enum.Enum):
         return obj
 
 
-class CompileError(ValueError):
+class BuildError(ValueError):
     def __init__(
         self,
-        _t: CompileErrorType,
+        _t: BuildErrorType,
         symbol: Optional[InterpSymbol],
         cause: Optional[Exception] = None,
     ):
@@ -74,21 +74,21 @@ class CompileError(ValueError):
 
 
 @dataclass
-class CompilationState:
-    compilation: Compilation
-    candidates: list[CompilationCandidate] = field(default_factory=list)
-    best_candidate: Optional[CompilationCandidate] = None
+class BuildState:
+    build: Build
+    candidates: list[BuildCandidate] = field(default_factory=list)
+    best_candidate: Optional[BuildCandidate] = None
 
 
 @dataclass
-class CompilationCandidate:
-    state: CompilationState
-    compilation: Compilation
+class BuildCandidate:
+    state: BuildState
+    build: Build
     task: Task
     model: Model
     candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
-    # TODO @Incomplete: track source mappings during compilation
+    # TODO @Incomplete: track source mappings during build
     source_mappings: list[SourceMapping] = field(default_factory=list)
 
     def create_data(self, builder: DataBuilder) -> Dataset:
@@ -120,24 +120,24 @@ class CompilationCandidate:
         self.target_symbols.append(code)
         return code
 
-    def to_result(self) -> CompilationResult:
-        return CompilationResult(
-            compilation=self.compilation,
+    def to_result(self) -> BuildResult:
+        return BuildResult(
+            build=self.build,
             target_symbols=self.target_symbols,
             source_mappings=self.source_mappings,
         )
 
 
 @dataclass
-class CompilationResult:
-    compilation: Compilation
+class BuildResult:
+    build: Build
     target_symbols: list[InterpSymbol]
     source_mappings: list[SourceMapping]
 
     def to_file(self, module: Module | None = None) -> File:
         if module:
-            module = Module(name="<compilation>")
-        file = File(path=self.compilation.id.hex + ".gen", module=module)
+            module = Module(name="<build>")
+        file = File(path=self.build.id.hex + ".gen", module=module)
         return down(self.target_symbols, file)
 
 
@@ -284,18 +284,16 @@ class PromptBuilder:
         self.blank()
 
 
-async def compile(compilation: Compilation) -> CompilationResult:
-    logger.debug("compile.start", compilation=compilation)
-    if len(compilation.tasks) != 1 or len(compilation.models) != 1:
-        raise CompileError(CompileErrorType.INTERNAL, compilation)
+async def make_build(build: Build) -> BuildResult:
+    logger.debug("build.start", build=build)
+    if len(build.tasks) != 1 or len(build.models) != 1:
+        raise BuildError(BuildErrorType.INTERNAL, build)
 
-    state = CompilationState(compilation=compilation)
-    candidate = CompilationCandidate(
-        state=state, compilation=compilation, task=compilation.tasks[0], model=compilation.models[0]
-    )
-    await _compile_task(candidate, candidate.task)
+    state = BuildState(build=build)
+    candidate = BuildCandidate(state=state, build=build, task=build.tasks[0], model=build.models[0])
+    await _build_task(candidate, candidate.task)
     state.best_candidate = candidate
-    logger.debug("compile.end", compilation=compilation, state=candidate)
+    logger.debug("build.end", build=build, state=candidate)
     return state.best_candidate.to_result()
 
 
@@ -314,7 +312,7 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
     return expects
 
 
-async def _compile_task(state: CompilationCandidate, task: Task) -> None:
+async def _build_task(state: BuildCandidate, task: Task) -> None:
     target_code = PromptBuilder(name=task.name, type_node=task.type)
     target_code.comment("Task metadata")
     target_code.emit(f'task "{task.name}"\n')

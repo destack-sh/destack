@@ -2,12 +2,12 @@ from bench.language.error import Error, ErrorType
 from bench.language.lex import Token, TokenType, lex
 from bench.language.parse import ModuleIndex, Scope, parse
 from bench.language.type import (
+    Build,
+    BuildContent,
     Capability,
     CapabilityContent,
     Code,
     CodeContent,
-    Compilation,
-    CompilationContent,
     Dataset,
     DatasetContent,
     Expectation,
@@ -38,8 +38,8 @@ __all__ = [
     "CapabilityContent",
     "Code",
     "CodeContent",
-    "CompilationContent",
-    "Compilation",
+    "BuildContent",
+    "Build",
     "Dataset",
     "DatasetContent",
     "Error",

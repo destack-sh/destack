@@ -18,11 +18,11 @@ from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex, lex_string
 from bench.language.type import (
     SYMBOL_CLASS_BY_TYPE,
+    Build,
+    BuildContent,
     CapabilityContent,
     Code,
     CodeContent,
-    Compilation,
-    CompilationContent,
     Dataset,
     DatasetContent,
     Expectation,
@@ -609,9 +609,9 @@ def _parse_definition_content(
             return ValueContent(description=description, value=value)
         except json.JSONDecodeError as e:
             raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
-    elif symbol_type.value == SymbolType.COMPILATION:
+    elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
-        return CompilationContent(source_mappings=[])
+        return BuildContent(source_mappings=[])
     # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
     elif symbol_type.value == SymbolType.RUNCONFIG:
         tokens.eat_separator(":")
@@ -981,7 +981,6 @@ def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:
 
 
 def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token]:
-    # references can be either to symbol types or compile and run statements
     symbol_type = tokens.eat_keyword_like(SymbolType)
     tokens.eat_space()
     name = tokens.eat_identifier()
@@ -1515,7 +1514,7 @@ def interp(
                     symbol.expectations.append(child)
                 else:
                     _error(ET.UNEXPECTED_STATEMENT, child.source)
-        elif isinstance(symbol, Compilation):
+        elif isinstance(symbol, Build):
             for child in scope.proper_symbols:
                 if isinstance(child, Model):
                     symbol.models.append(child)
@@ -1524,17 +1523,17 @@ def interp(
                 else:
                     _error(ET.UNEXPECTED_STATEMENT, child.source)
             if not symbol.models:
-                _error(ET.COMPILATION_MISSING_MODEL, statement)
+                _error(ET.BUILD_MISSING_MODEL, statement)
             if not symbol.tasks:
-                _error(ET.COMPILATION_MISSING_TASK, statement)
+                _error(ET.BUILD_MISSING_TASK, statement)
         elif isinstance(symbol, Runconfig):
             for child in scope.proper_symbols:
                 if isinstance(child, Code):
                     symbol.codes.append(child)
                 elif isinstance(child, Task):
                     symbol.tasks.append(child)
-                elif isinstance(child, Compilation):
-                    symbol.compilations.append(child)
+                elif isinstance(child, Build):
+                    symbol.builds.append(child)
         else:
             # default interp (expect no children)
             if scope.proper_statements:

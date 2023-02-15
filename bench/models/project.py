@@ -226,10 +226,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                         record.pk = None
                         record.statement_id = new_statements_ids[statement.id]
                         new_contents[old_id] = record
-                elif statement.symbol_type == SymbolType.COMPILATION:
+                elif statement.symbol_type == SymbolType.BUILD:
                     for mapping in statement.generated_mappings.all():
                         mapping.pk = None
-                        mapping.statement = new_statements_ids[mapping.compilation_id]
+                        mapping.statement = new_statements_ids[mapping.build_id]
                         mapping.source_id = new_statements_ids[mapping.source_id]
                         mapping.target_id = new_statements_ids[mapping.target_id]
                         mapping.source_revision = 0
