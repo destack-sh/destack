@@ -1,7 +1,7 @@
 import { graphql, useFragment } from "@/gql";
 import type { InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
-import { WS_CONNECTED } from "@/main";
 import { useEditorState } from "@/state/editor";
+import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Ref } from "vue";
