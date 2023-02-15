@@ -337,18 +337,17 @@ watchEffect(async () => {
         <!-- Current worker tasks -->
         <!-- ... -->
       </template>
+
       <!-- Right side: controls & profile -->
       <template v-slot:right>
         <!-- Current "main" statement controls -->
         <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <MainSymbolControls />
         </div>
-
         <!-- Global controls -->
         <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <GlobalControls />
         </div>
-
         <!-- Profile -->
         <ProfileMenuButton />
       </template>

@@ -9,8 +9,6 @@ import { RouterView } from "vue-router";
 <style>
 @import "@/assets/base.css";
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans&display=swap");
-@import "@braks/vue-flow/dist/style.css";
-@import "@braks/vue-flow/dist/theme-default.css";
 
 ::-webkit-scrollbar {
   width: 12px;

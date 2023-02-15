@@ -677,12 +677,12 @@ class Runconfig(InterpSymbol, RunconfigContent):
 class BuildContent(SymbolContent):
     source_mappings: list["SourceMapping"]
 
-    def map(self, source_id: UUID) -> UUID:
+    def map(self, source_id: UUID) -> Optional[UUID]:
         # TODO @Performance: use a dict to map source/target ids
         for mapping in self.source_mappings:
             if mapping.source_id == source_id:
                 return mapping.target_id
-        raise KeyError(f"source_id {source_id} not found in {self}")
+        return None
 
     def __str__(self):
         return ""

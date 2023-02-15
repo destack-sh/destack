@@ -55,11 +55,11 @@ onMounted(() => {
 
 // generic editor interface state
 const editorInterfaceState: EditorInterfaceState = {
-  get(key: string, default_?: unknown) {
+  get<T>(key: string, default_?: T): T {
     if (props.editor.localState[key] === undefined && default_ !== undefined) {
       this.set(key, default_);
     }
-    return props.editor.localState[key];
+    return props.editor.localState[key] as T;
   },
   set(key: string, state: unknown) {
     editorState.setEditorState(props.editor, key, state);

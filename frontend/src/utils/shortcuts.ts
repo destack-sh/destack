@@ -10,7 +10,8 @@ let applyShortcutsCalled = false;
 export function applyShortcuts() {
   // error if called multiple times
   if (applyShortcutsCalled) {
-    throw new Error("applyShortcuts should only be called once");
+    console.warn("applyShortcuts should only be called once");
+    return;
   }
   applyShortcutsCalled = true;
 
