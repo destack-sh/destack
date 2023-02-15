@@ -36,6 +36,7 @@ from bench.zmq.messages import (
     RepModuleRunPayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
+    RepWriteModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
     ReqModuleRuntimePayload,
@@ -273,6 +274,8 @@ class RuntimeWorker:
                 # collect any builds that contain this task
                 builds = []
                 for build in state.interp.module_idx.symbols_of_type(Build):
+                    if not build.is_definition:
+                        continue
                     if any(t.definition.id == buildable.id for t in build.tasks):
                         builds.append(build)
             elif isinstance(buildable, language.Build):
@@ -296,6 +299,12 @@ class RuntimeWorker:
                     files=[wire.rmap_file(generated_file)],
                 )
                 send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
+                _, write_result = await recv_message_with(
+                    self.intserver_req_sock, RepWriteModulePayload
+                )
+                if not write_result.success:
+                    # TODO @Robustness: panic if we can't write back builds?
+                    logger.error("write_module_failed", write=write, write_result=write_result)
         elif msg.type == ZMessageType.REQ_MODULE_RUN:
             payload: ReqModuleRunPayload = msg.payload_as(ReqModuleRunPayload)
             state = await self.get_worker_state(payload.module_id)

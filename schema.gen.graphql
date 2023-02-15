@@ -85,7 +85,7 @@ input FileCreateInput {
   projectVersionId: GlobalID!
   name: String!
   parentId: GlobalID = null
-  isDirectory: Boolean! = false
+  directory: Boolean! = false
 }
 
 input FileFilter {

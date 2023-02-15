@@ -10,6 +10,7 @@ from bench.zmq.messages import (
     ModuleChangedPayload,
     ProjectVersionChangedPayload,
     RepReadModulePayload,
+    RepWriteModulePayload,
     ReqReadModulePayload,
     ReqWriteModulePayload,
 )
@@ -82,9 +83,17 @@ class InternalServer:
             )
         elif msg.type == ZMessageType.REQ_WRITE_MODULE:
             write = msg.payload_as(ReqWriteModulePayload)
-            project_v = await ProjectVersion.objects.aget(id=write.module_id)
-            await sync_to_async(write_module)(write.files, project_v, overwrite=True)
-            send_message(self.rep_sock, ZMessageType.REP_WRITE_MODULE)
+            logger.info("write_module", files=write.files, module_id=write.module_id)
+            try:
+                project_v = await ProjectVersion.objects.aget(id=write.module_id)
+                await sync_to_async(write_module)(write.files, project_v, overwrite=True)
+                success = True
+            except Exception as e:
+                logger.error("write_module_failed", exc_info=e)
+                success = False
+            send_message(
+                self.rep_sock, ZMessageType.REP_WRITE_MODULE, RepWriteModulePayload(success=success)
+            )
         else:
             raise ValueError(f"unexpected message: {msg}")
 

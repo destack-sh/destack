@@ -137,7 +137,8 @@ class BuildResult:
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
-        file = File(path=self.build.id.hex + ".gen", module=module)
+        # :GenFile
+        file = File(path=self.build.id.hex[:8] + ".gen", module=module)
         return down(self.target_symbols, file)
 
 
@@ -313,7 +314,8 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
 
 
 async def _build_task(state: BuildCandidate, task: Task) -> None:
-    target_code = PromptBuilder(name=task.name, type_node=task.type)
+    target_code_type = task.type_node.deepcopy(keep_id=False, keep_reference=True)
+    target_code = PromptBuilder(name=task.name, type_node=target_code_type)
     target_code.comment("Task metadata")
     target_code.emit(f'task "{task.name}"\n')
     target_code.emit(task.description + "\n")
@@ -329,7 +331,10 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
             type = type.reference
         if not isinstance(type, Type):
             continue
-        type_examples = DataBuilder(name=type.name + " examples", type_node=type)
+        type_examples = DataBuilder(
+            name=type.name + " examples",
+            type_node=type.deepcopy(keep_id=False, keep_reference=True),
+        )
         for expect in _gather_expectations(type):
             if isinstance(expect, Dataset) and expect.modifier == StatementModifier.LIKE:
                 type_examples.extend(expect.records)
@@ -347,7 +352,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
         name=task.name + "_unravelled",
         tag=TypeTag.STRUCT,
         children=[*task.type.input.children, task.type.output],
-    )
+    ).deepcopy(keep_id=False, keep_reference=True)
     examples_data = DataBuilder(name=task.name + " examples", type_node=examples_type)
     for expect in task_expects:
         if isinstance(expect, Dataset) and expect.modifier == StatementModifier.LIKE:

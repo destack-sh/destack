@@ -24,4 +24,9 @@ export const TYPE_POLICIES = {
       symbols: useIncoming,
     },
   },
+  InterpModule: {
+    fields: {
+      files: useIncoming,
+    },
+  },
 };

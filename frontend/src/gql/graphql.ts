@@ -111,8 +111,8 @@ export type FileStatementsArgs = {
 };
 
 export type FileCreateInput = {
+  directory?: Scalars["Boolean"];
   id?: InputMaybe<Scalars["GlobalID"]>;
-  isDirectory?: Scalars["Boolean"];
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];

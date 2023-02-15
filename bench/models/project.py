@@ -386,7 +386,8 @@ class File(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
-    is_directory = models.BooleanField(default=False)
+    directory = models.BooleanField(default=False)
+    generated = models.BooleanField(default=False)
     parent = models.ForeignKey(
         "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
     )
