@@ -119,7 +119,7 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
   }
   const resolvedAction: Ref<Action> = ref(toResolvedAction());
 
-  if (!action.registered || action.registered.value) {
+  if (action.registered == null || action.registered.value) {
     actionsStore.add(resolvedAction.value);
   }
   onMounted(() => {

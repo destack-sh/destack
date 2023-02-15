@@ -235,15 +235,3 @@ export function symbolsLike(filter: {
   });
   return symbols;
 }
-
-export function useRuntimeTypeOf(symbol: Ref<{ id: string }>) {
-  const { moduleIndex } = useCurrentModuleRuntime();
-  const typeNode = computed(() => {
-    if (moduleIndex.value) {
-      return moduleIndex.value.symbolsById[symbol.value.id]?.typeNode;
-    }
-    return null;
-  });
-
-  return typeNode;
-}

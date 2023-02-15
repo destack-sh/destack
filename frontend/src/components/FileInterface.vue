@@ -116,7 +116,7 @@ const positionedStatements = computed(() => {
 const editor = useEditorState();
 const orderedStatements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
 const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
-const focused = computed(() => editor.focusedFileId == fileHeader.value?.id);
+const focused = computed(() => fileHeader.value != null && editor.focusedFileId == fileHeader.value.id);
 const actions = useActions();
 
 provideStatementActions(focused, fileHeader, orderedStatements, depths);
