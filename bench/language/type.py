@@ -392,6 +392,10 @@ class InterpSymbol:
     source: Optional[Statement] = None
 
     @property
+    def is_definition(self) -> bool:
+        return self.definition is not None and self.definition.id == self.id
+
+    @property
     def symbol_type(self) -> SymbolType:
         return SYMBOL_TYPE_BY_CLASS[self.__class__]
 
@@ -429,15 +433,24 @@ class TypeNode(SymbolContent):
         name_str = f"{self.name} " if self.name else ""
         return f"{name_str}{self.tag.value}"
 
-    def deepcopy(self) -> "TypeNode":
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = False) -> "TypeNode":
+        if self.children is not None:
+            children = [
+                child.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+                for child in self.children
+            ]
+        else:
+            children = None
         return TypeNode(
+            id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
             tag=self.tag,
             description=self.description,
-            # revert to reference by name for copy (to avoid carrying the whole tree)
-            reference=self.source_reference,
+            # revert to reference by name by default (to avoid carrying the whole tree)
+            reference=self.source_reference if not keep_reference else self.reference,
+            source_reference=self.source_reference,
             value=self.value,
-            children=[child.deepcopy() for child in self.children] if self.children else None,
+            children=children,
         )
 
     def walk(self, path: list[TypeNode] | None = None):

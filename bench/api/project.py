@@ -173,7 +173,7 @@ class FileCreateInput:
     project_version_id: GlobalID
     name: str
     parent_id: Optional[GlobalID] = None
-    is_directory: bool = False
+    directory: bool = False
 
 
 @gql.input
@@ -196,7 +196,7 @@ class FileMutation:
             project_version_id=input.project_version_id.node_id,
             name=input.name,
             parent_id=input.parent_id.node_id if input.parent_id else None,
-            is_directory=input.is_directory,
+            directory=input.directory,
         )
 
     @project_mutation(PMT.SOFT_DELETE_FILE, atomic=True)

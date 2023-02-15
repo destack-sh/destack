@@ -83,7 +83,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
 
 @transaction.atomic
 def write_module(
-    files: list[wire.FileData], project_version: models.ProjectVersion, overwrite: bool = False
+    files: list[wire.FileData], project_v: models.ProjectVersion, overwrite: bool = False
 ) -> list[models.File]:
     """Write the wire files (and their contents) as models to the database."""
     wire_statements: dict[UUID, wire.StatementData] = {}
@@ -93,13 +93,13 @@ def write_module(
 
     # create files
     for file_data in files:
-        # remove extension from file path (assumed to be .x, but ignored/not stored)
+        # remove extension from file path (assumed to be .x, but not stored)
         path = file_data.path
         if "." in path:
             path = file_data.path.rsplit(".", 1)[0]
-        model_files[file_data.id] = project_version.create_file_from_path(
-            path, exists_ok=overwrite, id=file_data.id
-        )
+        file = project_v.create_file_from_path(path, exists_ok=overwrite, id=file_data.id)
+        model_files[file_data.id] = file
+        file.generated = ".gen" in file_data.path  # :GenFile
 
     # wipe existing statements if overwrite and not empty
     if overwrite:
@@ -114,7 +114,7 @@ def write_module(
         wire_statements[stmt_data.id] = stmt_data
         model_statement = models.Statement(
             id=stmt_data.id,
-            project_version=project_version,
+            project_version=project_v,
             file=model_files[stmt_data.file_id],
             parent=None,
             order_key=ok,
