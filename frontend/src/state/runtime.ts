@@ -209,13 +209,20 @@ export function localErrorsOf(symbol: Ref<{ id: string }>) {
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
-export function symbolsLike(filter: { types?: StatementType[]; symbolTypes?: SymbolType[] }) {
+export function symbolsLike(filter: {
+  types?: StatementType[];
+  symbolTypes?: SymbolType[];
+  includeGenerated?: boolean;
+}) {
   const { moduleIndex } = useCurrentModuleRuntime();
   const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
     }
     return Object.values(moduleIndex.value.symbolsById).filter((s) => {
+      if (!filter.includeGenerated && s.generated) {
+        return false;
+      }
       if (filter.types != null && !filter.types.includes(s.type)) {
         return false;
       }

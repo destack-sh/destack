@@ -26,7 +26,6 @@ function setBuild(build: InterpSymbol) {
 }
 const arguments_: Ref<Record<string, any>> = computed(() => state.get("arguments", {}) as Record<string, any>);
 function setArgument(key: string, value: string) {
-  console.log("update argument", key, value);
   const args = { ...arguments_.value };
   args[key] = value;
   state?.set("arguments", args);
