@@ -13,6 +13,7 @@ type Operation<T> = {
   type: string;
   startedAt?: DateTime;
   key?: string | Record<string, string>;
+  stateless?: boolean; // whether the operation mutates synced state (true by default)
   do(): Promise<T>;
   ret?: T;
   undo?(ret: T): Promise<void>;
@@ -33,25 +34,43 @@ export const useOperationsStore = defineStore("operations", {
     redoStack: [] as Operation<unknown>[],
   }),
   getters: {
-    inflightLike(state): (type: string, key?: string) => Operation<unknown> | undefined {
-      return (type, key) => state.inflight.filter((op) => op.type === type && (!key || op.key === key))[0];
-    },
-    hasInflightLike(state): (type: string, key?: string, stale?: boolean) => boolean {
-      const oneSecondAgo = now.value.minus({ seconds: STALE_TIME_SECONDS });
-      return (type, key, stale) =>
-        state.inflight.some(
-          (op) => op.type === type && (!key || op.key === key) && (!stale || (op.startedAt as DateTime) < oneSecondAgo)
+    inflightLike(
+      state
+    ): (filters: {
+      types?: string[];
+      typesNot?: string[];
+      keys?: string[];
+      stale?: boolean;
+      stateless?: boolean;
+    }) => Operation<unknown>[] {
+      return (filters) => {
+        const oneSecondAgo = now.value.minus({ seconds: STALE_TIME_SECONDS });
+        const types = filters.types || [];
+        const typesNot = filters.typesNot || [];
+        const keys = filters.keys || [];
+        return state.inflight.filter(
+          (op) =>
+            (!types || types.includes(op.type)) &&
+            (!typesNot || !typesNot.includes(op.type)) &&
+            (!keys || (op.key != null && JSON.stringify(op.key).match(new RegExp(keys.join("|"))))) &&
+            (!filters.stale || (op.startedAt != null && op.startedAt < oneSecondAgo)) &&
+            (filters.stateless === undefined || op.stateless === filters.stateless)
         );
+      };
+    },
+    hasInflightLike(
+      state
+    ): (filters: {
+      types?: string[];
+      typesNot?: string[];
+      keys?: string[];
+      stale?: boolean;
+      stateless?: boolean;
+    }) => boolean {
+      return (filters) => this.inflightLike(filters).length > 0;
     },
     hasInflight(state): boolean {
       return state.inflight.length > 0;
-    },
-    inflightStale(state): Operation<unknown>[] {
-      const oneSecondAgo = now.value.minus({ seconds: STALE_TIME_SECONDS });
-      return state.inflight.filter((op) => (op.startedAt as DateTime) < oneSecondAgo);
-    },
-    hasInflightStale(state): boolean {
-      return this.inflightStale.length > 0;
     },
     completedLike(state): (type: string, key?: string) => Operation<unknown> {
       return (type, key) => state.completed.filter((op) => op.type === type && (!key || op.key === key))[0];
@@ -74,15 +93,18 @@ export const useOperationsStore = defineStore("operations", {
     async _do<T>(operation: Operation<T>): Promise<T> {
       operation = { ...operation, startedAt: DateTime.now() };
       this.inflight.push(operation);
-      const ret = await operation.do();
-      operation.ret = ret;
-      this.inflight = this.inflight.filter((op) => op.id !== operation.id);
-      this.completed.push({ ...operation });
-      // trim completed stack
-      if (this.completed.length > COMPLETED_STACK_SIZE) {
-        this.completed = this.completed.slice(this.completed.length - COMPLETED_STACK_SIZE);
+      try {
+        const ret = await operation.do();
+        operation.ret = ret;
+        this.completed.push({ ...operation });
+        // trim completed stack
+        if (this.completed.length > COMPLETED_STACK_SIZE) {
+          this.completed = this.completed.slice(this.completed.length - COMPLETED_STACK_SIZE);
+        }
+        return ret;
+      } finally {
+        this.inflight = this.inflight.filter((op) => op.id !== operation.id);
       }
-      return ret;
     },
 
     async perform<T>(operation: Operation<T>): Promise<T> {
@@ -121,6 +143,7 @@ export const useOperationsStore = defineStore("operations", {
 });
 
 export function _useOperations() {
+  const state = useOperationsStore();
   return {
     file: useFileOps(),
     content: useSymbolContentOps(),
@@ -128,6 +151,7 @@ export function _useOperations() {
     symbol: useSymbolContentOps(),
     runtime: useRuntimeOps(),
     version: useProjectVersionOps(),
+    state,
   };
 }
 

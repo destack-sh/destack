@@ -1,20 +1,25 @@
 /* eslint-disable no-console */
 
+import { RetryLink } from "@apollo/client/link/retry";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createApp, h, provide } from "vue";
+import { createApp, h, provide, ref } from "vue";
 import { version } from "../../package.json";
 
 import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
 import { getMainDefinition } from "@apollo/client/utilities";
+import monacoLoader from "@monaco-editor/loader";
 import { DefaultApolloClient } from "@vue/apollo-composable";
 import { createClient } from "graphql-ws";
 import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
-import monacoLoader from "@monaco-editor/loader";
+
+const MAX_RETRY_TIME_MS = 5000;
+
+export const WS_CONNECTED = ref(false);
 
 function createApolloClient() {
   // split requests between http and ws
@@ -26,7 +31,17 @@ function createApolloClient() {
     createClient({
       url: "ws://localhost:8000/graphql",
       retryAttempts: Infinity,
-      // wait defaults to randomised exponential backoff
+      shouldRetry: () => true,
+      // websocket retry, backoff from 1 to 5s
+      retryWait: async (retries: number) => {
+        const timeout = Math.min(MAX_RETRY_TIME_MS, 1000 + retries * 1000);
+        const jitter = Math.random() * 1000;
+        await new Promise((r) => setTimeout(r, timeout + jitter));
+      },
+      on: {
+        connected: () => (WS_CONNECTED.value = true),
+        closed: () => (WS_CONNECTED.value = false),
+      },
     })
   );
   const splitLink = split(
@@ -37,9 +52,14 @@ function createApolloClient() {
     wsLink,
     httpLink
   );
+  // auto-retry requests when failed due to network errors
+  const retryLink = new RetryLink({
+    delay: { initial: 300, max: MAX_RETRY_TIME_MS, jitter: true },
+    attempts: { max: 5, retryIf: (error) => !!error },
+  });
 
   return new ApolloClient({
-    link: splitLink,
+    link: retryLink.concat(splitLink),
     cache: new InMemoryCache({ typePolicies: TYPE_POLICIES }),
   });
 }

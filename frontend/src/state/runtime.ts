@@ -1,5 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import type { InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
+import { WS_CONNECTED } from "@/main";
 import { useEditorState } from "@/state/editor";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -81,6 +82,7 @@ function indexModule(module: InterpModule): ModuleIndex {
 function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   const {
     result: runtime,
+    loading,
     error,
     start,
     stop,
@@ -118,7 +120,9 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     { immediate: true }
   );
 
-  const connected = computed(() => !!runtime.value && !error.value && projectVersionId.value != null);
+  const connected = computed(
+    () => WS_CONNECTED.value && !!runtime.value && !error.value && !loading.value && projectVersionId.value != null
+  );
   const lastUpdated: Ref<string | null> = ref(null);
   runtimeUpdated(() => (lastUpdated.value = runtime.value?.moduleRuntimeChanged.updatedAt));
 

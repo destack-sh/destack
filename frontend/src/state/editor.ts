@@ -85,8 +85,8 @@ export type Editor = {
 
 export const EDITOR_INTERFACE_STATE = Symbol();
 export type EditorInterfaceState = {
-  get(key: string, default_?: unknown): unknown;
-  set(key: string, value: unknown): void;
+  get<T>(key: string, default_?: T): T;
+  set<T>(key: string, value: T): void;
 };
 
 export type FileEditor = Editor & {
