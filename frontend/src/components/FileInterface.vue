@@ -172,7 +172,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 300);
         @update:modelValue="renameFileDebounced($event)"
         :readonly="editor.readonly"
         class="text-3xl"
-      /><span class="text-xl">.x</span>
+      /><span class="text-lg">.x</span>
     </div>
     <!-- Add statement to start -->
     <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
