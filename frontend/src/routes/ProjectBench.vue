@@ -8,6 +8,7 @@ import GlobalControls from "@/components/GlobalControls.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
+import ViewIssues from "@/components/panels/ViewIssues.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
@@ -26,6 +27,7 @@ import {
   ClipboardDocumentIcon,
   ClockIcon,
   Cog8ToothIcon,
+  ExclamationTriangleIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
@@ -43,13 +45,14 @@ const projectNavigation = [{ name: "Rename", href: "#" }];
 
 // views for the sidebar
 type View = {
-  id: "explorer" | "history";
+  id: "explorer" | "history" | "issues";
   name: string;
   icon: Component;
 };
 const views: View[] = [
   { id: "explorer", name: "Explorer", icon: ClipboardDocumentIcon },
   { id: "history", name: "History", icon: ClockIcon },
+  { id: "issues", name: "Issues", icon: ExclamationTriangleIcon },
 ];
 const activeView: ComputedRef<View> = computed(() => {
   const view = views.find((v) => v.id == editor.activeViewId);
@@ -72,6 +75,12 @@ provideAction({
   label: "View History",
   shortcuts: ["alt+2"],
   apply: () => editor.setActiveView("history"),
+});
+const openIssues = provideAction({
+  id: "editor.view.openIssues",
+  label: "View Issues",
+  shortcuts: ["alt+3"],
+  apply: () => editor.setActiveView("issues"),
 });
 
 // get project header
@@ -323,12 +332,13 @@ watchEffect(async () => {
             </span>
           </span>
         </div>
-        <!-- Comments/issues, warnings/lints, errors -->
-        <div class="flex items-center gap-2">
+        <!-- Comments/notes, issues/warnings/lints, errors -->
+        <div class="ml-2 flex items-center gap-2">
           <!-- Errors -->
           <button
-            class="flex items-center gap-1 rounded-sm p-1 hover:bg-orange-50"
+            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-50"
             v-if="runtime.errors.value?.length || 0 > 0"
+            @click="openIssues.apply"
           >
             <XCircleIcon class="h-5 w-5 text-red-700" />
             <span class="text-sm text-gray-700">{{ runtime.errors.value?.length }}</span>
@@ -390,6 +400,7 @@ watchEffect(async () => {
               :project="projectHeader"
               :current-version="projectHead"
             />
+            <ViewIssues v-show="activeView.id == 'issues'" />
           </div>
         </div>
       </aside>

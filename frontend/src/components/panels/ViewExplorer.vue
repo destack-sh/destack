@@ -42,7 +42,7 @@ const panels: Panel[] = [
   <div ref="container">
     <!-- View header -->
     <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
-      <span class="text-xs uppercase">Explorer</span>
+      <span class="text-xs font-bold uppercase">Explorer</span>
     </div>
     <!-- View panels -->
     <div class="flex flex-1 flex-col gap-y-2 divide-y divide-gray-200">
