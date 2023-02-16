@@ -158,21 +158,28 @@ def write_module(
     return list(model_files.values())
 
 
+def rmap_reference(
+    statement: models.Statement, reference: models.Statement | None
+) -> UUID | StatementPath | None:
+    if reference is None:
+        return None
+    if reference.project_version_id == statement.project_version_id:
+        # if we're staying within the same module, keep the reference id
+        # this is more efficient as we avoid lookups here and join in-memory in wire.wmap_module
+        # ultimately we revert to a StatementPath in to check for bad refs
+        return reference.id
+    else:
+        # :StatementReferencePath
+        # create statement path as import path
+        module_name = reference.project_version.project.path
+        import_source = f"{module_name}.{reference.file.path}"
+        return StatementPath(import_source, reference.name)
+
+
 def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.StatementData:
     """Reads a database statement into a wire statement."""
     # map reference into wire-able reference (convert module-external ref to statement path)
-    if statement.reference is not None:
-        if statement.reference.project_version_id == statement.project_version_id:
-            reference = statement.reference_id
-        else:
-            # :StatementReferencePath
-            # create statement path as import path
-            module_name = statement.reference.project_version.project.path
-            import_source = f"{module_name}.{statement.reference.file.path}"
-            reference = StatementPath(import_source, statement.reference.name)
-    else:
-        reference = None
-
+    reference = rmap_reference(statement, statement.reference)
     data = wire.StatementData(
         id=statement.id,
         module_id=file.module_id,
@@ -202,7 +209,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.provider = statement.provider
     data.external_name = statement.external_name
     data.type_nodes = rmap_type_nodes(
-        statement.id, statement.root_type_tag, statement.type_nodes.all()
+        statement.id, statement.root_type_tag, statement.type_nodes.all(), statement
     )
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATASET:
@@ -351,7 +358,10 @@ def wmap_type_nodes(
 
 
 def rmap_type_nodes(
-    root_id: UUID, root_type_tag: TypeTag | None, type_nodes: list[models.SimpleTypeNode] | None
+    root_id: UUID,
+    root_type_tag: TypeTag | None,
+    type_nodes: list[models.SimpleTypeNode] | None,
+    for_statement: models.Statement,
 ) -> list[wire.TypeNodeData]:
     """Reads a database type node into a wire type node."""
     if root_type_tag is None:
@@ -363,8 +373,9 @@ def rmap_type_nodes(
                 id=node.id, tag=node.tag, name=node.name, value=node.value
             )
         elif node.tag == TypeTag.TYPE_REFERENCE or node.reference_id is not None:
+            reference = rmap_reference(for_statement, node.reference)
             lang_node = language.TypeNode(
-                id=node.id, tag=node.tag, name=node.name, reference=node.reference.name
+                id=node.id, tag=node.tag, name=node.name, reference=reference
             )
         else:
             raise ValueError(f"type node is not represented simply: {node}")

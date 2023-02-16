@@ -113,10 +113,12 @@ def interp_runtime(
     # TODO @Performance: interp and exec jobs should probably happen in a separate thread
     # resolve
     logger.info("interp_runtime", module=source)
-    interp_module = wire.wmap_module(source)
+    module = wire.wmap_module(source)
+    # TODO @Accuracy: revert explicit statement references to StatementPath to lookup refs properly
     collector = ErrorCollector()
-    module = lookup_in_dependencies(dependencies)
-    module_idx = resolve(interp_module, lookup_in_module=module, on_error=collector)
+    module_idx = resolve(
+        module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
+    )
     interp(module_idx, on_error=collector)
     errors = [e.to_error() for e in collector.errors]
 
@@ -320,14 +322,12 @@ class RuntimeWorker:
 
             if isinstance(runnable, language.Task):
                 # if it's a task get the actual runnable from the build
-                if build is None:
+                target_id = build.map(runnable.id) if build is not None else None
+                try:
+                    runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
+                except KeyError as e:  # could not get target code
                     send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
                     return
-                target_id = build.map(runnable.id)
-                if target_id is None:
-                    send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
-                    return
-                runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
             elif not isinstance(runnable, language.Code):
                 send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
                 return

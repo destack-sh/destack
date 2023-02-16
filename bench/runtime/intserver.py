@@ -86,6 +86,8 @@ class InternalServer:
             logger.info("write_module", files=write.files, module_id=write.module_id)
             project_v = await ProjectVersion.objects.aget(id=write.module_id)
             try:
+                if project_v.committed:
+                    raise ValueError(f"cannot write to committed {project_v}")
                 await sync_to_async(write_module)(write.files, project_v, overwrite=True)
                 success = True
             except Exception as e:
