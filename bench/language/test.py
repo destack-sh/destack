@@ -11,7 +11,7 @@ from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, parse_string
 from bench.language.reconstruct import render
-from bench.language.type import Type
+from bench.language.type import Code, Type
 
 # all .x files in bench/bench
 demo_paths = glob.glob("../bench/*.bench")
@@ -38,6 +38,35 @@ def test_round_trip_demo_files(path: str):
     module, _ = parse(lex(source_file), on_error=_raise_if_not_external())
     reconstructed = render(module.files)
     assert reconstructed == source_file.content
+
+
+def test_absolute_references():
+    module, idx = parse_string(
+        """
+--- a.x ---
+type Apple:
+name: string
+
+type AppleTree:
+apples: [Apple]
+
+code graft :: (tree: .a.AppleTree, apple: Apple) -> AppleTree:
+```python
+return tree + apple
+```
+
+--- b.x ---
+
+type FruitBasket:
+apples: [.a.Apple]
+"""
+    )
+    type_graft = idx.symbol(".a:graft", Code)
+    type_fruit_basket = idx.symbol(".b:FruitBasket", Type)
+    # apple inside graft should be the same apple as the one in the fruit basket
+    type_graft_apple = type_graft.type.input.child("apple")
+    type_fruit_basket_apple = type_fruit_basket.child("apples").head_type
+    assert type_graft_apple.reference.id == type_fruit_basket_apple.reference.id
 
 
 def test_unexpected_indent():

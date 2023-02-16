@@ -466,18 +466,46 @@ def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
     return Statement(type=StatementType.COMMENT, text=token.value, **kwargs)
 
 
+# identifier names can be escaped as '<name with space>'
+# references can look like
+# 1. <name>
+# 2. .<path>.<name>
+# 3. <module_owner>.<module_name>.<path>.<name>
+REFERENCE_REGEX = re.compile(
+    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?(\.(?P<path>[\w.\- ]+)\.)?(?P<name>[\w\- ]+)$"
+)
 # import source must either be in current module (.*) or absolute (<owner>.<name>.*)
-RELATIVE_IMPORT_SOURCE_REGEX = re.compile(r"^\.(?P<path>[\w.-]+)$")
+RELATIVE_REFERENCE_REGEX = re.compile(r"^\.(?P<path>[\w.\- ]+)$")
 ABSOLUTE_IMPORT_SOURCE_REGEX = re.compile(
-    r"^(?P<owner>[\w-]+)\.(?P<name>[\w-]+)\.(?P<path>[\w.-]+)$"
+    r"^(?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+)\.(?P<path>[\w.\- ]+)$"
 )
 
 
-def is_valid_import_source(source: str) -> bool:
-    return (
-        RELATIVE_IMPORT_SOURCE_REGEX.match(source) is not None
-        or ABSOLUTE_IMPORT_SOURCE_REGEX.match(source) is not None
-    )
+def _parse_typed_reference_slot(tokens: TokenParser) -> tuple[StatementPath, Token]:
+    symbol_type = tokens.eat_keyword_like(SymbolType)
+    tokens.eat_space()
+    path = _parse_reference_slot(tokens)
+    return path, symbol_type
+
+
+def _parse_reference_slot(tokens: TokenParser) -> StatementPath:
+    # references can look like
+    # 1. <name>
+    # 2. .<path>.<name>
+    # 3. <module>.<path>.<name>
+    reference = tokens.eat_identifier()
+    path_match = REFERENCE_REGEX.match(reference.value)
+    if path_match is None:
+        raise ParseError(ET.INVALID_TOKEN_VALUE, reference, value=reference.value, error="invalid")
+    if path_match.group("path") is not None:
+        if path_match.group("module_owner") is not None:
+            path = f"{path_match.group('module_owner')}.{path_match.group('module_name')}.{path_match.group('path')}"
+        else:
+            path = f".{path_match.group('path')}"
+    else:
+        path = "."
+    name = path_match.group("name")
+    return StatementPath(path, name)
 
 
 def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
@@ -498,7 +526,10 @@ def _parse_import(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_keyword("from")
     tokens.eat_space()
     source = tokens.eat_identifier()
-    if not is_valid_import_source(source.value):
+    if (
+        RELATIVE_REFERENCE_REGEX.match(source.value) is None
+        and ABSOLUTE_IMPORT_SOURCE_REGEX.match(source.value) is None
+    ):
         raise ParseError(ET.INVALID_TOKEN_VALUE, source, value=source.value, error="invalid")
     tokens.eat_newline_or_eos()
     return Statement(
@@ -671,15 +702,19 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_space()
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
-    definition = Statement(
-        type=StatementType.DEFINITION, symbol_type=SymbolType.TYPE, name=name.value, **kwargs
-    )
     tokens.eat_newline()
     description = _parse_description_line_optional(tokens)
-    struct = parse_type_node_struct(tokens, name=definition.name)
+    struct = parse_type_node_struct(tokens, name=name.value)
     struct.description = description
     tokens.eat_newline_or_eos()
-    definition.content = struct
+    definition = Statement(
+        id=struct.id,  # share id with root type node :TypeNodeRootId
+        type=StatementType.DEFINITION,
+        symbol_type=SymbolType.TYPE,
+        name=name.value,
+        content=struct,
+        **kwargs,
+    )
     return definition
 
 
@@ -741,8 +776,8 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         tag=TypeTag.ENUM,
         children=[member_type_node, *members],
     )
-
     definition = Statement(
+        id=enum_type_node.id,  # share id with root type node  :TypeNodeRootId
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
@@ -797,7 +832,7 @@ def parse_type_node_inline(
             raise ParseError(ET.INVALID_TOKEN_VALUE, value_token, error=e, value=value)
     else:
         type = TypeTag.TYPE_REFERENCE
-        reference = tokens.eat_identifier().value
+        reference = _parse_reference_slot(tokens)
 
     if not tokens.peek_separator(" "):  # type is done
         return TypeNode(
@@ -892,16 +927,12 @@ def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeNode:
 def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a redefinition statement."""
     modifier = _parse_modifier_slot(tokens)
-    name, symbol_type = _parse_reference_slot(tokens)
+    symbol_type = tokens.eat_keyword_like(SymbolType)
+    name = tokens.eat_identifier()
     tokens.eat_space()
     tokens.eat_separator("=")
     tokens.eat_space()
-    reference_name, other_symbol_type = _parse_reference_slot(tokens)
-    # defined symbol type and referenced symbol type must match
-    if symbol_type.value != other_symbol_type.value:
-        raise ParseError(
-            ET.UNEXPECTED_TOKEN_VALUE, reference_name, type=TT.IDENTIFIER, value=symbol_type
-        )
+    reference = _parse_reference_slot(tokens)
     if modifier != StatementModifier.WITH:
         # only non-arg definitions can have children
         # this isn't great since it forbids re-aliasing but much easier to implement
@@ -912,7 +943,7 @@ def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.REDEFINITION,
         modifier=modifier,
         name=name.value,
-        reference=StatementPath(".", reference_name.value),
+        reference=reference,
         symbol_type=symbol_type.value if symbol_type else None,
         **kwargs,
     )
@@ -932,6 +963,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
     statement = Statement(
+        id=node.id,  # share id with root type node  :TypeNodeRootId
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
@@ -945,13 +977,13 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
 def _parse_reference(tokens: TokenParser, **kwargs) -> Statement:
     """Parse a reference statement."""
     modifier = _parse_modifier_slot(tokens)
-    name, symbol_type = _parse_reference_slot(tokens)
+    reference, symbol_type = _parse_typed_reference_slot(tokens)
     tokens.eat_newline_or_eos()
     return Statement(
         type=StatementType.REFERENCE,
         modifier=modifier,
-        name=name.value,
-        reference=StatementPath(".", name.value),
+        name=reference.name,
+        reference=reference,
         symbol_type=symbol_type.value,
         **kwargs,
     )
@@ -978,13 +1010,6 @@ def _parse_modifier_slot(tokens: TokenParser) -> StatementModifier | None:
     else:
         modifier = None
     return modifier
-
-
-def _parse_reference_slot(tokens: TokenParser) -> tuple[Token, Token]:
-    symbol_type = tokens.eat_keyword_like(SymbolType)
-    tokens.eat_space()
-    name = tokens.eat_identifier()
-    return name, symbol_type
 
 
 def _parse_blank(tokens: TokenParser, **kwargs) -> Statement:
@@ -1267,7 +1292,7 @@ def resolve_statement_reference(
         source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference_path)
         if source is None:  # (should be caught in parse)
             raise RuntimeError(f"invalid import source at {for_statement}")
-        requirement_name = f"{source.group('owner')}.{source.group('name')}"
+        requirement_name = f"{source.group('module_owner')}.{source.group('module_name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:
             _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
@@ -1398,6 +1423,8 @@ def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
     for node in type.walk():
         if not isinstance(node.reference, TypeNode):
             continue
+        # this works because references can only be to other Type statements
+        # who must share their id with their type's root node  :TypeNodeRootId
         node.reference = idx.symbols[node.reference.id]
         # impute type reference
         impute_type_reference(node, keep_references=True)

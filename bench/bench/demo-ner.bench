@@ -16,7 +16,7 @@ type Entity:
 name: string "Canonical name of the entity"
 'type': EntityType
     like data samples :: (name: string, 'type': EntityType):
-    "Common uses of {Entity}"
+    "Common uses of Entity"
     ```csv
     "Barack Obama","Person"
     "London","Location"
@@ -32,12 +32,6 @@ task 'extract entities' :: (input: string) -> [Entity]:
 # ## 2. Build and run
 
 require openai.std@latest
-import model text-davinci-003 from openai.std.text
-
 build prod:
     task 'extract entities'
-    model text-davinci-003
-
-run ner-prod:
-    task 'extract entities'
-    build prod
+    model openai.std.text.text-davinci-003
