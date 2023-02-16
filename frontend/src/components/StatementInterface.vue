@@ -204,6 +204,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
+      v-if="editor.showLineNumbers"
       class="absolute top-[3px] w-6 select-none text-right font-mono text-sm not-italic"
       :style="{ left: -30 + 'px' }"
       :class="{

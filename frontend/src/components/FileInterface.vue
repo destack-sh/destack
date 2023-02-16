@@ -12,6 +12,7 @@ import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { useQuery } from "@vue/apollo-composable";
+import { useDebounceFn } from "@vueuse/shared";
 import { computed, type Ref, ref, watch } from "vue";
 
 const props = defineProps<{ fileId: string }>();
@@ -156,6 +157,7 @@ function renameFile(newName: string) {
   }
   ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", newName);
 }
+const renameFileDebounced = useDebounceFn(renameFile, 300);
 </script>
 
 <template>
@@ -163,11 +165,11 @@ function renameFile(newName: string) {
   <div class="flex flex-col bg-white px-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
     <!-- File meta -->
     <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
-    <div class="pt-6 font-bold text-gray-900">
+    <div class="mx-auto w-full max-w-[1000px] pt-6 font-bold text-gray-900">
       <EditableSpan
         ref="nameRef"
         :model-value="name as string"
-        @update:modelValue="renameFile($event)"
+        @update:modelValue="renameFileDebounced($event)"
         :readonly="editor.readonly"
         class="text-3xl"
       /><span class="text-xl">.x</span>
