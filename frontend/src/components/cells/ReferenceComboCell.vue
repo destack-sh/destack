@@ -1,40 +1,39 @@
 <script lang="ts" setup>
-import { useStatementContext } from "@/components/statement";
-import { StatementType, type InterpSymbol } from "@/gql/graphql";
+import type { InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, type StatementHeader } from "@/state/editor";
-import { fileOf, symbolsLike } from "@/state/runtime";
+import { fileOf } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ self?: StatementHeader; reference: StatementHeader | null; canDefineInPlace?: boolean }>();
+const props = defineProps<{
+  self?: StatementHeader;
+  reference: StatementHeader | null;
+  canDefineInPlace?: boolean;
+  availableSymbols: InterpSymbol[];
+}>();
 const emit = defineEmits<{
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
+  (e: "insertBelow"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "defineInPlace", name: string): void;
   (e: "setReference", ref: InterpSymbol | null): void;
 }>();
 
-const context = useStatementContext();
 const inputRef: Ref<HTMLButtonElement | null> = ref(null);
 const inputRefFocus = useFocus(inputRef);
 const selecting: Ref<boolean> = ref(false);
 
 // TODO @Feature: use proper search for all searches (like uFuzzy)
 const query = ref("");
-// TODO @Robustness: trim reference selection to reachable symbols (from runtime)
-const availableSymbols = symbolsLike({
-  types: [StatementType.Definition],
-  symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
-});
 const filteredSymbols = computed(() =>
   query.value === ""
-    ? availableSymbols.value.filter((s) => s.id != props.self?.id)
-    : availableSymbols.value
+    ? props.availableSymbols.filter((s) => s.id != props.self?.id)
+    : props.availableSymbols
         .filter((s) => s.id != props.self?.id)
         .filter((s) => {
           return s.name?.toLowerCase().includes(query.value.toLowerCase());
@@ -142,7 +141,7 @@ defineExpose({
       placeholder="..."
       @keydown.escape.prevent=""
       @keyup.escape.prevent="escape"
-      @keydown.shift.enter.exact.prevent="context.insertBelow"
+      @keydown.shift.enter.exact.prevent="emit('insertBelow')"
       @keydown.delete="deleteLeftIfAtStart"
     />
     <ComboboxOptions
