@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
+import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { EDITOR_INTERFACE_STATE, type EditorInterfaceState } from "@/state/editor";
@@ -21,8 +22,8 @@ if (state == null) {
 }
 
 const build: Ref<InterpSymbol | undefined> = computed(() => symbolOf(state.get("buildId", "")));
-function setBuild(build: InterpSymbol) {
-  state?.set("buildId", build.id);
+function setBuild(build?: InterpSymbol) {
+  state?.set("buildId", build?.id);
 }
 const arguments_: Ref<Record<string, any>> = computed(() => state.get("arguments", {}) as Record<string, any>);
 function setArgument(key: string, value: string) {
@@ -46,6 +47,15 @@ async function run() {
     <div class="flex flex-row gap-1">
       <button class="rounded-sm text-orange-600 outline-none hover:bg-orange-50" @click="run">run</button>
       <span>{{ symbol?.name ?? "???" }}</span>
+      <!-- Build -->
+      <template v-if="symbol?.symbolType == SymbolType.Task">
+        <span class="text-orange-600">with</span>
+        <ReferenceComboCell
+          :reference="build"
+          @set-reference="setBuild($event ?? undefined)"
+          :available-symbols="availableBuilds"
+        />
+      </template>
       <button
         class="w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
         @click="run"
