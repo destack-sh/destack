@@ -44,17 +44,14 @@ export const useOperationsStore = defineStore("operations", {
       stateless?: boolean;
     }) => Operation<unknown>[] {
       return (filters) => {
-        const oneSecondAgo = now.value.minus({ seconds: STALE_TIME_SECONDS });
-        const types = filters.types || [];
-        const typesNot = filters.typesNot || [];
-        const keys = filters.keys || [];
+        const oneSecondAgo = filters.stale ? now.value.minus({ seconds: STALE_TIME_SECONDS }) : null;
         return state.inflight.filter(
           (op) =>
-            (!types || types.includes(op.type)) &&
-            (!typesNot || !typesNot.includes(op.type)) &&
-            (!keys || (op.key != null && JSON.stringify(op.key).match(new RegExp(keys.join("|"))))) &&
+            (!filters.types || filters.types.includes(op.type)) &&
+            (!filters.typesNot || !filters.typesNot.includes(op.type)) &&
+            (!filters.keys || (op.key != null && JSON.stringify(op.key).match(new RegExp(filters.keys.join("|"))))) &&
             (!filters.stale || (op.startedAt != null && op.startedAt < oneSecondAgo)) &&
-            (filters.stateless === undefined || op.stateless === filters.stateless)
+            (filters.stateless === undefined || (op.stateless ?? false) == filters.stateless)
         );
       };
     },

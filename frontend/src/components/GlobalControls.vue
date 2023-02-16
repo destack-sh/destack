@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { SymbolType } from "@/gql/graphql";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { CloudArrowUpIcon, ShareIcon } from "@heroicons/vue/24/outline";
 import { useClipboard } from "@vueuse/core";
@@ -7,12 +6,6 @@ import { computed } from "vue";
 
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
-const hasRunnables = computed(() =>
-  Object.values(runtime.moduleIndex.value?.symbolsById ?? {}).find(
-    (s) => s.symbolType == SymbolType.Runconfig || s.symbolType == SymbolType.Build
-  )
-);
-
 const { copy } = useClipboard();
 
 function share() {
@@ -38,8 +31,7 @@ function deploy() {
     class="rounded-sm p-1 text-sm"
     :class="{
       'text-gray-500': !canDeploy,
-      'text-blue-700 hover:bg-orange-50': canDeploy && !hasRunnables,
-      'text-green-700 hover:bg-green-50': canDeploy && hasRunnables,
+      'text-orange-700 hover:bg-green-50': canDeploy,
     }"
     :disabled="!canDeploy"
     @click="deploy"
