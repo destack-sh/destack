@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import EditableSpan from "@/components/EditableSpan.vue";
 import StatementAddArea from "@/components/StatementAddArea.vue";
 import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
@@ -11,7 +12,7 @@ import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { useQuery } from "@vue/apollo-composable";
-import { computed } from "vue";
+import { computed, type Ref, ref, watch } from "vue";
 
 const props = defineProps<{ fileId: string }>();
 
@@ -135,10 +136,42 @@ async function insertOrFocusStatementEnd() {
     actions.apply("statement.insertEnd");
   }
 }
+
+const ops = useOperations();
+const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
+const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+
+// set name first if
+watch(
+  () => fileHeader.value?.name,
+  () => {
+    if (name.value == null) {
+      name.value = fileHeader.value?.name ?? null;
+    }
+  }
+);
+function renameFile(newName: string) {
+  if (fileHeader.value == null) {
+    return;
+  }
+  ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", newName);
+}
 </script>
 
 <template>
-  <div class="flex flex-col bg-white px-12 pb-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+  <!-- bottom padding is in last StatementAddArea -->
+  <div class="flex flex-col bg-white px-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
+    <!-- File meta -->
+    <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
+    <div class="pt-6 font-bold text-gray-900">
+      <EditableSpan
+        ref="nameRef"
+        :model-value="name as string"
+        @update:modelValue="renameFile($event)"
+        :readonly="editor.readonly"
+        class="text-3xl"
+      /><span class="text-xl">.x</span>
+    </div>
     <!-- Add statement to start -->
     <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
     <!-- File's statements -->
@@ -154,7 +187,7 @@ async function insertOrFocusStatementEnd() {
       />
     </template>
     <!-- Add statement to end -->
-    <StatementAddArea class="mx-auto max-w-[1050px] flex-1" @click="insertOrFocusStatementEnd" />
+    <StatementAddArea class="mx-auto max-w-[1050px] flex-1 pb-60" @click="insertOrFocusStatementEnd" />
     <!-- Deleted overlay with restore button -->
     <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">
       <div class="flex flex-col items-center gap-2">
