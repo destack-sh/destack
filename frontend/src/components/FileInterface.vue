@@ -146,7 +146,6 @@ async function insertOrFocusStatementEnd() {
       <StatementInterface
         :file="(fileHeader as any)"
         :statement="(positioned.statement as any)"
-        :reference="(statementsById[positioned.statement.reference?.id] as any)"
         :depth="positioned.depth"
         :isFirstInGroup="positioned.isFirstInGroup"
         :isLastInGroup="positioned.isLastInGroup"

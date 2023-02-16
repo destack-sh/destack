@@ -3,7 +3,7 @@ import FileExplorer from "@/components/panels/FileExplorer.vue";
 import SymbolExplorer from "@/components/panels/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
 import type { FileHeader } from "@/state/editor";
-import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import type { Component } from "vue";
 
 const props = defineProps<{ files: FileHeader[] }>();
@@ -26,7 +26,7 @@ const panels: Panel[] = [
     title: "Files",
     actions: [
       {
-        icon: DocumentPlusIcon,
+        icon: PlusIcon,
         label: "File",
         action: () => actions.file.create.value.apply(),
       },

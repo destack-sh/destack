@@ -23,6 +23,7 @@ const availableSymbols = symbolsLike(
   computed(() => ({
     types: [StatementType.Definition],
     symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
+    includeDependencies: true,
   }))
 );
 

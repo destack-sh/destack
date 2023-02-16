@@ -183,6 +183,7 @@ export function contextOf(symbol: Pick<InterpSymbol, "id">) {
 }
 
 export function symbolOf(id: string) {
+  // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
   const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && id in idx.symbolsById) {
@@ -192,9 +193,9 @@ export function symbolOf(id: string) {
   return undefined;
 }
 
-export function relativePath(fromStmt: InterpSymbol, toStmt: InterpSymbol) {
-  const from = contextOf(fromStmt);
-  const to = contextOf(toStmt);
+export function relativePath(from_: InterpSymbol, to_: InterpSymbol) {
+  const from = contextOf(from_);
+  const to = contextOf(to_);
   if (!from || !to) {
     return undefined;
   } else if (from.module.id == to.module.id) {
@@ -213,15 +214,22 @@ export type SymbolFilter = {
   types?: StatementType[];
   symbolTypes?: SymbolType[];
   includeGenerated?: boolean;
+  includeDependencies?: boolean;
 };
 export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter) {
   const filterRef = isRef(filter) ? filter : ref(filter);
-  const { moduleIndex } = useCurrentModuleRuntime();
+  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
   const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
     }
-    return Object.values(moduleIndex.value.symbolsById).filter((s) => {
+    const allSymbols = Object.values(moduleIndex.value.symbolsById);
+    if (filterRef.value.includeDependencies) {
+      for (const dependencyIndex of dependenciesIndex.value) {
+        allSymbols.push(...Object.values(dependencyIndex.symbolsById));
+      }
+    }
+    return allSymbols.filter((s) => {
       if (!filterRef.value.includeGenerated && s.generated) {
         return false;
       }

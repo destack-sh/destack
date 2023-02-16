@@ -10,15 +10,14 @@ import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState, type StatementHeader } from "@/state/editor";
-import { FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { localErrorsOf } from "@/state/runtime";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { localErrorsOf, symbolOf } from "@/state/runtime";
 import { onClickOutside, useFocusWithin, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
-  reference: FragmentType<typeof StatementHeaderType> | null;
   depth: number;
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
@@ -47,7 +46,7 @@ const context: Ref<StatementContext> = computed(() => ({
   xOffset: depthOffsetX.value,
   lineNumberBase: props.lineNumberBase,
   statement: props.statement,
-  reference: props.reference,
+  reference: symbolOf(statement.value.reference?.id) ?? null,
   file: props.file,
 }));
 provide(STATEMENT_CONTEXT, context);

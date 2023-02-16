@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, type StatementHeader } from "@/state/editor";
-import { fileOf } from "@/state/runtime";
+import { fileOf, relativePath, symbolOf } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -107,6 +107,18 @@ function clearQuery() {
   (inputRef.value?.$el as HTMLInputElement).value = "";
 }
 
+const selfSymbol = computed(() => symbolOf(props.self?.id));
+
+function importSourceTo(symbol: InterpSymbol): string | undefined {
+  const localFile = fileOf(symbol);
+  if (localFile != null) {
+    return "." + localFile.path;
+  } else if (selfSymbol.value != null) {
+    return relativePath(selfSymbol.value, symbol);
+  }
+  return undefined;
+}
+
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
   blur: () => ((inputRefFocus.focused.value = false), (selecting.value = false)),
@@ -185,7 +197,7 @@ defineExpose({
               {{ symbol.name }}
             </span>
             <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
-              {{ fileOf(symbol)?.path }}
+              {{ importSourceTo(symbol) ?? "???" }}
             </span>
           </div>
         </li>
