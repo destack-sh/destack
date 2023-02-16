@@ -33,7 +33,7 @@ class TypeNodeData:
     order_key: str
     description: Optional[str] = None
     value: Optional[LiteralValue] = None
-    reference: Union[None, str, UUID] = None
+    reference: Union[None, StatementPath, UUID] = None
     parent_id: Optional[UUID] = None
 
     def __str__(self):
@@ -149,6 +149,7 @@ def rmap_module(module: language.Module) -> ModuleData:
 
 
 def wmap_module(data: ModuleData) -> language.Module:
+    """Maps module data back into a module. Restores explicit statement references without checking!"""
     module = language.Module(id=data.id, name=data.name)
     module.files = [wmap_file(file, module) for file in data.files]
 
@@ -158,11 +159,31 @@ def wmap_module(data: ModuleData) -> language.Module:
         for data_statement, statement in zip(data_file.statements, file.statements):
             if data_statement.parent_id is not None:
                 statement.parent = statements[data_statement.parent_id]
+
+            # TODO @Cleanup: revert references to statement paths
+            # resolve references in statement and in symbol content
+            # ignore references we couldn't find since are either
+            #  1) refs to "deleted" statements or
+            #  2) refs to statements in other modules (which should be by path anyway, but we can't check here)
+
             if isinstance(data_statement.reference, UUID):
-                # ignore references we couldn't find since are either
-                #  1) refs to "deleted" statements or
-                #  2) refs to statements in other modules (which should be by path anyway, but we can't check here)
                 statement.reference = statements.get(data_statement.reference, None)
+
+            type_node = None
+            if isinstance(statement.content, language.TypeNode):
+                type_node = statement.content
+            elif isinstance(
+                statement.content,
+                (language.DatasetContent, language.TaskContent, language.CodeContent),
+            ):
+                type_node = statement.content.type_node
+            if type_node is not None:
+                for node in type_node.walk():
+                    data_node = first(n for n in data_statement.type_nodes if n.id == node.id)
+                    if isinstance(data_node.reference, UUID):
+                        reference = statements.get(node.reference, None)
+                        if reference is not None:
+                            node.reference = reference.content
 
     return module
 

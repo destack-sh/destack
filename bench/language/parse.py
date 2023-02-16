@@ -1175,49 +1175,102 @@ def resolve(
 
     # resolve references to other statements
     for statement in idx.statements.values():
-        resolve_statement_reference(statement, idx, lookup_in_module, on_error)
+        if not isinstance(statement.reference, StatementPath) or statement.is_parameter:
+            continue  # need not be resolved
+        statement.reference = resolve_statement_reference(
+            reference=statement.reference,
+            idx=idx,
+            lookup_in_module=lookup_in_module,
+            for_statement=statement,
+            symbol_type=statement.symbol_type,
+            on_error=on_error,
+        )
+
+    # resolve type references
+    for statement in idx.statements.values():
+        type_node = None
+        if isinstance(statement.content, TypeNode):
+            type_node = statement.content
+        elif isinstance(statement.content, (DatasetContent, TaskContent, CodeContent)):
+            type_node = statement.content.type_node
+        if type_node is not None:
+            resolve_type_references_rec(statement, type_node, lookup_in_module, idx, on_error)
 
     return idx
 
 
-def resolve_statement_reference(
-    statement: Statement,
+def resolve_type_references_rec(
+    for_statement: Statement,
+    type: TypeNode,
+    lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
     idx: ModuleIndex,
-    lookup_in_module: LookupFunc,
     on_error: Callable[[SemanticError], None],
 ) -> None:
-    def _error(_t: ET, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, statement, cause, **error_args))
+    """Resolves and imputes type references in a type node recursively."""
+    for node in type.walk():
+        if not isinstance(node.reference, StatementPath):
+            return  # nothing to resolve
 
-    if not isinstance(statement.reference, StatementPath) or statement.is_parameter:
-        return  # need not be resolved
+        # normalize path to statement
+        resolved_stmt = resolve_statement_reference(
+            reference=node.reference,
+            idx=idx,
+            lookup_in_module=lookup_in_module,
+            for_statement=for_statement,
+            symbol_type=SymbolType.TYPE,
+            on_error=on_error,
+        )
+        if resolved_stmt is None:
+            continue  # error already reported
+        if not isinstance(resolved_stmt.content, TypeNode):
+            raise RuntimeError(f"resolved statement is not a type: {resolved_stmt})")
+        node.reference = resolved_stmt.content
+
+
+def resolve_statement_reference(
+    reference: StatementPath,
+    idx: ModuleIndex,
+    lookup_in_module: LookupFunc,
+    for_statement: Statement,
+    symbol_type: SymbolType,
+    on_error: Callable[[SemanticError], None],
+) -> Statement | None:
+    def _error(_t: ET, cause: Exception | None = None, **error_args):
+        on_error(SemanticError(_t, for_statement, cause, **error_args))
 
     # normalize path to resolve file-local references (with .)
     # :StatementReferencePath
-    reference_path, reference_name = statement.reference
-    if reference_path == ".":  # resolve relative to this statement
-        statement_scope = idx.scopes[statement.id]
-        resolved = statement_scope.lookup_statement(reference_name, exclude=statement)
+    reference_path, reference_name = reference
+    if reference_path == ".":
+        # resolve relative to this statement
+        statement_scope = idx.scopes[for_statement.id]
+        resolved = statement_scope.lookup_statement(reference_name, exclude=for_statement)
         if resolved is None:
-            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
+            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
             return
         resolved_scope = idx.scopes[resolved.id]
-    elif reference_path.startswith("."):  # resolve by "absolute" path in local module
-        resolved_scope = idx.get_scope(statement.reference)
+
+    elif reference_path.startswith("."):
+        # resolve by "absolute" path in local module
+        resolved_scope = idx.get_scope(reference)
         if resolved_scope is None:
-            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=statement.reference)
+            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
             return
-    else:  # resolve by absolute path in external module
-        # get source requirement
+
+    else:
+        # resolve by absolute path in external module
+
+        # get source requirement for external module
         source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference_path)
         if source is None:  # (should be caught in parse)
-            raise RuntimeError(f"invalid import source at {statement}")
+            raise RuntimeError(f"invalid import source at {for_statement}")
         requirement_name = f"{source.group('owner')}.{source.group('name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:
             _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
             return
-        # localize path to requirement module
+
+        # localize path to required module
         localized_path = StatementPath("." + source.group("path"), reference_name)
         try:  # use module lookup to resolve
             resolved_scope = lookup_in_module(requirement, localized_path)
@@ -1227,82 +1280,21 @@ def resolve_statement_reference(
         if resolved_scope is None:
             _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
             return
+
+        # import resolved scope into index
         idx.import_scope(resolved_scope)
 
-    statement.reference = resolved_scope.statement
     # check if the reference has the correct type
-    if statement.reference.symbol_type != statement.symbol_type:
+    if resolved_scope.statement.symbol_type != symbol_type:
         _error(
             ET.REFERENCE_TYPE_MISMATCH,
-            type=statement.symbol_type,
+            type=symbol_type,
             resolved=resolved_scope.statement,
         )
-
-
-def resolve_type_references_rec(
-    scope: Scope,
-    type: TypeNode,
-    idx: ModuleIndex,
-    on_error: Callable[[SemanticError], None],
-) -> None:
-    for node in type.walk():
-        resolve_type_reference(scope, node, idx, on_error)
-
-
-def resolve_type_reference(
-    scope: Scope,
-    type: TypeNode,
-    idx: ModuleIndex,
-    on_error: Callable[[SemanticError], None],
-) -> None:
-    """Resolves and imputes type references in a type node."""
-    if not isinstance(type.reference, str):
-        return  # nothing to resolve
-
-    # normalize path to statement
-    resolved_stmt = scope.lookup_statement(type.reference)
-    if resolved_stmt is None or resolved_stmt.underlying_definition is None:
-        on_error(
-            SemanticError(ET.UNDEFINED_LOCAL_REFERENCE, scope.statement, None, path=type.reference)
-        )
-        return
-    if resolved_stmt.symbol_type != SymT.TYPE:
-        error = SemanticError(
-            ET.REFERENCE_TYPE_MISMATCH,
-            scope.statement,
-            None,
-            type=SymT.TYPE,
-            resolved=resolved_stmt,
-        )
-        on_error(error)
-        return
-    type.reference = idx.symbols[resolved_stmt.id]
-
-    impute_type_reference(type, keep_references=True)
-
-
-def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
-    """
-    Replace this nodes field in-place with the values of the referenced type node.
-    Note that without references, perfect source reconstruction is impossible.
-    """
-    if node.tag != TypeTag.TYPE_REFERENCE:
         return
 
-    if not isinstance(node.reference, TypeNode):
-        raise ValueError(f"type reference is not resolved: {node}")
-
-    # error? if reference is an unresolved reference
-    if node.reference.tag == TypeTag.TYPE_REFERENCE:
-        # could just impute that as well? but then we'd need to break circles?
-        raise ValueError(f"reference is unresolved type reference: {node}")
-
-    node.tag = node.reference.tag
-    node.children = node.reference.children
-    if not keep_references:
-        node.reference = None
-    elif node.source_reference is None:
-        node.source_reference = node.reference.name
+    # resolved successfully
+    return resolved_scope.statement
 
 
 def index_module(
@@ -1398,6 +1390,40 @@ def index_module(
     return idx
 
 
+def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
+    """Replaces type node references with Types and imputes."""
+    for node in type.walk():
+        if not isinstance(node.reference, TypeNode):
+            continue
+        node.reference = idx.symbols[node.reference.id]
+        # impute type reference
+        impute_type_reference(node, keep_references=True)
+
+
+def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
+    """
+    Replace this nodes field in-place with the values of the referenced type node.
+    Note that without references, perfect source reconstruction is impossible.
+    """
+    if node.tag != TypeTag.TYPE_REFERENCE:
+        return
+
+    if not isinstance(node.reference, TypeNode):
+        raise ValueError(f"type reference is not resolved: {node}")
+
+    # error? if reference is an unresolved reference
+    if node.reference.tag == TypeTag.TYPE_REFERENCE:
+        # could just impute that as well? but then we'd need to break circles?
+        raise ValueError(f"reference is unresolved type reference: {node}")
+
+    node.tag = node.reference.tag
+    node.children = node.reference.children
+    if not keep_references:
+        node.reference = None
+    elif node.source_reference is None:
+        node.source_reference = node.reference.name
+
+
 def interp(
     idx: ModuleIndex, on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise"
 ) -> ModuleIndex:
@@ -1472,19 +1498,19 @@ def interp(
         if symbol.definition.abstract:
             raise NotImplementedError("TODO @Incomplete: implement abstraction :Variables")
 
-    # resolve type references (now that we have Type instances)
+    # replace type node references with symbols (now that we have Type instances)
     for symbol in idx.symbols.values():
         scope = idx.scopes[symbol.source.id]
         if isinstance(symbol, Type):
-            resolve_type_references_rec(scope, symbol, idx, on_error)
+            interp_type_node_rec(symbol, idx)
         elif isinstance(symbol, (Dataset, Task, Code)):
-            resolve_type_references_rec(scope, symbol.type, idx, on_error)
+            interp_type_node_rec(symbol.type, idx)
 
-        # also resolve in source type nodes (ignore errors here since they're the same)
+        # also replace in source type nodes
         if isinstance(scope.statement.content, TypeNode):
-            resolve_type_references_rec(scope, scope.statement.content, idx, ignore_error)
+            interp_type_node_rec(scope.statement.content, idx)
         elif isinstance(scope.statement.content, (DatasetContent, TaskContent, CodeContent)):
-            resolve_type_references_rec(scope, scope.statement.content.type_node, idx, ignore_error)
+            interp_type_node_rec(scope.statement.content.type_node, idx)
 
     # interp symbol contents using related symbols
     for id, symbol in idx.symbols.items():
