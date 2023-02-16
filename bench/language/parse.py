@@ -1175,7 +1175,7 @@ def resolve(
 
     # resolve references to other statements
     for statement in idx.statements.values():
-        if not isinstance(statement.reference, StatementPath) or statement.is_parameter:
+        if isinstance(statement.reference, Statement) or not statement.has_reference:
             continue  # need not be resolved
         statement.reference = resolve_statement_reference(
             reference=statement.reference,
@@ -1208,9 +1208,8 @@ def resolve_type_references_rec(
 ) -> None:
     """Resolves and imputes type references in a type node recursively."""
     for node in type.walk():
-        if not isinstance(node.reference, StatementPath):
-            return  # nothing to resolve
-
+        if isinstance(node.reference, Statement) or node.tag != TypeTag.TYPE_REFERENCE:
+            continue  # nothing to resolve
         # normalize path to statement
         resolved_stmt = resolve_statement_reference(
             reference=node.reference,
@@ -1228,7 +1227,7 @@ def resolve_type_references_rec(
 
 
 def resolve_statement_reference(
-    reference: StatementPath,
+    reference: StatementPath | None,
     idx: ModuleIndex,
     lookup_in_module: LookupFunc,
     for_statement: Statement,
@@ -1237,6 +1236,10 @@ def resolve_statement_reference(
 ) -> Statement | None:
     def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, for_statement, cause, **error_args))
+
+    if reference is None:
+        _error(ET.MISSING_REFERENCE)
+        return
 
     # normalize path to resolve file-local references (with .)
     # :StatementReferencePath

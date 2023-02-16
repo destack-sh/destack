@@ -336,6 +336,14 @@ class Statement(Generic[SymbolContentT]):
         )
 
     @property
+    def has_reference(self) -> bool:
+        return not self.is_parameter and self.type in (
+            StatementType.REDEFINITION,
+            StatementType.IMPORT,
+            StatementType.REFERENCE,
+        )
+
+    @property
     def is_expect(self) -> bool:
         expectable_symbol = self.symbol_type in (
             SymbolType.TASK,
@@ -435,7 +443,7 @@ class TypeNode(SymbolContent):
         name_str = f"{self.name} " if self.name else ""
         return f"{name_str}{self.tag.value}"
 
-    def deepcopy(self, keep_id: bool = True, keep_reference: bool = False) -> "TypeNode":
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
         if self.children is not None:
             children = [
                 child.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
@@ -448,7 +456,6 @@ class TypeNode(SymbolContent):
             name=self.name,
             tag=self.tag,
             description=self.description,
-            # revert to reference by name by default (to avoid carrying the whole tree)
             reference=self.source_reference if not keep_reference else self.reference,
             source_reference=self.source_reference,
             value=self.value,

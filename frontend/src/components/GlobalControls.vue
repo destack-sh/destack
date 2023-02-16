@@ -31,7 +31,7 @@ function deploy() {
     class="rounded-sm p-1 text-sm"
     :class="{
       'text-gray-500': !canDeploy,
-      'text-orange-700 hover:bg-green-50': canDeploy,
+      'text-orange-600 hover:bg-green-50': canDeploy,
     }"
     :disabled="!canDeploy"
     @click="deploy"

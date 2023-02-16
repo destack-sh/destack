@@ -9,6 +9,7 @@ from more_itertools import first
 
 from bench import language
 from bench.language import ErrorType
+from bench.language.reconstruct import get_reference_as_path
 from bench.language.type import (
     LiteralValue,
     SourceMapping,
@@ -160,14 +161,15 @@ def wmap_module(data: ModuleData) -> language.Module:
             if data_statement.parent_id is not None:
                 statement.parent = statements[data_statement.parent_id]
 
-            # TODO @Cleanup: revert references to statement paths
             # resolve references in statement and in symbol content
             # ignore references we couldn't find since are either
             #  1) refs to "deleted" statements or
             #  2) refs to statements in other modules (which should be by path anyway, but we can't check here)
 
             if isinstance(data_statement.reference, UUID):
-                statement.reference = statements.get(data_statement.reference, None)
+                reference = statements.get(data_statement.reference, None)
+                if reference is not None:
+                    statement.reference = get_reference_as_path(reference, statement)
 
             type_node = None
             if isinstance(statement.content, language.TypeNode):
@@ -183,7 +185,8 @@ def wmap_module(data: ModuleData) -> language.Module:
                     if isinstance(data_node.reference, UUID):
                         reference = statements.get(node.reference, None)
                         if reference is not None:
-                            node.reference = reference.content
+                            node.reference = get_reference_as_path(reference, statement)
+                            node.source_reference = node.reference
 
     return module
 
