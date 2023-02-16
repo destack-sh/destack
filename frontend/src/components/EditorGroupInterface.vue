@@ -54,7 +54,7 @@ async function createFileInEditorGroup() {
         <Tab as="template" v-for="editor in group.editors" :key="editor.id" v-slot="{ selected }">
           <button
             :class="{
-              'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-r border-b-2 border-r-gray-200 py-2 px-3 text-sm outline-none': true,
+              'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-r border-b-2 border-r-gray-200 py-1 px-3 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-700 hover:text-orange-600': !selected,
               ' bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,

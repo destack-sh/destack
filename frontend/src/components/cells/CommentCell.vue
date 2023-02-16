@@ -3,7 +3,7 @@ import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
 const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
@@ -20,6 +20,13 @@ function focus() {
   monacoEditorRef.value?.focus(focusEnd);
   nextTick(() => monacoEditorRef.value?.focus(focusEnd));
 }
+
+// morph back to blank if it's empty for smooth back and forth
+watch(content, () => {
+  if (content.value.trim().length == 0) {
+    context.morphToBlank();
+  }
+});
 
 defineExpose({
   focus,

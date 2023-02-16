@@ -90,6 +90,14 @@ export function useStatementContext() {
 
   const operations = useOperations();
 
+  async function morphToBlank() {
+    await operations.statement.morph(
+      statement.value.id,
+      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+      { type: StatementType.Blank }
+    );
+  }
+
   async function morphToComment(text?: string) {
     const updateCode = operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", text);
     const morphType = operations.statement.morph(
@@ -259,6 +267,7 @@ export function useStatementContext() {
     navigateUp,
     navigateDown,
     escape,
+    morphToBlank,
     morphToComment,
     morphToDefinition,
     morphToReference,
