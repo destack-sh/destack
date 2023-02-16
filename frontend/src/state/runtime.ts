@@ -4,7 +4,7 @@ import { useEditorState } from "@/state/editor";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, ref, toRef, watch, type Ref } from "vue";
+import { computed, isRef, ref, toRef, watch, type Ref } from "vue";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
@@ -209,24 +209,29 @@ export function localErrorsOf(symbol: Ref<{ id: string }>) {
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
-export function symbolsLike(filter: {
+export type SymbolFilter = {
   types?: StatementType[];
   symbolTypes?: SymbolType[];
   includeGenerated?: boolean;
-}) {
+};
+export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter) {
+  const filterRef = isRef(filter) ? filter : ref(filter);
   const { moduleIndex } = useCurrentModuleRuntime();
   const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
     }
     return Object.values(moduleIndex.value.symbolsById).filter((s) => {
-      if (!filter.includeGenerated && s.generated) {
+      if (!filterRef.value.includeGenerated && s.generated) {
         return false;
       }
-      if (filter.types != null && !filter.types.includes(s.type)) {
+      if (filterRef.value.types != null && !filterRef.value.types.includes(s.type)) {
         return false;
       }
-      if (filter.symbolTypes != null && (s.symbolType == null || !filter.symbolTypes.includes(s.symbolType))) {
+      if (
+        filterRef.value.symbolTypes != null &&
+        (s.symbolType == null || !filterRef.value.symbolTypes.includes(s.symbolType))
+      ) {
         return false;
       }
 

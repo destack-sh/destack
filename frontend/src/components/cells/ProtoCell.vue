@@ -7,7 +7,8 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
-import { nextTick, ref, watch, type Ref } from "vue";
+import { symbolsLike } from "@/state/runtime";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();
 
@@ -16,6 +17,14 @@ const context = useStatementContext();
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof ReferenceComboCell> | null> = ref(null);
+
+// symbols available for reference
+const availableSymbols = symbolsLike(
+  computed(() => ({
+    types: [StatementType.Definition],
+    symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
+  }))
+);
 
 // set symbol type if query starts with it and it's not yet set (like in SelectTypeCell)
 // define in place if it ends with :
@@ -126,11 +135,13 @@ defineExpose({
       ref="nameRef"
       :reference="context.reference.value"
       :self="context.statement.value"
+      :available-symbols="availableSymbols"
       class="mx-0.5"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @delete-left="deleteSymbolTypeOrModifier"
       @navigate-left="gapRef?.focus"
+      @insert-below="context.insertBelow"
       :can-define-in-place="context.statement.value.symbolType != null"
       @define-in-place="morphToDefinition"
       @set-reference="(ref) => ref == null || morphToReference(ref)"

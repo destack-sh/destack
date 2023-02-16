@@ -5,9 +5,8 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { useOperations } from "@/state/operations";
-import { localErrorsOf } from "@/state/runtime";
+import { StatementType } from "@/gql/graphql";
+import { localErrorsOf, symbolsLike } from "@/state/runtime";
 import { ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -22,6 +21,11 @@ context.syncName(name);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+
+const availableSymbols = symbolsLike({
+  types: [StatementType.Definition],
+  symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
+});
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
@@ -91,11 +95,13 @@ defineExpose({
       ref="nameRef"
       :self="context.statement.value"
       :reference="context.reference.value"
+      :available-symbols="availableSymbols"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"
       @navigate-down="emit('navigateDown')"
       @navigate-left="gapRef?.focus"
       @navigate-right="emit('navigateRight')"
+      @insert-below="context.insertBelow"
       @escape="context.escape"
       @enter="context.insertBelow"
       @set-reference="context.setReference"
