@@ -161,6 +161,7 @@ export const useEditorState = defineStore("editor", {
       readonly: false,
       debug: false,
       showGenerated: false,
+      showLineNumbers: true,
     };
   },
   getters: {

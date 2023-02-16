@@ -74,6 +74,7 @@ function morphToReference(symbol: InterpSymbol) {
   if (symbol.symbolType == null || symbol.name == null) {
     throw new Error("cannot set reference to: " + symbol);
   }
+  context.setReference(symbol);
   context.morphToReference(symbol.symbolType, symbol.name);
 }
 
