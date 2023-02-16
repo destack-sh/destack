@@ -1237,7 +1237,7 @@ def resolve_statement_reference(
     def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, for_statement, cause, **error_args))
 
-    if reference is None:
+    if reference is None or not isinstance(reference, StatementPath):
         _error(ET.MISSING_REFERENCE)
         return
 
