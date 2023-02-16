@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useNotifications } from "@/state/notifications";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { CloudArrowUpIcon, ShareIcon } from "@heroicons/vue/24/outline";
 import { useClipboard } from "@vueuse/core";
@@ -7,13 +8,17 @@ import { computed } from "vue";
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
 const { copy } = useClipboard();
+const notifications = useNotifications();
 
 function share() {
   // should probably open a share & permissions menu
   // but just copy current url to clipboard for now
   copy(window.location.href);
-  // should probably give a :Notification here
-  console.log("share");
+  notifications.show({
+    kind: "success",
+    type: "share.success",
+    message: "Sharing link copied to clipboard.",
+  });
 }
 
 function deploy() {

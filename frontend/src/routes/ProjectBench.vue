@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
+import NotificationArea from "@/components/container/NotificationArea.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import GlobalControls from "@/components/GlobalControls.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
@@ -19,6 +20,7 @@ import {
   ProjectVersionContentType,
   ProjectVersionHeaderType,
 } from "@/state/fragments";
+import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
@@ -33,6 +35,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
+import Mousetrap from "mousetrap";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 
@@ -173,6 +176,22 @@ watchEffect(() => {
   }
 });
 
+// suppress control+s (offer named commit instead)
+const notifications = useNotifications();
+Mousetrap.bind(["ctrl+s"], () => {
+  notifications.showIf(
+    {
+      type: "saveSuppressed",
+      kind: "notice",
+      message: "Changes are synced automatically.",
+      actionText: "Commit",
+      action: () => actions.version.commit.value.apply(),
+    },
+    { lastActiveMs: 10000 }
+  );
+  return false;
+});
+
 // current warnings & errors
 const runtime = useCurrentModuleRuntime();
 
@@ -216,9 +235,14 @@ watch(
     if (projectMigrationLoading.value) return;
 
     if (projectMigrationError.value != null) {
-      console.error("unable to migrate, error getting intermediate refs", projectMigrationError.value);
       await editor.migrateTo(projectHead.value, undefined);
+      console.error("unable to migrate, error getting intermediate refs", projectMigrationError.value);
       migrating.value = false;
+      notifications.show({
+        kind: "warning",
+        type: "editorMigration.fail",
+        message: "Editor state could not be migrated.",
+      });
     } else if (projectMigrationRefs.value) {
       const intermediateVersions = [...(projectMigrationRefs.value?.project?.versions ?? [])];
       const intermediateRefs = intermediateVersions
@@ -227,6 +251,11 @@ watch(
       await editor.migrateTo(projectHead.value, intermediateRefs);
       console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
       migrating.value = false;
+      notifications.show({
+        kind: "success",
+        type: "editorMigration.success",
+        message: "Editor state migrated.",
+      });
     }
   },
   { deep: true }
@@ -269,7 +298,7 @@ watchEffect(async () => {
 
 <template>
   <!-- Root -->
-  <div class="flex h-full flex-col">
+  <div class="relative flex h-full flex-col">
     <!-- Header with controls and auth -->
     <FatHeader>
       <!-- Left side: organizational & status -->
@@ -420,5 +449,6 @@ watchEffect(async () => {
         </div>
       </main>
     </div>
+    <NotificationArea />
   </div>
 </template>
