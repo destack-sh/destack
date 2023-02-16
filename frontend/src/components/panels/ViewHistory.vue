@@ -48,7 +48,7 @@ const globalActions: Action[] = [
   {
     icon: PlusIcon,
     label: "Commit",
-    enabled: computed(() => !opsStore.hasInflightLike("version.commit")),
+    enabled: computed(() => !opsStore.hasInflightLike({ types: ["version.commit"] })),
     action: () => actions.version.commit.value.apply(),
   },
 ];
