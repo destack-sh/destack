@@ -130,7 +130,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             postfix = ":"
         def_str = f"{modifier_str}{symt_str} {identifier_str}{postfix}"
         if include_content:
-            content_str = render_symbol_content(statement.content)
+            content_str = render_symbol_content(statement.content, statement)
         else:
             content_str = ""
         return f"{def_str}\n{content_str}" if content_str else def_str
@@ -147,9 +147,9 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         raise ValueError(f"unexpected statement type: {statement}")
 
 
-def render_symbol_content(content: SymbolContent) -> Optional[str]:
+def render_symbol_content(content: SymbolContent, statement: Statement) -> Optional[str]:
     if isinstance(content, TypeNode):
-        rendered_type = render_type_node(content)
+        rendered_type = render_type_node(content, statement)
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_type}"
         else:
