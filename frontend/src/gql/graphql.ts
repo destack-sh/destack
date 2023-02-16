@@ -75,6 +75,7 @@ export enum ErrorType {
   InvalidStatement = "INVALID_STATEMENT",
   InvalidTokenValue = "INVALID_TOKEN_VALUE",
   MissingExtra = "MISSING_EXTRA",
+  MissingReference = "MISSING_REFERENCE",
   MissingToken = "MISSING_TOKEN",
   ReferenceTypeMismatch = "REFERENCE_TYPE_MISMATCH",
   UndefinedExternalReference = "UNDEFINED_EXTERNAL_REFERENCE",

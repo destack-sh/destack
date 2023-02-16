@@ -89,9 +89,9 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
     elif statement.type == StmT.IMPORT:
         alias_name = escape_identifier(statement.name)
         alias_str = f" as {alias_name}" if statement.is_alias else ""
-        reference_name = escape_identifier(get_reference_name(statement.reference))
+        reference_str = escape_identifier(get_reference_name(statement.reference))
         import_source = render_import_source(statement.reference, via=statement)
-        return f"import {statement.symbol_type} {reference_name}{alias_str} from {import_source}"
+        return f"import {statement.symbol_type} {reference_str}{alias_str} from {import_source}"
     elif statement.type == StmT.DEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
@@ -101,21 +101,21 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             TypeTag.STRUCT,
             TypeTag.ENUM,
         ):
-            type_str = render_type_node(cast(TypeNode, statement.content))
+            type_str = render_type_node(cast(TypeNode, statement.content), statement)
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
         symt_str = statement.symbol_type
         if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(RequirementContent, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
-            type_str = render_type_node(cast(TaskContent, statement.content).type_node)
+            type_str = render_type_node(cast(TaskContent, statement.content).type_node, statement)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.CODE:
-            type_str = render_type_node(cast(CodeContent, statement.content).type_node)
+            type_str = render_type_node(cast(CodeContent, statement.content).type_node, statement)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATASET:
             content = cast(DatasetContent, statement.content)
-            type_str = render_type_node_struct(content.type_node, ", ")
+            type_str = render_type_node_struct(content.type_node, statement, ", ")
             postfix = f" :: ({type_str}):"
         elif (
             statement.symbol_type == SymT.TYPE
@@ -123,7 +123,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         ):
             # special case for enum types
             content = cast(TypeNode, statement.content)
-            type_str = render_type_node(content.head_type)
+            type_str = render_type_node(content.head_type, statement)
             symt_str = "enum"
             postfix = f" :: {type_str}:"
         else:
@@ -137,12 +137,12 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
     elif statement.type == StmT.REDEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
-        reference_name = escape_identifier(get_reference_name(statement.reference))
-        return f"{modifier_str}{statement.symbol_type} {identifier_str} = {statement.symbol_type} {reference_name}"
+        reference_str = render_reference(statement.reference, statement)
+        return f"{modifier_str}{statement.symbol_type} {identifier_str} = {statement.symbol_type} {reference_str}"
     elif statement.type == StmT.REFERENCE:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
-        identifier_str = escape_identifier(statement.name)
-        return f"{modifier_str}{statement.symbol_type} {identifier_str}"
+        reference_str = render_reference(statement.reference, statement)
+        return f"{modifier_str}{statement.symbol_type} {reference_str}"
     else:
         raise ValueError(f"unexpected statement type: {statement}")
 
@@ -211,6 +211,7 @@ def escape_identifier(identifier: str) -> str:
 
 def render_type_node(
     node: TypeNode,
+    statement: Statement | None,
     ignore_name: bool = False,
     ignore_reference: bool = False,
     ignore_description: bool = False,
@@ -226,20 +227,20 @@ def render_type_node(
         node.source_reference is not None and not ignore_reference
     ):
         # if it's a reference _or_ used to be a reference, keep the type reference
-        reference_str = escape_identifier(node.source_reference)
+        reference_str = render_reference(node.source_reference, statement)
         return f"{identifier_str}{reference_str}{description_str}"
     elif node.tag == TypeTag.FUNCTION:
-        return render_type_node_func(node)
+        return render_type_node_func(node, statement)
     elif node.tag == TypeTag.STRUCT:
-        return render_type_node_struct(node, seperator="\n")
+        return render_type_node_struct(node, statement, seperator="\n")
     elif node.tag == TypeTag.ARRAY:
-        type_str = f"[{render_type_node(node.children[0])}]"
+        type_str = f"[{render_type_node(node.children[0], statement)}]"
         return f"{identifier_str}{type_str}{description_str}"
     elif node.tag == TypeTag.UNION:
-        type_str = " | ".join(render_type_node(e) for e in node.children)
+        type_str = " | ".join(render_type_node(e, statement) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
     elif node.tag == TypeTag.INTERSECTION:
-        type_str = " & ".join(render_type_node(e) for e in node.children)
+        type_str = " & ".join(render_type_node(e, statement) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
     elif node.tag == TypeTag.ENUM:
         members_strs = []
@@ -258,19 +259,19 @@ def render_type_node(
         raise ValueError(f"unexpected type: {node.tag}")
 
 
-def render_type_node_func(node: TypeNode) -> str:
-    input_str = render_type_node_struct(node.input, seperator=", ")
+def render_type_node_func(node: TypeNode, statement: Statement) -> str:
+    input_str = render_type_node_struct(node.input, statement, seperator=", ")
     if node.output.tag != TypeTag.NULL:
-        output_str = render_type_node(node.output, ignore_name=True)
+        output_str = render_type_node(node.output, statement, ignore_name=True)
         return f"({input_str}) -> {output_str}"
     else:
         return f"({input_str})"
 
 
-def render_type_node_struct(node: TypeNode, seperator: str) -> str:
+def render_type_node_struct(node: TypeNode, statement: Statement | None, seperator: str) -> str:
     if node.children is None:
         raise ValueError(f"expected type with elements: {node}")
-    field_strs = [render_type_node(field) for field in node.children]
+    field_strs = [render_type_node(field, statement) for field in node.children]
     return seperator.join(field_strs)
 
 
@@ -306,6 +307,25 @@ def get_reference_name(reference: Statement | StatementPath) -> str:
         return reference.name
     else:
         raise ValueError(f"unexpected reference type: {reference}")
+
+
+def get_reference_as_path(reference: Statement, via: Statement | None) -> StatementPath:
+    if via is None or reference.file.id == via.file.id:
+        return StatementPath(".", reference.name)
+    elif reference.file.module.name == via.file.module.name:
+        return StatementPath("." + reference.file.path_without_extension, reference.name)
+    else:
+        return StatementPath(
+            reference.file.module.name + "." + reference.file.path_without_extension, reference.name
+        )
+
+
+def render_reference(reference: Statement | StatementPath, via: Statement | None) -> str:
+    if not isinstance(reference, StatementPath):
+        reference = get_reference_as_path(reference, via)
+    if reference[0] == ".":
+        return f"{reference[1]}"
+    return f"{reference[0]}.{reference[1]}"
 
 
 def render_import_source(reference: Statement | StatementPath, via: Statement) -> str:

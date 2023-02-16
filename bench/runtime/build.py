@@ -227,7 +227,7 @@ class PromptBuilder:
                 node = TypeNode(
                     name=node.name, tag=TypeTag.STRUCT, children=[*node.input.children, node.output]
                 )
-            type_str = render_type_node(node, ignore_name=True, ignore_reference=True)
+            type_str = render_type_node(node, None, ignore_name=True, ignore_reference=True)
             if node.tag == TypeTag.STRUCT:
                 self.emit(f"type {node.source_reference}:")
                 self.emit_split(type_str)
@@ -241,7 +241,7 @@ class PromptBuilder:
 
     def emit_show_dataset(self, dataset: Dataset | DataBuilder):
         """Emits BPL to show the given dataset."""
-        element_type_str = render_type_node(dataset.type_node, ignore_description=True)
+        element_type_str = render_type_node(dataset.type_node, None, ignore_description=True)
         self.emit(f"data '{dataset.name}' :: ({element_type_str}):\n")
         self.emit("```jsonl\n")
         with self.block(f"for record in context['{dataset.name}']:"):
@@ -253,7 +253,7 @@ class PromptBuilder:
     def emit_show_value(self, value: Any, type: TypeNode, name: str = "example"):
         """Emits BPL to show the given example."""
         check_type(value, type)
-        record_type_str = render_type_node_struct(type, seperator=", ")
+        record_type_str = render_type_node_struct(type, None, seperator=", ")
         self.emit(f"value {name} :: ({record_type_str}):\n")
         self.emit("```json\n")
         self.emit_split(json.dumps(value, indent=2))
@@ -269,7 +269,7 @@ class PromptBuilder:
         """Emits BPL to get the output record given the inputs"""
         # combine inputs and outputs into single example struct
         combined_type = TypeNode(name=None, tag=TypeTag.STRUCT, children=inputs + [output])
-        combined_type_str = render_type_node_struct(combined_type, seperator=", ")
+        combined_type_str = render_type_node_struct(combined_type, None, seperator=", ")
         self.emit(f"value :: ({combined_type_str}):\n")
         self.emit("```json\n")
         self.emit("{\n")
@@ -277,7 +277,7 @@ class PromptBuilder:
         for input in inputs:
             self.emit(f'  "{input.name}": |{{{input.name}}}|,\n')
         # render output as giant hole of its type :JsonHole
-        output_type_str = render_type_node(output, ignore_name=True, ignore_description=True)
+        output_type_str = render_type_node(output, None, ignore_name=True, ignore_description=True)
         self.emit(f'  "{output.name}": |[{output_var}: {output_type_str}]|\n')
         self.emit("}\n")
         self.emit("```")
