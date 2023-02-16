@@ -25,6 +25,7 @@ const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
+  includeDependencies: true,
 });
 
 function deleteModifierOrAbove() {

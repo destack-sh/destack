@@ -4,6 +4,7 @@ import {
   StatementType,
   SymbolType,
   TypeTag,
+  type InterpSymbol,
   type SimpleTypeNode,
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
@@ -30,7 +31,7 @@ export type StatementContext = {
   editing: boolean;
   statement: FragmentType<typeof StatementContentType>;
   file: FragmentType<typeof FileHeaderType>;
-  reference: FragmentType<typeof StatementHeaderType> | null;
+  reference: InterpSymbol | null;
 };
 
 export function useStatementContext() {

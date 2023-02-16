@@ -24,14 +24,14 @@ function deploy() {
 <template>
   <!-- Share -->
   <button class="rounded-sm p-1 text-sm hover:bg-orange-50" @click="share">
-    <ShareIcon class="h-5 w-5 text-gray-900" />
+    <ShareIcon class="h-5 w-5 text-orange-600" />
   </button>
   <!-- Deploy -->
   <button
     class="rounded-sm p-1 text-sm"
     :class="{
       'text-gray-500': !canDeploy,
-      'text-orange-600 hover:bg-green-50': canDeploy,
+      'text-orange-600 hover:bg-orange-50': canDeploy,
     }"
     :disabled="!canDeploy"
     @click="deploy"
