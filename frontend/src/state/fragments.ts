@@ -63,6 +63,9 @@ export const FileHeaderType = graphql(/* GraphQL */ `
     revision
     name
     path
+    parent {
+      id
+    }
     createdAt
     updatedAt
     deletedAt

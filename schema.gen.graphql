@@ -86,6 +86,7 @@ input FileCreateInput {
   id: GlobalID = null
   projectVersionId: GlobalID!
   name: String!
+  path: String!
   parentId: GlobalID = null
   directory: Boolean! = false
 }
@@ -97,6 +98,7 @@ input FileFilter {
 input FileMoveInput {
   id: GlobalID!
   parentId: GlobalID = null
+  path: String!
 }
 
 union FileOperationInfo = File | OperationInfo
@@ -104,6 +106,7 @@ union FileOperationInfo = File | OperationInfo
 input FileRenameInput {
   id: GlobalID!
   name: String!
+  path: String!
 }
 
 """
