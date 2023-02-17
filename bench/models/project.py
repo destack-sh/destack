@@ -421,10 +421,10 @@ class File(UUIDModel):
         self.statements.filter(deleted_at=None).update(deleted_at=self.deleted_at)
 
     def restore(self):
-        self.deleted_at = None
         Statement._base_manager.filter(file=self, deleted_at=self.deleted_at).update(
             deleted_at=None
         )
+        self.deleted_at = None
 
     objects = FileManager()
 
