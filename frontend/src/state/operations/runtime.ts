@@ -26,7 +26,7 @@ export function useRuntimeOps() {
       type: "runtime.build",
       stateless: true,
       do: async () => {
-        await buildMut({
+        return await buildMut({
           projectVersionId: editor.currentProjectVersionId,
           buildableId,
         });

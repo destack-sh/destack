@@ -29,4 +29,9 @@ export const TYPE_POLICIES = {
       files: useIncoming,
     },
   },
+  Project: {
+    fields: {
+      versions: useIncoming,
+    },
+  },
 };

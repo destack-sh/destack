@@ -23,6 +23,7 @@ import {
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentModuleRuntime } from "@/state/runtime";
+import { WS_CONNECTED } from "@/utils/globals";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
@@ -34,7 +35,7 @@ import {
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useLazyQuery, useQuery } from "@vue/apollo-composable";
-import { useTitle } from "@vueuse/core";
+import { useRefHistory, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
@@ -183,17 +184,47 @@ Mousetrap.bind(["ctrl+s"], () => {
     {
       type: "saveSuppressed",
       kind: "notice",
-      message: "Changes are synced automatically.",
+      message: "Saving is automatic",
+      description: "All changes are synced automatically.",
       actionText: "Commit",
       action: () => actions.version.commit.value.apply(),
     },
-    { lastActiveMs: 10000 }
+    { lastActiveMs: 60000 }
   );
   return false;
 });
 
-// current warnings & errors
 const runtime = useCurrentModuleRuntime();
+
+// show notification if disconnected/reconnected
+const connectionLost = ref(false);
+const everConnected = ref(false);
+watch(
+  () => [WS_CONNECTED.value, runtime.connected.value],
+  () => {
+    if (WS_CONNECTED.value && runtime.connected.value) {
+      everConnected.value = true;
+    }
+
+    if (!WS_CONNECTED.value && !connectionLost.value && everConnected.value) {
+      notifications.show({
+        type: "runtime.disconnected",
+        kind: "warning",
+        message: "Disconnected",
+        description: "The Bench runtime disconnected.",
+      });
+      connectionLost.value = true;
+    } else if (WS_CONNECTED.value && connectionLost.value && runtime.connected.value) {
+      connectionLost.value = false;
+      notifications.show({
+        type: "runtime.reconnected",
+        kind: "success",
+        message: "Reconnected",
+        description: "The Bench runtime reconnected nicely.",
+      });
+    }
+  }
+);
 
 const { load } = useEditorPersistence();
 
@@ -241,7 +272,8 @@ watch(
       notifications.show({
         kind: "warning",
         type: "editorMigration.fail",
-        message: "Editor state could not be migrated.",
+        message: "Migration failed",
+        description: "Editor state could not be migrated.",
       });
     } else if (projectMigrationRefs.value) {
       const intermediateVersions = [...(projectMigrationRefs.value?.project?.versions ?? [])];
@@ -254,7 +286,8 @@ watch(
       notifications.show({
         kind: "success",
         type: "editorMigration.success",
-        message: "Editor state migrated.",
+        message: "Migrated",
+        description: "Editor state has been migrated.",
       });
     }
   },
@@ -322,7 +355,7 @@ watchEffect(async () => {
           </div>
           <FadeTransition>
             <MenuItems
-              class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-sm ring-1 ring-black ring-opacity-5 focus:outline-none"
+              class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none"
             >
               <MenuItem v-for="item in projectNavigation" :key="item.name" v-slot="{ active }">
                 <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">

@@ -11,6 +11,7 @@ export type Notification = {
   action?: () => void;
   shownAt?: DateTime;
   showTimeMs?: number;
+  source: "editor";
 };
 
 export const useNotifications = defineStore("notifications", {
@@ -26,6 +27,7 @@ export const useNotifications = defineStore("notifications", {
         id: notificationData.id ?? Math.random().toString(36).slice(2, 9),
         showTimeMs: notificationData.showTimeMs ?? 7000,
         shownAt: DateTime.now(),
+        source: notificationData.source ?? "editor",
         ...notificationData,
       };
       notification.shownAt = DateTime.now();
@@ -52,6 +54,9 @@ export const useNotifications = defineStore("notifications", {
     },
     dismiss(notificationId: string): void {
       this.activeNotifications = this.activeNotifications.filter((n) => n.id !== notificationId);
+    },
+    dismissIf(type: string): void {
+      this.activeNotifications = this.activeNotifications.filter((n) => n.type !== type);
     },
   },
 });

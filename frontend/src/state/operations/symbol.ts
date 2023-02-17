@@ -39,10 +39,10 @@ export function useSymbolContentOps() {
     await operations.perform({
       type: "statement.updateDescription",
       do: async () => {
-        await updateStatementDescriptionMut({ id: id, description: newDescription });
+        return await updateStatementDescriptionMut({ id: id, description: newDescription });
       },
       undo: async () => {
-        await updateStatementDescriptionMut({ id: id, description: oldDescription });
+        return await updateStatementDescriptionMut({ id: id, description: oldDescription });
       },
     });
   }
@@ -79,13 +79,13 @@ export function useSymbolContentOps() {
     await operations.perform({
       type: "statement.updateCode",
       do: async () => {
-        await updateStatementCodeMut({
+        return await updateStatementCodeMut({
           id: id,
           code: newCode,
         });
       },
       undo: async () => {
-        await updateStatementCodeMut({
+        return await updateStatementCodeMut({
           id: id,
           code: oldCode,
         });
@@ -160,7 +160,7 @@ export function useSymbolContentOps() {
     await operations.perform({
       type: "statement.createRecord",
       do: async () => {
-        await createRecordMut({
+        return await createRecordMut({
           id: id,
           statementId: statementId,
           orderKey: orderKey,
@@ -168,7 +168,7 @@ export function useSymbolContentOps() {
         });
       },
       undo: async () => {
-        await deleteRecordMut({ id: id, statementId: statementId });
+        return await deleteRecordMut({ id: id, statementId: statementId });
       },
     });
   }
@@ -177,14 +177,14 @@ export function useSymbolContentOps() {
     await operations.perform({
       type: "statement.updateRecord",
       do: async () => {
-        await updateRecordMut({
+        return await updateRecordMut({
           id: id,
           statementId: statementId,
           data: newData,
         });
       },
       undo: async () => {
-        await updateRecordMut({
+        return await updateRecordMut({
           id: id,
           statementId: statementId,
           data: oldData,
@@ -197,13 +197,13 @@ export function useSymbolContentOps() {
     await operations.perform({
       type: "statement.deleteRecord",
       do: async () => {
-        await deleteRecordMut({
+        return await deleteRecordMut({
           id: id,
           statementId: statementId,
         });
       },
       undo: async () => {
-        await createRecordMut({
+        return await createRecordMut({
           id,
           statementId,
           orderKey,

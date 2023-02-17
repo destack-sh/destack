@@ -17,7 +17,8 @@ function share() {
   notifications.show({
     kind: "success",
     type: "share.success",
-    message: "Sharing link copied to clipboard.",
+    message: "Shared",
+    description: "Your sharing link is in your clipboard.",
   });
 }
 

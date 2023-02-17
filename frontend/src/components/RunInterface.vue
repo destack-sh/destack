@@ -46,6 +46,7 @@ async function run() {
       type: "run.fail",
       kind: "error",
       message: "Run failed",
+      description: `Failed to run ${symbol.value?.name}.`,
     });
   }
 }

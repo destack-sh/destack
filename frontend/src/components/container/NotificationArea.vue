@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useNotifications } from "@/state/notifications";
+import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
 
 const notifications = useNotifications();
@@ -21,33 +22,62 @@ const notifications = useNotifications();
         <div
           v-for="notification in notifications.activeNotifications"
           :key="notification.id"
-          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm p-3 shadow-sm ring-1 ring-black ring-opacity-5"
+          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm border-l-2 bg-white p-3 shadow-md ring-1 ring-black ring-opacity-5"
           :class="{
-            'bg-white': notification.kind != 'error',
-            'bg-red-100': notification.kind == 'error',
+            'border-l-white': notification.kind === 'notice',
+            'border-red-500': notification.kind === 'error',
+            'border-yellow-500': notification.kind === 'warning',
+            'border-green-500': notification.kind === 'success',
           }"
         >
-          <div class="flex w-0 flex-1 justify-between">
-            <p class="w-0 flex-1 text-sm font-medium text-gray-900">{{ notification.message }}</p>
+          <!-- Message body-->
+          <div class="flex flex-1 justify-between">
+            <!-- Icon -->
+            <div class="-mt-[1px]">
+              <component
+                :is="
+                  {
+                    error: XCircleIcon,
+                    notice: InformationCircleIcon,
+                    warning: ExclamationCircleIcon,
+                    success: CheckCircleIcon,
+                  }[notification.kind]
+                "
+                class="h-5 w-5"
+                :class="{
+                  'text-orange-600': notification.kind === 'notice',
+                  'text-red-500': notification.kind === 'error',
+                  'text-yellow-500': notification.kind === 'warning',
+                  'text-green-500': notification.kind === 'success',
+                }"
+              />
+            </div>
+            <!-- Main message -->
+            <div class="ml-3 flex flex-1 flex-col">
+              <h3 class="text-sm font-bold text-gray-900">{{ notification.message }}</h3>
+              <p v-if="notification.description" class="pt-1 text-xs text-gray-500">{{ notification.description }}</p>
+            </div>
+            <!-- Actions -->
             <button
               v-if="notification.actionText"
               type="button"
-              class="ml-3 flex-shrink-0 rounded-md text-sm font-medium text-orange-600 hover:text-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              class="mx-3 h-fit flex-shrink-0 self-center rounded-sm bg-orange-600 py-1 px-3 text-sm font-medium text-white focus:outline-none"
               @click="() => (notification.action?.(), notifications.dismiss(notification.id))"
             >
               {{ notification.actionText }}
             </button>
           </div>
-          <div class="ml-4 flex flex-shrink-0">
+          <!-- Dismiss -->
+          <!-- <div class="ml-4 flex flex-shrink-0">
             <button
               type="button"
               @click="notifications.dismiss(notification.id)"
-              class="inline-flex rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              class="inline-flex rounded-md text-gray-200 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <span class="sr-only">Close</span>
-              <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+              <XMarkIcon class="h-4 w-4" aria-hidden="true" />
             </button>
-          </div>
+          </div> -->
         </div>
       </transition-group>
     </div>
