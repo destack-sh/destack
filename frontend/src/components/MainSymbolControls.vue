@@ -129,7 +129,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
 
     <ComboboxOptions
       v-show="runtime.connected.value"
-      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-sm ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
     >
       <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>
       <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">no matching symbols</div>

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { InterpError } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { fileOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { XCircleIcon } from "@heroicons/vue/24/outline";
 
@@ -23,18 +23,21 @@ function focusError(error: InterpError) {
     <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
       <span class="text-xs font-bold uppercase">Issues</span>
     </div>
-    <ul v-for="(error, i) in runtime.errors.value ?? []" :key="i" class="py-2">
+    <ul class="flex flex-col gap-2 py-2">
       <li
-        class="group flex flex-col justify-between gap-x-1 py-1 text-sm hover:cursor-pointer hover:bg-orange-50"
+        v-for="(error, i) in runtime.errors.value ?? []"
+        :key="i"
+        class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-50"
         @click="focusError(error as InterpError)"
       >
         <div v-if="error.symbol != null" class="px-3">
-          <span class="text-gray-900 group-hover:text-orange-600"
+          <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.symbol.symbolType] }}</span>
+          <span class="pl-1 text-gray-900 group-hover:text-orange-600"
             >{{ fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span
           >
         </div>
-        <span class="flex flex-row items-center gap-1 px-3 text-red-600">
-          <XCircleIcon class="h-4 w-4" />
+        <span class="flex flex-row gap-1 px-3 text-red-600">
+          <XCircleIcon class="mt-0.5 h-4 w-4" />
           <span>{{ error.message }}</span>
         </span>
       </li>

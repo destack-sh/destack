@@ -35,7 +35,7 @@ def lookup_in_db_module(
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
-    # TODO @Performance: cache order_keyed module for lookup by version
+    # TODO @Performance: cache indexed module for lookup by version
     wire_module: wire.ModuleData = read_module(version, path)
     module = wire.wmap_module(wire_module)
     idx = index_module(module)
@@ -82,7 +82,46 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
         wire_statements[statement.id] = wire_statement
         wire_files[statement.file_id].statements.append(wire_statement)
 
+    # Implicitly require all current libraries at their latest version because
+    # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
+    # TODO @Cleanup: let users configure their own set of Bench library requirements
+    #  (std should be a global default, but we want that version pinned too (?))
+    _add_implicit_requirements(wire_module)
+
     return wire_module
+
+
+def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
+    """Stupid way of implicitly requiring some libraries for now."""
+    if wire_module.name in ("symbolx.std", "openai.std"):
+        return  # only add to user modules
+    implicit_file = wire.FileData(
+        id=uuid4(), module_id=wire_module.id, path="__implicit__", generated=True, statements=[]
+    )
+    for (module, version, ok) in (("symbolx.std", "latest", "a0"), ("openai.std", "latest", "a1")):
+        reference_module = wire.ModuleReference(
+            name=module,
+            version=version,
+            id=lookup_module(module, version).id,
+        )
+        implicit_statement = wire.StatementData(
+            id=uuid4(),
+            name=module,
+            type=StatementType.DEFINITION,
+            symbol_type=SymbolType.REQUIREMENT,
+            reference_module=reference_module,
+            parent_id=None,
+            file_id=implicit_file.id,
+            module_id=wire_module.id,
+            order_key=ok,
+            revision=1,
+            generated=True,
+            modifier=None,
+            text=None,
+            reference=None,
+        )
+        implicit_file.statements.append(implicit_statement)
+    wire_module.files.append(implicit_file)
 
 
 @transaction.atomic
