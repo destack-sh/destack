@@ -466,10 +466,10 @@ interface SimplyTyped {
 
 type SourceMapping {
   sourceId: UUID!
-  sourcePath: JSON!
+  sourcePath: JSON
   sourceRevision: Int!
   targetId: UUID!
-  targetPath: JSON!
+  targetPath: JSON
   targetRevision: Int!
 }
 

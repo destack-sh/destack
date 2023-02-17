@@ -120,6 +120,20 @@ class BuildCandidate:
         self.target_symbols.append(code)
         return code
 
+    def map_source(self, source: InterpSymbol, target: InterpSymbol):
+        # very primitive source mapping
+        # TODO @Cleanup: track source mappings with build steps during build (incl. revisions)
+        self.source_mappings.append(
+            SourceMapping(
+                source_id=source.id,
+                source_revision=1,
+                source_path=None,
+                target_id=target.id,
+                target_revision=1,
+                target_path=None,
+            )
+        )
+
     def to_result(self) -> BuildResult:
         return BuildResult(
             build=self.build,
@@ -401,7 +415,8 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     )
 
     state.create_data(examples_data)
-    state.create_code(target_code)
+    code = state.create_code(target_code)
+    state.map_source(task, code)
 
 
 def generate(symbols: list[InterpSymbol], file: File | None = None) -> File:

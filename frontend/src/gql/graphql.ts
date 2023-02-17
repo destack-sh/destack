@@ -631,10 +631,10 @@ export type SimplyTyped = {
 export type SourceMapping = {
   __typename?: "SourceMapping";
   sourceId: Scalars["UUID"];
-  sourcePath: Scalars["JSON"];
+  sourcePath?: Maybe<Scalars["JSON"]>;
   sourceRevision: Scalars["Int"];
   targetId: Scalars["UUID"];
-  targetPath: Scalars["JSON"];
+  targetPath?: Maybe<Scalars["JSON"]>;
   targetRevision: Scalars["Int"];
 };
 

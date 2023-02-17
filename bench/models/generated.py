@@ -23,9 +23,9 @@ class SourceMapping(UUIDModel):
         "Statement", on_delete=models.CASCADE, related_name="target_mappings"
     )
     source_revision = models.IntegerField()
-    source_path = models.JSONField()
+    source_path = models.JSONField(null=True, blank=True)
     target = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="source_mappings"
     )
-    target_path = models.JSONField()
+    target_path = models.JSONField(null=True, blank=True)
     target_revision = models.IntegerField()

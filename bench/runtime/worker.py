@@ -17,7 +17,7 @@ from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import Build, StatementPath, SymbolType
 from bench.language.wire import ModuleReference
-from bench.runtime.build import make_build
+from bench.runtime.build import BuildResult, make_build
 from bench.runtime.execute import instantiate, run
 from bench.zmq import (
     ZMessage,
@@ -290,7 +290,9 @@ class RuntimeWorker:
 
             # actually build (concurrently)
             build_processes = [make_build(build) for build in builds]
-            build_results = await asyncio.gather(*build_processes)
+            build_results: list[BuildResult] = await asyncio.gather(
+                *build_processes, return_exceptions=False
+            )
             build_ids = [r.id for r in builds]
             send_rep(RepModuleBuildPayload(error=None, build_ids=build_ids))
 
@@ -300,6 +302,7 @@ class RuntimeWorker:
                 write = ReqWriteModulePayload(
                     module_id=state.source.id,
                     files=[wire.rmap_file(generated_file)],
+                    source_mappings=[(build_result.build.id, build_result.source_mappings)],
                 )
                 send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
                 _, write_result = await recv_message_with(
@@ -320,12 +323,16 @@ class RuntimeWorker:
             build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Build)
             runnable = state.interp.module_idx.symbol_by_id(payload.runnable_id)
 
+            # TODO @Cleanup: symbol build source mapping should likely happen in language
+            #  This feels like a fundamental concern of instantiation where we need to map
+            #  all virtual symbols (e.g. Task, Artifact) to their actual implementations.
+            #  This may be turn out orthogonal to tracking sources for instant+debuggable builds.
             if isinstance(runnable, language.Task):
                 # if it's a task get the actual runnable from the build
-                target_id = build.map(runnable.id) if build is not None else None
+                target_id = build.get_target(runnable.id) if build is not None else None
                 try:
                     runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
-                except KeyError as e:  # could not get target code
+                except KeyError:  # could not get target code
                     send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
                     return
             elif not isinstance(runnable, language.Code):

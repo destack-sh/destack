@@ -32,10 +32,10 @@ class Type:
 @gql.type
 class SourceMapping:
     source_id: UUID
-    source_path: JSON
+    source_path: Optional[JSON]
     source_revision: int
     target_id: UUID
-    target_path: JSON
+    target_path: Optional[JSON]
     target_revision: int
 
 

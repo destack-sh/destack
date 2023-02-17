@@ -55,8 +55,8 @@ export const useNotifications = defineStore("notifications", {
     dismiss(notificationId: string): void {
       this.activeNotifications = this.activeNotifications.filter((n) => n.id !== notificationId);
     },
-    dismissIf(type: string): void {
-      this.activeNotifications = this.activeNotifications.filter((n) => n.type !== type);
+    dismissIf(filters: { type?: string }): void {
+      this.activeNotifications = this.activeNotifications.filter((n) => n.type !== filters.type);
     },
   },
 });

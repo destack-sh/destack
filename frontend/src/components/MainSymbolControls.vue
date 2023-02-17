@@ -2,6 +2,7 @@
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
+import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
@@ -32,6 +33,7 @@ const availableSymbols = symbolsLike({
   symbolTypes: [SymbolType.Runconfig, SymbolType.Build, SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
+// :ProperSymbolSearch
 const filteredSymbols = computed(() =>
   query.value === ""
     ? availableSymbols.value
@@ -40,6 +42,7 @@ const filteredSymbols = computed(() =>
       })
 );
 
+const notifications = useNotifications();
 const buildMain = provideGlobalAction({
   id: "symbol.buildMain",
   label: computed(() => "Build " + mainSymbol.value?.name),
@@ -47,7 +50,15 @@ const buildMain = provideGlobalAction({
   enabled: canBuild,
   apply: async () => {
     console.log("build " + mainSymbol.value?.name);
-    operations.runtime.build(mainSymbol.value?.id);
+    const ret = await operations.runtime.build(mainSymbol.value?.id);
+    if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
+      notifications.show({
+        type: "build.fail",
+        kind: "error",
+        message: "Build failed",
+        description: `Build failed for ${mainSymbol.value?.name}`,
+      });
+    }
   },
 });
 
