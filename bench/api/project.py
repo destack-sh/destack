@@ -173,6 +173,7 @@ class FileCreateInput:
     id: Optional[GlobalID] = None
     project_version_id: GlobalID
     name: str
+    path: str  # not used here, needed to update optimistically in client
     parent_id: Optional[GlobalID] = None
     directory: bool = False
 
@@ -180,11 +181,13 @@ class FileCreateInput:
 @gql.input
 class FileRenameInput(gql.NodeInput):
     name: str
+    path: str  # unused, as in FileCreateInput
 
 
 @gql.input
 class FileMoveInput(gql.NodeInput):
     parent_id: Optional[GlobalID] = None
+    path: str  # unused, as in FileCreateInput
 
 
 @gql.type

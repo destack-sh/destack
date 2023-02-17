@@ -1,4 +1,4 @@
-import { graphql, useFragment } from "@/gql";
+import { graphql } from "@/gql";
 import {
   StatementType,
   TypeTag,
@@ -15,7 +15,6 @@ import {
   type TypeNodeUpdateInput,
   type UpdateStatementModifierMutation,
 } from "@/gql/graphql";
-import { StatementHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
@@ -76,13 +75,7 @@ export function useStatementOps() {
               __typename: "File",
               id: vars.fileId,
             },
-            parent:
-              vars.parentId == null
-                ? null
-                : {
-                    __typename: "Statement",
-                    id: vars.parentId,
-                  },
+            parent: vars.parentId == null ? null : { __typename: "Statement", id: vars.parentId },
             revision: -1,
             orderKey: vars.orderKey,
             // default new fields (all! fields in StatementContent fragment)
@@ -112,8 +105,7 @@ export function useStatementOps() {
           return; // error
         }
         // extend File.statements array with (ref to) new statement
-        // note that we must ensure that all relevant fields are present
-        // (Apollo doesn't check for us here)
+        // must ensure that all relevant fields are present or weird things happen
         cache.modify({
           id: cache.identify(createStatement.createStatement?.file),
           fields: {

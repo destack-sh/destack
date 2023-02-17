@@ -1,4 +1,5 @@
 import { graphql } from "@/gql";
+import type { CreateFileMutation, RenameFileMutation, DeleteFileMutation, RestoreFileMutation } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
@@ -14,35 +15,85 @@ export function useFileOps() {
 
   const { mutate: createFileMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation createFile($id: GlobalID, $projectVersionId: GlobalID!, $name: String!) {
-        createFile(input: { id: $id, projectVersionId: $projectVersionId, name: $name }) {
+      # path is only used for optimistic responses
+      mutation createFile(
+        $id: GlobalID
+        $projectVersionId: GlobalID!
+        $name: String!
+        $directory: Boolean
+        $parentId: GlobalID
+        $path: String!
+      ) {
+        createFile(
+          input: {
+            id: $id
+            projectVersionId: $projectVersionId
+            parentId: $parentId
+            name: $name
+            directory: $directory
+            path: $path
+          }
+        ) {
           ... on File {
             id
             ...FileHeader
-            statements {
-              ...StatementHeader
+            projectVersion {
+              id
+            }
+            statements(filters: { isVisible: true }) {
+              ...StatementContent
             }
           }
           ...OperationInfoContent
         }
       }
     `),
-    { refetchQueries: ["projectVersionContent"] }
-  );
-
-  const { mutate: renameFileMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation renameFile($id: GlobalID!, $name: String!) {
-        renameFile(input: { id: $id, name: $name }) {
-          ... on File {
-            id
-            ...FileHeader
-          }
-          ...OperationInfoContent
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        projectVersionId: string;
+        parentId: string | null;
+        name: string;
+        path: string;
+        directory: boolean;
+      }) =>
+        ({
+          __typename: "Mutation",
+          createFile: {
+            __typename: "File",
+            projectVersion: {
+              __typename: "ProjectVersion",
+              id: vars.projectVersionId,
+            },
+            parent: vars.parentId == null ? null : { __typename: "File", id: vars.parentId },
+            id: vars.id,
+            name: vars.name,
+            path: vars.path,
+            revision: -1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            generated: false,
+            statements: [],
+          },
+        } as CreateFileMutation),
+      update(cache, { data: createFile }) {
+        if (createFile?.createFile.__typename != "File") {
+          return; // error;
         }
-      }
-    `),
-    { refetchQueries: ["projectVersionContent"] }
+        // extend ProjectVersion.statements array with (ref to) new file
+        // must ensure that all relevant fields are present or weird things happen
+        cache.modify({
+          id: cache.identify(createFile.createFile?.projectVersion),
+          fields: {
+            files(currentFiles = []) {
+              return [...currentFiles, { __ref: cache.identify(createFile?.createFile) }];
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
   );
 
   const { mutate: deleteFileMut } = useMutation(
@@ -50,16 +101,24 @@ export function useFileOps() {
       mutation deleteFile($id: GlobalID!) {
         softDeleteFile(input: { id: $id }) {
           ... on File {
-            ...FileHeader
-            statements {
-              ...StatementHeader
-            }
+            id
+            deletedAt
           }
           ...OperationInfoContent
         }
       }
     `),
-    { refetchQueries: ["projectVersionContent"] }
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          __typename: "Mutation",
+          softDeleteFile: {
+            __typename: "File",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as DeleteFileMutation),
+    }
   );
 
   const { mutate: restoreFileMut } = useMutation(
@@ -68,41 +127,20 @@ export function useFileOps() {
         restoreFile(input: { id: $id }) {
           ... on File {
             id
-            ...FileHeader
-            statements {
-              ...StatementHeader
-            }
+            deletedAt
           }
           ...OperationInfoContent
         }
       }
     `),
-    { refetchQueries: ["projectVersionContent"] }
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          __typename: "Mutation",
+          restoreFile: { __typename: "File", id: vars.id, deletedAt: null },
+        } as RestoreFileMutation),
+    }
   );
-
-  async function create(id: string, projectVersionId: string, name: string) {
-    return await operations.perform({
-      type: "file.create",
-      do: async () => {
-        return await createFileMut({ id, projectVersionId, name });
-      },
-      undo: async () => {
-        return await deleteFileMut({ id });
-      },
-    });
-  }
-
-  async function rename(id: string, oldName: string, newName: string) {
-    return await operations.perform({
-      type: "file.rename",
-      do: async () => {
-        return await renameFileMut({ id: id, name: newName });
-      },
-      undo: async () => {
-        return await renameFileMut({ id: id, name: oldName });
-      },
-    });
-  }
 
   async function delete_(id: string) {
     return await operations.perform({
@@ -128,5 +166,64 @@ export function useFileOps() {
     });
   }
 
+  async function create(
+    id: string,
+    projectVersionId: string,
+    name: string,
+    path: string,
+    parentId: string | null,
+    directory?: boolean
+  ) {
+    return await operations.perform({
+      type: "file.create",
+      do: async () => {
+        return await createFileMut({ id, projectVersionId, name, path, parentId, directory: directory ?? false });
+      },
+      undo: async () => {
+        return await deleteFileMut({ id });
+      },
+    });
+  }
+
+  const { mutate: renameFileMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {
+        renameFile(input: { id: $id, name: $name, path: $path }) {
+          ... on File {
+            id
+            name
+            path
+            revision
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; name: string; path: string }) =>
+        ({
+          __typename: "Mutation",
+          renameFile: {
+            __typename: "File",
+            id: vars.id,
+            name: vars.name,
+            path: vars.path,
+            revision: -1,
+          },
+        } as RenameFileMutation),
+    }
+  );
+
+  async function rename(id: string, oldName: string, newName: string) {
+    return await operations.perform({
+      type: "file.rename",
+      do: async () => {
+        return await renameFileMut({ id: id, name: newName, path: newName });
+      },
+      undo: async () => {
+        return await renameFileMut({ id: id, name: oldName, path: oldName });
+      },
+    });
+  }
   return { create, rename, delete: delete_, restore };
 }

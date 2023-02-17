@@ -152,12 +152,12 @@ watch(
   }
 );
 function renameFile(newName: string) {
-  if (fileHeader.value == null) {
+  if (fileHeader.value == null || newName.trim().length == 0) {
     return;
   }
   ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", newName);
 }
-const renameFileDebounced = useDebounceFn(renameFile, 300);
+const renameFileDebounced = useDebounceFn(renameFile, 500);
 </script>
 
 <template>
@@ -165,14 +165,16 @@ const renameFileDebounced = useDebounceFn(renameFile, 300);
   <div class="flex flex-col bg-white px-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
     <!-- File meta -->
     <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
-    <div class="mx-auto w-full max-w-[1000px] pt-6 font-bold text-gray-900">
+    <div class="relative mx-auto w-full max-w-[1000px] pt-6 font-bold text-gray-900">
       <EditableSpan
         ref="nameRef"
-        :model-value="name as string"
-        @update:modelValue="renameFileDebounced($event)"
-        :readonly="editor.readonly"
         class="text-3xl"
-      /><span class="text-lg">.x</span>
+        :readonly="editor.readonly"
+        @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
+        :model-value="name as string"
+      />
+      <span class="text-3xl text-gray-300" v-if="name?.trim().length == 0">My AI<span class="text-lg">.x</span></span>
+      <span class="text-lg" v-if="name?.trim().length ?? 0 > 0">.x</span>
     </div>
     <!-- Add statement to start -->
     <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />

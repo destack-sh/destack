@@ -200,6 +200,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @click="onClickContainer"
   >
+    <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
     <!-- Commented overlay -->
     <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
     <!-- Monaco-like line numbers on the left margin -->
