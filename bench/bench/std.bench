@@ -1,7 +1,3 @@
---- project.x ---
-# Bench's std
-require openai.std@latest
-
 --- temperature.x ---
 enum Temperature :: string:
 High = `"high"`

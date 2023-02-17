@@ -88,8 +88,27 @@ class BuildCandidate:
     model: Model
     candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
-    # TODO @Incomplete: track source mappings during build
     source_mappings: list[SourceMapping] = field(default_factory=list)
+    # weak references are references to symbols outside the build that are not "strong" references
+    # for e.g. string references in code that don't have a foreign key
+    # later/soon we'll want this strongly linked inside the symbol content probably
+    # :WeakReferences
+    weak_references: list[InterpSymbol] = field(default_factory=list)
+
+    def use_weak_ref(self, symbol: InterpSymbol):
+        if symbol.source is None:
+            raise ValueError("weakly references symbol must have a source")
+
+        existing_symbol = next((s for s in self.weak_references if s.name == symbol.name), None)
+        if existing_symbol is not None and existing_symbol.name == symbol.name:
+            # This fragile since it means we can't use the same name for different symbols
+            #  without aliasing/scoping them, which would require hacking any "weak" output (like BPL code).
+            #  I hope we'll fix :WeakReferences before this becomes a problem.
+            if existing_symbol.id != symbol.id:
+                raise ValueError(f"weakly referenced symbol already exists: {symbol.name}")
+            else:
+                return
+        self.weak_references.append(symbol)
 
     def create_data(self, builder: DataBuilder) -> Dataset:
         dataset = Dataset(
@@ -139,6 +158,7 @@ class BuildCandidate:
             build=self.build,
             target_symbols=self.target_symbols,
             source_mappings=self.source_mappings,
+            weak_references=self.weak_references,
         )
 
 
@@ -147,12 +167,13 @@ class BuildResult:
     build: Build
     target_symbols: list[InterpSymbol]
     source_mappings: list[SourceMapping]
+    weak_references: list[InterpSymbol]
 
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
         file = File(path=self.build.id.hex[:8], generated=True, module=module)
-        return generate(self.target_symbols, file)
+        return generate(self.target_symbols, self.weak_references, file)
 
 
 class DataBuilder:
@@ -402,6 +423,10 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     # task input fields
     target_code.emit_get_record(task.type.input.children, task.type.output, "final_output")
     target_code.append("return final_output")
+    # ensure type references are available for parsing (referenced in target bpl code)
+    for node in task.type.output.walk():
+        if isinstance(node.reference, Type):
+            state.use_weak_ref(node.reference)
 
     # target pragma
     # TODO @Feature: generate task target pragma properly
@@ -409,24 +434,47 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     #  2. Get max_tokens from emitted size..? Set max_new_tokens instead?
     target_code.pragma(
         temperature=0.5,
-        max_tokens=1024,
+        max_tokens=2048,
         max_generated_tokens=1024,
         model=f'context["{state.model.name}"]',
     )
+    state.use_weak_ref(state.model)
 
     state.create_data(examples_data)
     code = state.create_code(target_code)
-    state.map_source(task, code)
+    state.map_source(task.definition, code)
 
 
-def generate(symbols: list[InterpSymbol], file: File | None = None) -> File:
+def generate(
+    symbols: list[InterpSymbol], weak_references: list[InterpSymbol], file: File | None = None
+) -> File:
     """Map high-level interpreted symbols back to lower level statements."""
 
     if file is None:
         file = File(module=Module(name="<generated>"), path="<generated>")
 
+    order_keys = generate_n_keys_between(None, None, len(symbols) + len(weak_references))
+
+    # render weak references :WeakReferences
+    for order_key, symbol in zip(order_keys, weak_references):
+        if symbol.source is None:
+            raise RuntimeError(f"weak reference {symbol} has no source")
+        statement = Statement(
+            type=StatementType.IMPORT,
+            symbol_type=symbol.symbol_type,
+            modifier=symbol.modifier,
+            name=symbol.name,
+            # point directly to underling definition, won't work with :Variables
+            reference=symbol.source.underlying_definition,
+            content=None,
+            file=file,
+            parent=None,
+            order_key=order_key,
+            generated=True,
+        )
+        file.statements.append(statement)
+
     # render symbols themselves
-    order_keys = generate_n_keys_between(None, None, len(symbols))
     for order_key, symbol in zip(order_keys, symbols):
         if isinstance(symbol, Dataset):
             content = generate_dataset_content(symbol)

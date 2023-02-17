@@ -31,7 +31,9 @@ task 'extract entities' :: (input: string) -> [Entity]:
 
 # ## 2. Build and run
 
-require openai.std@latest
 build prod:
     task 'extract entities'
     model openai.std.text.text-davinci-003
+
+require symbolx.std@latest
+require openai.std@latest

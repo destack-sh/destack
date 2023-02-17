@@ -36,9 +36,6 @@ task 'extract events' :: (input: string) -> [Event]:
     expect 'non-overlapping events' on output:
     "The events should be distinct in content"
 
-require openai.std@latest
-import model text-davinci-003 from openai.std.text
-
 build main:
     task 'extract events'
-    model text-davinci-003
+    model openai.std.text.text-davinci-003

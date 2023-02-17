@@ -1,17 +1,11 @@
 <script lang="ts" setup>
 import type { InterpError } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
-import { fileOf, useCurrentModuleRuntime } from "@/state/runtime";
+import { fileOf, useCurrentModuleRuntime, useVisibleErrors } from "@/state/runtime";
 import { XCircleIcon } from "@heroicons/vue/24/outline";
-import { computed } from "vue";
 
-const runtime = useCurrentModuleRuntime();
 const editor = useEditorState();
-const errors = computed(() =>
-  (runtime.errors.value ?? [])
-    .map((e) => e as InterpError)
-    .filter((e: InterpError) => e.symbol == null || editor.showGenerated || !e.symbol.generated)
-);
+const errors = useVisibleErrors();
 
 function focusError(error: InterpError) {
   console.log("focus error", error);

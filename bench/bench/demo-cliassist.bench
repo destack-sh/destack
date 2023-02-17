@@ -1,7 +1,5 @@
 --- project.x ---
 # Requirements
-require openai.std@latest
-
 # Builds
 import task 'generate command' from .main
 import model text-davinci-003 from openai.std.text

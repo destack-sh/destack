@@ -6,3 +6,6 @@ task 'add two digits' :: (a: number, b: number) -> number:
     ```python
     return a + b
     ```
+
+require symbolx.std@latest
+require openai.std@latest

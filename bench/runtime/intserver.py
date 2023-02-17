@@ -88,7 +88,12 @@ class InternalServer:
             try:
                 if project_v.committed:
                     raise ValueError(f"cannot write to committed {project_v}")
-                await sync_to_async(write_module)(write.files, project_v, overwrite=True)
+                await sync_to_async(write_module)(
+                    files=write.files,
+                    generated_mappings=write.generated_mappings,
+                    project_v=project_v,
+                    overwrite=True,
+                )
                 success = True
             except Exception as e:
                 logger.error("write_module_failed", exc_info=e)
