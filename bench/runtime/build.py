@@ -414,9 +414,9 @@ def generate(symbols: list[InterpSymbol], file: File | None = None) -> File:
     order_keys = generate_n_keys_between(None, None, len(symbols))
     for order_key, symbol in zip(order_keys, symbols):
         if isinstance(symbol, Dataset):
-            content = down_dataset_content(symbol)
+            content = generate_dataset_content(symbol)
         elif isinstance(symbol, Code):
-            content = down_code_content(symbol)
+            content = generate_code_content(symbol)
         else:
             raise RuntimeError(f"unexpected symbol {symbol}")
         statement = Statement(
@@ -436,7 +436,7 @@ def generate(symbols: list[InterpSymbol], file: File | None = None) -> File:
     return file
 
 
-def down_dataset_content(dataset: Dataset) -> DatasetContent:
+def generate_dataset_content(dataset: Dataset) -> DatasetContent:
     return DatasetContent(
         description=dataset.description,
         language=dataset.language,
@@ -445,7 +445,7 @@ def down_dataset_content(dataset: Dataset) -> DatasetContent:
     )
 
 
-def down_code_content(code: Code) -> CodeContent:
+def generate_code_content(code: Code) -> CodeContent:
     return CodeContent(
         description=code.description,
         language=code.language,
