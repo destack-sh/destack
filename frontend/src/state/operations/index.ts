@@ -86,11 +86,19 @@ export const useOperationsStore = defineStore("operations", {
       this.$reset();
     },
 
-    async _do<T>(operation: Operation<T>): Promise<T | null> {
+    async _do<T>(operation: Operation<T>, undo?: boolean): Promise<T | void | null> {
       operation = { ...operation, startedAt: DateTime.now() };
       this.inflight.push(operation);
       try {
-        const ret = await operation.do();
+        let ret;
+        if (!undo) {
+          ret = await operation.do();
+        } else {
+          if (operation.undo == null) {
+            throw new Error(`operation ${operation.type} cannot be undone`);
+          }
+          ret = (await operation.undo()) as T;
+        }
         onResponse(operation, ret);
         this.completed.push({ ...operation });
         // trim completed stack
@@ -116,7 +124,7 @@ export const useOperationsStore = defineStore("operations", {
       }
       const ret = await this._do(operation);
       this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
-      return ret;
+      return ret as T | null; // cannot be void because it's not undo
     },
 
     async undo(): Promise<void> {
@@ -125,8 +133,7 @@ export const useOperationsStore = defineStore("operations", {
         return;
       }
       console.log(`undo ${operation.type} (id=${operation.id})`);
-      // TODO @Robustness: wrap undo ops in same _do catch/inflight logic
-      await operation.undo();
+      await this._do(operation, true);
       this.redoStack.push(operation);
     },
 
@@ -159,7 +166,7 @@ export const useOperations = createSharedComposable(_useOperations);
 
 function onResponse(operation: Operation<unknown>, ret: unknown) {
   // check for error response
-  if ((ret as any).data != null) {
+  if ((ret as any)?.data != null) {
     // get only field of data (which is the mutation response)
     ret = Object.values((ret as any).data)[0];
     if ((ret as any).__typename == "OperationInfo") {
