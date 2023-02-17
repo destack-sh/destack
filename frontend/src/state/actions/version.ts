@@ -21,13 +21,15 @@ export function useVersionActions() {
     apply: async () => {
       const randomName = getRandomName();
       opsState.reset();
-      await ops.version.commit(editor.currentProjectVersionId as string, randomName);
-      notifications.show({
-        type: "commit.succes",
-        kind: "success",
-        message: `Committed`,
-        description: `Version ${randomName} has been saved.`,
-      });
+      const ret = await ops.version.commit(editor.currentProjectVersionId as string, randomName);
+      if (ret?.data?.commit.__typename == "CommitPayload") {
+        notifications.show({
+          type: "commit.succes",
+          kind: "success",
+          message: `Committed`,
+          description: `Version ${randomName} has been saved.`,
+        });
+      }
     },
   });
 

@@ -11,10 +11,8 @@ const documents = {
     types.ProjectBySlugDocument,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
-  "\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  ":
+  "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    ":
     types.ProjectMigrationRefsDocument,
-  "\n  fragment DatasetContent on Statement {\n    records {\n      data\n    }\n  }\n":
-    types.DatasetContentFragmentDoc,
   "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n":
     types.OperationInfoContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
@@ -103,11 +101,8 @@ export function graphql(
   source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n      project(id: $projectId) {\n        versions(filters: { afterId: $afterId }) {\n          id\n          name\n          createdAt\n          parentsRefs {\n            source\n            target\n          }\n        }\n      }\n    }\n  "];
-export function graphql(
-  source: "\n  fragment DatasetContent on Statement {\n    records {\n      data\n    }\n  }\n"
-): typeof documents["\n  fragment DatasetContent on Statement {\n    records {\n      data\n    }\n  }\n"];
+  source: "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    "];
 export function graphql(
   source: "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n"];

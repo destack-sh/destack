@@ -25,7 +25,7 @@ export function useProjectVersionOps() {
   );
 
   async function commit(projectVersionId: string, name: string, description?: string) {
-    await operations.perform({
+    return await operations.perform({
       type: "version.commit",
       stateless: true,
       do: async () => {

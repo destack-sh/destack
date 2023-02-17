@@ -8,9 +8,12 @@ import {
   type RefMapping,
   type Statement,
 } from "@/gql/graphql";
+import { useNotifications } from "@/state/notifications";
 import { reverseRecord } from "@/utils/functools";
+import { useLazyQuery } from "@vue/apollo-composable";
 import { defineStore } from "pinia";
-import { computed, inject, onBeforeUnmount, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { graphql } from "@/gql";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -196,40 +199,6 @@ export const useEditorState = defineStore("editor", {
       this.currentProjectVersionId = version.id;
     },
 
-    async migrateTo(version: ProjectVersionHeader, intermediateRefs?: RefMapping[][]): Promise<void> {
-      const projectId = this.currentProjectId;
-
-      if (intermediateRefs != null) {
-        // migrate by serializing state and replacing refs
-        let stateJson = JSON.stringify(this.$state);
-        for (const refs of intermediateRefs) {
-          for (const ref of refs) {
-            // replace all matches of ref.source with ref.target
-            // (need to use regex to replace *all* matches)
-            const re = new RegExp(`"${ref.source}"`, "g");
-            stateJson = stateJson.replace(re, `"${ref.target}"`);
-          }
-        }
-        this.$reset();
-        this.$patch(JSON.parse(stateJson));
-
-        // remove editors with refs we don't have anymore
-        const latestRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
-        for (const editor of this.editors) {
-          if (editor.type == "file" && !latestRefs.includes((editor as FileEditor).fileId)) {
-            console.log(`removing outdated editor for file ${(editor as FileEditor).fileId}`);
-            this.closeEditor(editor);
-          }
-        }
-      } else {
-        // just reset if we don't have any iyntermediate refs
-        this.$reset();
-      }
-
-      this.currentProjectId = projectId;
-      this.currentProjectVersionId = version.id;
-    },
-
     setActiveView(viewId: ViewId): void {
       this.activeViewId = viewId;
     },
@@ -364,6 +333,31 @@ export const useEditorState = defineStore("editor", {
       console.log("set main symbol", symbol?.id);
       this.mainSymbolId = symbol?.id ?? null;
     },
+
+    async _doMigrateTo(versionId: string, intermediateRefs: RefMapping[][]): Promise<void> {
+      // migrate by serializing state and replacing refs
+      let stateJson = JSON.stringify(this.$state);
+      for (const refs of intermediateRefs) {
+        for (const ref of refs) {
+          // replace all matches of ref.source with ref.target
+          // (need to use regex to replace *all* matches)
+          const re = new RegExp(`"${ref.source}"`, "g");
+          stateJson = stateJson.replace(re, `"${ref.target}"`);
+        }
+      }
+      this.$reset();
+      this.$patch(JSON.parse(stateJson));
+
+      // remove editors with refs we don't have anymore
+      const latestRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
+      for (const editor of this.editors) {
+        if (editor.type == "file" && !latestRefs.includes((editor as FileEditor).fileId)) {
+          console.log(`removing outdated editor for file ${(editor as FileEditor).fileId}`);
+          this.closeEditor(editor);
+        }
+      }
+      this.currentProjectVersionId = versionId;
+    },
   },
 });
 
@@ -397,17 +391,95 @@ export function useEditorPersistence(intervalMs = 1000) {
   return { save, load };
 }
 
-export function useSymbolInterfaceState<T>(statement: Ref<StatementHeader>, defaultState: T): Ref<T> {
-  const editorInterfaceState = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
-  // local state is stored by statement id in the opaque editor interface state
-  const state = computed({
-    get() {
-      return editorInterfaceState?.get(statement.value.id, defaultState) as T;
-    },
-    set(value: T) {
-      editorInterfaceState?.set(statement.value.id, value);
-    },
-  });
+export function useEditorMigrations() {
+  const migratingTo: Ref<string | null> = ref(null);
+  const notifications = useNotifications();
+  const editor = useEditorState();
 
-  return state;
+  const {
+    load: getProjectMigrationRefs,
+    loading: migrationLoading,
+    error: migrationError,
+    result: migrationRefs,
+  } = useLazyQuery(
+    graphql(/* GraphQL */ `
+      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {
+        project(id: $projectId) {
+          versions(filters: { afterId: $afterId }) {
+            id
+            name
+            createdAt
+            parentsRefs {
+              source
+              target
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  // the second half of applying a migration (since we can't await lazy queries directly)
+  watch(
+    () => [migrationRefs, migrationLoading, migrationError],
+    async () => {
+      if (migratingTo.value == null) return;
+      if (migrationLoading.value) return;
+
+      if (migrationError.value != null) {
+        // fail migration
+        editor.currentProjectVersionId = migratingTo.value;
+        console.error("unable to migrate, error getting intermediate refs", migrationError.value);
+        notifications.show({
+          kind: "warning",
+          type: "editorMigration.fail",
+          message: "Migrating editor failed",
+          description: "Editor could not be migrated (local only).",
+        });
+        migratingTo.value = null;
+      } else if (migrationRefs.value != null) {
+        // got the intermediate ref mappings, do actual migration
+        const intermediateVersions = [...(migrationRefs.value?.project?.versions ?? [])];
+        const intermediateRefs = intermediateVersions
+          ?.sort((a, b) => a.createdAt - b.createdAt)
+          .map((v) => v.parentsRefs);
+        await editor._doMigrateTo(migratingTo.value, intermediateRefs);
+
+        console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
+        notifications.show({
+          kind: "success",
+          type: "editorMigration.success",
+          message: "Migrated editor",
+          description: "Editor migrated to new project version.",
+        });
+        migratingTo.value = null;
+      }
+    },
+    { deep: true }
+  );
+
+  function migrateTo(projectId: string, toVersionId: string, fromVersionId: string) {
+    if (migratingTo.value != null) {
+      throw new Error("already migrating");
+    }
+    // migrating flag triggers migration
+    migratingTo.value = toVersionId;
+    console.log(
+      `migrate editor state for project ${projectId} to version ${toVersionId} (from version ${fromVersionId}))`
+    );
+    // get all ref mappings
+    getProjectMigrationRefs(
+      undefined,
+      {
+        projectId: projectId,
+        afterId: fromVersionId, // assumes that toVersionId is newer than fromVersionId
+      },
+      { fetchPolicy: "network-only" }
+    );
+  }
+
+  return {
+    migrating: computed(() => migratingTo.value != null),
+    migrateTo,
+  };
 }
