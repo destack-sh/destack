@@ -81,7 +81,6 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
         return
     if exists:
         logger.warn(f"Overwriting library {std_v} at {version_id}")
-
     std_v = std.create_version(name=version_id, parent=std_v)
     std_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())

@@ -9,7 +9,7 @@ from typing import Any, AsyncGenerator, NamedTuple, Union
 from bench.language import TypeNode
 from bench.language.lex import lex_string
 from bench.language.parse import TokenParser, impute_type_reference, parse_type_node_inline
-from bench.language.type import InterpSymbol, TypeTag
+from bench.language.type import InterpSymbol, StatementPath, TypeTag
 from bench.language.typer import check_type
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
@@ -551,8 +551,8 @@ def _parse_type_inline(type_str: str, source_context: dict[str, InterpSymbol]) -
 
     # resolve references in source context
     for node in type_node.walk():
-        if isinstance(node.reference, str):
-            resolved = source_context.get(node.reference)
+        if isinstance(node.reference, StatementPath):
+            resolved = source_context.get(node.reference.name)
             if not isinstance(resolved, TypeInstance):
                 # this shouldn't happen
                 raise ValueError(f"unknown type reference: {node.reference}")

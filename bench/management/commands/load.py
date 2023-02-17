@@ -9,7 +9,7 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench import language
-from bench.language import lex, parse, wire
+from bench.language import SymbolType, lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.language.reconstruct import render
 from bench.models import Organization, Project
@@ -46,9 +46,21 @@ class Command(BaseCommand):
 
         project_v = project.create_version(name=version_id)
         project_v.reset()
-        lang_module = language.Module(id=project_v.id, name=project_v.project.path)
         source_file = SourceFile(path=path, content=Path(path).read_text())
-        lang_module, _ = parse(lex(source_file), lang_module, lookup_in_db_module)
+        lang_module, _ = parse(
+            lex(source_file),
+            language.Module(id=project_v.id, name=project_v.project.path),
+            lookup_in_db_module,
+        )
+
+        # :ManageRequirements
+        # strip requirements from module because we can't manage them interactively set
+        # we obviously shouldn't do this later on (hopefully soon..)
+        for file in lang_module.files:
+            file.statements = [
+                s for s in file.statements if s.symbol_type != SymbolType.REQUIREMENT
+            ]
+
         wire_module = wire.rmap_module(lang_module)
         write_module(wire_module.files, project_v)
 

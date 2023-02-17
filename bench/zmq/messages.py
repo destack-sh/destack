@@ -108,6 +108,7 @@ class ReqModuleRunPayload:
 
 
 class ModuleRunErrorType(enum.Enum):
+    INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
     INVALID_RUNCONFIG = "invalid_runconfig"
     RUNTIME_ERROR = "runtime_error"
@@ -134,7 +135,7 @@ class RepReadModulePayload:
 class ReqWriteModulePayload:
     module_id: UUID
     files: list[wire.FileData]
-    source_mappings: list[tuple[UUID, list[wire.SourceMapping]]]
+    generated_mappings: list[tuple[UUID, list[wire.SourceMapping]]]
 
 
 @_register_payload(ZMessageType.REP_WRITE_MODULE)

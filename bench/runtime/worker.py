@@ -302,7 +302,7 @@ class RuntimeWorker:
                 write = ReqWriteModulePayload(
                     module_id=state.source.id,
                     files=[wire.rmap_file(generated_file)],
-                    source_mappings=[(build_result.build.id, build_result.source_mappings)],
+                    generated_mappings=[(build_result.build.id, build_result.source_mappings)],
                 )
                 send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
                 _, write_result = await recv_message_with(
@@ -340,7 +340,12 @@ class RuntimeWorker:
                 return
 
             # run it
-            code_instance = instantiate(runnable)
+            try:
+                code_instance = instantiate(runnable)
+            except Exception as e:
+                logger.exception("instantiate", exc_info=e)
+                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INTERNAL_ERROR))
+                return
             try:
                 ret = await run(code_instance, payload.arguments)
             except Exception as e:

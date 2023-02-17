@@ -84,7 +84,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
 
     # Implicitly require all current libraries at their latest version because
     # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
-    # TODO @Cleanup: let users configure their own set of Bench library requirements
+    # TODO @Cleanup: let users configure their own set of Bench library requirements :ManageRequirements
     #  (std should be a global default, but we want that version pinned too (?))
     _add_implicit_requirements(wire_module)
 
@@ -92,7 +92,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
 
 
 def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
-    """Stupid way of implicitly requiring some libraries for now."""
+    """Stupid way of implicitly requiring some core libraries :ManageRequirements"""
     if wire_module.name in ("symbolx.std", "openai.std"):
         return  # only add to user modules
     implicit_file = wire.FileData(
@@ -126,8 +126,11 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
 
 @transaction.atomic
 def write_module(
-    files: list[wire.FileData], project_v: models.ProjectVersion, overwrite: bool = False
-) -> list[models.File]:
+    files: list[wire.FileData],
+    project_v: models.ProjectVersion,
+    generated_mappings: list[tuple[UUID, wire.StatementData]] = None,
+    overwrite: bool = False,
+) -> None:
     """Write the wire files (and their contents) as models to the database."""
     wire_statements: dict[UUID, wire.StatementData] = {}
     model_files: dict[UUID, models.File] = {}
@@ -194,7 +197,12 @@ def write_module(
         model_statement.reference_id = stmt_data.reference_id
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
-    return list(model_files.values())
+    # update source mappings per generative statement
+    if generated_mappings is not None:
+        for (generator_id, source_mappings) in generated_mappings:
+            models.SourceMapping.objects.filter(statement_id=generator_id).delete()
+            model_mappings = wmap_source_mappings(generator_id, source_mappings)
+            models.SourceMapping.objects.bulk_create(model_mappings)
 
 
 def rmap_reference(
@@ -255,8 +263,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         data.records = list(statement.records.all().values_list("data", flat=True))
     elif statement.symbol_type == SymbolType.BUILD:
         data.generated_mappings = [
-            models.SourceMapping(
-                statement=statement,
+            wire.SourceMapping(
                 source_id=m.source_id,
                 source_path=m.source_path,
                 source_revision=m.source_revision,
@@ -299,17 +306,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         ]
         relations.extend(model_records)
     elif data.generated_mappings:
-        mappings = [
-            models.SourceMapping(
-                source_id=m.source_id,
-                source_path=m.source_path,
-                source_revision=m.source_revision,
-                target_id=m.target_id,
-                target_path=m.target_path,
-                target_revision=m.target_revision,
-            )
-            for m in data.generated_mappings
-        ]
+        mappings = wmap_source_mappings(statement.id, data.generated_mappings)
         relations.extend(mappings)
     elif data.reference_module:
         if isinstance(data.reference_module, UUID):
@@ -320,6 +317,23 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             )
 
     return relations
+
+
+def wmap_source_mappings(
+    statement_id: UUID | None, source_mappings: list[wire.SourceMapping]
+) -> list[models.SourceMapping]:
+    return [
+        models.SourceMapping(
+            statement_id=statement_id,
+            source_id=m.source_id,
+            source_path=m.source_path,
+            source_revision=m.source_revision,
+            target_id=m.target_id,
+            target_path=m.target_path,
+            target_revision=m.target_revision,
+        )
+        for m in source_mappings
+    ]
 
 
 def wmap_type_nodes(

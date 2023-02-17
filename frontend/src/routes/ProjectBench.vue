@@ -273,8 +273,8 @@ watch(
       notifications.show({
         kind: "warning",
         type: "editorMigration.fail",
-        message: "Migration failed",
-        description: "Editor state could not be migrated.",
+        message: "Migrating editor failed",
+        description: "Editor could not be migrated (local only).",
       });
     } else if (projectMigrationRefs.value) {
       const intermediateVersions = [...(projectMigrationRefs.value?.project?.versions ?? [])];
@@ -287,8 +287,8 @@ watch(
       notifications.show({
         kind: "success",
         type: "editorMigration.success",
-        message: "Migrated",
-        description: "Editor state has been migrated.",
+        message: "Migrated editor",
+        description: "Editor migrated to new project version.",
       });
     }
   },

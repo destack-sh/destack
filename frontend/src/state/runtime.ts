@@ -1,5 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import type { InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
+import type { InterpError, InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
@@ -247,4 +247,14 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter) {
     });
   });
   return symbols;
+}
+
+export function useVisibleErrors() {
+  const runtime = useCurrentModuleRuntime();
+  const editor = useEditorState();
+  return computed(() =>
+    (runtime.errors.value ?? [])
+      .map((e) => e as InterpError)
+      .filter((e: InterpError) => e.symbol == null || editor.showGenerated || !e.symbol.generated)
+  );
 }
