@@ -74,7 +74,9 @@ class InternalServer:
             # reload project version as module
             # TODO @Performance: send partial module updates :PartialModuleUpdates
             module_id = msg.payload_as(ProjectVersionChangedPayload).project_version_id
-            project_v = await ProjectVersion.objects.aget(id=module_id)
+            project_v = await ProjectVersion.objects.filter(id=module_id).afirst()
+            if project_v is None:
+                return  # just ignore, was probably deleted
             module = await sync_to_async(read_module)(project_v)
             send_message(
                 self.pub_sock,
