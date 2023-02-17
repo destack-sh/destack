@@ -13,7 +13,7 @@ import ViewIssues from "@/components/panels/ViewIssues.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
-import { useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
+import { useEditorMigrations, useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
 import {
   FileHeaderType,
   ProjectHeaderType,
@@ -34,8 +34,8 @@ import {
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
-import { useLazyQuery, useQuery } from "@vue/apollo-composable";
-import { useRefHistory, useTitle } from "@vueuse/core";
+import { useQuery } from "@vue/apollo-composable";
+import { useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
@@ -228,74 +228,9 @@ watch(
 );
 
 const { load } = useEditorPersistence();
+const { migrateTo } = useEditorMigrations();
 
-// migration logic on version change
-const migrating = ref(false);
-const {
-  load: getProjectMigrationRefs,
-  loading: projectMigrationLoading,
-  error: projectMigrationError,
-  result: projectMigrationRefs,
-} = useLazyQuery(
-  graphql(/* GraphQL */ `
-    query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {
-      project(id: $projectId) {
-        versions(filters: { afterId: $afterId }) {
-          id
-          name
-          createdAt
-          parentsRefs {
-            source
-            target
-          }
-        }
-      }
-    }
-  `)
-);
-
-// the second half of applying a migration (since we can't await lazy queries directly)
-watch(
-  () => [projectMigrationRefs, projectMigrationLoading, projectMigrationError],
-  async () => {
-    if (!migrating.value) return;
-    if (!projectHead.value) {
-      // shouldn't happen but cancel migration if it does
-      migrating.value = false;
-      return;
-    }
-    if (projectMigrationLoading.value) return;
-
-    if (projectMigrationError.value != null) {
-      await editor.migrateTo(projectHead.value, undefined);
-      console.error("unable to migrate, error getting intermediate refs", projectMigrationError.value);
-      migrating.value = false;
-      notifications.show({
-        kind: "warning",
-        type: "editorMigration.fail",
-        message: "Migrating editor failed",
-        description: "Editor could not be migrated (local only).",
-      });
-    } else if (projectMigrationRefs.value) {
-      const intermediateVersions = [...(projectMigrationRefs.value?.project?.versions ?? [])];
-      const intermediateRefs = intermediateVersions
-        ?.sort((a, b) => a.createdAt - b.createdAt)
-        .map((v) => v.parentsRefs);
-      await editor.migrateTo(projectHead.value, intermediateRefs);
-      console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
-      migrating.value = false;
-      notifications.show({
-        kind: "success",
-        type: "editorMigration.success",
-        message: "Migrated editor",
-        description: "Editor migrated to new project version.",
-      });
-    }
-  },
-  { deep: true }
-);
-
-// reset editor state for project if project (head) changes
+// get editor state for project if project (head) changes
 watchEffect(async () => {
   const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
   if (
@@ -307,20 +242,11 @@ watchEffect(async () => {
     load();
     console.log(`loaded editor state for project ${projectHeader.value.id} version ${projectHead.value.id}`);
     if (editor.currentProjectId == projectHeader.value?.id) {
-      // migrate if there is a new version
+      // migrate if there is a new version of the same project
+      // (loads overwrites editor state for the entire project,
+      //  so editor.currentProjectVersionId will point to its last known version)
       if (editor.currentProjectVersionId != projectHead.value?.id) {
-        console.log(`migrate editor state for project ${projectHeader.value.id} to version ${projectHead.value.id}`);
-        migrating.value = true;
-        // get all ref mappings
-        getProjectMigrationRefs(
-          undefined,
-          {
-            projectId: projectHeader.value.id,
-            afterId: editor.currentProjectVersionId,
-          },
-          { fetchPolicy: "network-only" }
-        );
-        // migrating flag triggers migration completion above
+        migrateTo(editor.currentProjectId as string, projectHead.value?.id, editor.currentProjectVersionId as string);
       }
     } else {
       console.log(`reset editor state for project ${projectHeader.value.id}`);

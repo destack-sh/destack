@@ -5,7 +5,6 @@ from .model import ModelInference
 from .organization import Organization
 from .project import File, Project, ProjectVersion
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
-from .tag import Tag, TaggableMixin, TaggedItem
 from .user import User
 
 __all__ = [
@@ -22,8 +21,5 @@ __all__ = [
     "Statement",
     "StatementType",
     "SymbolType",
-    "Tag",
-    "TaggableMixin",
-    "TaggedItem",
     "User",
 ]

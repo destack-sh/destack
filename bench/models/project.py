@@ -15,7 +15,6 @@ from strawberry_django_plus import gql
 from bench.language import SymbolType
 from bench.models import DatasetRecord, SourceMapping
 from bench.models.statement import SimpleTypeNode, Statement, StatementType
-from bench.models.tag import TaggableMixin
 from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
 
 if TYPE_CHECKING:
@@ -56,7 +55,7 @@ class ProjectManager(models.Manager["Project"]):
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
-class Project(TaggableMixin, UUIDModel):
+class Project(UUIDModel):
     """
     A project to instruct an AI to do some things.
 
@@ -229,7 +228,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 elif statement.symbol_type == SymbolType.BUILD:
                     for mapping in statement.generated_mappings.all():
                         mapping.pk = None
-                        mapping.statement = new_statements_ids[mapping.build_id]
+                        mapping.statement_id = new_statements_ids[mapping.statement_id]
                         mapping.source_id = new_statements_ids[mapping.source_id]
                         mapping.target_id = new_statements_ids[mapping.target_id]
                         mapping.source_revision = 0
@@ -269,7 +268,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         return {**new_statements, **new_files, **new_contents}
 
 
-class ProjectVersion(TaggableMixin, UUIDModel):
+class ProjectVersion(UUIDModel):
     """
     A project version records the state of a project at a specific point in time.
     """

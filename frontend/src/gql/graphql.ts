@@ -974,11 +974,6 @@ export type ProjectMigrationRefsQuery = {
   } | null;
 };
 
-export type DatasetContentFragment = {
-  __typename?: "Statement";
-  records: Array<{ __typename?: "DatasetRecord"; data: any }>;
-} & { " $fragmentName"?: "DatasetContentFragment" };
-
 export type OperationInfoContentFragment = {
   __typename?: "OperationInfo";
   messages: Array<{
@@ -1637,29 +1632,6 @@ export type ModuleRuntimeChangedSubscription = {
   };
 };
 
-export const DatasetContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "DatasetContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "records" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "data" } }],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<DatasetContentFragment, unknown>;
 export const OperationInfoContentFragmentDoc = {
   kind: "Document",
   definitions: [
