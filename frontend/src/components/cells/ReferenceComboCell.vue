@@ -159,7 +159,7 @@ defineExpose({
     <ComboboxOptions
       ref="optionsRef"
       v-if="filteredSymbols.length > 0 || canDefineInPlace"
-      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-sm ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
       static
       v-show="selecting"
     >

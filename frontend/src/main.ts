@@ -2,10 +2,9 @@
 
 import { RetryLink } from "@apollo/client/link/retry";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createApp, h, provide } from "vue";
+import { createApp, h, provide, ref } from "vue";
 import { version } from "../../package.json";
 
-import { WS_CONNECTED } from "@/utils/globals";
 import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
@@ -17,6 +16,7 @@ import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
+import { WS_CONNECTED } from "@/utils/globals";
 
 const MAX_RETRY_TIME_MS = 5000;
 

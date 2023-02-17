@@ -8,15 +8,14 @@ import { DateTime } from "luxon";
 import { defineStore } from "pinia";
 import { ref, type Ref } from "vue";
 
-type Operation<T> = {
+export type Operation<T> = {
   id?: string;
   type: string;
   startedAt?: DateTime;
   key?: string | Record<string, string>;
   stateless?: boolean; // whether the operation mutates synced state (true by default)
   do(): Promise<T>;
-  ret?: T;
-  undo?(ret: T): Promise<void>;
+  undo?(): Promise<unknown>;
 };
 
 const COMPLETED_STACK_SIZE = 500;
@@ -87,24 +86,27 @@ export const useOperationsStore = defineStore("operations", {
       this.$reset();
     },
 
-    async _do<T>(operation: Operation<T>): Promise<T> {
+    async _do<T>(operation: Operation<T>): Promise<T | null> {
       operation = { ...operation, startedAt: DateTime.now() };
       this.inflight.push(operation);
       try {
         const ret = await operation.do();
-        operation.ret = ret;
+        onResponse(operation, ret);
         this.completed.push({ ...operation });
         // trim completed stack
         if (this.completed.length > COMPLETED_STACK_SIZE) {
           this.completed = this.completed.slice(this.completed.length - COMPLETED_STACK_SIZE);
         }
         return ret;
+      } catch (e) {
+        onError(operation, e);
+        return Promise.resolve(null);
       } finally {
         this.inflight = this.inflight.filter((op) => op.id !== operation.id);
       }
     },
 
-    async perform<T>(operation: Operation<T>): Promise<T> {
+    async perform<T>(operation: Operation<T>): Promise<T | null> {
       operation = { ...operation, id: operation.id ?? Math.random().toString(16).substring(2, 8) };
       console.log(`perform ${operation.type} (id=${operation.id})`);
 
@@ -123,7 +125,8 @@ export const useOperationsStore = defineStore("operations", {
         return;
       }
       console.log(`undo ${operation.type} (id=${operation.id})`);
-      await operation.undo(operation.ret);
+      // TODO @Robustness: wrap undo ops in same _do catch/inflight logic
+      await operation.undo();
       this.redoStack.push(operation);
     },
 
@@ -153,3 +156,21 @@ export function _useOperations() {
 }
 
 export const useOperations = createSharedComposable(_useOperations);
+
+function onResponse(operation: Operation<unknown>, ret: unknown) {
+  // check for error response
+  if ((ret as any).data != null) {
+    // get only field of data (which is the mutation response)
+    ret = Object.values((ret as any).data)[0];
+    if ((ret as any).__typename == "OperationInfo") {
+      onError(operation, ret);
+    }
+  }
+}
+
+// rewrite so that onError has an array of errorListeners
+function onError(operation: Operation<unknown>, error: unknown) {
+  console.error(`operation ${operation.type} ${operation.id} failed`, error);
+  errorListeners.forEach((listener) => listener(operation, error));
+}
+export const errorListeners: ((operation: Operation<unknown>, error: unknown) => void)[] = [];

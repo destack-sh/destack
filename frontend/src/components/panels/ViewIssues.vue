@@ -3,9 +3,15 @@ import type { InterpError } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { fileOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { XCircleIcon } from "@heroicons/vue/24/outline";
+import { computed } from "vue";
 
 const runtime = useCurrentModuleRuntime();
 const editor = useEditorState();
+const errors = computed(() =>
+  (runtime.errors.value ?? [])
+    .map((e) => e as InterpError)
+    .filter((e: InterpError) => e.symbol == null || editor.showGenerated || !e.symbol.generated)
+);
 
 function focusError(error: InterpError) {
   console.log("focus error", error);
@@ -25,7 +31,7 @@ function focusError(error: InterpError) {
     </div>
     <ul class="flex flex-col gap-2 py-2">
       <li
-        v-for="(error, i) in runtime.errors.value ?? []"
+        v-for="(error, i) in errors ?? []"
         :key="i"
         class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-50"
         @click="focusError(error as InterpError)"

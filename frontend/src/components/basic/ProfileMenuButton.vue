@@ -24,7 +24,7 @@ const userNavigation = [
     </div>
     <FadeTransition>
       <MenuItems
-        class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-sm ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none"
       >
         <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
           <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">

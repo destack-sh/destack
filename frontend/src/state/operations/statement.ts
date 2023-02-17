@@ -129,17 +129,12 @@ export function useStatementOps() {
 
   async function create(id: string, fileId: string, parentId: string | null, orderKey: string) {
     async function apply() {
-      const create = await createStatementMut({
+      return await createStatementMut({
         id,
         fileId,
         parentId,
         orderKey,
       });
-      // TODO @Robustness: handle error responses (across mutations & queries)
-      if (create?.data?.createStatement.__typename != "Statement") {
-        throw new Error(`expected Statement, got ${create}`);
-      }
-      return useFragment(StatementHeaderType, create?.data?.createStatement);
     }
 
     return await operations.perform({
@@ -205,10 +200,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.morph",
       do: async () => {
-        await morphStatementMut({ input: { id, ...newStatement } });
+        return await morphStatementMut({ input: { id, ...newStatement } });
       },
       undo: async () => {
-        await morphStatementMut({ input: { id, ...oldStatement } });
+        return await morphStatementMut({ input: { id, ...oldStatement } });
       },
     });
   }
@@ -243,10 +238,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.modify",
       do: async () => {
-        await updateStatementModifier({ id: id, modifier: newModifier });
+        return await updateStatementModifier({ id: id, modifier: newModifier });
       },
       undo: async () => {
-        await updateStatementModifier({ id: id, modifier: oldModifier });
+        return await updateStatementModifier({ id: id, modifier: oldModifier });
       },
     });
   }
@@ -295,7 +290,7 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.move",
       do: async () => {
-        await moveStatementMut({
+        return await moveStatementMut({
           id: id,
           fileId: newLoc.fileId,
           parentId: newLoc.parentId,
@@ -303,7 +298,7 @@ export function useStatementOps() {
         });
       },
       undo: async () => {
-        await moveStatementMut({
+        return await moveStatementMut({
           id: id,
           fileId: oldLoc.fileId,
           parentId: oldLoc.parentId,
@@ -343,10 +338,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.rename",
       do: async () => {
-        await renameStatementMut({ id: id, name: newName });
+        return await renameStatementMut({ id: id, name: newName });
       },
       undo: async () => {
-        await renameStatementMut({ id: id, name: oldName });
+        return await renameStatementMut({ id: id, name: oldName });
       },
     });
   }
@@ -413,10 +408,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.delete",
       do: async () => {
-        await deleteStatementMut({ id: id });
+        return await deleteStatementMut({ id: id });
       },
       undo: async () => {
-        await restoreStatementMut({ id: id });
+        return await restoreStatementMut({ id: id });
       },
     });
   }
@@ -444,10 +439,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.comment",
       do: async () => {
-        await commentStatementMut({ id: id, commented: commented });
+        return await commentStatementMut({ id: id, commented: commented });
       },
       undo: async () => {
-        await commentStatementMut({ id: id, commented: !commented });
+        return await commentStatementMut({ id: id, commented: !commented });
       },
     });
   }
@@ -473,10 +468,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.setReference",
       do: async () => {
-        await setReferenceMut({ id: id, referenceId: newReferenceId });
+        return await setReferenceMut({ id: id, referenceId: newReferenceId });
       },
       undo: async () => {
-        await setReferenceMut({ id: id, referenceId: oldReferenceId });
+        return await setReferenceMut({ id: id, referenceId: oldReferenceId });
       },
     });
   }
@@ -520,10 +515,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.createTypeNode",
       do: async () => {
-        await createTypeNodeMut({ typeNode: typeNode });
+        return await createTypeNodeMut({ typeNode: typeNode });
       },
       undo: async () => {
-        await deleteTypeNodeMut({ id: typeNode.id, statementId });
+        return await deleteTypeNodeMut({ id: typeNode.id, statementId });
       },
     });
   }
@@ -532,10 +527,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.deleteTypeNode",
       do: async () => {
-        await deleteTypeNodeMut({ id: typeNode.id, statementId });
+        return await deleteTypeNodeMut({ id: typeNode.id, statementId });
       },
       undo: async () => {
-        await createTypeNodeMut({ typeNode });
+        return await createTypeNodeMut({ typeNode });
       },
     });
   }
@@ -561,10 +556,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.updateTypeNode",
       do: async () => {
-        await updateTypeNodeMut({ typeNode: newTypeNode });
+        return await updateTypeNodeMut({ typeNode: newTypeNode });
       },
       undo: async () => {
-        await updateTypeNodeMut({ typeNode: oldTypeNode });
+        return await updateTypeNodeMut({ typeNode: oldTypeNode });
       },
     });
   }

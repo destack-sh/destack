@@ -25,7 +25,8 @@ export function useVersionActions() {
       notifications.show({
         type: "commit.succes",
         kind: "success",
-        message: `Committed version "${randomName}".`,
+        message: `Committed`,
+        description: `Version ${randomName} has been saved.`,
       });
     },
   });

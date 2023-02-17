@@ -1,5 +1,4 @@
-import { graphql, useFragment } from "@/gql";
-import { FileHeaderType } from "@/state/fragments";
+import { graphql } from "@/gql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
@@ -85,14 +84,10 @@ export function useFileOps() {
     return await operations.perform({
       type: "file.create",
       do: async () => {
-        const create = await createFileMut({ id, projectVersionId, name });
-        if (create?.data?.createFile == null || create?.data?.createFile.__typename !== "File") {
-          throw new Error("invalid response");
-        }
-        return useFragment(FileHeaderType, create.data.createFile);
+        return await createFileMut({ id, projectVersionId, name });
       },
       undo: async () => {
-        await deleteFileMut({ id });
+        return await deleteFileMut({ id });
       },
     });
   }
@@ -101,10 +96,10 @@ export function useFileOps() {
     return await operations.perform({
       type: "file.rename",
       do: async () => {
-        await renameFileMut({ id: id, name: newName });
+        return await renameFileMut({ id: id, name: newName });
       },
       undo: async () => {
-        await renameFileMut({ id: id, name: oldName });
+        return await renameFileMut({ id: id, name: oldName });
       },
     });
   }
@@ -113,10 +108,10 @@ export function useFileOps() {
     return await operations.perform({
       type: "file.delete",
       do: async () => {
-        await deleteFileMut({ id: id });
+        return await deleteFileMut({ id: id });
       },
       undo: async () => {
-        await restoreFileMut({ id: id });
+        return await restoreFileMut({ id: id });
       },
     });
   }
@@ -125,10 +120,10 @@ export function useFileOps() {
     return await operations.perform({
       type: "file.restore",
       do: async () => {
-        await restoreFileMut({ id: id });
+        return await restoreFileMut({ id: id });
       },
       undo: async () => {
-        await deleteFileMut({ id: id });
+        return await deleteFileMut({ id: id });
       },
     });
   }
