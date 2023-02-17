@@ -684,7 +684,7 @@ class Runconfig(InterpSymbol, RunconfigContent):
 class BuildContent(SymbolContent):
     source_mappings: list["SourceMapping"]
 
-    def map(self, source_id: UUID) -> Optional[UUID]:
+    def get_target(self, source_id: UUID) -> Optional[UUID]:
         # TODO @Performance: use a dict to map source/target ids
         for mapping in self.source_mappings:
             if mapping.source_id == source_id:
@@ -705,10 +705,10 @@ class Build(InterpSymbol, BuildContent):
 class SourceMapping:
     source_id: UUID
     source_revision: int
-    source_path: dict
+    source_path: Optional[dict]
     target_id: UUID
     target_revision: int
-    target_path: dict
+    target_path: Optional[dict]
 
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {

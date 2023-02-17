@@ -222,6 +222,7 @@ watch(
         message: "Reconnected",
         description: "The Bench runtime reconnected nicely.",
       });
+      notifications.dismissIf({ type: "runtime.disconnected" });
     }
   }
 );

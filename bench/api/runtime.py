@@ -235,7 +235,7 @@ class ModuleRuntimeSubscription:
         worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
         worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_PUB_ADDR)
-        # TODO @Performance @Robustness: filter subscription messages properly (in all sites)
+        # TODO @Robustness: filter subscription messages properly (in all sites)
         worker_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
 
         # get initial runtime
