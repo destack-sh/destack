@@ -129,7 +129,7 @@ class ExecutionTracer(Tracer):
         self,
         code: typing.Optional[CodeInstance] = None,
         model: typing.Optional[ModelInstance] = None,
-        inference_id: typing.Optional[uuid.UUID] = None,
+        inference_context: typing.Optional[InferenceContext] = None,
         inputs: dict[str, Any] | None = None,
     ):
         root = self.stacktrace[0] if self.stacktrace else None
@@ -145,7 +145,7 @@ class ExecutionTracer(Tracer):
             exited_at=None,
             inputs=inputs,
             outputs=None,
-            inference_id=inference_id,
+            inference_context_id=inference_context.id if inference_context else None,
             error=None,
         )
         self.trace.frames.append(frame)
@@ -173,7 +173,7 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_enter(self, ctx: InferenceContext):
-        frame = self._create_frame(model=ctx.model, inference_id=ctx.id)
+        frame = self._create_frame(model=ctx.model, inference_context=ctx)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))

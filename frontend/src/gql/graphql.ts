@@ -19,8 +19,6 @@ export type Scalars = {
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
   UUID: any;
-  /** Represents NULL values */
-  Void: any;
 };
 
 export type BuildInput = {
@@ -91,6 +89,47 @@ export enum ErrorType {
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
   UnknownToken = "UNKNOWN_TOKEN",
 }
+
+export type Execution = Node & {
+  __typename?: "Execution";
+  code: Statement;
+  createdAt: Scalars["DateTime"];
+  descendants: Array<Execution>;
+  durationMillis?: Maybe<Scalars["Float"]>;
+  error?: Maybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"];
+  inputs?: Maybe<Scalars["JSON"]>;
+  model?: Maybe<Statement>;
+  outputs?: Maybe<Scalars["JSON"]>;
+  parent?: Maybe<Execution>;
+  root?: Maybe<Execution>;
+  /** Time of transition to RUNNING status. */
+  startedAt?: Maybe<Scalars["DateTime"]>;
+  status: Scalars["String"];
+  /** Time of transition to a terminal status. */
+  terminatedAt?: Maybe<Scalars["DateTime"]>;
+  updatedAt: Scalars["DateTime"];
+};
+
+/** A connection to a list of items. */
+export type ExecutionConnection = {
+  __typename?: "ExecutionConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<ExecutionEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type ExecutionEdge = {
+  __typename?: "ExecutionEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Execution;
+};
 
 export type File = Node & {
   __typename?: "File";
@@ -492,6 +531,7 @@ export type ProjectVersionFilter = {
 
 export type Query = {
   __typename?: "Query";
+  executions: ExecutionConnection;
   file?: Maybe<File>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
@@ -501,6 +541,13 @@ export type Query = {
   projects: ProjectConnection;
   user?: Maybe<User>;
   users: UserConnection;
+};
+
+export type QueryExecutionsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type QueryFileArgs = {
@@ -771,11 +818,12 @@ export type StatementUpdateLanguageInput = {
 
 export type Subscription = {
   __typename?: "Subscription";
-  modelExecutionChanged?: Maybe<Scalars["Void"]>;
+  modelExecutionChanged: Execution;
   moduleRuntimeChanged: ModuleRuntime;
 };
 
 export type SubscriptionModelExecutionChangedArgs = {
+  codeId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
 };
 

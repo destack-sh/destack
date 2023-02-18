@@ -70,6 +70,10 @@ class ModuleWorkerState:
     wire_dependencies: dict[UUID, wire.ModuleData] = field(default_factory=dict)
 
     @property
+    def module_id(self) -> UUID:
+        return self.source.id
+
+    @property
     def interpreted(self) -> bool:
         return self.interp.module_idx is not None
 
@@ -350,7 +354,11 @@ class RuntimeWorker:
                 # instantiate code symbol
                 tracker = forward_execution_capture(execution_id, self.pub_sock)
                 # "hardcoded" tracing for now, but tracing should be configurable per project/version/run
-                proxy = Proxy(tracer=MultiTracer([ExecutionTracer(tracker), ValidationTracer()]))
+                proxy = Proxy(
+                    tracer=MultiTracer(
+                        [ExecutionTracer(state.module_id, tracker), ValidationTracer()]
+                    )
+                )
                 code_instance: CodeInstance = instantiate(runnable, proxy)
             except Exception as e:
                 logger.exception("instantiate", exc_info=e)
@@ -366,7 +374,7 @@ class RuntimeWorker:
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
-        # TODO @Incomplete: auto-trigger jobs and send out consequent job and runtime changes
+        # TODO @Incomplete: auto-trigger build/generate jobs on source change
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)
@@ -384,7 +392,9 @@ def forward_execution_capture(root_id: UUID, pub_sock: zmq.Socket):
             frame_data.id = root_id  # set root to fixed id
         logger.debug("execution.track", frame=frame_data.id)
         send_message(
-            pub_sock, ZMessageType.EXECUTION_CHANGED, ExecutionChangedPayload(frames=[frame_data])
+            pub_sock,
+            ZMessageType.EXECUTION_CHANGED,
+            ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
         )
 
     return _do_track
