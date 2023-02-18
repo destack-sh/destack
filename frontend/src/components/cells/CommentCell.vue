@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
+import { useEditorState } from "@/state/editor";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -28,6 +29,8 @@ watch(content, () => {
   }
 });
 
+const editor = useEditorState();
+
 defineExpose({
   focus,
   blur: () => monacoEditorRef.value?.blur(),
@@ -54,5 +57,14 @@ defineExpose({
     language="markdown"
   />
   <!-- Show rendered markdown if not editing -->
-  <div v-if="!context.editing.value" class="prose mt-[-1px] font-mono text-sm" v-html="sanitizedHtml" />
+  <div
+    v-if="!context.editing.value"
+    class="prose mt-[-1px]"
+    :class="{
+      'text-sm': editor.textSmall,
+      'text-md': !editor.textSmall,
+      'font-mono': editor.fontMono,
+    }"
+    v-html="sanitizedHtml"
+  />
 </template>

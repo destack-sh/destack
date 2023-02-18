@@ -9,6 +9,7 @@ import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
+import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { localErrorsOf, symbolOf } from "@/state/runtime";
@@ -184,6 +185,8 @@ watch(
 // errors
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
+
+const actions = useActions();
 </script>
 <template>
   <div
@@ -194,8 +197,8 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       // 'border-l-orange-500': isFamilyFocused,
       'hover:border-l-orange-300': !isFocused,
       'pb-0.5': true,
-      'font-mono': !isComment, // not sure if everything should be mono, but it's more consistent..
-      italic: isCommented,
+      'font-mono': editor.fontMono && !isComment, // not sure if everything should be mono, but it's more consistent..
+      'italic text-gray-700': isCommented,
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @click="onClickContainer"
@@ -206,9 +209,12 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
     <!-- Monaco-like line numbers on the left margin -->
     <span
       v-if="editor.showLineNumbers"
-      class="absolute top-[3px] w-6 select-none text-right font-mono text-sm not-italic"
+      class="absolute top-[3px] w-6 select-none text-right not-italic"
       :style="{ left: -30 + 'px' }"
       :class="{
+        'text-sm': editor.textSmall,
+        'text-md': !editor.textSmall,
+        'font-mono': editor.fontMono,
         'text-orange-200': !isFocused && !isCommentish,
         'text-gray-200': !isFocused && isCommentish,
         'font-bold text-orange-600': isFocused && !isCommentish,
@@ -242,7 +248,13 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       <div class="absolute right-0 top-0 h-full w-0.5 bg-orange-100" />
     </template>
     <!-- Main cell -->
-    <div class="relative py-1 px-2 text-sm">
+    <div
+      class="relative py-1 px-2"
+      :class="{
+        'text-sm': editor.textSmall,
+        'text-md': !editor.textSmall,
+      }"
+    >
       <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
     </div>
     <!-- Debug info -->

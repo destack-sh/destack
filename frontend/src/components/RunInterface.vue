@@ -3,7 +3,7 @@ import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
-import { EDITOR_INTERFACE_STATE, type EditorInterfaceState } from "@/state/editor";
+import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { symbolOf, symbolsLike } from "@/state/runtime";
@@ -50,9 +50,13 @@ async function run() {
     });
   }
 }
+const editor = useEditorState();
 </script>
 <template>
-  <div class="flex flex-col items-baseline bg-white px-12 py-8 font-mono text-sm">
+  <div
+    class="flex flex-col items-baseline bg-white px-12 py-8"
+    :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+  >
     <!-- Header -->
     <div class="mx-auto w-full max-w-[1000px]">
       <!-- Runnable -->

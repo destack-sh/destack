@@ -161,46 +161,51 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
 </script>
 
 <template>
-  <!-- bottom padding is in last StatementAddArea -->
-  <div class="flex flex-col bg-white px-12" v-if="fileHeader" :class="isDeleted ? 'opacity-50' : ''">
-    <!-- File meta -->
-    <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
-    <div class="relative mx-auto w-full max-w-[1000px] pt-6 font-bold text-gray-900">
-      <EditableSpan
-        ref="nameRef"
-        class="text-3xl"
-        :readonly="editor.readonly"
-        @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
-        :model-value="name as string"
-      />
-      <span class="text-3xl text-gray-300" v-if="name?.trim().length == 0">My AI<span class="text-lg">.x</span></span>
-      <span class="text-lg" v-if="name?.trim().length ?? 0 > 0">.x</span>
-    </div>
-    <!-- Add statement to start -->
-    <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
-    <!-- File's statements -->
-    <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
-      <StatementInterface
-        :file="(fileHeader as any)"
-        :statement="(positioned.statement as any)"
-        :depth="positioned.depth"
-        :isFirstInGroup="positioned.isFirstInGroup"
-        :isLastInGroup="positioned.isLastInGroup"
-        :lineNumberBase="positioned.lineNumberBase"
-        class="mx-auto w-full max-w-[1000px]"
-      />
-    </template>
-    <!-- Add statement to end -->
-    <StatementAddArea class="mx-auto max-w-[1050px] flex-1 pb-60" @click="insertOrFocusStatementEnd" />
-    <!-- Deleted overlay with restore button -->
-    <div v-if="isDeleted" class="absolute inset-0 flex items-center justify-center opacity-100">
-      <div class="flex flex-col items-center gap-2">
-        <div class="text-2xl font-bold text-red-700">Deleted</div>
-        <div class="text-center text-sm">
+  <!-- Container div -->
+  <div>
+    <!-- Deleted file status and restore -->
+    <div v-if="isDeleted && fileHeader" class="sticky top-0 z-20 -mr-12 w-full bg-red-600 px-12 py-2">
+      <div class="mx-auto flex max-w-[1000px] flex-row items-center gap-2">
+        <div class="text-sm font-bold text-white">This file is in Trash.</div>
+        <div class="text-center text-sm text-white">
           {{ fileHeader.path }} was deleted ({{ getTimeFromNowString(fileHeader.deletedAt) }}).
         </div>
-        <button class="" @click="restore">Restore</button>
+        <button class="text-sm text-white underline" @click="restore">Restore</button>
       </div>
+    </div>
+    <!-- bottom padding is in last StatementAddArea -->
+    <div class="relative flex flex-col bg-white px-12" v-if="fileHeader">
+      <!-- Non-clickable invisible overlay if deleted -->
+      <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
+      <!-- File name & meta -->
+      <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
+      <div class="relative mx-auto w-full max-w-[1000px] pt-6 font-bold text-gray-900">
+        <EditableSpan
+          ref="nameRef"
+          class="text-3xl"
+          :readonly="editor.readonly"
+          @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
+          :model-value="name as string"
+        />
+        <span class="text-3xl text-gray-300" v-if="name?.trim().length == 0">My AI<span class="text-lg">.x</span></span>
+        <span class="text-lg" v-if="name?.trim().length ?? 0 > 0">.x</span>
+      </div>
+      <!-- Add statement to start -->
+      <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
+      <!-- File's statements -->
+      <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
+        <StatementInterface
+          :file="(fileHeader as any)"
+          :statement="(positioned.statement as any)"
+          :depth="positioned.depth"
+          :isFirstInGroup="positioned.isFirstInGroup"
+          :isLastInGroup="positioned.isLastInGroup"
+          :lineNumberBase="positioned.lineNumberBase"
+          class="mx-auto w-full max-w-[1000px]"
+        />
+      </template>
+      <!-- Add statement to end -->
+      <StatementAddArea class="mx-auto max-w-[1050px] flex-1 pb-60" @click="insertOrFocusStatementEnd" />
     </div>
   </div>
 </template>

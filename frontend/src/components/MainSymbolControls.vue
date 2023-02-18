@@ -129,6 +129,11 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
   >
     <ComboboxInput
       class="max-w-fit rounded-sm border-none py-1 pl-3 pr-6 text-right text-sm font-bold text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0"
+      :class="{
+        'font-mono tracking-tighter': editor.fontMono,
+        'text-sm': editor.textSmall,
+        'text-md': !editor.textSmall,
+      }"
       @change="query = $event.target.value"
       :display-value="(stmt) => symbolDeclr(stmt)"
       :placeholder="mainSymbolMissing ? '???' : 'main...'"
@@ -141,6 +146,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     <ComboboxOptions
       v-show="runtime.connected.value"
       class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
     >
       <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>
       <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">no matching symbols</div>
@@ -153,7 +159,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       >
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
+            'relative cursor-default select-none py-0.5 px-2',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
           ]"
         >
@@ -162,7 +168,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
               {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
               {{ stmt.name }}
             </span>
-            <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
+            <span class="text-sm" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
               {{ fileOf(stmt)?.path }}
             </span>
           </div>
