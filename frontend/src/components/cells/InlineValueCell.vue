@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { TypeTag, type SimpleType } from "@/gql/graphql";
+import { useEditorState } from "@/state/editor";
 import { symbolOf } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
@@ -100,6 +101,8 @@ const enumMembers = computed(() => {
   return runtimeType?.typeNodes ?? [];
 });
 
+const editor = useEditorState();
+
 defineExpose({
   editing,
   focus,
@@ -111,7 +114,10 @@ defineExpose({
 </script>
 <template>
   <!-- Wrapper for selectable value container -->
-  <div class="relative">
+  <div
+    class="relative"
+    :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+  >
     <button
       class="flex h-full w-full outline-none outline-transparent ring-0"
       :class="readValue == placeholderValue ? 'text-gray-300' : ''"
@@ -161,7 +167,8 @@ defineExpose({
         @input="(e: any) => writeValue(e.target?.value)"
         ref="valueRef"
         :type="type.tag == TypeTag.String ? 'text' : 'number'"
-        class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
+        class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+        :class="[editor.textSmall ? 'text-sm' : '']"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="cancel"
         :placeholder="placeholderValue ?? ''"
@@ -178,13 +185,13 @@ defineExpose({
           as="input"
           ref="valueRef"
           spellcheck="false"
-          class="w-full min-w-0 rounded-none border-none bg-transparent p-0 text-sm outline-none ring-0 focus:ring-0"
+          class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
           :display-value="(val: any) => val?.name"
           :placeholder="placeholderValue ?? '...'"
           @keyup.escape.prevent="cancel"
         >
         </ComboboxInput>
-        <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 text-base focus:outline-none sm:text-sm" static>
+        <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 text-base focus:outline-none" static>
           <ComboboxOption
             v-for="member in enumMembers"
             :key="member.name"
@@ -193,7 +200,7 @@ defineExpose({
           >
             <li
               :class="[
-                'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
+                'relative cursor-default select-none py-0.5 px-2',
                 active ? 'bg-orange-600 text-white' : 'text-gray-900',
                 selected ? 'underline' : '',
               ]"

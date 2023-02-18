@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { InterpSymbol } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD, type StatementHeader } from "@/state/editor";
+import { SYMBOL_TYPE_KEYWORD, useEditorState, type StatementHeader } from "@/state/editor";
 import { fileOf, relativePath, symbolOf } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onStartTyping, useFocus } from "@vueuse/core";
@@ -119,6 +119,8 @@ function importSourceTo(symbol: InterpSymbol): string | undefined {
   return undefined;
 }
 
+const editor = useEditorState();
+
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
   blur: () => ((inputRefFocus.focused.value = false), (selecting.value = false)),
@@ -147,7 +149,8 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="inputRef"
-      class="rounded-sm border-0 p-0 font-mono outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
+      class="rounded-sm border-0 p-0 outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
+      :class="{ 'font-mono': editor.fontMono }"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."
@@ -167,8 +170,9 @@ defineExpose({
       <ComboboxOption v-if="query.length > 0" :key="0" :value="null" v-slot="{ active }">
         <li
           :class="[
-            'relative flex cursor-default select-none items-baseline justify-between py-0.5 px-2 font-mono text-sm',
+            'relative flex cursor-default select-none items-baseline justify-between py-0.5 px-2  text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
+            editor.fontMono ? 'font-mono' : '',
           ]"
         >
           {{ query }}:
@@ -187,8 +191,9 @@ defineExpose({
       >
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
+            'relative cursor-default select-none py-0.5 px-2 text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
+            editor.fontMono ? 'font-mono' : '',
           ]"
         >
           <div class="flex items-baseline justify-between">

@@ -7,6 +7,7 @@ import {
   type SimpleType,
 } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { useEditorState } from "@/state/editor";
 import { symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
@@ -103,6 +104,8 @@ function focus() {
   }
 }
 
+const editor = useEditorState();
+
 defineExpose({
   editing,
   focus,
@@ -133,7 +136,12 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="valueRef"
-      class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 p-1 font-mono text-sm outline-none ring-0 placeholder:text-sm focus:border-black focus:underline focus:ring-0"
+      class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-black bg-orange-50 p-1 outline-none ring-0 focus:border-black focus:underline focus:ring-0"
+      :class="{
+        'font-mono': editor.fontMono,
+        'text-sm placeholder:text-sm': editor.textSmall,
+        'text-md placeholder:text-md': !editor.textSmall,
+      }"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."
@@ -142,14 +150,15 @@ defineExpose({
     />
     <ComboboxOptions
       ref="optionsRef"
-      class="absolute z-20 mt-8 max-h-60 w-60 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+      class="absolute z-20 mt-8 max-h-60 w-60 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none"
       static
       v-show="editing"
+      :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
     >
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 px-2 font-mono text-sm',
+            'relative cursor-default select-none py-0.5 px-2 ',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             selected ? 'underline' : '',
           ]"
