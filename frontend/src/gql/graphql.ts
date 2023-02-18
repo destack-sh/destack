@@ -236,7 +236,6 @@ export type Mutation = {
   updateStatementModifier: StatementOperationInfo;
   updateStatementRecord: StatementOperationInfo;
   updateStatementReference: StatementOperationInfo;
-  updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
 };
 
@@ -346,10 +345,6 @@ export type MutationUpdateStatementRecordArgs = {
 
 export type MutationUpdateStatementReferenceArgs = {
   input: StatementSetReferenceInput;
-};
-
-export type MutationUpdateStatementTextArgs = {
-  input: StatementTextInput;
 };
 
 export type MutationUpdateStatementTypeNodeArgs = {
@@ -742,11 +737,6 @@ export type StatementSetReferenceInput = {
 
 export type StatementSoftDeleteInput = {
   id: Scalars["GlobalID"];
-};
-
-export type StatementTextInput = {
-  id: Scalars["GlobalID"];
-  text: Scalars["String"];
 };
 
 /** The type of Bench statement. */

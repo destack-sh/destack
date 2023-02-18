@@ -18,6 +18,7 @@ from bench.zmq.messages import (
     ReqWriteModulePayload,
     as_key,
 )
+from bench.zmq.sync import is_semantic
 
 # TODO @Cleanup: intservers should probably live in django-side of the backend?
 #  (not general language runtime)
@@ -104,8 +105,10 @@ class InternalServer:
         elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
             # reload project version as module
             # TODO @Performance: send partial module updates :PartialModuleUpdates
-            module_id = msg.payload_as(ProjectVersionChangedPayload).project_version_id
-            project_v = await ProjectVersion.objects.filter(id=module_id).afirst()
+            change: ProjectVersionChangedPayload = msg.payload_as(ProjectVersionChangedPayload)
+            if not any(is_semantic(mutation) for mutation in change.mutations):
+                return  # ignore non-semantic changes to modules
+            project_v = await ProjectVersion.objects.filter(id=change.project_version_id).afirst()
             if project_v is None:
                 return  # just ignore, was probably deleted
             module = await sync_to_async(read_module)(project_v)

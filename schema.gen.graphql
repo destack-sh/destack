@@ -190,7 +190,6 @@ type Mutation {
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
-  updateStatementText(input: StatementTextInput!): StatementOperationInfo!
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
@@ -575,11 +574,6 @@ input StatementSetReferenceInput {
 
 input StatementSoftDeleteInput {
   id: GlobalID!
-}
-
-input StatementTextInput {
-  id: GlobalID!
-  text: String!
 }
 
 """The type of Bench statement."""

@@ -31,7 +31,6 @@ class ProjectMutationType(enum.Enum):
     RENAME_STATEMENT = "RENAME_STATEMENT"
     # Statement content ("symbol") mutations
     UPDATE_STATEMENT_TYPE_NODE = "UPDATE_STATEMENT_TYPE_NODE"
-    UPDATE_STATEMENT_TEXT = "UPDATE_STATEMENT_TEXT"
     UPDATE_STATEMENT_DESCRIPTION = "UPDATE_STATEMENT_DESCRIPTION"
     UPDATE_STATEMENT_CODE = "UPDATE_STATEMENT_CODE"
     UPDATE_STATEMENT_LANGUAGE = "UPDATE_STATEMENT_LANGUAGE"
@@ -44,4 +43,17 @@ class ProjectMutation:
     project_version_id: UUID
     file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
+
     revision: Optional[int] = None
+
+
+NON_SEMANTIC_MUTATION_TYPES = {
+    ProjectMutationType.COMMIT,
+    ProjectMutationType.CREATE_FILE,
+    ProjectMutationType.CREATE_STATEMENT,  # statements start as blanks
+}
+
+
+def is_semantic(mutation: ProjectMutation) -> bool:
+    # trivial filter for definitely non-semantic mutations
+    return mutation.type not in NON_SEMANTIC_MUTATION_TYPES
