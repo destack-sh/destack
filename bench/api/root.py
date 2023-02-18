@@ -9,6 +9,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
+from bench.api.execution import Execution
 from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
@@ -32,6 +33,7 @@ class Query:
     projects: gql.relay.Connection[Project] = gql.relay.connection()
     projectVersion: Optional[ProjectVersion] = gql.relay.node()
     file: Optional[File] = gql.relay.node()
+    executions: gql.relay.Connection[Execution] = gql.relay.connection()
 
 
 @strawberry.type

@@ -11,6 +11,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import language
+from bench.api.execution import Execution
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.language import wire
 from bench.language.type import StatementModifier
@@ -277,6 +278,8 @@ class ModuleRuntimeSubscription:
 
     @gql.subscription
     async def model_execution_changed(
-        self, project_version_id: GlobalID
-    ) -> AsyncGenerator[None, None]:
+        self, project_version_id: GlobalID, code_id: GlobalID
+    ) -> AsyncGenerator[Execution, None]:
+        project_version_id = UUID(project_version_id.node_id)
+        logger.info("subscribe_executions", project_version_id=project_version_id)
         raise NotImplementedError

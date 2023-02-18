@@ -67,6 +67,49 @@ enum ErrorType {
   CIRCULAR_ANCESTRY
 }
 
+type Execution implements Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """Time of transition to RUNNING status."""
+  startedAt: DateTime
+
+  """Time of transition to a terminal status."""
+  terminatedAt: DateTime
+  durationMillis: Float
+  status: String!
+  inputs: JSON
+  outputs: JSON
+  error: JSON
+  root: Execution
+  parent: Execution
+  descendants: [Execution!]!
+  code: Statement!
+  model: Statement
+}
+
+"""A connection to a list of items."""
+type ExecutionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExecutionEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type ExecutionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Execution!
+}
+
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
@@ -384,6 +427,19 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
+  executions(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): ExecutionConnection!
 }
 
 input RecordCreateInput {
@@ -604,7 +660,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  modelExecutionChanged(projectVersionId: GlobalID!): Void
+  modelExecutionChanged(projectVersionId: GlobalID!, codeId: GlobalID!): Execution!
 }
 
 """The type of symbol content."""
@@ -719,6 +775,3 @@ type UserEdge {
   """The item at the end of the edge"""
   node: User!
 }
-
-"""Represents NULL values"""
-scalar Void

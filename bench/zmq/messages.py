@@ -126,6 +126,7 @@ class RepModuleRunPayload:
 
 @_register_payload(ZMessageType.EXECUTION_CHANGED)
 class ExecutionChangedPayload:
+    module_id: UUID
     frames: list[ExecutionFrameData]
 
 
