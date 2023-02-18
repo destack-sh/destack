@@ -13,6 +13,12 @@ const documents = {
     types.ProjectVersionContentDocument,
   "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    ":
     types.ProjectMigrationRefsDocument,
+  "\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n":
+    types.ExecutionContentFragmentDoc,
+  "\n      query executions($projectVersionId: GlobalID!, $codeId: GlobalID) {\n        executions(projectVersionId: $projectVersionId, codeId: $codeId) {\n          totalCount\n          edges {\n            cursor\n            node {\n              ...ExecutionContent\n              descendants {\n                ...ExecutionContent\n              }\n            }\n          }\n          pageInfo {\n            hasNextPage\n            hasPreviousPage\n            startCursor\n            endCursor\n          }\n        }\n      }\n    ":
+    types.ExecutionsDocument,
+  "\n  fragment PageInfo on PageInfo {\n    hasNextPage\n    hasPreviousPage\n    startCursor\n    endCursor\n  }\n":
+    types.PageInfoFragmentDoc,
   "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n":
     types.OperationInfoContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
@@ -105,6 +111,15 @@ export function graphql(
 export function graphql(
   source: "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n"
+): typeof documents["\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n"];
+export function graphql(
+  source: "\n      query executions($projectVersionId: GlobalID!, $codeId: GlobalID) {\n        executions(projectVersionId: $projectVersionId, codeId: $codeId) {\n          totalCount\n          edges {\n            cursor\n            node {\n              ...ExecutionContent\n              descendants {\n                ...ExecutionContent\n              }\n            }\n          }\n          pageInfo {\n            hasNextPage\n            hasPreviousPage\n            startCursor\n            endCursor\n          }\n        }\n      }\n    "
+): typeof documents["\n      query executions($projectVersionId: GlobalID!, $codeId: GlobalID) {\n        executions(projectVersionId: $projectVersionId, codeId: $codeId) {\n          totalCount\n          edges {\n            cursor\n            node {\n              ...ExecutionContent\n              descendants {\n                ...ExecutionContent\n              }\n            }\n          }\n          pageInfo {\n            hasNextPage\n            hasPreviousPage\n            startCursor\n            endCursor\n          }\n        }\n      }\n    "];
+export function graphql(
+  source: "\n  fragment PageInfo on PageInfo {\n    hasNextPage\n    hasPreviousPage\n    startCursor\n    endCursor\n  }\n"
+): typeof documents["\n  fragment PageInfo on PageInfo {\n    hasNextPage\n    hasPreviousPage\n    startCursor\n    endCursor\n  }\n"];
 export function graphql(
   source: "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n"
 ): typeof documents["\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n"];

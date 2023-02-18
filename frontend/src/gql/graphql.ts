@@ -546,8 +546,11 @@ export type Query = {
 export type QueryExecutionsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
+  codeId?: InputMaybe<Scalars["GlobalID"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  rootId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type QueryFileArgs = {
@@ -1019,6 +1022,61 @@ export type ProjectMigrationRefsQuery = {
     }>;
   } | null;
 };
+
+export type ExecutionContentFragment = {
+  __typename?: "Execution";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  startedAt?: any | null;
+  terminatedAt?: any | null;
+  status: string;
+  inputs?: any | null;
+  outputs?: any | null;
+  error?: any | null;
+  root?: { __typename?: "Execution"; id: any } | null;
+  parent?: { __typename?: "Execution"; id: any } | null;
+  code: { __typename?: "Statement"; id: any };
+  model?: { __typename?: "Statement"; id: any } | null;
+} & { " $fragmentName"?: "ExecutionContentFragment" };
+
+export type ExecutionsQueryVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  codeId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type ExecutionsQuery = {
+  __typename?: "Query";
+  executions: {
+    __typename?: "ExecutionConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "ExecutionEdge";
+      cursor: string;
+      node: {
+        __typename?: "Execution";
+        descendants: Array<
+          { __typename?: "Execution" } & { " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment } }
+        >;
+      } & { " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment } };
+    }>;
+    pageInfo: {
+      __typename?: "PageInfo";
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      startCursor?: string | null;
+      endCursor?: string | null;
+    };
+  };
+};
+
+export type PageInfoFragment = {
+  __typename?: "PageInfo";
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  startCursor?: string | null;
+  endCursor?: string | null;
+} & { " $fragmentName"?: "PageInfoFragment" };
 
 export type OperationInfoContentFragment = {
   __typename?: "OperationInfo";
@@ -1687,6 +1745,81 @@ export type ModuleRuntimeChangedSubscription = {
   };
 };
 
+export const ExecutionContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ExecutionContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Execution" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "inputs" } },
+          { kind: "Field", name: { kind: "Name", value: "outputs" } },
+          { kind: "Field", name: { kind: "Name", value: "error" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "code" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "model" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ExecutionContentFragment, unknown>;
+export const PageInfoFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "PageInfo" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "PageInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+          { kind: "Field", name: { kind: "Name", value: "hasPreviousPage" } },
+          { kind: "Field", name: { kind: "Name", value: "startCursor" } },
+          { kind: "Field", name: { kind: "Name", value: "endCursor" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<PageInfoFragment, unknown>;
 export const OperationInfoContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -2439,6 +2572,99 @@ export const ProjectMigrationRefsDocument = {
     },
   ],
 } as unknown as DocumentNode<ProjectMigrationRefsQuery, ProjectMigrationRefsQueryVariables>;
+export const ExecutionsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "executions" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "executions" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "codeId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "cursor" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionContent" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "descendants" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionContent" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "hasPreviousPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "startCursor" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ExecutionContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ExecutionsQuery, ExecutionsQueryVariables>;
 export const CreateFileDocument = {
   kind: "Document",
   definitions: [

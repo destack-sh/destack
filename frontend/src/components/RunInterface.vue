@@ -4,11 +4,12 @@ import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
+import { useExecutions } from "@/state/executions";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { symbolOf, symbolsLike } from "@/state/runtime";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { computed, inject, ref, type Ref } from "vue";
+import { computed, inject, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
@@ -55,6 +56,9 @@ async function run() {
   }
 }
 const editor = useEditorState();
+
+// TODO @Broken: get proper runnable id(s) if this is a not a code symbol
+const { executions } = useExecutions(toRef(editor, "currentProjectVersionId"), toRef(props, "runnableId"), false);
 </script>
 <template>
   <div
@@ -104,7 +108,10 @@ const editor = useEditorState();
     <!-- Outputs -->
     <div class="mx-auto w-full max-w-[1000px]">
       <div class="font-mono">{{ lastOutput }}</div>
-      <!-- TODO @Incomplete: show live execution history -->
+      <div v-for="execution in executions" :key="execution.id">
+        {{ execution.status }}
+        {{ execution.outputs }}
+      </div>
     </div>
   </div>
 </template>

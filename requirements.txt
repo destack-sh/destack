@@ -157,18 +157,12 @@ inflection==0.5.1
     # via drf-spectacular
 jsonschema==4.4.0
     # via drf-spectacular
-libcst==0.4.9
-    # via strawberry-graphql
-markdown-it-py==2.1.0
-    # via rich
 marshmallow==3.15.0
     # via
     #   dataclasses-json
     #   marshmallow-enum
 marshmallow-enum==1.5.1
     # via dataclasses-json
-mdurl==0.1.2
-    # via markdown-it-py
 monotonic==1.6
     # via posthoganalytics
 more-itertools==9.0.0
@@ -208,9 +202,7 @@ pyasn1-modules==0.2.8
 pycparser==2.21
     # via cffi
 pygments==2.14.0
-    # via
-    #   rich
-    #   strawberry-graphql
+    # via strawberry-graphql
 pyjwt==2.4.0
     # via social-auth-core
 pyopenssl==23.0.0
@@ -234,9 +226,7 @@ pytz==2022.1
     #   -r requirements.in
     #   djangorestframework
 pyyaml==6.0
-    # via
-    #   drf-spectacular
-    #   libcst
+    # via drf-spectacular
 pyzmq==25.0.0
     # via -r requirements.in
 requests==2.27.1
@@ -246,8 +236,6 @@ requests==2.27.1
     #   social-auth-core
 requests-oauthlib==1.3.1
     # via social-auth-core
-rich==13.3.1
-    # via strawberry-graphql
 sentry-sdk==1.10.1
     # via -r requirements.in
 service-identity==21.1.0
@@ -269,9 +257,9 @@ sqlparse==0.4.2
     # via django
 starlette==0.21.0
     # via strawberry-graphql
-strawberry-django-plus==2.0.4
+strawberry-django-plus==1.29
     # via -r requirements.in
-strawberry-graphql[channels,debug-server,opentelemetry]==0.158.0
+strawberry-graphql[channels,debug-server,opentelemetry]==0.142.1
     # via
     #   -r requirements.in
     #   strawberry-django-plus
@@ -287,16 +275,13 @@ txaio==23.1.1
 typing-extensions==4.4.0
     # via
     #   django-stubs-ext
-    #   libcst
     #   opentelemetry-sdk
     #   strawberry-django-plus
     #   strawberry-graphql
     #   twisted
     #   typing-inspect
 typing-inspect==0.7.1
-    # via
-    #   dataclasses-json
-    #   libcst
+    # via dataclasses-json
 uritemplate==4.1.1
     # via drf-spectacular
 urllib3==1.26.12
