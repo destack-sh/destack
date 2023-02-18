@@ -430,12 +430,6 @@ class TypeNodeDeleteInput(gql.NodeInput):
 @gql.type
 class SymbolMutation:
     # TODO @Cleanup: trivial statement field mutations should be much less code
-    @project_mutation(PMT.UPDATE_STATEMENT_TEXT)
-    def update_statement_text(self, input: StatementTextInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.text = input.text
-        return statement
-
     @project_mutation(PMT.UPDATE_STATEMENT_DESCRIPTION)
     def update_statement_description(
         self, input: StatementUpdateDescriptionInput
