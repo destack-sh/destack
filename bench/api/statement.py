@@ -427,9 +427,17 @@ class TypeNodeDeleteInput(gql.NodeInput):
     statement_id: GlobalID
 
 
+# TODO @Cleanup: trivial statement field mutations should be much less code
 @gql.type
 class SymbolMutation:
-    # TODO @Cleanup: trivial statement field mutations should be much less code
+    # both text and code save to code, but UPDATE_STATEMENT_TEXT is more descriptive
+    # and allows us to ignore comment updates trivially :StatementCodeTextReuse
+    @project_mutation(PMT.UPDATE_STATEMENT_TEXT)
+    def update_statement_text(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.code = input.code
+        return statement
+
     @project_mutation(PMT.UPDATE_STATEMENT_DESCRIPTION)
     def update_statement_description(
         self, input: StatementUpdateDescriptionInput

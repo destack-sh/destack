@@ -203,6 +203,14 @@ export function useStatementContext() {
     watch(content, useDebounceFn(saveCode, 200, { maxWait: 1000 }));
   }
 
+  function syncText(content: Ref<string>) {
+    function saveText() {
+      // :StatementCodeTextReuse
+      operations.symbol.updateStatementText(statement.value.id, statement.value.code ?? "", content.value);
+    }
+    watch(content, useDebounceFn(saveText, 1000, { maxWait: 2000 }));
+  }
+
   function syncDescription(content: Ref<string>) {
     function saveDescription() {
       operations.symbol.updateStatementDescription(
@@ -275,6 +283,7 @@ export function useStatementContext() {
     setSymbolType,
     setSymbolTypeEnum,
     setReference,
+    syncText,
     syncName,
     syncCode,
     syncDescription,

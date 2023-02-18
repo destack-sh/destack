@@ -29,6 +29,7 @@ class ProjectMutationType(enum.Enum):
     COMMENT_STATEMENT = "COMMENT_STATEMENT"
     MOVE_STATEMENT = "MOVE_STATEMENT"
     RENAME_STATEMENT = "RENAME_STATEMENT"
+    UPDATE_STATEMENT_TEXT = "UPDATE_STATEMENT_TEXT"  # for comments
     # Statement content ("symbol") mutations
     UPDATE_STATEMENT_TYPE_NODE = "UPDATE_STATEMENT_TYPE_NODE"
     UPDATE_STATEMENT_DESCRIPTION = "UPDATE_STATEMENT_DESCRIPTION"
@@ -51,9 +52,11 @@ NON_SEMANTIC_MUTATION_TYPES = {
     ProjectMutationType.COMMIT,
     ProjectMutationType.CREATE_FILE,
     ProjectMutationType.CREATE_STATEMENT,  # statements start as blanks
+    ProjectMutationType.UPDATE_STATEMENT_TEXT,  # for comments
 }
 
 
 def is_semantic(mutation: ProjectMutation) -> bool:
     # trivial filter for definitely non-semantic mutations
+    # we could do more here (like filter blank morphs), but not worth it now
     return mutation.type not in NON_SEMANTIC_MUTATION_TYPES

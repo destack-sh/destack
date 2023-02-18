@@ -236,6 +236,7 @@ export type Mutation = {
   updateStatementModifier: StatementOperationInfo;
   updateStatementRecord: StatementOperationInfo;
   updateStatementReference: StatementOperationInfo;
+  updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
 };
 
@@ -345,6 +346,10 @@ export type MutationUpdateStatementRecordArgs = {
 
 export type MutationUpdateStatementReferenceArgs = {
   input: StatementSetReferenceInput;
+};
+
+export type MutationUpdateStatementTextArgs = {
+  input: StatementUpdateCodeInput;
 };
 
 export type MutationUpdateStatementTypeNodeArgs = {
@@ -1455,6 +1460,20 @@ export type UpdateStatementCodeMutationVariables = Exact<{
 export type UpdateStatementCodeMutation = {
   __typename?: "Mutation";
   updateStatementCode:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Statement"; id: any; code?: string | null; revision: number };
+};
+
+export type UpdateStatementTextMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  code?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type UpdateStatementTextMutation = {
+  __typename?: "Mutation";
+  updateStatementText:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -3955,6 +3974,77 @@ export const UpdateStatementCodeDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateStatementCodeMutation, UpdateStatementCodeMutationVariables>;
+export const UpdateStatementTextDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateStatementText" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateStatementText" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "code" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "code" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "code" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateStatementTextMutation, UpdateStatementTextMutationVariables>;
 export const CreateRecordDocument = {
   kind: "Document",
   definitions: [
