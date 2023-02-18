@@ -172,6 +172,7 @@ def write_module(
             type=stmt_data.type,
             modifier=stmt_data.modifier,
             name=stmt_data.name,
+            #  :StatementCodeTextReuse
             code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
             symbol_type=stmt_data.symbol_type,
             reference=None,
@@ -291,7 +292,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.provider = data.provider
     statement.external_name = data.external_name
     statement.on = data.on
-    if data.type == StatementType.COMMENT:
+    if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
         statement.code = data.text
     statement.root_type_tag, type_nodes = wmap_type_nodes(statement, data.type_nodes)
     if type_nodes:

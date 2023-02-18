@@ -9,7 +9,7 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 const context = useStatementContext();
 const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
 const content: Ref<string> = ref(context.statement.value.code ?? "");
-context.syncCode(content);
+context.syncText(content);
 
 const sanitizedHtml = computed(() => DOMPurify.sanitize(marked.parse(content.value || "")));
 

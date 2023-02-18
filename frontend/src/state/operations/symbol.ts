@@ -1,5 +1,9 @@
 import { graphql } from "@/gql";
-import type { UpdateStatementCodeMutation, UpdateStatementDescriptionMutation } from "@/gql/graphql";
+import type {
+  UpdateStatementCodeMutation,
+  UpdateStatementDescriptionMutation,
+  UpdateStatementTextMutation,
+} from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 const PENDING_REVISION = -1;
@@ -79,16 +83,50 @@ export function useSymbolContentOps() {
     await operations.perform({
       type: "statement.updateCode",
       do: async () => {
-        return await updateStatementCodeMut({
-          id: id,
-          code: newCode,
-        });
+        return await updateStatementCodeMut({ id, code: newCode });
       },
       undo: async () => {
-        return await updateStatementCodeMut({
-          id: id,
-          code: oldCode,
-        });
+        return await updateStatementCodeMut({ id, code: oldCode });
+      },
+    });
+  }
+
+  // text mutation (exactly like code due to reuse but different op) :StatementCodeTextReuse
+
+  const { mutate: updateStatementTextMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateStatementText($id: GlobalID!, $code: String) {
+        updateStatementText(input: { id: $id, code: $code }) {
+          ... on Statement {
+            id
+            code
+            revision
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; code: string }) =>
+        ({
+          updateStatementText: {
+            __typename: "Statement",
+            id: vars.id,
+            code: vars.code,
+            revision: PENDING_REVISION,
+          },
+        } as UpdateStatementTextMutation),
+    }
+  );
+
+  async function updateStatementText(id: string, oldCode: string, newCode: string) {
+    await operations.perform({
+      type: "statement.updateText",
+      do: async () => {
+        return await updateStatementTextMut({ id, code: newCode });
+      },
+      undo: async () => {
+        return await updateStatementTextMut({ id, code: oldCode });
       },
     });
   }
@@ -213,5 +251,12 @@ export function useSymbolContentOps() {
     });
   }
 
-  return { updateStatementDescription, updateStatementCode, createRecord, updateRecord, deleteRecord };
+  return {
+    updateStatementDescription,
+    updateStatementCode,
+    updateStatementText,
+    createRecord,
+    updateRecord,
+    deleteRecord,
+  };
 }

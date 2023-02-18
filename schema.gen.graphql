@@ -190,6 +190,7 @@ type Mutation {
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
+  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
