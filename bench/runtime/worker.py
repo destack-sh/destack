@@ -46,6 +46,7 @@ from bench.zmq.messages import (
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
     ReqWriteModulePayload,
+    as_key,
 )
 
 logger = structlog.get_logger(__name__)
@@ -218,7 +219,7 @@ class RuntimeWorker:
         self.rep_sock.bind(worker_rep_addr)
         self.intserver_req_sock.connect(intserver_rep_addr)
         self.sub_sock.connect(intserver_pub_addr)
-        self.sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
+        self.sub_sock.setsockopt(zmq.SUBSCRIBE, as_key(ZMessageType.MODULE_CHANGED))
         self.pub_sock.bind(worker_pub_addr)
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)

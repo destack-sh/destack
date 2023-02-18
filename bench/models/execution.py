@@ -29,6 +29,9 @@ class Execution(UUIDTModel):
     The execution of (hierarchical) code.
     """
 
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="executions+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(

@@ -1,10 +1,13 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 from strawberry import auto
 from strawberry_django_plus import gql
 
 from bench import models
 from bench.api.statement import Statement
+
+if TYPE_CHECKING:
+    from bench.api.project import ProjectVersion
 
 
 @gql.django.type(models.Execution)
@@ -20,6 +23,7 @@ class Execution(gql.Node):
     error: auto
     parent: Optional["Execution"]
     descendants: list["Execution"]
+    project_version: Annotated["ProjectVersion", ".project"]
     code: Statement
     model: Optional[Statement]
 

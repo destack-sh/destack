@@ -16,6 +16,7 @@ from bench.zmq.messages import (
     RepWriteModulePayload,
     ReqReadModulePayload,
     ReqWriteModulePayload,
+    as_key,
 )
 
 # TODO @Cleanup: intservers should probably live in django-side of the backend?
@@ -49,7 +50,8 @@ class InternalServer:
         self.rep_sock.bind(intserver_rep_addr)
         self.sub_sock.connect(api_pub_addr)
         self.sub_sock.connect(worker_pub_addr)
-        self.sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
+        self.sub_sock.setsockopt(zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED))
+        self.sub_sock.setsockopt(zmq.SUBSCRIBE, as_key(ZMessageType.PROJECT_VERSION_CHANGED))
         self.pub_sock.bind(intserver_pub_addr)
 
         poller = zmq.asyncio.Poller()
@@ -71,19 +73,6 @@ class InternalServer:
                 self.rep_sock,
                 ZMessageType.REP_READ_MODULE,
                 RepReadModulePayload(module=module),
-            )
-        elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
-            # reload project version as module
-            # TODO @Performance: send partial module updates :PartialModuleUpdates
-            module_id = msg.payload_as(ProjectVersionChangedPayload).project_version_id
-            project_v = await ProjectVersion.objects.filter(id=module_id).afirst()
-            if project_v is None:
-                return  # just ignore, was probably deleted
-            module = await sync_to_async(read_module)(project_v)
-            send_message(
-                self.pub_sock,
-                ZMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(module_id=module.id, module=module),
             )
         elif msg.type == ZMessageType.REQ_WRITE_MODULE:
             write: ReqWriteModulePayload = msg.payload_as(ReqWriteModulePayload)
@@ -112,9 +101,22 @@ class InternalServer:
                 ZMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(module_id=module.id, module=module),
             )
+        elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
+            # reload project version as module
+            # TODO @Performance: send partial module updates :PartialModuleUpdates
+            module_id = msg.payload_as(ProjectVersionChangedPayload).project_version_id
+            project_v = await ProjectVersion.objects.filter(id=module_id).afirst()
+            if project_v is None:
+                return  # just ignore, was probably deleted
+            module = await sync_to_async(read_module)(project_v)
+            send_message(
+                self.pub_sock,
+                ZMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(module_id=module.id, module=module),
+            )
         elif msg.type == ZMessageType.EXECUTION_CHANGED:
-            changes: ExecutionChangedPayload = msg.payload_as(ExecutionChangedPayload)
-            await sync_to_async(save_execution_frame)(changes.frames)
+            changed: ExecutionChangedPayload = msg.payload_as(ExecutionChangedPayload)
+            await sync_to_async(save_execution_frames)(changed.frames)
         else:
             raise ValueError(f"unexpected message: {msg}")
 
@@ -123,7 +125,7 @@ class InternalServer:
         self.rep_sock.close()
 
 
-def save_execution_frame(frames: list[ExecutionFrameData]):
+def save_execution_frames(frames: list[ExecutionFrameData]):
     model_executions: list[Execution] = []
     for frame in frames:
         if frame.exited_at:
@@ -135,6 +137,7 @@ def save_execution_frame(frames: list[ExecutionFrameData]):
 
         execution = Execution(
             id=frame.id,
+            project_version_id=frame.module_id,
             status=status,
             root_id=frame.root_id,
             parent_id=frame.parent_id,

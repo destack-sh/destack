@@ -1,9 +1,9 @@
 import dataclasses
 import json
-import typing
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Optional, Type, TypeVar
 from uuid import UUID
 
 import structlog
@@ -14,31 +14,33 @@ from bench.zmq.messages import (
     PROTOCOL_VERSION,
     REGISTERED_MESSAGE_PAYLOADS,
     ZMessageType,
+    to_key,
 )
 from bench.zmq.serialize import from_dict, to_dict
 
 logger = structlog.get_logger(__name__)
 
 
-PayloadT = typing.TypeVar("PayloadT", bound=typing.Any)
+PayloadT = TypeVar("PayloadT", bound=Any)
 
 
 @dataclass(repr=False)
 class ZMessage:
     type: ZMessageType
-    payload: typing.Any = None
+    payload: Any = None
+    key: Optional[bytes] = None
     id: UUID = dataclasses.field(default_factory=uuid.uuid4)
     sent_at: datetime | None = None
     version: int = PROTOCOL_VERSION
-    # TODO @Performance: expose & use zmq envelope key to filter in zmq
 
     def __str__(self):
-        return f"{self.type} {self.id}"
+        key_str = f" key={self.key.decode('utf-8')}" if self.key is not None else ""
+        return f"{self.type} {self.id}{key_str}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self} {self.sent_at}>"
 
-    def payload_as(self, cls: typing.Type[PayloadT]) -> PayloadT:
+    def payload_as(self, cls: Type[PayloadT]) -> PayloadT:
         if not isinstance(self.payload, cls):
             raise TypeError(f"expected payload to be {cls}, got {type(self.payload)}")
         return self.payload
@@ -55,6 +57,8 @@ def serialize_message(message: ZMessage) -> str:
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
         message_dict["payload"] = to_dict(message.payload)
+        if message.key is None:  # set key if not explicitly set
+            message.key = to_key(message.type, message.payload)
     return json.dumps(message_dict, cls=MessageJSONEncoder)
 
 
@@ -85,7 +89,7 @@ def parse_message(message_json: str) -> ZMessage:
     return msg
 
 
-def send_message(sock: zmq.Socket, message: ZMessage | ZMessageType, payload: typing.Any = None):
+def send_message(sock: zmq.Socket, message: ZMessage | ZMessageType, payload: Any = None):
     if isinstance(message, ZMessageType):
         message = ZMessage(message, payload)
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message.type)
@@ -93,18 +97,31 @@ def send_message(sock: zmq.Socket, message: ZMessage | ZMessageType, payload: ty
         raise ValueError(f"missing payload for {message}")
     if message.sent_at is None:
         message.sent_at = datetime.utcnow()
-    sock.send_string(serialize_message(message))
+    message_bytes = serialize_message(message).encode("utf-8")
+    if message.key is not None:
+        sock.send_multipart([message.key, message_bytes])
+    else:
+        sock.send(message_bytes)
     logger.debug("send_message", msg=message, sock=sock)
 
 
 async def recv_message(sock: zmq.asyncio.Socket) -> ZMessage:
-    msg = parse_message(await sock.recv_string())
-    logger.debug("recv_message", msg=msg, sock=sock)
+    parts = await sock.recv_multipart()
+    if len(parts) == 1:
+        key = None
+        msg_bytes = parts[0]
+    elif len(parts) == 2:
+        key, msg_bytes = parts
+    else:
+        raise ValueError(f"expected 1 or 2 parts, got {len(parts)}")
+    msg_str = msg_bytes.decode("utf-8")
+    msg = parse_message(msg_str)
+    logger.debug("recv_message", msg=msg, key=key, sock=sock)
     return msg
 
 
 async def recv_message_with(
-    sock: zmq.asyncio.Socket, cls: ZMessageType | typing.Type[PayloadT]
+    sock: zmq.asyncio.Socket, cls: ZMessageType | Type[PayloadT]
 ) -> tuple[ZMessage, PayloadT]:
     msg = await recv_message(sock)
     if isinstance(cls, ZMessageType):
