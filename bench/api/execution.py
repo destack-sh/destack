@@ -19,7 +19,7 @@ class Execution(gql.Node):
     outputs: auto
     error: auto
     parent: Optional["Execution"]
-    children: list["Execution"]
+    descendants: list["Execution"]
     code: Statement
     model: Optional[Statement]
 

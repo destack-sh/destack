@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import abc
 import copy
 import typing
 import uuid
@@ -12,8 +11,15 @@ import pytz
 import structlog
 
 from bench.language.typer import check_type
+from bench.models.utils import UUIDT
 from bench.runtime.bpl import InferenceContext
-from bench.runtime.type import CodeInstance, DecoderSettings, ModelInstance
+from bench.runtime.type import (
+    CodeInstance,
+    DecoderSettings,
+    ExecutionFrame,
+    ModelInstance,
+    TextGeneration,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +42,12 @@ class Tracer:
     def inference_enter(self, ctx: InferenceContext):
         pass
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings, duration: float):
+    def inference_generate_enter(self, ctx: InferenceContext, step: DecoderSettings):
+        pass
+
+    def inference_generate_exit(
+        self, ctx: InferenceContext, step: DecoderSettings, generation: TextGeneration
+    ):
         pass
 
     def inference_exit(self, ctx: InferenceContext):
@@ -68,9 +79,15 @@ class MultiTracer(Tracer):
         for tracer in self.tracers:
             tracer.inference_enter(ctx)
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings, duration: float):
+    def inference_generate_enter(self, ctx: InferenceContext, step: DecoderSettings):
         for tracer in self.tracers:
-            tracer.inference_generate(ctx, step, duration)
+            tracer.inference_generate_enter(ctx, step)
+
+    def inference_generate_exit(
+        self, ctx: InferenceContext, step: DecoderSettings, generation: TextGeneration
+    ):
+        for tracer in self.tracers:
+            tracer.inference_generate_exit(ctx, step, generation)
 
     def inference_exit(self, ctx: InferenceContext):
         for tracer in reversed(self.tracers):
@@ -83,23 +100,7 @@ class Trace:
     pass
 
 
-@dataclass
-class ExecutionFrame:
-    id: uuid.UUID
-    code: CodeInstance
-    model: typing.Optional[ModelInstance]
-    parent: typing.Optional[ExecutionFrame]
-    entered_at: datetime
-    exited_at: typing.Optional[datetime]
-    inputs: dict[str, Any]
-    outputs: typing.Optional[dict[str, Any]]
-    inference_id: typing.Optional[uuid.UUID]
-    exception: typing.Optional[Exception]
-
-
-class ExecutionTracker(abc.ABC):
-    def __call__(self, frame: ExecutionFrame):
-        raise NotImplementedError
+ExecutionCapture = typing.Callable[[ExecutionFrame], None]
 
 
 @dataclass
@@ -116,36 +117,39 @@ class ExecutionTracer(Tracer):
     A worker-side tracer that records code (and model) execution.
     """
 
-    def __init__(self, tracker: ExecutionTracker, trace: ExecutionTrace):
+    def __init__(self, tracker: ExecutionCapture, trace: ExecutionTrace | None = None):
         self.tracker = tracker
         self.stacktrace: list[ExecutionFrame] = []
-        self.trace = trace
+        self.trace = trace or ExecutionTrace(frames=[])
 
     def _create_frame(
         self,
-        code: typing.Optional[CodeInstance],
-        model: typing.Optional[ModelInstance],
-        inputs: dict[str, Any],
+        code: typing.Optional[CodeInstance] = None,
+        model: typing.Optional[ModelInstance] = None,
+        inference_id: typing.Optional[uuid.UUID] = None,
+        inputs: dict[str, Any] | None = None,
     ):
+        root = self.stacktrace[0] if self.stacktrace else None
         parent = self.stacktrace[-1] if self.stacktrace else None
         frame = ExecutionFrame(
-            id=uuid.uuid4(),
+            id=UUIDT(),
             code=code,
             model=model,
+            root=root,
             parent=parent,
             entered_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             exited_at=None,
             inputs=inputs,
             outputs=None,
-            inference_id=None,
-            exception=None,
+            inference_id=inference_id,
+            error=None,
         )
         self.trace.frames.append(frame)
         return frame
 
     def code_enter(self, code: CodeInstance, args, kwargs):
         inputs = {**copy.deepcopy(kwargs), "__args__": copy.deepcopy(args)}
-        frame = self._create_frame(code, None, inputs)
+        frame = self._create_frame(code=code, inputs=inputs)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
@@ -153,32 +157,48 @@ class ExecutionTracer(Tracer):
     def code_exit(self, code: CodeInstance, args, kwargs, result):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.outputs = copy.deepcopy(result)
         self.tracker(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.exception = exception
+        frame.error = exception
         self.tracker(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_enter(self, ctx: InferenceContext):
-        frame = self._create_frame(None, ctx.model, {})
+        frame = self._create_frame(model=ctx.model, inference_id=ctx.id)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_generate(self, ctx: InferenceContext, step: DecoderSettings, duration: float):
-        frame = self.stacktrace[-1]
-        frame.inference_id = ctx.id
+    def inference_generate_enter(self, ctx: InferenceContext, step: DecoderSettings):
+        frame = self._create_frame(model=ctx.model, inputs={"prefix": ctx.current})
+        self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug(
-            "trace.inference.generate",
+            "trace.inference.generate.enter",
             frame=frame,
             stackdepth=len(self.stacktrace),
             step=step,
-            duration=duration,
+        )
+
+    def inference_generate_exit(
+        self, ctx: InferenceContext, step: DecoderSettings, generation: TextGeneration
+    ):
+        frame = self.stacktrace.pop()
+        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.outputs = {
+            "text": generation.text,
+            "tokens": generation.tokens,
+            "logits": generation.logits,
+            "finish_reason": generation.finish_reason,
+        }
+        self.tracker(frame)
+        logger.debug(
+            "trace.inference.generate.exit", frame=frame, stackdepth=len(self.stacktrace), step=step
         )
 
     def inference_exit(self, ctx: InferenceContext):

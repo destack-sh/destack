@@ -41,6 +41,9 @@ class Execution(UUIDTModel):
         max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
     )
 
+    root = models.ForeignKey(
+        "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
+    )
     parent = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
@@ -49,7 +52,7 @@ class Execution(UUIDTModel):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="executions",
+        related_name="executions+",
     )
     model = models.ForeignKey(
         "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
@@ -59,7 +62,7 @@ class Execution(UUIDTModel):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="executions",
+        related_name="executions+",
     )
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
@@ -70,3 +73,6 @@ class Execution(UUIDTModel):
         if self.started_at and self.terminated_at:
             return (self.terminated_at - self.started_at).total_seconds() * 1000
         return None
+
+    def __str__(self):
+        return f"{self.id} {self.status}"

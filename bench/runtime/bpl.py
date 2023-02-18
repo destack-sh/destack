@@ -2,7 +2,6 @@ import ast
 import enum
 import json
 import re
-import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, NamedTuple, Union
 
@@ -11,6 +10,7 @@ from bench.language.lex import lex_string
 from bench.language.parse import TokenParser, impute_type_reference, parse_type_node_inline
 from bench.language.type import InterpSymbol, StatementPath, TypeTag
 from bench.language.typer import check_type
+from bench.models.utils import UUIDT
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
     DecoderSettings,
@@ -292,7 +292,7 @@ class InferenceContext:
         self.parts: list[str] = []
         self.running_length = 0
         self.generated_parts: dict[int, TextGeneration] = {}
-        self.id = uuid.uuid4()
+        self.id = UUIDT()
 
     def __str__(self):
         return f"id={self.id}, parts={len(self.parts)}, length={self.running_length}, settings={self.settings}"
@@ -309,7 +309,7 @@ class InferenceContext:
         self.running_length += len(part)
 
     @property
-    def current_block(self) -> str:
+    def current(self) -> str:
         return "".join(self.parts)
 
     @property
@@ -323,10 +323,10 @@ class InferenceContext:
             self.settings.max_generated_tokens - self.generated_length,
         )
 
-    async def generate(self, step: DecoderSettings) -> str:
+    async def generate(self, step: DecoderSettings) -> TextGeneration:
         if self.inference is None:
             raise RuntimeError("inference context is closed")
-        prefix = self.current_block
+        prefix = self.current
 
         # trim last token if it's a space (not sure if this is the right place)
         ends_in_space = prefix.endswith(" ")
@@ -342,7 +342,7 @@ class InferenceContext:
             generation.text = generation.text[1:]
         self.generated_parts[self.running_length] = generation
         self.append(generation.text)
-        return generation.text
+        return generation
 
     def close(self):
         self.inference.end()
@@ -397,9 +397,9 @@ async def run_bpl_controlled(
             settings = get_hole_decode_settings(
                 ctx.remaining_generate_tokens, ctx.settings.temperature, part
             )
-            value = await ctx.generate(settings)
+            generation = await ctx.generate(settings)
             # transform value to target type
-            send_back = parse_hole_repr(part, value)
+            send_back = parse_hole_repr(part, generation.text)
         else:
             raise RuntimeError(f"unexpected prompt part: {part}")
 
@@ -439,7 +439,7 @@ async def run_bpl_speculative(
     if ctx.remaining_generate_tokens <= 0:
         raise GenerationError(GenerationErrorType.OUT_OF_TOKENS, first_unfilled_hole)
     # generate to satisfy this (and potentially future) holes
-    generated = await ctx.generate(
+    generation = await ctx.generate(
         DecoderSettings(
             temperature=ctx.settings.temperature,
             max_tokens=ctx.remaining_generate_tokens,
@@ -461,7 +461,7 @@ async def run_bpl_speculative(
                 expected = part.content
             else:
                 expected = render_variable_repr(part)
-            actual = generated[pos : pos + len(expected)]
+            actual = generation.text[pos : pos + len(expected)]
             if actual != expected:
                 # TODO @Incomplete: unwind, correct and proceed with forward mode
                 raise GenerationError(
@@ -472,8 +472,10 @@ async def run_bpl_speculative(
             pos += len(expected)
         elif isinstance(part, PromptHole):
             # 'decode' from generated text like a decoder would for this hole
-            decode = get_hole_decode_settings(len(generated) - pos, ctx.settings.temperature, part)
-            actual = generated[pos : pos + decode.max_tokens]
+            decode = get_hole_decode_settings(
+                len(generation.text) - pos, ctx.settings.temperature, part
+            )
+            actual = generation.text[pos : pos + decode.max_tokens]
             if decode.stop:  # stop at the first stop of the hole
                 min_stop = min(actual.find(s) for s in decode.stop)
                 if min_stop >= 0:

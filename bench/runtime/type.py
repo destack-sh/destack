@@ -1,16 +1,28 @@
 from __future__ import annotations
 
 import enum
-import typing
+import traceback
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Callable, Coroutine, Optional
+from uuid import UUID
 
 from bench.language.parse import ModuleIndex
-from bench.language.type import Code, Dataset, Model, Module, Type, Value
+from bench.language.type import (
+    Code,
+    Dataset,
+    LiteralValue,
+    Model,
+    Module,
+    SymbolType,
+    Type,
+    Value,
+)
 from bench.settings.utils import required_field
 from bench.utils.record import RecordBatch
 
-AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
-SyncCodeCallable = typing.Callable[..., typing.Any]
+AsyncCodeCallable = Callable[..., Coroutine]
+SyncCodeCallable = Callable[..., Any]
 
 
 @dataclass(repr=False)
@@ -22,16 +34,20 @@ class ModuleInstance:
 @dataclass
 class SymbolInstance:
     @property
-    def py_handle(self) -> typing.Any:
+    def symbol_type(self):
+        return SYMBOL_TYPE_BY_INSTANCE_CLASS[self.__class__]
+
+    @property
+    def py_handle(self) -> Any:
         raise NotImplementedError
 
 
 @dataclass(repr=False)
 class TypeInstance(SymbolInstance, Type):
-    py_type: typing.Any = required_field()
+    py_type: Any = required_field()
 
     @property
-    def py_handle(self) -> typing.Any:
+    def py_handle(self) -> Any:
         return self.py_type
 
 
@@ -63,11 +79,107 @@ class CodeInstance(SymbolInstance, Code):
     transformed_code: str = required_field()
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
     is_async: bool = required_field()
-    prompt: typing.Optional[DynamicPrompt] = required_field()
+    prompt: Optional[DynamicPrompt] = required_field()
 
     @property
     def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:
         return self.code_callable
+
+
+SYMBOL_TYPE_BY_INSTANCE_CLASS = {
+    TypeInstance: SymbolType.TYPE,
+    DatasetInstance: SymbolType.DATASET,
+    ValueInstance: SymbolType.VALUE,
+    ModelInstance: SymbolType.MODEL,
+    CodeInstance: SymbolType.CODE,
+}
+
+
+@dataclass
+class ExecutionFrame:
+    id: UUID
+    code: Optional[CodeInstance]
+    model: Optional[ModelInstance]
+    root: Optional[ExecutionFrame]
+    parent: Optional[ExecutionFrame]
+    inference_id: Optional[UUID]
+    entered_at: datetime
+    exited_at: Optional[datetime]
+    inputs: Optional[dict[str, LiteralValue]]
+    outputs: Optional[LiteralValue]
+    error: Optional[Exception]
+
+    def __str__(self):
+        # get str of all non-null fields
+        fields_strs = [
+            f"code={self.code}" if self.code else None,
+            f"model={self.model}" if self.model else None,
+            f"root={self.root.id}" if self.root else None,
+            f"parent={self.parent.id}" if self.parent else None,
+            f"inference={self.inference_id}" if self.inference_id else None,
+            f"entered={self.entered_at}",
+            f"exited={self.exited_at}" if self.exited_at else None,
+            f"inputs={summarize_args(self.inputs)}",
+            f"outputs={summarize_args(self.outputs)}" if self.outputs else None,
+            f"error={self.error}" if self.error else None,
+        ]
+        fields_str = [s for s in fields_strs if s]
+        return f"id={self.id} ({', '.join(fields_str)})"
+
+    def __repr__(self):
+        return f"<ExecutionFrame {self}>"
+
+
+@dataclass
+class ErrorData:
+    """Wire-able representation of an exception."""
+
+    type: str
+    message: str
+    traceback: list[str]
+
+
+@dataclass
+class ExecutionFrameData:
+    """Wire-able representation of an execution frame."""
+
+    id: UUID
+    code_id: Optional[UUID]
+    model_id: Optional[UUID]
+    root_id: Optional[UUID]
+    parent_id: Optional[UUID]
+    inference_id: Optional[UUID]
+    entered_at: datetime
+    exited_at: Optional[datetime]
+    inputs: dict[str, LiteralValue]
+    outputs: Optional[LiteralValue]
+    error: Optional[ErrorData]
+
+    @staticmethod
+    def from_frame(frame: ExecutionFrame) -> ExecutionFrameData:
+        if frame.error:
+            error_data = ErrorData(
+                type=type(frame.error).__name__,
+                message=str(frame.error),
+                traceback=traceback.format_exception(
+                    type(frame.error), frame.error, frame.error.__traceback__
+                ),
+            )
+        else:
+            error_data = None
+        return ExecutionFrameData(
+            id=frame.id,
+            code_id=frame.code.id if frame.code else None,
+            model_id=frame.model.id if frame.model else None,
+            root_id=frame.root.id if frame.root else None,
+            parent_id=frame.parent.id if frame.parent else None,
+            entered_at=frame.entered_at,
+            exited_at=frame.exited_at,
+            inputs=frame.inputs,
+            outputs=frame.outputs,
+            inference_id=frame.inference_id,
+            error=error_data,
+        )
 
 
 @dataclass
@@ -100,7 +212,7 @@ class PromptSettings:
     stop: list[str] | None
 
 
-class FinishReason(enum.Enum):
+class FinishReason(enum.StrEnum):
     MAX_TOKENS = "max_tokens"
     STOP = "stop"
 
@@ -111,3 +223,15 @@ class TextGeneration:
     tokens: list[str]
     logits: list[float]
     finish_reason: FinishReason
+
+
+def summarize_args(arguments: Any) -> str:
+    """
+    Summarize the names (if available) and types of arguments.
+    """
+    if isinstance(arguments, dict):
+        return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
+    elif isinstance(arguments, (list, tuple, set)):
+        return ", ".join(type(value).__name__ for value in arguments)
+    else:
+        return type(arguments).__name__

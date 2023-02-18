@@ -1,12 +1,15 @@
+from dataclasses import asdict
+
 import structlog
 import zmq.asyncio
 from asgiref.sync import sync_to_async
 
 from bench.models import Execution, ExecutionStatus, ProjectVersion
 from bench.models.mapper import read_module, write_module
-from bench.runtime.tracing import ExecutionFrame
+from bench.runtime.type import ExecutionFrameData
 from bench.zmq import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
 from bench.zmq.messages import (
+    ExecutionChangedPayload,
     ModuleChangedPayload,
     ProjectVersionChangedPayload,
     RepReadModulePayload,
@@ -21,13 +24,6 @@ from bench.zmq.messages import (
 logger = structlog.get_logger(__name__)
 
 
-class WorkerOrchestrator:
-    """Worker orchestrator manages workers lifecycles (incl. heartbeats)"""
-
-    async def start(self, port: int):
-        raise NotImplementedError
-
-
 class InternalServer:
     """Server-side Bench language server for reading and writing modules in DB."""
 
@@ -37,18 +33,24 @@ class InternalServer:
         self.pub_sock = zmq_ctx.socket(zmq.PUB)
 
     async def run(
-        self, internal_server_rep_addr: str, internal_server_pub_addr: str, api_server_pub_addr: str
+        self,
+        intserver_rep_addr: str,
+        intserver_pub_addr: str,
+        api_pub_addr: str,
+        worker_pub_addr: str,
     ):
         logger.info(
             "start",
-            internal_server_rep_addr=internal_server_rep_addr,
-            internal_server_pub_addr=internal_server_pub_addr,
-            api_server_pub_addr=api_server_pub_addr,
+            intserver_rep_addr=intserver_rep_addr,
+            intserver_pub_addr=intserver_pub_addr,
+            api_pub_addr=api_pub_addr,
+            worker_pub_addr=worker_pub_addr,
         )
-        self.rep_sock.bind(internal_server_rep_addr)
-        self.sub_sock.connect(api_server_pub_addr)
+        self.rep_sock.bind(intserver_rep_addr)
+        self.sub_sock.connect(api_pub_addr)
+        self.sub_sock.connect(worker_pub_addr)
         self.sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
-        self.pub_sock.bind(internal_server_pub_addr)
+        self.pub_sock.bind(intserver_pub_addr)
 
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
@@ -84,7 +86,7 @@ class InternalServer:
                 ModuleChangedPayload(module_id=module.id, module=module),
             )
         elif msg.type == ZMessageType.REQ_WRITE_MODULE:
-            write = msg.payload_as(ReqWriteModulePayload)
+            write: ReqWriteModulePayload = msg.payload_as(ReqWriteModulePayload)
             logger.info("write_module", files=write.files, module_id=write.module_id)
             project_v = await ProjectVersion.objects.aget(id=write.module_id)
             try:
@@ -110,6 +112,9 @@ class InternalServer:
                 ZMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(module_id=module.id, module=module),
             )
+        elif msg.type == ZMessageType.EXECUTION_CHANGED:
+            changes: ExecutionChangedPayload = msg.payload_as(ExecutionChangedPayload)
+            await sync_to_async(save_execution_frame)(changes.frames)
         else:
             raise ValueError(f"unexpected message: {msg}")
 
@@ -118,38 +123,36 @@ class InternalServer:
         self.rep_sock.close()
 
 
-async def store_inbound_execution_frames():
-    # TODO @Incomplete: forward execution frames from zmq to execution tracker
-    raise NotImplementedError
+def save_execution_frame(frames: list[ExecutionFrameData]):
+    model_executions: list[Execution] = []
+    for frame in frames:
+        if frame.exited_at:
+            status = ExecutionStatus.Completed
+        elif frame.error:
+            status = ExecutionStatus.Failed
+        else:
+            status = ExecutionStatus.Running
 
-
-async def save_execution_frame(frame: ExecutionFrame):
-    if frame.exited_at:
-        status = ExecutionStatus.Completed
-    elif frame.exception:
-        status = ExecutionStatus.Failed
-    else:
-        status = ExecutionStatus.Running
-
-    if frame.exception:
-        error = {
-            "message": str(frame.exception),
-            "type": type(frame.exception).__name__,
-        }
-    else:
-        error = None
-
-    await Execution.objects.aupdate_or_create(
-        id=frame.id,
-        parent_id=frame.parent.id if frame.parent else None,
-        code_id=frame.code.source.id,
-        model_id=frame.model.source.id if frame.model else None,
-        defaults=dict(
+        execution = Execution(
+            id=frame.id,
+            status=status,
+            root_id=frame.root_id,
+            parent_id=frame.parent_id,
+            code_id=frame.code_id,
+            model_id=frame.model_id,
             started_at=frame.entered_at,
             terminated_at=frame.exited_at,
-            status=status,
             inputs=frame.inputs,
             outputs=frame.outputs,
-            error=error,
-        ),
+            error=asdict(frame.error) if frame.error else None,
+        )
+        model_executions.append(execution)
+
+    # upsert
+    Execution.objects.bulk_create(
+        model_executions,
+        update_conflicts=True,
+        unique_fields=["id"],
+        update_fields=["status", "terminated_at", "outputs", "error"],
     )
+    logger.debug("save_execution_frame", executions=model_executions)

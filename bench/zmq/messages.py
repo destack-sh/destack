@@ -8,6 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language import wire
+from bench.runtime.type import ExecutionFrameData
 from bench.zmq import sync
 
 PROTOCOL_VERSION = 1
@@ -46,10 +47,12 @@ class ZMessageType(StrEnum):
     # Worker <-> Internal
     WORKER_HEARTBEAT = "worker_heartbeat"
     REQ_WORKER_SHUTDOWN = "req_worker_shutdown"
+    REP_WORKER_SHUTDOWN = "rep_worker_shutdown"
     REQ_READ_MODULE = "req_read_module"
     REP_READ_MODULE = "rep_read_module"
     REQ_WRITE_MODULE = "req_write_module"
     REP_WRITE_MODULE = "rep_write_module"
+    EXECUTION_CHANGED = "execution_changed"
 
     # Bench module runtime state sync
     # API <-> Worker
@@ -116,9 +119,14 @@ class ModuleRunErrorType(enum.Enum):
 
 @_register_payload(ZMessageType.REP_MODULE_RUN)
 class RepModuleRunPayload:
+    execution_id: UUID
     error: Optional[ModuleRunErrorType] = None
-    execution_id: Optional[UUID] = None
     output: Optional[wire.LiteralValue] = None
+
+
+@_register_payload(ZMessageType.EXECUTION_CHANGED)
+class ExecutionChangedPayload:
+    frames: list[ExecutionFrameData]
 
 
 @_register_payload(ZMessageType.REQ_READ_MODULE)

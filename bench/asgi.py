@@ -21,13 +21,13 @@ from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
 from bench.settings import (
-    RUN_INTERNAL_SERVER,
-    RUN_RUNTIME_WORKER,
-    ZMQ_API_SERVER_PUB_ADDR,
-    ZMQ_INTERNAL_SERVER_PUB_ADDR,
-    ZMQ_INTERNAL_SERVER_REP_ADDR,
-    ZMQ_RUNTIME_WORKER_PUB_ADDR,
-    ZMQ_RUNTIME_WORKER_REP_ADDR,
+    RUN_INTSERVER,
+    ZMQ_INTSERVER_PUB_ADDR,
+    ZMQ_INTSERVER_REP_ADDR,
+    RUN_worker,
+    ZMQ_api_PUB_ADDR,
+    ZMQ_worker_PUB_ADDR,
+    ZMQ_worker_REP_ADDR,
 )
 from bench.utils.func import wrap_task
 
@@ -61,27 +61,28 @@ application = ProtocolTypeRouter(
 # TODO @Cleanup: move internal server & worker startup to proper daphne startup hook
 #  For now I just couldn't find the appropriate place to run this, so we rely
 #  on the fact that Daphne uses reactor's _asyncioEventLoop to create tasks there.
-if RUN_INTERNAL_SERVER:
+if RUN_INTSERVER:
     from bench.runtime.intserver import InternalServer
 
     server = InternalServer()
     coro = server.run(
-        internal_server_rep_addr=ZMQ_INTERNAL_SERVER_REP_ADDR,
-        internal_server_pub_addr=ZMQ_INTERNAL_SERVER_PUB_ADDR,
-        api_server_pub_addr=ZMQ_API_SERVER_PUB_ADDR,
+        intserver_rep_addr=ZMQ_INTSERVER_REP_ADDR,
+        intserver_pub_addr=ZMQ_INTSERVER_PUB_ADDR,
+        api_pub_addr=ZMQ_api_PUB_ADDR,
+        worker_pub_addr=ZMQ_worker_PUB_ADDR,
     )
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "internal_server"))
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "intserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
-if RUN_RUNTIME_WORKER:
+if RUN_worker:
     from bench.runtime.worker import RuntimeWorker
 
     local_id = random.randint(0, 2 ** 32)  # just some random number
     worker = RuntimeWorker(worker_id=f"local.{hex(local_id)[2:]}")
     coro = worker.run(
-        runtime_worker_rep_addr=ZMQ_RUNTIME_WORKER_REP_ADDR,
-        runtime_worker_pub_addr=ZMQ_RUNTIME_WORKER_PUB_ADDR,
-        internal_server_rep_addr=ZMQ_INTERNAL_SERVER_REP_ADDR,
-        internal_server_pub_addr=ZMQ_INTERNAL_SERVER_PUB_ADDR,
+        worker_rep_addr=ZMQ_worker_REP_ADDR,
+        worker_pub_addr=ZMQ_worker_PUB_ADDR,
+        intserver_rep_addr=ZMQ_INTSERVER_REP_ADDR,
+        intserver_pub_addr=ZMQ_INTSERVER_PUB_ADDR,
     )
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "runtime_worker"))
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

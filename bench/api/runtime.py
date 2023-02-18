@@ -16,7 +16,7 @@ from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import mapper
 from bench.runtime.worker import ReqModuleRuntimePayload
-from bench.settings import ZMQ_RUNTIME_WORKER_PUB_ADDR, ZMQ_RUNTIME_WORKER_REP_ADDR
+from bench.settings import ZMQ_worker_PUB_ADDR, ZMQ_worker_REP_ADDR
 from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.zmq.messages import (
     ModuleRuntimeChangedPayload,
@@ -179,9 +179,9 @@ class RunState:
 class ModuleRuntimeMutation:
     @gql.mutation
     async def build(self, input: BuildInput) -> BuildState | OperationInfo:
-        # TODO @Cleanup @Performance: manage worker sockets across requests
+        # TODO @Cleanup @Performance: keep worker sockets across requests
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
+        worker_req_sock.connect(ZMQ_worker_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         send_message(
             worker_req_sock,
@@ -200,7 +200,7 @@ class ModuleRuntimeMutation:
     @gql.mutation
     async def run(self, input: RunInput) -> RunState | OperationInfo:
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
+        worker_req_sock.connect(ZMQ_worker_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         send_message(
             worker_req_sock,
@@ -232,9 +232,9 @@ class ModuleRuntimeSubscription:
         project_version_id = UUID(project_version_id.node_id)
         logger.info("subscribe_runtime", project_version_id=project_version_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_RUNTIME_WORKER_REP_ADDR)
+        worker_req_sock.connect(ZMQ_worker_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_RUNTIME_WORKER_PUB_ADDR)
+        worker_sub_sock.connect(ZMQ_worker_PUB_ADDR)
         # TODO @Robustness: filter subscription messages properly (in all sites)
         worker_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
 

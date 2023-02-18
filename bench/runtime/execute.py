@@ -46,8 +46,10 @@ from bench.runtime.type import (
     ModelInstance,
     SymbolInstance,
     SyncCodeCallable,
+    TextGeneration,
     TypeInstance,
     ValueInstance,
+    summarize_args,
 )
 from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordList
@@ -110,13 +112,13 @@ class SyncCodeProxy:
         self.tracer = tracer
 
     def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=_summarize_args(kwargs))
+        log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
         self.tracer.code_enter(self.code, args, kwargs)
         log.debug("code.call.enter")
         try:
             result = self.code.code_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.call.exit", result=_summarize_args(result))
+            log.debug("code.call.exit", result=summarize_args(result))
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
@@ -132,13 +134,13 @@ class AsyncCodeProxy:
         self.tracer = tracer
 
     async def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=_summarize_args(kwargs))
+        log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
         self.tracer.code_enter(self.code, args, kwargs)
         log.debug("code.call.enter")
         try:
             result = await self.code.code_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.call.exit", result=_summarize_args(result))
+            log.debug("code.call.exit", result=summarize_args(result))
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
@@ -157,13 +159,18 @@ class InferenceContextProxy:
         self.tracer.inference_enter(self.context)
         logger.debug("inference.enter", context=self.context)
 
-    async def generate(self, step: DecoderSettings) -> str:
+    async def generate(self, step: DecoderSettings) -> TextGeneration:
         start_time = time.time()
-        ret = await self.context.generate(step)
-        duration = time.time() - start_time
-        self.tracer.inference_generate(self.context, step, duration)
-        logger.debug("inference.generate", step=step, ret=len(ret), duration=duration)
-        return ret
+        self.tracer.inference_generate_enter(self.context, step)
+        generation = await self.context.generate(step)
+        self.tracer.inference_generate_exit(self.context, step, generation)
+        logger.debug(
+            "inference.generate",
+            step=step,
+            ret=len(generation.text),
+            duration=time.time() - start_time,
+        )
+        return generation
 
     def close(self):
         self.tracer.inference_exit(self.context)
@@ -381,18 +388,6 @@ async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = No
             return code.py_handle(**arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
-
-
-def _summarize_args(arguments: Any) -> str:
-    """
-    Summarize the names (if available) and types of arguments.
-    """
-    if isinstance(arguments, dict):
-        return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
-    elif isinstance(arguments, (list, tuple, set)):
-        return ", ".join(type(value).__name__ for value in arguments)
-    else:
-        return type(arguments).__name__
 
 
 def _execute_code(code: str, globals: dict[str, Any]) -> dict:

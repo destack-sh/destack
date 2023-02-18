@@ -264,13 +264,13 @@ class PromptBuilder:
                 )
             type_str = render_type_node(node, None, ignore_name=True, ignore_reference=True)
             if node.tag == TypeTag.STRUCT:
-                self.emit(f"type {node.source_reference}:")
+                self.emit(f"type {node.source_reference.name}:")
                 self.emit_split(type_str)
             elif node.tag == TypeTag.ENUM:
-                self.emit(f"enum {node.source_reference}:")
+                self.emit(f"enum {node.source_reference.name}:")
                 self.emit_split(type_str)
             else:
-                self.emit(f"type {node.source_reference} = {type_str}")
+                self.emit(f"type {node.source_reference.name} = {type_str}")
             self.emit("\n")
             self.blank()
 
