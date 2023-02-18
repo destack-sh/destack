@@ -8,7 +8,7 @@ import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { symbolOf, symbolsLike } from "@/state/runtime";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { computed, inject, type Ref } from "vue";
+import { computed, inject, ref, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
@@ -33,6 +33,7 @@ function setArgument(key: string, value: string) {
   state?.set("arguments", args);
 }
 
+const lastOutput: Ref<any | null> = ref(null);
 const ops = useOperations();
 const notifications = useNotifications();
 async function run() {
@@ -48,6 +49,9 @@ async function run() {
       message: "Run failed",
       description: `Failed to run ${symbol.value?.name}.`,
     });
+    lastOutput.value = null;
+  } else {
+    lastOutput.value = ret.data.run.output;
   }
 }
 const editor = useEditorState();
@@ -98,7 +102,9 @@ const editor = useEditorState();
       </div>
     </div>
     <!-- Outputs -->
-    <div class="mx-auto w-full max-w-[1000px]"></div>
-    <!-- TODO @Inconmplete: show previous executions -->
+    <div class="mx-auto w-full max-w-[1000px]">
+      <div class="font-mono">{{ lastOutput }}</div>
+      <!-- TODO @Incomplete: show live execution history -->
+    </div>
   </div>
 </template>

@@ -151,7 +151,7 @@ defineExpose({
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit min-w-[200px] flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
       ref="editableContainerRef"
       v-if="editing"
       @click.prevent="emit('edit')"
@@ -161,12 +161,24 @@ defineExpose({
         *
       </button>
       <!-- Strings and numbers -->
-      <input
-        v-if="type.tag == TypeTag.String || type.tag == TypeTag.Number"
+      <textarea
+        v-if="type.tag == TypeTag.String"
         :value="value"
         @input="(e: any) => writeValue(e.target?.value)"
         ref="valueRef"
-        :type="type.tag == TypeTag.String ? 'text' : 'number'"
+        type="text"
+        class="w-full min-w-[300px] rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+        :class="[editor.textSmall ? 'text-sm' : '']"
+        @keydown.enter.exact.prevent="confirm"
+        @keydown.escape.exact.prevent="cancel"
+        :placeholder="placeholderValue ?? ''"
+      />
+      <input
+        v-else-if="type.tag == TypeTag.Number"
+        :value="value"
+        @input="(e: any) => writeValue(e.target?.value)"
+        ref="valueRef"
+        type="number"
         class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
         :class="[editor.textSmall ? 'text-sm' : '']"
         @keydown.enter.exact.prevent="confirm"
@@ -186,12 +198,13 @@ defineExpose({
           ref="valueRef"
           spellcheck="false"
           class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+          :class="[editor.textSmall ? 'text-sm' : '']"
           :display-value="(val: any) => val?.name"
           :placeholder="placeholderValue ?? '...'"
           @keyup.escape.prevent="cancel"
         >
         </ComboboxInput>
-        <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 text-base focus:outline-none" static>
+        <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 focus:outline-none" static>
           <ComboboxOption
             v-for="member in enumMembers"
             :key="member.name"

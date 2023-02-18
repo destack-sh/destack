@@ -42,7 +42,7 @@ class LocalHfTransformersInference(Inference):
             text=generated_text,
             tokens=generated_tokens,
             logits=generated_logits,
-            finish_reason=FinishReason.STOP,  # TODO @Cleanup: local generate is incorrect
+            finish_reason=FinishReason.STOP,  # TODO @Cleanup: local generate stop reason is incorrect
         )
 
     def end(self):

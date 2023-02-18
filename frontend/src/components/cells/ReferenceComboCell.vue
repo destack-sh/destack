@@ -141,7 +141,8 @@ defineExpose({
     @keydown.enter.exact.prevent="open"
     @keydown.delete.exact.prevent="emit('deleteLeft')"
     @click="open"
-    class="rounded-sm outline-transparent focus:underline"
+    class="rounded-sm decoration-dashed underline-offset-4 outline-transparent focus:underline focus:decoration-gray-900 focus:decoration-solid group-hover/statement:decoration-gray-900"
+    :class="reference?.name ?? self?.name != null ? 'underline decoration-gray-400' : ''"
   >
     {{ reference?.name ?? self?.name ?? "..." }}
   </button>
@@ -149,7 +150,7 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="inputRef"
-      class="rounded-sm border-0 p-0 outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
+      class="rounded-sm border-0 p-0 underline-offset-4 outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
       :class="{ 'font-mono': editor.fontMono }"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"

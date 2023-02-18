@@ -17,8 +17,11 @@ from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import Build, StatementPath, SymbolType
 from bench.language.wire import ModuleReference
+from bench.models.utils import UUIDT
 from bench.runtime.build import BuildResult, make_build
-from bench.runtime.execute import instantiate, run
+from bench.runtime.execute import Proxy, instantiate, run
+from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
+from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData
 from bench.zmq import (
     ZMessage,
     ZMessageType,
@@ -28,6 +31,7 @@ from bench.zmq import (
     zmq_ctx,
 )
 from bench.zmq.messages import (
+    ExecutionChangedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
     ModuleRunErrorType,
@@ -198,24 +202,24 @@ class RuntimeWorker:
 
     async def run(
         self,
-        runtime_worker_rep_addr: str,
-        runtime_worker_pub_addr: str,
-        internal_server_rep_addr: str,
-        internal_server_pub_addr: str,
+        worker_rep_addr: str,
+        worker_pub_addr: str,
+        intserver_rep_addr: str,
+        intserver_pub_addr: str,
     ):
         logger.info(
             "start",
             worker_id=self.worker_id,
-            runtime_worker_addr=runtime_worker_rep_addr,
-            runtime_worker_pub_addr=runtime_worker_pub_addr,
-            internal_server_rep_addr=internal_server_rep_addr,
-            internal_server_pub_addr=internal_server_pub_addr,
+            worker_addr=worker_rep_addr,
+            worker_pub_addr=worker_pub_addr,
+            intserver_rep_addr=intserver_rep_addr,
+            intserver_pub_addr=intserver_pub_addr,
         )
-        self.rep_sock.bind(runtime_worker_rep_addr)
-        self.intserver_req_sock.connect(internal_server_rep_addr)
-        self.sub_sock.connect(internal_server_pub_addr)
+        self.rep_sock.bind(worker_rep_addr)
+        self.intserver_req_sock.connect(intserver_rep_addr)
+        self.sub_sock.connect(intserver_pub_addr)
         self.sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
-        self.pub_sock.bind(runtime_worker_pub_addr)
+        self.pub_sock.bind(worker_pub_addr)
         poller = zmq.asyncio.Poller()
         poller.register(self.rep_sock, zmq.POLLIN)
         poller.register(self.sub_sock, zmq.POLLIN)
@@ -225,7 +229,7 @@ class RuntimeWorker:
             try:
                 await self.process_message(msg)
             except Exception as e:
-                logger.exception("runtime_worker.process_message", exc_info=e, msg=msg)
+                logger.exception("worker.process_message", exc_info=e, msg=msg)
 
     async def process_message(self, msg: ZMessage):
         logger.debug("process_message", request=msg)
@@ -340,24 +344,28 @@ class RuntimeWorker:
                 return
 
             # run it
+            execution_id = UUIDT()
             try:
-                code_instance = instantiate(runnable)
+                # instantiate code symbol
+                tracker = forward_execution_capture(execution_id, self.pub_sock)
+                # "hardcoded" tracing for now, but tracing should be configurable per project/version/run
+                proxy = Proxy(tracer=MultiTracer([ExecutionTracer(tracker), ValidationTracer()]))
+                code_instance: CodeInstance = instantiate(runnable, proxy)
             except Exception as e:
                 logger.exception("instantiate", exc_info=e)
-                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INTERNAL_ERROR))
+                send_rep(RepModuleRunPayload(execution_id, error=ModuleRunErrorType.INTERNAL_ERROR))
                 return
             try:
                 ret = await run(code_instance, payload.arguments)
             except Exception as e:
                 logger.exception("run", exc_info=e)
-                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.RUNTIME_ERROR))
+                send_rep(RepModuleRunPayload(execution_id, error=ModuleRunErrorType.RUNTIME_ERROR))
                 return
-            send_rep(RepModuleRunPayload(error=None, output=ret))
+            send_rep(RepModuleRunPayload(execution_id, error=None, output=ret))
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
         # TODO @Incomplete: auto-trigger jobs and send out consequent job and runtime changes
-        # TODO @Incomplete: stream back runtime results & frames (via api server?)
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)
@@ -365,3 +373,17 @@ class RuntimeWorker:
         self.intserver_req_sock.close()
         self.sub_sock.close()
         self.pub_sock.close()
+
+
+def forward_execution_capture(root_id: UUID, pub_sock: zmq.Socket):
+    def _do_track(frame: ExecutionFrame):
+        # TODO @Performance: batch execution frame updates
+        frame_data = ExecutionFrameData.from_frame(frame)
+        if frame_data.root_id is None:
+            frame_data.id = root_id  # set root to fixed id
+        logger.debug("execution.track", frame=frame_data.id)
+        send_message(
+            pub_sock, ZMessageType.EXECUTION_CHANGED, ExecutionChangedPayload(frames=[frame_data])
+        )
+
+    return _do_track
