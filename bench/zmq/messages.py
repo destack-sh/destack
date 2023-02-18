@@ -4,7 +4,7 @@ import typing
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Optional
+from typing import Optional, cast
 from uuid import UUID
 
 from bench.language import wire
@@ -179,3 +179,29 @@ MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "ZMessageType"] = {
     payload_class: message_type
     for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
 }
+
+
+def to_key(
+    message_type: ZMessageType,
+    payload: ZMessageType,
+) -> Optional[bytes]:
+    """Gets the subscription key for a message type and payload (if any)"""
+    if message_type == ZMessageType.PROJECT_VERSION_CHANGED:
+        payload = cast(ProjectVersionChangedPayload, payload)
+        return as_key(message_type, str(payload.project_version_id))
+    elif message_type == ZMessageType.MODULE_CHANGED:
+        payload = cast(ModuleChangedPayload, payload)
+        return as_key(message_type, str(payload.module_id))
+    elif message_type == ZMessageType.MODULE_RUNTIME_CHANGED:
+        payload = cast(ModuleRuntimeChangedPayload, payload)
+        return as_key(message_type, str(payload.module_id))
+    elif message_type == ZMessageType.EXECUTION_CHANGED:
+        payload = cast(ExecutionChangedPayload, payload)
+        return as_key(message_type, str(payload.module_id))
+
+    return None  # no key
+
+
+def as_key(*parts: str) -> bytes:
+    key = ".".join(str(p) for p in parts)
+    return key.encode("utf-8")

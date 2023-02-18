@@ -114,10 +114,13 @@ class ExecutionTrace(Trace):
 
 class ExecutionTracer(Tracer):
     """
-    A worker-side tracer that records code (and model) execution.
+    A worker-side tracer that records code and model executions.
     """
 
-    def __init__(self, tracker: ExecutionCapture, trace: ExecutionTrace | None = None):
+    def __init__(
+        self, module_id: uuid.UUID, tracker: ExecutionCapture, trace: ExecutionTrace | None = None
+    ):
+        self.module_id = module_id
         self.tracker = tracker
         self.stacktrace: list[ExecutionFrame] = []
         self.trace = trace or ExecutionTrace(frames=[])
@@ -133,6 +136,7 @@ class ExecutionTracer(Tracer):
         parent = self.stacktrace[-1] if self.stacktrace else None
         frame = ExecutionFrame(
             id=UUIDT(),
+            module_id=self.module_id,
             code=code,
             model=model,
             root=root,

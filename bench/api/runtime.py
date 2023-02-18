@@ -25,6 +25,7 @@ from bench.zmq.messages import (
     RepModuleRuntimePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
+    as_key,
 )
 
 logger = structlog.get_logger(__name__)
@@ -235,8 +236,9 @@ class ModuleRuntimeSubscription:
         worker_req_sock.connect(ZMQ_worker_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
         worker_sub_sock.connect(ZMQ_worker_PUB_ADDR)
-        # TODO @Robustness: filter subscription messages properly (in all sites)
-        worker_sub_sock.setsockopt(zmq.SUBSCRIBE, b"")
+        worker_sub_sock.setsockopt(
+            zmq.SUBSCRIBE, as_key(ZMessageType.MODULE_RUNTIME_CHANGED, str(project_version_id))
+        )
 
         # get initial runtime
         send_message(
@@ -258,8 +260,7 @@ class ModuleRuntimeSubscription:
             while True:
                 _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
                 logger.debug("update", project_version_id=project_version_id)
-                # TODO @Performance: this should definitely be partial updates
-                #  :PartialModuleUpdates
+                # :PartialModuleUpdates
                 module = rmap_module(update.module)
                 dependencies = [rmap_module(dep) for dep in update.dependencies]
                 errors = rmap_errors(update.errors, module)

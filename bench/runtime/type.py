@@ -98,6 +98,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
 @dataclass
 class ExecutionFrame:
     id: UUID
+    module_id: UUID
     code: Optional[CodeInstance]
     model: Optional[ModelInstance]
     root: Optional[ExecutionFrame]
@@ -112,6 +113,7 @@ class ExecutionFrame:
     def __str__(self):
         # get str of all non-null fields
         fields_strs = [
+            f"module={self.module_id}",
             f"code={self.code}" if self.code else None,
             f"model={self.model}" if self.model else None,
             f"root={self.root.id}" if self.root else None,
@@ -144,6 +146,7 @@ class ExecutionFrameData:
     """Wire-able representation of an execution frame."""
 
     id: UUID
+    module_id: UUID
     code_id: Optional[UUID]
     model_id: Optional[UUID]
     root_id: Optional[UUID]
@@ -169,6 +172,7 @@ class ExecutionFrameData:
             error_data = None
         return ExecutionFrameData(
             id=frame.id,
+            module_id=frame.module_id,
             code_id=frame.code.id if frame.code else None,
             model_id=frame.model.id if frame.model else None,
             root_id=frame.root.id if frame.root else None,
