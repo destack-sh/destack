@@ -1,5 +1,14 @@
 import { graphql } from "@/gql";
 
+export const PageInfoType = graphql(/* GraphQL */ `
+  fragment PageInfo on PageInfo {
+    hasNextPage
+    hasPreviousPage
+    startCursor
+    endCursor
+  }
+`);
+
 export const OperationInfoContentType = graphql(/* GraphQL */ `
   fragment OperationInfoContent on OperationInfo {
     ... on OperationInfo {
