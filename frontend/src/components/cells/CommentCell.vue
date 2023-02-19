@@ -59,7 +59,7 @@ defineExpose({
   <!-- Show rendered markdown if not editing -->
   <div
     v-if="!context.editing.value"
-    class="prose mt-[-1px] prose-headings:text-gray-700"
+    class="prose mt-[-1px] prose-headings:text-gray-700 prose-a:text-gray-700"
     :class="{
       'text-sm': editor.textSmall,
       'text-md': !editor.textSmall,
