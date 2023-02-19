@@ -340,7 +340,7 @@ export function getDefaultSymbolDefinition(symbolType: SymbolType): {
     return {
       rootTypeTag: TypeTag.Function,
     };
-  } else if (symbolType == SymbolType.Dataset) {
+  } else if (symbolType == SymbolType.Data) {
     return {
       language: "jsonl",
       rootTypeTag: TypeTag.Struct,
@@ -359,7 +359,7 @@ export function getDefaultSymbolDefinition(symbolType: SymbolType): {
 export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boolean {
   if (symbolType == SymbolType.Code || symbolType == SymbolType.Task) {
     return tag == TypeTag.Function;
-  } else if (symbolType == SymbolType.Dataset) {
+  } else if (symbolType == SymbolType.Data) {
     return tag == TypeTag.Struct;
   } else if (symbolType == SymbolType.Type) {
     return tag == TypeTag.Struct || tag == TypeTag.Enum;

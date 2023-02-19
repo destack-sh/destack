@@ -327,7 +327,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.ValueContent(description=data.description, value=data.value)
     elif data.symbol_type == SymbolType.CAPABILITY:
         return language.CapabilityContent(description=data.description)
-    elif data.symbol_type == SymbolType.DATASET:
+    elif data.symbol_type == SymbolType.DATA:
         return language.DatasetContent(
             description=data.description,
             language=data.lang,

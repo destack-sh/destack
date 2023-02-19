@@ -8,7 +8,7 @@ import { computed, ref, watch } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
 
-const editorState = useEditorState();
+const editor = useEditorState();
 const selectedTab = ref(0);
 watch(
   () => [props.group.activeEditor, props.group.editors],
@@ -23,12 +23,12 @@ watch(
   },
   { immediate: true }
 );
-const focused = computed(() => editorState.focusedEditor?.groupId == props.group.id);
+const focused = computed(() => editor.focusedEditor?.groupId == props.group.id);
 
-function focus(editor: Editor) {
-  editorState.focusEditor(editor);
+function focus(e: Editor) {
+  editor.focusEditor(e);
   // blur any focused element when clicking on a tab
-  editorState.blurElement();
+  editor.blurElement();
 }
 
 // load panels (i.e. disallow unmounting) after 2s to load active panel first
@@ -50,8 +50,8 @@ async function createFileInEditorGroup() {
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
-      <TabList class="flex border-b border-gray-200">
-        <Tab as="template" v-for="editor in group.editors" :key="editor.id" v-slot="{ selected }">
+      <TabList class="flex border-b border-gray-200" v-show="editor.showEditorGroupHeader">
+        <Tab as="template" v-for="e in group.editors" :key="e.id" v-slot="{ selected }">
           <button
             :class="{
               'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-r border-b-2 border-r-gray-200 py-1 px-3 text-sm outline-none': true,
@@ -59,10 +59,10 @@ async function createFileInEditorGroup() {
               ' bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
             }"
-            @click.middle="editorState.closeEditor(editor)"
-            @click.prevent="focus(editor)"
+            @click.middle="editor.closeEditor(e)"
+            @click.prevent="focus(e)"
           >
-            {{ editor.path }}
+            {{ e.path }}
           </button>
         </Tab>
         <!-- Little button tab to create new file -->
@@ -75,11 +75,11 @@ async function createFileInEditorGroup() {
         <TabPanel
           as="div"
           class="h-full w-full overflow-auto bg-white outline-none"
-          v-for="editor in group.editors"
-          :key="editor.id"
+          v-for="e in group.editors"
+          :key="e.id"
           :unmount="!mountAllPanels"
         >
-          <EditorInterface :editor="editor" />
+          <EditorInterface :editor="e" />
         </TabPanel>
       </TabPanels>
     </TabGroup>

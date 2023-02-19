@@ -219,7 +219,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                                 type_node.reference_id, type_node.reference_id
                             )
                         new_contents[old_id] = type_node
-                if statement.symbol_type == SymbolType.DATASET:
+                if statement.symbol_type == SymbolType.DATA:
                     for record in statement.records.all():
                         old_id = record.id
                         record.pk = None

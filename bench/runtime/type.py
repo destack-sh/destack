@@ -88,7 +88,7 @@ class CodeInstance(SymbolInstance, Code):
 
 SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     TypeInstance: SymbolType.TYPE,
-    DatasetInstance: SymbolType.DATASET,
+    DatasetInstance: SymbolType.DATA,
     ValueInstance: SymbolType.VALUE,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,

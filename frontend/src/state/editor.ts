@@ -45,7 +45,7 @@ export type StatementHeader = Pick<
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Type]: "type",
   [SymbolType.Code]: "code",
-  [SymbolType.Dataset]: "data",
+  [SymbolType.Data]: "data",
   [SymbolType.Model]: "model",
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
@@ -62,7 +62,8 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Check]: "check",
   [StatementModifier.With]: "with",
   [StatementModifier.Var]: "var",
-  [StatementModifier.Extend]: "extend",
+  [StatementModifier.Include]: "include",
+  [StatementModifier.Magic]: "magic",
 };
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
 export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
@@ -165,6 +166,11 @@ export const useEditorState = defineStore("editor", {
       debug: false,
       showGenerated: false,
       showLineNumbers: true,
+      showEditorGroupHeader: true,
+      showGlobalHeader: true,
+      showViewSelection: true,
+      showViewContent: true,
+      zenMode: false,
       fontMono: true,
       textSmall: true,
     };
@@ -334,6 +340,14 @@ export const useEditorState = defineStore("editor", {
     setMainSymbol(symbol?: { id: string }): void {
       console.log("set main symbol", symbol?.id);
       this.mainSymbolId = symbol?.id ?? null;
+    },
+
+    setZenMode(zenMode: boolean) {
+      this.zenMode = zenMode;
+      this.showGlobalHeader = !zenMode;
+      this.showEditorGroupHeader = !zenMode;
+      this.showLineNumbers = !zenMode;
+      this.showViewSelection = !zenMode;
     },
 
     async _doMigrateTo(versionId: string, intermediateRefs: RefMapping[][]): Promise<void> {
