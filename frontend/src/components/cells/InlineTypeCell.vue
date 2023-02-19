@@ -143,7 +143,7 @@ defineExpose({
         'text-md placeholder:text-md': !editor.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(stmt: any) => stmt?.name"
+      :display-value="(node: any) => node != null ? renderSimpleType(node) : null"
       placeholder="..."
       @keydown.escape.prevent=""
       @keyup.escape.prevent="cancel"

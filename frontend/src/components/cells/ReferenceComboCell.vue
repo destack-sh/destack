@@ -146,11 +146,18 @@ defineExpose({
   >
     {{ reference?.name ?? self?.name ?? "..." }}
   </button>
-  <Combobox v-else as="div" class="relative" :model-value="reference" @update:model-value="setReference" nullable>
+  <Combobox
+    v-else
+    as="div"
+    class="relative w-full"
+    :model-value="reference"
+    @update:model-value="setReference"
+    nullable
+  >
     <ComboboxInput
       as="input"
       ref="inputRef"
-      class="rounded-sm border-0 p-0 underline-offset-4 outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
+      class="max-w-80 w-auto min-w-fit rounded-sm border-0 p-0 underline-offset-4 outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
       :class="{ 'font-mono': editor.fontMono }"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"

@@ -745,8 +745,9 @@ export type StatementFilter = {
 /** A modifier to a Bench statement. */
 export enum StatementModifier {
   Check = "CHECK",
-  Extend = "EXTEND",
+  Include = "INCLUDE",
   Like = "LIKE",
+  Magic = "MAGIC",
   Unlike = "UNLIKE",
   Var = "VAR",
   With = "WITH",
@@ -839,7 +840,7 @@ export enum SymbolType {
   Build = "BUILD",
   Capability = "CAPABILITY",
   Code = "CODE",
-  Dataset = "DATASET",
+  Data = "DATA",
   Expectation = "EXPECTATION",
   Model = "MODEL",
   Requirement = "REQUIREMENT",
@@ -897,9 +898,12 @@ export type TypeNodeUpdateInput = {
 export enum TypeTag {
   Any = "ANY",
   Array = "ARRAY",
+  Audio = "AUDIO",
   Boolean = "BOOLEAN",
+  Embedding = "EMBEDDING",
   Enum = "ENUM",
   Function = "FUNCTION",
+  Image = "IMAGE",
   Intersection = "INTERSECTION",
   Literal = "LITERAL",
   Map = "MAP",
@@ -910,6 +914,7 @@ export enum TypeTag {
   Tuple = "TUPLE",
   TypeReference = "TYPE_REFERENCE",
   Union = "UNION",
+  Video = "VIDEO",
 }
 
 export type User = Node & {

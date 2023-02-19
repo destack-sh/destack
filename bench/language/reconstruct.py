@@ -113,7 +113,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         elif statement.symbol_type == SymT.CODE:
             type_str = render_type_node(cast(CodeContent, statement.content).type_node, statement)
             postfix = f" :: {type_str}:"
-        elif statement.symbol_type == SymT.DATASET:
+        elif statement.symbol_type == SymT.DATA:
             content = cast(DatasetContent, statement.content)
             type_str = render_type_node_struct(content.type_node, statement, ", ")
             postfix = f" :: ({type_str}):"

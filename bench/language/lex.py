@@ -28,7 +28,7 @@ KEYWORDS = {
     "expect": SymbolType.EXPECTATION,
     "code": SymbolType.CODE,
     "model": SymbolType.MODEL,
-    "data": SymbolType.DATASET,
+    "data": SymbolType.DATA,
     "value": SymbolType.VALUE,
     "import": StatementType.IMPORT,
     "require": SymbolType.REQUIREMENT,

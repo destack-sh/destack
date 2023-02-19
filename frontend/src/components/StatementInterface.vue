@@ -81,7 +81,7 @@ const rootCell: Ref<Cell> = computed(() => {
       return {
         component: CodeDefinitionCell,
       };
-    } else if (statement.value.symbolType == SymbolType.Dataset) {
+    } else if (statement.value.symbolType == SymbolType.Data) {
       return {
         component: DatasetDefinitionCell,
       };

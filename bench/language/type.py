@@ -150,10 +150,11 @@ class StatementModifier(models.TextChoices):
 
     VAR = "var"
     WITH = "with"
-    EXTEND = "extend"
+    INCLUDE = "include"
     LIKE = "like"
     UNLIKE = "unlike"
     CHECK = "check"
+    MAGIC = "magic"
 
 
 class SymbolType(models.TextChoices):
@@ -165,7 +166,9 @@ class SymbolType(models.TextChoices):
     EXPECTATION = "expect"
     CODE = "code"
     MODEL = "model"
-    DATASET = "data"
+    # TODO @Language: merge value into data
+    #  Simply typed version could be root is_array flag in addition to root_type_tag
+    DATA = "data"
     VALUE = "value"
     REQUIREMENT = "require"
     BUILD = "build"
@@ -178,6 +181,10 @@ class TypeTag(models.TextChoices):
     STRING = "string"
     NUMBER = "number"
     BOOLEAN = "boolean"
+    EMBEDDING = "embedding"
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
     ARRAY = "array"
     TUPLE = "tuple"
     MAP = "map"
@@ -348,7 +355,7 @@ class Statement(Generic[SymbolContentT]):
         expectable_symbol = self.symbol_type in (
             SymbolType.TASK,
             SymbolType.CODE,
-            SymbolType.DATASET,
+            SymbolType.DATA,
         )
         has_expect_intent = self.modifier in (
             StatementModifier.LIKE,
@@ -377,7 +384,7 @@ class Statement(Generic[SymbolContentT]):
 
     @property
     def is_extend(self):
-        return self.modifier == StatementModifier.EXTEND
+        return self.modifier == StatementModifier.INCLUDE
 
     @property
     def is_alias(self):
@@ -716,7 +723,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.CAPABILITY: Capability,
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
-    SymbolType.DATASET: Dataset,
+    SymbolType.DATA: Dataset,
     SymbolType.VALUE: Value,
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,

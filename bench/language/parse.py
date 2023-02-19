@@ -611,7 +611,7 @@ def _parse_definition_content(
             code=code_text,
             type_node=type,
         )
-    elif symbol_type.value == SymbolType.DATASET:
+    elif symbol_type.value == SymbolType.DATA:
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()

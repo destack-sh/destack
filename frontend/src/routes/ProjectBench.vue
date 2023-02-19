@@ -227,10 +227,18 @@ watch(
   }
 );
 
+// provide Zen mode
+provideAction({
+  id: "editor.zenMode",
+  label: computed(() => (editor.zenMode ? "Exit Zen Mode" : "Enter Zen Mode")),
+  shortcuts: ["alt+z"],
+  apply: () => editor.setZenMode(!editor.zenMode),
+});
+
 const { load } = useEditorPersistence();
 const { migrateTo } = useEditorMigrations();
 
-// get editor state for project if project (head) changes
+// prepare editor state for project whenever project (head) changes
 watchEffect(async () => {
   const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
   if (
@@ -260,7 +268,7 @@ watchEffect(async () => {
   <!-- Root -->
   <div class="relative flex h-full flex-col">
     <!-- Header with controls and auth -->
-    <FatHeader>
+    <FatHeader v-show="editor.showGlobalHeader">
       <!-- Left side: organizational & status -->
       <template v-slot:left>
         <!-- Home -->
@@ -354,9 +362,15 @@ watchEffect(async () => {
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
-      <aside class="flex h-full w-64 resize-x border-r border-gray-200 lg:w-80">
+      <aside
+        class="flex h-full resize-x border-r border-gray-200"
+        :class="{
+          'w-64 lg:w-80': editor.showViewContent && editor.showViewSelection,
+          'w-48 lg:w-64': editor.showViewContent && !editor.showViewSelection,
+        }"
+      >
         <!-- View selection -->
-        <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5">
+        <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5" v-show="editor.showViewSelection">
           <div class="flex flex-1 flex-col">
             <button
               class="rounded-sm px-2 py-2 text-gray-600"
@@ -380,7 +394,7 @@ watchEffect(async () => {
           </button>
         </div>
         <!-- View content -->
-        <div class="relative flex-1 flex-col">
+        <div class="relative flex-1 flex-col" v-show="editor.showViewContent">
           <div class="absolute top-0 left-0 h-full w-full overflow-y-hidden">
             <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
             <ViewHistory

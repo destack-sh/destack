@@ -588,10 +588,11 @@ input StatementFilter {
 enum StatementModifier {
   VAR
   WITH
-  EXTEND
+  INCLUDE
   LIKE
   UNLIKE
   CHECK
+  MAGIC
 }
 
 input StatementMorphInput {
@@ -674,7 +675,7 @@ enum SymbolType {
   EXPECTATION
   CODE
   MODEL
-  DATASET
+  DATA
   VALUE
   REQUIREMENT
   BUILD
@@ -729,6 +730,10 @@ enum TypeTag {
   STRING
   NUMBER
   BOOLEAN
+  EMBEDDING
+  IMAGE
+  VIDEO
+  AUDIO
   ARRAY
   TUPLE
   MAP
