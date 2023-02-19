@@ -113,9 +113,9 @@ class SyncCodeProxy:
 
     def __call__(self, *args, **kwargs):
         log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
-        self.tracer.code_enter(self.code, args, kwargs)
-        log.debug("code.call.enter")
         try:
+            self.tracer.code_enter(self.code, args, kwargs)
+            log.debug("code.call.enter")
             result = self.code.code_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
             log.debug("code.call.exit", result=summarize_args(result))
@@ -135,9 +135,9 @@ class AsyncCodeProxy:
 
     async def __call__(self, *args, **kwargs):
         log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
-        self.tracer.code_enter(self.code, args, kwargs)
-        log.debug("code.call.enter")
         try:
+            self.tracer.code_enter(self.code, args, kwargs)
+            log.debug("code.call.enter")
             result = await self.code.code_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
             log.debug("code.call.exit", result=summarize_args(result))

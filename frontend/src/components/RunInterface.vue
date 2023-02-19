@@ -2,6 +2,7 @@
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
+import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
@@ -15,6 +16,7 @@ const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
 const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
+const outputField = computed(() => symbol.value?.typeNodes?.find((n) => n.isOutput));
 const availableBuilds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Build] });
 
 // local run interface state
@@ -37,6 +39,8 @@ function setArgument(key: string, value: string) {
 const lastOutput: Ref<any | null> = ref(null);
 const ops = useOperations();
 const notifications = useNotifications();
+const editor = useEditorState();
+
 async function run() {
   if (symbol.value == null) {
     return;
@@ -55,14 +59,15 @@ async function run() {
     lastOutput.value = ret.data.run.output;
   }
 }
-const editor = useEditorState();
 
 // TODO @Broken: get proper runnable id(s) if this is a not a code symbol
 const { executions } = useExecutions(toRef(editor, "currentProjectVersionId"), toRef(props, "runnableId"), false);
+
+const { getTimeFromNowString } = useTimeFromNow();
 </script>
 <template>
   <div
-    class="flex flex-col items-baseline bg-white px-12 py-8"
+    class="mx-auto flex max-w-[1000px] flex-col items-baseline bg-white px-12 py-8"
     :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
   >
     <!-- Header -->
@@ -106,12 +111,39 @@ const { executions } = useExecutions(toRef(editor, "currentProjectVersionId"), t
       </div>
     </div>
     <!-- Outputs -->
-    <div class="mx-auto w-full max-w-[1000px]">
-      <div class="font-mono">{{ lastOutput }}</div>
-      <div v-for="execution in executions" :key="execution.id">
-        {{ execution.status }}
-        {{ execution.outputs }}
-      </div>
+    <div
+      class="mt-6 grid gap-x-3 gap-y-3"
+      :style="{ 'grid-template-columns': `repeat(${inputFields.length + 3}, minmax(40px, 100px))` }"
+    >
+      <template v-for="execution in executions" :key="execution.id">
+        <!-- Execution status -->
+        <div class="flex flex-row gap-1">
+          {{ execution.status }}
+          <span class="text-gray-500">{{ getTimeFromNowString(execution.updatedAt) }}</span>
+        </div>
+        <div>
+          {{ execution.terminatedAt }}
+        </div>
+        <!-- Inputs -->
+        <div v-for="field in inputFields" :key="field.id">
+          <InlineValueCell
+            :type="field"
+            :model-value="execution.inputs?.[field.name]"
+            :readonly="true"
+            :immediate="false"
+          />
+        </div>
+        <!-- Outputs -->
+        <div>
+          <InlineValueCell
+            v-if="outputField"
+            :type="outputField"
+            :model-value="execution.outputs"
+            :readonly="true"
+            :immediate="false"
+          />
+        </div>
+      </template>
     </div>
   </div>
 </template>

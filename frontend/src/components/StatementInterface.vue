@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
-import DatasetDefinitionCell from "@/components/cells/DatasetDefinitionCell.vue";
+import DataDefinitionCell from "@/components/cells/DataDefinitionCell.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
@@ -83,7 +83,7 @@ const rootCell: Ref<Cell> = computed(() => {
       };
     } else if (statement.value.symbolType == SymbolType.Data) {
       return {
-        component: DatasetDefinitionCell,
+        component: DataDefinitionCell,
       };
     }
 

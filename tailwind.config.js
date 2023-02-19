@@ -20,7 +20,7 @@ module.exports = {
       typography: (theme) => ({
         DEFAULT: {
           css: {
-            color: theme("colors.gray.500"),
+            color: theme("colors.gray.700"),
           },
         },
       }),

@@ -664,7 +664,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  modelExecutionChanged(projectVersionId: GlobalID!, codeId: GlobalID!): Execution!
+  modelExecutionChanged(projectVersionId: GlobalID!, codeId: GlobalID = null): Execution!
 }
 
 """The type of symbol content."""

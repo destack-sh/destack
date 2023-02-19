@@ -7,6 +7,7 @@ Server-side mapper to translate between language and database models.
 from __future__ import annotations
 
 import typing
+from dataclasses import asdict
 from itertools import chain, groupby
 from uuid import UUID, uuid4
 
@@ -25,6 +26,7 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.models.project import Project, ProjectVersion
+from bench.runtime.type import ExecutionFrameData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -472,3 +474,26 @@ def rmap_type_nodes(
 
     root = language.TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
     return wire.rmap_type_node(root)
+
+
+def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
+    if frame.exited_at:
+        status = models.ExecutionStatus.Completed
+    elif frame.error:
+        status = models.ExecutionStatus.Failed
+    else:
+        status = models.ExecutionStatus.Running
+    return models.Execution(
+        id=frame.id,
+        project_version_id=frame.module_id,
+        status=status,
+        root_id=frame.root_id,
+        parent_id=frame.parent_id,
+        code_id=frame.code_id,
+        model_id=frame.model_id,
+        started_at=frame.entered_at,
+        terminated_at=frame.exited_at,
+        inputs=frame.inputs,
+        outputs=frame.outputs,
+        error=asdict(frame.error) if frame.error else None,
+    )

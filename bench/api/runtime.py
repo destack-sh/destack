@@ -20,6 +20,7 @@ from bench.runtime.worker import ReqModuleRuntimePayload
 from bench.settings import ZMQ_worker_PUB_ADDR, ZMQ_worker_REP_ADDR
 from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.zmq.messages import (
+    ExecutionChangedPayload,
     ModuleRuntimeChangedPayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
@@ -232,7 +233,7 @@ class ModuleRuntimeSubscription:
         self, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
-        logger.info("subscribe_runtime", project_version_id=project_version_id)
+        logger.info("runtime.subscribe", project_version_id=project_version_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_worker_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
@@ -257,10 +258,14 @@ class ModuleRuntimeSubscription:
 
         # get runtime changes
         try:
-            logger.info("listen_runtime", project_version_id=project_version_id)
+            logger.info("runtime.listen", project_version_id=project_version_id)
             while True:
                 _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
-                logger.debug("update", project_version_id=project_version_id)
+                logger.debug(
+                    "runtime.update",
+                    project_version_id=project_version_id,
+                    updated_at=update.updated_at,
+                )
                 # :PartialModuleUpdates
                 module = rmap_module(update.module)
                 dependencies = [rmap_module(dep) for dep in update.dependencies]
@@ -272,14 +277,37 @@ class ModuleRuntimeSubscription:
                     errors=errors,
                 )
         finally:
-            logger.info("close", project_version_id=project_version_id)
+            logger.info("runtime.close", project_version_id=project_version_id)
             worker_req_sock.close()
             worker_sub_sock.close()
 
     @gql.subscription
     async def model_execution_changed(
-        self, project_version_id: GlobalID, code_id: GlobalID
+        self, project_version_id: GlobalID, code_id: Optional[GlobalID] = None
     ) -> AsyncGenerator[Execution, None]:
         project_version_id = UUID(project_version_id.node_id)
-        logger.info("subscribe_executions", project_version_id=project_version_id)
-        raise NotImplementedError
+        logger.info("executions.subscribe", project_version_id=project_version_id)
+
+        worker_sub_sock = zmq_ctx.socket(zmq.SUB)
+        worker_sub_sock.connect(ZMQ_worker_PUB_ADDR)
+        worker_sub_sock.setsockopt(
+            zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED, str(project_version_id))
+        )
+
+        try:
+            logger.info("executions.listen", project_version_id=project_version_id)
+            while True:
+                _, update = await recv_message_with(worker_sub_sock, ExecutionChangedPayload)
+                update: ExecutionChangedPayload
+                for frame_data in update.frames:
+                    if code_id is not None and code_id.node_id != frame_data.code_id:
+                        # TODO @Performance: filter execution frames via zmq
+                        continue
+                    frame = mapper.rmap_execution_frame(frame_data)
+                    logger.debug(
+                        "executions.update", project_version_id=project_version_id, frame=frame
+                    )
+                    yield frame
+        finally:
+            logger.info("executions.close", project_version_id=project_version_id)
+            worker_sub_sock.close()
