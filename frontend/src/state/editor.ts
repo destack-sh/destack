@@ -164,6 +164,7 @@ export const useEditorState = defineStore("editor", {
       editingElement: false,
       readonly: false,
       debug: false,
+      fullscreen: false,
       showGenerated: false,
       showLineNumbers: true,
       showEditorGroupHeader: true,
@@ -171,7 +172,7 @@ export const useEditorState = defineStore("editor", {
       showViewSelection: true,
       showViewContent: true,
       zenMode: false,
-      fontMono: true,
+      fontMono: false,
       textSmall: true,
     };
   },
@@ -348,6 +349,7 @@ export const useEditorState = defineStore("editor", {
       this.showEditorGroupHeader = !zenMode;
       this.showLineNumbers = !zenMode;
       this.showViewSelection = !zenMode;
+      this.fullscreen = zenMode;
     },
 
     async _doMigrateTo(versionId: string, intermediateRefs: RefMapping[][]): Promise<void> {

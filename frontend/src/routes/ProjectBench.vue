@@ -35,7 +35,7 @@ import {
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useTitle } from "@vueuse/core";
+import { useFullscreen, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
@@ -234,6 +234,20 @@ provideAction({
   shortcuts: ["alt+z"],
   apply: () => editor.setZenMode(!editor.zenMode),
 });
+
+// sync fullscreen
+const { isFullscreen, enter, exit } = useFullscreen();
+watch(
+  () => editor.fullscreen,
+  () => {
+    if (editor.fullscreen && !isFullscreen.value) {
+      enter().catch(() => (editor.fullscreen = false));
+    } else if (isFullscreen.value) {
+      exit();
+    }
+  }
+);
+watch(isFullscreen, () => (editor.fullscreen = isFullscreen.value));
 
 const { load } = useEditorPersistence();
 const { migrateTo } = useEditorMigrations();
