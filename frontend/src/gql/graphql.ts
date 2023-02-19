@@ -827,7 +827,7 @@ export type Subscription = {
 };
 
 export type SubscriptionModelExecutionChangedArgs = {
-  codeId: Scalars["GlobalID"];
+  codeId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
 };
 

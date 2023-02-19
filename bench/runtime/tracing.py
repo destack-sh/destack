@@ -231,7 +231,7 @@ class ValidationTracer(Tracer):
             for name, value in kwargs.items():
                 value_type = code.type_node.input.child(name)
                 check_type(value, value_type)
-        except (ValueError, TypeError) as e:
+        except (KeyError, ValueError, TypeError) as e:
             raise ValidationError(f"invalid arguments for {code.name}: {e}", e)
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):

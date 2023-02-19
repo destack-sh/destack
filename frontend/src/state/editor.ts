@@ -61,7 +61,7 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Unlike]: "unlike",
   [StatementModifier.Check]: "check",
   [StatementModifier.With]: "with",
-  [StatementModifier.Var]: "var",
+  [StatementModifier.Var]: "vary",
   [StatementModifier.Include]: "include",
   [StatementModifier.Magic]: "magic",
 };

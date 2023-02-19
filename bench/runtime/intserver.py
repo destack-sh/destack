@@ -1,10 +1,8 @@
-from dataclasses import asdict
-
 import structlog
 import zmq.asyncio
 from asgiref.sync import sync_to_async
 
-from bench.models import Execution, ExecutionStatus, ProjectVersion
+from bench.models import Execution, ProjectVersion, mapper
 from bench.models.mapper import read_module, write_module
 from bench.runtime.type import ExecutionFrameData
 from bench.zmq import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
@@ -131,27 +129,7 @@ class InternalServer:
 def save_execution_frames(frames: list[ExecutionFrameData]):
     model_executions: list[Execution] = []
     for frame in frames:
-        if frame.exited_at:
-            status = ExecutionStatus.Completed
-        elif frame.error:
-            status = ExecutionStatus.Failed
-        else:
-            status = ExecutionStatus.Running
-
-        execution = Execution(
-            id=frame.id,
-            project_version_id=frame.module_id,
-            status=status,
-            root_id=frame.root_id,
-            parent_id=frame.parent_id,
-            code_id=frame.code_id,
-            model_id=frame.model_id,
-            started_at=frame.entered_at,
-            terminated_at=frame.exited_at,
-            inputs=frame.inputs,
-            outputs=frame.outputs,
-            error=asdict(frame.error) if frame.error else None,
-        )
+        execution = mapper.rmap_execution_frame(frame)
         model_executions.append(execution)
 
     # upsert
