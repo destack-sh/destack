@@ -430,7 +430,8 @@ class SymbolContent:
         return self.__class__(**self.__dict__)  # type: ignore
 
 
-LiteralValue = Union[dict[str, Any], list[Any], int, float, bool, str, None]
+# Danger: the order of these types is important because it influences deserialization order.
+LiteralValue = Union[dict[str, Any], list[Any], bool, int, float, str, None]
 PRIMITIVE_TYPES = [TypeTag.ANY, TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
 
 

@@ -152,7 +152,10 @@ class ExecutionTracer(Tracer):
         return frame
 
     def code_enter(self, code: CodeInstance, args, kwargs):
-        inputs = {**copy.deepcopy(kwargs), "__args__": copy.deepcopy(args)}
+        inputs = {
+            **copy.deepcopy(kwargs),
+            **{f"__arg_{i}": (i, copy.deepcopy(arg)) for i, arg in args},
+        }
         frame = self._create_frame(code=code, inputs=inputs)
         self.stacktrace.append(frame)
         self.tracker(frame)

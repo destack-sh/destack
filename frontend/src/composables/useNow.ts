@@ -52,9 +52,31 @@ export function useTimeFromNow(updateInterval = 60000) {
 
 export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): string {
   // format runtime diff into smallest reasonable unit
+  // like 1723.4ms -> 1.7s, 22.47ms -> 22ms, 0.0002ms -> <1ms, 72000ms -> 1.1min
   const from = DateTime.fromISO(fromStr);
   const to = typeof toStr == "string" ? DateTime.fromISO(toStr) : toStr;
-  // round to .001 seconds using Math.round
-  const diff = Math.round(to.diff(from).as("milliseconds")) / 1000;
-  return `${diff}s`;
+  const diffMs = to.diff(from).as("milliseconds");
+  if (diffMs < 1) {
+    return "<1ms";
+  } else if (diffMs < 10000) {
+    return `${Math.round(diffMs)}ms`;
+  } else if (diffMs < 60000) {
+    return `${Math.round(diffMs / 100) / 10}s`;
+  } else {
+    return `${Math.round(diffMs / 6000) / 10}min`;
+  }
+}
+
+export function humanizeNumber(num: number): string {
+  // format numbers into their highest 3-exponent of 10 (k, m, b)
+  // like 57 -> 57, 7207 -> 7.2k, 2000000 -> 2m
+  if (num < 1000) {
+    return num.toString();
+  } else if (num < 1000000) {
+    return `${Math.round(num / 100) / 10}k`;
+  } else if (num < 1000000000) {
+    return `${Math.round(num / 100000) / 10}m`;
+  } else {
+    return `${Math.round(num / 100000000) / 10}b`;
+  }
 }
