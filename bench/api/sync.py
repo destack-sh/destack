@@ -13,14 +13,14 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.settings import ZMQ_api_PUB_ADDR
+from bench.settings import ZMQ_API_PUB_ADDR
 from bench.zmq import ZMessageType, send_message, zmq_ctx_sync
 from bench.zmq.messages import ProjectVersionChangedPayload
 from bench.zmq.sync import ProjectMutation, ProjectMutationType
 
 # sync because it's used in the synchronous API
 project_change_pub_sync = zmq_ctx_sync.socket(zmq.PUB)
-project_change_pub_sync.bind(ZMQ_api_PUB_ADDR)
+project_change_pub_sync.bind(ZMQ_API_PUB_ADDR)
 
 
 PMT = ProjectMutationType

@@ -13,11 +13,11 @@ logger = structlog.stdlib.get_logger()
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 if TEST or DEBUG:
-    PG_HOST = os.getenv("PGHOST", "localhost")
-    PG_USER = os.getenv("PGUSER", "bench")
-    PG_PASSWORD = os.getenv("PGPASSWORD", "bench")
-    PG_PORT = os.getenv("PGPORT", "5432")
-    PG_DATABASE = os.getenv("PGDATABASE", "bench")
+    PG_HOST = os.getenv("BENCH_POSTGRES_HOST", "localhost")
+    PG_USER = os.getenv("BENCH_DB_USER", "bench")
+    PG_PASSWORD = os.getenv("BENCH_DB_PASSWORD", "bench")
+    PG_PORT = os.getenv("BENCH_POSTGRES_PORT", "5432")
+    PG_DATABASE = os.getenv("BENCH_DB_NAME", "bench")
     DATABASE_URL = os.getenv(
         "DATABASE_URL", f"postgres://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}"
     )

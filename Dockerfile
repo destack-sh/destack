@@ -1,0 +1,21 @@
+# Use the official Python slim image as the base image
+FROM python:3.11-slim
+
+LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
+LABEL org.opencontainers.image.description="Bench API"
+
+# Install postgresql-libs
+RUN apt-get update && apt-get install -y libpq-dev libzbar-dev
+
+# Copy the requirements file into the container and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application code into the container
+COPY bench/ .
+
+# Expose port 80
+EXPOSE 80
+
+# Set the default command to start Daphne with our ASGI application
+CMD ["daphne", "-b", "0.0.0.0", "-p", "80", "bench.asgi:application"]

@@ -1,6 +1,8 @@
-import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
+import * as k8s from "@pulumi/kubernetes";
+import * as pulumi from "@pulumi/pulumi";
 
 // Grab some values from the Pulumi configuration (or use default values)
 const config = new pulumi.Config();
@@ -35,6 +37,84 @@ const eksCluster = new eks.Cluster("eks-cluster", {
   // endpointPrivateAccess: true,
   // endpointPublicAccess: false
 });
+
+// Create RDS Aurora Postgres database
+const db = new aws.rds.Instance("db", {
+  engine: "aurora-postgresql",
+  allocatedStorage: 20,
+  maxAllocatedStorage: 500,
+  engineVersion: "14.3",
+  instanceClass: "db.t3.micro",
+  name: "postgres",
+  username: "postgres",
+  password: config.requireSecret("dbPassword"),
+});
+
+// db env vars
+const DB_ENV_VARS = [
+  {
+    name: "BENCH_DB_NAME",
+    value: "postgres",
+  },
+  {
+    name: "BENCH_DB_USER",
+    value: "postgres",
+  },
+  {
+    name: "BENCH_DB_PASSWORD",
+    valueFrom: {
+      secretKeyRef: {
+        name: "db",
+        key: "password",
+      },
+    },
+  },
+  {
+    name: "BENCH_POSTGRES_HOST",
+    value: db.address,
+  },
+  {
+    name: "BENCH_POSTGRES_PORT",
+    value: db.port.apply((port) => port.toString()),
+  },
+];
+
+// zmq env vars
+const ZMQ_ENV_VARS = [];
+
+// Create deployment for API server (ASGI Django with Daphne)
+const apiDeployment = new k8s.apps.v1.Deployment("api", {
+  spec: {
+    replicas: 1,
+    selector: { matchLabels: { app: "api" } },
+    template: {
+      metadata: { labels: { app: "api" } },
+      spec: {
+        containers: [
+          {
+            name: "api",
+            image: "ghcr.io/symbolx/bench-api:latest",
+            ports: [{ containerPort: 80 }],
+            env: [...DB_ENV_VARS, { name: "RUN_INTSERVER", value: "true" }],
+          },
+        ],
+      },
+    },
+  },
+});
+
+// TODO @Incomplete: create deployment for workers (same image for now)
+
+// Load balance and expose the API server
+const apiService = new k8s.core.v1.Service("api", {
+  spec: {
+    type: "LoadBalancer",
+    ports: [{ port: 80, targetPort: 80 }],
+    selector: apiDeployment.spec.template.metadata.labels,
+  },
+});
+
+// TODO @Incomplete: use cert-manager helm chart to create a certificate for the API server
 
 // Export some values for use elsewhere
 export const kubeconfig = eksCluster.kubeconfig;

@@ -1,4 +1,6 @@
 config:
+  Bench:dbPassword:
+    secure: AAABAFLLikM6HWPlZP3nJJDy0tFNnYlT196dfXpXZEW//CaCT79Bi/zncgRuxT9ioMXE53cYFEkMxfnoyhEDSkq5Zf7WwurZDK0JQ3F6DZbXqFeIEDMQB/vnJSlV4Co=
   Bench:desiredClusterSize: "2"
   Bench:eksNodeInstanceType: t3.medium
   Bench:maxClusterSize: "3"
