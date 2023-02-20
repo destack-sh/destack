@@ -105,7 +105,7 @@ export type Execution = Node & {
   root?: Maybe<Execution>;
   /** Time of transition to RUNNING status. */
   startedAt?: Maybe<Scalars["DateTime"]>;
-  status: Scalars["String"];
+  status: ExecutionStatus;
   /** Time of transition to a terminal status. */
   terminatedAt?: Maybe<Scalars["DateTime"]>;
   updatedAt: Scalars["DateTime"];
@@ -130,6 +130,17 @@ export type ExecutionEdge = {
   /** The item at the end of the edge */
   node: Execution;
 };
+
+export enum ExecutionStatus {
+  Aborted = "Aborted",
+  Aborting = "Aborting",
+  Completed = "Completed",
+  Created = "Created",
+  Failed = "Failed",
+  Queued = "Queued",
+  Running = "Running",
+  Scheduled = "Scheduled",
+}
 
 export type File = Node & {
   __typename?: "File";
@@ -822,11 +833,11 @@ export type StatementUpdateLanguageInput = {
 
 export type Subscription = {
   __typename?: "Subscription";
-  modelExecutionChanged: Execution;
+  moduleExecutionChanged: Execution;
   moduleRuntimeChanged: ModuleRuntime;
 };
 
-export type SubscriptionModelExecutionChangedArgs = {
+export type SubscriptionModuleExecutionChangedArgs = {
   codeId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
 };
@@ -1035,7 +1046,7 @@ export type ExecutionContentFragment = {
   updatedAt: any;
   startedAt?: any | null;
   terminatedAt?: any | null;
-  status: string;
+  status: ExecutionStatus;
   inputs?: any | null;
   outputs?: any | null;
   error?: any | null;
@@ -1048,6 +1059,8 @@ export type ExecutionContentFragment = {
 export type ExecutionsQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   codeId?: InputMaybe<Scalars["GlobalID"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 }>;
 
 export type ExecutionsQuery = {
@@ -1072,6 +1085,17 @@ export type ExecutionsQuery = {
       startCursor?: string | null;
       endCursor?: string | null;
     };
+  };
+};
+
+export type ModuleExecutionChangedSubscriptionVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type ModuleExecutionChangedSubscription = {
+  __typename?: "Subscription";
+  moduleExecutionChanged: { __typename?: "Execution" } & {
+    " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment };
   };
 };
 
@@ -2595,6 +2619,16 @@ export const ExecutionsDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "last" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -2612,6 +2646,16 @@ export const ExecutionsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "codeId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "last" },
+                value: { kind: "Variable", name: { kind: "Name", value: "last" } },
               },
             ],
             selectionSet: {
@@ -2670,6 +2714,44 @@ export const ExecutionsDocument = {
     ...ExecutionContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ExecutionsQuery, ExecutionsQueryVariables>;
+export const ModuleExecutionChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "moduleExecutionChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "moduleExecutionChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...ExecutionContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ModuleExecutionChangedSubscription, ModuleExecutionChangedSubscriptionVariables>;
 export const CreateFileDocument = {
   kind: "Document",
   definitions: [

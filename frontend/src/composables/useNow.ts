@@ -49,3 +49,12 @@ export function useTimeFromNow(updateInterval = 60000) {
 
   return { now, getTimeFromNow, getTimeFromNowString };
 }
+
+export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): string {
+  // format runtime diff into smallest reasonable unit
+  const from = DateTime.fromISO(fromStr);
+  const to = typeof toStr == "string" ? DateTime.fromISO(toStr) : toStr;
+  // round to .001 seconds using Math.round
+  const diff = Math.round(to.diff(from).as("milliseconds")) / 1000;
+  return `${diff}s`;
+}

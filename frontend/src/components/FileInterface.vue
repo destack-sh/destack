@@ -161,7 +161,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
 </script>
 
 <template>
-  <!-- Container div -->
+  <!-- File container div -->
   <div>
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-20 -mr-12 w-full bg-red-600 px-12 py-2">
@@ -179,7 +179,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta -->
       <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
-      <div class="relative mx-auto w-full max-w-[1000px] pt-6 font-bold text-gray-900">
+      <div class="relative mx-auto w-full max-w-[1000px] px-2 pt-6 font-bold text-gray-900">
         <EditableSpan
           ref="nameRef"
           class="text-3xl"

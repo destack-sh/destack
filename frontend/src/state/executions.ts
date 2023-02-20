@@ -29,13 +29,10 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
 `);
 
 export function useExecutions(projectVersionId: Ref<string>, codeId: Ref<string | null>, live?: boolean) {
-  if (live) {
-    throw new Error("TODO @Incomplete: implement live executions");
-  }
-  const { result: executionsResult } = useQuery(
+  const { result: executionsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
-      query executions($projectVersionId: GlobalID!, $codeId: GlobalID) {
-        executions(projectVersionId: $projectVersionId, codeId: $codeId) {
+      query executions($projectVersionId: GlobalID!, $codeId: GlobalID, $first: Int, $last: Int) {
+        executions(projectVersionId: $projectVersionId, codeId: $codeId, first: $first, last: $last) {
           totalCount
           edges {
             cursor
@@ -55,8 +52,42 @@ export function useExecutions(projectVersionId: Ref<string>, codeId: Ref<string 
         }
       }
     `),
-    { projectVersionId, codeId }
+    { projectVersionId, codeId, first: 25 }
   );
+
+  if (live) {
+    subscribeToMore({
+      document: graphql(/* GraphQL */ `
+        subscription moduleExecutionChanged($projectVersionId: GlobalID!) {
+          moduleExecutionChanged(projectVersionId: $projectVersionId) {
+            ...ExecutionContent
+          }
+        }
+      `),
+      variables: { projectVersionId },
+      updateQuery: (prev, { subscriptionData }) => {
+        const newExecution = subscriptionData.data.moduleExecutionChanged;
+        const newExecutions = prev.executions.edges.map((edge: any) => edge.node);
+        // insert or update the execution
+        const index = newExecutions.findIndex((execution: any) => execution.id === newExecution.id);
+        if (index === -1) {
+          newExecutions.push(newExecution);
+        } else {
+          newExecutions[index] = newExecution;
+        }
+        return {
+          executions: {
+            ...prev.executions,
+            totalCount: prev.executions.totalCount ?? 0 + (index === -1 ? 1 : 0),
+            edges: newExecutions.map((execution: any) => ({
+              cursor: execution.id,
+              node: { ...execution, descendants: [] },
+            })),
+          },
+        };
+      },
+    });
+  }
 
   return {
     executions: computed(

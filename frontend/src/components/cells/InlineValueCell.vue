@@ -74,6 +74,9 @@ onClickOutside(editableContainerRef, () => {
 });
 
 function edit() {
+  if (props.readonly) {
+    return;
+  }
   if (props.type.tag == TypeTag.Boolean) {
     writeValue(!readValue.value);
     confirm();
@@ -123,6 +126,7 @@ defineExpose({
       :class="readValue == placeholderValue ? 'text-gray-300' : ''"
       tabindex="-1"
       ref="buttonRef"
+      :disabled="readonly"
       @click="edit"
       @keydown.enter.exact="edit"
       @keydown.left.exact="editing || emit('navigateLeft')"
@@ -144,6 +148,7 @@ defineExpose({
         class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
         v-else-if="type.tag == TypeTag.Boolean"
         :checked="readValue"
+        :disabled="props.readonly"
       />
       <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
       <!-- Can't render this type! -->

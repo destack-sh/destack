@@ -79,3 +79,6 @@ class Execution(UUIDTModel):
 
     def __str__(self):
         return f"{self.id} {self.status}"
+
+    class Meta:
+        ordering = ["-created_at"]
