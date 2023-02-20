@@ -232,7 +232,18 @@ provideAction({
   id: "editor.zenMode",
   label: computed(() => (editor.zenMode ? "Exit Zen Mode" : "Enter Zen Mode")),
   shortcuts: ["alt+z"],
-  apply: () => editor.setZenMode(!editor.zenMode),
+  apply: () => {
+    editor.setZenMode(!editor.zenMode);
+    notifications.dismissIf({ type: "zenMode" });
+    notifications.show({
+      type: "zenMode",
+      kind: "notice",
+      message: editor.zenMode ? "Zen Mode on" : "Zen Mode off",
+      description: editor.zenMode ? "Minimize distractions." : "Restored full editor view.",
+      action: () => editor.setZenMode(!editor.zenMode),
+      actionText: "Toggle",
+    });
+  },
 });
 
 // sync fullscreen
