@@ -133,9 +133,9 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
         />
       </div>
     </div>
-    <!-- Executions -->
+    <!-- Runs -->
     <h2 class="mt-6 flex flex-row items-baseline gap-1 text-lg">
-      Executions
+      Runs
       <span class="rounded bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
     </h2>
     <table

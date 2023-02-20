@@ -544,6 +544,7 @@ export type Query = {
   __typename?: "Query";
   executions: ExecutionConnection;
   file?: Maybe<File>;
+  me?: Maybe<User>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
   project?: Maybe<Project>;

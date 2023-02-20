@@ -2,8 +2,10 @@ import typing
 from typing import Optional, Union
 
 import strawberry
+from django.contrib.auth.models import AnonymousUser
 from graphql import NoSchemaIntrospectionCustomRule
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
@@ -20,8 +22,17 @@ from bench.settings import DEBUG, TEST
 PyType = typing.Type
 
 
+async def get_me(self, info: Info) -> Optional[User]:
+    # unwrap because we need the actual object but channels.auth gives us a UserLazyObject
+    user = info.context.request.scope["user"]._wrapped
+    if isinstance(user, AnonymousUser):
+        return None
+    return user
+
+
 @strawberry.type
 class Query(ExecutionQuery):
+    me = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
     users: gql.relay.Connection[User] = gql.relay.connection()
     organization: Optional[Organization] = gql.relay.node()
