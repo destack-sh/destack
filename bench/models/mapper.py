@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import typing
 from dataclasses import asdict
+from datetime import datetime
 from itertools import chain, groupby
 from uuid import UUID, uuid4
 
+import pytz
 from django.db import transaction
 from more_itertools import first
 
@@ -477,10 +479,10 @@ def rmap_type_nodes(
 
 
 def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
-    if frame.exited_at:
-        status = models.ExecutionStatus.Completed
-    elif frame.error:
+    if frame.error:
         status = models.ExecutionStatus.Failed
+    elif frame.exited_at:
+        status = models.ExecutionStatus.Completed
     else:
         status = models.ExecutionStatus.Running
     return models.Execution(
@@ -491,6 +493,8 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         parent_id=frame.parent_id,
         code_id=frame.code_id,
         model_id=frame.model_id,
+        created_at=frame.entered_at,  # not sure what to pass since it's not in DB, not frame
+        updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
         started_at=frame.entered_at,
         terminated_at=frame.exited_at,
         inputs=frame.inputs,

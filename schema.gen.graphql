@@ -78,7 +78,7 @@ type Execution implements Node {
   """Time of transition to a terminal status."""
   terminatedAt: DateTime
   durationMillis: Float
-  status: String!
+  status: ExecutionStatus!
   inputs: JSON
   outputs: JSON
   error: JSON
@@ -108,6 +108,17 @@ type ExecutionEdge {
 
   """The item at the end of the edge"""
   node: Execution!
+}
+
+enum ExecutionStatus {
+  Created
+  Scheduled
+  Queued
+  Running
+  Aborting
+  Aborted
+  Failed
+  Completed
 }
 
 type File implements Node {
@@ -664,7 +675,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  modelExecutionChanged(projectVersionId: GlobalID!, codeId: GlobalID = null): Execution!
+  moduleExecutionChanged(projectVersionId: GlobalID!, codeId: GlobalID = null): Execution!
 }
 
 """The type of symbol content."""

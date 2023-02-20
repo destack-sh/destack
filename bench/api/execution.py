@@ -7,6 +7,8 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.statement import Statement
 
+ExecutionStatus = gql.enum(models.ExecutionStatus)
+
 
 @gql.django.type(models.Execution)
 class Execution(gql.Node):
@@ -15,7 +17,7 @@ class Execution(gql.Node):
     started_at: auto
     terminated_at: auto
     duration_millis: auto
-    status: auto
+    status: ExecutionStatus
     inputs: auto
     outputs: auto
     error: auto

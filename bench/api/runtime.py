@@ -282,7 +282,7 @@ class ModuleRuntimeSubscription:
             worker_sub_sock.close()
 
     @gql.subscription
-    async def model_execution_changed(
+    async def module_execution_changed(
         self, project_version_id: GlobalID, code_id: Optional[GlobalID] = None
     ) -> AsyncGenerator[Execution, None]:
         project_version_id = UUID(project_version_id.node_id)
