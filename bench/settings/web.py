@@ -76,8 +76,12 @@ AUTHENTICATION_BACKENDS: list[str] = [
     "axes.backends.AxesBackend",
     "social_core.backends.github.GithubOAuth2",
     "social_core.backends.gitlab.GitLabOAuth2",
-    "django.contrib.auth.backends.ModelBackend",
+    "social_core.backends.gitlab.GoogleOAuth2",
 ]
+
+if DEBUG:
+    # not bothering with email verification yet, so only enable ModelBackend in dev
+    AUTHENTICATION_BACKENDS.append("django.contrib.auth.backends.ModelBackend")
 
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
@@ -110,6 +114,11 @@ SOCIAL_AUTH_GITLAB_SCOPE = ["read_user"]
 SOCIAL_AUTH_GITLAB_KEY = os.environ.get("SOCIAL_AUTH_GITLAB_KEY")
 SOCIAL_AUTH_GITLAB_SECRET = os.environ.get("SOCIAL_AUTH_GITLAB_SECRET")
 SOCIAL_AUTH_GITLAB_API_URL = os.environ.get("SOCIAL_AUTH_GITLAB_API_URL", "https://gitlab.com")
+
+# Auth - via Google
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ["email", "profile"]
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET")
 
 # Axes
 
