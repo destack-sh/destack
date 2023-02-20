@@ -34,4 +34,9 @@ export const TYPE_POLICIES = {
       versions: useIncoming,
     },
   },
+  ExecutionConnection: {
+    fields: {
+      edges: useIncoming,
+    },
+  },
 };

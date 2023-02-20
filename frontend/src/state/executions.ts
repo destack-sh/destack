@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, type Ref } from "vue";
+import { computed, type Ref, reactive } from "vue";
 
 export const ExecutionContentType = graphql(/* GraphQL */ `
   fragment ExecutionContent on Execution {
@@ -28,7 +28,11 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export function useExecutions(projectVersionId: Ref<string>, codeId: Ref<string | null>, live?: boolean) {
+export function useExecutions(
+  projectVersionId: Ref<string>,
+  codeId: Ref<string | null>,
+  options: { root: boolean; live?: boolean }
+) {
   const { result: executionsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
       query executions($projectVersionId: GlobalID!, $codeId: GlobalID, $first: Int, $last: Int) {
@@ -55,7 +59,7 @@ export function useExecutions(projectVersionId: Ref<string>, codeId: Ref<string 
     { projectVersionId, codeId, first: 25 }
   );
 
-  if (live) {
+  if (options.live) {
     subscribeToMore({
       document: graphql(/* GraphQL */ `
         subscription moduleExecutionChanged($projectVersionId: GlobalID!) {
@@ -64,25 +68,33 @@ export function useExecutions(projectVersionId: Ref<string>, codeId: Ref<string 
           }
         }
       `),
-      variables: { projectVersionId },
+      variables: { projectVersionId, codeId },
       updateQuery: (prev, { subscriptionData }) => {
-        const newExecution = subscriptionData.data.moduleExecutionChanged;
-        const newExecutions = prev.executions.edges.map((edge: any) => edge.node);
-        // insert or update the execution
-        const index = newExecutions.findIndex((execution: any) => execution.id === newExecution.id);
-        if (index === -1) {
-          newExecutions.push(newExecution);
-        } else {
-          newExecutions[index] = newExecution;
+        if (!subscriptionData.data) return prev;
+        const execution = useFragment(ExecutionContentType, subscriptionData.data.moduleExecutionChanged);
+        const index = prev.executions.edges.findIndex((edge) => edge.node.id === execution.id);
+        if (index >= 0) {
+          // update is automatic in Apollo cache
+          return prev;
         }
+        // insert into edges if it's new, update count and page info
+        // cursor is base64-encoded ExecutionConnection:{nodeId}
+        const newEdge = {
+          __typename: "ExecutionEdge",
+          cursor: btoa(`arrayconnection:0`),
+          node: { ...execution, descendants: [] },
+        };
+        const pageInfo = {
+          ...prev.executions.pageInfo,
+          startCursor: newEdge.cursor,
+          hasPreviousPage: false,
+        };
         return {
           executions: {
             ...prev.executions,
-            totalCount: prev.executions.totalCount ?? 0 + (index === -1 ? 1 : 0),
-            edges: newExecutions.map((execution: any) => ({
-              cursor: execution.id,
-              node: { ...execution, descendants: [] },
-            })),
+            totalCount: (prev.executions.totalCount ?? 0) + 1,
+            edges: [newEdge, ...prev.executions.edges],
+            pageInfo,
           },
         };
       },
@@ -90,6 +102,7 @@ export function useExecutions(projectVersionId: Ref<string>, codeId: Ref<string 
   }
 
   return {
+    totalCount: computed(() => executionsResult.value?.executions?.totalCount ?? 0),
     executions: computed(
       () =>
         executionsResult.value?.executions?.edges?.map((edge: any) => useFragment(ExecutionContentType, edge.node)) ??

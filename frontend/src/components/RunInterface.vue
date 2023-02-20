@@ -2,7 +2,7 @@
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
-import { formatDiffSeconds, useNow, useTimeFromNow } from "@/composables/useNow";
+import { formatDiffSeconds, humanizeNumber, useNow, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
@@ -37,6 +37,7 @@ function setArgument(key: string, value: string) {
 }
 
 const lastOutput: Ref<any | null> = ref(null);
+const lastOutputDirty = ref(false);
 const ops = useOperations();
 const notifications = useNotifications();
 const editor = useEditorState();
@@ -45,8 +46,13 @@ async function run() {
   if (symbol.value == null) {
     return;
   }
-  console.log("run " + symbol.value?.name, arguments_.value);
-  const ret = await ops.runtime.run(symbol.value.id, build.value?.id, arguments_.value);
+  // prune arguments to only those that are defined
+  const args = Object.fromEntries(
+    Object.entries(arguments_.value).filter(([key]) => inputFields.value.some((f) => f.name == key))
+  );
+  console.log("run " + symbol.value?.name, args);
+  lastOutputDirty.value = true;
+  const ret = await ops.runtime.run(symbol.value.id, build.value?.id, args);
   if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
     notifications.show({
       type: "run.fail",
@@ -58,16 +64,17 @@ async function run() {
   } else {
     lastOutput.value = ret.data.run.output;
   }
+  lastOutputDirty.value = false;
 }
 
 // TODO @Broken: get proper runnable id(s) if this is a not a code symbol
-const { executions } = useExecutions(
+const { executions, totalCount } = useExecutions(
   toRef(editor, "currentProjectVersionId") as Ref<string>,
   toRef(props, "runnableId"),
-  true
+  { root: true, live: true }
 );
 
-const { getTimeFromNowString, now } = useTimeFromNow();
+const { getTimeFromNowString, now } = useTimeFromNow(33);
 </script>
 <template>
   <div
@@ -114,9 +121,25 @@ const { getTimeFromNowString, now } = useTimeFromNow();
         </template>
       </div>
     </div>
-    <!-- Outputs -->
+    <!-- Current/last output  -->
+    <div class="mt-6 min-h-[100px] w-full border-2 border-orange-100" :class="{ 'animate-pulse': lastOutputDirty }">
+      <div class="animate-none px-2" v-if="lastOutput">
+        <InlineValueCell
+          v-if="outputField"
+          :type="outputField"
+          :model-value="lastOutput"
+          :readonly="true"
+          :immediate="false"
+        />
+      </div>
+    </div>
+    <!-- Executions -->
+    <h2 class="mt-6 flex flex-row items-baseline gap-1 text-lg">
+      Executions
+      <span class="rounded bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
+    </h2>
     <table
-      class="mt-6 items-baseline divide-y-2 divide-gray-300/25"
+      class="mt-2 items-baseline divide-y-2 divide-gray-300/25"
       :style="{ 'grid-template-columns': `repeat(${inputFields.length + 3}, minmax(40px, 100px))` }"
     >
       <!-- Header -->
@@ -134,7 +157,7 @@ const { getTimeFromNowString, now } = useTimeFromNow();
       <tbody>
         <tr v-for="execution in executions" :key="execution.id">
           <!-- Execution status -->
-          <td class="flex flex-row items-center gap-1 py-2 px-2">
+          <td class="flex flex-row items-center gap-1 px-2 py-2">
             <svg
               viewBox="0 0 100 100"
               class="h-3 w-3"
@@ -152,14 +175,13 @@ const { getTimeFromNowString, now } = useTimeFromNow();
             </svg>
             <span class="text-gray-500">{{ getTimeFromNowString(execution.updatedAt) }}</span>
           </td>
-          <td class="px-2 text-gray-700">
+          <td class="px-2 text-right text-gray-700">
             <span class="" v-if="execution.terminatedAt != null">
               {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
             </span>
-            <span v-else-if="execution.status == ExecutionStatus.Running">
+            <span v-else-if="execution.startedAt != null">
               {{ formatDiffSeconds(execution.startedAt, now) }}
             </span>
-            <span v-else class="text-gray-500"> ... </span>
           </td>
           <!-- Inputs -->
           <td v-for="field in inputFields" :key="field.id" class="px-2">
