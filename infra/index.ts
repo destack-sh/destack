@@ -313,47 +313,6 @@ const workerDeployment = new k8s.apps.v1.Deployment(
 //   },
 // });
 
-// Cert-manager for ... certs
-const certNs = new k8s.core.v1.Namespace("cert-manager", {
-  metadata: { name: "cert-manager" },
-});
-const certManager = new k8s.helm.v3.Release("cert-manager", {
-  chart: "cert-manager",
-  namespace: certNs.metadata.name,
-  version: "v1.11.0",
-  repositoryOpts: {
-    repo: "https://charts.jetstack.io",
-  },
-  values: {
-    installCRDs: true,
-  },
-});
-const certIssuer = new k8s.apiextensions.CustomResource(
-  "letsencrypt-prod",
-  {
-    apiVersion: "cert-manager.io/v1",
-    kind: "ClusterIssuer",
-    metadata: { name: "letsencrypt-prod", namespace: certNs.metadata.name },
-    spec: {
-      acme: {
-        email: "florian@symbolx.com",
-        server: "https://acme-v02.api.letsencrypt.org/directory",
-        privateKeySecretRef: { name: "letsencrypt-prod" },
-        solvers: [
-          {
-            http01: {
-              ingress: {
-                class: "nginx",
-              },
-            },
-          },
-        ],
-      },
-    },
-  },
-  { provider: eksCluster.provider }
-);
-
 // Expose API service via HTTPS ingress
 const apiDomain = "api.symbolx.com";
 const apiIngress = new k8s.networking.v1.Ingress(
@@ -365,7 +324,8 @@ const apiIngress = new k8s.networking.v1.Ingress(
         "alb.ingress.kubernetes.io/ssl-redirect": "443",
         "alb.ingress.kubernetes.io/listen-ports": '[{"HTTP": 80}, {"HTTPS":443}]',
         "alb.ingress.kubernetes.io/scheme": "internet-facing",
-        "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+        // ALB doesn't support cert-manager certs, so we need to provision that cert ACM
+        "certificate-arn": "arn:aws:acm:eu-central-1:163349077661:certificate/ca07536d-3af0-419c-a29b-d27237cd4a6d",
       },
       namespace: "default",
     },
