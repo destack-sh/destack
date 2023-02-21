@@ -21,8 +21,10 @@ from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
 from bench.settings import (
+    DEBUG,
     RUN_INTSERVER,
     RUN_WORKER,
+    TEST,
     ZMQ_API_PUB_ADDR,
     ZMQ_INTSERVER_PUB_ADDR,
     ZMQ_INTSERVER_REP_ADDR,
@@ -78,6 +80,8 @@ if RUN_INTSERVER:
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "intserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 if RUN_WORKER:
+    if not DEBUG or TEST:
+        raise RuntimeError("worker should be run via isolated runworker in prod")
     from bench.runtime.worker import RuntimeWorker
 
     local_id = random.randint(0, 2 ** 32)  # just some random number

@@ -1,5 +1,6 @@
 import NotFound from "@/routes/NotFound.vue";
 import ProjectBench from "@/routes/ProjectBench.vue";
+import UserHome from "@/routes/UserHome.vue";
 
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
@@ -11,6 +12,7 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 
 const routes = [
   { path: "/:organization/:project", component: ProjectBench, props: forwardQueryAndParams },
+  { path: "/", component: UserHome, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];

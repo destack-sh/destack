@@ -1,12 +1,18 @@
-<script lang="ts">
-import { defineComponent } from "vue";
-
-export default defineComponent({
-  name: "NotFound",
-});
+<script lang="ts" setup>
+import FatHeader from "@/components/basic/FatHeader.vue";
+import HomeButton from "@/components/basic/HomeButton.vue";
+import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
 </script>
 <template>
-  <div class="flex min-h-full flex-col bg-white pt-16 pb-12">
+  <div class="flex h-full flex-col bg-white pb-12">
+    <FatHeader>
+      <template v-slot:left>
+        <HomeButton />
+      </template>
+      <template v-slot:right>
+        <ProfileMenuButton />
+      </template>
+    </FatHeader>
     <main class="mx-auto flex w-full max-w-7xl flex-grow flex-col justify-center px-4 sm:px-6 lg:px-8">
       <div class="flex flex-shrink-0 justify-center">
         <a href="/" class="inline-flex">
