@@ -5,7 +5,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { makeALBController } from "./alb";
 
-// Grab some values from the Pulumi configuration (or use default values)
+// configuration
 const config = new pulumi.Config();
 const minClusterSize = config.getNumber("minClusterSize") || 2;
 const maxClusterSize = config.getNumber("maxClusterSize") || 3;
@@ -222,7 +222,17 @@ const ZMQ_WORKER_ENV_VARS = ZMQ_ENV_VARS.map((envVar) => {
   return envVar;
 });
 
-const imageVersion = config.get("imageVersion") || "latest";
+// Use git commit hashes as version by default
+const version = config.require("version");
+// if version is 'current', get the current commit hash
+let imageVersion;
+if (version == "current") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  imageVersion = require("child_process").execSync("git rev-parse --short HEAD").toString().trim();
+} else {
+  imageVersion = version;
+}
+
 // Create deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
   apiName,
