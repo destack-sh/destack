@@ -1,6 +1,7 @@
 config:
+  Bench:apiAllowedHosts: "*"
   Bench:dbPassword:
-    secure: AAABAFLLikM6HWPlZP3nJJDy0tFNnYlT196dfXpXZEW//CaCT79Bi/zncgRuxT9ioMXE53cYFEkMxfnoyhEDSkq5Zf7WwurZDK0JQ3F6DZbXqFeIEDMQB/vnJSlV4Co=
+    secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
   Bench:desiredClusterSize: "2"
   Bench:eksNodeInstanceType: t3.medium
   Bench:env: prod
@@ -11,4 +12,3 @@ config:
   Bench:vpcNetworkCidr: 10.0.0.0/16
   aws:region: "eu-central-1"
   pulumi:template: kubernetes-aws-typescript
-  Bench:apiAllowedHosts: "*"

@@ -22,7 +22,7 @@ from bench.settings import SEND_API_PUB_MSG, ZMQ_API_PUB_ADDR
 logger = structlog.get_logger(__name__)
 
 # Bind pub addr to localhost if it's a wildcard.
-ZMQ_API_PUB_ADDR = ZMQ_API_PUB_ADDR.replace("*", "localhost")
+ZMQ_API_PUB_ADDR = ZMQ_API_PUB_ADDR.replace("*", "127.0.0.1")
 
 # sync because it's used in the synchronous API
 project_change_pub_sync = zmq_ctx_sync.socket(zmq.PUB)
