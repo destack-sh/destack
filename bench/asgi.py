@@ -42,7 +42,6 @@ websocket_urlpatterns = [
     re_path(r"graphql", GraphQLWSConsumer.as_asgi(schema=schema)),
 ]
 
-# TODO @Performance @Security: standardize and move CORS handling into nginx?
 gql_http_consumer = CORSMiddleware(
     AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
     allow_origins=["*"],

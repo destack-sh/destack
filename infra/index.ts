@@ -153,7 +153,7 @@ const apiService = new k8s.core.v1.Service(
   apiName,
   {
     spec: {
-      type: "LoadBalancer",
+      type: "NodePort",
       ports: [
         { port: 80, name: "http" },
         { port: 5555, name: "zmq-1" },
@@ -357,7 +357,7 @@ const apiIngress = new k8s.networking.v1.Ingress(
                 pathType: "Prefix",
                 backend: {
                   service: {
-                    name: apiDeployment.spec.template.metadata.labels.app,
+                    name: apiService.metadata.name,
                     port: { number: 80 },
                   },
                 },
