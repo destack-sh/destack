@@ -9,14 +9,14 @@ from uuid import UUID
 import structlog
 import zmq.asyncio
 
-from bench.zmq.messages import (
+from bench.msg.messages import (
     MESSAGE_TYPE_BY_PAYLOAD_CLASS,
     PROTOCOL_VERSION,
     REGISTERED_MESSAGE_PAYLOADS,
     ZMessageType,
     to_key,
 )
-from bench.zmq.serialize import from_dict, to_dict
+from bench.msg.serialize import from_dict, to_dict
 
 logger = structlog.get_logger(__name__)
 

@@ -8,8 +8,8 @@ from typing import Optional, cast
 from uuid import UUID
 
 from bench.language import wire
+from bench.msg import sync
 from bench.runtime.type import ExecutionFrameData
-from bench.zmq import sync
 
 PROTOCOL_VERSION = 1
 

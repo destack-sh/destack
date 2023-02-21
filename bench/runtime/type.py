@@ -18,8 +18,8 @@ from bench.language.type import (
     Type,
     Value,
 )
-from bench.settings.utils import required_field
 from bench.utils.record import RecordBatch
+from bench.utils.utils import required_field
 
 AsyncCodeCallable = Callable[..., Coroutine]
 SyncCodeCallable = Callable[..., Any]

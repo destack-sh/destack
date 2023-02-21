@@ -3,6 +3,9 @@ config:
     secure: AAABAFLLikM6HWPlZP3nJJDy0tFNnYlT196dfXpXZEW//CaCT79Bi/zncgRuxT9ioMXE53cYFEkMxfnoyhEDSkq5Zf7WwurZDK0JQ3F6DZbXqFeIEDMQB/vnJSlV4Co=
   Bench:desiredClusterSize: "2"
   Bench:eksNodeInstanceType: t3.medium
+  Bench:env: prod
+  Bench:ghcrToken:
+    secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
   Bench:maxClusterSize: "3"
   Bench:minClusterSize: "2"
   Bench:vpcNetworkCidr: 10.0.0.0/16

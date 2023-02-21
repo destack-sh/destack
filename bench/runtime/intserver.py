@@ -4,9 +4,8 @@ from asgiref.sync import sync_to_async
 
 from bench.models import Execution, ProjectVersion, mapper
 from bench.models.mapper import read_module, write_module
-from bench.runtime.type import ExecutionFrameData
-from bench.zmq import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
-from bench.zmq.messages import (
+from bench.msg import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
+from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleChangedPayload,
     ProjectVersionChangedPayload,
@@ -16,7 +15,8 @@ from bench.zmq.messages import (
     ReqWriteModulePayload,
     as_key,
 )
-from bench.zmq.sync import is_semantic
+from bench.msg.sync import is_semantic
+from bench.runtime.type import ExecutionFrameData
 
 # TODO @Cleanup: intservers should probably live in django-side of the backend?
 #  (not general language runtime)

@@ -18,4 +18,5 @@ helm repo add kubecost https://kubecost.github.io/cost-analyzer/
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add mtougeron https://mtougeron.github.io/helm-charts/
+helm repo add jetstack https://charts.jetstack.io
 helm repo update

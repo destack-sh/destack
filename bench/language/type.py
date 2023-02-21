@@ -21,7 +21,7 @@ from uuid import UUID
 
 from django.db import models
 
-from bench.settings.utils import required_field
+from bench.utils.utils import required_field
 
 
 @dataclass(repr=False)

@@ -2,8 +2,6 @@ import os
 from dataclasses import field
 from typing import Any, Callable, Optional
 
-from django.core.exceptions import ImproperlyConfigured
-
 
 def str_to_bool(value: str) -> bool:
     truthy_strs_lower = ("y", "yes", "t", "true", "on", "yup", "1")
@@ -24,9 +22,7 @@ def get_from_env(
         elif default is not None:
             value = default
         else:
-            raise ImproperlyConfigured(
-                f'The environment variable "{key}" is missing and required for Bench.'
-            )
+            raise ValueError(f'The environment variable "{key}" is missing and required for Bench.')
     if type_cast is not None:
         value = type_cast(value)
     return value

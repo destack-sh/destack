@@ -15,7 +15,8 @@ from strawberry_django_plus import gql
 from bench.language import SymbolType
 from bench.models import DatasetRecord, SourceMapping
 from bench.models.statement import SimpleTypeNode, Statement, StatementType
-from bench.models.utils import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import UUIDModel
+from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models.organization import Organization

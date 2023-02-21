@@ -14,7 +14,8 @@ from strawberry_django_plus import gql
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
 from bench.models.data import DatasetContentMixin
 from bench.models.generated import GeneratedContentMixin
-from bench.models.utils import MAX_NAME_LENGTH, UUIDModel
+from bench.models.utils import UUIDModel
+from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion

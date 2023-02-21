@@ -51,7 +51,6 @@ from bench.runtime.type import (
     ValueInstance,
     summarize_args,
 )
-from bench.settings import DEBUG, TEST
 from bench.utils.record import RecordList
 
 logger = structlog.stdlib.get_logger()
@@ -64,7 +63,6 @@ class ProviderKey(models.TextChoices):
     TRANSFORMERS = "transformers"
 
 
-CAN_EXEC = DEBUG or TEST
 # TODO @Cleanup: static builtins should be in the run environment context?
 STATIC_BUILTINS = {
     # primitive type builtins
@@ -404,9 +402,6 @@ def _execute_code(code: str, globals: dict[str, Any]) -> dict:
 
 
 def _do_execute(code: str, globals: dict):
-    if not CAN_EXEC:
-        raise RuntimeError("exec outside sandbox is not allowed")
-
     exec(code, globals)
 
 
