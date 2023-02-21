@@ -296,20 +296,20 @@ const workerDeployment = new k8s.apps.v1.Deployment(
   { provider: eksCluster.provider }
 );
 
-// TODO @Incomplete: kubecost
-// const kubecost = new k8s.helm.v3.Chart("kubecost", {
+// Kube cost monitoring
+// const kubecostNs = new k8s.core.v1.Namespace("kubecost", {}, { provider: eksCluster.provider });
+// const kubecost = new k8s.helm.v3.Release("kubecost", {
 //   chart: "cost-analyzer",
-//   repo: "kubecost",
-//   namespace: "kubecost",
+//   repositoryOpts: {
+//     repo: "https://kubecost.github.io/cost-analyzer",
+//   },
+//   namespace: kubecostNs.metadata.name,
 //   version: "1.89.1",
 //   values: {
 //     persistentVolume: {
 //       enabled: true,
 //       storageClass: "gp2",
 //     },
-//   },
-//   fetchOpts: {
-//     repo: "https://kubecost.github.io/cost-analyzer",
 //   },
 // });
 
@@ -361,18 +361,18 @@ const apiIngress = new k8s.networking.v1.Ingress(
   { provider: eksCluster.provider }
 );
 
-// TODO @Incomplete: metrics server
-// const metricsServer = new k8s.helm.v3.Chart("metrics-server", {
+// TODO @Incomplete: Export kube metrics with metrics-server
+// const metricsServer = new k8s.helm.v3.Release("metrics-server", {
 //   chart: "metrics-server",
-//   version: "3.8.2",
+//   version: "6.8.2",
 //   namespace: "kube-system",
-//   fetchOpts: {
-//     repo: "https://charts.bitnami.com",
+//   repositoryOpts: {
+//     repo: "https://charts.bitnami.com/bitnami",
 //   },
 // });
 
 // TODO @Incomplete: prometheus
-// const prometheus = new k8s.helm.v3.Chart("prometheus", {
+// const prometheus = new k8s.helm.v3.Resource("prometheus", {
 //   chart: "prometheus",
 //   version: "14.6.0",
 //   namespace: "monitoring",
@@ -380,4 +380,4 @@ const apiIngress = new k8s.networking.v1.Ingress(
 //     repo: "https://prometheus-community.github.io/helm-charts",
 //   },
 // });
-// TODO @Incomplete: grafana
+// TODO @Incomplete: grafana?
