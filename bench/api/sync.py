@@ -2,6 +2,7 @@ import functools
 import typing
 from typing import AsyncGenerator, Optional, Sequence, Union
 
+import structlog
 import zmq
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
@@ -16,11 +17,18 @@ from bench import models
 from bench.msg import ZMessageType, send_message, zmq_ctx_sync
 from bench.msg.messages import ProjectVersionChangedPayload
 from bench.msg.sync import ProjectMutation, ProjectMutationType
-from bench.settings import ZMQ_API_PUB_ADDR
+from bench.settings import SEND_API_PUB_MSG, ZMQ_API_PUB_ADDR
+
+logger = structlog.get_logger(__name__)
+
+# Bind pub addr to localhost if it's a wildcard.
+ZMQ_API_PUB_ADDR = ZMQ_API_PUB_ADDR.replace("*", "localhost")
 
 # sync because it's used in the synchronous API
 project_change_pub_sync = zmq_ctx_sync.socket(zmq.PUB)
-project_change_pub_sync.bind(ZMQ_API_PUB_ADDR)
+if SEND_API_PUB_MSG:
+    logger.info("bind_sync", addr=ZMQ_API_PUB_ADDR)
+    project_change_pub_sync.bind(ZMQ_API_PUB_ADDR)
 
 
 PMT = ProjectMutationType
@@ -128,6 +136,8 @@ def pub_project_mutation(
     else:
         raise TypeError(f"thing must be File or Statement: {thing}")
 
+    if not SEND_API_PUB_MSG:
+        return
     mutation = ProjectMutation(
         type,
         project_version_id=thing.project_version_id,

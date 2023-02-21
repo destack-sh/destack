@@ -11,3 +11,4 @@ config:
   Bench:vpcNetworkCidr: 10.0.0.0/16
   aws:region: "eu-central-1"
   pulumi:template: kubernetes-aws-typescript
+  Bench:apiAllowedHosts: "*"

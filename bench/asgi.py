@@ -64,6 +64,11 @@ application = ProtocolTypeRouter(
 if RUN_INTSERVER:
     from bench.runtime.intserver import InternalServer
 
+    # Bind internal server's api socket to localhost if it's a wildcard,
+    # because wildcard means we're also hosting the API server, but ZMQ obviously
+    # can't connect to wildcard. Likewise, we do the same for intserver in API.
+    ZMQ_API_PUB_ADDR = ZMQ_API_PUB_ADDR.replace("*", "localhost")
+
     server = InternalServer()
     coro = server.run(
         intserver_rep_addr=ZMQ_INTSERVER_REP_ADDR,
