@@ -21,20 +21,20 @@ import { WS_CONNECTED } from "@/utils/globals";
 const MAX_RETRY_TIME_MS = 5000;
 const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "localhost:8000";
 function createApolloClient() {
-  let httpBaseUrl;
+  let httpUrl, wsUrl;
   if (API_BASE_URL.includes("localhost")) {
-    httpBaseUrl = `http://${API_BASE_URL}`;
+    httpUrl = `http://${API_BASE_URL}/graphql`;
+    wsUrl = `ws://${API_BASE_URL}/graphql`;
   } else {
-    httpBaseUrl = `https://${API_BASE_URL}`;
+    httpUrl = `https://${API_BASE_URL}/graphql`;
+    wsUrl = `wss://${API_BASE_URL}/graphql`;
   }
   // split requests between http and ws
   // see https://www.apollographql.com/docs/react/data/subscriptions
-  const httpLink = new HttpLink({
-    uri: `${httpBaseUrl}/graphql`,
-  });
+  const httpLink = new HttpLink({ uri: httpUrl });
   const wsLink = new GraphQLWsLink(
     createClient({
-      url: `ws://${API_BASE_URL}/graphql`,
+      url: wsUrl,
       retryAttempts: Infinity,
       shouldRetry: () => true,
       // websocket retry, backoff from 1 to 5s
