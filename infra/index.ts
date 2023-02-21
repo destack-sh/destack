@@ -3,7 +3,7 @@ import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import * as random from "@pulumi/random";
+import { makeALBController } from "./alb";
 
 // Grab some values from the Pulumi configuration (or use default values)
 const config = new pulumi.Config();
@@ -17,6 +17,10 @@ const vpcNetworkCidr = config.get("vpcNetworkCidr") || "10.0.0.0/16";
 const eksVpc = new awsx.ec2.Vpc("eks-vpc", {
   enableDnsHostnames: true,
   cidrBlock: vpcNetworkCidr,
+  subnetSpecs: [
+    { type: "Public", tags: { "kubernetes.io/role/elb": "1" } },
+    { type: "Private", tags: { "kubernetes.io/role/internal-elb": "1" } },
+  ],
 });
 
 // Create the EKS cluster
@@ -33,6 +37,7 @@ const eksCluster = new eks.Cluster("eks-cluster", {
   maxSize: maxClusterSize,
   nodeAssociatePublicIpAddress: false,
 });
+// add annotations for ALB to subnet tags
 
 // Image pull secrets for GHCR
 const ghrcToken = config.requireSecret("ghcrToken");
@@ -57,6 +62,9 @@ const imagePullSecret = new k8s.core.v1.Secret(
   },
   { provider: eksCluster.provider }
 );
+
+// Create AWS ALB Ingress Controller
+makeALBController(eksVpc, eksCluster);
 
 // Create RDS Aurora Postgres cluster/database
 const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
@@ -157,6 +165,7 @@ const apiService = new k8s.core.v1.Service(
   },
   { provider: eksCluster.provider }
 );
+
 // Internal worker service
 const workerName = "worker";
 const workerService = new k8s.core.v1.Service(
@@ -304,24 +313,97 @@ const workerDeployment = new k8s.apps.v1.Deployment(
 //   },
 // });
 
-// TODO @Incomplete: cert-manager for ... certs
-// const certManager = new k8s.helm.v3.Chart("cert-manager", {
-//   chart: "cert-manager",
-//   repo: "jetstack",
-//   namespace: "cert-manager",
-//   version: "v1.11.0",
-//   fetchOpts: {
-//     repo: "https://charts.jetstack.io",
-//   },
-//   values: {
-//     installCRDs: true,
-//   },
-// });
+// Cert-manager for ... certs
+const certNs = new k8s.core.v1.Namespace("cert-manager", {
+  metadata: { name: "cert-manager" },
+});
+const certManager = new k8s.helm.v3.Release("cert-manager", {
+  chart: "cert-manager",
+  namespace: certNs.metadata.name,
+  version: "v1.11.0",
+  repositoryOpts: {
+    repo: "https://charts.jetstack.io",
+  },
+  values: {
+    installCRDs: true,
+  },
+});
+const certIssuer = new k8s.apiextensions.CustomResource(
+  "letsencrypt-prod",
+  {
+    apiVersion: "cert-manager.io/v1",
+    kind: "ClusterIssuer",
+    metadata: { name: "letsencrypt-prod", namespace: certNs.metadata.name },
+    spec: {
+      acme: {
+        email: "florian@symbolx.com",
+        server: "https://acme-v02.api.letsencrypt.org/directory",
+        privateKeySecretRef: { name: "letsencrypt-prod" },
+        solvers: [
+          {
+            http01: {
+              ingress: {
+                class: "nginx",
+              },
+            },
+          },
+        ],
+      },
+    },
+  },
+  { provider: eksCluster.provider }
+);
+
+// Expose API service via HTTPS ingress
+const apiDomain = "api.symbolx.com";
+const apiIngress = new k8s.networking.v1.Ingress(
+  apiName,
+  {
+    metadata: {
+      annotations: {
+        "kubernetes.io/ingress.class": "alb",
+        "alb.ingress.kubernetes.io/ssl-redirect": "443",
+        "alb.ingress.kubernetes.io/listen-ports": '[{"HTTP": 80}, {"HTTPS":443}]',
+        "alb.ingress.kubernetes.io/scheme": "internet-facing",
+        "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+      },
+      namespace: "default",
+    },
+    spec: {
+      ingressClassName: "alb",
+      tls: [
+        {
+          hosts: [apiDomain],
+          secretName: "api-cert",
+        },
+      ],
+      rules: [
+        {
+          host: apiDomain,
+          http: {
+            paths: [
+              {
+                path: "/",
+                pathType: "Prefix",
+                backend: {
+                  service: {
+                    name: apiDeployment.spec.template.metadata.labels.app,
+                    port: { number: 80 },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
+  { provider: eksCluster.provider }
+);
 
 // TODO @Incomplete: metrics server
 // const metricsServer = new k8s.helm.v3.Chart("metrics-server", {
 //   chart: "metrics-server",
-//   repo: "metrics-server",
 //   version: "3.8.2",
 //   namespace: "kube-system",
 //   fetchOpts: {
@@ -330,3 +412,12 @@ const workerDeployment = new k8s.apps.v1.Deployment(
 // });
 
 // TODO @Incomplete: prometheus
+// const prometheus = new k8s.helm.v3.Chart("prometheus", {
+//   chart: "prometheus",
+//   version: "14.6.0",
+//   namespace: "monitoring",
+//   fetchOpts: {
+//     repo: "https://prometheus-community.github.io/helm-charts",
+//   },
+// });
+// TODO @Incomplete: grafana
