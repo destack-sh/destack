@@ -1,4 +1,4 @@
-from bench.zmq.core import (
+from bench.msg.core import (
     ZMessage,
     recv_message,
     recv_message_poll,
@@ -7,7 +7,7 @@ from bench.zmq.core import (
     zmq_ctx,
     zmq_ctx_sync,
 )
-from bench.zmq.messages import ZMessageType
+from bench.msg.messages import ZMessageType
 
 __all__ = [
     "ZMessage",

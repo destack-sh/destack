@@ -16,10 +16,8 @@ from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, Symb
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import mapper
-from bench.runtime.worker import ReqModuleRuntimePayload
-from bench.settings import ZMQ_worker_PUB_ADDR, ZMQ_worker_REP_ADDR
-from bench.zmq import ZMessageType, recv_message_with, send_message, zmq_ctx
-from bench.zmq.messages import (
+from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
+from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleRuntimeChangedPayload,
     RepModuleBuildPayload,
@@ -29,6 +27,8 @@ from bench.zmq.messages import (
     ReqModuleRunPayload,
     as_key,
 )
+from bench.runtime.worker import ReqModuleRuntimePayload
+from bench.settings import ZMQ_WORKER_PUB_ADDR, ZMQ_WORKER_REP_ADDR
 
 logger = structlog.get_logger(__name__)
 
@@ -184,7 +184,7 @@ class ModuleRuntimeMutation:
     async def build(self, input: BuildInput) -> BuildState | OperationInfo:
         # TODO @Cleanup @Performance: keep worker sockets across requests
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_worker_REP_ADDR)
+        worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         send_message(
             worker_req_sock,
@@ -203,7 +203,7 @@ class ModuleRuntimeMutation:
     @gql.mutation
     async def run(self, input: RunInput) -> RunState | OperationInfo:
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_worker_REP_ADDR)
+        worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         send_message(
             worker_req_sock,
@@ -235,9 +235,9 @@ class ModuleRuntimeSubscription:
         project_version_id = UUID(project_version_id.node_id)
         logger.info("runtime.subscribe", project_version_id=project_version_id)
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_worker_REP_ADDR)
+        worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_worker_PUB_ADDR)
+        worker_sub_sock.connect(ZMQ_WORKER_PUB_ADDR)
         worker_sub_sock.setsockopt(
             zmq.SUBSCRIBE, as_key(ZMessageType.MODULE_RUNTIME_CHANGED, str(project_version_id))
         )
@@ -289,7 +289,7 @@ class ModuleRuntimeSubscription:
         logger.info("executions.subscribe", project_version_id=project_version_id)
 
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_worker_PUB_ADDR)
+        worker_sub_sock.connect(ZMQ_WORKER_PUB_ADDR)
         worker_sub_sock.setsockopt(
             zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED, str(project_version_id))
         )

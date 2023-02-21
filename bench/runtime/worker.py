@@ -17,12 +17,7 @@ from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import Build, StatementPath, SymbolType
 from bench.language.wire import ModuleReference
-from bench.models.utils import UUIDT
-from bench.runtime.build import BuildResult, make_build
-from bench.runtime.execute import Proxy, instantiate, run
-from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
-from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData
-from bench.zmq import (
+from bench.msg import (
     ZMessage,
     ZMessageType,
     recv_message_poll,
@@ -30,7 +25,7 @@ from bench.zmq import (
     send_message,
     zmq_ctx,
 )
-from bench.zmq.messages import (
+from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
@@ -48,6 +43,11 @@ from bench.zmq.messages import (
     ReqWriteModulePayload,
     as_key,
 )
+from bench.runtime.build import BuildResult, make_build
+from bench.runtime.execute import Proxy, instantiate, run
+from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
+from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData
+from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 

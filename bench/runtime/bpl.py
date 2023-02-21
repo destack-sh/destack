@@ -10,7 +10,6 @@ from bench.language.lex import lex_string
 from bench.language.parse import TokenParser, impute_type_reference, parse_type_node_inline
 from bench.language.type import InterpSymbol, StatementPath, TypeTag
 from bench.language.typer import check_type
-from bench.models.utils import UUIDT
 from bench.runtime.inference import Inference
 from bench.runtime.type import (
     DecoderSettings,
@@ -21,6 +20,7 @@ from bench.runtime.type import (
     TextGeneration,
     TypeInstance,
 )
+from bench.utils.uuidt import UUIDT
 
 UNSET = object()
 

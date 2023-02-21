@@ -3,6 +3,7 @@ import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import * as random from "@pulumi/random";
 
 // Grab some values from the Pulumi configuration (or use default values)
 const config = new pulumi.Config();
@@ -20,35 +21,70 @@ const eksVpc = new awsx.ec2.Vpc("eks-vpc", {
 
 // Create the EKS cluster
 const eksCluster = new eks.Cluster("eks-cluster", {
-  // Put the cluster in the new VPC created earlier
+  name: "bench-" + config.require("env"),
   vpcId: eksVpc.vpcId,
   // Public subnets will be used for load balancers
   publicSubnetIds: eksVpc.publicSubnetIds,
   // Private subnets will be used for cluster nodes
   privateSubnetIds: eksVpc.privateSubnetIds,
-  // Change configuration values to change any of the following settings
   instanceType: eksNodeInstanceType,
   desiredCapacity: desiredClusterSize,
   minSize: minClusterSize,
   maxSize: maxClusterSize,
-  // Do not give the worker nodes public IP addresses
   nodeAssociatePublicIpAddress: false,
-  // Uncomment the next two lines for a private cluster (VPN access required)
-  // endpointPrivateAccess: true,
-  // endpointPublicAccess: false
 });
 
-// Create RDS Aurora Postgres database
-const db = new aws.rds.Instance("db", {
+// Image pull secrets for GHCR
+const ghrcToken = config.requireSecret("ghcrToken");
+const imagePullSecret = new k8s.core.v1.Secret(
+  "image-pull-secret",
+  {
+    metadata: { namespace: "default" },
+    type: "kubernetes.io/dockerconfigjson",
+    data: {
+      ".dockerconfigjson": ghrcToken.apply((token) =>
+        Buffer.from(
+          JSON.stringify({
+            auths: {
+              "ghcr.io": {
+                auth: token,
+              },
+            },
+          })
+        ).toString("base64")
+      ),
+    },
+  },
+  { provider: eksCluster.provider }
+);
+
+// Create RDS Aurora Postgres cluster/database
+const db = new aws.rds.Cluster("db", {
   engine: "aurora-postgresql",
-  allocatedStorage: 20,
-  maxAllocatedStorage: 500,
+  clusterIdentifier: "db",
   engineVersion: "14.3",
-  instanceClass: "db.t3.micro",
-  name: "postgres",
-  username: "postgres",
-  password: config.requireSecret("dbPassword"),
+  databaseName: "postgres",
+  deletionProtection: true,
+  masterUsername: "postgres",
+  masterPassword: config.requireSecret("dbPassword"),
 });
+const dbInstance = new aws.rds.ClusterInstance("db", {
+  clusterIdentifier: db.clusterIdentifier,
+  instanceClass: "db.t3.medium",
+  engine: "aurora-postgresql",
+  engineVersion: "14.3",
+});
+const dbSecret = new k8s.core.v1.Secret(
+  "db",
+  {
+    metadata: { namespace: "default" },
+    type: "Opaque",
+    data: {
+      password: config.requireSecret("dbPassword").apply((password) => Buffer.from(password).toString("base64")),
+    },
+  },
+  { provider: eksCluster.provider }
+);
 
 // db env vars
 const DB_ENV_VARS = [
@@ -64,14 +100,14 @@ const DB_ENV_VARS = [
     name: "BENCH_DB_PASSWORD",
     valueFrom: {
       secretKeyRef: {
-        name: "db",
+        name: dbSecret.metadata.name,
         key: "password",
       },
     },
   },
   {
     name: "BENCH_POSTGRES_HOST",
-    value: db.address,
+    value: db.endpoint,
   },
   {
     name: "BENCH_POSTGRES_PORT",
@@ -79,43 +115,161 @@ const DB_ENV_VARS = [
   },
 ];
 
-// zmq env vars
-const ZMQ_ENV_VARS = [];
+// Public load-balanced API service (also runs internal server)
+const apiService = new k8s.core.v1.Service(
+  "api",
+  {
+    spec: {
+      type: "LoadBalancer",
+      ports: [
+        { port: 80, name: "http" },
+        { port: 5555, name: "zmq-1" },
+        { port: 5556, name: "zmq-2" },
+        { port: 5557, name: "zmq-3" },
+      ],
+      selector: { app: "api" },
+    },
+  },
+  { provider: eksCluster.provider }
+);
+// Internal worker service
+const workerService = new k8s.core.v1.Service(
+  "worker",
+  {
+    metadata: { namespace: "default" },
+    spec: {
+      type: "ClusterIP",
+      ports: [
+        { port: 5558, name: "zmq-1" },
+        { port: 5559, name: "zmq-2" },
+      ],
+      selector: { app: "worker" },
+    },
+  },
+  { provider: eksCluster.provider }
+);
 
-// Create deployment for API server (ASGI Django with Daphne)
-const apiDeployment = new k8s.apps.v1.Deployment("api", {
-  spec: {
-    replicas: 1,
-    selector: { matchLabels: { app: "api" } },
-    template: {
-      metadata: { labels: { app: "api" } },
-      spec: {
-        containers: [
-          {
-            name: "api",
-            image: "ghcr.io/symbolx/bench-api:latest",
-            ports: [{ containerPort: 80 }],
-            env: [...DB_ENV_VARS, { name: "RUN_INTSERVER", value: "true" }],
-          },
-        ],
+// zmq env vars to connect them
+const ZMQ_ENV_VARS: { name: string; value: string }[] = [
+  // {
+  //   name: "ZMQ_API_PUB_ADDR",
+  //   value: apiService.status.loadBalancer.ingress[0].hostname.apply((hostname) => `tcp://${hostname}:5555`),
+  // },
+  // {
+  //   name: "ZMQ_INTSERVER_PUB_ADDR",
+  //   value: apiService.status.loadBalancer.ingress[0].hostname.apply((hostname) => `tcp://${hostname}:5556`),
+  // },
+  // {
+  //   name: "ZMQ_INTSERVER_REP_ADDR",
+  //   value: apiService.status.loadBalancer.ingress[0].hostname.apply((hostname) => `tcp://${hostname}:5557`),
+  // },
+  // {
+  //   name: "ZMQ_WORKER_PUB_ADDR",
+  //   value: workerService.spec.clusterIP.apply((ip) => `tcp://${ip}:5558`),
+  // },
+  // {
+  //   name: "ZMQ_WORKER_REP_ADDR",
+  //   value: workerService.spec.clusterIP.apply((ip) => `tcp://${ip}:5559`),
+  // },
+];
+
+const imageVersion = config.get("imageVersion") || "latest";
+// Create deployment for API service (ASGI Django with Daphne)
+const apiDeployment = new k8s.apps.v1.Deployment(
+  "api",
+  {
+    metadata: { namespace: "default", labels: { app: "api" } },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { app: "api" } },
+      template: {
+        metadata: { labels: { app: "api" }, annotations: { "prometheus.io/scrape": "true" } },
+        spec: {
+          containers: [
+            {
+              name: "api",
+              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              ports: [{ containerPort: 80, name: "http" }],
+              env: [...DB_ENV_VARS, ...ZMQ_ENV_VARS, { name: "RUN_INTSERVER", value: "true" }],
+              resources: { requests: { cpu: "500m", memory: "1000Mi" } },
+            },
+          ],
+          imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
+        },
       },
     },
   },
-});
-
-// TODO @Incomplete: create deployment for workers (same image for now)
-
-// Load balance and expose the API server
-const apiService = new k8s.core.v1.Service("api", {
-  spec: {
-    type: "LoadBalancer",
-    ports: [{ port: 80, targetPort: 80 }],
-    selector: apiDeployment.spec.template.metadata.labels,
+  { provider: eksCluster.provider }
+);
+// Create deployment for workers
+const workerDeployment = new k8s.apps.v1.Deployment(
+  "worker",
+  {
+    metadata: { namespace: "default", labels: { app: "worker" } },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { app: "worker" } },
+      template: {
+        metadata: { labels: { app: "worker" }, annotations: { "prometheus.io/scrape": "true" } },
+        spec: {
+          containers: [
+            {
+              name: "worker",
+              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              ports: [{ containerPort: 80 }],
+              env: [...ZMQ_ENV_VARS],
+              command: ["python", "bench/runworker.py"],
+              resources: { requests: { cpu: "500m", memory: "1000Mi" } },
+            },
+          ],
+          imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
+        },
+      },
+    },
   },
-});
+  { provider: eksCluster.provider }
+);
 
-// TODO @Incomplete: use cert-manager helm chart to create a certificate for the API server
+// TODO @Incomplete: kubecost
+// const kubecost = new k8s.helm.v3.Chart("kubecost", {
+//   chart: "cost-analyzer",
+//   repo: "kubecost",
+//   namespace: "kubecost",
+//   version: "1.89.1",
+//   values: {
+//     persistentVolume: {
+//       enabled: true,
+//       storageClass: "gp2",
+//     },
+//   },
+//   fetchOpts: {
+//     repo: "https://kubecost.github.io/cost-analyzer",
+//   },
+// });
 
-// Export some values for use elsewhere
-export const kubeconfig = eksCluster.kubeconfig;
-export const vpcId = eksVpc.vpcId;
+// TODO @Incomplete: cert-manager for ... certs
+// const certManager = new k8s.helm.v3.Chart("cert-manager", {
+//   chart: "cert-manager",
+//   repo: "jetstack",
+//   namespace: "cert-manager",
+//   version: "v1.11.0",
+//   fetchOpts: {
+//     repo: "https://charts.jetstack.io",
+//   },
+//   values: {
+//     installCRDs: true,
+//   },
+// });
+
+// TODO @Incomplete: metrics server
+// const metricsServer = new k8s.helm.v3.Chart("metrics-server", {
+//   chart: "metrics-server",
+//   repo: "metrics-server",
+//   version: "3.8.2",
+//   namespace: "kube-system",
+//   fetchOpts: {
+//     repo: "https://charts.bitnami.com",
+//   },
+// });
+
+// TODO @Incomplete: prometheus

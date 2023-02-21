@@ -11,7 +11,6 @@ import pytz
 import structlog
 
 from bench.language.typer import check_type
-from bench.models.utils import UUIDT
 from bench.runtime.bpl import InferenceContext
 from bench.runtime.type import (
     CodeInstance,
@@ -20,6 +19,7 @@ from bench.runtime.type import (
     ModelInstance,
     TextGeneration,
 )
+from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 

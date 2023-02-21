@@ -1,7 +1,7 @@
 import os
 import sys
 
-from bench.settings.utils import get_from_env, str_to_bool
+from bench.utils.utils import get_from_env, str_to_bool
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
