@@ -41,7 +41,7 @@ defineExpose({ show, hide });
           leave-to="opacity-0 scale-95"
         >
           <DialogPanel
-            class="mx-auto max-w-xl transform rounded-xl bg-white p-2 shadow-2xl ring-1 ring-black ring-opacity-5 transition-all"
+            class="mx-auto max-w-xl transform rounded-sm bg-white p-2 shadow-md ring-1 ring-black ring-opacity-5 transition-all"
           >
             <slot name="title">
               <h3 v-if="title" as="h3" class="px-4 pt-1 pb-2 text-lg font-medium leading-6 text-gray-900">
