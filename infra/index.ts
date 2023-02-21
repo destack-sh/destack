@@ -59,6 +59,25 @@ const imagePullSecret = new k8s.core.v1.Secret(
 );
 
 // Create RDS Aurora Postgres cluster/database
+const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
+  // TODO @Cleanup: pods should connect directly to DB instance (not via publicly accessible)
+  ingress: [
+    {
+      fromPort: 5432,
+      toPort: 5432,
+      protocol: "tcp",
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+  egress: [
+    {
+      fromPort: 0,
+      toPort: 0,
+      protocol: "-1",
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
 const db = new aws.rds.Cluster("db", {
   engine: "aurora-postgresql",
   clusterIdentifier: "db",
@@ -69,12 +88,15 @@ const db = new aws.rds.Cluster("db", {
   masterPassword: config.requireSecret("dbPassword"),
   backupRetentionPeriod: 7,
   preferredBackupWindow: "04:00-06:00",
+  vpcSecurityGroupIds: [dbSecurityGroup.id],
 });
 const dbInstance = new aws.rds.ClusterInstance("db", {
   clusterIdentifier: db.clusterIdentifier,
   instanceClass: "db.t3.medium",
   engine: "aurora-postgresql",
   engineVersion: "14.3",
+  publiclyAccessible: true,
+  performanceInsightsEnabled: true,
 });
 const dbSecret = new k8s.core.v1.Secret(
   "db",
