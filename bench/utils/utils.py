@@ -24,8 +24,17 @@ def get_from_env(
         else:
             raise ValueError(f'The environment variable "{key}" is missing and required for Bench.')
     if type_cast is not None:
-        value = type_cast(value)
+        if type_cast is bool:
+            value = str_to_bool(value)
+        else:
+            value = type_cast(value)
     return value
+
+
+def get_list(text: str) -> list[str]:
+    if not text:
+        return []
+    return [item.strip() for item in text.split(",")]
 
 
 def required_field(**kwargs):

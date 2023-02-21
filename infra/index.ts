@@ -67,6 +67,8 @@ const db = new aws.rds.Cluster("db", {
   deletionProtection: true,
   masterUsername: "postgres",
   masterPassword: config.requireSecret("dbPassword"),
+  backupRetentionPeriod: 7,
+  preferredBackupWindow: "04:00-06:00",
 });
 const dbInstance = new aws.rds.ClusterInstance("db", {
   clusterIdentifier: db.clusterIdentifier,
@@ -116,8 +118,9 @@ const DB_ENV_VARS = [
 ];
 
 // Public load-balanced API service (also runs internal server)
+const apiName = "api";
 const apiService = new k8s.core.v1.Service(
-  "api",
+  apiName,
   {
     spec: {
       type: "LoadBalancer",
@@ -127,14 +130,15 @@ const apiService = new k8s.core.v1.Service(
         { port: 5556, name: "zmq-2" },
         { port: 5557, name: "zmq-3" },
       ],
-      selector: { app: "api" },
+      selector: { app: apiName },
     },
   },
   { provider: eksCluster.provider }
 );
 // Internal worker service
+const workerName = "worker";
 const workerService = new k8s.core.v1.Service(
-  "worker",
+  workerName,
   {
     metadata: { namespace: "default" },
     spec: {
@@ -143,54 +147,85 @@ const workerService = new k8s.core.v1.Service(
         { port: 5558, name: "zmq-1" },
         { port: 5559, name: "zmq-2" },
       ],
-      selector: { app: "worker" },
+      selector: { app: workerName },
     },
   },
   { provider: eksCluster.provider }
 );
 
 // zmq env vars to connect them
-const ZMQ_ENV_VARS: { name: string; value: string }[] = [
-  // {
-  //   name: "ZMQ_API_PUB_ADDR",
-  //   value: apiService.status.loadBalancer.ingress[0].hostname.apply((hostname) => `tcp://${hostname}:5555`),
-  // },
-  // {
-  //   name: "ZMQ_INTSERVER_PUB_ADDR",
-  //   value: apiService.status.loadBalancer.ingress[0].hostname.apply((hostname) => `tcp://${hostname}:5556`),
-  // },
-  // {
-  //   name: "ZMQ_INTSERVER_REP_ADDR",
-  //   value: apiService.status.loadBalancer.ingress[0].hostname.apply((hostname) => `tcp://${hostname}:5557`),
-  // },
-  // {
-  //   name: "ZMQ_WORKER_PUB_ADDR",
-  //   value: workerService.spec.clusterIP.apply((ip) => `tcp://${ip}:5558`),
-  // },
-  // {
-  //   name: "ZMQ_WORKER_REP_ADDR",
-  //   value: workerService.spec.clusterIP.apply((ip) => `tcp://${ip}:5559`),
-  // },
+const ZMQ_ENV_VARS = [
+  {
+    name: "ZMQ_API_PUB_ADDR",
+    value: `tcp://${apiName}:5555`,
+  },
+  {
+    name: "ZMQ_INTSERVER_PUB_ADDR",
+    value: `tcp://${apiName}:5556`,
+  },
+  {
+    name: "ZMQ_INTSERVER_REP_ADDR",
+    value: `tcp://${apiName}:5557`,
+  },
+  {
+    name: "ZMQ_WORKER_PUB_ADDR",
+    value: `tcp://${workerName}:5558`,
+  },
+  {
+    name: "ZMQ_WORKER_REP_ADDR",
+    value: `tcp://${workerName}:5559`,
+  },
 ];
+// api service should have api addresses set to localhost
+const ZMQ_API_ENV_VARS = ZMQ_ENV_VARS.map((envVar) => {
+  if (envVar.name.includes("API") || envVar.name.includes("INTSERVER")) {
+    return { ...envVar, value: envVar.value.replace("api", "*") };
+  }
+  return envVar;
+});
+// worker service should have worker addresses set to localhost
+const ZMQ_WORKER_ENV_VARS = ZMQ_ENV_VARS.map((envVar) => {
+  if (envVar.name.includes("WORKER")) {
+    return { ...envVar, value: envVar.value.replace("worker", "*") };
+  }
+  return envVar;
+});
 
 const imageVersion = config.get("imageVersion") || "latest";
 // Create deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
-  "api",
+  apiName,
   {
-    metadata: { namespace: "default", labels: { app: "api" } },
+    metadata: { namespace: "default", labels: { app: apiName } },
     spec: {
       replicas: 1,
-      selector: { matchLabels: { app: "api" } },
+      selector: { matchLabels: { app: apiName } },
       template: {
-        metadata: { labels: { app: "api" }, annotations: { "prometheus.io/scrape": "true" } },
+        metadata: { labels: { app: apiName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {
+          // auto-migrate
+          initContainers: [
+            {
+              name: apiName + "-migrate",
+              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              env: [...DB_ENV_VARS, ...ZMQ_API_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
+              command: ["python", "manage.py", "migrate"],
+            },
+          ],
+          // launch daphne
           containers: [
             {
-              name: "api",
+              name: apiName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
-              env: [...DB_ENV_VARS, ...ZMQ_ENV_VARS, { name: "RUN_INTSERVER", value: "true" }],
+              env: [
+                ...DB_ENV_VARS,
+                ...ZMQ_API_ENV_VARS,
+                { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
+                { name: "RUN_INTSERVER", value: "true" },
+              ],
+              command: ["sh", "-c"],
+              args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },
           ],
@@ -203,21 +238,21 @@ const apiDeployment = new k8s.apps.v1.Deployment(
 );
 // Create deployment for workers
 const workerDeployment = new k8s.apps.v1.Deployment(
-  "worker",
+  workerName,
   {
-    metadata: { namespace: "default", labels: { app: "worker" } },
+    metadata: { namespace: "default", labels: { app: workerName } },
     spec: {
       replicas: 1,
-      selector: { matchLabels: { app: "worker" } },
+      selector: { matchLabels: { app: workerName } },
       template: {
-        metadata: { labels: { app: "worker" }, annotations: { "prometheus.io/scrape": "true" } },
+        metadata: { labels: { app: workerName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {
           containers: [
             {
-              name: "worker",
+              name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80 }],
-              env: [...ZMQ_ENV_VARS],
+              env: [...ZMQ_WORKER_ENV_VARS],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },

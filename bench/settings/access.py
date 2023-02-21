@@ -1,8 +1,9 @@
-from typing import List
+import os
 
 from bench.settings import get_from_env
+from bench.utils.utils import get_list
 
-ALLOWED_HOSTS: List[str] = []
+ALLOWED_HOSTS: list[str] = get_list(os.getenv("ALLOWED_HOSTS", "*"))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 DEFAULT_SECRET_KEY = "<default insecure secret key>"

@@ -7,7 +7,7 @@ import structlog
 from bench.settings import get_from_env
 from bench.settings.base import DEBUG, TEST
 
-LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "DEBUG" if TEST or DEBUG else "WARNING")
+LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "DEBUG")
 LOG_PATH: str = get_from_env("DJANGO_LOG_PATH", "logs")
 
 FORMATTERS = {

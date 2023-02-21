@@ -16,9 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY bench/ bench/
+COPY manage.py .
+COPY pyproject.toml .
 
 # Expose port 80
 EXPOSE 80
-
-# Set the default command to start Daphne with our ASGI application
-CMD ["daphne", "-b", "0.0.0.0", "-p", "80", "bench.asgi:application"]
