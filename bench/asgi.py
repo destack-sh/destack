@@ -21,6 +21,7 @@ from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
 from bench.settings import (
+    CORS_ALLOWED_ORIGINS,
     DEBUG,
     RUN_INTSERVER,
     RUN_WORKER,
@@ -46,8 +47,9 @@ websocket_urlpatterns = [
 
 gql_http_consumer = CORSMiddleware(
     AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_methods=["*"],
+    allow_credentials=True,
 )
 gql_ws_consumer = GraphQLWSConsumer.as_asgi(schema=schema)
 application = ProtocolTypeRouter(

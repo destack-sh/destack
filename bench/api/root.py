@@ -32,7 +32,7 @@ def get_user_or_organization_by_slug(
     return slug.owner
 
 
-async def get_me(self, info: Info) -> Optional[User]:
+def get_me(self, info: Info) -> Optional[User]:
     # unwrap because we need the actual object but channels.auth gives us a UserLazyObject
     user = info.context.request.scope["user"]._wrapped
     if isinstance(user, AnonymousUser):

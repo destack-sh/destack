@@ -2,6 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useAuth } from "@/state/auth";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
+import { useBrowserLocation } from "@vueuse/core";
 
 const userNavigation = [
   { name: "Settings", href: "#" },
@@ -9,20 +10,29 @@ const userNavigation = [
 ];
 
 const auth = useAuth();
+const location = useBrowserLocation();
 </script>
 <template>
   <div v-if="!auth.loggedIn.value" class="flex flex-row gap-2 px-4">
-    <router-link :to="{ name: 'Signup' }" class="rounded-sm bg-orange-600 py-1 px-2 text-sm text-white">
+    <router-link
+      :to="{ name: 'Signup', query: { next: location.href } }"
+      class="rounded-sm bg-orange-600 py-1 px-2 text-sm text-white"
+    >
       Sign up
     </router-link>
-    <router-link :to="{ name: 'Login' }" class="rounded-sm py-1 px-2 text-sm hover:bg-orange-50"> Log in </router-link>
+    <router-link
+      :to="{ name: 'Login', query: { next: location.href } }"
+      class="rounded-sm py-1 px-2 text-sm hover:bg-orange-50"
+    >
+      Log in
+    </router-link>
   </div>
   <Menu v-else as="div" class="relative flex-shrink-0">
     <div>
       <MenuButton class="flex flex-col px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
         <span class="sr-only">Open user menu</span>
         <span class="text-xs font-bold text-gray-900">{{ auth.me.value?.username }}</span>
-        <span class="text-xs text-gray-500">{{ auth.me.value?.email }}</span>
+        <span class="text-xs text-gray-500">{{ auth.me.value?.firstName }}</span>
       </MenuButton>
     </div>
     <FadeTransition>

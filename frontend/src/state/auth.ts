@@ -4,25 +4,13 @@ import { HTTP_API_BASE_URL, IS_LOCALHOST } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/shared";
 import { defineStore } from "pinia";
-import { computed, toRef } from "vue";
+import { computed } from "vue";
 
 export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
 
 export const useAuthStore = defineStore("auth", {
-  state: () => ({
-    token: null as string | null,
-    loggedIn: false,
-  }),
-  actions: {
-    setLoggedIn(token: string): void {
-      this.token = token;
-      this.loggedIn = true;
-    },
-    setLoggedOut(): void {
-      this.token = null;
-      this.loggedIn = false;
-    },
-  },
+  state: () => ({}),
+  actions: {},
 });
 
 function _useAuth() {
@@ -39,7 +27,7 @@ function _useAuth() {
 
   const me = computed(() => useFragment(UserContentType, meResult.value?.me));
 
-  return { loggedIn: toRef(state, "loggedIn"), me };
+  return { loggedIn: computed(() => !!me.value), me };
 }
 
 export const useAuth = createSharedComposable(_useAuth);
@@ -62,3 +50,13 @@ export const SOCIAL_AUTH_PROVIDERS = [
     enabled: !IS_LOCALHOST,
   },
 ];
+
+export function encodeProviderUrl(url?: string, next?: string): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+  if (!next) {
+    return url;
+  }
+  return `${url}?next=${encodeURIComponent(next)}`;
+}

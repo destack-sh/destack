@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "bench.apps.BenchConfig",
 ]
 
+# TODO @Cleanup: Daphne doesn't use MIDDLEWARE, so keeping this just for REST is confusing/inconsistent
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django_structlog.middlewares.RequestMiddleware",
@@ -60,6 +61,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "bench.wsgi.application"
 ASGI_APPLICATION = "bench.asgi.application"
 
+# Where are we?
+WEBAPP_URL = get_from_env("WEBAPP_URL", str)
+
 # Auth
 
 AUTH_USER_MODEL = "bench.User"
@@ -75,6 +79,8 @@ SOCIAL_AUTH_CLEAN_USERNAMES = True
 SOCIAL_AUTH_STRATEGY = "social_django.strategy.DjangoStrategy"
 SOCIAL_AUTH_STORAGE = "social_django.models.DjangoStorage"
 SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = []
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = WEBAPP_URL  # default to home
+SOCIAL_AUTH_SANITIZE_REDIRECTS = False
 
 AUTHENTICATION_BACKENDS: list[str] = [
     "social_core.backends.github.GithubOAuth2",
@@ -89,7 +95,7 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.auth_allowed",
     "social_core.pipeline.social_auth.social_user",
     "social_core.pipeline.social_auth.associate_by_email",
-    "bench.api.signup.social_create_user",
+    "bench.api.auth.social_create_user",
     "social_core.pipeline.social_auth.associate_user",
     "social_core.pipeline.social_auth.load_extra_data",
     "social_core.pipeline.user.user_details",
