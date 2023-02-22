@@ -198,18 +198,18 @@ const actions = useActions();
       'hover:border-l-orange-300': !isFocused,
       'pb-0.5': true,
       'font-mono': editor.fontMono && !isComment, // not sure if everything should be mono, but it's more consistent..
-      'italic text-gray-700': isCommented,
+      'text-gray-700': isCommented,
     }"
     :style="{ paddingLeft: depthOffsetX + 'px' }"
     @click="onClickContainer"
   >
     <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
     <!-- Commented overlay -->
-    <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-50" />
+    <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-25" />
     <!-- Monaco-like line numbers on the left margin -->
     <span
       v-if="editor.showLineNumbers"
-      class="absolute top-[3px] w-6 select-none text-right not-italic"
+      class="duration-50 absolute top-[3px] w-6 select-none text-right not-italic transition-colors"
       :style="{ left: -30 + 'px' }"
       :class="{
         'text-sm': editor.textSmall,
@@ -234,18 +234,31 @@ const actions = useActions();
     </span>
     <!-- Statement focus indicator (left side if not editing) -->
     <div
-      class="absolute -left-0.5 top-0 h-full w-1.5"
+      class="duration-50 absolute -left-0.5 top-0 h-full w-1.5 transition-colors"
       :class="{
         'group-hover/statement:bg-orange-50': !isFocused,
-        'bg-orange-100': isFocused && !isEditing,
+        'bg-orange-100': isFocused && !isEditing && !isCommentish,
+        'bg-gray-100': isFocused && !isEditing && isCommentish,
       }"
     />
     <!-- Statement focus indicator (all around if editing) -->
     <template v-if="isEditing">
-      <div class="absolute top-0 left-0 h-0.5 w-full bg-orange-100" />
-      <div class="absolute bottom-0 left-0 h-0.5 w-full bg-orange-100" />
-      <div class="absolute top-0 left-0 h-full w-0.5 bg-orange-100" />
-      <div class="absolute right-0 top-0 h-full w-0.5 bg-orange-100" />
+      <div
+        class="duration-50 absolute top-0 left-0 h-0.5 w-full transition-colors"
+        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+      />
+      <div
+        class="duration-50 absolute bottom-0 left-0 h-0.5 w-full transition-colors"
+        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+      />
+      <div
+        class="duration-50 absolute top-0 left-0 h-full w-0.5 transition-colors"
+        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+      />
+      <div
+        class="duration-50 absolute right-0 top-0 h-full w-0.5 transition-colors"
+        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+      />
     </template>
     <!-- Main cell -->
     <div

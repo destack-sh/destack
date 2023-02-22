@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
+import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
@@ -11,17 +12,11 @@ import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
-import SettingsModal from "@/components/SettingsPopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorMigrations, useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
-import {
-  FileHeaderType,
-  ProjectHeaderType,
-  ProjectVersionContentType,
-  ProjectVersionHeaderType,
-} from "@/state/fragments";
+import { FileHeaderType, ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentModuleRuntime } from "@/state/runtime";
@@ -39,7 +34,7 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import { useFullscreen, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import { computed, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
+import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -90,7 +85,7 @@ const openIssues = provideAction({
 });
 
 // get project header
-const { result: projectHeaderQuery } = useQuery(
+const { error: projectError, result: projectResult } = useQuery(
   graphql(/* GraphQL */ `
     query projectBySlug($organization: String!, $project: String!) {
       projectBySlug(organization: $organization, project: $project) {
@@ -103,35 +98,45 @@ const { result: projectHeaderQuery } = useQuery(
     project: props.project,
   })
 );
-const projectHeader = computed(() => useFragment(ProjectHeaderType, projectHeaderQuery.value?.projectBySlug));
-const projectHead = computed(() => useFragment(ProjectVersionHeaderType, projectHeader.value?.head));
+const projectLoaded = computed(() => !!projectResult.value?.projectBySlug);
+const project = computed(() => useFragment(ProjectHeaderType, projectResult.value?.projectBySlug));
 
-// sync title bar with project head
+// default version to view to head
+const versionToViewId = computed(() => project.value?.head.id);
+
+// sync title bar with project info
 const title = useTitle();
 watchEffect(
-  () =>
-    (title.value = `${props.organization}/${props.project}${
-      projectHeader.value ? ": " + projectHeader.value.name : ""
-    }`)
+  () => (title.value = `${props.organization}/${props.project}${project.value ? ": " + project.value.name : ""}`)
 );
 
 // get project content
-const { result: contentQuery } = useQuery(
+const { error: versionError, result: versionResult } = useQuery(
   graphql(/* GraphQL */ `
     query projectVersionContent($id: GlobalID!) {
       projectVersion(id: $id) {
         id
-        ...ProjectVersionContent
+        id
+        name
+        description
+        createdAt
+        committed
+        committedAt
+        files(filters: { isVisible: true }) {
+          id
+          ...FileHeader
+        }
       }
     }
   `),
-  () => ({ id: projectHead.value?.id }),
-  () => ({ enabled: !!projectHead.value?.id })
+  () => ({ id: versionToViewId.value }),
+  () => ({ enabled: !!versionToViewId.value })
 );
-const content = computed(() => useFragment(ProjectVersionContentType, contentQuery.value?.projectVersion));
+const version = computed(() => versionResult.value?.projectVersion);
+const versionLoaded = computed(() => !!version.value);
 // filter deletedAt to increase responsiveness
 const files = computed(
-  () => content.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
+  () => version.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
 );
 
 // actions (ensure global actions are available)
@@ -158,8 +163,9 @@ watchEffect(() => {
   });
 });
 
-// router sync
+// routing
 const router = useRouter();
+
 // focus file from url if hash changes and none is open
 watchEffect(() => {
   const hash = router.currentRoute.value.hash;
@@ -267,31 +273,28 @@ const { migrateTo } = useEditorMigrations();
 
 // prepare editor state for project whenever project (head) changes
 watchEffect(async () => {
-  const loaded = projectHeader.value != null && projectHead.value != null && content.value != null;
   if (
-    loaded &&
-    (editor.currentProjectId != projectHeader.value.id || editor.currentProjectVersionId != projectHead.value.id)
+    project.value != null &&
+    versionToViewId.value != null &&
+    (editor.currentProjectId != project.value.id || editor.currentProjectVersionId != versionToViewId.value)
   ) {
     // try to load editor state
-    editor.setProject(projectHeader.value, projectHead.value);
+    editor.setProject(project.value.id, versionToViewId.value);
     load();
-    console.log(`loaded editor state for project ${projectHeader.value.id} version ${projectHead.value.id}`);
-    if (editor.currentProjectId == projectHeader.value?.id) {
+    console.log(`loaded editor state for project ${project.value.id} version ${versionToViewId.value}`);
+    if (editor.currentProjectId == project.value?.id) {
       // migrate if there is a new version of the same project
       // (loads overwrites editor state for the entire project,
       //  so editor.currentProjectVersionId will point to its last known version)
-      if (editor.currentProjectVersionId != projectHead.value?.id) {
-        migrateTo(editor.currentProjectId as string, projectHead.value?.id, editor.currentProjectVersionId as string);
+      if (editor.currentProjectVersionId != versionToViewId.value) {
+        migrateTo(editor.currentProjectId as string, versionToViewId.value, editor.currentProjectVersionId as string);
       }
     } else {
-      console.log(`reset editor state for project ${projectHeader.value.id}`);
+      console.log(`reset editor state for project ${project.value.id}`);
       // (happens in state.setProject)
     }
   }
 });
-
-// settings model
-const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(null);
 </script>
 
 <template>
@@ -304,16 +307,16 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
         <!-- Home -->
         <HomeButton />
         <!-- Project menu -->
-        <Menu as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
+        <Menu v-show="projectLoaded" as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
           <div class="h-full">
             <MenuButton
               class="flex h-full items-center justify-between bg-white px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
             >
               <span class="sr-only">Open project menu</span>
               <span class="text-sm">
-                {{ organization }}
+                {{ props.organization }}
                 /
-                <span class="font-bold">{{ project }}</span>
+                <span class="font-bold">{{ props.project }}</span>
               </span>
               <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5 text-gray-300" aria-hidden="true" />
             </MenuButton>
@@ -331,7 +334,7 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
           </FadeTransition>
         </Menu>
         <!-- Status -->
-        <div class="ml-2 flex items-center">
+        <div v-show="versionLoaded" class="ml-2 flex items-center">
           <!-- should use nicer icons here -->
           <!-- Operations status -->
           <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
@@ -353,14 +356,18 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
             >
               <circle cx="50" cy="50" r="40" fill="currentColor" />
             </svg>
-            <span class="text-sm text-gray-500" v-show="!runtimeConnected">connecting</span>
+            <Transition appear>
+              <span class="text-sm text-gray-500" v-show="!runtimeConnected">
+                {{ runtimeConnected ? "connected" : "connecting" }}
+              </span>
+            </Transition>
             <span class="text-sm text-gray-500" v-if="editor.debug && runtimeLastUpdated != null">
               {{ getTimeFromNowString(runtimeLastUpdated) }}
             </span>
           </span>
         </div>
         <!-- Comments/notes, issues/warnings/lints, errors -->
-        <div class="ml-2 flex items-center gap-2">
+        <div v-show="versionLoaded" class="ml-2 flex items-center gap-2">
           <!-- Errors -->
           <button
             class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-50"
@@ -378,11 +385,11 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
       <!-- Right side: controls & profile -->
       <template v-slot:right>
         <!-- Current "main" statement controls -->
-        <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <MainSymbolControls />
         </div>
         <!-- Global controls -->
-        <div class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <GlobalControls />
         </div>
         <!-- Profile -->
@@ -390,7 +397,7 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
-    <div class="relative flex flex-1 flex-row">
+    <div v-show="projectLoaded" class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
       <aside
         class="flex h-full resize-x border-r border-gray-200"
@@ -440,9 +447,9 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
             <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
             <ViewHistory
               v-show="activeView.id == 'history'"
-              v-if="projectHeader && projectHead"
-              :project="projectHeader"
-              :current-version="projectHead"
+              v-if="project != null && version != null"
+              :project="project as any"
+              :current-version="version as any"
             />
             <ViewIssues v-show="activeView.id == 'issues'" />
           </div>
@@ -464,7 +471,7 @@ const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(nul
         </div>
       </main>
     </div>
-    <SettingsModal ref="settingsModalRef" />
+    <GenericNotFound v-if="projectError" class="pb-12" />
     <NotificationArea />
   </div>
 </template>

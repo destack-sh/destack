@@ -51,21 +51,6 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const ProjectVersionContentType = graphql(/* GraphQL */ `
-  fragment ProjectVersionContent on ProjectVersion {
-    id
-    name
-    description
-    createdAt
-    committed
-    committedAt
-    files(filters: { isVisible: true }) {
-      id
-      ...FileHeader
-    }
-  }
-`);
-
 export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     id
