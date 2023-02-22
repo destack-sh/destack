@@ -171,6 +171,7 @@ export const useEditorState = defineStore("editor", {
       showGlobalHeader: true,
       showViewSelection: true,
       showViewContent: true,
+      darkMode: false,
       zenMode: false,
       fontMono: false,
       textSmall: true,
@@ -202,10 +203,10 @@ export const useEditorState = defineStore("editor", {
     },
   },
   actions: {
-    setProject(project: ProjectHeader, version: ProjectVersionHeader): void {
+    setProject(projectId: string, versionId: string): void {
       this.$reset();
-      this.currentProjectId = project.id;
-      this.currentProjectVersionId = version.id;
+      this.currentProjectId = projectId;
+      this.currentProjectVersionId = versionId;
     },
 
     setActiveView(viewId: ViewId): void {

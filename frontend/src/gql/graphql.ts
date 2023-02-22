@@ -1014,11 +1014,16 @@ export type ProjectVersionContentQueryVariables = Exact<{
 
 export type ProjectVersionContentQuery = {
   __typename?: "Query";
-  projectVersion?:
-    | ({ __typename?: "ProjectVersion"; id: any } & {
-        " $fragmentRefs"?: { ProjectVersionContentFragment: ProjectVersionContentFragment };
-      })
-    | null;
+  projectVersion?: {
+    __typename?: "ProjectVersion";
+    id: any;
+    name?: string | null;
+    description?: string | null;
+    createdAt: any;
+    committed: boolean;
+    committedAt?: any | null;
+    files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
+  } | null;
 };
 
 export type ProjectMigrationRefsQueryVariables = Exact<{
@@ -1141,17 +1146,6 @@ export type ProjectHeaderFragment = {
   };
   organization: { __typename?: "Organization"; slug: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
-
-export type ProjectVersionContentFragment = {
-  __typename?: "ProjectVersion";
-  id: any;
-  name?: string | null;
-  description?: string | null;
-  createdAt: any;
-  committed: boolean;
-  committedAt?: any | null;
-  files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
-} & { " $fragmentName"?: "ProjectVersionContentFragment" };
 
 export type FileHeaderFragment = {
   __typename?: "File";
@@ -1990,54 +1984,6 @@ export const FileHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<FileHeaderFragment, unknown>;
-export const ProjectVersionContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ProjectVersionContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "description" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "committed" } },
-          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "files" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isVisible" },
-                      value: { kind: "BooleanValue", value: true },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ProjectVersionContentFragment, unknown>;
 export const StatementHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -2509,14 +2455,45 @@ export const ProjectVersionContentDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionContent" } },
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "committed" } },
+                { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "files" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isVisible" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                    ],
+                  },
+                },
               ],
             },
           },
         ],
       },
     },
-    ...ProjectVersionContentFragmentDoc.definitions,
     ...FileHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;

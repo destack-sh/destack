@@ -80,6 +80,26 @@ const actions = useActions();
             />
           </Switch>
         </div>
+        <!-- Dark mode -->
+        <div class="flex flex-row items-center justify-between">
+          <span class="class text-sm text-gray-700">Dark mode - soon!</span>
+          <Switch
+            disabled
+            v-model="editor.darkMode"
+            :class="[
+              editor.darkMode ? 'bg-orange-600' : 'bg-gray-200',
+              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
+            ]"
+          >
+            <span
+              aria-hidden="true"
+              :class="[
+                editor.darkMode ? 'translate-x-5' : 'translate-x-0',
+                'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out',
+              ]"
+            />
+          </Switch>
+        </div>
         <!-- Zen mode -->
         <div class="flex flex-row items-center justify-between">
           <span class="text-sm text-gray-900">Zen mode</span>

@@ -9,7 +9,7 @@ const documents = {
     types.ProjectVersionsDocument,
   "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
-  "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  ":
+  "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
   "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    ":
     types.ProjectMigrationRefsDocument,
@@ -27,8 +27,6 @@ const documents = {
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
-  "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n":
-    types.ProjectVersionContentFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    generated\n    projectVersion {\n      id\n    }\n  }\n":
     types.FileHeaderFragmentDoc,
   "\n  fragment StatementHeader on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    generated\n    commented\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n  }\n":
@@ -108,8 +106,8 @@ export function graphql(
   source: "\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
 ): typeof documents["\n    query projectBySlug($organization: String!, $project: String!) {\n      projectBySlug(organization: $organization, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
 export function graphql(
-  source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "
-): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        ...ProjectVersionContent\n      }\n    }\n  "];
+  source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  "
+): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  "];
 export function graphql(
   source: "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    "];
@@ -134,9 +132,6 @@ export function graphql(
 export function graphql(
   source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n"
 ): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    organization {\n      slug\n    }\n  }\n"];
-export function graphql(
-  source: "\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectVersionContent on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    files(filters: { isVisible: true }) {\n      id\n      ...FileHeader\n    }\n  }\n"];
 export function graphql(
   source: "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    generated\n    projectVersion {\n      id\n    }\n  }\n"
 ): typeof documents["\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    generated\n    projectVersion {\n      id\n    }\n  }\n"];
