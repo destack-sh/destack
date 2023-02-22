@@ -406,6 +406,7 @@ type Query {
     codeId: GlobalID = null
     rootId: GlobalID
   ): ExecutionConnection!
+  me: User
   user(
     """The ID of the object."""
     id: GlobalID!
@@ -454,7 +455,6 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File
-  me: User
 }
 
 input RecordCreateInput {

@@ -1026,6 +1026,13 @@ export type ProjectVersionContentQuery = {
   } | null;
 };
 
+export type MeQueryVariables = Exact<{ [key: string]: never }>;
+
+export type MeQuery = {
+  __typename?: "Query";
+  me?: ({ __typename?: "User" } & { " $fragmentRefs"?: { UserContentFragment: UserContentFragment } }) | null;
+};
+
 export type ProjectMigrationRefsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   afterId: Scalars["GlobalID"];
@@ -1122,6 +1129,25 @@ export type OperationInfoContentFragment = {
     field?: string | null;
   }>;
 } & { " $fragmentName"?: "OperationInfoContentFragment" };
+
+export type UserContentFragment = {
+  __typename?: "User";
+  id: any;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  createdAt: any;
+  updatedAt: any;
+  organizations: Array<{
+    __typename?: "Organization";
+    id: any;
+    name: string;
+    slug: string;
+    createdAt: any;
+    updatedAt: any;
+  }>;
+} & { " $fragmentName"?: "UserContentFragment" };
 
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
@@ -1880,6 +1906,42 @@ export const OperationInfoContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<OperationInfoContentFragment, unknown>;
+export const UserContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "UserContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "username" } },
+          { kind: "Field", name: { kind: "Name", value: "email" } },
+          { kind: "Field", name: { kind: "Name", value: "firstName" } },
+          { kind: "Field", name: { kind: "Name", value: "lastName" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "organizations" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "slug" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<UserContentFragment, unknown>;
 export const ProjectVersionHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -2497,6 +2559,30 @@ export const ProjectVersionContentDocument = {
     ...FileHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
+export const MeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "me" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "me" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "UserContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...UserContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<MeQuery, MeQueryVariables>;
 export const ProjectMigrationRefsDocument = {
   kind: "Document",
   definitions: [

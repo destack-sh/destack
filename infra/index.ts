@@ -325,6 +325,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
 
 // Expose API service via HTTPS ingress
 const apiDomain = "api.symbolx.com";
+// TODO @Cleanup: manage AWS certificate via aws.acm.Certificate
 const apiIngress = new k8s.networking.v1.Ingress(
   apiName,
   {
@@ -371,7 +372,7 @@ const apiIngress = new k8s.networking.v1.Ingress(
   { provider: eksCluster.provider }
 );
 
-// TODO @Incomplete: Export kube metrics with metrics-server
+// TODO @Incomplete: export kube metrics with metrics-server
 // const metricsServer = new k8s.helm.v3.Release("metrics-server", {
 //   chart: "metrics-server",
 //   version: "6.8.2",
@@ -381,7 +382,7 @@ const apiIngress = new k8s.networking.v1.Ingress(
 //   },
 // });
 
-// TODO @Incomplete: prometheus
+// TODO @Incomplete: monitor with prometheus
 // const prometheus = new k8s.helm.v3.Resource("prometheus", {
 //   chart: "prometheus",
 //   version: "14.6.0",
@@ -390,4 +391,4 @@ const apiIngress = new k8s.networking.v1.Ingress(
 //     repo: "https://prometheus-community.github.io/helm-charts",
 //   },
 // });
-// TODO @Incomplete: grafana?
+// TODO @Incomplete: dashboard & alert with grafana?
