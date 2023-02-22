@@ -43,6 +43,12 @@ class User(AbstractUser, UUIDModel):
 
     objects: UserManager = UserManager()  # type: ignore
 
+    def __str__(self):
+        return self.username
+
+    def __repr__(self):
+        return f"<User {self.username} {self.id}>"
+
     @property
     def slug(self) -> str:
         """Should always equal username"""

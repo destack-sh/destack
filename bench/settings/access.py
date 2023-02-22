@@ -9,4 +9,4 @@ ALLOWED_HOSTS: list[str] = get_list(os.getenv("ALLOWED_HOSTS", "*"))
 DEFAULT_SECRET_KEY = "<default insecure secret key>"
 SECRET_KEY = get_from_env("SECRET_KEY", default=DEFAULT_SECRET_KEY)
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOWED_ORIGINS: list[str] = get_list(os.getenv("CORS_ALLOWED_ORIGINS"))

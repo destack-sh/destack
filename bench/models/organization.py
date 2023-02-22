@@ -50,6 +50,9 @@ class Organization(UUIDModel):
     def __str__(self):
         return self.slug
 
+    def __repr__(self):
+        return f"<Organization {self.slug} {self.id}>"
+
     class Meta:
         default_manager_name = "objects"
 

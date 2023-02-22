@@ -17,13 +17,6 @@ module.exports = {
       boxShadow: {
         outline: "4 4 3 3px rgba(0 0 0 / 0.05)",
       },
-      typography: (theme) => ({
-        DEFAULT: {
-          css: {
-            color: theme("colors.gray.700"),
-          },
-        },
-      }),
     },
   },
   plugins: [

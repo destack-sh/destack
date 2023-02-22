@@ -13,6 +13,6 @@
     "paths": {
       "@/*": ["./frontend/src/*"]
     },
-    "lib": ["es2019"]
+    "lib": ["es2019", "dom"]
   }
 }
