@@ -21,6 +21,25 @@ export const OperationInfoContentType = graphql(/* GraphQL */ `
   }
 `);
 
+export const UserContentType = graphql(/* GraphQL */ `
+  fragment UserContent on User {
+    id
+    username
+    email
+    firstName
+    lastName
+    createdAt
+    updatedAt
+    organizations {
+      id
+      name
+      slug
+      createdAt
+      updatedAt
+    }
+  }
+`);
+
 export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     id

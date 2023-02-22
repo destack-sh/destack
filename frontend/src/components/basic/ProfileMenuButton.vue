@@ -1,25 +1,28 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useAuth } from "@/state/auth";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 
-// fake data
-const user = {
-  fullname: "Florian Cäsar",
-  username: "flotothemoon",
-  email: "yatima@symbolx.com",
-};
 const userNavigation = [
   { name: "Settings", href: "#" },
   { name: "Sign out", href: "#" },
 ];
+
+const auth = useAuth();
 </script>
 <template>
-  <Menu as="div" class="relative flex-shrink-0">
+  <div v-if="!auth.loggedIn.value" class="flex flex-row gap-2 px-4">
+    <router-link :to="{ name: 'Signup' }" class="rounded-sm bg-orange-600 py-1 px-2 text-sm text-white">
+      Sign up
+    </router-link>
+    <router-link :to="{ name: 'Login' }" class="rounded-sm py-1 px-2 text-sm hover:bg-orange-50"> Log in </router-link>
+  </div>
+  <Menu v-else as="div" class="relative flex-shrink-0">
     <div>
       <MenuButton class="flex flex-col px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
         <span class="sr-only">Open user menu</span>
-        <span class="text-xs font-bold text-gray-900">{{ user.username }}</span>
-        <span class="text-xs text-gray-500">{{ user.fullname }}</span>
+        <span class="text-xs font-bold text-gray-900">{{ auth.me.value?.username }}</span>
+        <span class="text-xs text-gray-500">{{ auth.me.value?.email }}</span>
       </MenuButton>
     </div>
     <FadeTransition>

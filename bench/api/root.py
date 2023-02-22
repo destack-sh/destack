@@ -32,7 +32,7 @@ async def get_me(self, info: Info) -> Optional[User]:
 
 @strawberry.type
 class Query(ExecutionQuery):
-    me = gql.django.field(resolver=get_me)
+    me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
     users: gql.relay.Connection[User] = gql.relay.connection()
     organization: Optional[Organization] = gql.relay.node()

@@ -78,7 +78,6 @@ AUTHENTICATION_BACKENDS: list[str] = [
     "social_core.backends.gitlab.GitLabOAuth2",
     "social_core.backends.gitlab.GoogleOAuth2",
 ]
-
 if DEBUG:
     # not bothering with email verification yet, so only enable ModelBackend in dev
     AUTHENTICATION_BACKENDS.append("django.contrib.auth.backends.ModelBackend")
@@ -103,6 +102,10 @@ SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = [
     "email_opt_in",
     "organization_name",
 ]
+
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = False
+SOCIAL_AUTH_SLUGIFY_USERNAMES = True
+SOCIAL_AUTH_CLEAN_USERNAMES = True
 
 # Auth - social GitHub
 SOCIAL_AUTH_GITHUB_SCOPE = ["user:email"]

@@ -1,5 +1,9 @@
+import { graphql, useFragment } from "@/gql";
+import { UserContentType } from "@/state/fragments";
+import { useQuery } from "@vue/apollo-composable";
+import { createSharedComposable } from "@vueuse/shared";
 import { defineStore } from "pinia";
-import { toRef } from "vue";
+import { computed, toRef } from "vue";
 
 export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
 
@@ -20,8 +24,21 @@ export const useAuthStore = defineStore("auth", {
   },
 });
 
-export function useAuth() {
+function _useAuth() {
   const state = useAuthStore();
+  const { result: meResult } = useQuery(
+    graphql(/* GraphQL */ `
+      query me {
+        me {
+          ...UserContent
+        }
+      }
+    `)
+  );
 
-  return { loggedIn: toRef(state, "loggedIn") };
+  const me = computed(() => useFragment(UserContentType, meResult.value?.me));
+
+  return { loggedIn: toRef(state, "loggedIn"), me };
 }
+
+export const useAuth = createSharedComposable(_useAuth);
