@@ -20,10 +20,11 @@ class Command(BaseCommand):
         # create test organization and user if they don't exist
         user = User.objects.filter(email=TEST_USER_EMAIL).first()
         if user is None:
-            user = User.objects.create(
+            user = User.objects.create_user(
                 email=TEST_USER_EMAIL,
+                username="yatima",
                 password="password",
-                first_name="Yatima",
+                full_name="Yatima",
                 is_staff=True,
             )
             user.join_organization(organization, OrganizationMembership.Level.Owner)

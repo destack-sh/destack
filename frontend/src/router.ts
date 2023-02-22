@@ -13,7 +13,7 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 });
 
 const routes = [
-  { path: "/:organization/:project", component: ProjectBench, props: forwardQueryAndParams },
+  { path: "/:owner/:project", component: ProjectBench, props: forwardQueryAndParams },
   { path: "/", component: UserHome, props: forwardQueryAndParams },
   { path: "/signup", name: "Signup", component: Signup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },

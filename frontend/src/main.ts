@@ -19,7 +19,7 @@ import router from "./router";
 import { WS_CONNECTED } from "@/utils/globals";
 
 const MAX_RETRY_TIME_MS = 5000;
-const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "127.0.0.1:8000";
 function createApolloClient() {
   let httpUrl, wsUrl;
   if (API_BASE_URL.includes("localhost")) {

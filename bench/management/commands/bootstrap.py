@@ -138,13 +138,15 @@ def create_model_providers():
 
 
 def get_or_create_std(organization_name: str, organization_slug: str) -> Project:
-    organization = Organization.objects.filter(slug=organization_slug).first()
+    organization = Organization.objects.filter(owner_slug_id=organization_slug).first()
     if organization is None:
-        organization = Organization.objects.create(name=organization_name, slug=organization_slug)
+        organization = Organization.objects.create_organization(
+            name=organization_name, slug=organization_slug
+        )
         library = Project.objects.create_project(
-            organization,
-            f"{organization_name} standard library",
-            "std",
+            organization=organization,
+            name=f"{organization_name} standard library",
+            slug="std",
             type=ProjectType.LIBRARY,
             visibility=ProjectVisibility.PUBLIC,
         )

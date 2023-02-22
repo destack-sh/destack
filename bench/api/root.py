@@ -2,6 +2,7 @@ import typing
 from typing import Optional, Union
 
 import strawberry
+from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from graphql import NoSchemaIntrospectionCustomRule
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
@@ -17,9 +18,18 @@ from bench.api.project import File, FileMutation, Project, ProjectVersion, Proje
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.user import User
+from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 
 PyType = typing.Type
+
+
+@sync_to_async
+def get_user_or_organization_by_slug(
+    self, info: Info, slug: str
+) -> Optional[Union[User, Organization]]:
+    slug = OwnerSlug.objects.get(slug=slug)
+    return slug.owner
 
 
 async def get_me(self, info: Info) -> Optional[User]:
@@ -34,15 +44,15 @@ async def get_me(self, info: Info) -> Optional[User]:
 class Query(ExecutionQuery):
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
-    users: gql.relay.Connection[User] = gql.relay.connection()
     organization: Optional[Organization] = gql.relay.node()
-    organizationBySlug: Optional[Organization] = gql.django.field(
-        resolver=models.Organization.objects.get_by_slug
+    owner_by_slug: Optional[Union[User, Organization]] = gql.django.field(
+        resolver=get_user_or_organization_by_slug
     )
     project: Optional[Project] = gql.relay.node()
-    projectBySlug: Optional[Project] = gql.django.field(resolver=models.Project.objects.get_by_slug)
-    projects: gql.relay.Connection[Project] = gql.relay.connection()
-    projectVersion: Optional[ProjectVersion] = gql.relay.node()
+    project_by_slug: Optional[Project] = gql.django.field(
+        resolver=models.Project.objects.get_by_slug
+    )
+    project_version: Optional[ProjectVersion] = gql.relay.node()
     file: Optional[File] = gql.relay.node()
 
 

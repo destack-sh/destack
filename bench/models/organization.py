@@ -1,12 +1,20 @@
-from django.core.validators import validate_slug
-from django.db import models
+from typing import Optional
 
+from django.db import models, transaction
+
+from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 
 
 class OrganizationManager(models.Manager["Organization"]):
     def get_by_slug(self, organization: str):
-        return self.get(slug=organization)
+        return self.get(owner_slug_id=organization)
+
+    @transaction.atomic
+    def create_organization(self, name: str, slug: str) -> "Organization":
+        owner_slug = OwnerSlug.objects.create_slug(slug)
+        organization = self.create(name=name, owner_slug=owner_slug)
+        return organization
 
 
 class Organization(UUIDModel):
@@ -15,9 +23,14 @@ class Organization(UUIDModel):
     """
 
     name: models.CharField = models.CharField(max_length=256)
-    slug: models.SlugField = models.SlugField(
-        max_length=128, unique=True, validators=[validate_slug]
+    owner_slug: models.ForeignKey = models.OneToOneField(
+        "OwnerSlug",
+        unique=True,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="organization",
     )
+    owner_slug_id: Optional[str]  # noqa via Statement.reference
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
@@ -29,6 +42,10 @@ class Organization(UUIDModel):
     )
 
     objects = OrganizationManager()
+
+    @property
+    def slug(self) -> str:
+        return self.owner_slug_id
 
     def __str__(self):
         return self.slug

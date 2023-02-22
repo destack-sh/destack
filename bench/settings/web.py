@@ -1,8 +1,7 @@
 # Application definition
 import os
-from datetime import timedelta
 
-from bench.settings.base import DEBUG, TEST
+from bench.settings.base import DEBUG
 from bench.utils.utils import get_from_env, str_to_bool
 
 INSTALLED_APPS = [
@@ -64,23 +63,25 @@ ASGI_APPLICATION = "bench.asgi.application"
 # Auth
 
 AUTH_USER_MODEL = "bench.User"
-
-SOCIAL_AUTH_JSONFIELD_ENABLED = True
 SOCIAL_AUTH_USER_MODEL = "bench.User"
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = get_from_env(
     "SOCIAL_AUTH_REDIRECT_IS_HTTPS", not DEBUG, type_cast=str_to_bool
 )
 SOCIAL_AUTH_URL_NAMESPACE = "social"
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = False
+SOCIAL_AUTH_SLUGIFY_USERNAMES = True
+SOCIAL_AUTH_CLEAN_USERNAMES = True
+SOCIAL_AUTH_STRATEGY = "social_django.strategy.DjangoStrategy"
+SOCIAL_AUTH_STORAGE = "social_django.models.DjangoStorage"
+SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = []
 
 AUTHENTICATION_BACKENDS: list[str] = [
-    "axes.backends.AxesBackend",
     "social_core.backends.github.GithubOAuth2",
     "social_core.backends.gitlab.GitLabOAuth2",
-    "social_core.backends.gitlab.GoogleOAuth2",
+    "social_core.backends.google.GoogleOAuth2",
+    "django.contrib.auth.backends.ModelBackend",
 ]
-if DEBUG:
-    # not bothering with email verification yet, so only enable ModelBackend in dev
-    AUTHENTICATION_BACKENDS.append("django.contrib.auth.backends.ModelBackend")
 
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
@@ -94,19 +95,7 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.user.user_details",
 )
 
-SOCIAL_AUTH_STRATEGY = "social_django.strategy.DjangoStrategy"
-SOCIAL_AUTH_STORAGE = "social_django.models.DjangoStorage"
-SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = [
-    "invite_id",
-    "user_name",
-    "email_opt_in",
-    "organization_name",
-]
-
-SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = False
-SOCIAL_AUTH_SLUGIFY_USERNAMES = True
-SOCIAL_AUTH_CLEAN_USERNAMES = True
-
+# :SocialAuthProviders
 # Auth - social GitHub
 SOCIAL_AUTH_GITHUB_SCOPE = ["user:email"]
 SOCIAL_AUTH_GITHUB_KEY = os.environ.get("SOCIAL_AUTH_GITHUB_KEY")
@@ -123,13 +112,6 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ["email", "profile"]
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET")
 
-# Axes
-
-AXES_ENABLED = get_from_env("AXES_ENABLED", not TEST, type_cast=str_to_bool)
-AXES_HANDLER = "axes.handlers.cache.AxesCacheHandler"
-AXES_FAILURE_LIMIT = get_from_env("AXES_FAILURE_LIMIT", 30, type_cast=int)
-AXES_COOLOFF_TIME = timedelta(minutes=10)
-
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
 
@@ -144,6 +126,7 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/

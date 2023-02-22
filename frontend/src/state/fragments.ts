@@ -27,7 +27,6 @@ export const UserContentType = graphql(/* GraphQL */ `
     username
     email
     firstName
-    lastName
     createdAt
     updatedAt
     organizations {
@@ -64,8 +63,17 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
     head {
       ...ProjectVersionHeader
     }
-    organization {
-      slug
+    owner {
+      ... on Organization {
+        id
+        slug
+        name
+      }
+      ... on User {
+        id
+        username
+        firstName
+      }
     }
   }
 `);

@@ -38,7 +38,7 @@ import { computed, ref, watch, watchEffect, type Component, type ComputedRef } f
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
-  organization: string;
+  owner: string;
   project: string;
 }>();
 
@@ -87,28 +87,26 @@ const openIssues = provideAction({
 // get project header
 const { error: projectError, result: projectResult } = useQuery(
   graphql(/* GraphQL */ `
-    query projectBySlug($organization: String!, $project: String!) {
-      projectBySlug(organization: $organization, project: $project) {
+    query projectBySlug($owner: String!, $project: String!) {
+      projectBySlug(owner: $owner, project: $project) {
         ...ProjectHeader
       }
     }
   `),
   () => ({
-    organization: props.organization,
+    owner: props.owner,
     project: props.project,
   })
 );
 const projectLoaded = computed(() => !!projectResult.value?.projectBySlug);
 const project = computed(() => useFragment(ProjectHeaderType, projectResult.value?.projectBySlug));
 
-// default version to view to head
+// default version to view = head (will be overridden by URL)
 const versionToViewId = computed(() => project.value?.head.id);
 
 // sync title bar with project info
 const title = useTitle();
-watchEffect(
-  () => (title.value = `${props.organization}/${props.project}${project.value ? ": " + project.value.name : ""}`)
-);
+watchEffect(() => (title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`));
 
 // get project content
 const { error: versionError, result: versionResult } = useQuery(
@@ -314,7 +312,7 @@ watchEffect(async () => {
             >
               <span class="sr-only">Open project menu</span>
               <span class="text-sm">
-                {{ props.organization }}
+                {{ props.owner }}
                 /
                 <span class="font-bold">{{ props.project }}</span>
               </span>

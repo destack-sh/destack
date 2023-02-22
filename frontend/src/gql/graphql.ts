@@ -480,7 +480,7 @@ export type Project = Node & {
   head: ProjectVersion;
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  organization: Organization;
+  owner: UserOrganization;
   path: Scalars["String"];
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
@@ -489,26 +489,6 @@ export type Project = Node & {
 
 export type ProjectVersionsArgs = {
   filters?: InputMaybe<ProjectVersionFilter>;
-};
-
-/** A connection to a list of items. */
-export type ProjectConnection = {
-  __typename?: "ProjectConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<ProjectEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type ProjectEdge = {
-  __typename?: "ProjectEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: Project;
 };
 
 export type ProjectVersion = Node & {
@@ -546,13 +526,11 @@ export type Query = {
   file?: Maybe<File>;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
-  organizationBySlug?: Maybe<Organization>;
+  ownerBySlug?: Maybe<UserOrganization>;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
-  projects: ProjectConnection;
   user?: Maybe<User>;
-  users: UserConnection;
 };
 
 export type QueryExecutionsArgs = {
@@ -573,8 +551,8 @@ export type QueryOrganizationArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QueryOrganizationBySlugArgs = {
-  organization: Scalars["String"];
+export type QueryOwnerBySlugArgs = {
+  slug: Scalars["String"];
 };
 
 export type QueryProjectArgs = {
@@ -582,7 +560,7 @@ export type QueryProjectArgs = {
 };
 
 export type QueryProjectBySlugArgs = {
-  organization: Scalars["String"];
+  owner: Scalars["String"];
   project: Scalars["String"];
 };
 
@@ -590,22 +568,8 @@ export type QueryProjectVersionArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QueryProjectsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-};
-
 export type QueryUserArgs = {
   id: Scalars["GlobalID"];
-};
-
-export type QueryUsersArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type RecordCreateInput = {
@@ -935,32 +899,14 @@ export type User = Node & {
   email: Scalars["String"];
   firstName: Scalars["String"];
   id: Scalars["GlobalID"];
-  lastName: Scalars["String"];
   organizations: Array<Organization>;
+  slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
   /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
   username: Scalars["String"];
 };
 
-/** A connection to a list of items. */
-export type UserConnection = {
-  __typename?: "UserConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<UserEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type UserEdge = {
-  __typename?: "UserEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: User;
-};
+export type UserOrganization = Organization | User;
 
 export type FileContentByIdQueryVariables = Exact<{
   fileId: Scalars["GlobalID"];
@@ -997,7 +943,7 @@ export type ProjectVersionsQuery = {
 };
 
 export type ProjectBySlugQueryVariables = Exact<{
-  organization: Scalars["String"];
+  owner: Scalars["String"];
   project: Scalars["String"];
 }>;
 
@@ -1136,7 +1082,6 @@ export type UserContentFragment = {
   username: string;
   email: string;
   firstName: string;
-  lastName: string;
   createdAt: any;
   updatedAt: any;
   organizations: Array<{
@@ -1170,7 +1115,9 @@ export type ProjectHeaderFragment = {
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
   };
-  organization: { __typename?: "Organization"; slug: string };
+  owner:
+    | { __typename?: "Organization"; id: any; slug: string; name: string }
+    | { __typename?: "User"; id: any; username: string; firstName: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
 export type FileHeaderFragment = {
@@ -1920,7 +1867,6 @@ export const UserContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "username" } },
           { kind: "Field", name: { kind: "Name", value: "email" } },
           { kind: "Field", name: { kind: "Name", value: "firstName" } },
-          { kind: "Field", name: { kind: "Name", value: "lastName" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           {
@@ -1996,10 +1942,35 @@ export const ProjectHeaderFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "organization" },
+            name: { kind: "Name", value: "owner" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "slug" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "firstName" } },
+                    ],
+                  },
+                },
+              ],
             },
           },
         ],
@@ -2447,7 +2418,7 @@ export const ProjectBySlugDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "organization" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "owner" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
         {
@@ -2465,8 +2436,8 @@ export const ProjectBySlugDocument = {
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "organization" },
-                value: { kind: "Variable", name: { kind: "Name", value: "organization" } },
+                name: { kind: "Name", value: "owner" },
+                value: { kind: "Variable", name: { kind: "Name", value: "owner" } },
               },
               {
                 kind: "Argument",
