@@ -10,6 +10,8 @@ import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
+import SettingsPopover from "@/components/SettingsPopover.vue";
+import SettingsModal from "@/components/SettingsPopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { provideAction, useActions } from "@/state/actions";
@@ -24,7 +26,7 @@ import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
+import { Menu, MenuButton, MenuItem, MenuItems, PopoverButton } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
   ClipboardDocumentIcon,
@@ -37,7 +39,7 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import { useFullscreen, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { computed, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -287,6 +289,9 @@ watchEffect(async () => {
     }
   }
 });
+
+// settings model
+const settingsModalRef: Ref<InstanceType<typeof SettingsModal> | null> = ref(null);
 </script>
 
 <template>
@@ -409,14 +414,25 @@ watchEffect(async () => {
             </button>
           </div>
           <!-- Help & settings -->
-          <button class="rounded-sm px-2 py-2 text-gray-600 hover:bg-gray-100">
+          <router-link
+            to="/symbolx/examples"
+            target="_blank"
+            class="rounded-sm px-2 py-2 text-gray-600 hover:bg-gray-100"
+          >
             <span class="sr-only">Help</span>
             <QuestionMarkCircleIcon class="h-6 w-6" aria-hidden="true" />
-          </button>
-          <button class="rounded-sm px-2 py-2 text-gray-600 hover:bg-gray-100">
-            <span class="sr-only">Settings</span>
-            <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />
-          </button>
+          </router-link>
+          <SettingsPopover>
+            <template v-slot:button="{ open }">
+              <PopoverButton
+                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-gray-100 focus:ring-0"
+                :class="open ? 'bg-gray-100' : ''"
+              >
+                <span class="sr-only">Settings</span>
+                <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />
+              </PopoverButton>
+            </template>
+          </SettingsPopover>
         </div>
         <!-- View content -->
         <div class="relative flex-1 flex-col" v-show="editor.showViewContent">
@@ -448,6 +464,7 @@ watchEffect(async () => {
         </div>
       </main>
     </div>
+    <SettingsModal ref="settingsModalRef" />
     <NotificationArea />
   </div>
 </template>
