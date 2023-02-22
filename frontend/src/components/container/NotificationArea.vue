@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useNotifications } from "@/state/notifications";
 import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
-import { XMarkIcon } from "@heroicons/vue/24/outline";
 
 const notifications = useNotifications();
 </script>
