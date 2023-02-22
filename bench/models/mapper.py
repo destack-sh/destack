@@ -48,9 +48,9 @@ def lookup_in_db_module(
 
 def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
     # requirement names are organization.library
-    organization_slug, library_slug = name.split(".")
+    owner_slug, library_slug = name.split(".")
     try:
-        library = Project.objects.get_by_slug(organization_slug, library_slug)
+        library = Project.objects.get_by_slug(owner_slug, library_slug)
     except Project.DoesNotExist:
         return None
     if version == "latest":
@@ -62,8 +62,7 @@ def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
 @transaction.atomic(savepoint=False)  # read-only
 def read_module(project_v: ProjectVersion, path: StatementPath | None = None) -> wire.ModuleData:
     """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
-    module_name = f"{project_v.project.organization.slug}.{project_v.project.slug}"
-    wire_module = wire.ModuleData(id=project_v.id, name=module_name, files=[])
+    wire_module = wire.ModuleData(id=project_v.id, name=project_v.project.path, files=[])
     wire_files: dict[UUID, wire.FileData] = {}
     wire_statements: dict[UUID, wire.StatementData] = {}
 

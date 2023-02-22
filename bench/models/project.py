@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import pytz
 from django.core.validators import validate_slug
 from django.db import models, transaction
+from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
@@ -20,6 +21,7 @@ from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models.organization import Organization
+    from bench.models.user import User
 
 
 class ProjectType(models.TextChoices):
@@ -29,6 +31,7 @@ class ProjectType(models.TextChoices):
 
 class ProjectVisibility(models.TextChoices):
     PUBLIC = "public", "Public"
+    SOURCE_PRIVATE = "source_private", "Source Private"
     PRIVATE = "private", "Private"
 
 
@@ -36,21 +39,36 @@ class ProjectManager(models.Manager["Project"]):
     @transaction.atomic
     def create_project(
         self,
-        organization: Organization,
+        owner: User | Organization,
         name: str,
         slug: str,
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
     ):
+        if owner.__class__.__name__ == "Organization":
+            user = None
+            organization = owner
+        else:
+            user = owner
+            organization = None
         project = super().create(
-            organization=organization, name=name, slug=slug, type=type, visibility=visibility
+            organization=organization,
+            user=user,
+            name=name,
+            slug=slug,
+            type=type,
+            visibility=visibility,
         )
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
         return project
 
-    def get_by_slug(self, organization: str, project: str):
-        return self.get(organization__slug=organization, slug=project)
+    def get_by_slug(self, owner: str, project: str):
+        return (
+            self.filter(slug=project)
+            .filter(Q(organization__owner_slug_id=owner) | Q(user__owner_slug_id=owner))
+            .get()
+        )
 
 
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
@@ -80,15 +98,22 @@ class Project(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
     organization: models.ForeignKey = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="projects"
+        "Organization", on_delete=models.CASCADE, related_name="projects", null=True
+    )
+    user: models.ForeignKey = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="projects", null=True
     )
 
     def __str__(self):
-        return f"{self.organization.slug}/{self.slug}"
+        return f"{self.owner.slug}/{self.slug}"
+
+    @property
+    def owner(self) -> Organization | User:
+        return self.organization or self.user
 
     @gql.model_property(only=["organization", "slug"], select_related=["organization"])
     def path(self) -> str:
-        return f"{self.organization.slug}.{self.slug}"
+        return f"{self.owner.slug}.{self.slug}"
 
     @property
     def head_(self) -> ProjectVersion:
@@ -144,10 +169,22 @@ class Project(UUIDModel):
     class Meta:
         default_related_name = "projects"
         constraints = [
+            # unique slug per owner
             models.UniqueConstraint(
                 name="bench_project_organization_slug_ak",
                 fields=["organization", "slug"],
-            )
+                condition=models.Q(organization__isnull=False),
+            ),
+            models.UniqueConstraint(
+                name="bench_project_user_slug_ak",
+                fields=["user", "slug"],
+                condition=models.Q(user__isnull=False),
+            ),
+            # must have at least one owner (organization or user)
+            models.CheckConstraint(
+                name="bench_project_owner_ck",
+                check=models.Q(organization__isnull=False) | models.Q(user__isnull=False),
+            ),
         ]
 
 
@@ -290,7 +327,7 @@ class ProjectVersion(UUIDModel):
     statements: models.QuerySet["Statement"]  # noqa via Statement
 
     def __str__(self) -> str:
-        return f"{self.organization.slug}/{self.project.slug}@{self.id.hex}"
+        return f"{self.project.path}@{self.id.hex}"
 
     def reset(self):
         """Hard deletes all files (cascades to statements and their contents)."""

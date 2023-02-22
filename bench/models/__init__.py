@@ -3,6 +3,7 @@ from .execution import Execution, ExecutionStatus
 from .generated import SourceMapping
 from .model import ModelInference
 from .organization import Organization
+from .owner import OwnerSlug
 from .project import File, Project, ProjectVersion
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
 from .user import User
@@ -14,6 +15,7 @@ __all__ = [
     "File",
     "ModelInference",
     "Organization",
+    "OwnerSlug",
     "Project",
     "ProjectVersion",
     "SourceMapping",

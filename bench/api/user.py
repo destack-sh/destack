@@ -14,8 +14,11 @@ if TYPE_CHECKING:
 class User(gql.relay.Node):
     username: auto
     first_name: auto
-    last_name: auto
     email: auto
     created_at: auto
     updated_at: auto
     organizations: list[Annotated["Organization", lazy(".organization")]]
+
+    @gql.django.field(only=["owner_slug_id"])
+    def slug(self, info) -> str:
+        return self.owner_slug_id

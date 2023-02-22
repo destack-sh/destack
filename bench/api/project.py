@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 from strawberry import UNSET, lazy
 from strawberry_django_plus import gql
@@ -14,6 +14,7 @@ from bench.models.project import RefDict
 if TYPE_CHECKING:
     from bench.api.organization import Organization
     from bench.api.statement import Statement
+    from bench.api.user import User
 
 StatementType = gql.enum(models.StatementType)
 
@@ -32,7 +33,7 @@ class Project(gql.Node):
     name: auto
     slug: auto
     path: auto
-    organization: Annotated["Organization", lazy(".organization")]
+    owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
     created_at: auto
     updated_at: auto
     head: "ProjectVersion"

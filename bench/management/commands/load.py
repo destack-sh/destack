@@ -12,7 +12,7 @@ from bench import language
 from bench.language import SymbolType, lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.language.reconstruct import render
-from bench.models import Organization, Project
+from bench.models import OwnerSlug, Project
 from bench.models.mapper import lookup_in_db_module, read_module, write_module
 from bench.models.project import ProjectVisibility
 
@@ -24,18 +24,19 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser):
         # project as organization/project
-        parser.add_argument("organization_project", type=str)
+        parser.add_argument("owner_project", type=str)
         # symbol file path (must exist and end in .py)
         parser.add_argument("path", type=str)
 
     @transaction.atomic
-    def handle(self, organization_project: str, path: str, *args, **options):
-        organization_slug, project_slug = organization_project.split("/")
-        organization = Organization.objects.get(slug=organization_slug)
-        project = Project.objects.filter(slug=project_slug, organization=organization).first()
-        if project is None:
+    def handle(self, owner_project: str, path: str, *args, **options):
+        owner_slug, project_slug = owner_project.split("/")
+        try:
+            project = Project.objects.get_by_slug(owner_slug, project_slug)
+        except Project.DoesNotExist:
+            owner = OwnerSlug.objects.get(slug=owner_slug).owner
             project = Project.objects.create_project(
-                organization=organization,
+                owner=owner,
                 name=project_slug,
                 slug=project_slug,
                 visibility=ProjectVisibility.PRIVATE,

@@ -11,12 +11,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         # project as organization/project
-        parser.add_argument("organization_project", type=str)
+        parser.add_argument("owner_project", type=str)
         # version id (optional, default to HEAD)
         parser.add_argument("-version", type=str, default="HEAD")
 
-    def handle(self, organization_project, version, *args, **options):
-        organization_slug, project_slug = organization_project.split("/")
+    def handle(self, owner_project, version, *args, **options):
+        organization_slug, project_slug = owner_project.split("/")
         organization = Organization.objects.get(slug=organization_slug)
         project = Project.objects.filter(slug=project_slug, organization=organization).get()
         if version == "HEAD":
