@@ -31,8 +31,10 @@ class User(gql.relay.Node):
         return self.owner_slug_id
 
 
+@gql.input
 class UserCompleteSignupInput(gql.NodeInput):
     username: str
+    full_name: str
 
 
 @gql.type
@@ -44,6 +46,7 @@ class UserMutation:
         if not requesting_user.is_authenticated or user.id != requesting_user.id:
             raise PermissionDenied("can only complete signup for yourself")
         user.change_username(input.username)
+        user.first_name = input.full_name
         user.completed_signup = True
         user.save()
         return user

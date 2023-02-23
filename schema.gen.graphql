@@ -237,7 +237,7 @@ type ModuleRuntime {
 }
 
 type Mutation {
-  completeSignup(input: NodeInput!): UserOperationInfo!
+  completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   logout: OperationInfo
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
@@ -731,6 +731,12 @@ type User implements Node {
   completedSignup: Boolean!
   organizations: [Organization!]!
   slug: String!
+}
+
+input UserCompleteSignupInput {
+  id: GlobalID!
+  username: String!
+  fullName: String!
 }
 
 union UserOperationInfo = User | OperationInfo

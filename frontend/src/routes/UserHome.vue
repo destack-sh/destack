@@ -2,6 +2,7 @@
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
+import NotificationArea from "@/components/container/NotificationArea.vue";
 </script>
 <template>
   <div class="h-full w-full">
@@ -14,5 +15,6 @@ import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
       </template>
     </FatHeader>
     Welcome home
+    <NotificationArea />
   </div>
 </template>

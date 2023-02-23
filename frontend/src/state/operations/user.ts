@@ -29,5 +29,28 @@ export function useUserOps() {
     });
   }
 
-  return { logout };
+  const { mutate: completeSignupMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation completeSignup($input: UserCompleteSignupInput!) {
+        completeSignup(input: $input) {
+          ... on User {
+            ...UserContent
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function completeSignup(id: string, username: string, fullName: string) {
+    return await operations.perform({
+      type: "user.completeSignup",
+      stateless: true,
+      do: async () => {
+        return await completeSignupMut({ input: { id, username, fullName } });
+      },
+    });
+  }
+
+  return { logout, completeSignup };
 }
