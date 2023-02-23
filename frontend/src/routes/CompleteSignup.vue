@@ -155,7 +155,14 @@ async function completeSignup() {
               Invalid username. <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
             </span>
             <span v-else-if="slugOwnerLoading" class="mt-1">&nbsp;</span>
-            <span v-else-if="!isAvailableSlug" class="mt-1 text-sm text-red-600">That username is taken.</span>
+            <span v-else-if="!isAvailableSlug" class="mt-1 text-sm text-red-600">
+              That username is
+              <router-link
+                :to="`/${username}`"
+                class="underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
+                >taken</router-link
+              >.
+            </span>
             <span v-else class="mt-1 text-sm text-gray-500">Yours for the taking.</span>
           </FadeTransition>
         </div>

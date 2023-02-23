@@ -10,6 +10,9 @@ import { useAuth } from "@/state/auth";
 import { ProjectType, ProjectVisibility } from "@/gql/graphql";
 import { useRouter } from "vue-router";
 import { useNotifications } from "@/state/notifications";
+import NotificationArea from "@/components/container/NotificationArea.vue";
+import { useQuery } from "@vue/apollo-composable";
+import { graphql } from "@/gql";
 
 const title = useTitle();
 title.value = "Bench - Create bench";
@@ -18,14 +21,38 @@ const auth = useAuth();
 const owner: Ref<{ id: string; slug: string }> = computed(() => auth.me.value);
 const name: Ref<string> = ref("Sandbox");
 const slug: Ref<string> = ref("sandbox");
+const slugModified = ref(false);
 const isPublic: Ref<boolean> = ref(true);
 const type: Ref<ProjectType> = ref(ProjectType.Executable);
 
+function syncSlugIfUnmodified() {
+  if (!slugModified.value) {
+    slug.value = name.value.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+  }
+}
+
 const isValidName = computed(() => (name.value?.length ?? 0) >= 2);
 const isValidSlug = computed(() => /^[a-z0-9_-]{3,}$/.test(slug.value ?? "") && (slug.value?.length ?? 0 >= 4));
-const existingProjectLoading = computed(() => false);
-const isAvailableSlug = computed(() => true);
-const canComplete = computed(() => !creating.value);
+
+const { result: existingProject, loading: existingProjectLoading } = useQuery(
+  graphql(/* GraphQL */ `
+    query existingProjectBySlug($owner: String!, $project: String!) {
+      projectBySlug(owner: $owner, project: $project) {
+        id
+        slug
+      }
+    }
+  `),
+  computed(() => ({
+    owner: owner.value?.slug,
+    project: slug.value,
+  }))
+);
+const isAvailableSlug = computed(() => existingProject.value?.projectBySlug == null);
+const canComplete = computed(
+  () =>
+    !creating.value && !existingProjectLoading.value && isValidName.value && isValidSlug.value && isAvailableSlug.value
+);
 
 const creating: Ref<boolean> = ref(false);
 
@@ -34,20 +61,23 @@ const router = useRouter();
 const notifications = useNotifications();
 async function createProject() {
   creating.value = true;
-  await ops.project.create(
+  const create = await ops.project.create(
     owner.value.id,
     name.value,
     slug.value,
     type.value,
     isPublic.value ? ProjectVisibility.Private : ProjectVisibility.Private
   );
-  router.push(`/${owner.value.slug}/${slug.value}`);
-  notifications.show({
-    kind: "success",
-    type: "project.created",
-    message: "Bench born",
-    description: "Your bench has been created",
-  });
+  creating.value = false;
+  if (create?.data?.createProject.__typename == "Project") {
+    router.push(`/${owner.value.slug}/${slug.value}`);
+    notifications.show({
+      kind: "success",
+      type: "project.created",
+      message: "Bench born",
+      description: "Your bench has been created",
+    });
+  }
 }
 </script>
 <template>
@@ -76,12 +106,13 @@ async function createProject() {
 
         <!-- Full name -->
         <div class="text-left">
-          <span class="text-md text-gray-700">Your name</span>
+          <span class="text-md text-gray-700">Bench name</span>
           <input
             type="text"
             minlength="3"
             maxlength="128"
             v-model="name"
+            @input="syncSlugIfUnmodified"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
           />
           <FadeTransition mode="out-in">
@@ -92,21 +123,29 @@ async function createProject() {
 
         <!-- slug -->
         <div class="text-left">
-          <span class="text-md text-gray-700">Pick a slug</span>
+          <span class="text-md text-gray-700">Pick a short name</span>
           <input
             type="text"
             minlength="3"
             maxlength="128"
             pattern="[a-z0-9_-]+"
-            v-model="slug"
+            :value="slug"
+            @input="(event) => ((slug = event.target?.value), (slugModified = true))"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
           />
           <FadeTransition mode="out-in">
             <span v-if="!isValidSlug" class="mt-1 text-sm text-orange-600">
-              Invalid slug. <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
+              Invalid short name. <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
             </span>
             <span v-else-if="existingProjectLoading" class="mt-1">&nbsp;</span>
-            <span v-else-if="!isAvailableSlug" class="mt-1 text-sm text-red-600">That slug is taken.</span>
+            <span v-else-if="!isAvailableSlug" class="mt-1 text-sm text-red-600">
+              That name is
+              <router-link
+                :to="`/${owner.slug}/${slug}`"
+                class="underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
+                >taken</router-link
+              >.
+            </span>
             <span v-else class="mt-1 text-sm text-gray-500">Yours for the taking.</span>
           </FadeTransition>
         </div>
@@ -121,5 +160,6 @@ async function createProject() {
         </button>
       </div>
     </div>
+    <NotificationArea />
   </div>
 </template>

@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
@@ -136,45 +137,47 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       }"
       @change="query = $event.target.value"
       :display-value="(stmt) => symbolDeclr(stmt)"
-      :placeholder="mainSymbolMissing ? '???' : 'main...'"
+      :placeholder="mainSymbolMissing ? '???' : 'main'"
       :disabled="!runtime.connected.value"
     />
     <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
       <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
     </ComboboxButton>
 
-    <ComboboxOptions
-      v-show="runtime.connected.value"
-      class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
-      :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
-    >
-      <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>
-      <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">no matching symbols</div>
-      <ComboboxOption
-        v-for="stmt in filteredSymbols"
-        :key="stmt.id"
-        :value="stmt"
-        as="template"
-        v-slot="{ active, selected }"
+    <FadeTransition>
+      <ComboboxOptions
+        v-show="runtime.connected.value"
+        class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-40 focus:outline-none sm:text-sm"
+        :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
       >
-        <li
-          :class="[
-            'relative cursor-default select-none py-0.5 px-2',
-            active ? 'bg-orange-600 text-white' : 'text-gray-900',
-          ]"
+        <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>
+        <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">no matching symbols</div>
+        <ComboboxOption
+          v-for="stmt in filteredSymbols"
+          :key="stmt.id"
+          :value="stmt"
+          as="template"
+          v-slot="{ active, selected }"
         >
-          <div class="flex items-baseline justify-between">
-            <span :class="['truncate', selected && 'underline']">
-              {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
-              {{ stmt.name }}
-            </span>
-            <span class="text-sm" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
-              {{ fileOf(stmt)?.path }}
-            </span>
-          </div>
-        </li>
-      </ComboboxOption>
-    </ComboboxOptions>
+          <li
+            :class="[
+              'relative cursor-default select-none py-0.5 px-2',
+              active ? 'bg-orange-600 text-white' : 'text-gray-900',
+            ]"
+          >
+            <div class="flex items-baseline justify-between">
+              <span :class="['truncate', selected && 'underline']">
+                {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
+                {{ stmt.name }}
+              </span>
+              <span class="text-sm" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
+                {{ fileOf(stmt)?.path }}
+              </span>
+            </div>
+          </li>
+        </ComboboxOption>
+      </ComboboxOptions>
+    </FadeTransition>
   </Combobox>
   <button
     v-for="action in mainActions"
