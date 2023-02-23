@@ -321,8 +321,8 @@ type Organization implements Node {
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  projects: [Project!]!
   members: [User!]!
+  projects: [Project!]!
   slug: String!
 }
 
@@ -345,6 +345,7 @@ type Project implements Node {
   id: GlobalID!
   name: String!
   slug: String!
+  type: ProjectType!
   visibility: ProjectVisibility!
   path: String!
   owner: UserOrganization!
@@ -753,6 +754,7 @@ type User implements Node {
   updatedAt: DateTime!
   completedSignup: Boolean!
   organizations: [Organization!]!
+  projects: [Project!]!
   slug: String!
 }
 

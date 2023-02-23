@@ -15,8 +15,8 @@ class Organization(gql.relay.Node):
     name: auto
     created_at: auto
     updated_at: auto
-    projects: list[Annotated["Project", lazy(".project")]]
     members: list[Annotated["User", lazy(".user")]]
+    projects: list[Annotated["Project", lazy(".project")]]
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:

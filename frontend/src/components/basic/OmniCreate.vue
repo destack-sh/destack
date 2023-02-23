@@ -25,9 +25,13 @@ const addables = computed(() =>
 );
 </script>
 <template>
-  <Menu as="div" class="relative h-full flex-shrink-0 ring-0 focus:outline-none focus:ring-0" v-slot="{ open }">
+  <Menu
+    as="div"
+    class="relative flex h-full flex-shrink-0 items-center ring-0 focus:outline-none focus:ring-0"
+    v-slot="{ open }"
+  >
     <MenuButton
-      class="flex h-full items-center px-2 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
+      class="flex items-center p-1 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
       :class="{ 'bg-orange-50': open }"
     >
       <PlusIcon class="h-5 w-5 text-orange-600" />

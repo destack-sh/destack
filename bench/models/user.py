@@ -42,6 +42,8 @@ class User(AbstractUser, UUIDModel):
     owner_slug_id: Optional[str]  # noqa via Statement.reference
     completed_signup: models.BooleanField = models.BooleanField(default=False)
 
+    projects: models.QuerySet["Project"]  # noqa via Project.user
+
     objects: UserManager = UserManager()  # type: ignore
 
     def __str__(self):

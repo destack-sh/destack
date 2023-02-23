@@ -1,6 +1,6 @@
 import NotFound from "@/routes/NotFound.vue";
-import ProjectBench from "@/routes/ProjectBench.vue";
-import UserHome from "@/routes/UserHome.vue";
+import Bench from "@/routes/Bench.vue";
+import Home from "@/routes/Home.vue";
 import CreateProject from "@/routes/CreateProject.vue";
 import Signup from "@/routes/Signup.vue";
 import CompleteSignup from "@/routes/CompleteSignup.vue";
@@ -15,14 +15,14 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 });
 
 const routes = [
-  { path: "/", name: "Home", component: UserHome, props: forwardQueryAndParams },
+  { path: "/", name: "Home", component: Home, props: forwardQueryAndParams },
   { path: "/signup", name: "Signup", component: Signup, props: forwardQueryAndParams },
   { path: "/signup/complete", name: "CompleteSignup", component: CompleteSignup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
   { path: "/settings/profile", name: "SettingsProfile", component: NotFound, props: forwardQueryAndParams },
   { path: "/new", name: "CreateProject", component: CreateProject, props: forwardQueryAndParams },
   { path: "/:owner", name: "Profile", component: NotFound, props: forwardQueryAndParams },
-  { path: "/:owner/:project", component: ProjectBench, props: forwardQueryAndParams },
+  { path: "/:owner/:project", component: Bench, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
 ];

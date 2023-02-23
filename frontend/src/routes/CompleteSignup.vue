@@ -8,7 +8,7 @@ import { useAuth } from "@/state/auth";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
-import { computed, ref, watchEffect, type Ref } from "vue";
+import { computed, onMounted, ref, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 defineProps<{ next?: string }>();
@@ -81,6 +81,14 @@ const { result: slugOwner, loading: slugOwnerLoading } = useQuery(
   }))
 );
 
+// auto-focus name on load
+const nameRef: Ref<HTMLInputElement | null> = ref(null);
+onMounted(() => {
+  nameRef.value?.focus();
+  // select all
+  nameRef.value?.setSelectionRange(0, nameRef.value?.value?.length ?? 0);
+});
+
 const completing = ref(false);
 const canComplete = computed(
   () => !completing.value && isValidName.value && isValidSlug.value && !slugOwnerLoading.value && isAvailableSlug.value
@@ -123,6 +131,7 @@ async function completeSignup() {
         <div class="text-left">
           <span class="text-md text-gray-700">Your name</span>
           <input
+            ref="nameRef"
             type="text"
             minlength="3"
             maxlength="128"
@@ -130,6 +139,7 @@ async function completeSignup() {
             v-model="name"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
             @keydown.tab.exact="autofillName"
+            spellcheck="false"
           />
           <FadeTransition mode="out-in">
             <span class="mt-1 text-sm text-yellow-500" v-if="!isValidName">That's not a name we can print.</span>
@@ -149,6 +159,7 @@ async function completeSignup() {
             v-model="username"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
             @keydown.tab.exact="autofillUsername"
+            spellcheck="false"
           />
           <FadeTransition mode="out-in">
             <span v-if="!isValidSlug" class="mt-1 text-sm text-orange-600">

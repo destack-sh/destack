@@ -14,6 +14,7 @@ from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
+    from bench.api.project import Project
 
 
 @gql.django.type(models.User)
@@ -25,6 +26,7 @@ class User(gql.relay.Node):
     updated_at: auto
     completed_signup: auto
     organizations: list[Annotated["Organization", lazy(".organization")]]
+    projects: list[Annotated["Project", lazy(".project")]]
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:

@@ -27,7 +27,7 @@ export function useVersionActions() {
           type: "commit.succes",
           kind: "success",
           message: `Committed`,
-          description: `Version ${randomName} has been saved.`,
+          description: `Version ${randomName} is extra safe.`,
         });
       }
     },

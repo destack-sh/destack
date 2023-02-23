@@ -3,7 +3,7 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import { useTitle } from "@vueuse/core";
-import { computed, ref, type Ref } from "vue";
+import { computed, onMounted, ref, type Ref } from "vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useOperations } from "@/state/operations";
 import { useAuth } from "@/state/auth";
@@ -54,6 +54,14 @@ const canComplete = computed(
     !creating.value && !existingProjectLoading.value && isValidName.value && isValidSlug.value && isAvailableSlug.value
 );
 
+// auto-focus name on load
+const nameRef: Ref<HTMLInputElement | null> = ref(null);
+onMounted(() => {
+  nameRef.value?.focus();
+  // select all
+  nameRef.value?.setSelectionRange(0, nameRef.value?.value?.length ?? 0);
+});
+
 const creating: Ref<boolean> = ref(false);
 
 const ops = useOperations();
@@ -75,7 +83,7 @@ async function createProject() {
       kind: "success",
       type: "project.created",
       message: "Bench born",
-      description: "Your bench has been created",
+      description: "Your bench is ready for work. And play.",
     });
   }
 }
@@ -108,12 +116,14 @@ async function createProject() {
         <div class="text-left">
           <span class="text-md text-gray-700">Bench name</span>
           <input
+            ref="nameRef"
             type="text"
             minlength="3"
             maxlength="128"
             v-model="name"
             @input="syncSlugIfUnmodified"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            spellcheck="false"
           />
           <FadeTransition mode="out-in">
             <span class="mt-1 text-sm text-yellow-500" v-if="!isValidName">That's not a name we can print.</span>
@@ -123,7 +133,7 @@ async function createProject() {
 
         <!-- slug -->
         <div class="text-left">
-          <span class="text-md text-gray-700">Pick a short name</span>
+          <span class="text-md text-gray-700">A robot-friendly name</span>
           <input
             type="text"
             minlength="3"
@@ -132,6 +142,7 @@ async function createProject() {
             :value="slug"
             @input="(event) => ((slug = event.target?.value), (slugModified = true))"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            spellcheck="false"
           />
           <FadeTransition mode="out-in">
             <span v-if="!isValidSlug" class="mt-1 text-sm text-orange-600">
