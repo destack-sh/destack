@@ -14,7 +14,14 @@ from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 from bench import models
 from bench.api.execution import ExecutionQuery
 from bench.api.organization import Organization
-from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
+from bench.api.project import (
+    File,
+    FileMutation,
+    Project,
+    ProjectMutation,
+    ProjectVersion,
+    ProjectVersionMutation,
+)
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.user import User, UserMutation
@@ -59,6 +66,7 @@ class Query(ExecutionQuery):
 @strawberry.type
 class Mutation(
     UserMutation,
+    ProjectMutation,
     StatementMutation,
     SymbolMutation,
     FileMutation,

@@ -4,7 +4,7 @@ from .generated import SourceMapping
 from .model import ModelInference
 from .organization import Organization
 from .owner import OwnerSlug
-from .project import File, Project, ProjectVersion
+from .project import File, Project, ProjectType, ProjectVersion, ProjectVisibility
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
 from .user import User
 
@@ -17,7 +17,9 @@ __all__ = [
     "Organization",
     "OwnerSlug",
     "Project",
+    "ProjectVisibility",
     "ProjectVersion",
+    "ProjectType",
     "SourceMapping",
     "SimpleTypeNode",
     "Statement",

@@ -28,10 +28,15 @@ class ProjectVersionFilter:
         return queryset.filter(created_at__gt=version.committed_at)
 
 
+ProjectVisibility = gql.enum(models.ProjectVisibility)
+ProjectType = gql.enum(models.ProjectType)
+
+
 @gql.django.type(models.Project)
 class Project(gql.Node):
     name: auto
     slug: auto
+    visibility: ProjectVisibility
     path: auto
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
     created_at: auto
@@ -117,6 +122,33 @@ class File(gql.Node):
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )
+
+
+@gql.input
+class ProjectCreateInput:
+    owner_id: GlobalID
+    name: str
+    slug: str
+    visibility: ProjectVisibility
+    type: ProjectType = ProjectType.EXECUTABLE
+
+
+@gql.type
+class ProjectMutation:
+    @safe_mutation
+    def create_project(self, info, input: "ProjectCreateInput") -> Project | OperationInfo:
+        requesting_user = info.context.request.scope["user"]
+        owner = input.owner_id.resolve_node(info, required=True)
+        if not requesting_user.is_authenticated or requesting_user.id != owner.id:
+            raise PermissionError("cannot create project for anyone else")
+        project = models.Project.objects.create_project(
+            owner=owner,
+            name=input.name,
+            slug=input.slug,
+            type=input.type,
+            visibility=input.visibility,
+        )
+        return project
 
 
 @gql.input

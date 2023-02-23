@@ -2,7 +2,7 @@
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
+import ProfileButton from "@/components/basic/ProfileButton.vue";
 import { useTitle } from "@vueuse/core";
 
 const title = useTitle();
@@ -15,7 +15,7 @@ title.value = "Page not found";
         <HomeButton />
       </template>
       <template v-slot:right>
-        <ProfileMenuButton />
+        <ProfileButton />
       </template>
     </FatHeader>
     <GenericNotFound />
