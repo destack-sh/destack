@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel, Switch } from "@headlessui/vue";
@@ -11,16 +12,9 @@ const actions = useActions();
   <Popover v-slot="{ open }" class="relative">
     <slot name="button" :open="open" />
 
-    <transition
-      enter-active-class="transition duration-150 ease-out"
-      enter-from-class="translate-y-1 opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition duration-100 ease-in"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-1 opacity-0"
-    >
+    <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-0 left-14 z-10 flex w-52 flex-col gap-2 rounded-sm bg-white px-4 pb-4 pt-2 shadow-md ring-1 ring-black ring-opacity-5"
+        class="absolute bottom-0 left-14 z-10 flex w-52 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Font style -->
         <div class="pb-1">
@@ -121,6 +115,6 @@ const actions = useActions();
           </Switch>
         </div>
       </PopoverPanel>
-    </transition>
+    </FadeTransition>
   </Popover>
 </template>

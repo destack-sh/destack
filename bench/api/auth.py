@@ -1,7 +1,4 @@
 import structlog
-from django.contrib.auth import logout as django_logout
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from social_django.strategy import DjangoStrategy
 
 from bench.models import User
@@ -21,19 +18,9 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
         or f"{details.get('first_name') or ''} {details.get('last_name') or ''}".strip()
         or details.get("username")
     )
-    user = User.objects.create_user(username, email, full_name)
+    # incomplete signup, need to set more properties (like username)
+    user = User.objects.create_user(username, email, full_name, completed_signup=False)
     strategy.session_set("backend", backend.name)
 
     logger.info("social_create_user", user=user)
     return {"is_new": True, "user": user}
-
-
-# plain DRF functional logout view
-@api_view(["POST"])
-def logout(request):
-    django_logout(request)
-    # redirect to next url if provided
-    next_url = request.data.get("next")
-    if next_url:
-        return Response(status=302, headers={"Location": next_url})
-    return Response(status=204)

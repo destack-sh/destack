@@ -8,7 +8,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.sync import PMT, project_mutation
-from bench.api.util import async_safe_mutation
+from bench.api.util import safe_mutation
 from bench.models.project import RefDict
 
 if TYPE_CHECKING:
@@ -135,8 +135,8 @@ class CommitPayload:
 
 @gql.type
 class ProjectVersionMutation:
-    @async_safe_mutation
-    def commit(self, input: CommitInput) -> CommitPayload:
+    @safe_mutation
+    def commit(self, input: CommitInput) -> CommitPayload | OperationInfo:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )

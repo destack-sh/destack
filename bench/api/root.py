@@ -17,7 +17,7 @@ from bench.api.organization import Organization
 from bench.api.project import File, FileMutation, Project, ProjectVersion, ProjectVersionMutation
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
 from bench.api.statement import StatementMutation, SymbolMutation, Type
-from bench.api.user import User
+from bench.api.user import User, UserMutation
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 
@@ -58,6 +58,7 @@ class Query(ExecutionQuery):
 
 @strawberry.type
 class Mutation(
+    UserMutation,
     StatementMutation,
     SymbolMutation,
     FileMutation,

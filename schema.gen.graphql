@@ -23,6 +23,8 @@ type CommitPayload {
   newWorkingVersion: ProjectVersion!
 }
 
+union CommitPayloadOperationInfo = CommitPayload | OperationInfo
+
 type DatasetRecord implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -235,6 +237,8 @@ type ModuleRuntime {
 }
 
 type Mutation {
+  completeSignup(input: NodeInput!): UserOperationInfo!
+  logout: OperationInfo
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
@@ -261,7 +265,7 @@ type Mutation {
   restoreFile(input: NodeInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
-  commit(input: CommitInput!): CommitPayload!
+  commit(input: CommitInput!): CommitPayloadOperationInfo!
   build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
 }
@@ -724,8 +728,11 @@ type User implements Node {
   email: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+  completedSignup: Boolean!
   organizations: [Organization!]!
   slug: String!
 }
+
+union UserOperationInfo = User | OperationInfo
 
 union UserOrganization = User | Organization

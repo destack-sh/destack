@@ -1,16 +1,20 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { useBrowserLocation } from "@vueuse/core";
-
-const userNavigation = [
-  { name: "Settings", href: "#" },
-  { name: "Sign out", href: "#" },
-];
+import { computed } from "vue";
 
 const auth = useAuth();
 const location = useBrowserLocation();
+const actions = useActions();
+
+const userNavigation = computed(() => [
+  { name: "Profile", to: "/" + auth.me.value?.username },
+  { name: "Settings", to: "/settings/profile" },
+  { name: "Log out", action: () => actions.user.logout.value.apply() },
+]);
 </script>
 <template>
   <div v-if="!auth.loggedIn.value" class="flex flex-row gap-2 px-4">
@@ -27,22 +31,32 @@ const location = useBrowserLocation();
       Log in
     </router-link>
   </div>
-  <Menu v-else as="div" class="relative flex-shrink-0">
-    <div>
-      <MenuButton class="flex flex-col px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
-        <span class="sr-only">Open user menu</span>
+  <Menu v-else as="div" class="relative h-full flex-shrink-0">
+    <MenuButton class="flex h-full items-center px-4 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none">
+      <div class="flex flex-col">
         <span class="text-xs font-bold text-gray-900">{{ auth.me.value?.username }}</span>
         <span class="text-xs text-gray-500">{{ auth.me.value?.firstName }}</span>
-      </MenuButton>
-    </div>
+      </div>
+    </MenuButton>
     <FadeTransition>
       <MenuItems
-        class="absolute right-0 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="absolute right-1 top-12 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
       >
         <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
-          <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
+          <router-link
+            v-if="item.to"
+            :to="item.to"
+            :class="[active ? 'bg-orange-50' : '', 'block py-2 px-4 text-sm text-gray-900']"
+          >
             {{ item.name }}
-          </a>
+          </router-link>
+          <button
+            v-else
+            :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-4 text-left text-sm text-gray-900']"
+            @click="item.action"
+          >
+            {{ item.name }}
+          </button>
         </MenuItem>
       </MenuItems>
     </FadeTransition>

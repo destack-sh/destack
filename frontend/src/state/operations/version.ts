@@ -9,15 +9,18 @@ export function useProjectVersionOps() {
     graphql(/* GraphQL */ `
       mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {
         commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {
-          project {
-            ...ProjectHeader
+          ... on CommitPayload {
+            project {
+              ...ProjectHeader
+            }
+            committedVersion {
+              ...ProjectVersionHeader
+            }
+            newWorkingVersion {
+              ...ProjectVersionHeader
+            }
           }
-          committedVersion {
-            ...ProjectVersionHeader
-          }
-          newWorkingVersion {
-            ...ProjectVersionHeader
-          }
+          ...OperationInfoContent
         }
       }
     `),

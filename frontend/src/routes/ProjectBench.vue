@@ -308,7 +308,7 @@ watchEffect(async () => {
         <Menu v-show="projectLoaded" as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
           <div class="h-full">
             <MenuButton
-              class="flex h-full items-center justify-between bg-white px-4 text-left hover:bg-gray-50 focus:bg-gray-100 focus:outline-none"
+              class="flex h-full items-center justify-between bg-white px-4 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
             >
               <span class="sr-only">Open project menu</span>
               <span class="text-sm">
