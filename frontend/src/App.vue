@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
-import { onBeforeUnmount } from "vue";
-import { RouterView } from "vue-router";
+import { onBeforeUnmount, watchEffect } from "vue";
+import { RouterView, useRouter } from "vue-router";
 
 // handle errors in operations with notification
 const notifications = useNotifications();
@@ -19,6 +20,16 @@ function onError(operation: Operation<unknown>, error: unknown) {
 errorListeners.push(onError);
 onBeforeUnmount(() => {
   errorListeners.splice(errorListeners.indexOf(onError), 1);
+});
+
+// auto-redirect to complete signup if not completed
+const router = useRouter();
+const auth = useAuth();
+
+watchEffect(() => {
+  if (auth.loggedIn.value && !auth.me.value?.completedSignup) {
+    router.push("/complete-signup");
+  }
 });
 </script>
 

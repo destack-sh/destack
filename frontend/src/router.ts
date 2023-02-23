@@ -2,6 +2,7 @@ import NotFound from "@/routes/NotFound.vue";
 import ProjectBench from "@/routes/ProjectBench.vue";
 import UserHome from "@/routes/UserHome.vue";
 import Signup from "@/routes/Signup.vue";
+import CompleteSignup from "@/routes/CompleteSignup.vue";
 import Login from "@/routes/Login.vue";
 
 import qs from "qs";
@@ -15,6 +16,7 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 const routes = [
   { path: "/", name: "Home", component: UserHome, props: forwardQueryAndParams },
   { path: "/signup", name: "Signup", component: Signup, props: forwardQueryAndParams },
+  { path: "/complete-signup", name: "CompleteSignup", component: CompleteSignup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
   { path: "/settings/profile", name: "SettingsProfile", component: NotFound, props: forwardQueryAndParams },
   { path: "/:owner", name: "Profile", component: NotFound, props: forwardQueryAndParams },
