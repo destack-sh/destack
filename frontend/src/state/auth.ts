@@ -46,7 +46,7 @@ export const SOCIAL_AUTH_PROVIDERS = [
   },
   {
     name: "Google",
-    url: `${HTTP_API_BASE_URL}/login/google/`,
+    url: `${HTTP_API_BASE_URL}/login/google-oauth2/`,
     enabled: !IS_LOCALHOST,
   },
 ];
