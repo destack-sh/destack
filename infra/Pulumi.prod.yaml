@@ -4,16 +4,15 @@ config:
   Bench:SOCIAL_AUTH_GITHUB_SECRET:
     secure: AAABALTUE4BI2csX0KoX7N9hyIbuogh6cXCW4PHNzV2UW/d7Np5x/KnYHrLnras8eAPjm+6NsFUVNT5H8xYlw5rZt46eSTU7
   Bench:SOCIAL_AUTH_GITLAB_KEY:
-    secure: AAABAJpHyFRfL1D3Owku9X+N+dGpYPNyhRF+VEzR/RpeC7rZ+pos5Z9mS468Kd3GVm9XCrlafbscg4cJsb60mo2ZzrnPquJmGvTQR8ix86E4Uk05gmf4XLck82hilwxb
+    secure: AAABAI2/yRSUlKLpisfYpTZjqT2hKe0Gny2c209G4BDoYF2UQluSPXvF81Qy8+KbIllxVli878LbYaXxaytGqXa/yQkDhMMfe9kvB3x97SUHFJmRI8JfBUvCXTE6jjAY
   Bench:SOCIAL_AUTH_GITLAB_SECRET:
-    secure: AAABAIBcLcW96rQ7CA2OCxCSXWEH6ssjOxpJylQSTzEIeqXWXMhbL///dVOUHv/nrqPksXlWv7cYejml61efe6AaFWyFDaQupaBu90rHZTbWw/f8JOOpp4yXEYcLGUy/
+    secure: AAABAHgUqhr/BhcbUceSlYs/EiZn9+/uPTQIF3Kyrs0koj9mzpOKjkZYRL3YXaqkkK1otT7wiUvajYLz9TP3nSqc6VNq89p0ZPWGfAfhoYR8swzhaowoigaOYnOHkqlu
   Bench:SOCIAL_AUTH_GOOGLE_OAUTH2_KEY:
     secure: AAABAKGJYWYdzK1qSL0JL7dmzsmR55HcceQTZCTm/mtwHJj7bmPxfF1GI+06wXsY7uSISumEejggQqGZv71HrniCm/rMHRLm4/Lola1UsAHdcRrt9OIF+QNvDjLo5+FGQJzic2STT70=
   Bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
     secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
-  Bench:webappUrl: https://bench.symbolx.com
-  Bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
   Bench:apiAllowedHosts: "*"
+  Bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
   Bench:dbPassword:
     secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
   Bench:desiredClusterSize: "2"
@@ -25,5 +24,6 @@ config:
   Bench:minClusterSize: "2"
   Bench:version: "current"
   Bench:vpcNetworkCidr: 10.0.0.0/16
+  Bench:webappUrl: https://bench.symbolx.com
   aws:region: "eu-central-1"
   pulumi:template: kubernetes-aws-typescript
