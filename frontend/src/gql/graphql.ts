@@ -48,6 +48,8 @@ export type CommitPayload = {
   project: Project;
 };
 
+export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
+
 export type DatasetRecord = Node & {
   __typename?: "DatasetRecord";
   createdAt: Scalars["DateTime"];
@@ -261,13 +263,15 @@ export type Mutation = {
   __typename?: "Mutation";
   build: BuildStateOperationInfo;
   commentStatement: StatementOperationInfo;
-  commit: CommitPayload;
+  commit: CommitPayloadOperationInfo;
+  completeSignup: UserOperationInfo;
   createFile: FileOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementRecord: StatementOperationInfo;
   createStatementTypeNode: StatementOperationInfo;
   deleteStatementRecord: StatementOperationInfo;
   deleteStatementTypeNode: StatementOperationInfo;
+  logout?: Maybe<OperationInfo>;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
   moveStatement: StatementOperationInfo;
@@ -300,6 +304,10 @@ export type MutationCommentStatementArgs = {
 
 export type MutationCommitArgs = {
   input: CommitInput;
+};
+
+export type MutationCompleteSignupArgs = {
+  input: NodeInput;
 };
 
 export type MutationCreateFileArgs = {
@@ -895,6 +903,7 @@ export enum TypeTag {
 
 export type User = Node & {
   __typename?: "User";
+  completedSignup: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   email: Scalars["String"];
   firstName: Scalars["String"];
@@ -905,6 +914,8 @@ export type User = Node & {
   /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
   username: Scalars["String"];
 };
+
+export type UserOperationInfo = OperationInfo | User;
 
 export type UserOrganization = Organization | User;
 
@@ -1084,6 +1095,7 @@ export type UserContentFragment = {
   firstName: string;
   createdAt: any;
   updatedAt: any;
+  completedSignup: boolean;
   organizations: Array<{
     __typename?: "Organization";
     id: any;
@@ -1646,6 +1658,17 @@ export type DeleteRecordMutation = {
       };
 };
 
+export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
+
+export type LogoutMutation = {
+  __typename?: "Mutation";
+  logout?:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | null;
+};
+
 export type CommitMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   name: Scalars["String"];
@@ -1654,16 +1677,20 @@ export type CommitMutationVariables = Exact<{
 
 export type CommitMutation = {
   __typename?: "Mutation";
-  commit: {
-    __typename?: "CommitPayload";
-    project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
-    committedVersion: { __typename?: "ProjectVersion" } & {
-      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-    };
-    newWorkingVersion: { __typename?: "ProjectVersion" } & {
-      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-    };
-  };
+  commit:
+    | {
+        __typename?: "CommitPayload";
+        project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
+        committedVersion: { __typename?: "ProjectVersion" } & {
+          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+        };
+        newWorkingVersion: { __typename?: "ProjectVersion" } & {
+          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+        };
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
 export type InterpSymbolContentFragment = {
@@ -1869,6 +1896,7 @@ export const UserContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "firstName" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "organizations" },
@@ -4720,6 +4748,30 @@ export const DeleteRecordDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteRecordMutation, DeleteRecordMutationVariables>;
+export const LogoutDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "logout" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "logout" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<LogoutMutation, LogoutMutationVariables>;
 export const CommitDocument = {
   kind: "Document",
   definitions: [
@@ -4780,29 +4832,43 @@ export const CommitDocument = {
               kind: "SelectionSet",
               selections: [
                 {
-                  kind: "Field",
-                  name: { kind: "Name", value: "project" },
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CommitPayload" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "project" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "committedVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "newWorkingVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                          ],
+                        },
+                      },
+                    ],
                   },
                 },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "committedVersion" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "newWorkingVersion" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
-                  },
-                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
               ],
             },
           },
@@ -4811,6 +4877,7 @@ export const CommitDocument = {
     },
     ...ProjectHeaderFragmentDoc.definitions,
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CommitMutation, CommitMutationVariables>;
 export const ModuleRuntimeChangedDocument = {

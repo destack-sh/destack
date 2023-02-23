@@ -40,6 +40,7 @@ class User(AbstractUser, UUIDModel):
         "OwnerSlug", unique=True, on_delete=models.CASCADE, null=True, related_name="user"
     )
     owner_slug_id: Optional[str]  # noqa via Statement.reference
+    completed_signup: models.BooleanField = models.BooleanField(default=False)
 
     objects: UserManager = UserManager()  # type: ignore
 
@@ -53,6 +54,16 @@ class User(AbstractUser, UUIDModel):
     def slug(self) -> str:
         """Should always equal username"""
         return self.owner_slug_id
+
+    def change_username(self, username: str) -> None:
+        """Updates the username and the corresponding slug. Must be atomic."""
+        # check if atomic
+        if not transaction.get_connection().in_atomic_block:
+            raise RuntimeError("update_username must be atomic")
+        self.username = username
+        self.owner_slug.delete()
+        self.owner_slug = OwnerSlug.objects.create_slug(username)
+        self.save()
 
     def join_organization(
         self, organization: Organization, level: OrganizationMembership.Level

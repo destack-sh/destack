@@ -2,6 +2,7 @@ import { useFileOps } from "@/state/operations/file";
 import { useRuntimeOps } from "@/state/operations/runtime";
 import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
+import { useUserOps } from "@/state/operations/user";
 import { useProjectVersionOps } from "@/state/operations/version";
 import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
@@ -152,6 +153,7 @@ export const useOperationsStore = defineStore("operations", {
 export function _useOperations() {
   const state = useOperationsStore();
   return {
+    user: useUserOps(),
     file: useFileOps(),
     content: useSymbolContentOps(),
     statement: useStatementOps(),

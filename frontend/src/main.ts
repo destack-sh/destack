@@ -21,6 +21,7 @@ import { WS_CONNECTED } from "@/utils/globals";
 const MAX_RETRY_TIME_MS = 5000;
 const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "127.0.0.1:8000";
 function createApolloClient() {
+  // only use SSL if not localhost
   let httpUrl, wsUrl;
   if (API_BASE_URL.includes("127.0.0.1")) {
     httpUrl = `http://${API_BASE_URL}/graphql`;

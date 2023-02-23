@@ -1,19 +1,17 @@
 import functools
-import typing
 from typing import AsyncGenerator, Optional, Sequence, Union
 
 import structlog
 import zmq
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, transaction
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import F
 from strawberry_django_plus import gql
-from strawberry_django_plus.mutations.fields import _map_exception
 from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
+from bench.api.util import wrap_exceptions
 from bench.msg import ZMessageType, send_message, zmq_ctx_sync
 from bench.msg.messages import ProjectVersionChangedPayload
 from bench.msg.sync import ProjectMutation, ProjectMutationType
@@ -34,27 +32,6 @@ if SEND_API_PUB_MSG:
 PMT = ProjectMutationType
 
 
-def map_exception(e: Exception) -> Union[OperationInfo, Exception]:
-    # extend strawberry's _map_exception
-    if isinstance(e, IntegrityError):
-        e = ValidationError(e.args[0])
-    return _map_exception(e)  # borrowed from strawberry_django_plus
-
-
-def _wrap_exceptions(func):
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            e = map_exception(e)
-            if isinstance(e, OperationInfo):
-                return e
-            raise e
-
-    return wrapped
-
-
 def project_mutation(
     type: PMT, *, atomic: bool = False, directives: Optional[Sequence[object]] = ()
 ):
@@ -67,14 +44,6 @@ def project_mutation(
     """
 
     def make_resolver(func):
-        # check that func returns a union with OperationInfo
-        return_type = func.__annotations__.get("return")
-        if return_type is None:
-            raise TypeError(f"return type annotation required: {func}")
-        return_type_args = typing.get_args(return_type)
-        if OperationInfo not in return_type_args:
-            raise TypeError(f"return must union with OperationInfo: {func}")
-
         @functools.wraps(func)
         def wrapped_mutation(*args, **kwargs):
             thing = func(*args, **kwargs)
@@ -116,7 +85,7 @@ def project_mutation(
         else:
             rewrapped = wrapped_mutation
 
-        return gql.mutation(async_safe(_wrap_exceptions(rewrapped)), directives=directives)
+        return gql.mutation(async_safe(wrap_exceptions(rewrapped)), directives=directives)
 
     return make_resolver
 

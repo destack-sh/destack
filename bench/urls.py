@@ -9,7 +9,6 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView
 from strawberry.django.views import GraphQLView
 
-from bench.api import auth
 from bench.api.rest import run_program
 from bench.api.root import schema
 from bench.settings import DEBUG
@@ -18,7 +17,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("django_prometheus.urls")),
     path("", include("social_django.urls", namespace="social")),
-    path("logout", auth.logout, name="logout"),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
     path("<organization>/<project>/run", run_program, name="run"),
     path(

@@ -29,6 +29,7 @@ export const UserContentType = graphql(/* GraphQL */ `
     firstName
     createdAt
     updatedAt
+    completedSignup
     organizations {
       id
       name
