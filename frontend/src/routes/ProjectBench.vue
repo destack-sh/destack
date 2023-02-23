@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import ProfileMenuButton from "@/components/basic/ProfileMenuButton.vue";
+import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import GlobalControls from "@/components/GlobalControls.vue";
@@ -391,7 +391,7 @@ watchEffect(async () => {
           <GlobalControls />
         </div>
         <!-- Profile -->
-        <ProfileMenuButton />
+        <ProfileButton />
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->

@@ -28,7 +28,7 @@ const auth = useAuth();
 
 watchEffect(() => {
   if (auth.loggedIn.value && !auth.me.value?.completedSignup) {
-    router.push("/complete-signup");
+    router.push("/signup/complete");
   }
 });
 </script>

@@ -266,6 +266,7 @@ export type Mutation = {
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
   createFile: FileOperationInfo;
+  createProject: ProjectOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementRecord: StatementOperationInfo;
   createStatementTypeNode: StatementOperationInfo;
@@ -312,6 +313,10 @@ export type MutationCompleteSignupArgs = {
 
 export type MutationCreateFileArgs = {
   input: FileCreateInput;
+};
+
+export type MutationCreateProjectArgs = {
+  input: ProjectCreateInput;
 };
 
 export type MutationCreateStatementArgs = {
@@ -493,11 +498,27 @@ export type Project = Node & {
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
   versions: Array<ProjectVersion>;
+  visibility: ProjectVisibility;
 };
 
 export type ProjectVersionsArgs = {
   filters?: InputMaybe<ProjectVersionFilter>;
 };
+
+export type ProjectCreateInput = {
+  name: Scalars["String"];
+  ownerId: Scalars["GlobalID"];
+  slug: Scalars["String"];
+  type?: ProjectType;
+  visibility: ProjectVisibility;
+};
+
+export type ProjectOperationInfo = OperationInfo | Project;
+
+export enum ProjectType {
+  Executable = "EXECUTABLE",
+  Library = "LIBRARY",
+}
 
 export type ProjectVersion = Node & {
   __typename?: "ProjectVersion";
@@ -527,6 +548,12 @@ export type ProjectVersionStatementsArgs = {
 export type ProjectVersionFilter = {
   afterId: Scalars["GlobalID"];
 };
+
+export enum ProjectVisibility {
+  Private = "PRIVATE",
+  Public = "PUBLIC",
+  SourcePrivate = "SOURCE_PRIVATE",
+}
 
 export type Query = {
   __typename?: "Query";
@@ -1106,6 +1133,7 @@ export type UserContentFragment = {
   __typename?: "User";
   id: any;
   username: string;
+  slug: string;
   email: string;
   firstName: string;
   createdAt: any;
@@ -1291,6 +1319,19 @@ export type RenameFileMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type CreateProjectMutationVariables = Exact<{
+  input: ProjectCreateInput;
+}>;
+
+export type CreateProjectMutation = {
+  __typename?: "Mutation";
+  createProject:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | ({ __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } });
 };
 
 export type BuildMutationVariables = Exact<{
@@ -1920,6 +1961,7 @@ export const UserContentFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "username" } },
+          { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "email" } },
           { kind: "Field", name: { kind: "Name", value: "firstName" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -3244,6 +3286,59 @@ export const RenameFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
+export const CreateProjectDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createProject" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ProjectCreateInput" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createProject" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectHeaderFragmentDoc.definitions,
+    ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateProjectMutation, CreateProjectMutationVariables>;
 export const BuildDocument = {
   kind: "Document",
   definitions: [

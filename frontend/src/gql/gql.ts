@@ -36,7 +36,7 @@ const documents = {
     types.PageInfoFragmentDoc,
   "\n  fragment OperationInfoContent on OperationInfo {\n    ... on OperationInfo {\n      messages {\n        kind\n        message\n        field\n      }\n    }\n  }\n":
     types.OperationInfoContentFragmentDoc,
-  "\n  fragment UserContent on User {\n    id\n    username\n    email\n    firstName\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n":
+  "\n  fragment UserContent on User {\n    id\n    username\n    slug\n    email\n    firstName\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n":
     types.UserContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
@@ -59,6 +59,8 @@ const documents = {
     types.RestoreFileDocument,
   "\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RenameFileDocument,
+  "\n      mutation createProject($input: ProjectCreateInput!) {\n        createProject(input: $input) {\n          ... on Project {\n            ...ProjectHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.CreateProjectDocument,
   "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n            buildIds\n          }\n        }\n      }\n    ":
     types.BuildDocument,
   "\n      mutation run($projectVersionId: GlobalID!, $runnableId: GlobalID, $buildId: GlobalID, $arguments: JSON!) {\n        run(\n          input: {\n            projectVersionId: $projectVersionId\n            runnableId: $runnableId\n            buildId: $buildId\n            arguments: $arguments\n          }\n        ) {\n          ... on RunState {\n            projectVersionId\n            runnableId\n            buildId\n            output\n            success\n          }\n        }\n      }\n    ":
@@ -205,8 +207,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment UserContent on User {\n    id\n    username\n    email\n    firstName\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n"
-): typeof documents["\n  fragment UserContent on User {\n    id\n    username\n    email\n    firstName\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n"];
+  source: "\n  fragment UserContent on User {\n    id\n    username\n    slug\n    email\n    firstName\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n"
+): typeof documents["\n  fragment UserContent on User {\n    id\n    username\n    slug\n    email\n    firstName\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -273,6 +275,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation createProject($input: ProjectCreateInput!) {\n        createProject(input: $input) {\n          ... on Project {\n            ...ProjectHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation createProject($input: ProjectCreateInput!) {\n        createProject(input: $input) {\n          ... on Project {\n            ...ProjectHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

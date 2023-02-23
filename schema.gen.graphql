@@ -239,6 +239,7 @@ type ModuleRuntime {
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   logout: OperationInfo
+  createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
@@ -344,12 +345,28 @@ type Project implements Node {
   id: GlobalID!
   name: String!
   slug: String!
+  visibility: ProjectVisibility!
   path: String!
   owner: UserOrganization!
   createdAt: DateTime!
   updatedAt: DateTime!
   head: ProjectVersion!
   versions(filters: ProjectVersionFilter): [ProjectVersion!]!
+}
+
+input ProjectCreateInput {
+  ownerId: GlobalID!
+  name: String!
+  slug: String!
+  visibility: ProjectVisibility!
+  type: ProjectType! = EXECUTABLE
+}
+
+union ProjectOperationInfo = Project | OperationInfo
+
+enum ProjectType {
+  EXECUTABLE
+  LIBRARY
 }
 
 type ProjectVersion implements Node {
@@ -370,6 +387,12 @@ type ProjectVersion implements Node {
 
 input ProjectVersionFilter {
   afterId: GlobalID!
+}
+
+enum ProjectVisibility {
+  PUBLIC
+  SOURCE_PRIVATE
+  PRIVATE
 }
 
 type Query {

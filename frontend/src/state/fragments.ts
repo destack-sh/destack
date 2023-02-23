@@ -25,6 +25,7 @@ export const UserContentType = graphql(/* GraphQL */ `
   fragment UserContent on User {
     id
     username
+    slug
     email
     firstName
     createdAt
