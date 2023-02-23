@@ -17,6 +17,8 @@ const documents = {
     types.FileContentByIdDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
+  "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  ":
+    types.OwnerBySlugDocument,
   "\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  ":
@@ -99,6 +101,8 @@ const documents = {
     types.DeleteRecordDocument,
   "\n      mutation logout {\n        logout {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.LogoutDocument,
+  "\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            ...UserContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.CompleteSignupDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CommitDocument,
   "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    generated\n    typeNodes {\n      # not using SimpleTypeNodeContent fragment because it's for the editable node\n      # and using a shared fragment seems overkill\n      id\n      name\n      tag\n      description\n      value\n      orderKey\n      reference {\n        id\n      }\n      isOutput\n      isArray\n      isNullable\n    }\n  }\n":
@@ -137,6 +141,12 @@ export function graphql(
 export function graphql(
   source: "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  "
+): typeof documents["\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -389,6 +399,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation logout {\n        logout {\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation logout {\n        logout {\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            ...UserContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            ...UserContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

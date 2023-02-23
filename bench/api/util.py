@@ -20,7 +20,6 @@ def safe_mutation(
 
     def wrapper(func):
         func = wrap_exceptions(func)
-        func = async_safe(func)
         if atomic:
 
             @functools.wraps(func)
@@ -28,8 +27,11 @@ def safe_mutation(
                 with transaction.atomic():
                     return func(*args, **kwargs)
 
-            func = wrapped_atomic
-        return gql.mutation(func, directives=directives, **kwargs)
+            wrapped_func = wrapped_atomic
+        else:
+            wrapped_func = func
+        wrapped_func = async_safe(wrapped_func)
+        return gql.mutation(wrapped_func, directives=directives, **kwargs)
 
     if func is None:
         return wrapper

@@ -15,7 +15,7 @@ export const useAuthStore = defineStore("auth", {
 
 function _useAuth() {
   const state = useAuthStore();
-  const { result: meResult } = useQuery(
+  const { result: meResult, loading: meLoading } = useQuery(
     graphql(/* GraphQL */ `
       query me {
         me {
@@ -27,7 +27,7 @@ function _useAuth() {
 
   const me = computed(() => useFragment(UserContentType, meResult.value?.me));
 
-  return { loggedIn: computed(() => !!me.value), me };
+  return { loggedIn: computed(() => !!me.value), me, loading: meLoading };
 }
 
 export const useAuth = createSharedComposable(_useAuth);

@@ -307,7 +307,7 @@ export type MutationCommitArgs = {
 };
 
 export type MutationCompleteSignupArgs = {
-  input: NodeInput;
+  input: UserCompleteSignupInput;
 };
 
 export type MutationCreateFileArgs = {
@@ -915,6 +915,12 @@ export type User = Node & {
   username: Scalars["String"];
 };
 
+export type UserCompleteSignupInput = {
+  fullName: Scalars["String"];
+  id: Scalars["GlobalID"];
+  username: Scalars["String"];
+};
+
 export type UserOperationInfo = OperationInfo | User;
 
 export type UserOrganization = Organization | User;
@@ -951,6 +957,15 @@ export type ProjectVersionsQuery = {
       }
     >;
   } | null;
+};
+
+export type OwnerBySlugQueryVariables = Exact<{
+  slug: Scalars["String"];
+}>;
+
+export type OwnerBySlugQuery = {
+  __typename?: "Query";
+  ownerBySlug?: { __typename?: "Organization"; id: any } | { __typename?: "User"; id: any } | null;
 };
 
 export type ProjectBySlugQueryVariables = Exact<{
@@ -1667,6 +1682,19 @@ export type LogoutMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | null;
+};
+
+export type CompleteSignupMutationVariables = Exact<{
+  input: UserCompleteSignupInput;
+}>;
+
+export type CompleteSignupMutation = {
+  __typename?: "Mutation";
+  completeSignup:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | ({ __typename?: "User" } & { " $fragmentRefs"?: { UserContentFragment: UserContentFragment } });
 };
 
 export type CommitMutationVariables = Exact<{
@@ -2436,6 +2464,60 @@ export const ProjectVersionsDocument = {
     ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
+export const OwnerBySlugDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "ownerBySlug" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "ownerBySlug" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "slug" },
+                value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<OwnerBySlugQuery, OwnerBySlugQueryVariables>;
 export const ProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -4772,6 +4854,58 @@ export const LogoutDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<LogoutMutation, LogoutMutationVariables>;
+export const CompleteSignupDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "completeSignup" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "UserCompleteSignupInput" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "completeSignup" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "UserContent" } }],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...UserContentFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CompleteSignupMutation, CompleteSignupMutationVariables>;
 export const CommitDocument = {
   kind: "Document",
   definitions: [
