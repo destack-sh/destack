@@ -233,6 +233,18 @@ if (version == "current") {
   imageVersion = version;
 }
 
+const SOCIAL_AUTH_ENV_VARS = [
+  "SOCIAL_AUTH_GITHUB_KEY",
+  "SOCIAL_AUTH_GITHUB_SECRET",
+  "SOCIAL_AUTH_GITLAB_KEY",
+  "SOCIAL_AUTH_GITLAB_SECRET",
+  "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY",
+  "SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET",
+].map((name) => ({
+  name,
+  value: config.requireSecret(name),
+}));
+
 // Create deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
   apiName,
@@ -263,7 +275,10 @@ const apiDeployment = new k8s.apps.v1.Deployment(
                 ...DB_ENV_VARS,
                 ...ZMQ_API_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
+                { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
+                { name: "WEBAPP_URL", value: config.require("webappUrl") },
                 { name: "RUN_INTSERVER", value: "true" },
+                ...SOCIAL_AUTH_ENV_VARS,
               ],
               command: ["sh", "-c"],
               args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
