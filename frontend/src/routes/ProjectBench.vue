@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
@@ -386,11 +387,12 @@ watchEffect(async () => {
         <div v-if="versionLoaded" class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <MainSymbolControls />
         </div>
-        <!-- Global controls -->
+        <!-- Bench-global controls -->
         <div v-if="versionLoaded" class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
           <GlobalControls />
         </div>
-        <!-- Profile -->
+        <!-- Actually global controls -->
+        <OmniCreate />
         <ProfileButton />
       </template>
     </FatHeader>

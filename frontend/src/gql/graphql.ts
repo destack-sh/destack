@@ -995,6 +995,16 @@ export type OwnerBySlugQuery = {
   ownerBySlug?: { __typename?: "Organization"; id: any } | { __typename?: "User"; id: any } | null;
 };
 
+export type ExistingProjectBySlugQueryVariables = Exact<{
+  owner: Scalars["String"];
+  project: Scalars["String"];
+}>;
+
+export type ExistingProjectBySlugQuery = {
+  __typename?: "Query";
+  projectBySlug?: { __typename?: "Project"; id: any; slug: string } | null;
+};
+
 export type ProjectBySlugQueryVariables = Exact<{
   owner: Scalars["String"];
   project: Scalars["String"];
@@ -2560,6 +2570,56 @@ export const OwnerBySlugDocument = {
     },
   ],
 } as unknown as DocumentNode<OwnerBySlugQuery, OwnerBySlugQueryVariables>;
+export const ExistingProjectBySlugDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "existingProjectBySlug" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "owner" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "project" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectBySlug" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "owner" },
+                value: { kind: "Variable", name: { kind: "Name", value: "owner" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "project" },
+                value: { kind: "Variable", name: { kind: "Name", value: "project" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "slug" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ExistingProjectBySlugQuery, ExistingProjectBySlugQueryVariables>;
 export const ProjectBySlugDocument = {
   kind: "Document",
   definitions: [

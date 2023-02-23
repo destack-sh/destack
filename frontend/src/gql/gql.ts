@@ -19,6 +19,8 @@ const documents = {
     types.ProjectVersionsDocument,
   "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  ":
     types.OwnerBySlugDocument,
+  "\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  ":
+    types.ExistingProjectBySlugDocument,
   "\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  ":
@@ -149,6 +151,12 @@ export function graphql(
 export function graphql(
   source: "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  "
+): typeof documents["\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
