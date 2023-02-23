@@ -392,7 +392,7 @@ watchEffect(async () => {
           <GlobalControls />
         </div>
         <!-- Actually global controls -->
-        <OmniCreate />
+        <OmniCreate class="pl-2" />
         <ProfileButton />
       </template>
     </FatHeader>

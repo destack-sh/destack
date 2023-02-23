@@ -36,6 +36,7 @@ ProjectType = gql.enum(models.ProjectType)
 class Project(gql.Node):
     name: auto
     slug: auto
+    type: ProjectType
     visibility: ProjectVisibility
     path: auto
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]

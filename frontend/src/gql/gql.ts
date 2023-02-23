@@ -17,14 +17,16 @@ const documents = {
     types.FileContentByIdDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        versions {\n          ...ProjectVersionHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
-  "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  ":
-    types.OwnerBySlugDocument,
-  "\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  ":
-    types.ExistingProjectBySlugDocument,
   "\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
   "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
+  "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  ":
+    types.OwnerBySlugDocument,
+  "\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  ":
+    types.ExistingProjectBySlugDocument,
+  "\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          createdAt\n          type\n          visibility\n        }\n      }\n    }\n  ":
+    types.HomeDocument,
   "\n      query me {\n        me {\n          ...UserContent\n        }\n      }\n    ": types.MeDocument,
   "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    ":
     types.ProjectMigrationRefsDocument,
@@ -149,6 +151,18 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
+  source: "\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
+): typeof documents["\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  "
+): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
   source: "\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query ownerBySlug($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n        }\n        ... on User {\n          id\n        }\n      }\n    }\n  "];
 /**
@@ -161,14 +175,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "
-): typeof documents["\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  "
-): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          id\n          ...FileHeader\n        }\n      }\n    }\n  "];
+  source: "\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          createdAt\n          type\n          visibility\n        }\n      }\n    }\n  "
+): typeof documents["\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          createdAt\n          type\n          visibility\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

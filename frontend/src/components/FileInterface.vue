@@ -179,7 +179,10 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta -->
       <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
-      <div class="relative mx-auto w-full max-w-[1000px] px-2 pt-6 font-bold text-gray-900">
+      <div
+        class="relative mx-auto w-full max-w-[1000px] px-2 pt-6 font-bold text-gray-900"
+        :class="editor.fontMono ? 'font-mono' : ''"
+      >
         <EditableSpan
           ref="nameRef"
           class="text-3xl"

@@ -34,6 +34,7 @@ class Organization(UUIDModel):
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
+    projects: models.QuerySet["Project"]  # noqa via Project.user
     members: models.ManyToManyField = models.ManyToManyField(
         "bench.User",
         through="OrganizationMembership",
