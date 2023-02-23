@@ -2,9 +2,9 @@
 
 import { RetryLink } from "@apollo/client/link/retry";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createApp, h, provide, ref } from "vue";
-import { version } from "../../package.json";
+import { createApp, h, provide } from "vue";
 
+import { API_BASE_URL, HTTP_API_BASE_URL, WS_API_BASE_URL, WS_CONNECTED } from "@/utils/globals";
 import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
@@ -16,26 +16,16 @@ import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
-import { WS_CONNECTED } from "@/utils/globals";
 
-const MAX_RETRY_TIME_MS = 5000;
-const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "127.0.0.1:8000";
+const VERSION = import.meta.env.VITE_APP_VERSION || "dev";
+const MAX_RETRY_TIME_MS = 10000;
 function createApolloClient() {
-  // only use SSL if not localhost
-  let httpUrl, wsUrl;
-  if (API_BASE_URL.includes("127.0.0.1")) {
-    httpUrl = `http://${API_BASE_URL}/graphql`;
-    wsUrl = `ws://${API_BASE_URL}/graphql`;
-  } else {
-    httpUrl = `https://${API_BASE_URL}/graphql`;
-    wsUrl = `wss://${API_BASE_URL}/graphql`;
-  }
   // split requests between http and ws
   // see https://www.apollographql.com/docs/react/data/subscriptions
-  const httpLink = new HttpLink({ uri: httpUrl, credentials: "include" });
+  const httpLink = new HttpLink({ uri: `${HTTP_API_BASE_URL}/graphql`, credentials: "include" });
   const wsLink = new GraphQLWsLink(
     createClient({
-      url: wsUrl,
+      url: `${WS_API_BASE_URL}/graphql`,
       retryAttempts: Infinity,
       shouldRetry: () => true,
       // websocket retry, backoff from 1 to 5s
@@ -88,10 +78,10 @@ async function init() {
 
   app.mount("#app");
 
-  console.group(`%Bench Build Information`, "color:orangered"); // groupCollapsed
+  console.group(`%cBench Build`, "color:orangered"); // groupCollapsed
 
   if (import.meta.env.DEV) {
-    console.info(`%cVersion: v${version}`, "color:orangered");
+    console.info(`%cVersion: ${VERSION}`, "color:orangered");
   }
 
   console.info(`%cAPI: ${API_BASE_URL}`, "color:orangered");

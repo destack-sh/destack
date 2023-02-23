@@ -13,10 +13,11 @@ const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
 });
 
 const routes = [
-  { path: "/", component: UserHome, props: forwardQueryAndParams },
+  { path: "/", name: "Home", component: UserHome, props: forwardQueryAndParams },
   { path: "/signup", name: "Signup", component: Signup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
-  { path: "/settings/profile", name: "Profile", component: NotFound, props: forwardQueryAndParams },
+  { path: "/settings/profile", name: "SettingsProfile", component: NotFound, props: forwardQueryAndParams },
+  { path: "/:owner", name: "Profile", component: NotFound, props: forwardQueryAndParams },
   { path: "/:owner/:project", component: ProjectBench, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },
