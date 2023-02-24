@@ -490,6 +490,8 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         status=status,
         root_id=frame.root_id,
         parent_id=frame.parent_id,
+        build_id=frame.build_id,
+        task_id=frame.task_id,
         code_id=frame.code_id,
         model_id=frame.model_id,
         created_at=frame.entered_at,  # not sure what to pass since it's not in DB, not frame

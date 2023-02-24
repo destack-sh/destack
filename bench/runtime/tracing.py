@@ -137,6 +137,8 @@ class ExecutionTracer(Tracer):
         frame = ExecutionFrame(
             id=UUIDT(),
             module_id=self.module_id,
+            build=code.build if code else parent.build,  # keep build if root had it?
+            task=code.task if code else None,
             code=code,
             model=model,
             root=root,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import functools
 import inspect
+import re
 import textwrap
 import time
 import typing
@@ -18,11 +19,13 @@ from django.db import models
 
 from bench.language import ModuleIndex
 from bench.language.type import (
+    Build,
     Code,
     Dataset,
     InterpSymbol,
     LiteralValue,
     Model,
+    Task,
     Type,
     TypeNode,
     TypeTag,
@@ -46,6 +49,7 @@ from bench.runtime.type import (
     ModelInstance,
     SymbolInstance,
     SyncCodeCallable,
+    TaskInstance,
     TextGeneration,
     TypeInstance,
     ValueInstance,
@@ -252,11 +256,24 @@ def _instantiate_code_callable(
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
     """
     unwrapped_context = {name: unwrap(value) for name, value in context.items()}
+
+    # inline all possible context variables
+    # collect transformed invalid identifiers
+    inlined_context = {
+        re.sub(r"\W|^(?=\d)", "_", name): value
+        for name, value in unwrapped_context.items()
+        if not name.isidentifier()
+    }
+    # overwrite with valid identifiers
+    # TODO @Linting: check for indirect identifier collisions like this (e.g. 'a b' and 'a_b')
+    inlined_context.update(
+        {name: value for name, value in unwrapped_context.items() if name.isidentifier()}
+    )
+
     dynamic_context = {
         "source_context": context,
         "context": unwrapped_context,
-        # 'inline' all context variables that are valid Python identifiers
-        **{name: value for name, value in unwrapped_context.items() if name.isidentifier()},
+        **inlined_context,
         "__statement__": code.source,
         "__file__": code.source.file,
         "__module__": code.source.file.module,
@@ -325,8 +342,13 @@ def wrap_prompt_callable(
     return wrapped_callable
 
 
-def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInstance:
-    """Instantiate a statement, its context and children (recursively)."""
+def instantiate(
+    symbol: InterpSymbol,
+    idx: ModuleIndex,
+    build: Optional[Build] = None,
+    proxy: Proxy | None = None,
+) -> SymbolInstance:
+    """Instantiate a symbol in a build with all relevant context recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     proxy = proxy or Proxy(tracer=Tracer())
@@ -339,32 +361,50 @@ def instantiate(symbol: InterpSymbol, proxy: Proxy | None = None) -> SymbolInsta
             #  1) allowing invalid/mock initial instance state (and populate that later)
             #  2) tracking and somehow swapping the reference after it is actually created
             continue
-        instantiated_context[name] = instantiate(value, proxy=proxy)
+        instantiated_context[name] = instantiate(value, idx=idx, build=build, proxy=proxy)
 
-    # instantiate statement itself
-    if isinstance(symbol, Code):
+    # instantiate symbol in build
+    if isinstance(symbol, Task):
+        if build is None:
+            raise ValueError(f"cannot instantiate task without build: {symbol}")
+        target_id = build.get_target(symbol.id)
+        code = idx.symbol_by_id(target_id, Code)
+        code_instance = instantiate(code, idx=idx, build=build, proxy=proxy)
+        task = TaskInstance(
+            **symbol.__dict__,
+            build=build,
+            code=typing.cast(CodeInstance, code_instance),
+        )
+        code_instance.task = task
+        return task
+    elif isinstance(symbol, Code):
         code_str, code_callable, prompt = _instantiate_code_callable(
             symbol, instantiated_context, proxy
         )
         code_instance = CodeInstance(
             **symbol.__dict__,
+            build=build,
             transformed_code=code_str,
             code_callable=code_callable,
             is_async=inspect.iscoroutinefunction(code_callable),
             prompt=prompt,
         )
+        # TODO @Broken: set task on code instance if instantiated directly
+        #  Likely will require breaking circles with a refmap.
         return proxy.proxy_code(code_instance)
     elif isinstance(symbol, Value):
-        return ValueInstance(**symbol.__dict__)
+        return ValueInstance(**symbol.__dict__, build=build)
     elif isinstance(symbol, Model):
-        return ModelInstance(**symbol.__dict__)
+        return ModelInstance(**symbol.__dict__, build=build)
     elif isinstance(symbol, Dataset):
-        return DatasetInstance(**symbol.__dict__, records_batch=RecordList(symbol.records))
+        return DatasetInstance(
+            **symbol.__dict__, build=build, records_batch=RecordList(symbol.records)
+        )
     elif isinstance(symbol, Type):
         py_type = instantiate_py_type(symbol)
-        return TypeInstance(**symbol.__dict__, py_type=py_type)
+        return TypeInstance(**symbol.__dict__, build=build, py_type=py_type)
     else:
-        raise ValueError(f"cannot instantiate {symbol}")
+        raise ValueError(f"cannot instantiate {symbol} in {build} (idx={idx})")
 
 
 def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:

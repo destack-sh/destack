@@ -18,7 +18,6 @@ export type Scalars = {
   GlobalID: any;
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
-  UUID: any;
 };
 
 export type BuildInput = {
@@ -94,6 +93,7 @@ export enum ErrorType {
 
 export type Execution = Node & {
   __typename?: "Execution";
+  build?: Maybe<Statement>;
   code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
   descendants: Array<Execution>;
@@ -108,6 +108,7 @@ export type Execution = Node & {
   /** Time of transition to RUNNING status. */
   startedAt?: Maybe<Scalars["DateTime"]>;
   status: ExecutionStatus;
+  task?: Maybe<Statement>;
   /** Time of transition to a terminal status. */
   terminatedAt?: Maybe<Scalars["DateTime"]>;
   updatedAt: Scalars["DateTime"];
@@ -593,11 +594,14 @@ export type Query = {
 export type QueryExecutionsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   rootId?: InputMaybe<Scalars["GlobalID"]>;
+  rootIdNull?: Scalars["Boolean"];
+  taskId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type QueryFileArgs = {
@@ -716,11 +720,10 @@ export type SimplyTyped = {
 
 export type SourceMapping = {
   __typename?: "SourceMapping";
-  sourceId: Scalars["UUID"];
-  sourcePath?: Maybe<Scalars["JSON"]>;
+  sourceId: Scalars["GlobalID"];
   sourceRevision: Scalars["Int"];
-  targetId: Scalars["UUID"];
-  targetPath?: Maybe<Scalars["JSON"]>;
+  statementId: Scalars["GlobalID"];
+  targetId: Scalars["GlobalID"];
   targetRevision: Scalars["Int"];
 };
 
@@ -736,10 +739,10 @@ export type Statement = Node &
     description?: Maybe<Scalars["String"]>;
     file: File;
     generated: Scalars["Boolean"];
+    generatedMappings: Array<SourceMapping>;
     id: Scalars["GlobalID"];
     importPath?: Maybe<Scalars["String"]>;
     lang?: Maybe<Scalars["String"]>;
-    mappings: Array<SourceMapping>;
     modifier?: Maybe<StatementModifier>;
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
@@ -751,7 +754,9 @@ export type Statement = Node &
     referencedBy: Array<Statement>;
     revision: Scalars["Int"];
     rootTypeTag?: Maybe<TypeTag>;
+    sourceMappings: Array<SourceMapping>;
     symbolType?: Maybe<SymbolType>;
+    targetMappings: Array<SourceMapping>;
     type: StatementType;
     typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
@@ -860,8 +865,12 @@ export type Subscription = {
 };
 
 export type SubscriptionModuleExecutionChangedArgs = {
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
+  rootId?: InputMaybe<Scalars["GlobalID"]>;
+  rootIdNull?: Scalars["Boolean"];
+  taskId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type SubscriptionModuleRuntimeChangedArgs = {
@@ -1130,13 +1139,18 @@ export type ExecutionContentFragment = {
   error?: any | null;
   root?: { __typename?: "Execution"; id: any } | null;
   parent?: { __typename?: "Execution"; id: any } | null;
+  build?: { __typename?: "Statement"; id: any } | null;
+  task?: { __typename?: "Statement"; id: any } | null;
   code?: { __typename?: "Statement"; id: any } | null;
   model?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "ExecutionContentFragment" };
 
 export type ExecutionsQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  taskId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
+  rootIdNull?: InputMaybe<Scalars["Boolean"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 }>;
@@ -1168,6 +1182,10 @@ export type ExecutionsQuery = {
 
 export type ModuleExecutionChangedSubscriptionVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  taskId?: InputMaybe<Scalars["GlobalID"]>;
+  codeId?: InputMaybe<Scalars["GlobalID"]>;
+  rootIdNull?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type ModuleExecutionChangedSubscription = {
@@ -1969,6 +1987,22 @@ export const ExecutionContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
           { kind: "Field", name: { kind: "Name", value: "outputs" } },
           { kind: "Field", name: { kind: "Name", value: "error" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "build" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "task" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "code" },
@@ -3020,8 +3054,23 @@ export const ExecutionsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
         {
           kind: "VariableDefinition",
@@ -3048,8 +3097,23 @@ export const ExecutionsDocument = {
               },
               {
                 kind: "Argument",
+                name: { kind: "Name", value: "buildId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "taskId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
+              },
+              {
+                kind: "Argument",
                 name: { kind: "Name", value: "codeId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "rootIdNull" },
+                value: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
               },
               {
                 kind: "Argument",
@@ -3131,6 +3195,26 @@ export const ModuleExecutionChangedDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -3143,6 +3227,26 @@ export const ModuleExecutionChangedDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectVersionId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "buildId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "taskId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "codeId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "rootIdNull" },
+                value: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
               },
             ],
             selectionSet: {

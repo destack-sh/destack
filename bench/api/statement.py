@@ -29,13 +29,12 @@ class Type:
     btl: str
 
 
-@gql.type
+@gql.django.type(models.SourceMapping)
 class SourceMapping:
-    source_id: UUID
-    source_path: Optional[JSON]
+    statement_id: GlobalID
+    source_id: GlobalID
     source_revision: int
-    target_id: UUID
-    target_path: Optional[JSON]
+    target_id: GlobalID
     target_revision: int
 
 
@@ -118,7 +117,9 @@ class Statement(gql.Node, SimplyTyped):
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
     records: list[DatasetRecord]
-    mappings: list[SourceMapping]
+    generated_mappings: list[SourceMapping]
+    source_mappings: list[SourceMapping]
+    target_mappings: list[SourceMapping]
 
     @gql.field
     def import_path(self) -> Optional[str]:

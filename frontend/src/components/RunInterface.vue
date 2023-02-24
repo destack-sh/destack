@@ -70,7 +70,9 @@ async function run() {
 // TODO @Broken: get proper runnable id(s) if this is a not a code symbol
 const { executions, totalCount } = useExecutions(
   toRef(editor, "currentProjectVersionId") as Ref<string>,
-  toRef(props, "runnableId"),
+  computed(() => state.get("buildId", null)),
+  computed(() => (props.runnableType == SymbolType.Task ? props.runnableId : null)),
+  computed(() => (props.runnableType == SymbolType.Code ? props.runnableId : null)),
   { root: true, live: true }
 );
 
@@ -83,13 +85,14 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
   >
     <!-- Header -->
     <div class="mx-auto w-full max-w-[1000px]">
-      <!-- Runnable -->
+      <!-- Runnable (supposed to imitate corresponding statement look) -->
       <div class="flex flex-row gap-1">
         <button class="rounded-sm text-orange-600 outline-none hover:bg-orange-50" @click="run">run</button>
+        <!-- TODO @Feature: should really be able to change the runnable inside Run interface -->
         <span>{{ symbol?.name ?? "???" }}</span>
         <!-- Build -->
         <template v-if="symbol?.symbolType == SymbolType.Task">
-          <span class="text-orange-600">with</span>
+          <span class="text-orange-600">on</span>
           <ReferenceComboCell
             :reference="build"
             @set-reference="setBuild($event ?? undefined)"
@@ -122,7 +125,8 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
       </div>
     </div>
     <!-- Current/last output  -->
-    <div class="mt-6 min-h-[100px] w-full border-2 border-orange-100" :class="{ 'animate-pulse': lastOutputDirty }">
+    <div class="relative mt-6 min-h-[100px] w-full border border-gray-200">
+      <span class="absolute -top-4 left-1 bg-white p-1 text-gray-700">Last output</span>
       <div class="animate-none px-2" v-if="lastOutput">
         <InlineValueCell
           v-if="outputField"
@@ -134,8 +138,8 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
       </div>
     </div>
     <!-- Runs -->
-    <h2 class="mt-6 flex flex-row items-baseline gap-1 text-lg">
-      Runs
+    <h2 class="mt-6 flex flex-row items-baseline gap-1">
+      <span class="text-xl font-bold text-gray-900">Runs</span>
       <span class="rounded bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
     </h2>
     <table

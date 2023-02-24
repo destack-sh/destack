@@ -12,6 +12,7 @@ export const TYPE_POLICIES = {
   Statement: {
     fields: {
       typeNodes: useIncoming,
+      records: useIncoming,
     },
   },
   InterpSymbol: {

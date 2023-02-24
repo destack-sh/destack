@@ -6,6 +6,7 @@ from uuid import UUID
 import structlog
 import zmq
 from strawberry.scalars import JSON
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
@@ -230,10 +231,11 @@ class ModuleRuntimeMutation:
 class ModuleRuntimeSubscription:
     @gql.subscription
     async def module_runtime_changed(
-        self, project_version_id: GlobalID
+        self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
-        logger.info("runtime.subscribe", project_version_id=project_version_id)
+        log = logger.bind(project_version_id=project_version_id)
+        log.info("runtime.subscribe")
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
@@ -258,14 +260,10 @@ class ModuleRuntimeSubscription:
 
         # get runtime changes
         try:
-            logger.info("runtime.listen", project_version_id=project_version_id)
+            log.info("runtime.listen")
             while True:
                 _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
-                logger.debug(
-                    "runtime.update",
-                    project_version_id=project_version_id,
-                    updated_at=update.updated_at,
-                )
+                log.debug("runtime.update", updated_at=update.updated_at)
                 # :PartialModuleUpdates
                 module = rmap_module(update.module)
                 dependencies = [rmap_module(dep) for dep in update.dependencies]
@@ -277,16 +275,32 @@ class ModuleRuntimeSubscription:
                     errors=errors,
                 )
         finally:
-            logger.info("runtime.close", project_version_id=project_version_id)
+            log.info("runtime.close")
             worker_req_sock.close()
             worker_sub_sock.close()
 
     @gql.subscription
     async def module_execution_changed(
-        self, project_version_id: GlobalID, code_id: Optional[GlobalID] = None
+        self,
+        info: Info,
+        project_version_id: GlobalID,
+        build_id: Optional[GlobalID] = None,
+        task_id: Optional[GlobalID] = None,
+        code_id: Optional[GlobalID] = None,
+        root_id: Optional[GlobalID] = None,
+        root_id_null: bool = False,
     ) -> AsyncGenerator[Execution, None]:
         project_version_id = UUID(project_version_id.node_id)
-        logger.info("executions.subscribe", project_version_id=project_version_id)
+
+        log = logger.bind(
+            project_version_id=project_version_id,
+            build_id=build_id,
+            task_id=task_id,
+            code_id=code_id,
+            root_id=root_id,
+            root_id_null=root_id_null,
+        )
+        log.info("executions.subscribe")
 
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)
         worker_sub_sock.connect(ZMQ_WORKER_PUB_ADDR)
@@ -295,12 +309,23 @@ class ModuleRuntimeSubscription:
         )
 
         try:
-            logger.info("executions.listen", project_version_id=project_version_id)
+            log.info("executions.listen")
             while True:
                 _, update = await recv_message_with(worker_sub_sock, ExecutionChangedPayload)
                 update: ExecutionChangedPayload
                 for frame_data in update.frames:
-                    if code_id is not None and code_id.node_id != frame_data.code_id:
+                    if (
+                        build_id is not None
+                        and build_id.node_id != frame_data.build_id
+                        or task_id is not None
+                        and task_id.node_id != frame_data.task_id
+                        or code_id is not None
+                        and code_id.node_id != frame_data.code_id
+                        or root_id is not None
+                        and root_id.node_id != frame_data.root_id
+                        or root_id_null is True
+                        and frame_data.root_id is not None
+                    ):
                         # TODO @Performance: filter execution frames via zmq
                         continue
                     frame = mapper.rmap_execution_frame(frame_data)
@@ -311,10 +336,8 @@ class ModuleRuntimeSubscription:
                     # we stream execution frames to DB and clients simultaneously, so the lookup can fail.
                     frame.parent = models.Execution(id=frame.parent_id)
                     frame.root = models.Execution(id=frame.root_id)
-                    logger.debug(
-                        "executions.update", project_version_id=project_version_id, frame=frame
-                    )
+                    log.debug("executions.update", frame=frame)
                     yield frame
         finally:
-            logger.info("executions.close", project_version_id=project_version_id)
+            log.info("executions.close")
             worker_sub_sock.close()

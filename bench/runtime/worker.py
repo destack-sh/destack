@@ -46,7 +46,7 @@ from bench.msg.messages import (
 from bench.runtime.build import BuildResult, make_build
 from bench.runtime.execute import Proxy, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
-from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData
+from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -329,45 +329,38 @@ class RuntimeWorker:
             if not state.interpreted:
                 send_rep(RepModuleRunPayload(error=ModuleRunErrorType.NOT_READY))
                 return
-            build = state.interp.module_idx.get_symbol_by_id(payload.build_id, Build)
-            runnable = state.interp.module_idx.symbol_by_id(payload.runnable_id)
+            idx = state.interp.module_idx
+            build = idx.get_symbol_by_id(payload.build_id, Build)
+            runnable = idx.symbol_by_id(payload.runnable_id)
 
-            # TODO @Cleanup: symbol build source mapping should likely happen in language
-            #  This feels like a fundamental concern of instantiation where we need to map
-            #  all virtual symbols (e.g. Task, Artifact) to their actual implementations.
-            #  This may be turn out orthogonal to tracking sources for instant+debuggable builds.
-            if isinstance(runnable, language.Task):
-                # if it's a task get the actual runnable from the build
-                target_id = build.get_target(runnable.id) if build is not None else None
-                try:
-                    runnable = state.interp.module_idx.symbol_by_id(target_id, language.Code)
-                except KeyError:  # could not get target code
-                    send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
-                    return
-            elif not isinstance(runnable, language.Code):
-                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
-                return
-
-            # run it
+            # instantiate & run
             root_id = UUIDT()  # root execution id is pre-set for tracking
-            try:
-                # instantiate code symbol
+            try:  # instantiate
                 tracker = forward_execution_capture(root_id, self.pub_sock)
-                # "hardcoded" tracing for now, but tracing should be configurable per project/version/run
-                proxy = Proxy(
-                    tracer=MultiTracer(
-                        [ExecutionTracer(state.module_id, tracker), ValidationTracer()]
-                    )
+                tracer = MultiTracer(
+                    [ExecutionTracer(state.module_id, tracker), ValidationTracer()]
                 )
-                code_instance: CodeInstance = instantiate(runnable, proxy)
+                runnable_instance = instantiate(
+                    runnable, idx=idx, build=build, proxy=Proxy(tracer=tracer)
+                )
             except Exception as e:
                 logger.exception("instantiate", exc_info=e)
                 send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.INTERNAL_ERROR))
                 return
-            try:
+            try:  # run
+                if isinstance(runnable_instance, TaskInstance):
+                    code_instance = runnable_instance.code
+                elif not isinstance(runnable_instance, CodeInstance):
+                    send_rep(
+                        RepModuleRunPayload(root_id, error=ModuleRunErrorType.INVALID_RUNCONFIG)
+                    )
+                    return
+                else:
+                    code_instance = runnable_instance
+                logger.info("run", code_instance=code_instance)
                 ret = await run(code_instance, payload.arguments)
             except Exception as e:
-                logger.exception("run", exc_info=e)
+                logger.exception("run_failed", exc_info=e)
                 send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.RUNTIME_ERROR))
                 return
             send_rep(RepModuleRunPayload(root_id, error=None, output=ret))

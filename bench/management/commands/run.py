@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
     def handle(self, path: str, code_path: str, input: str, **kwargs):
         lang_module, idx = parse_file(path, lookup_in_module=lookup_in_db_module)
-        code_instance = instantiate(idx.symbol(code_path, Code))
+        code_instance = instantiate(idx.symbol(code_path, Code), idx)
         ret = asyncio.get_event_loop().run_until_complete(
             run(code_instance, arguments={"input": input})
         )

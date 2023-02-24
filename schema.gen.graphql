@@ -87,6 +87,8 @@ type Execution implements Node {
   root: Execution
   parent: Execution
   descendants: [Execution!]!
+  build: Statement
+  task: Statement
   code: Statement
   model: Statement
 }
@@ -423,8 +425,11 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
     projectVersionId: GlobalID = null
+    buildId: GlobalID = null
+    taskId: GlobalID = null
     codeId: GlobalID = null
-    rootId: GlobalID
+    rootId: GlobalID = null
+    rootIdNull: Boolean! = false
   ): ExecutionConnection!
   me: User
   user(
@@ -533,11 +538,10 @@ interface SimplyTyped {
 }
 
 type SourceMapping {
-  sourceId: UUID!
-  sourcePath: JSON
+  statementId: GlobalID!
+  sourceId: GlobalID!
   sourceRevision: Int!
-  targetId: UUID!
-  targetPath: JSON
+  targetId: GlobalID!
   targetRevision: Int!
 }
 
@@ -569,7 +573,9 @@ type Statement implements Node & SimplyTyped {
   referenceProjectVersion: ProjectVersion
   value: JSON
   records: [DatasetRecord!]!
-  mappings: [SourceMapping!]!
+  generatedMappings: [SourceMapping!]!
+  sourceMappings: [SourceMapping!]!
+  targetMappings: [SourceMapping!]!
   importPath: String
 }
 
@@ -670,7 +676,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  moduleExecutionChanged(projectVersionId: GlobalID!, codeId: GlobalID = null): Execution!
+  moduleExecutionChanged(projectVersionId: GlobalID!, buildId: GlobalID = null, taskId: GlobalID = null, codeId: GlobalID = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
 }
 
 """The type of symbol content."""
@@ -753,8 +759,6 @@ enum TypeTag {
   ANY
   TYPE_REFERENCE
 }
-
-scalar UUID
 
 type User implements Node {
   id: GlobalID!

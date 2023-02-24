@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, type Ref, reactive } from "vue";
+import { computed, type Ref } from "vue";
 
 export const ExecutionContentType = graphql(/* GraphQL */ `
   fragment ExecutionContent on Execution {
@@ -21,6 +21,12 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     inputs
     outputs
     error
+    build {
+      id
+    }
+    task {
+      id
+    }
     code {
       id
     }
@@ -32,13 +38,31 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
 
 export function useExecutions(
   projectVersionId: Ref<string>,
+  buildId: Ref<string | null>,
+  taskId: Ref<string | null>,
   codeId: Ref<string | null>,
   options: { root: boolean; live?: boolean }
 ) {
   const { result: executionsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
-      query executions($projectVersionId: GlobalID!, $codeId: GlobalID, $first: Int, $last: Int) {
-        executions(projectVersionId: $projectVersionId, codeId: $codeId, first: $first, last: $last) {
+      query executions(
+        $projectVersionId: GlobalID!
+        $buildId: GlobalID
+        $taskId: GlobalID
+        $codeId: GlobalID
+        $rootIdNull: Boolean
+        $first: Int
+        $last: Int
+      ) {
+        executions(
+          projectVersionId: $projectVersionId
+          buildId: $buildId
+          taskId: $taskId
+          codeId: $codeId
+          rootIdNull: $rootIdNull
+          first: $first
+          last: $last
+        ) {
           totalCount
           edges {
             cursor
@@ -58,19 +82,31 @@ export function useExecutions(
         }
       }
     `),
-    { projectVersionId, codeId, first: 25 }
+    { projectVersionId, buildId, taskId, codeId, rootIdNull: options.root, first: 25 }
   );
 
   if (options.live) {
     subscribeToMore({
       document: graphql(/* GraphQL */ `
-        subscription moduleExecutionChanged($projectVersionId: GlobalID!) {
-          moduleExecutionChanged(projectVersionId: $projectVersionId) {
+        subscription moduleExecutionChanged(
+          $projectVersionId: GlobalID!
+          $buildId: GlobalID
+          $taskId: GlobalID
+          $codeId: GlobalID
+          $rootIdNull: Boolean
+        ) {
+          moduleExecutionChanged(
+            projectVersionId: $projectVersionId
+            buildId: $buildId
+            taskId: $taskId
+            codeId: $codeId
+            rootIdNull: $rootIdNull
+          ) {
             ...ExecutionContent
           }
         }
       `),
-      variables: { projectVersionId, codeId },
+      variables: { projectVersionId, codeId, rootIdNull: options.root },
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
         const execution = useFragment(ExecutionContentType, subscriptionData.data.moduleExecutionChanged);
@@ -83,6 +119,8 @@ export function useExecutions(
         // cursor is base64-encoded ExecutionConnection:{nodeId}
         const newEdge = {
           __typename: "ExecutionEdge",
+          // not sure what to put here, it's a strawberry internal
+          // should probably update all other edges' cursors as well
           cursor: btoa(`arrayconnection:0`),
           node: { ...execution, descendants: [] },
         };
