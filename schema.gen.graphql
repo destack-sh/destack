@@ -87,7 +87,7 @@ type Execution implements Node {
   root: Execution
   parent: Execution
   descendants: [Execution!]!
-  code: Statement!
+  code: Statement
   model: Statement
 }
 
@@ -132,6 +132,7 @@ type File implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
+  directory: Boolean!
   generated: Boolean!
   parent: File
   files: [File!]!

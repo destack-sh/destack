@@ -188,9 +188,14 @@ class DataBuilder:
         check_type(record, self.type_node)
         self.records.append(record)
 
-    def extend(self, records: list[LiteralValue]):
+    def extend(self, records: list[LiteralValue], ignore_type_errors: bool):
+        # ignore_type_errors is a stopgap since records should already be checked here
         for record in records:
-            self.append(record)
+            try:
+                self.append(record)
+            except TypeError as e:
+                if not ignore_type_errors:
+                    raise e
 
 
 class PromptBuilder:
@@ -371,7 +376,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
         )
         for expect in _gather_expectations(type):
             if isinstance(expect, Dataset) and expect.modifier == StatementModifier.LIKE:
-                type_examples.extend(expect.records)
+                type_examples.extend(expect.records, ignore_type_errors=True)
                 # ignore non-like datasets for now
         if type_examples.records:
             state.create_data(type_examples)
@@ -390,7 +395,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     examples_data = DataBuilder(name=task.name + " examples", type_node=examples_type)
     for expect in task_expects:
         if isinstance(expect, Dataset) and expect.modifier == StatementModifier.LIKE:
-            examples_data.extend(expect.records)
+            examples_data.extend(expect.records, ignore_type_errors=True)
             # ignore non-like datasets for now
 
     # task example instruction

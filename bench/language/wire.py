@@ -101,7 +101,7 @@ class StatementData:
     code: Optional[str] = None
     provider: Optional[str] = None
     external_name: Optional[str] = None
-    records: Optional[list[dict]] = None
+    records: Optional[list[typing.Any]] = None
     generated_mappings: Optional[list[SourceMapping]] = None
     value: LiteralValue = None
     on: Optional[str] = None

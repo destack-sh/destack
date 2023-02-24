@@ -94,7 +94,7 @@ export enum ErrorType {
 
 export type Execution = Node & {
   __typename?: "Execution";
-  code: Statement;
+  code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
   descendants: Array<Execution>;
   durationMillis?: Maybe<Scalars["Float"]>;
@@ -148,6 +148,7 @@ export type File = Node & {
   __typename?: "File";
   createdAt: Scalars["DateTime"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
+  directory: Scalars["Boolean"];
   files: Array<File>;
   generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
@@ -1129,7 +1130,7 @@ export type ExecutionContentFragment = {
   error?: any | null;
   root?: { __typename?: "Execution"; id: any } | null;
   parent?: { __typename?: "Execution"; id: any } | null;
-  code: { __typename?: "Statement"; id: any };
+  code?: { __typename?: "Statement"; id: any } | null;
   model?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "ExecutionContentFragment" };
 

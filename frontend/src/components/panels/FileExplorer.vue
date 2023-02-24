@@ -64,12 +64,13 @@ defineExpose({
       }"
       @click="focus(file)"
     >
+      <!-- Icon? -->
+      <!-- Path -->
       <span
         class="decoration-none inline truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
       >
         {{ file.name }}
       </span>
-      <span>.x</span>
     </li>
   </ul>
 </template>

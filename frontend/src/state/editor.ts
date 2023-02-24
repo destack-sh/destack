@@ -22,7 +22,7 @@ export type ProjectVersionHeader = Pick<
 >;
 export type FileHeader = Pick<
   File,
-  "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt" | "deletedAt" | "generated"
+  "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt" | "deletedAt" | "directory" | "generated"
 >;
 export type StatementHeader = Pick<
   Statement,
@@ -129,7 +129,7 @@ export function makeFileEditor(file: FileHeader): FileEditor {
     id: file.id + "-" + Math.random().toString(16).substring(2, 8),
     type: "file",
     fileId: file.id,
-    path: file.path + ".x",
+    path: file.path,
     localState: {},
     groupId: null,
   } as FileEditor;

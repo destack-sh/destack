@@ -154,8 +154,8 @@ class ExecutionFrameData:
     inference_context_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
-    inputs: dict[str, LiteralValue]
-    outputs: Optional[LiteralValue]
+    inputs: dict[str, Any]
+    outputs: Optional[Any]
     error: Optional[ErrorData]
 
     @staticmethod

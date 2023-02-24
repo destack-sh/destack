@@ -188,10 +188,9 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
           class="text-3xl"
           :readonly="editor.readonly"
           @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
-          :model-value="name as string"
+          :model-value="name"
         />
-        <span class="text-3xl text-gray-300" v-if="name?.trim().length == 0">My AI<span class="text-lg">.x</span></span>
-        <span class="text-lg" v-if="name?.trim().length ?? 0 > 0">.x</span>
+        <span class="text-3xl text-gray-300" v-if="name?.trim().length == 0">My AI</span>
       </div>
       <!-- Add statement to start -->
       <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
