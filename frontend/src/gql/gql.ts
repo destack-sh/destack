@@ -30,7 +30,7 @@ const documents = {
   "\n      query me {\n        me {\n          ...UserContent\n        }\n      }\n    ": types.MeDocument,
   "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    ":
     types.ProjectMigrationRefsDocument,
-  "\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n":
+  "\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    # note: do not query for non-id fields on root/parent here since\n    # they may not be available when streamed directly from the runtime\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n":
     types.ExecutionContentFragmentDoc,
   "\n      query executions($projectVersionId: GlobalID!, $codeId: GlobalID, $first: Int, $last: Int) {\n        executions(projectVersionId: $projectVersionId, codeId: $codeId, first: $first, last: $last) {\n          totalCount\n          edges {\n            cursor\n            node {\n              ...ExecutionContent\n              descendants {\n                ...ExecutionContent\n              }\n            }\n          }\n          pageInfo {\n            hasNextPage\n            hasPreviousPage\n            startCursor\n            endCursor\n          }\n        }\n      }\n    ":
     types.ExecutionsDocument,
@@ -197,8 +197,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n"
-): typeof documents["\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n"];
+  source: "\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    # note: do not query for non-id fields on root/parent here since\n    # they may not be available when streamed directly from the runtime\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n"
+): typeof documents["\n  fragment ExecutionContent on Execution {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    # note: do not query for non-id fields on root/parent here since\n    # they may not be available when streamed directly from the runtime\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    error\n    code {\n      id\n    }\n    model {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

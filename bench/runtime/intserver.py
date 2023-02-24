@@ -132,11 +132,14 @@ def save_execution_frames(frames: list[ExecutionFrameData]):
         execution = mapper.rmap_execution_frame(frame)
         model_executions.append(execution)
 
-    # upsert
-    Execution.objects.bulk_create(
-        model_executions,
-        update_conflicts=True,
-        unique_fields=["id"],
-        update_fields=["status", "terminated_at", "outputs", "error"],
-    )
-    logger.debug("save_execution_frame", executions=model_executions)
+    try:
+        # upsert frames
+        Execution.objects.bulk_create(
+            model_executions,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["status", "terminated_at", "outputs", "error"],
+        )
+        logger.debug("save_execution_frames", executions=model_executions)
+    except Exception as e:
+        logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)

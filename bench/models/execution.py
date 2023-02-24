@@ -78,7 +78,9 @@ class Execution(UUIDTModel):
         return None
 
     def __str__(self):
-        return f"{self.id} {self.status}"
+        root_str = f"root={self.root_id}" if self.root_id else ""
+        parent_str = f"parent={self.parent_id}" if self.parent_id else ""
+        return f"{self.id} {self.status} ({(root_str + ' ' + parent_str).strip()})"
 
     class Meta:
         ordering = ["-created_at"]

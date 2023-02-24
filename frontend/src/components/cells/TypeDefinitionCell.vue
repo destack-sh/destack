@@ -188,6 +188,7 @@ defineExpose({
           :immediate="false"
           :placeholder-value="context.editing.value ? '+' + column : null"
           :type="STRING_TYPE_NODE"
+          slim
           @navigate-left="grid.navigateLeft(member.id, column)"
           @navigate-right="grid.navigateRight(member.id, column)"
           @navigate-up="grid.navigateUp(member.id, column)"

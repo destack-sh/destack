@@ -349,10 +349,10 @@ class RuntimeWorker:
                 return
 
             # run it
-            execution_id = UUIDT()
+            root_id = UUIDT()  # root execution id is pre-set for tracking
             try:
                 # instantiate code symbol
-                tracker = forward_execution_capture(execution_id, self.pub_sock)
+                tracker = forward_execution_capture(root_id, self.pub_sock)
                 # "hardcoded" tracing for now, but tracing should be configurable per project/version/run
                 proxy = Proxy(
                     tracer=MultiTracer(
@@ -362,15 +362,15 @@ class RuntimeWorker:
                 code_instance: CodeInstance = instantiate(runnable, proxy)
             except Exception as e:
                 logger.exception("instantiate", exc_info=e)
-                send_rep(RepModuleRunPayload(execution_id, error=ModuleRunErrorType.INTERNAL_ERROR))
+                send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.INTERNAL_ERROR))
                 return
             try:
                 ret = await run(code_instance, payload.arguments)
             except Exception as e:
                 logger.exception("run", exc_info=e)
-                send_rep(RepModuleRunPayload(execution_id, error=ModuleRunErrorType.RUNTIME_ERROR))
+                send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.RUNTIME_ERROR))
                 return
-            send_rep(RepModuleRunPayload(execution_id, error=None, output=ret))
+            send_rep(RepModuleRunPayload(root_id, error=None, output=ret))
         else:
             raise RuntimeError(f"unexpected message type: {msg.type}")
 
@@ -387,9 +387,9 @@ class RuntimeWorker:
 def forward_execution_capture(root_id: UUID, pub_sock: zmq.Socket):
     def _do_track(frame: ExecutionFrame):
         # TODO @Performance: batch execution frame updates
+        if frame.root is None:
+            frame.id = root_id  # set root to fixed id (in-place)
         frame_data = ExecutionFrameData.from_frame(frame)
-        if frame_data.root_id is None:
-            frame_data.id = root_id  # set root to fixed id
         logger.debug("execution.track", frame=frame_data.id)
         send_message(
             pub_sock,
