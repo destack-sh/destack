@@ -1,0 +1,66 @@
+<script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { Popover, PopoverPanel } from "@headlessui/vue";
+import {
+  BookOpenIcon,
+  ChatBubbleBottomCenterIcon,
+  ClipboardDocumentIcon,
+  LifebuoyIcon,
+  UserGroupIcon,
+} from "@heroicons/vue/24/outline";
+import { RouterLink, useRoute } from "vue-router";
+
+const route = useRoute();
+
+const helpActions = [
+  {
+    name: "View examples",
+    to: "/symbolx/examples",
+    icon: ClipboardDocumentIcon,
+  },
+  {
+    name: "Read the docs",
+    icon: BookOpenIcon,
+    href: "https://docs.symbolx.com",
+  },
+  {
+    name: "Ask the community",
+    icon: UserGroupIcon,
+    href: "https://forum.symbolx.com",
+  },
+  {
+    name: "Join the Discord",
+    icon: ChatBubbleBottomCenterIcon,
+    href: "https://discord.gg/",
+  },
+  {
+    name: "Get support",
+    icon: LifebuoyIcon,
+    href: "mailto:support@symbolx.com?subject=" + encodeURIComponent("Help with " + route.path),
+  },
+];
+</script>
+
+<template>
+  <Popover v-slot="{ open }" class="relative">
+    <slot name="button" :open="open" />
+
+    <FadeTransition>
+      <PopoverPanel
+        class="absolute bottom-0 left-14 z-10 flex w-52 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      >
+        <template v-for="action in helpActions" :key="action.name">
+          <component
+            :is="action.to == null ? 'a' : RouterLink"
+            v-bind="action.to == null ? { href: action.href } : { to: action.to }"
+            target="_blank"
+            class="flex flex-row items-center gap-2 rounded-sm px-2 py-1 hover:bg-orange-50"
+          >
+            <component :is="action.icon" class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">{{ action.name }}</span>
+          </component>
+        </template>
+      </PopoverPanel>
+    </FadeTransition>
+  </Popover>
+</template>
