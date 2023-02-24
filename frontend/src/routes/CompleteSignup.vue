@@ -4,7 +4,7 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import { graphql } from "@/gql";
-import { useAuth } from "@/state/auth";
+import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
@@ -16,15 +16,9 @@ const title = useTitle();
 title.value = "Bench - Sign up";
 
 const auth = useAuth();
-
-// redirect back to home if not logged in
 const router = useRouter();
-watchEffect(() => {
-  if (!auth.loading.value && !auth.loggedIn.value) {
-    console.log("user not logged in, redirecting to home");
-    router.push({ name: "Home" });
-  }
-});
+
+useRedirectIfNotLoggedIn({ name: "Home" });
 
 const name: Ref<string | null> = ref(auth.me.value?.firstName || null);
 const username: Ref<string | null> = ref(auth.me.value?.username || null);

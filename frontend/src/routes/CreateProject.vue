@@ -1,21 +1,23 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
+import NotificationArea from "@/components/container/NotificationArea.vue";
+import { graphql } from "@/gql";
+import { ProjectType, ProjectVisibility } from "@/gql/graphql";
+import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
+import { useNotifications } from "@/state/notifications";
+import { useOperations } from "@/state/operations";
+import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, onMounted, ref, type Ref } from "vue";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { useOperations } from "@/state/operations";
-import { useAuth } from "@/state/auth";
-import { ProjectType, ProjectVisibility } from "@/gql/graphql";
 import { useRouter } from "vue-router";
-import { useNotifications } from "@/state/notifications";
-import NotificationArea from "@/components/container/NotificationArea.vue";
-import { useQuery } from "@vue/apollo-composable";
-import { graphql } from "@/gql";
 
 const title = useTitle();
-title.value = "Bench - Create bench";
+title.value = "Create Bench";
+
+useRedirectIfNotLoggedIn();
 
 const auth = useAuth();
 const owner: Ref<{ id: string; slug: string }> = computed(() => auth.me.value);

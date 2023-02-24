@@ -140,7 +140,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       :placeholder="mainSymbolMissing ? '???' : 'main'"
       :disabled="!runtime.connected.value"
     />
-    <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
+    <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-1 focus:outline-none">
       <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
     </ComboboxButton>
 

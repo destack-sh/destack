@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import NotificationArea from "@/components/container/NotificationArea.vue";
 import { SOCIAL_AUTH_PROVIDERS, encodeProviderUrl } from "@/state/auth";
 import { useTitle } from "@vueuse/core";
 
@@ -51,5 +52,6 @@ title.value = "Bench - Sign up";
         By creating an account, you agree to SymbolX's Terms of Service and Privacy Policy.
       </footer>
     </div>
+    <NotificationArea />
   </div>
 </template>

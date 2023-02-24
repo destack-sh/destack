@@ -12,9 +12,11 @@ import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
+import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
+import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorMigrations, useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType } from "@/state/fragments";
@@ -23,12 +25,13 @@ import { useOperationsStore } from "@/state/operations";
 import { useCurrentModuleRuntime } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { Menu, MenuButton, MenuItem, MenuItems, PopoverButton } from "@headlessui/vue";
-import { ChevronDownIcon } from "@heroicons/vue/20/solid";
 import {
   ClipboardDocumentIcon,
   ClockIcon,
   Cog8ToothIcon,
   ExclamationTriangleIcon,
+  GlobeAltIcon,
+  LockClosedIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
@@ -306,34 +309,30 @@ watchEffect(async () => {
         <!-- Home -->
         <HomeButton />
         <!-- Project menu -->
-        <Menu v-show="projectLoaded" as="div" class="relative h-full flex-shrink-0 border-l border-r border-gray-200">
-          <div class="h-full">
-            <MenuButton
-              class="flex h-full items-center justify-between bg-white px-4 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
-            >
-              <span class="sr-only">Open project menu</span>
-              <span class="text-sm">
-                {{ props.owner }}
-                /
-                <span class="font-bold">{{ props.project }}</span>
-              </span>
-              <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5 text-gray-300" aria-hidden="true" />
-            </MenuButton>
-          </div>
-          <FadeTransition>
-            <MenuItems
-              class="absolute left-0 z-10 mt-0 w-48 origin-top-left rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-black ring-opacity-5 focus:outline-none"
-            >
-              <MenuItem v-for="item in projectNavigation" :key="item.name" v-slot="{ active }">
-                <a :href="item.href" :class="[active ? 'bg-gray-100' : '', 'block py-2 px-4 text-sm text-gray-700']">
-                  {{ item.name }}
-                </a>
-              </MenuItem>
-            </MenuItems>
-          </FadeTransition>
-        </Menu>
+        <div v-if="projectLoaded" class="ml-2 flex flex-row items-baseline gap-0.5">
+          <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-50">
+            {{ props.owner }}
+          </router-link>
+          <span class="text-gray-500">/</span>
+          <ProjectPopover :project="project">
+            <template v-slot:button="{ open }">
+              <PopoverButton
+                class="flex h-full items-center justify-between rounded-sm bg-white p-1 text-left hover:bg-orange-50 focus:outline-none"
+                :class="{ 'bg-orange-50 focus:bg-orange-50': open }"
+              >
+                <span class="text-sm font-bold">{{ props.project }}</span>
+                <FadeTransition mode="out-in">
+                  <component
+                    :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
+                    class="ml-1.5 h-4 w-4 text-gray-700"
+                  />
+                </FadeTransition>
+              </PopoverButton>
+            </template>
+          </ProjectPopover>
+        </div>
         <!-- Status -->
-        <div v-show="versionLoaded" class="ml-2 flex items-center">
+        <div v-if="versionLoaded" class="ml-2 flex items-center">
           <!-- should use nicer icons here -->
           <!-- Operations status -->
           <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
@@ -366,7 +365,7 @@ watchEffect(async () => {
           </span>
         </div>
         <!-- Comments/notes, issues/warnings/lints, errors -->
-        <div v-show="versionLoaded" class="ml-2 flex items-center gap-2">
+        <div v-if="versionLoaded" class="ml-2 flex items-center gap-2">
           <!-- Errors -->
           <button
             class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-50"
@@ -384,16 +383,15 @@ watchEffect(async () => {
       <!-- Right side: controls & profile -->
       <template v-slot:right>
         <!-- Current "main" statement controls -->
-        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 px-3">
           <MainSymbolControls />
         </div>
         <!-- Bench-global controls -->
-        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 border-r border-gray-200 px-3">
+        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-3">
           <GlobalControls />
         </div>
-        <!-- Actually global controls -->
-        <OmniCreate class="pl-2" />
-        <ProfileButton />
+        <OmniCreate class="pl-1" />
+        <ProfileButton class="pl-1" />
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
