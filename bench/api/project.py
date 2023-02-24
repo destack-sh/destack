@@ -117,6 +117,7 @@ class File(gql.Node):
     created_at: auto
     updated_at: auto
     deleted_at: auto
+    directory: auto
     generated: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder

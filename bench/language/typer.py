@@ -41,7 +41,7 @@ def check_type(value: Any, expected: TypeNode):
     elif expected.tag == TypeTag.STRUCT:
         _check(isinstance(value, dict), "expected struct")
         for subtype in expected.children:
-            check_type(value[subtype.name], subtype)
+            check_type(value.get(subtype.name), subtype)
     elif expected.tag == TypeTag.UNION:
         for subtype in expected.children:
             try:

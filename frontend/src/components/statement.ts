@@ -238,6 +238,7 @@ export function useStatementContext() {
       tag: newTypeNode.tag ?? oldTypeNode.tag,
       name: newTypeNode.name ?? oldTypeNode.name,
       description: newTypeNode.description ?? oldTypeNode.description,
+      value: newTypeNode.value,
       reference: newTypeNode.reference,
       isArray: newTypeNode.isArray,
       isNullable: newTypeNode.isNullable,

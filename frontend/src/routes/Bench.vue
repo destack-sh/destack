@@ -159,7 +159,7 @@ watchEffect(() => {
       const fileEditor = editor as FileEditor;
       const file = files.value.find((f) => f.id == fileEditor.fileId);
       if (!file) return; // ignore
-      editor.path = file.path + ".x";
+      editor.path = file.path;
     }
   });
 });
@@ -308,7 +308,7 @@ watchEffect(async () => {
         <!-- Home -->
         <HomeButton />
         <!-- Project menu -->
-        <div v-if="projectLoaded" class="ml-2 flex flex-row items-baseline gap-0.5">
+        <div v-if="projectLoaded" class="ml-2.5 flex flex-row items-baseline gap-0.5">
           <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-50">
             {{ props.owner }}
           </router-link>
@@ -323,7 +323,7 @@ watchEffect(async () => {
                 <FadeTransition mode="out-in">
                   <component
                     :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
-                    class="ml-1.5 h-4 w-4 text-gray-700"
+                    class="ml-1.5 mt-0.5 h-4 w-4 text-gray-700"
                   />
                 </FadeTransition>
               </PopoverButton>

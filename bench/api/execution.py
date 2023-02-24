@@ -24,7 +24,7 @@ class Execution(gql.Node):
     root: Optional["Execution"]
     parent: Optional["Execution"]
     descendants: list["Execution"]
-    code: Statement
+    code: Optional[Statement]
     model: Optional[Statement]
 
 
