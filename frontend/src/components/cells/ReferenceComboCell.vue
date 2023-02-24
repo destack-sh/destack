@@ -201,11 +201,12 @@ defineExpose({
           :class="[
             'relative cursor-default select-none py-0.5 px-2 text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
+            selected && !active ? 'text-orange-600' : '',
             editor.fontMono ? 'font-mono' : '',
           ]"
         >
           <div class="flex items-baseline justify-between">
-            <span :class="['truncate', selected && 'font-semibold']">
+            <span :class="['truncate']">
               {{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}
               {{ symbol.name }}
             </span>
