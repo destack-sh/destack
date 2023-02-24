@@ -9,12 +9,14 @@ from uuid import UUID
 
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
+    Build,
     Code,
     Dataset,
     LiteralValue,
     Model,
     Module,
     SymbolType,
+    Task,
     Type,
     Value,
 )
@@ -33,6 +35,8 @@ class ModuleInstance:
 
 @dataclass
 class SymbolInstance:
+    build: Optional[Build] = None
+
     @property
     def symbol_type(self):
         return SYMBOL_TYPE_BY_INSTANCE_CLASS[self.__class__]
@@ -40,6 +44,15 @@ class SymbolInstance:
     @property
     def py_handle(self) -> Any:
         raise NotImplementedError
+
+
+@dataclass(repr=False)
+class TaskInstance(SymbolInstance, Task):
+    code: CodeInstance = required_field()
+
+    @property
+    def py_handle(self) -> Any:
+        return self.code.py_handle
 
 
 @dataclass(repr=False)
@@ -76,6 +89,7 @@ class ModelInstance(SymbolInstance, Model):
 
 @dataclass(repr=False)
 class CodeInstance(SymbolInstance, Code):
+    task: Optional[TaskInstance] = None
     transformed_code: str = required_field()
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
     is_async: bool = required_field()
@@ -99,6 +113,8 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
 class ExecutionFrame:
     id: UUID
     module_id: UUID
+    build: Optional[Build]
+    task: Optional[TaskInstance]
     code: Optional[CodeInstance]
     model: Optional[ModelInstance]
     root: Optional[ExecutionFrame]
@@ -114,6 +130,8 @@ class ExecutionFrame:
         # get str of all non-null fields
         fields_strs = [
             f"module={self.module_id}",
+            f"build={self.build}" if self.build else None,
+            f"task={self.task}" if self.task else None,
             f"code={self.code}" if self.code else None,
             f"model={self.model}" if self.model else None,
             f"root={self.root.id}" if self.root else None,
@@ -147,6 +165,8 @@ class ExecutionFrameData:
 
     id: UUID
     module_id: UUID
+    build_id: Optional[UUID]
+    task_id: Optional[UUID]
     code_id: Optional[UUID]
     model_id: Optional[UUID]
     root_id: Optional[UUID]
@@ -173,6 +193,8 @@ class ExecutionFrameData:
         return ExecutionFrameData(
             id=frame.id,
             module_id=frame.module_id,
+            build_id=frame.build.id if frame.build else None,
+            task_id=frame.task.id if frame.task else None,
             code_id=frame.code.id if frame.code else None,
             model_id=frame.model.id if frame.model else None,
             root_id=frame.root.id if frame.root else None,

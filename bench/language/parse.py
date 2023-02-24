@@ -1130,7 +1130,7 @@ class ModuleIndex:
             self.scopes_by_name[scope.name] = scope
 
     def import_scope(self, scope: Scope) -> None:
-        # only make imported scopes available by id
+        # only make imported scopes available by id (to avoid name collisions)
         self.scopes[scope.id] = scope
 
     def get_statement(self, path: StatementPath | str) -> Statement | None:

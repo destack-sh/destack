@@ -1,6 +1,6 @@
 from typing import Iterable, Optional
 
-from strawberry import UNSET, auto
+from strawberry import auto
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
@@ -24,6 +24,8 @@ class Execution(gql.Node):
     root: Optional["Execution"]
     parent: Optional["Execution"]
     descendants: list["Execution"]
+    build: Optional[Statement]
+    task: Optional[Statement]
     code: Optional[Statement]
     model: Optional[Statement]
 
@@ -45,17 +47,23 @@ class ExecutionQuery:
     def executions(
         self,
         project_version_id: Optional[GlobalID] = None,
+        build_id: Optional[GlobalID] = None,
+        task_id: Optional[GlobalID] = None,
         code_id: Optional[GlobalID] = None,
-        root_id: Optional[GlobalID] = UNSET,
+        root_id: Optional[GlobalID] = None,
+        root_id_null: bool = False,
     ) -> Iterable[Execution]:
         filtered = models.Execution.objects.all()
-        if code_id is not None:
-            filtered = filtered.filter(code_id=code_id.node_id)
         if project_version_id is not None:
             filtered = filtered.filter(project_version_id=project_version_id.node_id)
-        if root_id is not UNSET:
-            if root_id is None:
-                filtered = filtered.filter(root_id__isnull=True)
-            else:
-                filtered = filtered.filter(root_id=root_id.node_id)
+        if build_id is not None:
+            filtered = filtered.filter(build_id=build_id.node_id)
+        if task_id is not None:
+            filtered = filtered.filter(task_id=task_id.node_id)
+        if code_id is not None:
+            filtered = filtered.filter(code_id=code_id.node_id)
+        if root_id is not None:
+            filtered = filtered.filter(root_id=root_id.node_id)
+        if root_id_null:
+            filtered = filtered.filter(root_id__isnull=True)
         return filtered

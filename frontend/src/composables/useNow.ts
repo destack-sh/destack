@@ -50,7 +50,7 @@ export function useTimeFromNow(updateInterval = 60000) {
   return { now, getTimeFromNow, getTimeFromNowString };
 }
 
-export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): string {
+export function formatDiffSeconds(fromStr: string, toStr: string | DateTime, options?: { millis?: boolean }): string {
   // format runtime diff into smallest reasonable unit
   // like 1723.4ms -> 1.7s, 22.47ms -> 22ms, 0.0002ms -> <1ms, 72000ms -> 1.1min
   const from = DateTime.fromISO(fromStr);
@@ -58,7 +58,9 @@ export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): st
   const diffMs = to.diff(from).as("milliseconds");
   if (diffMs < 1) {
     return "<1ms";
-  } else if (diffMs < 10000) {
+  } else if (diffMs < 100 && !options?.millis) {
+    return "<0.1s";
+  } else if (diffMs < 10000 && options?.millis) {
     return `${Math.round(diffMs)}ms`;
   } else if (diffMs < 60000) {
     return `${Math.round(diffMs / 100) / 10}s`;
