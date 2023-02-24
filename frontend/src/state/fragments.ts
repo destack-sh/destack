@@ -58,6 +58,8 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
 export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
     id
+    type
+    visibility
     name
     slug
     createdAt
@@ -73,6 +75,7 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
       }
       ... on User {
         id
+        slug
         username
         firstName
       }

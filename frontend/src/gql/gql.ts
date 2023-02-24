@@ -25,7 +25,7 @@ const documents = {
     types.OwnerBySlugDocument,
   "\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  ":
     types.ExistingProjectBySlugDocument,
-  "\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          createdAt\n          type\n          visibility\n        }\n      }\n    }\n  ":
+  "\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          path\n          createdAt\n          type\n          visibility\n          createdAt\n        }\n        organizations {\n          projects {\n            id\n            name\n            path\n            slug\n            createdAt\n            type\n            visibility\n            createdAt\n          }\n        }\n      }\n    }\n  ":
     types.HomeDocument,
   "\n      query me {\n        me {\n          ...UserContent\n        }\n      }\n    ": types.MeDocument,
   "\n      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {\n        project(id: $projectId) {\n          versions(filters: { afterId: $afterId }) {\n            id\n            name\n            createdAt\n            parentsRefs {\n              source\n              target\n            }\n          }\n        }\n      }\n    ":
@@ -44,7 +44,7 @@ const documents = {
     types.UserContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
-  "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        username\n        firstName\n      }\n    }\n  }\n":
+  "\n  fragment ProjectHeader on Project {\n    id\n    type\n    visibility\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        firstName\n      }\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
   "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    generated\n    projectVersion {\n      id\n    }\n  }\n":
     types.FileHeaderFragmentDoc,
@@ -65,6 +65,10 @@ const documents = {
     types.RenameFileDocument,
   "\n      mutation createProject($input: ProjectCreateInput!) {\n        createProject(input: $input) {\n          ... on Project {\n            ...ProjectHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateProjectDocument,
+  "\n      mutation updateProjectVisibility($id: GlobalID!, $visibility: ProjectVisibility!) {\n        updateProjectVisibility(input: { id: $id, visibility: $visibility }) {\n          ... on Project {\n            id\n            visibility\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpdateProjectVisibilityDocument,
+  "\n      mutation updateProjectName($id: GlobalID!, $name: String!) {\n        updateProjectName(input: { id: $id, name: $name }) {\n          ... on Project {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpdateProjectNameDocument,
   "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n            buildIds\n          }\n        }\n      }\n    ":
     types.BuildDocument,
   "\n      mutation run($projectVersionId: GlobalID!, $runnableId: GlobalID, $buildId: GlobalID, $arguments: JSON!) {\n        run(\n          input: {\n            projectVersionId: $projectVersionId\n            runnableId: $runnableId\n            buildId: $buildId\n            arguments: $arguments\n          }\n        ) {\n          ... on RunState {\n            projectVersionId\n            runnableId\n            buildId\n            output\n            success\n          }\n        }\n      }\n    ":
@@ -175,8 +179,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          createdAt\n          type\n          visibility\n        }\n      }\n    }\n  "
-): typeof documents["\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          createdAt\n          type\n          visibility\n        }\n      }\n    }\n  "];
+  source: "\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          path\n          createdAt\n          type\n          visibility\n          createdAt\n        }\n        organizations {\n          projects {\n            id\n            name\n            path\n            slug\n            createdAt\n            type\n            visibility\n            createdAt\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query home {\n      me {\n        slug\n        projects {\n          id\n          name\n          slug\n          path\n          createdAt\n          type\n          visibility\n          createdAt\n        }\n        organizations {\n          projects {\n            id\n            name\n            path\n            slug\n            createdAt\n            type\n            visibility\n            createdAt\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -235,8 +239,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        username\n        firstName\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        username\n        firstName\n      }\n    }\n  }\n"];
+  source: "\n  fragment ProjectHeader on Project {\n    id\n    type\n    visibility\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        firstName\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    type\n    visibility\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        firstName\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -297,6 +301,18 @@ export function graphql(
 export function graphql(
   source: "\n      mutation createProject($input: ProjectCreateInput!) {\n        createProject(input: $input) {\n          ... on Project {\n            ...ProjectHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation createProject($input: ProjectCreateInput!) {\n        createProject(input: $input) {\n          ... on Project {\n            ...ProjectHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation updateProjectVisibility($id: GlobalID!, $visibility: ProjectVisibility!) {\n        updateProjectVisibility(input: { id: $id, visibility: $visibility }) {\n          ... on Project {\n            id\n            visibility\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateProjectVisibility($id: GlobalID!, $visibility: ProjectVisibility!) {\n        updateProjectVisibility(input: { id: $id, visibility: $visibility }) {\n          ... on Project {\n            id\n            visibility\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation updateProjectName($id: GlobalID!, $name: String!) {\n        updateProjectName(input: { id: $id, name: $name }) {\n          ... on Project {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateProjectName($id: GlobalID!, $name: String!) {\n        updateProjectName(input: { id: $id, name: $name }) {\n          ... on Project {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

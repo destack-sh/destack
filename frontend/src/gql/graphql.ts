@@ -285,6 +285,8 @@ export type Mutation = {
   run: RunStateOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
+  updateProjectName: ProjectOperationInfo;
+  updateProjectVisibility: ProjectOperationInfo;
   updateStatementCode: StatementOperationInfo;
   updateStatementDescription: StatementOperationInfo;
   updateStatementLanguage: StatementOperationInfo;
@@ -385,6 +387,14 @@ export type MutationSoftDeleteFileArgs = {
 
 export type MutationSoftDeleteStatementArgs = {
   input: StatementSoftDeleteInput;
+};
+
+export type MutationUpdateProjectNameArgs = {
+  input: ProjectUpdateNameInput;
+};
+
+export type MutationUpdateProjectVisibilityArgs = {
+  input: ProjectUpdateVisibilityInput;
 };
 
 export type MutationUpdateStatementCodeArgs = {
@@ -520,6 +530,16 @@ export enum ProjectType {
   Executable = "EXECUTABLE",
   Library = "LIBRARY",
 }
+
+export type ProjectUpdateNameInput = {
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+};
+
+export type ProjectUpdateVisibilityInput = {
+  id: Scalars["GlobalID"];
+  visibility: ProjectVisibility;
+};
 
 export type ProjectVersion = Node & {
   __typename?: "ProjectVersion";
@@ -1049,9 +1069,23 @@ export type HomeQuery = {
       id: any;
       name: string;
       slug: string;
+      path: string;
       createdAt: any;
       type: ProjectType;
       visibility: ProjectVisibility;
+    }>;
+    organizations: Array<{
+      __typename?: "Organization";
+      projects: Array<{
+        __typename?: "Project";
+        id: any;
+        name: string;
+        path: string;
+        slug: string;
+        createdAt: any;
+        type: ProjectType;
+        visibility: ProjectVisibility;
+      }>;
     }>;
   } | null;
 };
@@ -1194,6 +1228,8 @@ export type ProjectVersionHeaderFragment = {
 export type ProjectHeaderFragment = {
   __typename?: "Project";
   id: any;
+  type: ProjectType;
+  visibility: ProjectVisibility;
   name: string;
   slug: string;
   createdAt: any;
@@ -1203,7 +1239,7 @@ export type ProjectHeaderFragment = {
   };
   owner:
     | { __typename?: "Organization"; id: any; slug: string; name: string }
-    | { __typename?: "User"; id: any; username: string; firstName: string };
+    | { __typename?: "User"; id: any; slug: string; username: string; firstName: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
 export type FileHeaderFragment = {
@@ -1363,6 +1399,34 @@ export type CreateProjectMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | ({ __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } });
+};
+
+export type UpdateProjectVisibilityMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  visibility: ProjectVisibility;
+}>;
+
+export type UpdateProjectVisibilityMutation = {
+  __typename?: "Mutation";
+  updateProjectVisibility:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Project"; id: any; visibility: ProjectVisibility };
+};
+
+export type UpdateProjectNameMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+}>;
+
+export type UpdateProjectNameMutation = {
+  __typename?: "Mutation";
+  updateProjectName:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Project"; id: any; name: string };
 };
 
 export type BuildMutationVariables = Exact<{
@@ -2057,6 +2121,8 @@ export const ProjectHeaderFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -2094,6 +2160,7 @@ export const ProjectHeaderFragmentDoc = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
                       { kind: "Field", name: { kind: "Name", value: "username" } },
                       { kind: "Field", name: { kind: "Name", value: "firstName" } },
                     ],
@@ -2789,9 +2856,37 @@ export const HomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "organizations" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "projects" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "path" } },
+                            { kind: "Field", name: { kind: "Name", value: "slug" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "type" } },
+                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                          ],
+                        },
+                      },
                     ],
                   },
                 },
@@ -3460,6 +3555,149 @@ export const CreateProjectDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateProjectMutation, CreateProjectMutationVariables>;
+export const UpdateProjectVisibilityDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateProjectVisibility" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "visibility" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ProjectVisibility" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateProjectVisibility" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "visibility" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "visibility" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateProjectVisibilityMutation, UpdateProjectVisibilityMutationVariables>;
+export const UpdateProjectNameDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateProjectName" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateProjectName" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateProjectNameMutation, UpdateProjectNameMutationVariables>;
 export const BuildDocument = {
   kind: "Document",
   definitions: [

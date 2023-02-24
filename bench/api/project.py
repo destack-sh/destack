@@ -134,6 +134,16 @@ class ProjectCreateInput:
     type: ProjectType = ProjectType.EXECUTABLE
 
 
+@gql.input
+class ProjectUpdateVisibilityInput(gql.NodeInput):
+    visibility: ProjectVisibility
+
+
+@gql.input
+class ProjectUpdateNameInput(gql.NodeInput):
+    name: str
+
+
 @gql.type
 class ProjectMutation:
     @safe_mutation
@@ -149,6 +159,22 @@ class ProjectMutation:
             type=input.type,
             visibility=input.visibility,
         )
+        return project
+
+    @safe_mutation
+    def update_project_visibility(
+        self, info, input: "ProjectUpdateVisibilityInput"
+    ) -> Project | OperationInfo:
+        project = models.Project.objects.get(id=input.id.node_id)
+        project.visibility = input.visibility
+        project.save()
+        return project
+
+    @safe_mutation
+    def update_project_name(self, info, input: "ProjectUpdateNameInput") -> Project | OperationInfo:
+        project = models.Project.objects.get(id=input.id.node_id)
+        project.name = input.name
+        project.save()
         return project
 
 

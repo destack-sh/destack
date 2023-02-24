@@ -240,6 +240,8 @@ type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   logout: OperationInfo
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
+  updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
+  updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
@@ -368,6 +370,16 @@ union ProjectOperationInfo = Project | OperationInfo
 enum ProjectType {
   EXECUTABLE
   LIBRARY
+}
+
+input ProjectUpdateNameInput {
+  id: GlobalID!
+  name: String!
+}
+
+input ProjectUpdateVisibilityInput {
+  id: GlobalID!
+  visibility: ProjectVisibility!
 }
 
 type ProjectVersion implements Node {

@@ -2,17 +2,17 @@
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { useActions } from "@/state/actions";
-import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import type { ProjectHeader } from "@/state/editor";
+import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
 import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";
 
 const props = defineProps<{
-  project: FragmentType<typeof ProjectHeaderType>;
+  project: ProjectHeader;
   currentVersion: FragmentType<typeof ProjectVersionHeaderType>;
 }>();
-const project = computed(() => useFragment(ProjectHeaderType, props.project));
 const { getTimeFromNowString } = useTimeFromNow();
 
 const { result: versionsQuery, loading } = useQuery(
@@ -27,7 +27,7 @@ const { result: versionsQuery, loading } = useQuery(
     }
   `),
   () => ({
-    projectId: project.value.id,
+    projectId: props.project.id,
   })
 );
 const versions = computed(

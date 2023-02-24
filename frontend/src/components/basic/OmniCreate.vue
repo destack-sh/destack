@@ -12,7 +12,7 @@ const addables = computed(() =>
       enabled: false,
     },
     {
-      name: "New project",
+      name: "New Bench",
       to: { name: "CreateProject" },
     },
     {
