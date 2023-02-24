@@ -163,14 +163,15 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
             :class="[
               'relative cursor-default select-none py-0.5 px-2',
               active ? 'bg-orange-600 text-white' : 'text-gray-900',
+              selected && !active ? 'text-orange-600' : '',
             ]"
           >
             <div class="flex items-baseline justify-between">
-              <span :class="['truncate', selected && 'underline']">
+              <span :class="['truncate']">
                 {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
                 {{ stmt.name }}
               </span>
-              <span class="text-sm" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
+              <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
                 {{ fileOf(stmt)?.path }}
               </span>
             </div>

@@ -47,8 +47,6 @@ const props = defineProps<{
   project: string;
 }>();
 
-const projectNavigation = [{ name: "Rename", href: "#" }];
-
 // views for the sidebar
 type View = {
   id: "explorer" | "history" | "issues";
