@@ -189,6 +189,7 @@ defineExpose({
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
         :immediate="false"
         :type="STRING_TYPE_NODE"
+        slim
         :model-value="field.name"
         :readonly="context.readonly.value"
         @update:model-value="(val: any) => updateFieldName(field, val)"

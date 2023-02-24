@@ -3,7 +3,7 @@ import type { InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState, type StatementHeader } from "@/state/editor";
 import { fileOf, relativePath, symbolOf } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { onStartTyping, useFocus } from "@vueuse/core";
+import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const inputRef: Ref<HTMLButtonElement | null> = ref(null);
 const inputRefFocus = useFocus(inputRef);
+const optionsRef: Ref<HTMLDivElement | null> = ref(null);
 const selecting: Ref<boolean> = ref(false);
 
 // TODO @Feature: use proper search for all searches (like uFuzzy)
@@ -73,6 +74,14 @@ function deleteLeftIfAtStart(event: KeyboardEvent) {
     emit("deleteLeft");
   }
 }
+
+onClickOutside(optionsRef, (event: PointerEvent) => {
+  // if outside options and not within valueRef stop editing
+  if (event.target != inputRef.value?.$el) {
+    selecting.value = false;
+    escape();
+  }
+});
 
 function escape() {
   if (selecting.value) {

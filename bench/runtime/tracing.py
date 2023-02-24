@@ -158,7 +158,7 @@ class ExecutionTracer(Tracer):
         }
         frame = self._create_frame(code=code, inputs=inputs)
         self.stacktrace.append(frame)
-        self.tracker(frame)
+        self.tracker(frame)  # tracker may mutate/do other things, so log afterwards
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):

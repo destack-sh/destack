@@ -12,6 +12,7 @@ const props = defineProps<{
   type: SimpleType;
   readonly: boolean;
   immediate: boolean;
+  slim?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -172,11 +173,12 @@ defineExpose({
         @input="(e: any) => writeValue(e.target?.value)"
         ref="valueRef"
         type="text"
-        class="w-full min-w-[300px] rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
-        :class="[editor.textSmall ? 'text-sm' : '']"
+        class="w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+        :class="[editor.textSmall ? 'text-sm' : '', slim ? 'min-w-[200px]' : ' min-w-[300px]']"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="cancel"
         :placeholder="placeholderValue ?? ''"
+        :rows="slim ? 1 : 3"
       />
       <input
         v-else-if="type.tag == TypeTag.Number"

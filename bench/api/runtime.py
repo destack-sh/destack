@@ -10,7 +10,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import language
+from bench import language, models
 from bench.api.execution import Execution
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.language import wire
@@ -304,6 +304,13 @@ class ModuleRuntimeSubscription:
                         # TODO @Performance: filter execution frames via zmq
                         continue
                     frame = mapper.rmap_execution_frame(frame_data)
+                    # TODO @Cleanup @Performance: optimize all relation lookups for id only
+                    # Here we just set the parent/root objects that we know are queried
+                    # because strawberry isn't smart enough to optimize this (and avoid the lookup)
+                    # Further, at this point the execution may not even be in the DB yet because
+                    # we stream execution frames to DB and clients simultaneously, so the lookup can fail.
+                    frame.parent = models.Execution(id=frame.parent_id)
+                    frame.root = models.Execution(id=frame.root_id)
                     logger.debug(
                         "executions.update", project_version_id=project_version_id, frame=frame
                     )

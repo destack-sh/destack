@@ -10,6 +10,8 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     startedAt
     terminatedAt
     status
+    # note: do not query for non-id fields on root/parent here since
+    # they may not be available when streamed directly from the runtime
     root {
       id
     }

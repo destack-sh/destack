@@ -17,8 +17,6 @@ const filesSorted = computed(() => {
   });
 });
 
-const renaming = ref(false);
-
 function focus(file: FileHeader) {
   // focus file in editor
   editor?.focusFile(file);
