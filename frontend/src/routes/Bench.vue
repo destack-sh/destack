@@ -339,7 +339,7 @@ watchEffect(async () => {
                 <FadeTransition mode="out-in">
                   <component
                     :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
-                    class="ml-1.5 mt-0.5 h-4 w-4 text-gray-700"
+                    class="ml-1.5 h-4 w-4 text-gray-700"
                   />
                 </FadeTransition>
               </PopoverButton>
@@ -410,29 +410,25 @@ watchEffect(async () => {
           <GlobalControls />
         </div>
         <OmniCreate class="pl-1" />
-        <ProfileButton class="pl-1" />
+        <ProfileButton class="" />
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
     <div v-show="projectLoaded" class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
       <aside
-        class="flex h-full resize-x border-r border-gray-200"
+        class="flex h-full resize-x"
         :class="{
           'w-64 lg:w-80': editor.showViewContent && editor.showViewSelection,
           'w-48 lg:w-64': editor.showViewContent && !editor.showViewSelection,
         }"
       >
-        <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5" v-show="editor.showViewSelection">
+        <div class="flex h-full min-h-0 flex-col border-r border-gray-200" v-show="editor.showViewSelection">
           <!-- View selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="rounded-sm px-2 py-2 text-gray-600"
-              :class="
-                view.name == activeView.name && editor.showViewContent
-                  ? 'bg-orange-100 text-orange-900'
-                  : 'hover:bg-orange-50'
-              "
+              class="rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-50"
+              :class="view.name == activeView.name && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
               v-for="view in views"
               :key="view.name"
               @click="toggleActiveView(view.id)"
@@ -445,8 +441,8 @@ watchEffect(async () => {
           <HelpPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
-                :class="open ? 'bg-gray-100' : ''"
+                class="rounded-sm px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
+                :class="open ? 'bg-orange-50 text-orange-900' : ''"
               >
                 <span class="sr-only">Help</span>
                 <QuestionMarkCircleIcon class="h-6 w-6" aria-hidden="true" />
@@ -456,8 +452,8 @@ watchEffect(async () => {
           <SettingsPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
-                :class="open ? 'bg-gray-100' : ''"
+                class="rounded-sm px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
+                :class="open ? 'bg-orange-50 text-orange-900' : ''"
               >
                 <span class="sr-only">Settings</span>
                 <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />
@@ -466,7 +462,7 @@ watchEffect(async () => {
           </SettingsPopover>
         </div>
         <!-- View content -->
-        <div class="relative flex-1 flex-col" v-show="editor.showViewContent">
+        <div class="relative flex-1 flex-col border-r border-gray-200" v-show="editor.showViewContent">
           <div class="absolute top-0 left-0 h-full w-full overflow-y-hidden">
             <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
             <ViewHistory

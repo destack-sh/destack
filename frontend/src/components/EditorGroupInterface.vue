@@ -56,7 +56,7 @@ async function createFileInEditorGroup() {
             :class="{
               'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-r border-b-2 border-r-gray-200 py-1 px-3 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-500 hover:text-orange-600': !selected,
-              ' bg-orange-100 text-orange-600': selected,
+              'bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
             }"
             @click.middle="editor.closeEditor(e)"
@@ -66,7 +66,7 @@ async function createFileInEditorGroup() {
           </button>
         </Tab>
         <!-- Little button tab to create new file -->
-        <button class="group mx-0.5 p-1 outline-none ring-0" @click="createFileInEditorGroup">
+        <button class="group mx-0.5 py-1 px-2 outline-none ring-0" @click="createFileInEditorGroup">
           <PlusIcon class="h-4 w-4 text-gray-300 group-hover:text-gray-500" aria-hidden="true" />
         </button>
       </TabList>
