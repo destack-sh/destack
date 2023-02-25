@@ -4,6 +4,7 @@ from strawberry import auto, lazy
 from strawberry_django_plus import gql
 
 from bench import models
+from bench.api.owner import Owner
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @gql.django.type(models.Organization)
-class Organization(gql.relay.Node):
+class Organization(gql.relay.Node, Owner):
     name: auto
     created_at: auto
     updated_at: auto

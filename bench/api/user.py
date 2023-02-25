@@ -10,6 +10,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
+from bench.api.owner import Owner
 from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
@@ -18,15 +19,19 @@ if TYPE_CHECKING:
 
 
 @gql.django.type(models.User)
-class User(gql.relay.Node):
+class User(gql.relay.Node, Owner):
     username: auto
-    first_name: auto
     email: auto
     created_at: auto
     updated_at: auto
     completed_signup: auto
+    bot: auto
     organizations: list[Annotated["Organization", lazy(".organization")]]
     projects: list[Annotated["Project", lazy(".project")]]
+
+    @gql.django.field(only=["first_name"])
+    def name(self) -> str:
+        return self.first_name
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:

@@ -9,7 +9,7 @@ const title = useTitle();
 title.value = "Page not found";
 </script>
 <template>
-  <div class="flex h-full flex-col bg-white pb-12">
+  <div class="flex h-full flex-col bg-gray-50 pb-12">
     <FatHeader>
       <template v-slot:left>
         <HomeButton />

@@ -43,11 +43,27 @@ export function useTimeFromNow(updateInterval = 60000) {
     }
   }
 
+  function getTimeFromNowLong(dt: DateTime): string | null {
+    const delta = now.value.diff(dt);
+    // format as long relative like just now, 1 week ago or last year
+    // or absolute if more than 1 year
+    if (delta.as("years") < 1) {
+      return dt.toRelative();
+    } else {
+      // format as e.g., Nov 4, 2021
+      return dt.toLocaleString(DateTime.DATE_MED);
+    }
+  }
+
   function getTimeFromNowString(dt: string): string | null {
     return getTimeFromNow(DateTime.fromISO(dt));
   }
 
-  return { now, getTimeFromNow, getTimeFromNowString };
+  function getTimeFromNowLongString(dt: string): string | null {
+    return getTimeFromNowLong(DateTime.fromISO(dt));
+  }
+
+  return { now, getTimeFromNow, getTimeFromNowLong, getTimeFromNowString, getTimeFromNowLongString };
 }
 
 export function formatDiffSeconds(fromStr: string, toStr: string | DateTime, options?: { millis?: boolean }): string {

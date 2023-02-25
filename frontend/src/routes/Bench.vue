@@ -109,7 +109,13 @@ const versionToViewId = computed(() => project.value?.head.id);
 
 // sync title bar with project info
 const title = useTitle();
-watchEffect(() => (title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`));
+watchEffect(() => {
+  if (projectError.value) {
+    title.value = "Page not found";
+  } else {
+    title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`;
+  }
+});
 
 // get project content
 const { error: versionError, result: versionResult } = useQuery(
@@ -308,18 +314,20 @@ watchEffect(async () => {
         <!-- Home -->
         <HomeButton />
         <!-- Project menu -->
-        <div v-if="projectLoaded" class="ml-2.5 flex flex-row items-baseline gap-0.5">
+        <div v-if="!projectError" class="ml-2.5 flex flex-row items-baseline gap-0.5 whitespace-nowrap">
+          <!-- Owner -->
           <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-50">
             {{ props.owner }}
           </router-link>
           <span class="text-gray-500">/</span>
-          <ProjectPopover :project="project">
+          <!-- Project button -->
+          <ProjectPopover v-if="projectLoaded" :project="project">
             <template v-slot:button="{ open }">
               <PopoverButton
                 class="flex h-full items-center justify-between rounded-sm bg-white p-1 text-left hover:bg-orange-50 focus:outline-none"
                 :class="{ 'bg-orange-50 focus:bg-orange-50': open }"
               >
-                <span class="text-sm font-bold">{{ props.project }}</span>
+                <span class="truncate text-sm font-bold">{{ props.project }}</span>
                 <FadeTransition mode="out-in">
                   <component
                     :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
@@ -329,6 +337,10 @@ watchEffect(async () => {
               </PopoverButton>
             </template>
           </ProjectPopover>
+          <!-- While loading, imitate project button -->
+          <span v-else class="animate-pulse truncate p-1 text-sm font-bold">
+            {{ props.project }}
+          </span>
         </div>
         <!-- Status -->
         <div v-if="versionLoaded" class="ml-2 flex items-center">

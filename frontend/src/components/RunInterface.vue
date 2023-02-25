@@ -83,10 +83,13 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
     class="mx-auto flex max-w-[1000px] flex-col items-baseline bg-white px-12 py-8"
     :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
   >
-    <!-- Header -->
+    <!-- Runconfig -->
     <div class="mx-auto w-full max-w-[1000px]">
+      <h2 class="flex flex-row items-baseline gap-1">
+        <span class="text-xl font-bold text-gray-900">Run</span>
+      </h2>
       <!-- Runnable (supposed to imitate corresponding statement look) -->
-      <div class="flex flex-row gap-1">
+      <div class="mt-2 flex flex-row gap-1">
         <button class="rounded-sm text-orange-600 outline-none hover:bg-orange-50" @click="run">run</button>
         <!-- TODO @Feature: should really be able to change the runnable inside Run interface -->
         <span>{{ symbol?.name ?? "???" }}</span>

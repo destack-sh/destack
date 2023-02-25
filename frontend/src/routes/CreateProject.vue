@@ -109,7 +109,7 @@ async function createProject() {
         </div>
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
-      <h1 class="mt-4 text-5xl font-bold">Create bench</h1>
+      <h1 class="-mx-8 mt-4 text-5xl font-bold">Create a Bench</h1>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- TODO @Incomplete: select owner -->

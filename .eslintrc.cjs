@@ -45,5 +45,6 @@ module.exports = {
         extendDefaults: true,
       },
     ],
+    "vue/multi-word-component-names": "off",
   },
 };

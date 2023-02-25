@@ -475,11 +475,21 @@ export enum OperationMessageKind {
   Warning = "WARNING",
 }
 
-export type Organization = Node & {
-  __typename?: "Organization";
+export type Organization = Node &
+  Owner & {
+    __typename?: "Organization";
+    createdAt: Scalars["DateTime"];
+    id: Scalars["GlobalID"];
+    members: Array<User>;
+    name: Scalars["String"];
+    projects: Array<Project>;
+    slug: Scalars["String"];
+    updatedAt: Scalars["DateTime"];
+  };
+
+export type Owner = {
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
-  members: Array<User>;
   name: Scalars["String"];
   projects: Array<Project>;
   slug: Scalars["String"];
@@ -959,20 +969,22 @@ export enum TypeTag {
   Video = "VIDEO",
 }
 
-export type User = Node & {
-  __typename?: "User";
-  completedSignup: Scalars["Boolean"];
-  createdAt: Scalars["DateTime"];
-  email: Scalars["String"];
-  firstName: Scalars["String"];
-  id: Scalars["GlobalID"];
-  organizations: Array<Organization>;
-  projects: Array<Project>;
-  slug: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
-  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
-  username: Scalars["String"];
-};
+export type User = Node &
+  Owner & {
+    __typename?: "User";
+    bot: Scalars["Boolean"];
+    completedSignup: Scalars["Boolean"];
+    createdAt: Scalars["DateTime"];
+    email: Scalars["String"];
+    id: Scalars["GlobalID"];
+    name: Scalars["String"];
+    organizations: Array<Organization>;
+    projects: Array<Project>;
+    slug: Scalars["String"];
+    updatedAt: Scalars["DateTime"];
+    /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+    username: Scalars["String"];
+  };
 
 export type UserCompleteSignupInput = {
   fullName: Scalars["String"];
@@ -1095,9 +1107,58 @@ export type HomeQuery = {
         createdAt: any;
         type: ProjectType;
         visibility: ProjectVisibility;
+        head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
       }>;
     }>;
   } | null;
+};
+
+export type ProfileHomeQueryVariables = Exact<{
+  slug: Scalars["String"];
+}>;
+
+export type ProfileHomeQuery = {
+  __typename?: "Query";
+  ownerBySlug?:
+    | {
+        __typename?: "Organization";
+        id: any;
+        slug: string;
+        name: string;
+        createdAt: any;
+        projects: Array<{
+          __typename?: "Project";
+          id: any;
+          name: string;
+          path: string;
+          slug: string;
+          createdAt: any;
+          type: ProjectType;
+          visibility: ProjectVisibility;
+          head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
+        }>;
+      }
+    | {
+        __typename?: "User";
+        id: any;
+        slug: string;
+        name: string;
+        username: string;
+        bot: boolean;
+        createdAt: any;
+        projects: Array<{
+          __typename?: "Project";
+          id: any;
+          name: string;
+          slug: string;
+          path: string;
+          createdAt: any;
+          type: ProjectType;
+          visibility: ProjectVisibility;
+          head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
+        }>;
+      }
+    | null;
 };
 
 export type MeQueryVariables = Exact<{ [key: string]: never }>;
@@ -1219,7 +1280,7 @@ export type UserContentFragment = {
   username: string;
   slug: string;
   email: string;
-  firstName: string;
+  name: string;
   createdAt: any;
   updatedAt: any;
   completedSignup: boolean;
@@ -1258,7 +1319,7 @@ export type ProjectHeaderFragment = {
   };
   owner:
     | { __typename?: "Organization"; id: any; slug: string; name: string }
-    | { __typename?: "User"; id: any; slug: string; username: string; firstName: string };
+    | { __typename?: "User"; id: any; slug: string; username: string; name: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
 export type FileHeaderFragment = {
@@ -2093,7 +2154,7 @@ export const UserContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "username" } },
           { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "email" } },
-          { kind: "Field", name: { kind: "Name", value: "firstName" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
@@ -2197,7 +2258,7 @@ export const ProjectHeaderFragmentDoc = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "slug" } },
                       { kind: "Field", name: { kind: "Name", value: "username" } },
-                      { kind: "Field", name: { kind: "Name", value: "firstName" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
                     ],
                   },
                 },
@@ -2919,6 +2980,17 @@ export const HomeDocument = {
                             { kind: "Field", name: { kind: "Name", value: "type" } },
                             { kind: "Field", name: { kind: "Name", value: "visibility" } },
                             { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "head" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
@@ -2933,6 +3005,128 @@ export const HomeDocument = {
     },
   ],
 } as unknown as DocumentNode<HomeQuery, HomeQueryVariables>;
+export const ProfileHomeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "profileHome" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "ownerBySlug" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "slug" },
+                value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "bot" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "projects" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "slug" } },
+                            { kind: "Field", name: { kind: "Name", value: "path" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "type" } },
+                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "head" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "projects" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "path" } },
+                            { kind: "Field", name: { kind: "Name", value: "slug" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "type" } },
+                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "head" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProfileHomeQuery, ProfileHomeQueryVariables>;
 export const MeDocument = {
   kind: "Document",
   definitions: [
