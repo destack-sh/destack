@@ -51,9 +51,9 @@ async function updateVisibility(visibility: ProjectVisibility) {
         class="absolute top-10 left-0 z-10 flex w-52 flex-col gap-1 rounded-sm bg-white px-2 pt-2 pb-4 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Name -->
-        <div class="flex flex-col">
-          <h2 class="px-2">{{ project.name }}</h2>
-          <h3 class="px-2 text-xs text-gray-500">{{ project.slug }}</h3>
+        <div class="flex max-w-full flex-col">
+          <h2 class="truncate px-2">{{ project.name }}</h2>
+          <h3 class="truncate px-2 text-xs text-gray-500">{{ project.slug }}</h3>
         </div>
         <!-- Visibility -->
         <div class="px-2">

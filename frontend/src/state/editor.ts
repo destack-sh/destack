@@ -170,7 +170,7 @@ export const useEditorState = defineStore("editor", {
       showEditorGroupHeader: true,
       showGlobalHeader: true,
       showViewSelection: true,
-      showViewContent: true,
+      showViewContent: false,
       darkMode: false,
       zenMode: false,
       fontMono: false,
@@ -211,6 +211,11 @@ export const useEditorState = defineStore("editor", {
 
     setActiveView(viewId: ViewId): void {
       this.activeViewId = viewId;
+    },
+
+    openActiveView(viewId: ViewId): void {
+      this.activeViewId = viewId;
+      this.showViewContent = true;
     },
 
     setEditorScroll(editor: Editor, scroll: { x: number; y: number }): void {
