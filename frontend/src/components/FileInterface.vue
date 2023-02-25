@@ -190,7 +190,13 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
           @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
           :model-value="name"
         />
-        <span class="text-3xl text-gray-300" v-if="name?.trim().length == 0">My AI</span>
+        <span
+          class="cursor-text select-none text-3xl text-gray-300"
+          v-if="name?.trim().length == 0"
+          @click="nameRef?.focus()"
+        >
+          Untitled AI
+        </span>
       </div>
       <!-- Add statement to start -->
       <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />

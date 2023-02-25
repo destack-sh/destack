@@ -357,7 +357,8 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     target_code = PromptBuilder(name=task.name, type_node=target_code_type)
     target_code.comment("Task metadata")
     target_code.emit(f'task "{task.name}"\n')
-    target_code.emit(task.description + "\n")
+    if task.description:
+        target_code.emit(task.description + "\n")
     target_code.blank()
 
     # task type explanation
@@ -402,7 +403,8 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     if examples_data.records:
         target_code.comment("Task example instruction")
         target_code.emit(f'examples for task "{task.name}":\n')
-        target_code.emit(task.description + "\n")
+        if task.description:
+            target_code.emit(task.description + "\n")
         target_code.emit_show_dataset(examples_data)
 
     # task inference
@@ -411,7 +413,8 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
         f"Perform the task {task.name} as described above to complete the output with the correct types."
         f" Consider the instructions carefully:\n"
     )
-    target_code.emit(task.description + "\n")
+    if task.description:
+        target_code.emit(task.description + "\n")
     # inline expectation restatement
     for expect in task_expects:
         if isinstance(expect, Expectation):
