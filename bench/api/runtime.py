@@ -330,12 +330,15 @@ class ModuleRuntimeSubscription:
                         continue
                     frame = mapper.rmap_execution_frame(frame_data)
                     # TODO @Cleanup @Performance: optimize all relation lookups for id only
-                    # Here we just set the parent/root objects that we know are queried
+                    # Here we just set the relation objects that we know are queried
                     # because strawberry isn't smart enough to optimize this (and avoid the lookup)
                     # Further, at this point the execution may not even be in the DB yet because
                     # we stream execution frames to DB and clients simultaneously, so the lookup can fail.
                     frame.parent = models.Execution(id=frame.parent_id)
                     frame.root = models.Execution(id=frame.root_id)
+                    frame.code = models.Statement(id=frame.code_id)
+                    frame.task = models.Statement(id=frame.task_id)
+                    frame.build = models.Statement(id=frame.build_id)
                     log.debug("executions.update", frame=frame)
                     yield frame
         finally:

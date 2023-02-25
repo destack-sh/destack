@@ -9,7 +9,6 @@ import time
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
-from dataclasses import replace
 from random import Random
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -109,8 +108,9 @@ ModelInference = typing.NamedTuple("ModelInference", [("id", UUID), ("output", d
 class SyncCodeProxy:
     """A worker-side proxy for code tracing."""
 
-    def __init__(self, code: CodeInstance, tracer: Tracer):
+    def __init__(self, code: CodeInstance, raw_callable: SyncCodeCallable, tracer: Tracer):
         self.code = code
+        self.raw_callable = raw_callable
         self.tracer = tracer
 
     def __call__(self, *args, **kwargs):
@@ -118,7 +118,7 @@ class SyncCodeProxy:
         try:
             self.tracer.code_enter(self.code, args, kwargs)
             log.debug("code.call.enter")
-            result = self.code.code_callable(*args, **kwargs)
+            result = self.raw_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
             log.debug("code.call.exit", result=summarize_args(result))
             return result
@@ -131,8 +131,9 @@ class SyncCodeProxy:
 class AsyncCodeProxy:
     """A worker-side proxy for code tracing."""
 
-    def __init__(self, code: CodeInstance, tracer: Tracer):
+    def __init__(self, code: CodeInstance, raw_callable: AsyncCodeCallable, tracer: Tracer):
         self.code = code
+        self.raw_callable = raw_callable
         self.tracer = tracer
 
     async def __call__(self, *args, **kwargs):
@@ -140,7 +141,7 @@ class AsyncCodeProxy:
         try:
             self.tracer.code_enter(self.code, args, kwargs)
             log.debug("code.call.enter")
-            result = await self.code.code_callable(*args, **kwargs)
+            result = await self.raw_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
             log.debug("code.call.exit", result=summarize_args(result))
             return result
@@ -193,8 +194,9 @@ class Proxy:
         code_proxy_cls = (
             AsyncCodeProxy if iscoroutinefunction(code.code_callable) else SyncCodeProxy
         )
-        code_proxy = code_proxy_cls(code, self.tracer)
-        return replace(code, code_callable=code_proxy)
+        code_proxy = code_proxy_cls(code, code.code_callable, self.tracer)
+        code.code_callable = code_proxy
+        return code
 
     def proxy_inference(self, context: InferenceContext) -> InferenceContext:
         proxy = InferenceContextProxy(context, self.tracer)
@@ -363,7 +365,6 @@ def instantiate(
             continue
         instantiated_context[name] = instantiate(value, idx=idx, build=build, proxy=proxy)
 
-    # instantiate symbol in build
     if isinstance(symbol, Task):
         if build is None:
             raise ValueError(f"cannot instantiate task without build: {symbol}")

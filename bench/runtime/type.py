@@ -33,7 +33,7 @@ class ModuleInstance:
     index: ModuleIndex
 
 
-@dataclass
+@dataclass(repr=False)
 class SymbolInstance:
     build: Optional[Build] = None
 
@@ -101,6 +101,7 @@ class CodeInstance(SymbolInstance, Code):
 
 
 SYMBOL_TYPE_BY_INSTANCE_CLASS = {
+    TaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
     DatasetInstance: SymbolType.DATA,
     ValueInstance: SymbolType.VALUE,
