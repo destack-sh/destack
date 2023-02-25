@@ -68,23 +68,31 @@ const activeView: ComputedRef<View> = computed(() => {
   return view;
 });
 
+function toggleActiveView(viewId: string) {
+  if (editor.activeViewId == viewId && editor.showViewContent) {
+    editor.showViewContent = false;
+  } else {
+    editor.setActiveView(viewId);
+    editor.showViewContent = true;
+  }
+}
 provideAction({
   id: "editor.view.openExplorer",
   label: "View Explorer",
   shortcuts: ["alt+1"],
-  apply: () => editor.setActiveView("explorer"),
+  apply: () => toggleActiveView("explorer"),
 });
 provideAction({
   id: "editor.view.openHistory",
   label: "View History",
   shortcuts: ["alt+2"],
-  apply: () => editor.setActiveView("history"),
+  apply: () => toggleActiveView("history"),
 });
 const openIssues = provideAction({
   id: "editor.view.openIssues",
   label: "View Issues",
   shortcuts: ["alt+3"],
-  apply: () => editor.setActiveView("issues"),
+  apply: () => toggleActiveView("issues"),
 });
 
 // get project header
@@ -415,15 +423,19 @@ watchEffect(async () => {
           'w-48 lg:w-64': editor.showViewContent && !editor.showViewSelection,
         }"
       >
-        <!-- View selection -->
         <div class="flex h-full min-h-0 flex-col border-r border-gray-200 p-1.5" v-show="editor.showViewSelection">
+          <!-- View selection -->
           <div class="flex flex-1 flex-col">
             <button
               class="rounded-sm px-2 py-2 text-gray-600"
-              :class="view.name == activeView.name ? 'bg-orange-100 text-orange-900' : 'hover:bg-gray-100'"
+              :class="
+                view.name == activeView.name && editor.showViewContent
+                  ? 'bg-orange-100 text-orange-900'
+                  : 'hover:bg-orange-50'
+              "
               v-for="view in views"
               :key="view.name"
-              @click="editor.setActiveView(view.id)"
+              @click="toggleActiveView(view.id)"
             >
               <span class="sr-only">{{ view.name }}</span>
               <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
@@ -433,7 +445,7 @@ watchEffect(async () => {
           <HelpPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-gray-100 focus:ring-0"
+                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
                 :class="open ? 'bg-gray-100' : ''"
               >
                 <span class="sr-only">Help</span>
@@ -444,7 +456,7 @@ watchEffect(async () => {
           <SettingsPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-gray-100 focus:ring-0"
+                class="rounded-sm px-2 py-2 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
                 :class="open ? 'bg-gray-100' : ''"
               >
                 <span class="sr-only">Settings</span>

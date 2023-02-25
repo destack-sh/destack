@@ -84,8 +84,8 @@ async function createProject() {
     notifications.show({
       kind: "success",
       type: "project.created",
-      message: "Bench born",
-      description: "Your bench is ready for work. And play.",
+      message: "Bench crafted",
+      description: "Your brand new Bench is ready for work.",
     });
   }
 }
@@ -110,6 +110,8 @@ async function createProject() {
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="-mx-8 mt-4 text-5xl font-bold">Create a Bench</h1>
+      <p class="mt-4 text-lg text-orange-700">A Bench unifies AI instruction, evaluation and deployment.</p>
+      <p class="mt-1 text-sm text-gray-700">(Think big: not just a single feature/task)</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- TODO @Incomplete: select owner -->
