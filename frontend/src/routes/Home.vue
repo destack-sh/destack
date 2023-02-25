@@ -10,7 +10,7 @@ import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed } from "vue";
 import { ProjectVisibility } from "@/gql/graphql";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { GlobeAltIcon, LockClosedIcon, PlusIcon } from "@heroicons/vue/24/outline";
 
 const title = useTitle();
 title.value = "Home";
@@ -40,6 +40,10 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
             type
             visibility
             createdAt
+            head {
+              name
+              createdAt
+            }
           }
         }
       }
@@ -50,11 +54,8 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
 const benches = computed(() => {
   return myBenchesResult.value?.me?.projects
     .concat(myBenchesResult.value?.me?.organizations.flatMap((org) => org.projects))
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .sort((a, b) => (b.createdAt < a.createdAt ? -1 : 1));
 });
-const { getTimeFromNowString } = useTimeFromNow();
-
-const anyLoading = computed(() => myBenchesLoading.value);
 </script>
 <template>
   <div class="h-full w-full">
@@ -67,42 +68,49 @@ const anyLoading = computed(() => myBenchesLoading.value);
         <ProfileButton />
       </template>
     </FatHeader>
-    <div class="mx-auto max-w-[1000px] px-8 py-8" v-show="!anyLoading">
+    <!-- My Benches -->
+    <div class="mx-auto mt-8 max-w-[1000px] px-8 py-4" v-show="!myBenchesLoading">
       <h1 class="flex flex-row items-center">
         <span class="text-2xl font-bold text-gray-900">My Benches</span>
-        <router-link
-          :to="{ name: 'CreateProject' }"
-          class="ml-4 flex flex-row items-center rounded-sm text-sm hover:bg-orange-50"
-        >
+        <router-link :to="{ name: 'CreateProject' }" class="ml-4 rounded-sm text-sm hover:bg-orange-50">
           <PlusIcon class="h-5 w-5 text-orange-600" />
-          <span class="text-gray-700">New bench</span>
         </router-link>
       </h1>
+      <!-- Benches grid -->
       <div class="mt-4 grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <!-- Empty state -->
+        <router-link :to="{ name: 'CreateProject' }" v-if="benches?.length == 0" class="col-span-full text-gray-900">
+          <div>Nothing here yet.</div>
+          <div class="text-gray text-gray-700">
+            <span class="underline decoration-dotted underline-offset-4 hover:decoration-solid">Create a Bench</span> to
+            make something.
+          </div>
+        </router-link>
+        <!-- Bench card :BenchCard -->
         <router-link
           v-for="project of benches"
           :key="project.id"
           class="duration-50 group flex h-28 flex-col justify-between rounded-sm border border-white bg-white p-3 shadow-sm ring-1 ring-orange-900 ring-opacity-5 transition-colors hover:border-orange-600"
           :to="`/${myBenchesResult?.me?.slug}/${project.slug}`"
         >
-          <div class="flex flex-row items-center justify-between gap-2">
-            <h3 class="font-bold text-gray-900">
-              {{ project.name }}
-              <span v-if="project.visibility == ProjectVisibility.Private">p</span>
+          <div class="flex max-w-full flex-row items-center justify-between gap-2">
+            <h3 class="flex max-w-full flex-row items-center font-bold text-gray-900">
+              <span class="flex-shrink truncate">{{ project.name }}</span>
+              <component
+                :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
+                class="ml-1.5 h-4 w-4 flex-shrink-0 text-gray-700"
+              />
             </h3>
-            <span class="text-gray-500">{{ getTimeFromNowString(project.createdAt) }}</span>
           </div>
-          <div class="text-xs text-gray-700">{{ project.path.replace(".", "/") }}</div>
+          <div class="max-w-full truncate text-xs text-gray-500">{{ project.path.replace(".", "/") }}</div>
         </router-link>
       </div>
-
-      <h1 class="mt-24 text-2xl font-bold text-gray-900">Community</h1>
+    </div>
+    <div class="mx-auto mt-8 max-w-[1000px] px-8 py-4" v-show="!myBenchesLoading">
+      <h1 class="text-2xl font-bold text-gray-900">Community</h1>
       <div class="mt-4 grid grid-cols-4">
         <div>Coming soon!</div>
       </div>
-    </div>
-    <div class="mx-auto max-w-[1000px] px-8 py-8" v-show="anyLoading">
-      <!-- Some loading animation -->
     </div>
     <NotificationArea />
   </div>

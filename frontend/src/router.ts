@@ -5,6 +5,7 @@ import CreateProject from "@/routes/CreateProject.vue";
 import Signup from "@/routes/Signup.vue";
 import CompleteSignup from "@/routes/CompleteSignup.vue";
 import Login from "@/routes/Login.vue";
+import Profile from "@/routes/Profile.vue";
 
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
@@ -21,7 +22,7 @@ const routes = [
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
   { path: "/settings/profile", name: "SettingsProfile", component: NotFound, props: forwardQueryAndParams },
   { path: "/new", name: "CreateProject", component: CreateProject, props: forwardQueryAndParams },
-  { path: "/:owner", name: "Profile", component: NotFound, props: forwardQueryAndParams },
+  { path: "/:owner", name: "Profile", component: Profile, props: forwardQueryAndParams },
   { path: "/:owner/:project", component: Bench, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },

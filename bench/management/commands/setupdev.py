@@ -26,6 +26,7 @@ class Command(BaseCommand):
                 password="password",
                 full_name="Yatima",
                 is_staff=True,
+                bot=True,
             )
             user.join_organization(organization, OrganizationMembership.Level.Owner)
             logger.info(f"Created bootstrap user: {user}")

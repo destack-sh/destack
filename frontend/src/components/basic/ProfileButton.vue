@@ -39,7 +39,7 @@ const userNavigation = computed(() => [
       >
         <div class="flex flex-col">
           <span class="text-xs font-bold text-gray-900">{{ auth.me.value?.username }}</span>
-          <span class="text-xs text-gray-500">{{ auth.me.value?.firstName }}</span>
+          <span class="text-xs text-gray-500">{{ auth.me.value?.name }}</span>
         </div>
       </MenuButton>
       <FadeTransition>

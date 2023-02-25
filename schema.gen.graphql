@@ -321,14 +321,23 @@ enum OperationMessageKind {
   VALIDATION
 }
 
-type Organization implements Node {
+type Organization implements Node & Owner {
   id: GlobalID!
+  slug: String!
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  members: [User!]!
   projects: [Project!]!
+  members: [User!]!
+}
+
+interface Owner {
+  id: GlobalID!
   slug: String!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  projects: [Project!]!
 }
 
 """Information to aid in pagination."""
@@ -760,19 +769,20 @@ enum TypeTag {
   TYPE_REFERENCE
 }
 
-type User implements Node {
+type User implements Node & Owner {
   id: GlobalID!
+  slug: String!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  projects: [Project!]!
 
   """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
   username: String!
-  firstName: String!
   email: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
   completedSignup: Boolean!
+  bot: Boolean!
   organizations: [Organization!]!
-  projects: [Project!]!
-  slug: String!
 }
 
 input UserCompleteSignupInput {
