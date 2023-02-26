@@ -36,6 +36,49 @@ type DatasetRecord implements Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
+type Deployment implements Node {
+  id: GlobalID!
+  owner: OrganizationUser!
+  project: Project!
+  projectVersion: ProjectVersion!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  status: DeploymentStatus!
+  type: DeploymentType!
+  deployAllStatements: Boolean!
+  deployedStatements: [Statement!]!
+}
+
+input DeploymentAddStatementInput {
+  id: GlobalID!
+  statementId: ID!
+}
+
+union DeploymentOperationInfo = Deployment | OperationInfo
+
+input DeploymentRemoveStatementInput {
+  id: GlobalID!
+  statementId: ID!
+}
+
+input DeploymentSetDeployAllStatementsInput {
+  id: GlobalID!
+  deployAllStatements: Boolean!
+}
+
+enum DeploymentStatus {
+  INACTIVE
+  SLEEPING
+  ACTIVE
+  ARCHIVED
+  DESTROYED
+}
+
+enum DeploymentType {
+  ADHOC
+  MANUAL
+}
+
 enum ErrorType {
   INTERNAL
   UNKNOWN_TOKEN
@@ -245,6 +288,7 @@ type Mutation {
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
   updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
+  commit(input: CommitInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
@@ -271,7 +315,9 @@ type Mutation {
   restoreFile(input: NodeInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
-  commit(input: CommitInput!): CommitPayloadOperationInfo!
+  setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo!
+  addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo!
+  removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo!
   build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
 }
@@ -330,6 +376,8 @@ type Organization implements Node & Owner {
   projects: [Project!]!
   members: [User!]!
 }
+
+union OrganizationUser = Organization | User
 
 interface Owner {
   id: GlobalID!

@@ -1,4 +1,5 @@
 from .data import DatasetRecord
+from .deployment import DeployedStatement, Deployment, DeploymentStatus, DeploymentType
 from .execution import Execution, ExecutionStatus
 from .generated import SourceMapping
 from .model import ModelInference
@@ -16,6 +17,10 @@ __all__ = [
     "ModelInference",
     "Organization",
     "OwnerSlug",
+    "Deployment",
+    "DeploymentStatus",
+    "DeploymentType",
+    "DeployedStatement",
     "Project",
     "ProjectVisibility",
     "ProjectVersion",

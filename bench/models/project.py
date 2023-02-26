@@ -14,7 +14,9 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language import SymbolType
-from bench.models import DatasetRecord, SourceMapping
+from bench.models.data import DatasetRecord
+from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
+from bench.models.generated import SourceMapping
 from bench.models.statement import SimpleTypeNode, Statement, StatementType
 from bench.models.utils import UUIDModel
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
@@ -44,6 +46,7 @@ class ProjectManager(models.Manager["Project"]):
         slug: str,
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
+        create_adhoc_deployment: bool = True,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -61,6 +64,10 @@ class ProjectManager(models.Manager["Project"]):
         )
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
+        if create_adhoc_deployment:
+            Deployment.objects.create_deployment(
+                project_version=project.head, owner=owner, type=DeploymentType.ADHOC
+            )
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -88,6 +95,7 @@ class Project(UUIDModel):
 
     type = TextChoicesField(choices_enum=ProjectType, default=ProjectType.EXECUTABLE)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
     visibility = TextChoicesField(choices_enum=ProjectVisibility, default=ProjectVisibility.PRIVATE)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
@@ -103,6 +111,7 @@ class Project(UUIDModel):
     user: models.ForeignKey = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="projects", null=True
     )
+    deployments: models.QuerySet["Deployment"]  # noqa via Deployment
 
     def __str__(self):
         return f"{self.owner.slug}/{self.slug}"
@@ -111,7 +120,9 @@ class Project(UUIDModel):
     def owner(self) -> Organization | User:
         return self.organization or self.user
 
-    @gql.model_property(only=["organization", "slug"], select_related=["organization"])
+    @gql.model_property(
+        only=["user", "organization", "slug"], select_related=["user", "organization"]
+    )
     def path(self) -> str:
         return f"{self.owner.slug}.{self.slug}"
 
@@ -157,7 +168,16 @@ class Project(UUIDModel):
         ]
         new_version.save()
 
-        # head has advanced to new version
+        # copy owned deployments from parent
+        for source_deployment in assigned_parent.deployments.filter(
+            user=self.user, organization=self.organization
+        ):
+            target_deployment = Deployment.objects.copy(source_deployment, new_version, refs)
+            target_deployment.type = DeploymentType.ADHOC
+            target_deployment.status = DeploymentStatus.INACTIVE  # reset status
+            target_deployment.save()
+
+        # advance head if it moved
         if assigned_parent == self.head:
             self.head = new_version
             self.save()
@@ -215,12 +235,13 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
     def copy(
         self, source: ProjectVersion, target: ProjectVersion
     ) -> dict[UUID, File | Statement | DatasetRecord | SimpleTypeNode]:
+        """Copies all project contents from a source version to a target version."""
         if not source.committed:
             raise ValueError(f"source version must be committed: {source}")
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  (generally good, but also especially for dataset records, mappings and other relations)
-        # TODO @Cleanup: created_at/updated_at are not copied correctly (they are set to now)
-        #  (could control them manually in project mutation wrapper)
+        # TODO @Cleanup: created_at/updated_at are not copied correctly (auto-reset to now)
+        #  (could set them manually in project mutation wrapper)
         # 1. copy project files
         new_files: dict[UUID, File] = {}
         for file in walk_children_bfs(source.files.filter(deleted_at=None), "files"):
@@ -323,8 +344,8 @@ class ProjectVersion(UUIDModel):
     )
     parents_refs = models.JSONField(default=dict)
     files: models.QuerySet["File"]  # noqa via File
-    symbols: models.QuerySet["Symbol"]  # noqa via Symbol
     statements: models.QuerySet["Statement"]  # noqa via Statement
+    deployments: models.QuerySet["Deployment"]  # noqa via Deployment
 
     def __str__(self) -> str:
         return f"{self.project.path}@{self.id.hex}"
