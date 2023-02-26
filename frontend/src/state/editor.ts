@@ -470,12 +470,6 @@ export function useEditorMigrations() {
         await editor._doMigrateTo(migratingTo.value, intermediateRefs);
 
         console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
-        notifications.show({
-          kind: "success",
-          type: "editorMigration.success",
-          message: "Migrated editor",
-          description: "Editor migrated to new project version.",
-        });
         migratingTo.value = null;
       }
     },

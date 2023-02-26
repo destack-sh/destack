@@ -58,6 +58,50 @@ export type DatasetRecord = Node & {
   updatedAt: Scalars["DateTime"];
 };
 
+export type Deployment = Node & {
+  __typename?: "Deployment";
+  createdAt: Scalars["DateTime"];
+  deployAllStatements: Scalars["Boolean"];
+  deployedStatements: Array<Statement>;
+  id: Scalars["GlobalID"];
+  owner: OrganizationUser;
+  project: Project;
+  projectVersion: ProjectVersion;
+  status: DeploymentStatus;
+  type: DeploymentType;
+  updatedAt: Scalars["DateTime"];
+};
+
+export type DeploymentAddStatementInput = {
+  id: Scalars["GlobalID"];
+  statementId: Scalars["ID"];
+};
+
+export type DeploymentOperationInfo = Deployment | OperationInfo;
+
+export type DeploymentRemoveStatementInput = {
+  id: Scalars["GlobalID"];
+  statementId: Scalars["ID"];
+};
+
+export type DeploymentSetDeployAllStatementsInput = {
+  deployAllStatements: Scalars["Boolean"];
+  id: Scalars["GlobalID"];
+};
+
+export enum DeploymentStatus {
+  Active = "ACTIVE",
+  Archived = "ARCHIVED",
+  Destroyed = "DESTROYED",
+  Inactive = "INACTIVE",
+  Sleeping = "SLEEPING",
+}
+
+export enum DeploymentType {
+  Adhoc = "ADHOC",
+  Manual = "MANUAL",
+}
+
 export enum ErrorType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
   AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
@@ -263,6 +307,7 @@ export type ModuleRuntime = {
 
 export type Mutation = {
   __typename?: "Mutation";
+  addDeployedStatement: DeploymentOperationInfo;
   build: BuildStateOperationInfo;
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
@@ -280,11 +325,13 @@ export type Mutation = {
   moveStatement: StatementOperationInfo;
   moveStatementRecord: StatementOperationInfo;
   moveStatementTypeNode: StatementOperationInfo;
+  removeDeployedStatement: DeploymentOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
   restoreFile: FileOperationInfo;
   restoreStatement: StatementOperationInfo;
   run: RunStateOperationInfo;
+  setDeployAllStatements: DeploymentOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   updateProjectName: ProjectOperationInfo;
@@ -297,6 +344,10 @@ export type Mutation = {
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
+};
+
+export type MutationAddDeployedStatementArgs = {
+  input: DeploymentAddStatementInput;
 };
 
 export type MutationBuildArgs = {
@@ -363,6 +414,10 @@ export type MutationMoveStatementTypeNodeArgs = {
   input: TypeNodeMoveInput;
 };
 
+export type MutationRemoveDeployedStatementArgs = {
+  input: DeploymentRemoveStatementInput;
+};
+
 export type MutationRenameFileArgs = {
   input: FileRenameInput;
 };
@@ -381,6 +436,10 @@ export type MutationRestoreStatementArgs = {
 
 export type MutationRunArgs = {
   input: RunInput;
+};
+
+export type MutationSetDeployAllStatementsArgs = {
+  input: DeploymentSetDeployAllStatementsInput;
 };
 
 export type MutationSoftDeleteFileArgs = {
@@ -486,6 +545,8 @@ export type Organization = Node &
     slug: Scalars["String"];
     updatedAt: Scalars["DateTime"];
   };
+
+export type OrganizationUser = Organization | User;
 
 export type Owner = {
   createdAt: Scalars["DateTime"];

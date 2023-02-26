@@ -9,7 +9,7 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView
 from strawberry.django.views import GraphQLView
 
-from bench.api.rest import run_program
+from bench.api.rest import run
 from bench.api.root import schema
 from bench.settings import DEBUG
 
@@ -18,7 +18,7 @@ urlpatterns = [
     path("", include("django_prometheus.urls")),
     path("", include("social_django.urls", namespace="social")),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
-    path("<organization>/<project>/run", run_program, name="run"),
+    path("<owner>/<project>/run", run, name="run"),
     path(
         "graphql",
         GraphQLView.as_view(schema=schema, graphiql=DEBUG, allow_queries_via_get=False),

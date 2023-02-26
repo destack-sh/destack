@@ -12,6 +12,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
+from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery
 from bench.api.organization import Organization
 from bench.api.project import (
@@ -67,10 +68,11 @@ class Query(ExecutionQuery):
 class Mutation(
     UserMutation,
     ProjectMutation,
+    ProjectVersionMutation,
     StatementMutation,
     SymbolMutation,
     FileMutation,
-    ProjectVersionMutation,
+    DeploymentMutation,
     ModuleRuntimeMutation,
 ):
     pass

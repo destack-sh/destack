@@ -11,7 +11,7 @@ import { ProjectVisibility } from "@/gql/graphql";
 import { CakeIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
-import { computed, toRef, watchEffect } from "vue";
+import { computed, watchEffect } from "vue";
 
 const props = defineProps<{ owner: string }>();
 
@@ -110,7 +110,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           <h1 class="flex max-w-full flex-row items-baseline gap-2 text-gray-900">
             <span class="truncate text-2xl font-bold">{{ user?.name || organization?.name }}</span>
             <span class="rounded-md bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900">
-              {{ profile.__typename == "User" ? (user?.bot ? "Bot" : "Human") : "Organization" }}
+              {{ profile.__typename == "User" ? (user?.bot ? "AI" : "Human") : "Organization" }}
             </span>
           </h1>
           <h2 class="text-xl text-gray-700">

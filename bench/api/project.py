@@ -159,6 +159,7 @@ class ProjectMutation:
             slug=input.slug,
             type=input.type,
             visibility=input.visibility,
+            create_adhoc_deployment=True,
         )
         return project
 
