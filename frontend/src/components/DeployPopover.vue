@@ -1,20 +1,52 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { useFragment, type FragmentType } from "@/gql";
-import { StatementType, SymbolType } from "@/gql/graphql";
+import { graphql, useFragment, type FragmentType } from "@/gql";
+import { DeploymentStatus, StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction, useActions } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { ProjectHeaderType } from "@/state/fragments";
+import { useNotifications } from "@/state/notifications";
+import { useOperations } from "@/state/operations";
 import { symbolsLike, useCurrentModuleRuntime, fileOf } from "@/state/runtime";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { CloudArrowUpIcon } from "@heroicons/vue/24/outline";
+import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
-
 const editor = useEditorState();
+
+const { result: deploymentsResult } = useQuery(
+  graphql(/* GraphQL */ `
+    query projectDeployments($projectVersionId: GlobalID!) {
+      projectVersion(id: $projectVersionId) {
+        id
+        deployments(filters: { isOwned: true }) {
+          totalCount
+          edges {
+            node {
+              id
+              createdAt
+              updatedAt
+              type
+              status
+              deployAllStatements
+            }
+          }
+        }
+      }
+    }
+  `),
+  () => ({
+    projectVersionId: editor.currentProjectVersionId,
+  })
+);
+const deployments = computed(() => deploymentsResult.value?.projectVersion?.deployments.edges.map((x) => x.node) || []);
+
 const actions = useActions();
+const operations = useOperations();
+const notifications = useNotifications();
 
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
@@ -22,8 +54,24 @@ const deploy = provideGlobalAction({
   id: "version.deploy",
   label: "Deploy",
   shortcuts: [],
-  apply: () => {
-    console.log("deploy");
+  apply: async () => {
+    // re-use random name/tagging logic from action for now, will be done inline here later
+    await actions.apply("version.commit");
+    await Promise.all(
+      deployments.value.map(async (deployment) => {
+        operations.deployment.update(deployment.id, DeploymentStatus.Active);
+      })
+    );
+    notifications.show({
+      kind: "success",
+      type: "version.deploy",
+      message: "Deployed",
+      description: `${deployedEndpoints.value?.length} endpoints deployed.`,
+      actionText: "Integrate",
+      action: () => {
+        // re-direct to integration page (same as "via REST" link)
+      },
+    });
   },
 });
 
@@ -31,6 +79,7 @@ const endpoints = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Task, SymbolType.Runconfig],
 });
+const deployedEndpoints = computed(() => endpoints.value); // not configurable yet
 </script>
 
 <template>
@@ -54,22 +103,31 @@ const endpoints = symbolsLike({
         <div>
           <h2 class="font-bold text-gray-900">Deployment</h2>
           <p class="pt-2 text-gray-900">
-            Deployed endpoints are available
+            Access
             <router-link
               to="/symbolx/docs#Deploying"
               target="_blank"
               class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
+              >deployed</router-link
             >
-              via REST</router-link
+            endpoints
+            <button
+              target="_blank"
+              class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
             >
+              via REST
+            </button>
             at:
           </p>
-          <a
-            :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
-            class="pt-0.5 text-orange-600 decoration-orange-600 underline-offset-4 hover:underline"
-          >
-            api.symbolx.com/{{ project.owner.slug }}/{{ project.slug }}/run
-          </a>
+          <p class="mt-2 w-full rounded-sm border border-gray-200 p-1">
+            <a
+              :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
+              class="text-gray-900 underline-offset-4 hover:underline"
+            >
+              api.symbolx.com/{{ project.owner.slug }}/{{ project.slug }}/run
+            </a>
+          </p>
+          <p class="mt-1 text-xs text-gray-500">Hint: 'x' refers to the live working version.</p>
         </div>
 
         <!-- Endpoints -->

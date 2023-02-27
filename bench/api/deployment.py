@@ -7,6 +7,7 @@ from bench.api.organization import Organization
 from bench.api.project import Project, ProjectVersion
 from bench.api.statement import Statement
 from bench.api.user import User
+from bench.api.util import safe_mutation
 
 DeploymentStatus = gql.enum(models.DeploymentStatus)
 DeploymentType = gql.enum(models.DeploymentType)
@@ -47,7 +48,7 @@ class DeployInput(gql.NodeInput):
 
 @gql.type
 class DeploymentMutation:
-    @gql.mutation
+    @safe_mutation
     def set_deploy_all_statements(
         self, info, input: DeploymentSetDeployAllStatementsInput
     ) -> Deployment | OperationInfo:
@@ -56,7 +57,7 @@ class DeploymentMutation:
         deployment.save()
         return deployment
 
-    @gql.mutation
+    @safe_mutation
     def add_deployed_statement(
         self, info, input: DeploymentAddStatementInput
     ) -> Deployment | OperationInfo:
@@ -67,7 +68,7 @@ class DeploymentMutation:
         )
         return models.Deployment.objects.get(id=input.id)
 
-    @gql.mutation
+    @safe_mutation
     def remove_deployed_statement(
         self, info, input: DeploymentRemoveStatementInput
     ) -> Deployment | OperationInfo:
@@ -77,9 +78,9 @@ class DeploymentMutation:
         ).delete()
         return models.Deployment.objects.get(id=input.id)
 
-    @gql.mutation
+    @safe_mutation
     def update_deployment(self, info, input: DeployInput) -> Deployment | OperationInfo:
-        deployment = models.Deployment.objects.get(id=input.id)
+        deployment = models.Deployment.objects.get(id=input.id.node_id)
         deployment.type = DeploymentType.MANUAL
         deployment.status = input.status
         deployment.save()

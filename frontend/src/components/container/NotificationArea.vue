@@ -60,7 +60,7 @@ const notifications = useNotifications();
             <button
               v-if="notification.actionText"
               type="button"
-              class="mx-3 h-fit flex-shrink-0 self-center rounded-sm bg-orange-600 py-1 px-3 text-sm font-medium text-white focus:outline-none"
+              class="mx-3 h-fit flex-shrink-0 self-center rounded-sm py-1 px-3 text-sm font-medium underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-gray-900 hover:decoration-solid focus:outline-none"
               @click="() => (notification.action?.(), notifications.dismiss(notification.id))"
             >
               {{ notification.actionText }}

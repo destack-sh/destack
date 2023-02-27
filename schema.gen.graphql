@@ -60,6 +60,31 @@ input DeploymentAddStatementInput {
   statementId: ID!
 }
 
+"""A connection to a list of items."""
+type DeploymentConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DeploymentEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type DeploymentEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Deployment!
+}
+
+input DeploymentFilter {
+  isOwned: Boolean = null
+}
+
 union DeploymentOperationInfo = Deployment | OperationInfo
 
 input DeploymentRemoveStatementInput {
@@ -423,6 +448,20 @@ type Project implements Node {
   updatedAt: DateTime!
   head: ProjectVersion!
   versions(filters: ProjectVersionFilter): [ProjectVersion!]!
+  deployments(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: DeploymentFilter
+  ): DeploymentConnection!
 }
 
 input ProjectCreateInput {
@@ -464,6 +503,20 @@ type ProjectVersion implements Node {
   dependencies: [ProjectVersion!]!
   files(filters: FileFilter): [File!]!
   statements(filters: StatementFilter): [Statement!]!
+  deployments(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: DeploymentFilter
+  ): DeploymentConnection!
   parentsRefs: [RefMapping!]!
 }
 

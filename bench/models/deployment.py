@@ -64,7 +64,7 @@ class DeploymentManager(models.Manager["Deployment"]):
             deployed_statement.deployment = target_deployment
             deployed_statement.statement = refs[deployed_statement.statement_id]
             deployed_statements.append(deployed_statement)
-        models.DeployedStatement.objects.bulk_create(deployed_statements)
+        DeployedStatement.objects.bulk_create(deployed_statements)
         return target_deployment
 
 
