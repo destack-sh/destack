@@ -1,49 +1,112 @@
-import zmq
-from rest_framework import serializers
-from rest_framework.decorators import api_view
-from rest_framework.request import Request
-from rest_framework.response import Response
+import json
+from functools import wraps
 
-from bench.models import Project
+import structlog
+import zmq
+from asgiref.sync import sync_to_async
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from rest_framework import serializers
+
+from bench.models import Deployment, ProjectVersion
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
 from bench.settings import ZMQ_WORKER_REP_ADDR
 
+logger = structlog.get_logger(__name__)
+
 
 class RunInputSerializer(serializers.Serializer):
     version = serializers.CharField()  # project version tag
-    symbol = serializers.CharField()
-    build = serializers.CharField(allow_null=True)
-    inputs = serializers.JSONField(allow_null=True)
+    task = serializers.CharField(default=None, allow_null=True)
+    code = serializers.CharField(default=None, allow_null=True)
+    build = serializers.CharField(default=None, allow_null=True)
+    inputs = serializers.JSONField(default=None, allow_null=True)
 
 
 class RunOutputSerializer(serializers.Serializer):
     execution_id = serializers.UUIDField()
     output = serializers.JSONField(allow_null=True)
+    success = serializers.BooleanField()
 
 
-@api_view(["POST"])
-async def run(request: Request, owner: str, project: str) -> Response:
-    serializer = RunInputSerializer(data=request.data)
+def csrf_exempt_async(view_func):
+    async def wrapped_view(request, *args, **kwargs):
+        return await view_func(request, *args, **kwargs)
+
+    wrapped_view.csrf_exempt = True
+    return wraps(view_func)(wrapped_view)
+
+
+def async_api_view(methods: list[str] = None):
+    """DRF's api view does not support async, so we make our own."""
+
+    def make_view(view_func):
+        async def wrapped_view(request, *args, **kwargs):
+            if methods is not None and request.method not in methods:
+                return HttpResponse(status=405)
+            try:
+                return await view_func(request, *args, **kwargs)
+            except (serializers.ValidationError, ValidationError) as e:
+                return JsonResponse(e.detail, safe=False, status=400)
+            except PermissionDenied:
+                return HttpResponse(status=403)
+            except ObjectDoesNotExist:
+                return HttpResponse(status=404)
+
+        wrapped_view.methods = methods
+        return wraps(view_func)(wrapped_view)
+
+    return make_view
+
+
+def get_deployment(owner: str, project: str, tag: str) -> tuple[ProjectVersion, Deployment]:
+    project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
+    deployment = project_version.deployments.get(owned=True)  # should only be one for now
+    return project_version, deployment
+
+
+@csrf_exempt_async
+@async_api_view(methods=["POST"])
+async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
+    try:
+        serializer = RunInputSerializer(data=json.loads(request.body))
+    except json.JSONDecodeError:
+        return HttpResponse("Invalid JSON", status=400)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
+    if data.get("task") is not None:
+        runnable = data["task"]
+        runnable_type = "task"
+    elif data.get("code") is not None:
+        runnable = data["code"]
+        runnable_type = "code"
+        if data["build"] is None:
+            raise serializers.ValidationError("Build must be set if task is set")
+    else:
+        raise serializers.ValidationError("Either task or code must be set")
+
+    project_version, deployment = await sync_to_async(get_deployment)(
+        owner=owner, project=project, tag=data["version"]
+    )
     worker_req_sock = zmq_ctx.socket(zmq.REQ)
     worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
-
-    project_version = Project.objects.get_by_slug(owner, project)
-    deployment = project_version.deployments.get(project_version___tag=data["version"])
-
     # :BlockingWorkerMessages
     send_message(
         worker_req_sock,
         ZMessageType.REQ_MODULE_RUN,
         ReqModuleRunPayload(
             module_id=project_version.id,
-            runnable=data["symbol"],
+            runnable=runnable,
+            runnable_type=runnable_type,
             build=data["build"],
-            inputs=data["inputs"],
+            arguments=data["inputs"],
+            blocking=True,
         ),
     )
     _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
 
-    return Response(RunOutputSerializer(rep).data)
+    output = RunOutputSerializer(
+        execution_id=rep.execution_id, output=rep.output, success=not rep.error
+    )
+    return JsonResponse(output.data, status=200)

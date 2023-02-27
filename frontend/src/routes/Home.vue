@@ -71,9 +71,11 @@ const benches = computed(() => {
     <!-- My Benches -->
     <div class="mx-auto mt-8 max-w-[1000px] px-8 py-4" v-show="!myBenchesLoading">
       <h1 class="flex flex-row items-center">
-        <span class="text-2xl font-bold text-gray-900">My Benches</span>
-        <router-link :to="{ name: 'CreateProject' }" class="ml-4 rounded-sm text-sm hover:bg-orange-50">
-          <PlusIcon class="h-5 w-5 text-orange-600" />
+        <router-link
+          :to="`/${myBenchesResult?.me?.slug}`"
+          class="text-2xl font-bold text-gray-900 decoration-gray-900 underline-offset-4 hover:underline"
+        >
+          My Benches
         </router-link>
       </h1>
       <!-- Benches grid -->
@@ -108,7 +110,7 @@ const benches = computed(() => {
     </div>
     <div class="mx-auto mt-8 max-w-[1000px] px-8 py-4" v-show="!myBenchesLoading">
       <h1 class="text-2xl font-bold text-gray-900">Community</h1>
-      <div class="mt-4 grid grid-cols-4">
+      <div class="mt-4 grid grid-cols-4 text-gray-900">
         <div>Coming soon!</div>
       </div>
     </div>

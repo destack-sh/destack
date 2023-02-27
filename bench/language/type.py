@@ -413,6 +413,10 @@ class InterpSymbol:
         return self.definition is not None and self.definition.id == self.id
 
     @property
+    def is_root(self):
+        return self.source is None or self.source.parent is None
+
+    @property
     def symbol_type(self) -> SymbolType:
         return SYMBOL_TYPE_BY_CLASS[self.__class__]
 
