@@ -40,6 +40,11 @@ class DeploymentRemoveStatementInput(gql.NodeInput):
     statement_id: gql.ID
 
 
+@gql.input
+class DeployInput(gql.NodeInput):
+    status: DeploymentStatus
+
+
 @gql.type
 class DeploymentMutation:
     @gql.mutation
@@ -71,3 +76,11 @@ class DeploymentMutation:
             statement_id=input.statement_id,
         ).delete()
         return models.Deployment.objects.get(id=input.id)
+
+    @gql.mutation
+    def update_deployment(self, info, input: DeployInput) -> Deployment | OperationInfo:
+        deployment = models.Deployment.objects.get(id=input.id)
+        deployment.type = DeploymentType.MANUAL
+        deployment.status = input.status
+        deployment.save()
+        return deployment

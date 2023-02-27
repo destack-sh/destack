@@ -104,8 +104,8 @@ class RepModuleBuildPayload:
 @_register_payload(ZMessageType.REQ_MODULE_RUN)
 class ReqModuleRunPayload:
     module_id: UUID
-    runnable_id: Optional[UUID]
-    build_id: Optional[UUID]
+    runnable: Optional[UUID | str]
+    build: Optional[UUID | str]
     arguments: dict[str, wire.LiteralValue]
     blocking: bool
 

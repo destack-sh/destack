@@ -1153,10 +1153,12 @@ class ModuleIndex:
         return [s for s in self.symbols.values() if isinstance(s, symbol_t)]
 
     def symbol(
-        self, path: StatementPath | str, symbol_t: typing.Type[SymbolT] | None = None
+        self, path: StatementPath | UUID | str, symbol_t: typing.Type[SymbolT] | None = None
     ) -> SymbolT:
         if not self.interpreted:
             raise RuntimeError(f"module index is not interpreted: {self}")
+        if isinstance(path, UUID):
+            return self.symbol_by_id(path, symbol_t=symbol_t)
         if isinstance(path, str):
             path = parse_statement_path(path)
         scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
@@ -1168,6 +1170,14 @@ class ModuleIndex:
         if symbol_t is not None and not isinstance(symbol, symbol_t):
             raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
         return symbol
+
+    def get_symbol(
+        self, path: StatementPath | UUID | str, symbol_t: typing.Type[SymbolT] | None = None
+    ) -> SymbolT | None:
+        try:
+            return self.symbol(path, symbol_t=symbol_t)
+        except KeyError:
+            return None
 
     def symbol_by_id(
         self, symbol_id: UUID, symbol_t: typing.Type[SymbolT] | None = None
