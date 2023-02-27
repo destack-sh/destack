@@ -1,16 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useActions } from "@/state/actions";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
+const actions = useActions();
 const addables = computed(() =>
   [
-    {
-      name: "New organization",
-      to: { name: "CreateOrganization" },
-      enabled: false,
-    },
     {
       name: "New Bench",
       to: { name: "CreateProject" },
@@ -18,8 +15,14 @@ const addables = computed(() =>
     {
       name: "New file",
       action: () => {
-        console.log("new file");
+        actions.file.create.value.apply();
       },
+      enabled: actions.file.create.value.enabled,
+    },
+    {
+      name: "New organization",
+      to: { name: "CreateOrganization" },
+      enabled: false,
     },
   ].filter((item) => item.enabled !== false)
 );
