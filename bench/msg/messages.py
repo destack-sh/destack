@@ -122,6 +122,7 @@ class ModuleRunErrorType(enum.Enum):
 class RepModuleRunPayload:
     execution_id: Optional[UUID] = None
     error: Optional[ModuleRunErrorType] = None
+    error_details: Optional[typing.Any] = None
     output: Optional[wire.LiteralValue] = None
 
 

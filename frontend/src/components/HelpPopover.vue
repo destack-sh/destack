@@ -21,17 +21,18 @@ const helpActions = [
   {
     name: "Read the docs",
     icon: BookOpenIcon,
-    href: "https://docs.symbolx.com",
+    to: "/symbolx/docs",
   },
   {
     name: "Ask the community",
     icon: UserGroupIcon,
     href: "https://forum.symbolx.com",
+    soon: true,
   },
   {
     name: "Join the Discord",
     icon: ChatBubbleBottomCenterIcon,
-    href: "https://discord.gg/",
+    href: "https://discord.gg/BUaeEn8FHN",
   },
   {
     name: "Get support",
@@ -47,7 +48,7 @@ const helpActions = [
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-0 left-14 z-10 flex w-52 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-0 left-14 z-10 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <template v-for="action in helpActions" :key="action.name">
           <component
@@ -58,6 +59,12 @@ const helpActions = [
           >
             <component :is="action.icon" class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">{{ action.name }}</span>
+            <span
+              class="rounded-2xl border border-orange-600 px-1 text-xs font-bold text-orange-600"
+              v-if="action.soon"
+            >
+              soon
+            </span>
           </component>
         </template>
       </PopoverPanel>

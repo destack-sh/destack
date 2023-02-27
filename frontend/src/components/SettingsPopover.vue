@@ -14,7 +14,7 @@ const actions = useActions();
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-0 left-14 z-10 flex w-52 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-0 left-14 z-10 flex w-60 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Font style -->
         <div class="pb-1">

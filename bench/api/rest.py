@@ -8,7 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, Validat
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
-from bench.models import Deployment, ProjectVersion
+from bench.models import Deployment, Project, ProjectVersion
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
 from bench.settings import ZMQ_WORKER_REP_ADDR
@@ -28,6 +28,7 @@ class RunOutputSerializer(serializers.Serializer):
     execution_id = serializers.UUIDField()
     output = serializers.JSONField(allow_null=True)
     success = serializers.BooleanField()
+    error = serializers.JSONField(allow_null=True)
 
 
 def csrf_exempt_async(view_func):
@@ -61,7 +62,12 @@ def async_api_view(methods: list[str] = None):
 
 
 def get_deployment(owner: str, project: str, tag: str) -> tuple[ProjectVersion, Deployment]:
-    project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
+    # TODO @Feature: implement semver range tags? https://devhints.io/semver
+    if tag in ("*", "^", "x"):
+        # use latest version
+        project_version = Project.objects.get_by_slug(owner, project).head
+    else:
+        project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
     deployment = project_version.deployments.get(owned=True)  # should only be one for now
     return project_version, deployment
 
@@ -70,7 +76,13 @@ def get_deployment(owner: str, project: str, tag: str) -> tuple[ProjectVersion, 
 @async_api_view(methods=["POST"])
 async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     try:
-        serializer = RunInputSerializer(data=json.loads(request.body))
+        data = json.loads(request.body)
+        # map input__key to inputs[key]
+        data["inputs"] = data.get("inputs", {})
+        data["inputs"].update(
+            {k.split("__", 1)[1]: v for k, v in data.items() if k.startswith("input__")}
+        )
+        serializer = RunInputSerializer(data=data)
     except json.JSONDecodeError:
         return HttpResponse("Invalid JSON", status=400)
     serializer.is_valid(raise_exception=True)
@@ -78,11 +90,11 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     if data.get("task") is not None:
         runnable = data["task"]
         runnable_type = "task"
+        if data["build"] is None:
+            raise serializers.ValidationError("Build must be set if task is set")
     elif data.get("code") is not None:
         runnable = data["code"]
         runnable_type = "code"
-        if data["build"] is None:
-            raise serializers.ValidationError("Build must be set if task is set")
     else:
         raise serializers.ValidationError("Either task or code must be set")
 
@@ -106,7 +118,10 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     )
     _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
 
-    output = RunOutputSerializer(
-        execution_id=rep.execution_id, output=rep.output, success=not rep.error
+    output = dict(
+        execution_id=rep.execution_id,
+        output=rep.output,
+        success=not rep.error,
+        error=dict(type=rep.error.value, details=rep.error_details) if rep.error else None,
     )
-    return JsonResponse(output.data, status=200)
+    return JsonResponse(output, status=200)
