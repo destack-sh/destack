@@ -1,4 +1,4 @@
---- natbot.x ---
+--- natbot ---
 # Bench port of [natbot](https://github.com/nat/natbot/blob/main/natbot.py)
 
 enum CommandType :: string:

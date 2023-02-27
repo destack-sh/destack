@@ -1,9 +1,9 @@
---- events.x ---
+--- events ---
 enum EntityType :: string:
-ASSET = `"asset"`
-ORGANIZATION = `"organization"`
-PERSON = `"person"`
-LOCATION = `"location"`
+Asset = `"Asset"`
+Organization = `"Organization"`
+Person = `"Person"`
+Location = `"Location"`
 
 type Entity:
 name: string "The canonical name of the entity"
@@ -11,14 +11,14 @@ mentioned_as: [string] "The entity's names as they appear in the text"
 'type': EntityType
 
 enum EventType :: string:
-LISTING = `"listing"` "A new entity is listed on the exchange"
-FILING = `"filing"` "Some regulatory filing is made"
+Listing = `"Listing"` "A new entity is listed on the exchange"
+Filing = `"Filing"` "Some regulatory filing is made"
 
-enum EventPriority :: number:
-CRITICAL = `3`
-HIGH = `2`
-MEDIUM = `1`
-LOW = `0`
+enum EventPriority :: string:
+Critical = `"Critical"` "The event is incredibly important"
+High = `"High"`
+Medium = `"Medium"`
+Low = `"Low"`
 
 type Event:
 "Something that happened"

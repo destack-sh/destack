@@ -1,4 +1,4 @@
---- lib.x ---
+--- lib ---
 
 type Translated:
 "A potentially translated string"
@@ -38,7 +38,7 @@ capability 'babel fish':
     # General expectations (not yet supported)
     expect 'input output consistency'
 
---- examples.x ---
+--- examples ---
 
 # Using the babel fish capability
 

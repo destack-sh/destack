@@ -1,4 +1,4 @@
---- mathz.x ---
+--- mathz ---
 
 task 'add two digits' :: (a: number, b: number) -> number:
 "Add two digits together"

@@ -1,4 +1,4 @@
---- react.x ---
+--- react ---
 # # Bench port of [ReAct](https://arxiv.org/pdf/2210.03629.pdf) as a library
 
 enum ReactMode :: string:
@@ -48,7 +48,7 @@ task 'react' :: (input: string, max_steps: number) -> string | null "Answer":
            pass
     ```
 
---- wiki-react.x ---
+--- wiki-react ---
 
 enum WikiActionType :: string:
 Search = `"search"` "Get paragraph from wikipedia page"

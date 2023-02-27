@@ -47,6 +47,7 @@ class ProjectManager(models.Manager["Project"]):
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_adhoc_deployment: bool = True,
+        create_default_files: bool = True,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -68,6 +69,8 @@ class ProjectManager(models.Manager["Project"]):
             Deployment.objects.create_deployment(
                 project_version=project.head, owner=owner, type=DeploymentType.ADHOC
             )
+        if create_default_files:
+            raise NotImplementedError
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -136,6 +139,7 @@ class Project(UUIDModel):
     def create_version(
         self,
         name: Optional[str] = None,
+        tag: Optional[str] = None,
         description: Optional[str] = None,
         parent: Optional[ProjectVersion] = None,
         auto_commit: bool = True,
@@ -158,7 +162,7 @@ class Project(UUIDModel):
                 raise ValueError(f"parent version must be committed: {assigned_parent}")
 
         new_version = ProjectVersion.objects.create(
-            project=self, name=name, description=description
+            project=self, name=name, tag=tag, description=description
         )
         new_version.parents.add(assigned_parent)
 

@@ -1,4 +1,4 @@
---- zoo.x ---
+--- zoo ---
 
 # enum AnimalType :: string:
 # Sheep = `"sheep"` "The fluffy white cloud"

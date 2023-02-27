@@ -1,4 +1,4 @@
---- temperature.x ---
+--- temperature ---
 enum Temperature :: string:
 High = `"high"`
 Medium = `"medium"`
