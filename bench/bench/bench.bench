@@ -1,7 +1,7 @@
---- lint.x ---
+--- lint ---
 # AI support for linting Bench files
 
---- suggest.x ---
+--- suggest ---
 
 ###
 This is a multi-line markdown comment.

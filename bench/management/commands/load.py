@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 from pathlib import Path
 
 import structlog
@@ -42,17 +41,20 @@ class Command(BaseCommand):
                 visibility=ProjectVisibility.PRIVATE,
             )
 
-        last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
-        version_id = str(int(last_modified.timestamp()))
-
-        project_v = project.create_version(name=version_id)
+        project_v = project.create_version(name="Update from CLI")
         project_v.reset()
-        source_file = SourceFile(path=path, content=Path(path).read_text())
-        lang_module, _ = parse(
-            lex(source_file),
-            language.Module(id=project_v.id, name=project_v.project.path),
-            lookup_in_db_module,
-        )
+
+        if not Path(path).is_dir():
+            source_files = [SourceFile(path=path, content=Path(path).read_text())]
+        else:
+            # if it's a directory, load all files
+            source_files = []
+            for file in Path(path).glob("**/*.bench"):
+                source_files.append(SourceFile(path=file, content=file.read_text()))
+
+        lang_module = language.Module(id=project_v.id, name=project_v.project.path)
+        for source_file in source_files:
+            _ = parse(lex(source_file), lang_module, lookup_in_db_module)
 
         # :ManageRequirements
         # strip requirements from module because we can't manage them interactively set

@@ -1,4 +1,4 @@
---- math.x ---
+--- math ---
 task calculate :: (input: string) -> number:
 "Compute a mathematical value from any expression"
 
@@ -10,7 +10,7 @@ capability 'basic math':
     task calculate
     task 'solve equation'
 
---- scratchpad.x ---
+--- scratchpad ---
 import capability 'basic math' from .math
 
 # 'using' applies a symbol to the current scope

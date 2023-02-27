@@ -1,8 +1,6 @@
---- ner.x ---
+--- ner ---
 
 # # Classic NER
-
-# ## 1. Instruct
 
 enum EntityType :: string:
 "Type of an entity"
@@ -27,9 +25,6 @@ task 'extract entities' :: (input: string) -> [Entity]:
 "Extract the distinct entities from the text"
     expect 'no duplicates' on output:
     "The entities are distinct"
-
-
-# ## 2. Build and run
 
 build prod:
     task 'extract entities'
