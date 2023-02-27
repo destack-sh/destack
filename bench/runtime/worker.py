@@ -331,8 +331,13 @@ class RuntimeWorker:
                 send_rep(RepModuleRunPayload(error=ModuleRunErrorType.NOT_READY))
                 return
             idx = state.interp.module_idx
-            build = idx.get_symbol(payload.build, Build)
-            runnable = idx.symbol(payload.runnable)
+            try:
+                build = idx.get_symbol(payload.build, Build) if payload.build else None
+                runnable_type = SymbolType[payload.runnable_type] if payload.runnable_type else None
+                runnable = idx.symbol(payload.runnable, symbol_t=runnable_type)
+            except (TypeError, KeyError) as e:
+                send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
+                return
 
             # instantiate & run
             root_id = UUIDT()  # root execution id is pre-set for tracking
@@ -345,7 +350,7 @@ class RuntimeWorker:
                     runnable, idx=idx, build=build, proxy=Proxy(tracer=tracer)
                 )
             except Exception as e:
-                logger.exception("instantiate", exc_info=e)
+                logger.exception("", exc_info=e)
                 send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.INTERNAL_ERROR))
                 return
             try:  # run

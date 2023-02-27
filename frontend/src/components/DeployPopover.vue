@@ -54,7 +54,12 @@ const endpoints = symbolsLike({
         <div>
           <h2 class="font-bold text-gray-900">Deployment</h2>
           <p class="pt-2 text-gray-900">Deployed endpoints are available <a>via REST</a> at:</p>
-          <div class="pt-0.5 text-orange-600">api.symbolx.com/{{ project.owner.slug }}/{{ project.slug }}</div>
+          <a
+            :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
+            class="pt-0.5 text-orange-600 decoration-orange-600 underline-offset-4 hover:underline"
+          >
+            api.symbolx.com/{{ project.owner.slug }}/{{ project.slug }}/run
+          </a>
         </div>
 
         <!-- Endpoints -->

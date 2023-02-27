@@ -1152,6 +1152,22 @@ class ModuleIndex:
     def symbols_of_type(self, symbol_t: typing.Type[SymbolT]) -> list[SymbolT]:
         return [s for s in self.symbols.values() if isinstance(s, symbol_t)]
 
+    def symbol_by_name(self, name: str, symbol_t: typing.Type[SymbolT] | None = None) -> SymbolT:
+        matching_symbols = [
+            s
+            for s in self.symbols.values()
+            if s.name == name
+            and s.is_definition
+            and s.is_root
+            and (symbol_t is None or isinstance(s, symbol_t))
+        ]
+        if len(matching_symbols) == 1:
+            return matching_symbols[0]
+        elif len(matching_symbols) > 1:
+            raise KeyError(f"multiple symbols with name {name} found")
+        else:
+            raise KeyError(f"no symbol {name} found")
+
     def symbol(
         self, path: StatementPath | UUID | str, symbol_t: typing.Type[SymbolT] | None = None
     ) -> SymbolT:
@@ -1160,6 +1176,9 @@ class ModuleIndex:
         if isinstance(path, UUID):
             return self.symbol_by_id(path, symbol_t=symbol_t)
         if isinstance(path, str):
+            # usually str is a statement path, but we also allow plain names for convenience
+            if ":" not in path:  # try to lookup definition at root by name
+                return self.symbol_by_name(path, symbol_t=symbol_t)
             path = parse_statement_path(path)
         scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
         if scope is None:

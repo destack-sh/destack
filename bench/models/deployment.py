@@ -6,13 +6,13 @@ from uuid import UUID
 from django.db import models
 from django_choices_field import TextChoicesField
 
+from bench.models.organization import Organization
 from bench.models.statement import Statement
+from bench.models.user import User
 from bench.models.utils import UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models.organization import Organization
     from bench.models.project import ProjectVersion
-    from bench.models.user import User
 
 
 class DeploymentStatus(models.TextChoices):
@@ -36,6 +36,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         type: DeploymentType,
         status: DeploymentStatus = DeploymentStatus.INACTIVE,
     ) -> Deployment:
+        owned = project_version.project.owner == owner
         return self.create(
             project=project_version.project,
             project_version=project_version,
@@ -43,6 +44,7 @@ class DeploymentManager(models.Manager["Deployment"]):
             user=owner if isinstance(owner, User) else None,
             type=type,
             status=status,
+            owned=owned,
         )
 
     def copy(
@@ -83,6 +85,7 @@ class Deployment(UUIDModel):
     )
     type = TextChoicesField(choices_enum=DeploymentType)
     status = TextChoicesField(choices_enum=DeploymentStatus)
+    owned = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deploy_all_statements = models.BooleanField(default=False)
@@ -99,6 +102,8 @@ class Deployment(UUIDModel):
     @property
     def owner(self) -> Organization | User:
         return self.organization or self.user
+
+    objects = DeploymentManager()
 
     class Meta:
         ordering = ["-created_at"]

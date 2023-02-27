@@ -105,6 +105,7 @@ class RepModuleBuildPayload:
 class ReqModuleRunPayload:
     module_id: UUID
     runnable: Optional[UUID | str]
+    runnable_type: Optional[str]
     build: Optional[UUID | str]
     arguments: dict[str, wire.LiteralValue]
     blocking: bool
@@ -119,7 +120,7 @@ class ModuleRunErrorType(enum.Enum):
 
 @_register_payload(ZMessageType.REP_MODULE_RUN)
 class RepModuleRunPayload:
-    execution_id: UUID
+    execution_id: Optional[UUID] = None
     error: Optional[ModuleRunErrorType] = None
     output: Optional[wire.LiteralValue] = None
 

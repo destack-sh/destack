@@ -101,7 +101,7 @@ class Project(UUIDModel):
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
-    # TODO @Feature: basic branching, move Project head into main_branch.head
+    # TODO @Feature: basic branching (per-head branch with head pointing to main head)
     head = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
@@ -170,9 +170,7 @@ class Project(UUIDModel):
         new_version.save()
 
         # copy owned deployments from parent
-        for source_deployment in assigned_parent.deployments.filter(
-            user=self.user, organization=self.organization
-        ):
+        for source_deployment in assigned_parent.deployments.filter(owned=True):
             target_deployment = Deployment.objects.copy(source_deployment, new_version, refs)
             target_deployment.type = DeploymentType.ADHOC
             target_deployment.status = DeploymentStatus.INACTIVE  # reset status
@@ -226,6 +224,17 @@ def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):
+    def get_by_slug(self, owner: str, project: str, tag: str):
+        return (
+            self.filter(tag=tag)
+            .filter(project__slug=project)
+            .filter(
+                Q(project__organization__owner_slug_id=owner)
+                | Q(project__user__owner_slug_id=owner)
+            )
+            .get()
+        )
+
     def copy(
         self, source: ProjectVersion, target: ProjectVersion
     ) -> dict[UUID, File | Statement | DatasetRecord | SimpleTypeNode]:
