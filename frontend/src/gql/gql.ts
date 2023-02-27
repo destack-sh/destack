@@ -44,7 +44,7 @@ const documents = {
     types.OperationInfoContentFragmentDoc,
   "\n  fragment UserContent on User {\n    id\n    username\n    slug\n    email\n    name\n    createdAt\n    updatedAt\n    completedSignup\n    organizations {\n      id\n      name\n      slug\n      createdAt\n      updatedAt\n    }\n  }\n":
     types.UserContentFragmentDoc,
-  "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
+  "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    tag\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    type\n    visibility\n    name\n    slug\n    createdAt\n    updatedAt\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
@@ -115,7 +115,9 @@ const documents = {
     types.LogoutDocument,
   "\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            ...UserContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CompleteSignupDocument,
-  "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
+    types.UpdateVersionDocument,
+  "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $tag: String, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CommitDocument,
   "\n  fragment InterpSymbolContent on InterpSymbol {\n    id\n    name\n    type\n    orderKey\n    parentId\n    modifier\n    symbolType\n    rootTypeTag\n    generated\n    typeNodes {\n      # not using SimpleTypeNodeContent fragment because it's for the editable node\n      # and using a shared fragment seems overkill\n      id\n      name\n      tag\n      description\n      value\n      orderKey\n      reference {\n        id\n      }\n      isOutput\n      isArray\n      isNullable\n    }\n  }\n":
     types.InterpSymbolContentFragmentDoc,
@@ -241,8 +243,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n"];
+  source: "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    tag\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    name\n    tag\n    description\n    createdAt\n    committed\n    committedAt\n    parents {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -457,8 +459,14 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $tag: String, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation commit($projectVersionId: GlobalID!, $name: String!, $tag: String, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -83,6 +83,7 @@ class RefMapping:
 class ProjectVersion(gql.Node):
     project: Project
     name: auto
+    tag: auto  # :ProjectVersionTags
     description: auto
     parents: list["ProjectVersion"]
     children: list["ProjectVersion"]
@@ -181,9 +182,17 @@ class ProjectMutation:
 
 
 @gql.input
+class UpdateProjectVersion(gql.NodeInput):
+    name: str
+    tag: Optional[str] = None  # :ProjectVersionTags
+    description: Optional[str] = None
+
+
+@gql.input
 class CommitInput:
     project_version_id: GlobalID
     name: str
+    tag: Optional[str] = None  # :ProjectVersionTags
     description: Optional[str] = None
 
 
@@ -197,6 +206,17 @@ class CommitPayload:
 @gql.type
 class ProjectVersionMutation:
     @safe_mutation
+    def update_project_version(
+        self, info, input: "UpdateProjectVersion"
+    ) -> ProjectVersion | OperationInfo:
+        project_v = models.ProjectVersion.objects.get(id=input.id.node_id)
+        project_v.name = input.name
+        project_v.description = input.description
+        project_v.tag = input.tag
+        project_v.save()
+        return project_v
+
+    @safe_mutation(atomic=True)
     def commit(self, input: CommitInput) -> CommitPayload | OperationInfo:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
@@ -208,6 +228,7 @@ class ProjectVersionMutation:
         new_head = project.create_version(
             parent=project_v,
             commit_name=input.name,
+            commit_tag=input.tag,
             commit_description=input.description,
             auto_commit=True,
         )

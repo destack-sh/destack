@@ -5,10 +5,31 @@ import { useMutation } from "@vue/apollo-composable";
 export function useProjectVersionOps() {
   const operations = useOperationsStore();
 
+  const { mutate: updateMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {
+        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {
+          ... on ProjectVersion {
+            ...ProjectVersionHeader
+          }
+        }
+      }
+    `)
+  );
+
+  async function update(id: string, name: string, tag?: string, description?: string) {
+    return await operations.perform({
+      type: "version.update",
+      do: async () => {
+        return await updateMut({ id, name, tag, description });
+      },
+    });
+  }
+
   const { mutate: commitMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation commit($projectVersionId: GlobalID!, $name: String!, $description: String) {
-        commit(input: { projectVersionId: $projectVersionId, name: $name, description: $description }) {
+      mutation commit($projectVersionId: GlobalID!, $name: String!, $tag: String, $description: String) {
+        commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {
           ... on CommitPayload {
             project {
               ...ProjectHeader
@@ -27,15 +48,15 @@ export function useProjectVersionOps() {
     { refetchQueries: ["projectVersions", "projectBySlug"] }
   );
 
-  async function commit(projectVersionId: string, name: string, description?: string) {
+  async function commit(projectVersionId: string, name: string, tag?: string, description?: string) {
     return await operations.perform({
       type: "version.commit",
       stateless: true,
       do: async () => {
-        return await commitMut({ projectVersionId, name, description });
+        return await commitMut({ projectVersionId, name, tag, description });
       },
     });
   }
 
-  return { commit };
+  return { update, commit };
 }

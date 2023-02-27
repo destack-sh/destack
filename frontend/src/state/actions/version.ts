@@ -19,6 +19,7 @@ export function useVersionActions() {
       () => editor.currentProjectVersionId != null && !opsState.hasInflightLike({ types: ["version.commit"] })
     ),
     apply: async () => {
+      // TODO @Feature: open commit menu instead of auto-name & tag
       const randomName = getRandomName();
       opsState.reset();
       const ret = await ops.version.commit(editor.currentProjectVersionId as string, randomName);
