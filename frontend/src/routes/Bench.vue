@@ -414,6 +414,8 @@ watchEffect(async () => {
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
+    <!-- It's important that conditional components are all v-show (not v-if)
+          both to make them instant and to provide their actions -->
     <div v-show="projectLoaded" class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
       <aside

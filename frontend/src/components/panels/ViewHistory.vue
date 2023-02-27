@@ -1,10 +1,13 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
+import { getRandomName } from "@/composables/useRandomName";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { useActions } from "@/state/actions";
+import { provideGlobalAction, useActions } from "@/state/actions";
 import { useEditorState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
-import { useOperationsStore } from "@/state/operations";
+import { useNotifications } from "@/state/notifications";
+import { useOperations } from "@/state/operations";
+import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer } from "@/utils/semver";
 import { BookmarkIcon, PencilIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";
@@ -47,13 +50,48 @@ type Action = {
 };
 
 const actions = useActions();
-const opsStore = useOperationsStore();
+const notifications = useNotifications();
+const ops = useOperations();
+const lastSemVerTag = computed(() => {
+  // note that this may fail when we paginate versions (and there are many untagged versions)
+  if (versions.value == null) return null;
+  const tag = versions.value.find((x) => x.tag != null && parseSemVer(x.tag) != null)?.tag;
+  if (tag != null) {
+    return parseSemVer(tag);
+  }
+  return tag;
+});
+
+const commit = provideGlobalAction({
+  id: "version.commit",
+  label: "Commit...",
+  shortcuts: ["ctrl+k"],
+  enabled: computed(
+    () => editor.currentProjectVersionId != null && !ops.state.hasInflightLike({ types: ["version.commit"] })
+  ),
+  apply: async () => {
+    // TODO @Feature: open commit menu instead of auto-name & tag
+    const randomName = getRandomName();
+    const suggestedTag = renderSemVer(bumpSemVer(lastSemVerTag.value ?? FIRST_SEMVER, "minor"));
+    ops.state.reset();
+    const ret = await ops.version.commit(editor.currentProjectVersionId as string, randomName, suggestedTag);
+    if (ret?.data?.commit.__typename == "CommitPayload") {
+      notifications.show({
+        type: "commit.succes",
+        kind: "success",
+        message: `Snapshot created`,
+        description: `Version ${randomName} is extra safe.`,
+      });
+    }
+  },
+});
+
 const globalActions: Action[] = [
   {
     icon: PlusIcon,
-    label: "Commit",
-    enabled: computed(() => !opsStore.hasInflightLike({ types: ["version.commit"] })),
-    action: () => actions.version.commit.value.apply(),
+    label: "Snapshot",
+    enabled: computed(() => !ops.state.hasInflightLike({ types: ["version.commit"] })),
+    action: () => commit.value.apply(),
   },
 ];
 </script>
@@ -111,9 +149,9 @@ const globalActions: Action[] = [
                 <div class="pt-0.5">
                   <!-- Past version -->
                   <p v-if="versionIdx > 0" class="flex flex-row items-start gap-0.5 text-xs font-bold">
-                    <router-link :to="`/`" class="text-gray-900 hover:underline">{{
-                      version.name || "Autosave"
-                    }}</router-link>
+                    <router-link :to="`/`" class="text-gray-900 hover:underline">
+                      {{ version.name || "Autosave" }}
+                    </router-link>
                     <button
                       class="invisible p-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
                     >
@@ -132,7 +170,9 @@ const globalActions: Action[] = [
                     "
                   >
                     <TagIcon class="h-4 w-4" />
-                    <span>{{ version.tag || "Tag" }}</span>
+                    <span :class="version.tag == null ? 'invisible group-hover:visible' : ''">
+                      {{ version.tag || "Tag" }}
+                    </span>
                   </button>
                 </div>
                 <!-- Time -->

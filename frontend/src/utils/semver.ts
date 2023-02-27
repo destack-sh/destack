@@ -17,6 +17,13 @@ export function parseSemVer(version: string): SemVer | undefined {
   }
 }
 
+export function renderSemVer(version: SemVer): string {
+  return `${version.major}.${version.minor}.${version.patch}`;
+}
+
+export const FIRST_SEMVER: SemVer = { major: 0, minor: 0, patch: 0 };
+export const FIRST_SEMVER_STRING = renderSemVer(FIRST_SEMVER);
+
 export function bumpSemVer(version: SemVer, type: "major" | "minor" | "patch"): SemVer {
   switch (type) {
     case "major":
