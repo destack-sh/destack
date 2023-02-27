@@ -38,7 +38,7 @@ const addables = computed(() =>
     </MenuButton>
     <FadeTransition>
       <MenuItems
-        class="absolute right-1 top-12 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+        class="absolute right-1 top-12 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <MenuItem v-for="item in addables" :key="item.name" v-slot="{ active }">
           <router-link
