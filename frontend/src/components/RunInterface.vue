@@ -143,7 +143,7 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
     <!-- Runs -->
     <h2 class="mt-6 flex flex-row items-baseline gap-1">
       <span class="text-xl font-bold text-gray-900">Runs</span>
-      <span class="rounded bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
+      <span class="rounded-3xl bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
     </h2>
     <table
       class="mt-2 items-baseline divide-y-2 divide-gray-300/25"
