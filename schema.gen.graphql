@@ -14,6 +14,7 @@ union BuildStateOperationInfo = BuildState | OperationInfo
 input CommitInput {
   projectVersionId: GlobalID!
   name: String!
+  tag: String = null
   description: String = null
 }
 
@@ -288,6 +289,7 @@ type Mutation {
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
   updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
+  updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
@@ -446,6 +448,7 @@ type ProjectVersion implements Node {
   id: GlobalID!
   project: Project!
   name: String
+  tag: String
   description: String
   parents: [ProjectVersion!]!
   children: [ProjectVersion!]!
@@ -461,6 +464,8 @@ type ProjectVersion implements Node {
 input ProjectVersionFilter {
   afterId: GlobalID!
 }
+
+union ProjectVersionOperationInfo = ProjectVersion | OperationInfo
 
 enum ProjectVisibility {
   PUBLIC
@@ -815,6 +820,13 @@ enum TypeTag {
   NULL
   ANY
   TYPE_REFERENCE
+}
+
+input UpdateProjectVersion {
+  id: GlobalID!
+  name: String!
+  tag: String = null
+  description: String = null
 }
 
 type User implements Node & Owner {

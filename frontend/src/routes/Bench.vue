@@ -358,7 +358,7 @@ watchEffect(async () => {
             <svg
               viewBox="0 0 100 100"
               class="h-1 w-1"
-              :class="{ 'text-orange-500': !hasStaleInflightStateOps, 'text-gray-400': hasStaleInflightStateOps }"
+              :class="{ 'text-orange-600': !hasStaleInflightStateOps, 'text-gray-400': hasStaleInflightStateOps }"
             >
               <circle cx="50" cy="50" r="40" fill="currentColor" />
             </svg>
@@ -369,7 +369,7 @@ watchEffect(async () => {
             <svg
               viewBox="0 0 100 100"
               class="h-1 w-1"
-              :class="{ 'text-orange-500': runtimeConnected, 'text-gray-400': !runtimeConnected }"
+              :class="{ 'text-orange-600': runtimeConnected, 'text-gray-400': !runtimeConnected }"
             >
               <circle cx="50" cy="50" r="40" fill="currentColor" />
             </svg>

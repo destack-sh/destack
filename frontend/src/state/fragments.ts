@@ -45,6 +45,7 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     id
     name
+    tag
     description
     createdAt
     committed

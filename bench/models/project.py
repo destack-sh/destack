@@ -140,6 +140,7 @@ class Project(UUIDModel):
         parent: Optional[ProjectVersion] = None,
         auto_commit: bool = True,
         commit_name: Optional[str] = None,
+        commit_tag: Optional[str] = None,
         commit_description: Optional[str] = None,
     ) -> "ProjectVersion":
         if parent is None:
@@ -152,7 +153,7 @@ class Project(UUIDModel):
 
         if not assigned_parent.committed:
             if auto_commit:
-                assigned_parent.commit(commit_name, commit_description)
+                assigned_parent.commit(commit_name, commit_tag, commit_description)
             else:
                 raise ValueError(f"parent version must be committed: {assigned_parent}")
 
@@ -334,6 +335,8 @@ class ProjectVersion(UUIDModel):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="versions")
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
+    # single unique tag should be a ProjectVersionTag list later :ProjectVersionTags
+    tag = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -355,13 +358,19 @@ class ProjectVersion(UUIDModel):
         self.files.all().delete()
 
     @transaction.atomic
-    def commit(self, name: Optional[str] = None, description: Optional[str] = None):
+    def commit(
+        self,
+        name: Optional[str] = None,
+        tag: Optional[str] = None,
+        description: Optional[str] = None,
+    ):
         if self.committed:
             raise ValueError(f"already committed: {self}")
-
         self.committed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         if name is not None:
             self.name = name
+        if tag is not None:
+            self.tag = tag  # :ProjectVersionTags
         if description is not None:
             self.description = description
         self.save()
@@ -421,6 +430,13 @@ class ProjectVersion(UUIDModel):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            # tag is unique per project
+            models.UniqueConstraint(
+                fields=["project", "tag"],
+                name="bench_project_version_tag_ak",
+            ),
+        ]
 
 
 class FileManager(models.Manager):

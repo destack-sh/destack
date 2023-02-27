@@ -2,10 +2,10 @@
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { useActions } from "@/state/actions";
-import type { ProjectHeader } from "@/state/editor";
+import { useEditorState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useOperationsStore } from "@/state/operations";
-import { BookmarkIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { BookmarkIcon, PencilIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";
 
@@ -14,6 +14,11 @@ const props = defineProps<{
   currentVersion: FragmentType<typeof ProjectVersionHeaderType>;
 }>();
 const { getTimeFromNowString } = useTimeFromNow();
+
+const editor = useEditorState();
+function isCurrent(version: { id: string }): boolean {
+  return editor.currentProjectVersionId == version.id;
+}
 
 const { result: versionsQuery, loading } = useQuery(
   graphql(/* GraphQL */ `
@@ -33,7 +38,6 @@ const { result: versionsQuery, loading } = useQuery(
 const versions = computed(
   () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
 );
-const commits = computed(() => versions.value.filter((x) => x.committed));
 
 type Action = {
   icon: Component;
@@ -72,34 +76,71 @@ const globalActions: Action[] = [
           @click.prevent="action.action"
         >
           <component :is="action.icon" class="h-4 w-4 text-gray-600" />
-          <span class="pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
+          <span class="sr-only pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
         </button>
       </span>
     </div>
-    <!-- View contents -->
+    <!-- View versions -->
     <div class="relative flex-1 flex-col" v-if="!loading">
-      <!-- View: versions -->
-      <ul role="absolute left-0 top-0 h-full w-full overflow-y-auto list" class="m-3 -mb-8">
-        <li v-for="(version, versionIdx) in commits" :key="version.id">
-          <div class="relative pb-4">
-            <span
-              v-if="versionIdx !== commits.length - 1"
-              class="absolute top-4 left-3 -ml-px h-full w-0.5 bg-gray-200"
-              aria-hidden="true"
-            />
-            <div class="relative flex space-x-2">
-              <div>
-                <span class="ring-6 flex h-6 w-6 items-center justify-center rounded-full bg-gray-50 ring-gray-50">
-                  <BookmarkIcon class="h-5 w-5 text-gray-700" aria-hidden="true" />
-                </span>
-              </div>
-              <div class="flex min-w-0 flex-1 justify-between space-x-4 pt-1">
-                <div>
-                  <p class="text-xs font-bold text-gray-900">{{ version.name || "Unnamed" }}</p>
-                  <p class="text-xs text-gray-500">{{ version.description }}</p>
+      <!-- Versions -->
+      <ul role="absolute left-0 top-0 h-full w-full overflow-y-auto list" class="-mb-8 py-2">
+        <li v-for="(version, versionIdx) in versions" :key="version.id">
+          <div class="group relative mb-2 pb-1 hover:bg-orange-50">
+            <!-- Vertical line connecting versions -->
+            <div class="mx-3">
+              <span
+                v-if="versionIdx !== versions.length - 1"
+                class="absolute top-4 left-3 ml-[11px] h-full w-0.5 bg-gray-200"
+                aria-hidden="true"
+              />
+            </div>
+            <div class="relative flex space-x-2 px-3 py-0.5">
+              <!-- Version icon -->
+              <span
+                class="ring-6 flex h-6 w-6 items-center justify-center rounded-full bg-gray-50 ring-gray-50 group-hover:bg-orange-50"
+              >
+                <BookmarkIcon
+                  class="h-5 w-5"
+                  :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'"
+                  aria-hidden="true"
+                />
+              </span>
+              <!-- Version info -->
+              <div class="flex min-w-0 flex-1 items-baseline justify-between space-x-4">
+                <!-- Name, tag, description -->
+                <div class="pt-0.5">
+                  <!-- Past version -->
+                  <p v-if="versionIdx > 0" class="flex flex-row items-start gap-0.5 text-xs font-bold">
+                    <router-link :to="`/`" class="text-gray-900 hover:underline">{{
+                      version.name || "Autosave"
+                    }}</router-link>
+                    <button
+                      class="invisible p-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
+                    >
+                      <PencilIcon class="h-3 w-3" />
+                    </button>
+                  </p>
+                  <!-- Head version -->
+                  <p v-else class="text-xs font-bold" :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'">
+                    (Working)
+                    <!-- Save button here? -->
+                  </p>
+                  <button
+                    class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs"
+                    :class="
+                      version.tag == null ? 'text-gray-300 hover:bg-orange-50 hover:text-gray-700' : 'text-gray-700'
+                    "
+                  >
+                    <TagIcon class="h-4 w-4" />
+                    <span>{{ version.tag || "Tag" }}</span>
+                  </button>
                 </div>
-                <div class="whitespace-nowrap text-right text-xs text-gray-500">
-                  <time :datetime="version.committedAt">
+                <!-- Time -->
+                <div class="whitespace-nowrap text-right text-xs">
+                  <svg v-if="versionIdx == 0" viewBox="0 0 100 100" class="mb-0.5 h-1 w-1 text-orange-600">
+                    <circle cx="50" cy="50" r="40" fill="currentColor" />
+                  </svg>
+                  <time v-else class="text-gray-500" :datetime="version.committedAt">
                     {{ getTimeFromNowString(version.committedAt) }}
                   </time>
                 </div>

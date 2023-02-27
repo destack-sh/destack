@@ -38,6 +38,7 @@ export type CommitInput = {
   description?: InputMaybe<Scalars["String"]>;
   name: Scalars["String"];
   projectVersionId: Scalars["GlobalID"];
+  tag?: InputMaybe<Scalars["String"]>;
 };
 
 export type CommitPayload = {
@@ -335,6 +336,7 @@ export type Mutation = {
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   updateProjectName: ProjectOperationInfo;
+  updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
   updateStatementCode: StatementOperationInfo;
   updateStatementDescription: StatementOperationInfo;
@@ -452,6 +454,10 @@ export type MutationSoftDeleteStatementArgs = {
 
 export type MutationUpdateProjectNameArgs = {
   input: ProjectUpdateNameInput;
+};
+
+export type MutationUpdateProjectVersionArgs = {
+  input: UpdateProjectVersion;
 };
 
 export type MutationUpdateProjectVisibilityArgs = {
@@ -629,6 +635,7 @@ export type ProjectVersion = Node & {
   parentsRefs: Array<RefMapping>;
   project: Project;
   statements: Array<Statement>;
+  tag?: Maybe<Scalars["String"]>;
 };
 
 export type ProjectVersionFilesArgs = {
@@ -642,6 +649,8 @@ export type ProjectVersionStatementsArgs = {
 export type ProjectVersionFilter = {
   afterId: Scalars["GlobalID"];
 };
+
+export type ProjectVersionOperationInfo = OperationInfo | ProjectVersion;
 
 export enum ProjectVisibility {
   Private = "PRIVATE",
@@ -1030,6 +1039,13 @@ export enum TypeTag {
   Video = "VIDEO",
 }
 
+export type UpdateProjectVersion = {
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  tag?: InputMaybe<Scalars["String"]>;
+};
+
 export type User = Node &
   Owner & {
     __typename?: "User";
@@ -1359,6 +1375,7 @@ export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
   id: any;
   name?: string | null;
+  tag?: string | null;
   description?: string | null;
   createdAt: any;
   committed: boolean;
@@ -1974,9 +1991,26 @@ export type CompleteSignupMutation = {
     | ({ __typename?: "User" } & { " $fragmentRefs"?: { UserContentFragment: UserContentFragment } });
 };
 
+export type UpdateVersionMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  tag?: InputMaybe<Scalars["String"]>;
+  description?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type UpdateVersionMutation = {
+  __typename?: "Mutation";
+  updateProjectVersion:
+    | { __typename?: "OperationInfo" }
+    | ({ __typename?: "ProjectVersion" } & {
+        " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+      });
+};
+
 export type CommitMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   name: Scalars["String"];
+  tag?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
 }>;
 
@@ -2250,6 +2284,7 @@ export const ProjectVersionHeaderFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "committed" } },
@@ -5720,6 +5755,92 @@ export const CompleteSignupDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompleteSignupMutation, CompleteSignupMutationVariables>;
+export const UpdateVersionDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateVersion" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateProjectVersion" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "tag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectVersionHeaderFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateVersionMutation, UpdateVersionMutationVariables>;
 export const CommitDocument = {
   kind: "Document",
   definitions: [
@@ -5737,6 +5858,11 @@ export const CommitDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
         {
           kind: "VariableDefinition",
@@ -5766,6 +5892,11 @@ export const CommitDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "tag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
                     },
                     {
                       kind: "ObjectField",
