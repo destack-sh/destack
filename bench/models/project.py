@@ -226,13 +226,6 @@ def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):
-    def get_by_slug(self, organization: str, project: str, version: str):
-        return self.get(
-            project__organization__slug=organization,
-            project__slug=project,
-            slug=version,
-        )
-
     def copy(
         self, source: ProjectVersion, target: ProjectVersion
     ) -> dict[UUID, File | Statement | DatasetRecord | SimpleTypeNode]:

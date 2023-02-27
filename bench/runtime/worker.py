@@ -298,6 +298,7 @@ class RuntimeWorker:
                 return
 
             # actually build (concurrently)
+            # :BlockingWorkerMessages
             build_processes = [make_build(build) for build in builds]
             build_results: list[BuildResult] = await asyncio.gather(
                 *build_processes, return_exceptions=False
@@ -330,8 +331,8 @@ class RuntimeWorker:
                 send_rep(RepModuleRunPayload(error=ModuleRunErrorType.NOT_READY))
                 return
             idx = state.interp.module_idx
-            build = idx.get_symbol_by_id(payload.build_id, Build)
-            runnable = idx.symbol_by_id(payload.runnable_id)
+            build = idx.get_symbol(payload.build, Build)
+            runnable = idx.symbol(payload.runnable)
 
             # instantiate & run
             root_id = UUIDT()  # root execution id is pre-set for tracking
@@ -358,6 +359,7 @@ class RuntimeWorker:
                 else:
                     code_instance = runnable_instance
                 logger.info("run", code_instance=code_instance)
+                # :BlockingWorkerMessages
                 ret = await run(code_instance, payload.arguments)
             except Exception as e:
                 logger.exception("run_failed", exc_info=e)

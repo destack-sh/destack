@@ -6,6 +6,7 @@ import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
+import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import GlobalControls from "@/components/GlobalControls.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
@@ -408,8 +409,9 @@ watchEffect(async () => {
         <!-- Bench-global controls -->
         <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-3">
           <GlobalControls />
+          <DeployPopover :project="project" />
+          <OmniCreate />
         </div>
-        <OmniCreate class="pl-1" />
         <ProfileButton class="" />
       </template>
     </FatHeader>

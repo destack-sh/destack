@@ -59,6 +59,11 @@ export type DatasetRecord = Node & {
   updatedAt: Scalars["DateTime"];
 };
 
+export type DeployInput = {
+  id: Scalars["GlobalID"];
+  status: DeploymentStatus;
+};
+
 export type Deployment = Node & {
   __typename?: "Deployment";
   createdAt: Scalars["DateTime"];
@@ -335,6 +340,7 @@ export type Mutation = {
   setDeployAllStatements: DeploymentOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
+  updateDeployment: DeploymentOperationInfo;
   updateProjectName: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
@@ -450,6 +456,10 @@ export type MutationSoftDeleteFileArgs = {
 
 export type MutationSoftDeleteStatementArgs = {
   input: StatementSoftDeleteInput;
+};
+
+export type MutationUpdateDeploymentArgs = {
+  input: DeployInput;
 };
 
 export type MutationUpdateProjectNameArgs = {
@@ -1479,6 +1489,20 @@ export type StatementContentFragment = {
   >;
   records: Array<{ __typename?: "DatasetRecord"; id: any; orderKey: string; data: any }>;
 } & { " $fragmentName"?: "StatementContentFragment" };
+
+export type UpdateDeploymentMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  status: DeploymentStatus;
+}>;
+
+export type UpdateDeploymentMutation = {
+  __typename?: "Mutation";
+  updateDeployment:
+    | { __typename?: "Deployment"; id: any; type: DeploymentType; status: DeploymentStatus }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
 
 export type CreateFileMutationVariables = Exact<{
   id?: InputMaybe<Scalars["GlobalID"]>;
@@ -3550,6 +3574,77 @@ export const ModuleExecutionChangedDocument = {
     ...ExecutionContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleExecutionChangedSubscription, ModuleExecutionChangedSubscriptionVariables>;
+export const UpdateDeploymentDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateDeployment" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "DeploymentStatus" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateDeployment" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "status" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "status" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Deployment" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateDeploymentMutation, UpdateDeploymentMutationVariables>;
 export const CreateFileDocument = {
   kind: "Document",
   definitions: [

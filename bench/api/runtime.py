@@ -187,6 +187,7 @@ class ModuleRuntimeMutation:
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
+        # :BlockingWorkerMessages
         send_message(
             worker_req_sock,
             ZMessageType.REQ_MODULE_BUILD,
@@ -206,13 +207,14 @@ class ModuleRuntimeMutation:
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
+        # :BlockingWorkerMessages
         send_message(
             worker_req_sock,
             ZMessageType.REQ_MODULE_RUN,
             ReqModuleRunPayload(
                 module_id=project_version_id,
-                runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
-                build_id=UUID(input.build_id.node_id) if input.build_id else None,
+                runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
+                build=UUID(input.build_id.node_id) if input.build_id else None,
                 arguments=input.arguments,
                 blocking=True,
             ),

@@ -37,6 +37,11 @@ type DatasetRecord implements Node {
 """Date with time (isoformat)"""
 scalar DateTime
 
+input DeployInput {
+  id: GlobalID!
+  status: DeploymentStatus!
+}
+
 type Deployment implements Node {
   id: GlobalID!
   owner: OrganizationUser!
@@ -320,6 +325,7 @@ type Mutation {
   setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo!
   addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo!
   removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo!
+  updateDeployment(input: DeployInput!): DeploymentOperationInfo!
   build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
 }

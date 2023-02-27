@@ -1,47 +1,32 @@
 <script lang="ts" setup>
+import { provideGlobalAction } from "@/state/actions";
 import { useNotifications } from "@/state/notifications";
-import { useCurrentModuleRuntime } from "@/state/runtime";
-import { CloudArrowUpIcon, ShareIcon } from "@heroicons/vue/24/outline";
+import { ShareIcon } from "@heroicons/vue/24/outline";
 import { useClipboard } from "@vueuse/core";
-import { computed } from "vue";
 
-const runtime = useCurrentModuleRuntime();
-const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
 const { copy } = useClipboard();
 const notifications = useNotifications();
 
-function share() {
-  // should probably open a share & permissions menu
-  // but just copy current url to clipboard for now
-  copy(window.location.href);
-  notifications.show({
-    kind: "success",
-    type: "share.success",
-    message: "Shared",
-    description: "Your sharing link is in your clipboard.",
-  });
-}
-
-function deploy() {
-  // should also open proper menu here
-  console.log("deploy");
-}
+const share = provideGlobalAction({
+  id: "share.link",
+  label: "Share link",
+  shortcuts: [],
+  apply: () => {
+    // should probably open a share & permissions menu
+    // but just copy current url to clipboard for now
+    copy(window.location.href);
+    notifications.show({
+      kind: "success",
+      type: "share.success",
+      message: "Shared",
+      description: "Your sharing link is in your clipboard.",
+    });
+  },
+});
 </script>
 <template>
   <!-- Share -->
-  <button class="rounded-sm p-1 text-sm hover:bg-orange-50" @click="share">
+  <button class="rounded-sm p-1 text-sm hover:bg-orange-50" @click="share.apply">
     <ShareIcon class="h-5 w-5 text-orange-600" />
-  </button>
-  <!-- Deploy -->
-  <button
-    class="rounded-sm p-1 text-sm"
-    :class="{
-      'text-gray-500': !canDeploy,
-      'text-orange-600 hover:bg-orange-50': canDeploy,
-    }"
-    :disabled="!canDeploy"
-    @click="deploy"
-  >
-    <CloudArrowUpIcon class="h-5 w-5" />
   </button>
 </template>
