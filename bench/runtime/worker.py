@@ -15,7 +15,7 @@ import zmq.asyncio
 from bench import language
 from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
-from bench.language.type import Build, StatementPath, SymbolType
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, StatementPath, SymbolType
 from bench.language.wire import ModuleReference
 from bench.msg import (
     ZMessage,
@@ -44,7 +44,7 @@ from bench.msg.messages import (
     as_key,
 )
 from bench.runtime.build import BuildResult, make_build
-from bench.runtime.execute import Proxy, instantiate, run
+from bench.runtime.execute import Proxy, RunError, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.uuidt import UUIDT
@@ -332,10 +332,14 @@ class RuntimeWorker:
                 return
             idx = state.interp.module_idx
             try:
-                build = idx.get_symbol(payload.build, Build) if payload.build else None
-                runnable_type = SymbolType[payload.runnable_type] if payload.runnable_type else None
+                build = idx.symbol(payload.build, Build) if payload.build else None
+                if payload.runnable_type:
+                    runnable_type = SYMBOL_CLASS_BY_TYPE[SymbolType(payload.runnable_type)]
+                else:
+                    runnable_type = None
                 runnable = idx.symbol(payload.runnable, symbol_t=runnable_type)
             except (TypeError, KeyError) as e:
+                logger.exception("run_fail", exc_info=e)
                 send_rep(RepModuleRunPayload(error=ModuleRunErrorType.INVALID_RUNCONFIG))
                 return
 
@@ -366,9 +370,17 @@ class RuntimeWorker:
                 logger.info("run", code_instance=code_instance)
                 # :BlockingWorkerMessages
                 ret = await run(code_instance, payload.arguments)
+            except RunError as e:
+                logger.exception("run_failed", exc_info=e)
+                details = dict(type=e.type.name, symbol=str(e.symbol), message=str(e.cause))
+                rep = RepModuleRunPayload(
+                    root_id, error=ModuleRunErrorType.RUNTIME_ERROR, error_details=details
+                )
+                send_rep(rep)
+                return
             except Exception as e:
                 logger.exception("run_failed", exc_info=e)
-                send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.RUNTIME_ERROR))
+                send_rep(RepModuleRunPayload(root_id, error=ModuleRunErrorType.INTERNAL_ERROR))
                 return
             send_rep(RepModuleRunPayload(root_id, error=None, output=ret))
         else:

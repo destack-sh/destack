@@ -53,7 +53,17 @@ const endpoints = symbolsLike({
         <!-- Header -->
         <div>
           <h2 class="font-bold text-gray-900">Deployment</h2>
-          <p class="pt-2 text-gray-900">Deployed endpoints are available <a>via REST</a> at:</p>
+          <p class="pt-2 text-gray-900">
+            Deployed endpoints are available
+            <router-link
+              to="/symbolx/docs#Deploying"
+              target="_blank"
+              class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
+            >
+              via REST</router-link
+            >
+            at:
+          </p>
           <a
             :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
             class="pt-0.5 text-orange-600 decoration-orange-600 underline-offset-4 hover:underline"
@@ -68,7 +78,12 @@ const endpoints = symbolsLike({
             <!-- Select for deployment -->
             <div>
               <!-- Not configurable yet -->
-              <input type="checkbox" checked class="h-4 w-4 rounded-sm border-gray-300 text-orange-600" />
+              <input
+                type="checkbox"
+                checked
+                disabled
+                class="h-4 w-4 rounded-sm border-gray-300 text-orange-600 focus:ring-0"
+              />
             </div>
             <!-- Endpoint info -->
             <div class="flex flex-1 items-baseline justify-between gap-1">
