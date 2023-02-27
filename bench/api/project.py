@@ -12,6 +12,7 @@ from bench.api.util import safe_mutation
 from bench.models.project import RefDict
 
 if TYPE_CHECKING:
+    from bench.api.deployment import Deployment
     from bench.api.organization import Organization
     from bench.api.statement import Statement
     from bench.api.user import User
@@ -26,6 +27,36 @@ class ProjectVersionFilter:
     def filter_after_id(self, queryset):
         version = models.ProjectVersion.objects.get(id=self.after_id.node_id)
         return queryset.filter(created_at__gt=version.committed_at)
+
+
+@gql.django.filter(models.Statement)
+class StatementFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
+@gql.django.filter(models.File)
+class FileFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
+@gql.django.filter(models.Deployment)
+class DeploymentFilter:
+    is_owned: Optional[bool] = None
+
+    def filter(self, queryset):
+        if self.is_owned is not None:
+            queryset = queryset.filter(owned=self.is_owned)
+        return queryset
 
 
 ProjectVisibility = gql.enum(models.ProjectVisibility)
@@ -43,34 +74,11 @@ class Project(gql.Node):
     created_at: auto
     updated_at: auto
     head: "ProjectVersion"
-    # TODO @Cleanup: use relay connections for (large?) relations
+    # TODO @Cleanup: use relay connections for (all?) relations
     versions: list["ProjectVersion"] = gql.django.field(filters=ProjectVersionFilter)
-
-
-@gql.django.filter(models.Statement)
-class StatementFilter:
-    is_visible: Optional[bool] = True
-
-    def filter(self, queryset):
-        if self.is_visible is not UNSET and self.is_visible is not None:
-            if self.is_visible:
-                queryset = queryset.filter(deleted_at__isnull=True)
-            else:
-                queryset = queryset.filter(deleted_at__isnull=False)
-        return queryset
-
-
-@gql.django.filter(models.File)
-class FileFilter:
-    is_visible: Optional[bool] = True
-
-    def filter(self, queryset):
-        if self.is_visible is None:
-            return queryset
-        elif self.is_visible:
-            return queryset.filter(deleted_at__isnull=True)
-        else:
-            return queryset.filter(deleted_at__isnull=False)
+    deployments: gql.relay.Connection[
+        Annotated["Deployment", lazy(".deployment")]
+    ] = gql.django.connection(filters=DeploymentFilter)
 
 
 @gql.type
@@ -95,6 +103,9 @@ class ProjectVersion(gql.Node):
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )
+    deployments: gql.relay.Connection[
+        Annotated["Deployment", lazy(".deployment")]
+    ] = gql.django.connection(filters=DeploymentFilter)
 
     @gql.field
     def parents_refs(self) -> list[RefMapping]:

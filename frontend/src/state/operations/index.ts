@@ -1,3 +1,4 @@
+import { useDeploymentOps } from "@/state/operations/deployment";
 import { useFileOps } from "@/state/operations/file";
 import { useProjectOps } from "@/state/operations/project";
 import { useRuntimeOps } from "@/state/operations/runtime";
@@ -162,6 +163,7 @@ export function _useOperations() {
     symbol: useSymbolContentOps(),
     runtime: useRuntimeOps(),
     version: useProjectVersionOps(),
+    deployment: useDeploymentOps(),
     state,
   };
 }

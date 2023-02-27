@@ -3,7 +3,7 @@ import type { DeploymentStatus } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
-export function useProjectVersionOps() {
+export function useDeploymentOps() {
   const operations = useOperationsStore();
 
   const { mutate: updateMut } = useMutation(

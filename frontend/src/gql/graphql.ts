@@ -83,6 +83,30 @@ export type DeploymentAddStatementInput = {
   statementId: Scalars["ID"];
 };
 
+/** A connection to a list of items. */
+export type DeploymentConnection = {
+  __typename?: "DeploymentConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<DeploymentEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type DeploymentEdge = {
+  __typename?: "DeploymentEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Deployment;
+};
+
+export type DeploymentFilter = {
+  isOwned?: InputMaybe<Scalars["Boolean"]>;
+};
+
 export type DeploymentOperationInfo = Deployment | OperationInfo;
 
 export type DeploymentRemoveStatementInput = {
@@ -589,6 +613,7 @@ export type PageInfo = {
 export type Project = Node & {
   __typename?: "Project";
   createdAt: Scalars["DateTime"];
+  deployments: DeploymentConnection;
   head: ProjectVersion;
   id: Scalars["GlobalID"];
   name: Scalars["String"];
@@ -599,6 +624,14 @@ export type Project = Node & {
   updatedAt: Scalars["DateTime"];
   versions: Array<ProjectVersion>;
   visibility: ProjectVisibility;
+};
+
+export type ProjectDeploymentsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<DeploymentFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type ProjectVersionsArgs = {
@@ -637,6 +670,7 @@ export type ProjectVersion = Node & {
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   dependencies: Array<ProjectVersion>;
+  deployments: DeploymentConnection;
   description?: Maybe<Scalars["String"]>;
   files: Array<File>;
   id: Scalars["GlobalID"];
@@ -646,6 +680,14 @@ export type ProjectVersion = Node & {
   project: Project;
   statements: Array<Statement>;
   tag?: Maybe<Scalars["String"]>;
+};
+
+export type ProjectVersionDeploymentsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<DeploymentFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type ProjectVersionFilesArgs = {
@@ -1082,6 +1124,34 @@ export type UserCompleteSignupInput = {
 export type UserOperationInfo = OperationInfo | User;
 
 export type UserOrganization = Organization | User;
+
+export type ProjectDeploymentsQueryVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type ProjectDeploymentsQuery = {
+  __typename?: "Query";
+  projectVersion?: {
+    __typename?: "ProjectVersion";
+    id: any;
+    deployments: {
+      __typename?: "DeploymentConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "DeploymentEdge";
+        node: {
+          __typename?: "Deployment";
+          id: any;
+          createdAt: any;
+          updatedAt: any;
+          type: DeploymentType;
+          status: DeploymentStatus;
+          deployAllStatements: boolean;
+        };
+      }>;
+    };
+  } | null;
+};
 
 export type FileContentByIdQueryVariables = Exact<{
   fileId: Scalars["GlobalID"];
@@ -2705,6 +2775,95 @@ export const InterpErrorContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpErrorContentFragment, unknown>;
+export const ProjectDeploymentsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "projectDeployments" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "deployments" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isOwned" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "status" } },
+                                  { kind: "Field", name: { kind: "Name", value: "deployAllStatements" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectDeploymentsQuery, ProjectDeploymentsQueryVariables>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
