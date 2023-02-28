@@ -80,11 +80,11 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
 </script>
 <template>
   <div
-    class="mx-auto flex max-w-[1000px] flex-col items-baseline bg-white px-12 py-8"
+    class="flex flex-col items-baseline bg-white px-12 py-8"
     :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
   >
     <!-- Runconfig -->
-    <div class="mx-auto w-full max-w-[1000px]">
+    <div class="mx-auto w-full max-w-[800px]">
       <h2 class="flex flex-row items-baseline gap-1">
         <span class="text-xl font-bold text-gray-900">Run</span>
       </h2>
@@ -128,7 +128,7 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
       </div>
     </div>
     <!-- Current/last output  -->
-    <div class="relative mt-6 min-h-[100px] w-full border border-gray-200">
+    <div class="relative mx-auto mt-6 min-h-[100px] w-full max-w-[800px] border border-gray-200">
       <span class="absolute -top-4 left-1 bg-white p-1 text-gray-700">Last output</span>
       <div class="animate-none px-2" v-if="lastOutput">
         <InlineValueCell
@@ -141,76 +141,78 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
       </div>
     </div>
     <!-- Runs -->
-    <h2 class="mt-6 flex flex-row items-baseline gap-1">
-      <span class="text-xl font-bold text-gray-900">Runs</span>
-      <span class="rounded-3xl bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
-    </h2>
-    <table
-      class="mt-2 items-baseline divide-y-2 divide-gray-300/25"
-      :style="{ 'grid-template-columns': `repeat(${inputFields.length + 3}, minmax(40px, 100px))` }"
-    >
-      <!-- Header -->
-      <thead>
-        <tr class="text-left">
-          <th class="px-2 font-semibold text-gray-700">Status</th>
-          <th class="px-2 font-semibold text-gray-700">Duration</th>
-          <th v-for="field in inputFields" :key="field.id" class="px-2 font-semibold text-gray-700">
-            {{ field.name }}
-          </th>
-          <th class="px-2 font-semibold text-gray-700">{{ outputField?.name ?? "Output" }}</th>
-        </tr>
-      </thead>
-      <!-- Content -->
-      <tbody>
-        <tr v-for="execution in executions" :key="execution.id">
-          <!-- Execution status -->
-          <td class="flex flex-row items-center gap-1 px-2 py-2">
-            <svg
-              viewBox="0 0 100 100"
-              class="h-3 w-3"
-              :class="{
-                'text-green-600': execution.status == ExecutionStatus.Completed,
-                'text-red-600':
-                  execution.status == ExecutionStatus.Failed || execution.status == ExecutionStatus.Aborted,
-                'animate-pulse text-gray-500':
-                  execution.status == ExecutionStatus.Created ||
-                  execution.status == ExecutionStatus.Scheduled ||
-                  execution.status == ExecutionStatus.Running,
-              }"
-            >
-              <circle cx="50" cy="50" r="40" fill="currentColor" />
-            </svg>
-            <span class="text-gray-500">{{ getTimeFromNowString(execution.updatedAt) }}</span>
-          </td>
-          <td class="px-2 text-right text-gray-700">
-            <span class="" v-if="execution.terminatedAt != null">
-              {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
-            </span>
-            <span v-else-if="execution.startedAt != null">
-              {{ formatDiffSeconds(execution.startedAt, now) }}
-            </span>
-          </td>
-          <!-- Inputs -->
-          <td v-for="field in inputFields" :key="field.id" class="px-2">
-            <InlineValueCell
-              :type="field"
-              :model-value="execution.inputs?.[field.name]"
-              :readonly="true"
-              :immediate="false"
-            />
-          </td>
-          <!-- Outputs -->
-          <td class="px-2">
-            <InlineValueCell
-              v-if="outputField"
-              :type="outputField"
-              :model-value="execution.outputs"
-              :readonly="true"
-              :immediate="false"
-            />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="mx-auto w-full max-w-[800px]">
+      <h2 class="mt-6 flex flex-row items-baseline gap-1">
+        <span class="text-xl font-bold text-gray-900">Runs</span>
+        <span class="rounded-3xl bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
+      </h2>
+      <table
+        class="mt-2 items-baseline divide-y-2 divide-gray-300/25"
+        :style="{ 'grid-template-columns': `repeat(${inputFields.length + 3}, minmax(40px, 100px))` }"
+      >
+        <!-- Header -->
+        <thead>
+          <tr class="text-left">
+            <th class="px-2 font-semibold text-gray-700">Status</th>
+            <th class="px-2 font-semibold text-gray-700">Duration</th>
+            <th v-for="field in inputFields" :key="field.id" class="px-2 font-semibold text-gray-700">
+              {{ field.name }}
+            </th>
+            <th class="px-2 font-semibold text-gray-700">{{ outputField?.name ?? "Output" }}</th>
+          </tr>
+        </thead>
+        <!-- Content -->
+        <tbody>
+          <tr v-for="execution in executions" :key="execution.id">
+            <!-- Execution status -->
+            <td class="flex flex-row items-center gap-1 px-2 py-2">
+              <svg
+                viewBox="0 0 100 100"
+                class="h-3 w-3"
+                :class="{
+                  'text-green-600': execution.status == ExecutionStatus.Completed,
+                  'text-red-600':
+                    execution.status == ExecutionStatus.Failed || execution.status == ExecutionStatus.Aborted,
+                  'animate-pulse text-gray-500':
+                    execution.status == ExecutionStatus.Created ||
+                    execution.status == ExecutionStatus.Scheduled ||
+                    execution.status == ExecutionStatus.Running,
+                }"
+              >
+                <circle cx="50" cy="50" r="40" fill="currentColor" />
+              </svg>
+              <span class="text-gray-500">{{ getTimeFromNowString(execution.updatedAt) }}</span>
+            </td>
+            <td class="px-2 text-right text-gray-700">
+              <span class="" v-if="execution.terminatedAt != null">
+                {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
+              </span>
+              <span v-else-if="execution.startedAt != null">
+                {{ formatDiffSeconds(execution.startedAt, now) }}
+              </span>
+            </td>
+            <!-- Inputs -->
+            <td v-for="field in inputFields" :key="field.id" class="px-2">
+              <InlineValueCell
+                :type="field"
+                :model-value="execution.inputs?.[field.name]"
+                :readonly="true"
+                :immediate="false"
+              />
+            </td>
+            <!-- Outputs -->
+            <td class="px-2">
+              <InlineValueCell
+                v-if="outputField"
+                :type="outputField"
+                :model-value="execution.outputs"
+                :readonly="true"
+                :immediate="false"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>

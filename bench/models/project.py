@@ -67,6 +67,7 @@ class ProjectManager(models.Manager["Project"]):
             )
         if create_onboarding_files:
             docs_v = Project.objects.get_by_slug("symbolx", "docs").head
+            # :GettingStarted
             if not docs_v.files.filter(name="Getting Started").exists():
                 raise ValueError(f"{docs_v} is missing Getting Started file")
             ProjectVersion.objects.copy_files(
