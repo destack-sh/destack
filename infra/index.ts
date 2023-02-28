@@ -197,42 +197,29 @@ function tcpAtPort(service: k8s.core.v1.Service, port: number) {
   return service.metadata.name.apply((name) => `tcp://${name}:${port}`);
 }
 
-// zmq env vars to connect them
-const ZMQ_ENV_VARS = [
-  {
-    name: "ZMQ_API_PUB_ADDR",
-    value: tcpAtPort(apiService, 5555),
-  },
-  {
-    name: "ZMQ_INTSERVER_PUB_ADDR",
-    value: tcpAtPort(apiService, 5556),
-  },
-  {
-    name: "ZMQ_INTSERVER_REP_ADDR",
-    value: tcpAtPort(apiService, 5557),
-  },
-  {
-    name: "ZMQ_WORKER_PUB_ADDR",
-    value: tcpAtPort(workerService, 5558),
-  },
-  {
-    name: "ZMQ_WORKER_REP_ADDR",
-    value: tcpAtPort(workerService, 5559),
-  },
-];
+// zmq connections
+const ZMQ_ENV_PORTS: Record<string, number> = {
+  ZMQ_API_PUB_ADDR: 5555,
+  ZMQ_INTSERVER_PUB_ADDR: 5556,
+  ZMQ_INTSERVER_REP_ADDR: 5557,
+  ZMQ_WORKER_PUB_ADDR: 5558,
+  ZMQ_WORKER_REP_ADDR: 5559,
+};
 // api service should have api addresses set to localhost
-const ZMQ_API_ENV_VARS = ZMQ_ENV_VARS.map((envVar) => {
-  if (envVar.name.includes("API") || envVar.name.includes("INTSERVER")) {
-    return { ...envVar, value: envVar.value.replace("api", "*") };
+const ZMQ_API_ENV_VARS = Object.keys(ZMQ_ENV_PORTS).map((name) => {
+  if (name.includes("API") || name.includes("INTSERVER")) {
+    return { name, value: `tcp://*:${ZMQ_ENV_PORTS[name]}` };
+  } else {
+    return { name, value: tcpAtPort(workerService, ZMQ_ENV_PORTS[name]) };
   }
-  return envVar;
 });
 // worker service should have worker addresses set to localhost
-const ZMQ_WORKER_ENV_VARS = ZMQ_ENV_VARS.map((envVar) => {
-  if (envVar.name.includes("WORKER")) {
-    return { ...envVar, value: envVar.value.replace("worker", "*") };
+const ZMQ_WORKER_ENV_VARS = Object.keys(ZMQ_ENV_PORTS).map((name) => {
+  if (name.includes("WORKER")) {
+    return { name, value: `tcp://*:${ZMQ_ENV_PORTS[name]}` };
+  } else {
+    return { name, value: tcpAtPort(apiService, ZMQ_ENV_PORTS[name]) };
   }
-  return envVar;
 });
 
 // Use git commit hashes as version by default
