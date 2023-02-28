@@ -11,7 +11,6 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
         return {"is_new": False}
 
     username = details.get("username")
-    email = details.get("email")
     email = details["email"][0] if isinstance(details["email"], (list, tuple)) else details["email"]
     full_name = (
         details.get("fullname")

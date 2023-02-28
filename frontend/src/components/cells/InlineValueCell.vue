@@ -44,6 +44,10 @@ const readValue = computed(() => {
   }
 });
 function writeValue(val: any) {
+  if (props.type.tag == TypeTag.String) {
+    // trim whitespace
+    val = val.trim();
+  }
   value.value = val;
   if (props.immediate) {
     emit("update:modelValue", val);
