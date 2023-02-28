@@ -147,14 +147,26 @@ const DB_ENV_VARS = [
   },
 ];
 
-// General env vars
-const GENERAL_ENV_VARS = [
+// General backend env vars
+const BACKEND_ENV_VARS = [
   // sentry
   {
     name: "SENTRY_DSN",
     value: config.requireSecret("SENTRY_DSN"),
   },
 ];
+
+// Worker env vars
+const WORKER_ENV_VARS = [
+  // provider secrets
+  "OPENAI_API_KEY",
+  "GOOSEAI_API_KEY",
+  "FOREFRONT_API_KEY",
+  "COHERE_API_KEY",
+].map((name) => ({
+  name,
+  value: config.requireSecret(name),
+}));
 
 // Public load-balanced API service (also runs internal server)
 const apiName = "api";
@@ -261,7 +273,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
             {
               name: apiName + "-migrate",
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              env: [...GENERAL_ENV_VARS, ...DB_ENV_VARS, ...ZMQ_API_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
+              env: [...BACKEND_ENV_VARS, ...DB_ENV_VARS, ...ZMQ_API_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
               command: ["python", "manage.py", "migrate"],
             },
           ],
@@ -272,7 +284,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
               env: [
-                ...GENERAL_ENV_VARS,
+                ...BACKEND_ENV_VARS,
                 ...DB_ENV_VARS,
                 ...ZMQ_API_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
@@ -309,7 +321,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80 }],
-              env: [...GENERAL_ENV_VARS, ...ZMQ_WORKER_ENV_VARS],
+              env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS, ...ZMQ_WORKER_ENV_VARS],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },

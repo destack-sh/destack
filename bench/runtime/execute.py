@@ -63,6 +63,8 @@ class ProviderKey(models.TextChoices):
     OPENAI = "openai"
     GOOSEAI = "gooseai"
     AI21 = "ai21"
+    FOREFRONT = "forefront"
+    COHERE = "cohere"
     TRANSFORMERS = "transformers"
 
 
