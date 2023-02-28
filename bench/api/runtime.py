@@ -214,6 +214,7 @@ class ModuleRuntimeMutation:
             ReqModuleRunPayload(
                 module_id=project_version_id,
                 runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
+                runnable_type=None,
                 build=UUID(input.build_id.node_id) if input.build_id else None,
                 arguments=input.arguments,
                 blocking=True,

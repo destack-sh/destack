@@ -142,6 +142,7 @@ defineExpose({
         :readonly="context.readonly.value"
         :editing="false"
         :immediate="false"
+        slim
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'name')"
