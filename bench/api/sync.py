@@ -11,6 +11,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
+from bench.api.auth import CanWriteProjectDirective
 from bench.api.util import wrap_exceptions
 from bench.msg import ZMessageType, send_message, zmq_ctx_sync
 from bench.msg.messages import ProjectVersionChangedPayload
@@ -33,15 +34,19 @@ PMT = ProjectMutationType
 
 
 def project_mutation(
-    type: PMT, *, atomic: bool = False, directives: Optional[Sequence[object]] = ()
+    type: PMT,
+    *,
+    atomic: bool = False,
+    directives: Optional[Sequence[object]] = None,
 ):
     """
     A project content mutation (CUD) of a specific type.
-    Handles revision bumping and mutation publishing. Must be used as a decorator.
+    Handles auth, revision bumping and mutation pub. Must be used as a decorator.
     :ProjectContentSync
-
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
     """
+
+    directives = directives or [CanWriteProjectDirective()]
 
     def make_resolver(func):
         @functools.wraps(func)
