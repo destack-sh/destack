@@ -1,3 +1,9 @@
+"""Can only be resolved by user with project view permission"""
+directive @canViewProjectDirective on FIELD_DEFINITION
+
+"""Can only be resolved by user with project write permission"""
+directive @canWriteProjectDirective on FIELD_DEFINITION
+
 input BuildInput {
   projectVersionId: GlobalID!
   buildableId: GlobalID = null
@@ -322,32 +328,32 @@ type Mutation {
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
-  createStatement(input: StatementCreateInput!): StatementOperationInfo!
-  morphStatement(input: StatementMorphInput!): StatementOperationInfo!
-  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
-  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
-  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo!
-  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo!
-  commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
-  moveStatement(input: StatementMoveInput!): StatementOperationInfo!
-  renameStatement(input: StatementRenameInput!): StatementOperationInfo!
-  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo!
-  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
-  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
-  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
-  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo!
-  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo!
-  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo!
-  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo!
-  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo!
-  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo!
-  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo!
-  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo!
-  createFile(input: FileCreateInput!): FileOperationInfo!
-  softDeleteFile(input: NodeInput!): FileOperationInfo!
-  restoreFile(input: NodeInput!): FileOperationInfo!
-  moveFile(input: FileMoveInput!): FileOperationInfo!
-  renameFile(input: FileRenameInput!): FileOperationInfo!
+  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProjectDirective
+  morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProjectDirective
+  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProjectDirective
+  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo! @canWriteProjectDirective
+  commentStatement(input: StatementCommentedInput!): StatementOperationInfo! @canWriteProjectDirective
+  moveStatement(input: StatementMoveInput!): StatementOperationInfo! @canWriteProjectDirective
+  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProjectDirective
+  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo! @canWriteProjectDirective
+  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo! @canWriteProjectDirective
+  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo! @canWriteProjectDirective
+  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo! @canWriteProjectDirective
+  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo! @canWriteProjectDirective
+  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo! @canWriteProjectDirective
+  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo! @canWriteProjectDirective
+  createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProjectDirective
+  softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProjectDirective
+  restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProjectDirective
+  moveFile(input: FileMoveInput!): FileOperationInfo! @canWriteProjectDirective
+  renameFile(input: FileRenameInput!): FileOperationInfo! @canWriteProjectDirective
   setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo!
   addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo!
   removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo!
@@ -567,13 +573,13 @@ type Query {
   project(
     """The ID of the object."""
     id: GlobalID!
-  ): Project
-  projectBySlug(owner: String!, project: String!): Project
+  ): Project @canViewProjectDirective
+  projectBySlug(owner: String!, project: String!): Project @canViewProjectDirective
   projectVersion(
     """The ID of the object."""
     id: GlobalID!
-  ): ProjectVersion
-  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion
+  ): ProjectVersion @canViewProjectDirective
+  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProjectDirective
   file(
     """The ID of the object."""
     id: GlobalID!
