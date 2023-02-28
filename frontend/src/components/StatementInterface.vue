@@ -20,6 +20,7 @@ const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
   depth: number;
+  readonly: boolean;
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
   lineNumberBase: number;
@@ -40,7 +41,7 @@ const isCommentish = computed(
 
 // manage cells
 const context: Ref<StatementContext> = computed(() => ({
-  readonly: editor.readonly,
+  readonly: editor.readonly || props.readonly,
   focused: isFocused.value,
   editing: isEditing.value,
   depth: props.depth,

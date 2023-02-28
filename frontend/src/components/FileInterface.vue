@@ -16,12 +16,17 @@ import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ fileId: string; focused: boolean }>();
+const editor = useEditorState();
+const actions = useActions();
 
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
         id
+        projectVersion {
+          id
+        }
         ...FileHeader
         statements(filters: { isVisible: true }) {
           ...StatementContent
@@ -35,6 +40,12 @@ const { result: file } = useQuery(
 );
 const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) ?? undefined);
 const isDeleted = computed(() => fileHeader.value?.deletedAt != null);
+const isOtherVersion = computed(
+  () =>
+    editor.currentProjectVersionId != null &&
+    fileHeader.value != null &&
+    fileHeader.value?.projectVersion?.id != editor.currentProjectVersionId
+);
 const { getTimeFromNowString } = useTimeFromNow(fileHeader.value?.deletedAt);
 const statements = computed(() => {
   return (
@@ -108,10 +119,8 @@ const positionedStatements = computed(() => {
   return positionedStatements;
 });
 
-const editor = useEditorState();
 const orderedStatements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
 const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
-const actions = useActions();
 
 const fileState: Ref<FileState> = computed(
   () =>
@@ -165,13 +174,30 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
   <!-- File container div -->
   <div>
     <!-- Deleted file status and restore -->
-    <div v-if="isDeleted && fileHeader" class="sticky top-0 z-20 -mr-12 w-full bg-red-600 px-12 py-2">
+    <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
       <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
         <div class="text-sm font-bold text-white">This file is in Trash.</div>
         <div class="text-center text-sm text-white">
           {{ fileHeader.path }} was deleted ({{ getTimeFromNowString(fileHeader.deletedAt) }}).
         </div>
-        <button class="text-sm text-white underline" @click="restore">Restore</button>
+        <button
+          class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
+          @click="restore"
+        >
+          Restore
+        </button>
+      </div>
+    </div>
+    <!-- Other version file -->
+    <div v-else-if="!isDeleted && isOtherVersion" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 px-12 py-2">
+      <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
+        <div class="text-sm font-bold text-white">This file belongs to another version.</div>
+        <router-link
+          class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
+          :to="{ query: { version: fileHeader?.projectVersion?.id } }"
+        >
+          Go there
+        </router-link>
       </div>
     </div>
     <!-- bottom padding is in last StatementAddArea -->
@@ -187,7 +213,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
         <EditableSpan
           ref="nameRef"
           class="text-3xl"
-          :readonly="editor.readonly"
+          :readonly="editor.readonly || isDeleted || isOtherVersion"
           @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
           :model-value="name"
         />
@@ -206,6 +232,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
         <StatementInterface
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
+          :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
           :isFirstInGroup="positioned.isFirstInGroup"
           :isLastInGroup="positioned.isLastInGroup"

@@ -376,6 +376,9 @@ export const useEditorState = defineStore("editor", {
       this.$patch(JSON.parse(stateJson));
 
       // remove editors with refs we don't have anymore
+      // note that this also closes any module-external refs
+      // I tried to fix this by only removing refs we _used_ tohave (checking for origianl ref.target)
+      // but that doesn't work for refs that were just created in first source version.
       const targetRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
       for (const editor of this.editors) {
         let editorRef = null;
@@ -384,6 +387,7 @@ export const useEditorState = defineStore("editor", {
         } else if (editor.type == "run") {
           editorRef = (editor as RunEditor).symbolId;
         }
+        console.log("editor ref", editorRef, targetRefs.includes(editorRef));
         if (editorRef != null && !targetRefs.includes(editorRef)) {
           console.log(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
           this.closeEditor(editor);
@@ -477,9 +481,9 @@ export function useEditorMigrations() {
         if (intermediateVersions[0].id == migratingTo.value) {
           // migrate backwards to an older version (reverse everything)
           intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-          const intermediateRefs = intermediateVersions.map((v) =>
-            v.parentsRefs.map((r) => ({ source: r.target, target: r.source }))
-          );
+          const intermediateRefs = intermediateVersions
+            .slice(0, -1) // skip the last target/source mapping as that would go 1 version further
+            .map((v) => v.parentsRefs.map((r) => ({ source: r.target, target: r.source })));
           await editor._doMigrateTo(migratingTo.value, intermediateRefs);
           console.log(
             `migrated backwards through ${intermediateVersions?.map(
