@@ -281,11 +281,7 @@ class ProjectVersionMutation:
         # auto-save current head
         old_head = project_v.project.head
         if not old_head.committed:
-            old_head.commit(
-                name="Autosave",
-                description="Snapshot before restoring another version",
-                tag=None,
-            )
+            old_head.commit(description="Snapshot before restoring another version", tag=None)
 
         # then restore working version to the selected version (new head)
         new_head = project.create_version(

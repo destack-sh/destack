@@ -1180,6 +1180,7 @@ export type FileContentByIdQuery = {
     | ({
         __typename?: "File";
         id: any;
+        projectVersion: { __typename?: "ProjectVersion"; id: any };
         statements: Array<
           { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
         >;
@@ -2940,6 +2941,14 @@ export const FileContentByIdDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "projectVersion" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
                 {
                   kind: "Field",

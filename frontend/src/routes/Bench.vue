@@ -405,7 +405,7 @@ watchEffect(async () => {
           >
             <span class="">
               Version
-              <span class="font-bold">{{ version?.tag ?? version?.name }}</span>
+              <span class="font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
             </span>
             <button
               class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
