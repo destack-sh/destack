@@ -116,13 +116,23 @@ const project = computed(() => useFragment(ProjectHeaderType, projectResult.valu
 // default version to view = head (will be overridden by URL)
 const versionToViewId = computed(() => project.value?.head.id);
 
+// set up editor state
+const editor = useEditorState();
+const editorReady = computed(
+  () => editor.currentProjectVersionId != null && editor.currentProjectVersionId == versionToViewId.value
+);
+
 // sync title bar with project info
 const title = useTitle();
 watchEffect(() => {
   if (projectError.value) {
     title.value = "Page not found";
   } else {
-    title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`;
+    if (editor.focusedEditor != null) {
+      title.value = editor.focusedEditor.path;
+    } else {
+      title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`;
+    }
   }
 });
 
@@ -163,12 +173,6 @@ const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurr
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
 
-// set up editor state
-const editor = useEditorState();
-const editorReady = computed(
-  () => editor.currentProjectVersionId != null && editor.currentProjectVersionId == versionToViewId.value
-);
-
 // sync editor paths
 watchEffect(() => {
   if (!files.value) return;
@@ -189,9 +193,15 @@ const consideredUrl = ref(false);
 // focus file from url if hash changes and none is open (once)
 watchEffect(() => {
   const hash = router.currentRoute.value.hash;
-  if (hash && versionLoaded.value && !consideredUrl.value && editorReady.value) {
-    const path = hash.substring(1);
-    const file = files.value.find((file) => file.path === path);
+  if (versionLoaded.value && !consideredUrl.value && editorReady.value) {
+    let file = null;
+    if (hash) {
+      const path = hash.substring(1);
+      file = files.value.find((file) => file.path === path);
+    } else if (files.value.length == 1) {
+      // special case: open "Getting Started" file if it exists and nothing is open :GettingStarted
+      file = files.value.find((file) => file.path === "Getting Started");
+    }
     if (file) {
       editor.focusFile(file as any);
     }
@@ -199,21 +209,16 @@ watchEffect(() => {
   }
 });
 
-// special case: open "Getting Started" file if it exists and nothing is open :GettingStarted
-watchEffect(() => {
-  const hash = router.currentRoute.value.hash;
-  if (!hash && versionLoaded.value && editorReady.value) {
-    const file = files.value.find((file) => file.path === "Getting Started");
-    if (file) {
-      editor.focusFile(file as any);
-    }
-  }
-});
-
 // change url if focused editor changes
 watchEffect(() => {
-  if (editor.focusedEditor && consideredUrl.value) {
-    router.replace({ hash: `#${editor.focusedEditor.path}` });
+  if (editor.focusedEditor != null) {
+    // set hash to open path
+    if (consideredUrl.value) {
+      router.replace({ hash: `#${editor.focusedEditor.path}` });
+    }
+  } else if (editorReady.value && consideredUrl.value) {
+    // clear hash
+    router.replace({ hash: `` });
   }
 });
 

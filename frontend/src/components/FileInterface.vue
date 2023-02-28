@@ -6,16 +6,16 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { provideStatementActions } from "@/state/actions/statement";
+import { provideStatementActions, type FileState } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, type Ref, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ fileId: string }>();
+const props = defineProps<{ fileId: string; focused: boolean }>();
 
 const { result: file } = useQuery(
   graphql(/* GraphQL */ `
@@ -43,13 +43,6 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-const statementsById = computed(() => {
-  const statementsById: Record<string, StatementContentFragment> = {};
-  statements.value.forEach((statement) => {
-    statementsById[statement.id] = statement;
-  });
-  return statementsById;
-});
 
 const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
 
@@ -118,10 +111,18 @@ const positionedStatements = computed(() => {
 const editor = useEditorState();
 const orderedStatements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
 const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
-const focused = computed(() => fileHeader.value != null && editor.focusedFileId == fileHeader.value.id);
 const actions = useActions();
 
-provideStatementActions(focused, fileHeader, orderedStatements, depths);
+const fileState: Ref<FileState> = computed(
+  () =>
+    ({
+      focused: props.focused,
+      file: fileHeader.value as any,
+      statements: orderedStatements.value,
+      depths: depths.value,
+    } as FileState)
+);
+provideStatementActions(fileState);
 
 async function insertStatementStart() {
   actions.apply("statement.insertStart");

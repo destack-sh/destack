@@ -11,17 +11,17 @@ const props = defineProps<{ group: EditorGroup }>();
 const editor = useEditorState();
 const selectedTab = ref(0);
 watch(
-  () => [props.group.activeEditor, props.group.editors],
+  () => [props.group.activeEditorId, props.group.editors],
   () => {
-    if (props.group.activeEditor != null && props.group.editors.length > 0) {
-      const activeEditorIndex = props.group.editors.findIndex((editor) => editor.id === props.group.activeEditor?.id);
+    if (props.group.activeEditorId != null && props.group.editors.length > 0) {
+      const activeEditorIndex = props.group.editors.findIndex((editor) => editor.id === props.group.activeEditorId);
       if (activeEditorIndex < 0) {
-        console.error(`active editor ${props.group.activeEditor?.id} not found in group ${props.group.id}`);
+        console.error(`active editor ${props.group.activeEditorId} not found in group ${props.group.id}`);
       }
       selectedTab.value = activeEditorIndex;
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 const focused = computed(() => editor.focusedEditor?.groupId == props.group.id);
 
