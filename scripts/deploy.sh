@@ -10,4 +10,4 @@ fi
 ./scripts/build_push.sh
 
 # deploy with pulumi
-pulumi --cwd infra up -y
+pulumi --cwd infra up -y --skip-preview

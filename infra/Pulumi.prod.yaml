@@ -1,4 +1,12 @@
 config:
+  Bench:COHERE_API_KEY:
+    secure: AAABAGwaYpLADp5UUQemDsUFVsu+rb2kihRdZBABFV8/r3qvO6pckT8xY02z7ikfGEpajgeUNacS/Jmd1Q/3lABUAy2OCJ1i
+  Bench:FOREFRONT_API_KEY:
+    secure: AAABAJMpmqSIqtva9BEBgU4iy5LXFoDaTGVVPnqmikOqNA3mMBiYH/KYPNKHG4t3lXUx8y1xHr4OwZI=
+  Bench:GOOSEAI_API_KEY:
+    secure: AAABACXsiSBv7A5n5DZE0WOjRbs3+TZpV4hobKMkmlBGpIgsFAgYzKtd2eJI7+a9sjM1873q8tA3ReNIMldmHOg/l3ZYtjaRCasiPEXBsTgxiCI=
+  Bench:OPENAI_API_KEY:
+    secure: AAABAPNZUmkJnMERio8jl0beB7jZJktjMP7yxPSKZNNDygwnkIS2hcc1h/oXFZK/oHgduMzD0Hs8HBkkIgo9DUzqtJOUONv/qb0rXhw8Bxk22Vo=
   Bench:SENTRY_DSN:
     secure: AAABAPr2x2HnBVeoBCFpS2AkZa0HJWnfRHlhML3Reyo8uFnxClxpMNm+fN7xPPUE5o6zFGUgvlErBK/uWPQmjDkwO9tg0tufG56kQa7LFGrFzgp4aTzBHDjCGd6/Xqk9w1rdavoRLltEwYIOdLGeAb6siuqplZPsq+Chuw==
   Bench:SOCIAL_AUTH_GITHUB_KEY:
