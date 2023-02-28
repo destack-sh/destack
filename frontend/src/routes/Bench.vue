@@ -165,6 +165,9 @@ const { getTimeFromNowString } = useTimeFromNow();
 
 // set up editor state
 const editor = useEditorState();
+const editorReady = computed(
+  () => editor.currentProjectVersionId != null && editor.currentProjectVersionId == versionToViewId.value
+);
 
 // sync editor paths
 watchEffect(() => {
@@ -181,22 +184,35 @@ watchEffect(() => {
 
 // routing
 const router = useRouter();
+const consideredUrl = ref(false);
 
-// focus file from url if hash changes and none is open
+// focus file from url if hash changes and none is open (once)
 watchEffect(() => {
   const hash = router.currentRoute.value.hash;
-  if (hash && files.value) {
-    const path = hash.slice(1).slice(0, -"x".length - 1);
+  if (hash && versionLoaded.value && !consideredUrl.value && editorReady.value) {
+    const path = hash.substring(1);
     const file = files.value.find((file) => file.path === path);
-    if (file && editor.focusedEditor == null) {
-      editor.focusFile(file);
+    if (file) {
+      editor.focusFile(file as any);
+    }
+    consideredUrl.value = true;
+  }
+});
+
+// special case: open "Getting Started" file if it exists and nothing is open :GettingStarted
+watchEffect(() => {
+  const hash = router.currentRoute.value.hash;
+  if (!hash && versionLoaded.value && editorReady.value) {
+    const file = files.value.find((file) => file.path === "Getting Started");
+    if (file) {
+      editor.focusFile(file as any);
     }
   }
 });
 
 // change url if focused editor changes
 watchEffect(() => {
-  if (editor.focusedEditor) {
+  if (editor.focusedEditor && consideredUrl.value) {
     router.replace({ hash: `#${editor.focusedEditor.path}` });
   }
 });

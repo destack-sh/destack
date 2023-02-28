@@ -165,7 +165,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
   <div>
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-20 -mr-12 w-full bg-red-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[1000px] flex-row items-center gap-2">
+      <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
         <div class="text-sm font-bold text-white">This file is in Trash.</div>
         <div class="text-center text-sm text-white">
           {{ fileHeader.path }} was deleted ({{ getTimeFromNowString(fileHeader.deletedAt) }}).
@@ -180,7 +180,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
       <!-- File name & meta -->
       <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
       <div
-        class="relative mx-auto w-full max-w-[1000px] px-2 pt-6 font-bold text-gray-900"
+        class="relative mx-auto w-full max-w-[800px] px-2 pt-6 font-bold text-gray-900"
         :class="editor.fontMono ? 'font-mono' : ''"
       >
         <EditableSpan
@@ -199,7 +199,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
         </span>
       </div>
       <!-- Add statement to start -->
-      <StatementAddArea class="mx-auto max-w-[1050px]" @click="insertStatementStart" />
+      <StatementAddArea class="mx-auto max-w-[850px]" @click="insertStatementStart" />
       <!-- File's statements -->
       <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
         <StatementInterface
@@ -209,11 +209,11 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
           :isFirstInGroup="positioned.isFirstInGroup"
           :isLastInGroup="positioned.isLastInGroup"
           :lineNumberBase="positioned.lineNumberBase"
-          class="mx-auto w-full max-w-[1000px]"
+          class="mx-auto w-full max-w-[800px]"
         />
       </template>
       <!-- Add statement to end -->
-      <StatementAddArea class="mx-auto max-w-[1050px] flex-1 pb-60" @click="insertOrFocusStatementEnd" />
+      <StatementAddArea class="mx-auto max-w-[850px] flex-1 pb-60" @click="insertOrFocusStatementEnd" />
     </div>
   </div>
 </template>
