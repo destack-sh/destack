@@ -151,7 +151,7 @@ whenever(containerFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
   }
-  if (!isEditing.value) {
+  if (!isEditing.value && !editor.readonly) {
     editor.editElement(statement.value as StatementHeader);
   }
 });
@@ -164,7 +164,9 @@ function focusInEditor() {
 function onClickContainer() {
   if (!isFocused.value) {
     focusInEditor();
-    editor.editElement(statement.value as StatementHeader);
+    if (!editor.readonly) {
+      editor.editElement(statement.value as StatementHeader);
+    }
   }
   if (!containerFocused.value) {
     rootCellRef.value?.focus();
