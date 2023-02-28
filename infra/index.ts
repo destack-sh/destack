@@ -147,6 +147,15 @@ const DB_ENV_VARS = [
   },
 ];
 
+// General env vars
+const GENERAL_ENV_VARS = [
+  // sentry
+  {
+    name: "SENTRY_DSN",
+    value: config.requireSecret("SENTRY_DSN"),
+  },
+];
+
 // Public load-balanced API service (also runs internal server)
 const apiName = "api";
 const apiService = new k8s.core.v1.Service(
@@ -261,7 +270,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
             {
               name: apiName + "-migrate",
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              env: [...DB_ENV_VARS, ...ZMQ_API_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
+              env: [...GENERAL_ENV_VARS, ...DB_ENV_VARS, ...ZMQ_API_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
               command: ["python", "manage.py", "migrate"],
             },
           ],
@@ -308,7 +317,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80 }],
-              env: [...ZMQ_WORKER_ENV_VARS],
+              env: [...GENERAL_ENV_VARS, ...ZMQ_WORKER_ENV_VARS],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },

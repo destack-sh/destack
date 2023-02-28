@@ -7,6 +7,7 @@ import { createSharedComposable } from "@vueuse/shared";
 import { defineStore } from "pinia";
 import { computed, watchEffect } from "vue";
 import { useRouter } from "vue-router";
+import posthog from "posthog-js";
 
 export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
 
@@ -28,6 +29,19 @@ function _useAuth() {
   );
 
   const me = computed(() => useFragment(UserContentType, meResult.value?.me));
+
+  // identify user for posthog
+  watchEffect(() => {
+    if (me.value != null) {
+      posthog.identify(me.value.id, { email: me.value.email, name: me.value.name });
+      // alias plain uuid to global id
+      // global ids are User:id base64 encoded
+      const uuid = atob(me.value.id).split(":")[1];
+      posthog.alias(me.value.id, uuid);
+    } else {
+      posthog.reset();
+    }
+  });
 
   return { loggedIn: computed(() => !!me.value), me, loading: meLoading };
 }

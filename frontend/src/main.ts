@@ -10,12 +10,15 @@ import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
 import { getMainDefinition } from "@apollo/client/utilities";
 import monacoLoader from "@monaco-editor/loader";
+import { BrowserTracing } from "@sentry/tracing";
+import * as Sentry from "@sentry/vue";
 import { DefaultApolloClient } from "@vue/apollo-composable";
 import { createClient } from "graphql-ws";
 import { createPinia } from "pinia";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
+import posthog from "posthog-js";
 
 const VERSION = import.meta.env.VITE_APP_VERSION || "dev";
 const MAX_RETRY_TIME_MS = 10000;
@@ -71,6 +74,23 @@ async function init() {
     },
     render: () => h(App),
   });
+
+  if (import.meta.env.VITE_APP_SENTRY_DSN) {
+    Sentry.init({
+      app,
+      dsn: import.meta.env.VITE_APP_SENTRY_DSN,
+      integrations: [
+        new BrowserTracing({
+          routingInstrumentation: Sentry.vueRouterInstrumentation(router),
+          tracePropagationTargets: ["localhost", "127.0.0.1", "api.symbolx.com", /^\//],
+        }),
+      ],
+      tracesSampleRate: 1.0,
+    });
+  }
+
+  // this is the public key, it's fine to put it here
+  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", { api_host: "https://eu.posthog.com" });
 
   app.use(router);
   app.use(pinia);
