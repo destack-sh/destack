@@ -43,7 +43,8 @@ class ProjectManager(models.Manager["Project"]):
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_adhoc_deployment: bool = True,
-        create_onboarding_files: bool = True,
+        create_onboarding_files: bool = False,
+        create_blank_file: bool = False,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -76,7 +77,7 @@ class ProjectManager(models.Manager["Project"]):
                 docs_v.files.filter(name="Getting Started"),
                 copy_mappings=False,
             )
-        else:
+        if create_blank_file:
             # create empty file
             project.head.create_path("Untitled")
         return project

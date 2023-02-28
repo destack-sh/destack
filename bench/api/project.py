@@ -187,6 +187,7 @@ class ProjectMutation:
             type=input.type,
             visibility=input.visibility,
             create_adhoc_deployment=True,
+            create_onboarding_files=True,
         )
         return project
 
