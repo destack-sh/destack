@@ -58,5 +58,36 @@ export function useProjectVersionOps() {
     });
   }
 
-  return { update, commit };
+  const { mutate: restoreMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restore($projectVersionId: GlobalID!) {
+        restore(input: { projectVersionId: $projectVersionId }) {
+          ... on CommitPayload {
+            project {
+              ...ProjectHeader
+            }
+            committedVersion {
+              ...ProjectVersionHeader
+            }
+            newWorkingVersion {
+              ...ProjectVersionHeader
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function restore(projectVersionId: string) {
+    return await operations.perform({
+      type: "version.restore",
+      stateless: true,
+      do: async () => {
+        return await restoreMut({ projectVersionId });
+      },
+    });
+  }
+
+  return { update, commit, restore };
 }

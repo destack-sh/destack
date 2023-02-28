@@ -17,8 +17,13 @@ export function useFileActions() {
     apply: async (name: string = getRandomName()) => {
       const fileId = newFileId();
       const create = operations.file.create(fileId, editor.currentProjectVersionId as string, name, name, null, false);
-      editor.focusFile({ __typename: "File", id: fileId, name, path: name } as FileHeader);
-      await create;
+      const optimisticFile = { __typename: "File", id: fileId, name, path: name } as FileHeader;
+      const optimisticEditor = editor.focusFile(optimisticFile);
+      try {
+        await create;
+      } catch (e) {
+        editor.closeEditor(optimisticEditor);
+      }
     },
   });
 

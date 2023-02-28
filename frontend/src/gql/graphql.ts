@@ -358,6 +358,7 @@ export type Mutation = {
   removeDeployedStatement: DeploymentOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
+  restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
   restoreStatement: StatementOperationInfo;
   run: RunStateOperationInfo;
@@ -456,6 +457,10 @@ export type MutationRenameFileArgs = {
 
 export type MutationRenameStatementArgs = {
   input: StatementRenameInput;
+};
+
+export type MutationRestoreArgs = {
+  input: RestoreInput;
 };
 
 export type MutationRestoreFileArgs = {
@@ -699,7 +704,8 @@ export type ProjectVersionStatementsArgs = {
 };
 
 export type ProjectVersionFilter = {
-  afterId: Scalars["GlobalID"];
+  fromId: Scalars["GlobalID"];
+  toId: Scalars["GlobalID"];
 };
 
 export type ProjectVersionOperationInfo = OperationInfo | ProjectVersion;
@@ -720,6 +726,7 @@ export type Query = {
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
+  projectVersionBySlug?: Maybe<ProjectVersion>;
   user?: Maybe<User>;
 };
 
@@ -761,6 +768,12 @@ export type QueryProjectVersionArgs = {
   id: Scalars["GlobalID"];
 };
 
+export type QueryProjectVersionBySlugArgs = {
+  owner: Scalars["String"];
+  project: Scalars["String"];
+  tag: Scalars["String"];
+};
+
 export type QueryUserArgs = {
   id: Scalars["GlobalID"];
 };
@@ -793,6 +806,10 @@ export type RefMapping = {
   __typename?: "RefMapping";
   source: Scalars["GlobalID"];
   target: Scalars["GlobalID"];
+};
+
+export type RestoreInput = {
+  projectVersionId: Scalars["GlobalID"];
 };
 
 export type RunInput = {
@@ -1331,7 +1348,8 @@ export type MeQuery = {
 
 export type ProjectMigrationRefsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
-  afterId: Scalars["GlobalID"];
+  fromId: Scalars["GlobalID"];
+  toId: Scalars["GlobalID"];
 }>;
 
 export type ProjectMigrationRefsQuery = {
@@ -1342,6 +1360,7 @@ export type ProjectMigrationRefsQuery = {
       __typename?: "ProjectVersion";
       id: any;
       name?: string | null;
+      tag?: string | null;
       createdAt: any;
       parentsRefs: Array<{ __typename?: "RefMapping"; source: any; target: any }>;
     }>;
@@ -2115,6 +2134,28 @@ export type CommitMutationVariables = Exact<{
 export type CommitMutation = {
   __typename?: "Mutation";
   commit:
+    | {
+        __typename?: "CommitPayload";
+        project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
+        committedVersion: { __typename?: "ProjectVersion" } & {
+          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+        };
+        newWorkingVersion: { __typename?: "ProjectVersion" } & {
+          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+        };
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type RestoreMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type RestoreMutation = {
+  __typename?: "Mutation";
+  restore:
     | {
         __typename?: "CommitPayload";
         project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
@@ -3458,7 +3499,12 @@ export const ProjectMigrationRefsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "afterId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "fromId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "toId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
       ],
@@ -3490,8 +3536,13 @@ export const ProjectMigrationRefsDocument = {
                         fields: [
                           {
                             kind: "ObjectField",
-                            name: { kind: "Name", value: "afterId" },
-                            value: { kind: "Variable", name: { kind: "Name", value: "afterId" } },
+                            name: { kind: "Name", value: "fromId" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "fromId" } },
+                          },
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "toId" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "toId" } },
                           },
                         ],
                       },
@@ -3502,6 +3553,7 @@ export const ProjectMigrationRefsDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       {
                         kind: "Field",
@@ -6226,6 +6278,94 @@ export const CommitDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CommitMutation, CommitMutationVariables>;
+export const RestoreDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restore" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restore" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CommitPayload" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "project" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "committedVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "newWorkingVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ProjectHeaderFragmentDoc.definitions,
+    ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestoreMutation, RestoreMutationVariables>;
 export const ModuleRuntimeChangedDocument = {
   kind: "Document",
   definitions: [

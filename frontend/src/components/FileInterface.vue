@@ -200,7 +200,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
         </span>
       </div>
       <!-- Add statement to start -->
-      <StatementAddArea class="mx-auto max-w-[850px]" @click="editor.readonly || insertStatementStart" />
+      <StatementAddArea class="mx-auto max-w-[850px]" @click="editor.readonly || insertStatementStart()" />
       <!-- File's statements -->
       <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
         <StatementInterface
@@ -216,7 +216,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
       <!-- Add statement to end -->
       <StatementAddArea
         class="mx-auto max-w-[850px] flex-1 pb-60"
-        @click="editor.readonly || insertOrFocusStatementEnd"
+        @click="editor.readonly || insertOrFocusStatementEnd()"
       />
     </div>
   </div>

@@ -66,8 +66,12 @@ async function createFileInEditorGroup() {
           </button>
         </Tab>
         <!-- Little button tab to create new file -->
-        <button class="group mx-0.5 py-1 px-2 outline-none ring-0" @click="createFileInEditorGroup">
-          <PlusIcon class="h-4 w-4 text-gray-300 group-hover:text-gray-500" aria-hidden="true" />
+        <button
+          v-if="actions.file.create.value.enabled"
+          class="group mx-0.5 py-1 px-2 outline-none ring-0"
+          @click="createFileInEditorGroup"
+        >
+          <PlusIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
         </button>
       </TabList>
       <!-- Contents -->

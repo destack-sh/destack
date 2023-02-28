@@ -8,7 +8,7 @@ import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer } from "@/utils/semver";
-import { BookmarkIcon, PencilIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
+import { BackwardIcon, BookmarkIcon, PencilIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";
 import { useRouter } from "vue-router";
@@ -42,10 +42,11 @@ const { result: versionsQuery, loading } = useQuery(
     projectId: props.project.id,
   })
 );
-const head = useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head);
 const versions = computed(
   () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
 );
+const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
+const isAtHead = computed(() => editor.currentProjectVersionId == head.value?.id);
 
 type Action = {
   icon: Component;
@@ -83,12 +84,32 @@ const commit = provideGlobalAction({
     const ret = await ops.version.commit(editor.currentProjectVersionId as string, randomName, suggestedTag);
     if (ret?.data?.commit.__typename == "CommitPayload") {
       notifications.show({
-        type: "commit.succes",
+        type: "commit.success",
         kind: "success",
         message: `Snapshot created`,
-        description: `Version ${randomName} is extra safe.`,
+        description: `Version ${randomName} is safe for future generations.`,
       });
     }
+  },
+});
+
+const restore = provideGlobalAction({
+  id: "version.restore",
+  label: "Restore",
+  shortcuts: [],
+  enabled: computed(() => !isAtHead.value),
+  apply: async () => {
+    ops.state.reset();
+    const ret = await ops.version.restore(editor.currentProjectVersionId as string);
+    if (ret?.data?.restore.__typename == "CommitPayload") {
+      notifications.show({
+        type: "restore.success",
+        kind: "success",
+        message: `Snapshot restored`,
+        description: `The previous working state was autosaved.`,
+      });
+    }
+    router.replace({ hash: router.currentRoute.value.hash }); // clear version query param
   },
 });
 
@@ -96,8 +117,14 @@ const globalActions: Action[] = [
   {
     icon: PlusIcon,
     label: "Snapshot",
-    enabled: computed(() => !ops.state.hasInflightLike({ types: ["version.commit"] })),
+    enabled: computed(() => isAtHead.value && !ops.state.hasInflightLike({ types: ["version.commit"] })),
     action: () => commit.value.apply(),
+  },
+  {
+    icon: BackwardIcon,
+    label: "Restore",
+    enabled: computed(() => !isAtHead.value),
+    action: () => restore.value.apply(),
   },
 ];
 </script>
@@ -109,17 +136,17 @@ const globalActions: Action[] = [
       <!-- Version controls -->
       <span class="inline-flex flex-row gap-1">
         <button
-          v-for="action in globalActions"
+          v-for="action in globalActions.filter((x) => x.enabled.value)"
           :key="action.label"
           :disabled="!action.enabled.value"
           class="inline-flex flex-row rounded-sm p-0.5"
           :class="{
-            'text-gray-400 hover:bg-gray-50': !action.enabled.value,
-            'hover:bg-gray-100 hover:text-gray-700': action.enabled.value,
+            'text-gray-300': !action.enabled.value,
+            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': action.enabled.value,
           }"
           @click.prevent="action.action"
         >
-          <component :is="action.icon" class="h-4 w-4 text-gray-600" />
+          <component :is="action.icon" class="h-4 w-4" />
           <span class="sr-only pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
         </button>
       </span>

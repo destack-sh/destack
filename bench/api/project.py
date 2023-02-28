@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 
+from django.core.exceptions import ValidationError
 from strawberry import UNSET, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
@@ -22,11 +23,25 @@ StatementType = gql.enum(models.StatementType)
 
 @gql.django.filter(models.ProjectVersion)
 class ProjectVersionFilter:
-    after_id: GlobalID = UNSET
+    from_id: GlobalID = UNSET
+    to_id: GlobalID = UNSET
 
-    def filter_after_id(self, queryset):
-        version = models.ProjectVersion.objects.get(id=self.after_id.node_id)
-        return queryset.filter(created_at__gt=version.committed_at)
+    def filter(self, queryset):
+        if self.from_id is not None and self.to_id is not None:
+            from_v = models.ProjectVersion.objects.get(id=self.from_id.node_id)
+            to_v = models.ProjectVersion.objects.get(id=self.to_id.node_id)
+            # we can go both directions
+            if from_v.created_at < to_v.created_at:  # migrate forwards
+                queryset = queryset.filter(
+                    created_at__gte=from_v.created_at, created_at__lte=to_v.created_at
+                )
+            else:  # migrate backwards (reversing source/target in the client)
+                queryset = queryset.filter(
+                    created_at__lte=from_v.created_at, created_at__gte=to_v.created_at
+                )
+        elif self.from_id is not None or self.to_id is not None:
+            raise ValidationError("from_id and to_id must be set together")
+        return queryset.order_by("created_at")
 
 
 @gql.django.filter(models.Statement)
@@ -207,6 +222,11 @@ class CommitInput:
     description: Optional[str] = None
 
 
+@gql.input
+class RestoreInput:
+    project_version_id: GlobalID
+
+
 @gql.type
 class CommitPayload:
     project: Project
@@ -246,6 +266,36 @@ class ProjectVersionMutation:
         return CommitPayload(
             project=project,
             committed_version=project_v,
+            new_working_version=new_head,
+        )
+
+    @safe_mutation(atomic=True)
+    def restore(self, input: RestoreInput) -> CommitPayload | OperationInfo:
+        project_v = models.ProjectVersion.objects.select_related("project").get(
+            id=input.project_version_id.node_id
+        )
+        project = project_v.project
+        if project_v.id == project.head_id:
+            raise ValueError("cannot restore version that's already the head")
+
+        # auto-save current head
+        old_head = project_v.project.head
+        if not old_head.committed:
+            old_head.commit(
+                name="Autosave",
+                description="Snapshot before restoring another version",
+                tag=None,
+            )
+
+        # then restore working version to the selected version (new head)
+        new_head = project.create_version(
+            parent=project_v, description="Restore", auto_commit=False
+        )
+        project.head = new_head
+        project.save()
+        return CommitPayload(
+            project=project,
+            committed_version=old_head,
             new_working_version=new_head,
         )
 
