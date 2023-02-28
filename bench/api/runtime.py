@@ -236,7 +236,11 @@ class ModuleRuntimeSubscription:
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
-        log = logger.bind(project_version_id=project_version_id)
+        log = logger.bind(
+            project_version_id=project_version_id,
+            worker_rep_addr=ZMQ_WORKER_REP_ADDR,
+            worker_pub_addr=ZMQ_WORKER_PUB_ADDR,
+        )
         log.info("runtime.subscribe")
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
@@ -301,6 +305,7 @@ class ModuleRuntimeSubscription:
             code_id=code_id,
             root_id=root_id,
             root_id_null=root_id_null,
+            worker_rep_addr=ZMQ_WORKER_REP_ADDR,
         )
         log.info("executions.subscribe")
 

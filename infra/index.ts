@@ -193,27 +193,31 @@ const workerService = new k8s.core.v1.Service(
   { provider: eksCluster.provider }
 );
 
+function tcpAtPort(service: k8s.core.v1.Service, port: number) {
+  return service.metadata.name.apply((name) => `tcp://${name}:${port}`);
+}
+
 // zmq env vars to connect them
 const ZMQ_ENV_VARS = [
   {
     name: "ZMQ_API_PUB_ADDR",
-    value: `tcp://${apiName}:5555`,
+    value: tcpAtPort(apiService, 5555),
   },
   {
     name: "ZMQ_INTSERVER_PUB_ADDR",
-    value: `tcp://${apiName}:5556`,
+    value: tcpAtPort(apiService, 5556),
   },
   {
     name: "ZMQ_INTSERVER_REP_ADDR",
-    value: `tcp://${apiName}:5557`,
+    value: tcpAtPort(apiService, 5557),
   },
   {
     name: "ZMQ_WORKER_PUB_ADDR",
-    value: `tcp://${workerName}:5558`,
+    value: tcpAtPort(workerService, 5558),
   },
   {
     name: "ZMQ_WORKER_REP_ADDR",
-    value: `tcp://${workerName}:5559`,
+    value: tcpAtPort(workerService, 5559),
   },
 ];
 // api service should have api addresses set to localhost
@@ -281,6 +285,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
               env: [
+                ...GENERAL_ENV_VARS,
                 ...DB_ENV_VARS,
                 ...ZMQ_API_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },

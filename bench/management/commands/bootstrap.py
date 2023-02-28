@@ -144,11 +144,12 @@ def get_or_create_std(organization_name: str, organization_slug: str) -> Project
             name=organization_name, slug=organization_slug
         )
         library = Project.objects.create_project(
-            organization=organization,
+            owner=organization,
             name=f"{organization_name} standard library",
             slug="std",
             type=ProjectType.LIBRARY,
             visibility=ProjectVisibility.PUBLIC,
+            create_onboarding_files=False,
         )
         logger.info(f"Created provider: {organization}")
     else:

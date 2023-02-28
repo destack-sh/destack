@@ -39,6 +39,7 @@ class Command(BaseCommand):
                 name=project_slug,
                 slug=project_slug,
                 visibility=ProjectVisibility.PRIVATE,
+                create_onboarding_files=False,
             )
 
         project_v = project.create_version(name="Update from CLI")

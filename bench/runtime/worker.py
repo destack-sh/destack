@@ -215,7 +215,7 @@ class RuntimeWorker:
         logger.info(
             "start",
             worker_id=self.worker_id,
-            worker_addr=worker_rep_addr,
+            worker_rep_addr=worker_rep_addr,
             worker_pub_addr=worker_pub_addr,
             intserver_rep_addr=intserver_rep_addr,
             intserver_pub_addr=intserver_pub_addr,
