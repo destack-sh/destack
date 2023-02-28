@@ -61,6 +61,9 @@ class Query(ExecutionQuery):
         resolver=models.Project.objects.get_by_slug
     )
     project_version: Optional[ProjectVersion] = gql.relay.node()
+    project_version_by_slug: Optional[ProjectVersion] = gql.django.field(
+        resolver=models.ProjectVersion.objects.get_by_slug
+    )
     file: Optional[File] = gql.relay.node()
 
 

@@ -2,7 +2,8 @@
 import { provideGlobalAction } from "@/state/actions";
 import { useEditorState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { computed, ref } from "vue";
+import { onClickOutside } from "@vueuse/core";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{
   files: FileHeader[];
@@ -43,21 +44,29 @@ provideGlobalAction({
   },
 });
 
+// blur focused file if clicking outside file explorer
+const listRef: Ref<HTMLDivElement | null> = ref(null);
+onClickOutside(listRef, () => {
+  if (editor.focusedElementType == "File") {
+    editor.blurElement();
+  }
+});
+
 defineExpose({
   count: computed(() => props.files.length),
 });
 </script>
 <template>
   <!-- Panel: file explorer -->
-  <ul role="list" class="flex flex-col gap-1 py-1 text-sm">
+  <ul ref="listRef" role="list" class="flex flex-col py-1 text-sm">
     <li
       v-for="file in filesSorted"
       :key="file.id"
-      class="relative max-w-full border border-transparent px-3 hover:cursor-pointer"
+      class="relative max-w-full px-3 py-0.5 hover:cursor-pointer"
       :class="{
         'bg-orange-100 text-orange-600': file.id == editor?.focusedFileId,
         'text-gray-700 hover:text-orange-600': file.id != editor?.focusedFileId,
-        'border-orange-600': file.id == editor?.focusedElementId,
+        'bg-orange-600 text-white': file.id == editor?.focusedElementId,
         'border-l-2 border-l-orange-200 pl-2.5': file.generated,
       }"
       @click="focus(file)"

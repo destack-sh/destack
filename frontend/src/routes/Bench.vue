@@ -337,6 +337,7 @@ watchEffect(() => {
 // prepare editor state for project whenever project (head) changes
 watchEffect(async () => {
   if (
+    !migrating.value &&
     project.value != null &&
     versionToViewId.value != null &&
     (editor.currentProjectId != project.value.id || editor.currentProjectVersionId != versionToViewId.value)
@@ -400,13 +401,16 @@ watchEffect(async () => {
           <!-- Version/branch info -->
           <div
             v-if="versionToViewId != project?.head?.id && versionLoaded"
-            class="flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
+            class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
           >
             <span class="">
               Version
               <span class="font-bold">{{ version?.tag ?? version?.name }}</span>
             </span>
-            <button class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid">
+            <button
+              class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
+              @click="actions.apply('version.restore')"
+            >
               Restore
             </button>
             <router-link

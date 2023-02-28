@@ -376,10 +376,16 @@ export const useEditorState = defineStore("editor", {
       this.$patch(JSON.parse(stateJson));
 
       // remove editors with refs we don't have anymore
-      const latestRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
+      const targetRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
       for (const editor of this.editors) {
-        if (editor.type == "file" && !latestRefs.includes((editor as FileEditor).fileId)) {
-          console.log(`removing outdated editor for file ${(editor as FileEditor).fileId}`);
+        let editorRef = null;
+        if (editor.type == "file") {
+          editorRef = (editor as FileEditor).fileId;
+        } else if (editor.type == "run") {
+          editorRef = (editor as RunEditor).symbolId;
+        }
+        if (editorRef != null && !targetRefs.includes(editorRef)) {
+          console.log(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
           this.closeEditor(editor);
         }
       }
@@ -430,11 +436,12 @@ export function useEditorMigrations() {
     result: migrationRefs,
   } = useLazyQuery(
     graphql(/* GraphQL */ `
-      query projectMigrationRefs($projectId: GlobalID!, $afterId: GlobalID!) {
+      query projectMigrationRefs($projectId: GlobalID!, $fromId: GlobalID!, $toId: GlobalID!) {
         project(id: $projectId) {
-          versions(filters: { afterId: $afterId }) {
+          versions(filters: { fromId: $fromId, toId: $toId }) {
             id
             name
+            tag
             createdAt
             parentsRefs {
               source
@@ -467,12 +474,29 @@ export function useEditorMigrations() {
       } else if (migrationRefs.value != null) {
         // got the intermediate ref mappings, do actual migration
         const intermediateVersions = [...(migrationRefs.value?.project?.versions ?? [])];
-        const intermediateRefs = intermediateVersions
-          ?.sort((a, b) => a.createdAt - b.createdAt)
-          .map((v) => v.parentsRefs);
-        await editor._doMigrateTo(migratingTo.value, intermediateRefs);
-
-        console.log(`migrated through ${intermediateVersions?.map((v) => v.id)} intermediate versions`);
+        if (intermediateVersions[0].id == migratingTo.value) {
+          // migrate backwards to an older version (reverse everything)
+          intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+          const intermediateRefs = intermediateVersions.map((v) =>
+            v.parentsRefs.map((r) => ({ source: r.target, target: r.source }))
+          );
+          await editor._doMigrateTo(migratingTo.value, intermediateRefs);
+          console.log(
+            `migrated backwards through ${intermediateVersions?.map(
+              (v) => `${v.name ?? "(Working)"} (${v.tag ?? v.id})`
+            )}`
+          );
+        } else {
+          // migrate forwards
+          intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+          const intermediateRefs = intermediateVersions.map((v) => v.parentsRefs);
+          await editor._doMigrateTo(migratingTo.value, intermediateRefs);
+          console.log(
+            `migrated forwards through ${intermediateVersions?.map(
+              (v) => `${v.name ?? "(Working)"} (${v.tag ?? v.id})`
+            )}`
+          );
+        }
         migratingTo.value = null;
       }
     },
@@ -481,9 +505,13 @@ export function useEditorMigrations() {
 
   function migrateTo(projectId: string, toVersionId: string, fromVersionId: string) {
     if (migratingTo.value != null) {
-      throw new Error("already migrating");
+      if (migratingTo.value == toVersionId) {
+        // nothing to do
+        return;
+      } else {
+        throw new Error(`already migrating to another version: ${migratingTo.value} (not ${toVersionId})`);
+      }
     }
-    // migrating flag triggers migration
     migratingTo.value = toVersionId;
     console.log(
       `migrate editor state for project ${projectId} to version ${toVersionId} (from version ${fromVersionId}))`
@@ -493,7 +521,8 @@ export function useEditorMigrations() {
       undefined,
       {
         projectId: projectId,
-        afterId: fromVersionId, // assumes that toVersionId is newer than fromVersionId
+        fromId: fromVersionId,
+        toId: toVersionId,
       },
       { fetchPolicy: "network-only" }
     );

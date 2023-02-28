@@ -321,6 +321,7 @@ type Mutation {
   updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
+  restore(input: RestoreInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
@@ -521,7 +522,8 @@ type ProjectVersion implements Node {
 }
 
 input ProjectVersionFilter {
-  afterId: GlobalID!
+  fromId: GlobalID!
+  toId: GlobalID!
 }
 
 union ProjectVersionOperationInfo = ProjectVersion | OperationInfo
@@ -571,6 +573,7 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): ProjectVersion
+  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion
   file(
     """The ID of the object."""
     id: GlobalID!
@@ -604,6 +607,10 @@ input RecordUpdateInput {
 type RefMapping {
   source: GlobalID!
   target: GlobalID!
+}
+
+input RestoreInput {
+  projectVersionId: GlobalID!
 }
 
 input RunInput {
