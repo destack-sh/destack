@@ -16,6 +16,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
 from django.urls import re_path
+from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
@@ -48,15 +49,18 @@ websocket_urlpatterns = [
 gql_http_consumer = CORSMiddleware(
     AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
     allow_origins=CORS_ALLOWED_ORIGINS,
+    # see https://docs.sentry.io/platforms/javascript/guides/react/performance/instrumentation/automatic-instrumentation
+    allow_headers=["sentry-trace", "baggage"],
     allow_methods=["*"],
     allow_credentials=True,
 )
+
 gql_ws_consumer = GraphQLWSConsumer.as_asgi(schema=schema)
 application = ProtocolTypeRouter(
     {
         "http": URLRouter([re_path("^graphql", gql_http_consumer), re_path("^", django_asgi_app)]),
         "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+            SentryAsgiMiddleware(AuthMiddlewareStack(URLRouter(websocket_urlpatterns)))
         ),
     }
 )
