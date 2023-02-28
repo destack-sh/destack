@@ -54,7 +54,7 @@ INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)
 NEWLINE_REGEX = re.compile(r"(?P<value>[\n\r\f\v])")
 # new file like --- <path> --- (eating previous newline)
 # (eating the previous newline should be a parsing concern, but it's easier in lex for now)
-NEWFILE_REGEX = re.compile(r"^\n?--- (?P<value>[\w.-]*) ---$\n", re.MULTILINE)
+NEWFILE_REGEX = re.compile(r"^\n?--- (?P<value>[\w.\- ]*) ---$\n", re.MULTILINE)
 # comment like # <comment>
 LINE_COMMENT_REGEX = re.compile(r"# (?P<value>.*)")
 MULTILINE_COMMENT_REGEX = re.compile(r"###\n(?P<value>.+?)\n[ \t]*###", re.DOTALL | re.MULTILINE)

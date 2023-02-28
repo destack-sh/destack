@@ -1,4 +1,4 @@
---- Welcome ---
+--- Getting Started ---
 
 ###
 ## Welcome to Bench
@@ -8,7 +8,7 @@ Think of Bench as VSCode meets Notion to unify AI prototyping, development, eval
 ###
 
 ###
-## AI as programs
+## Essentials of AI programs
 ###
 
 # TODO: docs
@@ -22,7 +22,7 @@ When you're ready, create a new file with the little plus button. Go!
 ###
 ## It's dangerous to go alone
 There's a community of friendly Bench developers building the future of AI.
-Hit the little help button to say hi and join the conversation.
+The little help button will guide you to join the conversation.
 ###
 
 --- Deploying ---

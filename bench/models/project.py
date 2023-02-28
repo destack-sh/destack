@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from collections import deque
 from datetime import datetime
-from itertools import groupby
-from typing import TYPE_CHECKING, Deque, Iterator, Optional, TypedDict, TypeVar
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Optional, TypedDict
+from uuid import UUID
 
 import pytz
 from django.core.validators import validate_slug
@@ -13,12 +11,10 @@ from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.language import SymbolType
 from bench.models.data import DatasetRecord
 from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
-from bench.models.generated import SourceMapping
-from bench.models.statement import SimpleTypeNode, Statement, StatementType
-from bench.models.utils import UUIDModel
+from bench.models.statement import SimpleTypeNode, Statement
+from bench.models.utils import UUIDModel, walk_children_bfs
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -47,7 +43,7 @@ class ProjectManager(models.Manager["Project"]):
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_adhoc_deployment: bool = True,
-        create_default_files: bool = True,
+        create_onboarding_files: bool = True,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -69,8 +65,19 @@ class ProjectManager(models.Manager["Project"]):
             Deployment.objects.create_deployment(
                 project_version=project.head, owner=owner, type=DeploymentType.ADHOC
             )
-        if create_default_files:
-            raise NotImplementedError
+        if create_onboarding_files:
+            docs_v = Project.objects.get_by_slug("symbolx", "docs").head
+            if not docs_v.files.filter(name="Getting Started").exists():
+                raise ValueError(f"{docs_v} is missing Getting Started file")
+            ProjectVersion.objects.copy_files(
+                docs_v,
+                project.head,
+                docs_v.files.filter(name="Getting Started"),
+                copy_mappings=False,
+            )
+        else:
+            # create empty file
+            project.head.create_path("Untitled")
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -167,7 +174,7 @@ class Project(UUIDModel):
         new_version.parents.add(assigned_parent)
 
         # copy project content from parent
-        refs = ProjectVersion.objects.copy(assigned_parent, new_version)
+        refs = ProjectVersion.objects.copy_files(assigned_parent, new_version)
         new_version.parents_refs = [
             RefDict(source=str(k), target=str(v.id), type=type(v).__name__) for k, v in refs.items()
         ]
@@ -211,22 +218,6 @@ class Project(UUIDModel):
         ]
 
 
-T = TypeVar("T")
-
-
-def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
-    """
-    Walk all children of an object in breadth-first order.
-    """
-    queue: Deque[T] = deque(objects)
-    while queue:
-        obj = queue.popleft()
-        # copy children before yielding to avoid concurrent modification while copying
-        children = list(getattr(obj, child_attr).all())
-        yield obj
-        queue.extend(children)
-
-
 class ProjectVersionManager(models.Manager["ProjectVersion"]):
     def get_by_slug(self, owner: str, project: str, tag: str):
         return (
@@ -239,19 +230,29 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             .get()
         )
 
-    def copy(
-        self, source: ProjectVersion, target: ProjectVersion
+    def copy_files(
+        self,
+        source: ProjectVersion,
+        target: ProjectVersion,
+        files: Optional[models.QuerySet[File]] = None,
+        copy_mappings: bool = True,
     ) -> dict[UUID, File | Statement | DatasetRecord | SimpleTypeNode]:
-        """Copies all project contents from a source version to a target version."""
-        if not source.committed:
-            raise ValueError(f"source version must be committed: {source}")
+        """Copies the given files from a source version to a target version (by default everything)"""
+
+        # 0. select files & statements to copy
+        if files is None:  # default to all files
+            files = source.files.filter(deleted_at=None)
+            statements = source.statements.filter(deleted_at=None)
+        else:
+            statements = Statement.objects.filter(file__in=files).filter(deleted_at=None)
+
         # TODO @Performance: copy project version on commit server-side (in SQL)
         #  (generally good, but also especially for dataset records, mappings and other relations)
         # TODO @Cleanup: created_at/updated_at are not copied correctly (auto-reset to now)
         #  (could set them manually in project mutation wrapper)
-        # 1. copy project files
+        # copy files
         new_files: dict[UUID, File] = {}
-        for file in walk_children_bfs(source.files.filter(deleted_at=None), "files"):
+        for file in walk_children_bfs(files.filter(parent=None), "files"):
             old_id = file.id
             file.pk = None
             file.project_version = target
@@ -259,78 +260,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             file.save()
             new_files[old_id] = file
 
-        # 2. copy statements and their contents
-        # (pre-determine new statement ids to re-create source mappings in one go)
-        statements_bfs = list(
-            walk_children_bfs(source.statements.filter(deleted_at=None, parent=None), "children")
+        # copy statements
+        new_statements, new_contents = Statement.objects.copy_statements(
+            statements, new_files, target, copy_mappings
         )
-        new_statements_ids: dict[UUID, UUID] = {
-            statement.id: uuid4() for statement in statements_bfs
-        }
-        new_statements: dict[UUID, Statement] = {}
-        new_contents: dict[UUID, DatasetRecord | SimpleTypeNode] = {}
-        new_mappings: list[SourceMapping] = []
-        for statement in statements_bfs:
-            # copy statement contents/relations
-            if statement.type == StatementType.DEFINITION:
-                # the relations are saved below after statement creation
-                if statement.root_type_tag is not None:
-                    for type_node in statement.type_nodes.all():
-                        old_id = type_node.id
-                        type_node.pk = None
-                        type_node.statement_id = new_statements_ids[statement.id]
-                        if type_node.reference_id is not None:
-                            # replace type node reference if it was copied (default to same for externals)
-                            type_node.reference_id = new_statements_ids.get(
-                                type_node.reference_id, type_node.reference_id
-                            )
-                        new_contents[old_id] = type_node
-                if statement.symbol_type == SymbolType.DATA:
-                    for record in statement.records.all():
-                        old_id = record.id
-                        record.pk = None
-                        record.statement_id = new_statements_ids[statement.id]
-                        new_contents[old_id] = record
-                elif statement.symbol_type == SymbolType.BUILD:
-                    for mapping in statement.generated_mappings.all():
-                        mapping.pk = None
-                        mapping.statement_id = new_statements_ids[mapping.statement_id]
-                        mapping.source_id = new_statements_ids[mapping.source_id]
-                        mapping.target_id = new_statements_ids[mapping.target_id]
-                        mapping.source_revision = 0
-                        mapping.target_revision = 0
-                        new_mappings.append(mapping)
-
-            # copy statement
-            # automatically copies all non-relational columns
-            old_id = statement.id
-            statement.pk = new_statements_ids[old_id]
-            statement._state.adding = True
-            statement.revision = 0  # reset revision
-            statement.file = new_files[statement.file_id]
-            statement.project_version = target
-            statement.reference = None
-            statement.parent = new_statements.get(statement.parent_id)
-            statement.save()
-            new_statements[old_id] = statement
-
-        # 3. re-assign references
-        for old in source.statements.filter(deleted_at=None):
-            if old.id not in new_statements:
-                # skip ghost statement whose parent was deleted or lost somehow
-                # TODO @Cleanup: fix/prevent ghost orphan statements on insert
-                continue
-            new = new_statements[old.id]
-            new.parent = new_statements.get(old.parent_id)  # may be null
-            # replace ref (default to same ref if not in refs since library refs are not copied)
-            new.reference = new_statements.get(old.reference_id, old.reference)
-        Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
-
-        # 4. save statement's relations
-        for relation_cls, relations in groupby(new_contents.values(), key=type):
-            relation_cls.objects.bulk_create(relations)
-        SourceMapping.objects.bulk_create(new_mappings)
-
         return {**new_statements, **new_files, **new_contents}
 
 

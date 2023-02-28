@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from itertools import groupby
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytz
 import structlog
@@ -12,44 +13,15 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
-from bench.models.data import DatasetContentMixin
-from bench.models.generated import GeneratedContentMixin
-from bench.models.utils import UUIDModel
+from bench.models.data import DatasetContentMixin, DatasetRecord
+from bench.models.generated import GeneratedContentMixin, SourceMapping
+from bench.models.utils import UUIDModel, walk_children_bfs
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion
 
 logger = structlog.get_logger(__name__)
-
-
-class StatementManager(models.Manager["Statement"]):
-    def get_queryset(self) -> models.QuerySet[Statement]:
-        # soft-deleted statements are not returned by default
-        return super().get_queryset().filter(deleted_at__isnull=True)
-
-    def create_statement(
-        self,
-        project_version: ProjectVersion,
-        file: File,
-        parent: Optional[Statement],
-        order_key: Optional[str],
-        type: StatementType,
-        name: Optional[str],
-        **kwargs,
-    ) -> Statement:
-        if order_key is None:
-            # set order key to the end of siblings (parent/file children)
-            raise NotImplementedError("auto order key not implemented yet")
-        return self.create(
-            project_version=project_version,
-            file=file,
-            parent=parent,
-            order_key=order_key,
-            type=type,
-            name=name,
-            **kwargs,
-        )
 
 
 class SimpleTypeNode(UUIDModel):
@@ -96,6 +68,116 @@ class SimpleTypeNode(UUIDModel):
                 fields=["statement", "order_key"], name="bench_statement_type_node_order_key_ak"
             ),
         ]
+
+
+class StatementManager(models.Manager["Statement"]):
+    def get_queryset(self) -> models.QuerySet[Statement]:
+        # soft-deleted statements are not returned by default
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+    def create_statement(
+        self,
+        project_version: ProjectVersion,
+        file: File,
+        parent: Optional[Statement],
+        order_key: Optional[str],
+        type: StatementType,
+        name: Optional[str],
+        **kwargs,
+    ) -> Statement:
+        if order_key is None:
+            # set order key to the end of siblings (parent/file children)
+            raise NotImplementedError("auto order key not implemented yet")
+        return self.create(
+            project_version=project_version,
+            file=file,
+            parent=parent,
+            order_key=order_key,
+            type=type,
+            name=name,
+            **kwargs,
+        )
+
+    def copy_statements(
+        self,
+        statements: models.QuerySet[Statement],
+        new_files: dict[UUID, File],
+        target: ProjectVersion,
+        copy_mappings: bool,
+        new_statement_ids: dict[UUID, UUID] | None = None,
+    ) -> tuple[dict[UUID, Statement], dict[UUID, DatasetRecord | SimpleTypeNode]]:
+        """Copies the given source statements into the target version, relocating them to the new files"""
+
+        statements_bfs = list(walk_children_bfs(statements.filter(parent=None), "children"))
+        # (pre-determine new statement ids to re-create source mappings in one go)
+        new_statements_ids: dict[UUID, UUID] = new_statement_ids or {
+            statement.id: uuid4() for statement in statements_bfs
+        }
+        new_statements: dict[UUID, Statement] = {}
+        new_contents: dict[UUID, DatasetRecord | SimpleTypeNode] = {}
+        new_mappings: list[SourceMapping] = []
+        for statement in statements_bfs:
+            # copy statement contents/relations
+            if statement.type == StatementType.DEFINITION:
+                # the relations are saved below after statement creation
+                if statement.root_type_tag is not None:
+                    for type_node in statement.type_nodes.all():
+                        old_id = type_node.id
+                        type_node.pk = None
+                        type_node.statement_id = new_statements_ids[statement.id]
+                        if type_node.reference_id is not None:
+                            # replace type node reference if it was copied (default to same for externals)
+                            type_node.reference_id = new_statements_ids.get(
+                                type_node.reference_id, type_node.reference_id
+                            )
+                        new_contents[old_id] = type_node
+                if statement.symbol_type == SymbolType.DATA:
+                    for record in statement.records.all():
+                        old_id = record.id
+                        record.pk = None
+                        record.statement_id = new_statements_ids[statement.id]
+                        new_contents[old_id] = record
+                elif statement.symbol_type == SymbolType.BUILD and copy_mappings:
+                    for mapping in statement.generated_mappings.all():
+                        mapping.pk = None
+                        mapping.statement_id = new_statements_ids[mapping.statement_id]
+                        mapping.source_id = new_statements_ids[mapping.source_id]
+                        mapping.target_id = new_statements_ids[mapping.target_id]
+                        mapping.source_revision = 0
+                        mapping.target_revision = 0
+                        new_mappings.append(mapping)
+
+            # copy statement
+            # automatically copies all non-relational columns
+            old_id = statement.id
+            statement.pk = new_statements_ids[old_id]
+            statement._state.adding = True
+            statement.revision = 0  # reset revision
+            statement.file = new_files[statement.file_id]
+            statement.project_version = target
+            statement.reference = None
+            statement.parent = new_statements.get(statement.parent_id)
+            statement.save()
+            new_statements[old_id] = statement
+
+        # re-assign references
+        for old in statements:
+            if old.id not in new_statements:
+                # skip ghost statement whose parent was deleted or lost somehow
+                # TODO @Cleanup: fix/prevent ghost orphan statements on insert
+                continue
+            new = new_statements[old.id]
+            new.parent = new_statements.get(old.parent_id)  # may be null
+            # replace ref (default to same ref if not in refs since library refs are not copied)
+            new.reference = new_statements.get(old.reference_id, old.reference)
+        Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
+
+        # save statement's relations
+        for relation_cls, relations in groupby(new_contents.values(), key=type):
+            relation_cls.objects.bulk_create(relations)
+        SourceMapping.objects.bulk_create(new_mappings)
+
+        return new_statements, new_contents
 
 
 # sync with actual symbol content fields of Statement

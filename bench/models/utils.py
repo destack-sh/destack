@@ -1,6 +1,7 @@
 import json
 import uuid
-from typing import Any, Type, TypeVar
+from collections import deque
+from typing import Any, Deque, Iterator, Type, TypeVar
 
 from django.db import models
 from django.db.models import QuerySet
@@ -45,3 +46,19 @@ def is_jsonable(value: Any) -> bool:
         return True
     except TypeError:
         return False
+
+
+T = TypeVar("T")
+
+
+def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
+    """
+    Walk all children of an object in breadth-first order.
+    """
+    queue: Deque[T] = deque(objects)
+    while queue:
+        obj = queue.popleft()
+        # copy children before yielding to avoid concurrent modification while copying
+        children = list(getattr(obj, child_attr).all())
+        yield obj
+        queue.extend(children)
