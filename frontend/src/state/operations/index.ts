@@ -6,6 +6,7 @@ import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
 import { useUserOps } from "@/state/operations/user";
 import { useProjectVersionOps } from "@/state/operations/version";
+import { captureException } from "@sentry/vue";
 import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
@@ -185,5 +186,7 @@ function onResponse(operation: Operation<unknown>, ret: unknown) {
 function onError(operation: Operation<unknown>, error: unknown) {
   console.error(`operation ${operation.type} ${operation.id} failed`, error);
   errorListeners.forEach((listener) => listener(operation, error));
+  // capture with sentry
+  captureException(error);
 }
 export const errorListeners: ((operation: Operation<unknown>, error: unknown) => void)[] = [];

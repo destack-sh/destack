@@ -5,10 +5,13 @@ import uuid
 import dotenv
 
 from bench.runtime.worker import RuntimeWorker
+from bench.utils.analytics import init_sentry
 
 dotenv.load_dotenv(verbose=True)
 
 worker = RuntimeWorker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()))
+
+init_sentry()
 
 asyncio.run(
     worker.run(

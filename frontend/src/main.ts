@@ -86,6 +86,7 @@ async function init() {
         }),
       ],
       tracesSampleRate: 1.0,
+      logErrors: true,
     });
   }
 
