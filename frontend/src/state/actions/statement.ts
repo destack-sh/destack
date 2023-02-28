@@ -1,32 +1,62 @@
 import { StatementType } from "@/gql/graphql";
-import { provideSingletonAction } from "@/state/actions";
+import { provideGlobalAction, provideSingletonAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { computed, nextTick, type Ref } from "vue";
+import { createSharedComposable } from "@vueuse/shared";
+import { computed, nextTick, onUnmounted, ref, watchEffect, type Ref } from "vue";
 
-export function provideStatementActions(
-  enabled: Ref<boolean>,
-  file: Ref<FileHeader | undefined>,
-  orderedStatements: Ref<StatementHeader[]>,
-  depths: Ref<number[]>
-) {
+export type FileState = {
+  focused: boolean;
+  file: FileHeader;
+  statements: StatementHeader[]; // ordered
+  depths: number[];
+};
+
+// There can only be one active file to provide file shortcuts,
+// so we have a global reference here that is automatically set to the focused file.
+// We can't just use singleton actions here because multiple files may have
+// 'focused' set during moves or transition.
+const activeFileState: Ref<FileState | null> = ref(null);
+export function provideStatementActions(file: Ref<FileState>) {
+  watchEffect(() => {
+    if (file.value.focused) {
+      activeFileState.value = file.value;
+    }
+  });
+
+  onUnmounted(() => {
+    if (activeFileState.value == file.value) {
+      activeFileState.value = null;
+    }
+  });
+
+  doProvideStatementActions(activeFileState);
+}
+
+const doProvideStatementActions = createSharedComposable(_doProvideStatementActions);
+
+function _doProvideStatementActions(file: Ref<FileState | null>) {
   const editor = useEditorState();
   const operations = useOperations();
 
+  const enabled = computed(() => file.value != null);
+  const statements = computed(() => file.value?.statements ?? []);
+  const depths = computed(() => file.value?.depths ?? []);
+
   function getLocation(statement: StatementHeader) {
     return {
-      fileId: file.value?.id,
+      fileId: file.value?.file.id,
       parentId: statement.parent?.id,
       orderKey: statement?.orderKey ?? INTEGER_ZERO,
     };
   }
 
   const symbolsById: Ref<Record<string, StatementHeader>> = computed(() => {
-    if (!enabled.value) return {};
+    if (!file.value) return {};
     const result: Record<string, StatementHeader> = {};
-    for (const statement of orderedStatements.value) {
+    for (const statement of statements.value) {
       result[statement.id] = statement;
     }
     return result;
@@ -34,9 +64,9 @@ export function provideStatementActions(
 
   // statementsByParentId must be ordered like orderedStatements
   const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(() => {
-    if (!enabled.value) return {};
+    if (!file.value) return {};
     const result: Record<string, StatementHeader[]> = {};
-    for (const statement of orderedStatements.value) {
+    for (const statement of statements.value) {
       const parentId = statement.parent?.id ?? "";
       if (!result[parentId]) result[parentId] = [];
       result[parentId].push(statement);
@@ -53,16 +83,16 @@ export function provideStatementActions(
   );
   const nextSibling = computed(() => siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) + 1]);
   const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
-  const position = computed(() => orderedStatements.value.findIndex((s) => s.id === statement.value?.id));
+  const position = computed(() => statements.value.findIndex((s) => s.id === statement.value?.id));
   const location = computed(() => getLocation(statement.value));
 
-  const above = computed(() => orderedStatements.value[position.value - 1]);
-  const below = computed(() => orderedStatements.value[position.value + 1]);
+  const above = computed(() => statements.value[position.value - 1]);
+  const below = computed(() => statements.value[position.value + 1]);
   const belowCurGroup = computed(() => {
     // next statement after this with depth <= this depth
-    for (let i = position.value + 1; i < orderedStatements.value.length; i++) {
+    for (let i = position.value + 1; i < statements.value.length; i++) {
       if (depths.value[i] <= depths.value[position.value]) {
-        return orderedStatements.value[i];
+        return statements.value[i];
       }
     }
     return undefined;
@@ -84,19 +114,18 @@ export function provideStatementActions(
       const previousSiblingChildren = statementsByParentId.value[previousSibling.value.id] ?? [];
       const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
       await operations.statement.move(statement.value.id, location.value, {
-        fileId: file.value?.id,
+        fileId: file.value?.file.id,
         parentId: previousSibling.value?.id,
         orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
       });
     },
   });
 
-  const moveCurrentOut = provideSingletonAction({
+  const moveCurrentOut = provideGlobalAction({
     id: "statement.moveCurrentOut",
     label: "Move statement out",
     shortcuts: ["shift+tab"],
     enabled: computed(() => !!statement.value && !!statement.value.parent),
-    registered: enabled,
     apply: async () => {
       // move to after parent in grandparent's children
       const parent = symbolsById.value[statement.value.parent?.id];
@@ -104,19 +133,18 @@ export function provideStatementActions(
       const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
       const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
       await operations.statement.move(statement.value.id, location.value, {
-        fileId: file.value?.id,
+        fileId: file.value?.file.id,
         parentId: grandparent?.id,
         orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
       });
     },
   });
 
-  const moveCurrentUp = provideSingletonAction({
+  const moveCurrentUp = provideGlobalAction({
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
     enabled: computed(() => !!statement.value && above.value != null),
-    registered: enabled,
     apply: async () => {
       // insert between above and above prev sibling (if any)
       const aboveSiblings = statementsByParentId.value[above.value.parent?.id ?? ""];
@@ -125,7 +153,7 @@ export function provideStatementActions(
         .reverse()
         .find((s) => s.orderKey < above.value.orderKey);
       const targetLocation = {
-        fileId: file.value?.id,
+        fileId: file.value?.file.id,
         parentId: above.value?.parent?.id,
         orderKey: generateKeyBetween(abovePrevSibling?.orderKey ?? null, above.value.orderKey),
       };
@@ -133,19 +161,18 @@ export function provideStatementActions(
     },
   });
 
-  const moveCurrentDown = provideSingletonAction({
+  const moveCurrentDown = provideGlobalAction({
     id: "statement.moveCurrentDown",
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
     enabled: computed(() => !!statement.value && belowCurGroup.value != null),
-    registered: enabled,
     apply: async () => {
       if (belowCurGroup.value == null) return;
       // insert between the next group below and its next sibling (if any)
       const belowSiblings = statementsByParentId.value[belowCurGroup.value.parent?.id ?? ""];
       const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.value.orderKey);
       const targetLocation = {
-        fileId: file.value?.id,
+        fileId: file.value?.file.id,
         parentId: belowCurGroup.value?.parent?.id,
         orderKey: generateKeyBetween(belowCurGroup.value.orderKey ?? null, belowNextSibling?.orderKey ?? null),
       };
@@ -154,53 +181,49 @@ export function provideStatementActions(
   });
 
   // move focus
-  const moveFocusUp = provideSingletonAction({
+  const moveFocusUp = provideGlobalAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
     enabled: computed(() => !editor.editingElement),
-    registered: enabled,
     apply: () => {
       if (above.value != null) {
         editor.focusElement(above.value, true);
-      } else if (statement.value == null && orderedStatements.value.length > 0) {
+      } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus last statement
-        editor.focusElement(orderedStatements.value[orderedStatements.value.length - 1], true);
+        editor.focusElement(statements.value[statements.value.length - 1], true);
       }
     },
   });
-  const moveFocusDown = provideSingletonAction({
+  const moveFocusDown = provideGlobalAction({
     id: "statement.moveFocusDown",
     label: "Move focus down",
     enabled: computed(() => !editor.editingElement),
     shortcuts: ["down"],
-    registered: enabled,
     apply: () => {
       if (below.value != null) {
         editor.focusElement(below.value, true);
-      } else if (statement.value == null && orderedStatements.value.length > 0) {
+      } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus first statement
-        editor.focusElement(orderedStatements.value[0], true);
+        editor.focusElement(statements.value[0], true);
       }
     },
   });
   // move focus in/out
-  const moveFocusIn = provideSingletonAction({
+  const moveFocusIn = provideGlobalAction({
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
     enabled: computed(() => !editor.editingElement && !!statement.value && children.value?.length > 0),
-    registered: enabled,
     apply: () => {
       editor.focusElement(children.value[0], true);
     },
   });
-  const moveFocusOut = provideSingletonAction({
+  const moveFocusOut = provideGlobalAction({
     id: "statement.moveFocusOut",
     label: "Move focus out",
     shortcuts: ["left"],
     enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
-    registered: enabled,
     apply: () => {
       const parent = symbolsById.value[statement.value.parent?.id];
       editor.focusElement(parent, true);
@@ -208,34 +231,31 @@ export function provideStatementActions(
   });
 
   // start / stop editing current statement
-  const editCurrent = provideSingletonAction({
+  const editCurrent = provideGlobalAction({
     id: "statement.editCurrent",
     label: "Edit current statement",
     shortcuts: ["enter"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
-    registered: enabled,
     apply: () => {
       editor.editElement(statement.value);
     },
   });
-  const stopEditingCurrent = provideSingletonAction({
+  const stopEditingCurrent = provideGlobalAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing current statement",
     shortcuts: ["escape"],
     enabled: computed(() => !!statement.value && editor.editingElement),
-    registered: enabled,
     apply: () => {
       editor.stopEditingElement(statement.value);
     },
   });
 
   // delete statement
-  const deleteCurrent = provideSingletonAction({
+  const deleteCurrent = provideGlobalAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["d", "backspace", "delete"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
-    registered: enabled,
     apply: async () => {
       const current = statement.value.id;
       if (above.value) {
@@ -251,12 +271,11 @@ export function provideStatementActions(
   //  We should introduce an intermediate statement local context that statement interfaces
   //  can use as well, which could also reduce move focus up/down latency.
   //  :MissingStatementContext
-  const deleteAboveCurrent = provideSingletonAction({
+  const deleteAboveCurrent = provideGlobalAction({
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
     shortcuts: [],
     enabled: computed(() => !!statement.value && above.value != null),
-    registered: enabled,
     apply: async () => {
       const current = statement.value.id;
       if (above.value) {
@@ -269,17 +288,16 @@ export function provideStatementActions(
   // optimistic insert that doesn't wait for the server response
   function _insertOptimistic(parentId: string | null, orderKey: string): { __typename: string; id: string } {
     const newStatement = { __typename: "Statement", id: newStatementId() };
-    operations.statement.create(newStatement.id, file.value?.id, parentId, orderKey);
+    operations.statement.create(newStatement.id, file.value?.file.id, parentId, orderKey);
     return newStatement;
   }
 
   // insert statement (as a sibling)
-  const insertStart = provideSingletonAction({
+  const insertStart = provideGlobalAction({
     id: "statement.insertStart",
     label: "Insert statement at start of file",
     shortcuts: [],
     enabled: computed(() => !!file.value && !editor.editingElement),
-    registered: enabled,
     apply: () => {
       const roots = statementsByParentId.value[""];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
@@ -287,12 +305,11 @@ export function provideStatementActions(
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertEnd = provideSingletonAction({
+  const insertEnd = provideGlobalAction({
     id: "statement.insertEnd",
     label: "Insert statement at end of file",
     shortcuts: [],
     enabled: computed(() => !!file.value && !editor.editingElement),
-    registered: enabled,
     apply: () => {
       const roots = statementsByParentId.value[""];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
@@ -305,22 +322,20 @@ export function provideStatementActions(
     label: "Insert statement above current",
     shortcuts: ["a"],
     enabled: computed(() => !!statement.value && !editor.editingElement),
-    registered: enabled,
     apply: () => {
       operations.statement.create(
         newStatementId(),
-        file.value?.id,
+        file.value?.file.id,
         statement.value.parent?.id ?? null,
         generateKeyBetween(previousSibling.value?.orderKey ?? null, orderKey.value)
       );
       // don't switch focus if inserting _before_ current
     },
   });
-  const insertBelowCurrent = provideSingletonAction({
+  const insertBelowCurrent = provideGlobalAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
-    registered: enabled,
     enabled: computed(() => !!statement.value && !editor.editingElement),
     apply: () => {
       const newStatement = _insertOptimistic(
@@ -334,7 +349,7 @@ export function provideStatementActions(
   });
 
   // toggle comment statement
-  const toggleCommentedCurrent = provideSingletonAction({
+  const toggleCommentedCurrent = provideGlobalAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
     shortcuts: ["t", "shift+t"],
@@ -345,7 +360,6 @@ export function provideStatementActions(
         statement.value.type != StatementType.Blank &&
         statement.value.type != StatementType.Comment
     ),
-    registered: enabled,
     apply: async () => {
       await operations.statement.comment(statement.value.id, !statement.value.commented);
     },

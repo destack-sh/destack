@@ -1,3 +1,4 @@
+import { graphql } from "@/gql";
 import {
   StatementModifier,
   SymbolType,
@@ -13,7 +14,6 @@ import { reverseRecord } from "@/utils/functools";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { defineStore } from "pinia";
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
-import { graphql } from "@/gql";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -111,7 +111,7 @@ export type EditorGroup = {
   id: string;
   name: string;
   editors: Editor[];
-  activeEditor: Editor | null;
+  activeEditorId: string | null;
 };
 
 function makeEditorGroup(id: string, name: string): EditorGroup {
@@ -119,7 +119,7 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
     id,
     name,
     editors: [],
-    activeEditor: null,
+    activeEditorId: null,
   };
 }
 
@@ -157,7 +157,7 @@ export const useEditorState = defineStore("editor", {
       activeViewId: "explorer" as ViewId,
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
-      focusedEditor: null as Editor | null,
+      focusedEditorId: null as string | null,
       focusedElementId: null as string | null,
       focusedElementType: null as string | null,
       mainSymbolId: null as string | null,
@@ -191,11 +191,14 @@ export const useEditorState = defineStore("editor", {
     editors(state) {
       return state.left.editors.concat(state.right.editors);
     },
-    focusedFileId(state): string | null {
-      return state.focusedEditor?.type == "file" ? (state.focusedEditor as FileEditor).fileId : null;
+    focusedEditor(): Editor | undefined {
+      return this.editors.find((e) => e.id == this.focusedEditorId);
     },
-    focusedRunId(state): string | null {
-      return state.focusedEditor?.type == "run" ? (state.focusedEditor as RunEditor).symbolId : null;
+    focusedFileId(): string | null {
+      return this.focusedEditor?.type == "file" ? (this.focusedEditor as FileEditor).fileId : null;
+    },
+    focusedRunId(): string | null {
+      return this.focusedEditor?.type == "run" ? (this.focusedEditor as RunEditor).symbolId : null;
     },
     focusedGroup(): EditorGroup | undefined {
       if (this.focusedEditor?.groupId == null) return undefined;
@@ -231,12 +234,12 @@ export const useEditorState = defineStore("editor", {
       const group = this.editorGroup(editor.groupId);
       if (group == null) return;
       group.editors = group.editors.filter((e) => e != editor);
-      if (group.activeEditor == editor) {
+      if (group.activeEditorId == editor.id) {
         // if active editor was removed, set first editor as active
-        group.activeEditor = group.editors[0] || null;
+        group.activeEditorId = group.editors[0]?.id || null;
         // if editor was focused, focus new active editor
-        if (editor == this.focusedEditor) {
-          this.focusedEditor = group.activeEditor;
+        if (editor.id == this.focusedEditorId) {
+          this.focusedEditorId = group.activeEditorId;
           // blur element
           this.focusedElementId = null;
         }
@@ -303,8 +306,8 @@ export const useEditorState = defineStore("editor", {
       if (!editor.groupId) {
         throw new Error("editor must be in a group: " + editor.path);
       }
-      this.focusedEditor = editor;
-      this.editorGroup(editor.groupId).activeEditor = editor;
+      this.focusedEditorId = editor.id;
+      this.editorGroup(editor.groupId).activeEditorId = editor.id;
     },
 
     focusFile(file: FileHeader, group?: EditorGroup): Editor {

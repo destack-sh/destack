@@ -15,6 +15,7 @@ import { computed, onMounted, provide, ref, watchEffect } from "vue";
 const editorState = useEditorState();
 const props = defineProps<{ editor: Editor }>();
 const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
+const focused = computed(() => editorState.focusedEditorId == props.editor.id);
 
 const { x, y, isScrolling } = useScroll(computed(() => containerRef.value?.$el));
 const hasScrolledManually = ref(false);
@@ -72,11 +73,13 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
     ref="containerRef"
     v-if="editor.type == 'file'"
     :fileId="(editor as FileEditor).fileId"
+    :focused="focused"
     :state="editor.localState"
     @update:state="Object.assign(editor.localState, $event)"
   />
   <RunInterface
     v-else-if="editor.type == 'run'"
+    :focused="focused"
     :runnableId="(editor as RunEditor).symbolId"
     :runnableType="(editor as RunEditor).symbolType"
   />
