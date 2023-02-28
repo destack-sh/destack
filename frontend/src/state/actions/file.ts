@@ -3,6 +3,7 @@ import { provideGlobalAction } from "@/state/actions";
 import { useEditorState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newFileId } from "@/state/operations/file";
+import { computed } from "vue";
 
 export function useFileActions() {
   const editor = useEditorState();
@@ -11,6 +12,7 @@ export function useFileActions() {
   const create = provideGlobalAction({
     id: "file.new",
     label: "New file...",
+    enabled: computed(() => !editor.readonly),
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async (name: string = getRandomName()) => {
       const fileId = newFileId();

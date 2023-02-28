@@ -46,6 +46,7 @@ import { useRouter } from "vue-router";
 const props = defineProps<{
   owner: string;
   project: string;
+  version?: string;
 }>();
 
 // views for the sidebar
@@ -113,14 +114,22 @@ const { error: projectError, result: projectResult } = useQuery(
 const projectLoaded = computed(() => !!projectResult.value?.projectBySlug);
 const project = computed(() => useFragment(ProjectHeaderType, projectResult.value?.projectBySlug));
 
-// default version to view = head (will be overridden by URL)
-const versionToViewId = computed(() => project.value?.head.id);
+// default version to view = head (can be overridden by URL?)
+const versionToViewId = computed(() => {
+  if (props.version != null) {
+    return props.version;
+  } else {
+    return project.value?.head.id;
+  }
+});
 
 // set up editor state
 const editor = useEditorState();
 const editorReady = computed(
   () => editor.currentProjectVersionId != null && editor.currentProjectVersionId == versionToViewId.value
 );
+const notifications = useNotifications();
+const router = useRouter();
 
 // sync title bar with project info
 const title = useTitle();
@@ -129,7 +138,7 @@ watchEffect(() => {
     title.value = "Page not found";
   } else {
     if (editor.focusedEditor != null) {
-      title.value = editor.focusedEditor.path;
+      title.value = editor.focusedEditor.path + " - " + `${props.owner}/${props.project}`;
     } else {
       title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`;
     }
@@ -144,6 +153,7 @@ const { error: versionError, result: versionResult } = useQuery(
         id
         id
         name
+        tag
         description
         createdAt
         committed
@@ -160,6 +170,19 @@ const { error: versionError, result: versionResult } = useQuery(
 );
 const version = computed(() => versionResult.value?.projectVersion);
 const versionLoaded = computed(() => !!version.value);
+watch(versionError, () => {
+  if (versionError.value != null) {
+    notifications.show({
+      kind: "error",
+      type: "version.loadError",
+      message: "Version unavailable",
+      description: "Failed to load version, going back to head.",
+    });
+    // revert to head
+    router.replace({ hash: router.currentRoute.value.hash });
+  }
+});
+
 // filter deletedAt to increase responsiveness
 const files = computed(
   () => version.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
@@ -187,7 +210,6 @@ watchEffect(() => {
 });
 
 // routing
-const router = useRouter();
 const consideredUrl = ref(false);
 
 // focus file from url if hash changes and none is open (once)
@@ -214,16 +236,15 @@ watchEffect(() => {
   if (editor.focusedEditor != null) {
     // set hash to open path
     if (consideredUrl.value) {
-      router.replace({ hash: `#${editor.focusedEditor.path}` });
+      router.replace({ hash: `#${editor.focusedEditor.path}`, query: router.currentRoute.value.query });
     }
   } else if (editorReady.value && consideredUrl.value) {
     // clear hash
-    router.replace({ hash: `` });
+    router.replace({ hash: ``, query: router.currentRoute.value.query });
   }
 });
 
 // suppress control+s (offer named commit instead)
-const notifications = useNotifications();
 Mousetrap.bind(["ctrl+s"], () => {
   notifications.showIf(
     {
@@ -306,7 +327,12 @@ watch(
 watch(isFullscreen, () => (editor.fullscreen = isFullscreen.value));
 
 const { load } = useEditorPersistence();
-const { migrateTo } = useEditorMigrations();
+const { migrateTo, migrating } = useEditorMigrations();
+
+// manage read/write access
+watchEffect(() => {
+  editor.readonly = !versionLoaded.value || migrating.value || versionToViewId.value != project.value?.head.id;
+});
 
 // prepare editor state for project whenever project (head) changes
 watchEffect(async () => {
@@ -371,6 +397,25 @@ watchEffect(async () => {
           <span v-else class="animate-pulse truncate p-1 text-sm font-bold">
             {{ props.project }}
           </span>
+          <!-- Version/branch info -->
+          <div
+            v-if="versionToViewId != project?.head?.id && versionLoaded"
+            class="flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
+          >
+            <span class="">
+              Version
+              <span class="font-bold">{{ version?.tag ?? version?.name }}</span>
+            </span>
+            <button class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid">
+              Restore
+            </button>
+            <router-link
+              :to="{ hash: router.currentRoute.value.hash }"
+              class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
+            >
+              Back
+            </router-link>
+          </div>
         </div>
         <!-- Status -->
         <div v-if="versionLoaded" class="ml-2 flex items-center">
@@ -501,7 +546,7 @@ watchEffect(async () => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main class="flex h-full w-full flex-1 divide-x divide-gray-200 bg-gray-50">
+      <main v-show="versionLoaded" class="flex h-full w-full flex-1 divide-x divide-gray-200 bg-gray-50">
         <!-- Left editor group -->
         <div class="relative flex-1">
           <div class="absolute top-0 left-0 h-full w-full overflow-hidden">

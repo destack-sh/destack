@@ -1179,6 +1179,9 @@ export type ProjectVersionsQuery = {
   project?: {
     __typename?: "Project";
     id: any;
+    head: { __typename?: "ProjectVersion" } & {
+      " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+    };
     versions: Array<
       { __typename?: "ProjectVersion" } & {
         " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
@@ -1209,6 +1212,7 @@ export type ProjectVersionContentQuery = {
     __typename?: "ProjectVersion";
     id: any;
     name?: string | null;
+    tag?: string | null;
     description?: string | null;
     createdAt: any;
     committed: boolean;
@@ -2964,6 +2968,14 @@ export const ProjectVersionsDocument = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
+                  name: { kind: "Name", value: "head" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+                  },
+                },
+                {
+                  kind: "Field",
                   name: { kind: "Name", value: "versions" },
                   selectionSet: {
                     kind: "SelectionSet",
@@ -3061,6 +3073,7 @@ export const ProjectVersionContentDocument = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
                 { kind: "Field", name: { kind: "Name", value: "description" } },
                 { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                 { kind: "Field", name: { kind: "Name", value: "committed" } },

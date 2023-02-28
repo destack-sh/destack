@@ -11,6 +11,7 @@ import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer } from "@/utils/sem
 import { BookmarkIcon, PencilIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{
   project: ProjectHeader;
@@ -28,6 +29,9 @@ const { result: versionsQuery, loading } = useQuery(
     query projectVersions($projectId: GlobalID!) {
       project(id: $projectId) {
         id
+        head {
+          ...ProjectVersionHeader
+        }
         versions {
           ...ProjectVersionHeader
         }
@@ -38,6 +42,7 @@ const { result: versionsQuery, loading } = useQuery(
     projectId: props.project.id,
   })
 );
+const head = useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head);
 const versions = computed(
   () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
 );
@@ -50,6 +55,7 @@ type Action = {
 };
 
 const actions = useActions();
+const router = useRouter();
 const notifications = useNotifications();
 const ops = useOperations();
 const lastSemVerTag = computed(() => {
@@ -149,7 +155,14 @@ const globalActions: Action[] = [
                 <div class="pt-0.5">
                   <!-- Past version -->
                   <p v-if="versionIdx > 0" class="flex flex-row items-start gap-0.5 text-xs font-bold">
-                    <router-link :to="`/`" class="text-gray-900 hover:underline">
+                    <router-link
+                      :to="{
+                        query: { version: version.id },
+                        hash: router.currentRoute.value.hash,
+                      }"
+                      class="hover:underline"
+                      :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-900'"
+                    >
                       {{ version.name || "Autosave" }}
                     </router-link>
                     <button
@@ -160,7 +173,9 @@ const globalActions: Action[] = [
                   </p>
                   <!-- Head version -->
                   <p v-else class="text-xs font-bold" :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'">
-                    (Working)
+                    <router-link :to="{ hash: router.currentRoute.value.hash }" class="hover:underline">
+                      (Working)
+                    </router-link>
                     <!-- Save button here? -->
                   </p>
                   <button
@@ -177,7 +192,12 @@ const globalActions: Action[] = [
                 </div>
                 <!-- Time -->
                 <div class="whitespace-nowrap text-right text-xs">
-                  <svg v-if="versionIdx == 0" viewBox="0 0 100 100" class="mb-0.5 h-1 w-1 text-orange-600">
+                  <svg
+                    v-if="versionIdx == 0"
+                    viewBox="0 0 100 100"
+                    class="mb-0.5 h-1 w-1"
+                    :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'"
+                  >
                     <circle cx="50" cy="50" r="40" fill="currentColor" />
                   </svg>
                   <time v-else class="text-gray-500" :datetime="version.committedAt">
