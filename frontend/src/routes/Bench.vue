@@ -28,7 +28,6 @@ import { useCurrentModuleRuntime } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import {
-  BookOpenIcon,
   ClipboardDocumentIcon,
   ClockIcon,
   Cog8ToothIcon,
@@ -44,6 +43,7 @@ import { useFullscreen, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
+import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 
 const props = defineProps<{
   owner: string;
@@ -423,11 +423,12 @@ watchEffect(async () => {
             v-if="versionToViewId != project?.head?.id && versionLoaded"
             class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
           >
-            <span class="">
-              Version
-              <span class="font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
+            <span class="relative">
+              <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
+              <span class="ml-5 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
             </span>
             <button
+              v-if="project.canWrite"
               class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
               @click="actions.apply('version.restore')"
             >

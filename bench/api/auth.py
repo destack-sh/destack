@@ -5,6 +5,7 @@ from typing import Any, Callable, Iterable, Self, Union, cast
 
 import strawberry
 import structlog
+from django.core.exceptions import PermissionDenied
 from django.db.models import Model, Q, QuerySet
 from graphql import GraphQLResolveInfo
 from social_django.strategy import DjangoStrategy
@@ -219,6 +220,20 @@ def can_write_project(user: User, obj: Any) -> bool:
         or obj.organization_id is not None
         and obj.organization.members.filter(id=user.id).exists()
     )
+
+
+def check_can_view(info: Info, obj: Any) -> None:
+    """Raises a PermissionDenied error if the user cannot view the given object."""
+    user = cast(User, info.context.request.scope["user"]._wrapped)
+    if not can_view_project(user, obj):
+        raise PermissionDenied("User cannot view this.")
+
+
+def check_can_write(info: Info, obj: Any) -> None:
+    """Raises a PermissionDenied error if the user cannot write to the given object."""
+    user = cast(User, info.context.request.scope["user"]._wrapped)
+    if not can_write_project(user, obj):
+        raise PermissionDenied("User cannot write to this.")
 
 
 @strawberry.schema_directive(
