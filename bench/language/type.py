@@ -715,6 +715,8 @@ class Build(InterpSymbol, BuildContent):
 
 @dataclass(repr=False)
 class SourceMapping:
+    """A mapping between a source and a target symbol (or sub-symbol)"""
+
     source_id: UUID
     source_revision: int
     source_path: Optional[dict]

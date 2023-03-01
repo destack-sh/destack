@@ -347,7 +347,8 @@ watchEffect(() => {
     !versionLoaded.value ||
     migrating.value ||
     versionToViewId.value != project.value?.head.id ||
-    !project.value?.canWrite;
+    !project.value?.canWrite ||
+    version.value?.committed == true;
 });
 
 // prepare editor state for project whenever project (head) changes
