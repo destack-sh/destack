@@ -1,7 +1,7 @@
 import abc
 import dataclasses
 import functools
-from typing import Any, Callable, Iterable, cast
+from typing import Any, Callable, Iterable, Self, Union, cast
 
 import strawberry
 import structlog
@@ -72,6 +72,21 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
             **kwargs,
         )
 
+    def get_cache(
+        self,
+        info: GraphQLResolveInfo,
+        user: User,
+    ) -> dict[Union[Self, tuple[Self, Any]], bool]:
+        cache_key = f"_{self.__class__.__name__}_cache"
+
+        cache = getattr(user, cache_key, None)
+        if cache is not None:
+            return cache
+
+        cache = {}
+        setattr(user, cache_key, cache)
+        return cache
+
     def resolve_for_user(
         self,
         helper: SchemaDirectiveHelper,
@@ -81,9 +96,12 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
         user: User,
         **kwargs,
     ):
+        cache = self.get_cache(info, user)
         if self.at_root and root is not None:
-            # TODO @Performance: cache this
-            has_perm = self.has_perm(root, info, user, root)
+            has_perm = cache.get(self)
+            if has_perm is None:
+                has_perm = self.has_perm_safe(root, info, user, root)
+                cache[self] = has_perm
             return self.resolve_retval(helper, root, info, resolver, has_perm)
         else:  # retval
             init_checker(self)  # type:ignore
@@ -112,16 +130,22 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
             return self.resolve_retval(helper, root, info, obj, True)
 
         if isinstance(obj, Iterable):
+            # not needed so far, see _resolve_iterable_perms_safe once necessary
             raise NotImplementedError
 
-        # TODO @Performance: cache this
-        has_perm = self.has_perm(root, info, user, obj)
+        cache = self.get_cache(info, user)
+        has_perm = cache.get(obj)
+        if has_perm is None:
+            has_perm = self.has_perm_safe(root, info, user, obj)
+            cache[obj] = has_perm
         return self.resolve_retval(helper, root, info, obj, has_perm)
 
-    def has_perm(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
+    def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
+        """Checks whether the user has the permission for the given object. Async safe."""
         raise NotImplementedError
 
     def filter_for_user(self, qs: QuerySet, user: User) -> QuerySet:
+        """Filters the queryset for access by the given user."""
         raise NotImplementedError
 
 
@@ -164,7 +188,7 @@ class CanViewProject(HasCustomPermDirective):
     message: Private[str] = dataclasses.field(default="User cannot view this.")
 
     @resolvers.async_safe
-    def has_perm(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
+    def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
         if user.is_authenticated and user.is_staff:
             return True
         # TODO @Performance: prefetch project or check condition entirely in SQL
@@ -205,7 +229,7 @@ class CanWriteProject(CanViewProject):
     message: Private[str] = dataclasses.field(default="User cannot write to this.")
 
     @resolvers.async_safe
-    def has_perm(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
+    def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
         if user.is_authenticated and user.is_staff:
             return True
         if user.is_anonymous:
