@@ -19,7 +19,7 @@ const props = defineProps<{ fileId: string; focused: boolean }>();
 const editor = useEditorState();
 const actions = useActions();
 
-const { result: file } = useQuery(
+const { result: file, loading: fileLoading } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
@@ -198,6 +198,12 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
         >
           Go there
         </router-link>
+      </div>
+    </div>
+    <!-- File failed to load -->
+    <div v-else-if="!fileLoading && fileHeader == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
+      <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
+        <div class="text-sm font-bold text-white">File failed to load.</div>
       </div>
     </div>
     <!-- bottom padding is in last StatementAddArea -->

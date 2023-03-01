@@ -59,6 +59,26 @@ export type DatasetRecord = Node & {
   updatedAt: Scalars["DateTime"];
 };
 
+/** A connection to a list of items. */
+export type DatasetRecordConnection = {
+  __typename?: "DatasetRecordConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<DatasetRecordEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type DatasetRecordEdge = {
+  __typename?: "DatasetRecordEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: DatasetRecord;
+};
+
 export type DeployInput = {
   id: Scalars["GlobalID"];
   status: DeploymentStatus;
@@ -240,6 +260,17 @@ export type FileStatementsArgs = {
   filters?: InputMaybe<StatementFilter>;
 };
 
+/** A connection to a list of items. */
+export type FileConnection = {
+  __typename?: "FileConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<FileEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
 export type FileCreateInput = {
   directory?: Scalars["Boolean"];
   id?: InputMaybe<Scalars["GlobalID"]>;
@@ -247,6 +278,15 @@ export type FileCreateInput = {
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   path: Scalars["String"];
   projectVersionId: Scalars["GlobalID"];
+};
+
+/** An edge in a connection. */
+export type FileEdge = {
+  __typename?: "FileEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: File;
 };
 
 export type FileFilter = {
@@ -584,12 +624,46 @@ export type Organization = Node &
     __typename?: "Organization";
     createdAt: Scalars["DateTime"];
     id: Scalars["GlobalID"];
-    members: Array<User>;
+    members: UserConnection;
     name: Scalars["String"];
-    projects: Array<Project>;
+    projects: ProjectConnection;
     slug: Scalars["String"];
     updatedAt: Scalars["DateTime"];
   };
+
+export type OrganizationMembersArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type OrganizationProjectsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+/** A connection to a list of items. */
+export type OrganizationConnection = {
+  __typename?: "OrganizationConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<OrganizationEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type OrganizationEdge = {
+  __typename?: "OrganizationEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Organization;
+};
 
 export type OrganizationUser = Organization | User;
 
@@ -597,7 +671,7 @@ export type Owner = {
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  projects: Array<Project>;
+  projects: ProjectConnection;
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
 };
@@ -627,7 +701,7 @@ export type Project = Node & {
   slug: Scalars["String"];
   type: ProjectType;
   updatedAt: Scalars["DateTime"];
-  versions: Array<ProjectVersion>;
+  versions: ProjectVersionConnection;
   visibility: ProjectVisibility;
 };
 
@@ -640,7 +714,22 @@ export type ProjectDeploymentsArgs = {
 };
 
 export type ProjectVersionsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<ProjectVersionFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+/** A connection to a list of items. */
+export type ProjectConnection = {
+  __typename?: "ProjectConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<ProjectEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 export type ProjectCreateInput = {
@@ -649,6 +738,15 @@ export type ProjectCreateInput = {
   slug: Scalars["String"];
   type?: ProjectType;
   visibility: ProjectVisibility;
+};
+
+/** An edge in a connection. */
+export type ProjectEdge = {
+  __typename?: "ProjectEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Project;
 };
 
 export type ProjectOperationInfo = OperationInfo | Project;
@@ -677,13 +775,12 @@ export type ProjectVersion = Node & {
   dependencies: Array<ProjectVersion>;
   deployments: DeploymentConnection;
   description?: Maybe<Scalars["String"]>;
-  files: Array<File>;
+  files: FileConnection;
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   parents: Array<ProjectVersion>;
   parentsRefs: Array<RefMapping>;
   project: Project;
-  statements: Array<Statement>;
   tag?: Maybe<Scalars["String"]>;
 };
 
@@ -696,11 +793,31 @@ export type ProjectVersionDeploymentsArgs = {
 };
 
 export type ProjectVersionFilesArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<FileFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
-export type ProjectVersionStatementsArgs = {
-  filters?: InputMaybe<StatementFilter>;
+/** A connection to a list of items. */
+export type ProjectVersionConnection = {
+  __typename?: "ProjectVersionConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<ProjectVersionEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type ProjectVersionEdge = {
+  __typename?: "ProjectVersionEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: ProjectVersion;
 };
 
 export type ProjectVersionFilter = {
@@ -867,15 +984,6 @@ export type SimplyTyped = {
   typeNodes?: Maybe<Array<SimpleType>>;
 };
 
-export type SourceMapping = {
-  __typename?: "SourceMapping";
-  sourceId: Scalars["GlobalID"];
-  sourceRevision: Scalars["Int"];
-  statementId: Scalars["GlobalID"];
-  targetId: Scalars["GlobalID"];
-  targetRevision: Scalars["Int"];
-};
-
 export type Statement = Node &
   SimplyTyped & {
     __typename?: "Statement";
@@ -888,7 +996,6 @@ export type Statement = Node &
     description?: Maybe<Scalars["String"]>;
     file: File;
     generated: Scalars["Boolean"];
-    generatedMappings: Array<SourceMapping>;
     id: Scalars["GlobalID"];
     importPath?: Maybe<Scalars["String"]>;
     lang?: Maybe<Scalars["String"]>;
@@ -897,24 +1004,47 @@ export type Statement = Node &
     orderKey: Scalars["String"];
     parent?: Maybe<Statement>;
     projectVersion: ProjectVersion;
-    records: Array<DatasetRecord>;
+    records: DatasetRecordConnection;
     reference?: Maybe<Statement>;
     referenceProjectVersion?: Maybe<ProjectVersion>;
-    referencedBy: Array<Statement>;
+    referencedBy: StatementConnection;
     revision: Scalars["Int"];
     rootTypeTag?: Maybe<TypeTag>;
-    sourceMappings: Array<SourceMapping>;
     symbolType?: Maybe<SymbolType>;
-    targetMappings: Array<SourceMapping>;
     type: StatementType;
     typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
     value?: Maybe<Scalars["JSON"]>;
   };
 
+export type StatementRecordsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type StatementReferencedByArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
 export type StatementCommentedInput = {
   commented: Scalars["Boolean"];
   id: Scalars["GlobalID"];
+};
+
+/** A connection to a list of items. */
+export type StatementConnection = {
+  __typename?: "StatementConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<StatementEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 /** Creates a blank statement */
@@ -923,6 +1053,15 @@ export type StatementCreateInput = {
   id?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
+};
+
+/** An edge in a connection. */
+export type StatementEdge = {
+  __typename?: "StatementEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Statement;
 };
 
 export type StatementFilter = {
@@ -1124,18 +1263,52 @@ export type User = Node &
     email: Scalars["String"];
     id: Scalars["GlobalID"];
     name: Scalars["String"];
-    organizations: Array<Organization>;
-    projects: Array<Project>;
+    organizations: OrganizationConnection;
+    projects: ProjectConnection;
     slug: Scalars["String"];
     updatedAt: Scalars["DateTime"];
     /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
     username: Scalars["String"];
   };
 
+export type UserOrganizationsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type UserProjectsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
 export type UserCompleteSignupInput = {
   fullName: Scalars["String"];
   id: Scalars["GlobalID"];
   username: Scalars["String"];
+};
+
+/** A connection to a list of items. */
+export type UserConnection = {
+  __typename?: "UserConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<UserEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type UserEdge = {
+  __typename?: "UserEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: User;
 };
 
 export type UserOperationInfo = OperationInfo | User;
@@ -1200,11 +1373,16 @@ export type ProjectVersionsQuery = {
     head: { __typename?: "ProjectVersion" } & {
       " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
     };
-    versions: Array<
-      { __typename?: "ProjectVersion" } & {
-        " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-      }
-    >;
+    versions: {
+      __typename?: "ProjectVersionConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "ProjectVersionEdge";
+        node: { __typename?: "ProjectVersion" } & {
+          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+        };
+      }>;
+    };
   } | null;
 };
 
@@ -1235,7 +1413,14 @@ export type ProjectVersionContentQuery = {
     createdAt: any;
     committed: boolean;
     committedAt?: any | null;
-    files: Array<{ __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } }>;
+    files: {
+      __typename?: "FileConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "FileEdge";
+        node: { __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+      }>;
+    };
   } | null;
 };
 
@@ -1265,30 +1450,49 @@ export type HomeQuery = {
   me?: {
     __typename?: "User";
     slug: string;
-    projects: Array<{
-      __typename?: "Project";
-      id: any;
-      name: string;
-      slug: string;
-      path: string;
-      createdAt: any;
-      type: ProjectType;
-      visibility: ProjectVisibility;
-    }>;
-    organizations: Array<{
-      __typename?: "Organization";
-      projects: Array<{
-        __typename?: "Project";
-        id: any;
-        name: string;
-        path: string;
-        slug: string;
-        createdAt: any;
-        type: ProjectType;
-        visibility: ProjectVisibility;
-        head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
+    projects: {
+      __typename?: "ProjectConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "ProjectEdge";
+        node: {
+          __typename?: "Project";
+          id: any;
+          name: string;
+          slug: string;
+          path: string;
+          createdAt: any;
+          type: ProjectType;
+          visibility: ProjectVisibility;
+        };
       }>;
-    }>;
+    };
+    organizations: {
+      __typename?: "OrganizationConnection";
+      edges: Array<{
+        __typename?: "OrganizationEdge";
+        node: {
+          __typename?: "Organization";
+          projects: {
+            __typename?: "ProjectConnection";
+            totalCount?: number | null;
+            edges: Array<{
+              __typename?: "ProjectEdge";
+              node: {
+                __typename?: "Project";
+                id: any;
+                name: string;
+                slug: string;
+                path: string;
+                createdAt: any;
+                type: ProjectType;
+                visibility: ProjectVisibility;
+              };
+            }>;
+          };
+        };
+      }>;
+    };
   } | null;
 };
 
@@ -1305,17 +1509,24 @@ export type ProfileHomeQuery = {
         slug: string;
         name: string;
         createdAt: any;
-        projects: Array<{
-          __typename?: "Project";
-          id: any;
-          name: string;
-          path: string;
-          slug: string;
-          createdAt: any;
-          type: ProjectType;
-          visibility: ProjectVisibility;
-          head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
-        }>;
+        projects: {
+          __typename?: "ProjectConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "ProjectEdge";
+            node: {
+              __typename?: "Project";
+              id: any;
+              name: string;
+              slug: string;
+              path: string;
+              createdAt: any;
+              type: ProjectType;
+              visibility: ProjectVisibility;
+              head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
+            };
+          }>;
+        };
       }
     | {
         __typename?: "User";
@@ -1325,17 +1536,24 @@ export type ProfileHomeQuery = {
         username: string;
         bot: boolean;
         createdAt: any;
-        projects: Array<{
-          __typename?: "Project";
-          id: any;
-          name: string;
-          slug: string;
-          path: string;
-          createdAt: any;
-          type: ProjectType;
-          visibility: ProjectVisibility;
-          head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
-        }>;
+        projects: {
+          __typename?: "ProjectConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "ProjectEdge";
+            node: {
+              __typename?: "Project";
+              id: any;
+              name: string;
+              slug: string;
+              path: string;
+              createdAt: any;
+              type: ProjectType;
+              visibility: ProjectVisibility;
+              head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
+            };
+          }>;
+        };
       }
     | null;
 };
@@ -1344,7 +1562,25 @@ export type MeQueryVariables = Exact<{ [key: string]: never }>;
 
 export type MeQuery = {
   __typename?: "Query";
-  me?: ({ __typename?: "User" } & { " $fragmentRefs"?: { UserContentFragment: UserContentFragment } }) | null;
+  me?: {
+    __typename?: "User";
+    id: any;
+    username: string;
+    slug: string;
+    email: string;
+    name: string;
+    createdAt: any;
+    updatedAt: any;
+    completedSignup: boolean;
+    organizations: {
+      __typename?: "OrganizationConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "OrganizationEdge";
+        node: { __typename?: "Organization"; id: any; name: string; slug: string; createdAt: any; updatedAt: any };
+      }>;
+    };
+  } | null;
 };
 
 export type ProjectMigrationRefsQueryVariables = Exact<{
@@ -1357,14 +1593,21 @@ export type ProjectMigrationRefsQuery = {
   __typename?: "Query";
   project?: {
     __typename?: "Project";
-    versions: Array<{
-      __typename?: "ProjectVersion";
-      id: any;
-      name?: string | null;
-      tag?: string | null;
-      createdAt: any;
-      parentsRefs: Array<{ __typename?: "RefMapping"; source: any; target: any }>;
-    }>;
+    versions: {
+      __typename?: "ProjectVersionConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "ProjectVersionEdge";
+        node: {
+          __typename?: "ProjectVersion";
+          id: any;
+          name?: string | null;
+          tag?: string | null;
+          createdAt: any;
+          parentsRefs: Array<{ __typename?: "RefMapping"; source: any; target: any }>;
+        };
+      }>;
+    };
   } | null;
 };
 
@@ -1454,26 +1697,6 @@ export type OperationInfoContentFragment = {
     field?: string | null;
   }>;
 } & { " $fragmentName"?: "OperationInfoContentFragment" };
-
-export type UserContentFragment = {
-  __typename?: "User";
-  id: any;
-  username: string;
-  slug: string;
-  email: string;
-  name: string;
-  createdAt: any;
-  updatedAt: any;
-  completedSignup: boolean;
-  organizations: Array<{
-    __typename?: "Organization";
-    id: any;
-    name: string;
-    slug: string;
-    createdAt: any;
-    updatedAt: any;
-  }>;
-} & { " $fragmentName"?: "UserContentFragment" };
 
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
@@ -1581,7 +1804,14 @@ export type StatementContentFragment = {
       " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
     }
   >;
-  records: Array<{ __typename?: "DatasetRecord"; id: any; orderKey: string; data: any }>;
+  records: {
+    __typename?: "DatasetRecordConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "DatasetRecordEdge";
+      node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
+    }>;
+  };
 } & { " $fragmentName"?: "StatementContentFragment" };
 
 export type UpdateDeploymentMutationVariables = Exact<{
@@ -2040,7 +2270,14 @@ export type CreateRecordMutation = {
         id: any;
         orderKey: string;
         revision: number;
-        records: Array<{ __typename?: "DatasetRecord"; id: any; orderKey: string; data: any }>;
+        records: {
+          __typename?: "DatasetRecordConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "DatasetRecordEdge";
+            node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
+          }>;
+        };
       };
 };
 
@@ -2061,7 +2298,14 @@ export type UpdateRecordMutation = {
         id: any;
         orderKey: string;
         revision: number;
-        records: Array<{ __typename?: "DatasetRecord"; id: any; orderKey: string; data: any }>;
+        records: {
+          __typename?: "DatasetRecordConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "DatasetRecordEdge";
+            node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
+          }>;
+        };
       };
 };
 
@@ -2081,7 +2325,14 @@ export type DeleteRecordMutation = {
         id: any;
         orderKey: string;
         revision: number;
-        records: Array<{ __typename?: "DatasetRecord"; id: any; orderKey: string; data: any }>;
+        records: {
+          __typename?: "DatasetRecordConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "DatasetRecordEdge";
+            node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
+          }>;
+        };
       };
 };
 
@@ -2106,7 +2357,17 @@ export type CompleteSignupMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({ __typename?: "User" } & { " $fragmentRefs"?: { UserContentFragment: UserContentFragment } });
+    | {
+        __typename?: "User";
+        id: any;
+        username: string;
+        slug: string;
+        email: string;
+        name: string;
+        createdAt: any;
+        updatedAt: any;
+        completedSignup: boolean;
+      };
 };
 
 export type UpdateVersionMutationVariables = Exact<{
@@ -2375,43 +2636,6 @@ export const OperationInfoContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<OperationInfoContentFragment, unknown>;
-export const UserContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "UserContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "username" } },
-          { kind: "Field", name: { kind: "Name", value: "slug" } },
-          { kind: "Field", name: { kind: "Name", value: "email" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "organizations" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "slug" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<UserContentFragment, unknown>;
 export const ProjectVersionHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -2699,9 +2923,28 @@ export const StatementContentFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                { kind: "Field", name: { kind: "Name", value: "data" } },
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                            { kind: "Field", name: { kind: "Name", value: "data" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
               ],
             },
           },
@@ -3029,7 +3272,28 @@ export const ProjectVersionsDocument = {
                   name: { kind: "Name", value: "versions" },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
                   },
                 },
               ],
@@ -3150,8 +3414,27 @@ export const ProjectVersionContentDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
                     ],
                   },
                 },
@@ -3291,14 +3574,33 @@ export const HomeDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "slug" } },
-                      { kind: "Field", name: { kind: "Name", value: "path" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "visibility" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                  { kind: "Field", name: { kind: "Name", value: "path" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
                     ],
                   },
                 },
@@ -3310,26 +3612,52 @@ export const HomeDocument = {
                     selections: [
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "projects" },
+                        name: { kind: "Name", value: "edges" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "name" } },
-                            { kind: "Field", name: { kind: "Name", value: "path" } },
-                            { kind: "Field", name: { kind: "Name", value: "slug" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "type" } },
-                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                             {
                               kind: "Field",
-                              name: { kind: "Name", value: "head" },
+                              name: { kind: "Name", value: "node" },
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "projects" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "edges" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              {
+                                                kind: "Field",
+                                                name: { kind: "Name", value: "node" },
+                                                selectionSet: {
+                                                  kind: "SelectionSet",
+                                                  selections: [
+                                                    { kind: "Field", name: { kind: "Name", value: "id" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "name" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "path" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "type" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                                  ],
+                                                },
+                                              },
+                                            ],
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
                                 ],
                               },
                             },
@@ -3395,22 +3723,41 @@ export const ProfileHomeDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "name" } },
-                            { kind: "Field", name: { kind: "Name", value: "slug" } },
-                            { kind: "Field", name: { kind: "Name", value: "path" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "type" } },
-                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
                             {
                               kind: "Field",
-                              name: { kind: "Name", value: "head" },
+                              name: { kind: "Name", value: "edges" },
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "name" } },
+                                        { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                        { kind: "Field", name: { kind: "Name", value: "path" } },
+                                        { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                        { kind: "Field", name: { kind: "Name", value: "type" } },
+                                        { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                                        { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "head" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                              { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                            ],
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
                                 ],
                               },
                             },
@@ -3436,22 +3783,41 @@ export const ProfileHomeDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "name" } },
-                            { kind: "Field", name: { kind: "Name", value: "path" } },
-                            { kind: "Field", name: { kind: "Name", value: "slug" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "type" } },
-                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
                             {
                               kind: "Field",
-                              name: { kind: "Name", value: "head" },
+                              name: { kind: "Name", value: "edges" },
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "name" } },
+                                        { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                        { kind: "Field", name: { kind: "Name", value: "path" } },
+                                        { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                        { kind: "Field", name: { kind: "Name", value: "type" } },
+                                        { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                                        { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "head" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                              { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                            ],
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
                                 ],
                               },
                             },
@@ -3484,13 +3850,54 @@ export const MeDocument = {
             name: { kind: "Name", value: "me" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "UserContent" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "slug" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "organizations" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
             },
           },
         ],
       },
     },
-    ...UserContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MeQuery, MeQueryVariables>;
 export const ProjectMigrationRefsDocument = {
@@ -3560,18 +3967,37 @@ export const ProjectMigrationRefsDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "tag" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "parentsRefs" },
+                        name: { kind: "Name", value: "edges" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "source" } },
-                            { kind: "Field", name: { kind: "Name", value: "target" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "tag" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "parentsRefs" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "source" } },
+                                        { kind: "Field", name: { kind: "Name", value: "target" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
@@ -5812,9 +6238,28 @@ export const CreateRecordDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                            { kind: "Field", name: { kind: "Name", value: "data" } },
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                                        { kind: "Field", name: { kind: "Name", value: "data" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
@@ -5905,9 +6350,28 @@ export const UpdateRecordDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                            { kind: "Field", name: { kind: "Name", value: "data" } },
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                                        { kind: "Field", name: { kind: "Name", value: "data" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
@@ -5988,9 +6452,28 @@ export const DeleteRecordDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                            { kind: "Field", name: { kind: "Name", value: "data" } },
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                                        { kind: "Field", name: { kind: "Name", value: "data" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
@@ -6069,7 +6552,16 @@ export const CompleteSignupDocument = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "UserContent" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "email" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
+                    ],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -6079,7 +6571,6 @@ export const CompleteSignupDocument = {
         ],
       },
     },
-    ...UserContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompleteSignupMutation, CompleteSignupMutationVariables>;

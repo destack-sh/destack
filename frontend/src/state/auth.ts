@@ -1,5 +1,4 @@
 import { graphql, useFragment } from "@/gql";
-import { UserContentType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { HTTP_API_BASE_URL, IS_LOCALHOST } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
@@ -22,13 +21,33 @@ function _useAuth() {
     graphql(/* GraphQL */ `
       query me {
         me {
-          ...UserContent
+          id
+          username
+          slug
+          email
+          name
+          createdAt
+          updatedAt
+          completedSignup
+          organizations {
+            totalCount
+            edges {
+              node {
+                id
+                name
+                slug
+                createdAt
+                updatedAt
+              }
+            }
+          }
         }
       }
     `)
   );
 
-  const me = computed(() => useFragment(UserContentType, meResult.value?.me));
+  const me = computed(() => meResult.value?.me);
+  const organizations = computed(() => me.value?.organizations?.edges.map((e) => e.node));
 
   // identify user for posthog
   watchEffect(() => {
@@ -43,7 +62,7 @@ function _useAuth() {
     }
   });
 
-  return { loggedIn: computed(() => !!me.value), me, loading: meLoading };
+  return { loggedIn: computed(() => !!me.value), me, organizations, loading: meLoading };
 }
 
 export const useAuth = createSharedComposable(_useAuth);

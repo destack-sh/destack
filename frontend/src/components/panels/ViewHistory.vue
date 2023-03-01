@@ -33,7 +33,12 @@ const { result: versionsQuery, loading } = useQuery(
           ...ProjectVersionHeader
         }
         versions {
-          ...ProjectVersionHeader
+          totalCount
+          edges {
+            node {
+              ...ProjectVersionHeader
+            }
+          }
         }
       }
     }
@@ -43,7 +48,7 @@ const { result: versionsQuery, loading } = useQuery(
   })
 );
 const versions = computed(
-  () => versionsQuery.value?.project?.versions.map((x) => useFragment(ProjectVersionHeaderType, x)) || []
+  () => versionsQuery.value?.project?.versions.edges.map((x) => useFragment(ProjectVersionHeaderType, x.node)) || []
 );
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
 const isAtHead = computed(() => editor.currentProjectVersionId == head.value?.id);
@@ -55,7 +60,6 @@ type Action = {
   action: () => void;
 };
 
-const actions = useActions();
 const router = useRouter();
 const notifications = useNotifications();
 const ops = useOperations();

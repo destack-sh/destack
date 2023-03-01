@@ -34,7 +34,14 @@ export function useUserOps() {
       mutation completeSignup($input: UserCompleteSignupInput!) {
         completeSignup(input: $input) {
           ... on User {
-            ...UserContent
+            id
+            username
+            slug
+            email
+            name
+            createdAt
+            updatedAt
+            completedSignup
           }
           ...OperationInfoContent
         }

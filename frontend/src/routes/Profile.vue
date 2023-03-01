@@ -27,17 +27,22 @@ const { result: profileResult, loading } = useQuery(
           bot
           createdAt
           projects {
-            id
-            name
-            slug
-            path
-            createdAt
-            type
-            visibility
-            createdAt
-            head {
-              name
-              createdAt
+            totalCount
+            edges {
+              node {
+                id
+                name
+                slug
+                path
+                createdAt
+                type
+                visibility
+                createdAt
+                head {
+                  name
+                  createdAt
+                }
+              }
             }
           }
         }
@@ -47,17 +52,22 @@ const { result: profileResult, loading } = useQuery(
           name
           createdAt
           projects {
-            id
-            name
-            path
-            slug
-            createdAt
-            type
-            visibility
-            createdAt
-            head {
-              name
-              createdAt
+            totalCount
+            edges {
+              node {
+                id
+                name
+                slug
+                path
+                createdAt
+                type
+                visibility
+                createdAt
+                head {
+                  name
+                  createdAt
+                }
+              }
             }
           }
         }
@@ -70,7 +80,7 @@ const profile = computed(() => profileResult.value?.ownerBySlug);
 const user = computed(() => (profile.value?.__typename === "User" ? profile.value : null));
 const organization = computed(() => (profile.value?.__typename === "Organization" ? profile.value : null));
 const benches = computed(() => {
-  return profile.value?.projects;
+  return profile.value?.projects.edges.map((e) => e.node);
 });
 
 const title = useTitle();

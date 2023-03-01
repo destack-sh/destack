@@ -443,13 +443,18 @@ export function useEditorMigrations() {
       query projectMigrationRefs($projectId: GlobalID!, $fromId: GlobalID!, $toId: GlobalID!) {
         project(id: $projectId) {
           versions(filters: { fromId: $fromId, toId: $toId }) {
-            id
-            name
-            tag
-            createdAt
-            parentsRefs {
-              source
-              target
+            totalCount
+            edges {
+              node {
+                id
+                name
+                tag
+                createdAt
+                parentsRefs {
+                  source
+                  target
+                }
+              }
             }
           }
         }
@@ -477,7 +482,7 @@ export function useEditorMigrations() {
         migratingTo.value = null;
       } else if (migrationRefs.value != null) {
         // got the intermediate ref mappings, do actual migration
-        const intermediateVersions = [...(migrationRefs.value?.project?.versions ?? [])];
+        const intermediateVersions = [...(migrationRefs.value?.project?.versions.edges.map((e) => e.node) ?? [])];
         if (intermediateVersions[0].id == migratingTo.value) {
           // migrate backwards to an older version (reverse everything)
           intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));

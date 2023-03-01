@@ -1,8 +1,8 @@
 """Can only be resolved by user with project view permission"""
-directive @canViewProjectDirective on FIELD_DEFINITION
+directive @canViewProject on FIELD_DEFINITION
 
 """Can only be resolved by user with project write permission"""
-directive @canWriteProjectDirective on FIELD_DEFINITION
+directive @canWriteProject on FIELD_DEFINITION
 
 input BuildInput {
   projectVersionId: GlobalID!
@@ -38,6 +38,27 @@ type DatasetRecord implements Node {
   updatedAt: DateTime!
   orderKey: String!
   data: JSON!
+}
+
+"""A connection to a list of items."""
+type DatasetRecordConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetRecordEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type DatasetRecordEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetRecord!
 }
 
 """Date with time (isoformat)"""
@@ -221,6 +242,18 @@ type File implements Node {
   statements(filters: StatementFilter): [Statement!]!
 }
 
+"""A connection to a list of items."""
+type FileConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [FileEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
 input FileCreateInput {
   id: GlobalID = null
   projectVersionId: GlobalID!
@@ -228,6 +261,15 @@ input FileCreateInput {
   path: String!
   parentId: GlobalID = null
   directory: Boolean! = false
+}
+
+"""An edge in a connection."""
+type FileEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: File!
 }
 
 input FileFilter {
@@ -328,36 +370,36 @@ type Mutation {
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
-  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProjectDirective
-  morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProjectDirective
-  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProjectDirective
-  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo! @canWriteProjectDirective
-  commentStatement(input: StatementCommentedInput!): StatementOperationInfo! @canWriteProjectDirective
-  moveStatement(input: StatementMoveInput!): StatementOperationInfo! @canWriteProjectDirective
-  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProjectDirective
-  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo! @canWriteProjectDirective
-  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo! @canWriteProjectDirective
-  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo! @canWriteProjectDirective
-  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo! @canWriteProjectDirective
-  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo! @canWriteProjectDirective
-  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo! @canWriteProjectDirective
-  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo! @canWriteProjectDirective
-  createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProjectDirective
-  softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProjectDirective
-  restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProjectDirective
-  moveFile(input: FileMoveInput!): FileOperationInfo! @canWriteProjectDirective
-  renameFile(input: FileRenameInput!): FileOperationInfo! @canWriteProjectDirective
-  setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo!
-  addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo!
-  removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo!
-  updateDeployment(input: DeployInput!): DeploymentOperationInfo!
+  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject
+  morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProject
+  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProject
+  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo! @canWriteProject
+  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo! @canWriteProject
+  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo! @canWriteProject
+  commentStatement(input: StatementCommentedInput!): StatementOperationInfo! @canWriteProject
+  moveStatement(input: StatementMoveInput!): StatementOperationInfo! @canWriteProject
+  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject
+  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject
+  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject
+  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject
+  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProject
+  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo! @canWriteProject
+  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo! @canWriteProject
+  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo! @canWriteProject
+  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo! @canWriteProject
+  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo! @canWriteProject
+  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo! @canWriteProject
+  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo! @canWriteProject
+  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo! @canWriteProject
+  createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProject
+  softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProject
+  restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProject
+  moveFile(input: FileMoveInput!): FileOperationInfo! @canWriteProject
+  renameFile(input: FileRenameInput!): FileOperationInfo! @canWriteProject
+  setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo! @canWriteProject
+  addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo! @canWriteProject
+  removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo! @canWriteProject
+  updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject
   build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
 }
@@ -413,8 +455,53 @@ type Organization implements Node & Owner {
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  projects: [Project!]!
-  members: [User!]!
+  projects(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): ProjectConnection! @canViewProject
+  members(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): UserConnection!
+}
+
+"""A connection to a list of items."""
+type OrganizationConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [OrganizationEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type OrganizationEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Organization!
 }
 
 union OrganizationUser = Organization | User
@@ -425,7 +512,7 @@ interface Owner {
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  projects: [Project!]!
+  projects: ProjectConnection!
 }
 
 """Information to aid in pagination."""
@@ -454,7 +541,20 @@ type Project implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   head: ProjectVersion!
-  versions(filters: ProjectVersionFilter): [ProjectVersion!]!
+  versions(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: ProjectVersionFilter
+  ): ProjectVersionConnection!
   deployments(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -471,12 +571,33 @@ type Project implements Node {
   ): DeploymentConnection!
 }
 
+"""A connection to a list of items."""
+type ProjectConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
 input ProjectCreateInput {
   ownerId: GlobalID!
   name: String!
   slug: String!
   visibility: ProjectVisibility!
   type: ProjectType! = EXECUTABLE
+}
+
+"""An edge in a connection."""
+type ProjectEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Project!
 }
 
 union ProjectOperationInfo = Project | OperationInfo
@@ -508,8 +629,20 @@ type ProjectVersion implements Node {
   committed: Boolean!
   committedAt: DateTime
   dependencies: [ProjectVersion!]!
-  files(filters: FileFilter): [File!]!
-  statements(filters: StatementFilter): [Statement!]!
+  files(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: FileFilter
+  ): FileConnection!
   deployments(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -525,6 +658,27 @@ type ProjectVersion implements Node {
     filters: DeploymentFilter
   ): DeploymentConnection!
   parentsRefs: [RefMapping!]!
+}
+
+"""A connection to a list of items."""
+type ProjectVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectVersionEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type ProjectVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectVersion!
 }
 
 input ProjectVersionFilter {
@@ -559,7 +713,7 @@ type Query {
     codeId: GlobalID = null
     rootId: GlobalID = null
     rootIdNull: Boolean! = false
-  ): ExecutionConnection!
+  ): ExecutionConnection! @canViewProject
   me: User
   user(
     """The ID of the object."""
@@ -573,17 +727,17 @@ type Query {
   project(
     """The ID of the object."""
     id: GlobalID!
-  ): Project @canViewProjectDirective
-  projectBySlug(owner: String!, project: String!): Project @canViewProjectDirective
+  ): Project @canViewProject
+  projectBySlug(owner: String!, project: String!): Project @canViewProject
   projectVersion(
     """The ID of the object."""
     id: GlobalID!
-  ): ProjectVersion @canViewProjectDirective
-  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProjectDirective
+  ): ProjectVersion @canViewProject
+  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProject
   file(
     """The ID of the object."""
     id: GlobalID!
-  ): File
+  ): File @canViewProject
 }
 
 input RecordCreateInput {
@@ -671,14 +825,6 @@ interface SimplyTyped {
   typeNodes: [SimpleType!]
 }
 
-type SourceMapping {
-  statementId: GlobalID!
-  sourceId: GlobalID!
-  sourceRevision: Int!
-  targetId: GlobalID!
-  targetRevision: Int!
-}
-
 type Statement implements Node & SimplyTyped {
   id: GlobalID!
   rootTypeTag: TypeTag
@@ -699,17 +845,38 @@ type Statement implements Node & SimplyTyped {
   descendants: [Statement!]!
   orderKey: String!
   reference: Statement
-  referencedBy: [Statement!]!
+  referencedBy(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): StatementConnection!
   symbolType: SymbolType
   lang: String
   code: String
   description: String
   referenceProjectVersion: ProjectVersion
   value: JSON
-  records: [DatasetRecord!]!
-  generatedMappings: [SourceMapping!]!
-  sourceMappings: [SourceMapping!]!
-  targetMappings: [SourceMapping!]!
+  records(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): DatasetRecordConnection!
   importPath: String
 }
 
@@ -718,12 +885,33 @@ input StatementCommentedInput {
   commented: Boolean!
 }
 
+"""A connection to a list of items."""
+type StatementConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [StatementEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
 """Creates a blank statement"""
 input StatementCreateInput {
   id: GlobalID = null
   fileId: GlobalID!
   orderKey: String!
   parentId: GlobalID = null
+}
+
+"""An edge in a connection."""
+type StatementEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Statement!
 }
 
 input StatementFilter {
@@ -907,20 +1095,65 @@ type User implements Node & Owner {
   name: String!
   createdAt: DateTime!
   updatedAt: DateTime!
-  projects: [Project!]!
+  projects(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): ProjectConnection! @canViewProject
 
   """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
   username: String!
   email: String!
   completedSignup: Boolean!
   bot: Boolean!
-  organizations: [Organization!]!
+  organizations(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): OrganizationConnection!
 }
 
 input UserCompleteSignupInput {
   id: GlobalID!
   username: String!
   fullName: String!
+}
+
+"""A connection to a list of items."""
+type UserConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [UserEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type UserEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: User!
 }
 
 union UserOperationInfo = User | OperationInfo

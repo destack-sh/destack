@@ -23,7 +23,7 @@ const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const fieldTypeNodes = computed(() => context.typeNodes.value?.map((n) => n as SimpleType) ?? []);
 const lastField = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
 const records = computed(() =>
-  context.statement.value.records.slice().sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+  context.statement.value.records.edges.map((e) => e.node).sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
 );
 const columnsInOrder: Ref<string[]> = computed(() => fieldTypeNodes.value?.map((n) => n.name ?? "") ?? []);
 const recordsLength = computed(() => records.value?.length ?? 0);
@@ -116,7 +116,7 @@ function insertRecord(belowRecordId?: string) {
 }
 
 function writeRecordField(recordId: string, column: string, value: any) {
-  const record = context.statement.value.records.find((r) => r.id === recordId);
+  const record = context.statement.value.records.edges.map((r) => r.node).find((r) => r.id === recordId);
   if (!record) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData, [column]: value };
@@ -124,7 +124,7 @@ function writeRecordField(recordId: string, column: string, value: any) {
 }
 
 function deleteRecord(recordId: string) {
-  const record = context.statement.value.records.find((r) => r.id === recordId);
+  const record = context.statement.value.records.edges.map((r) => r.node).find((r) => r.id === recordId);
   if (!record) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   operations.symbol.deleteRecord(recordId, context.statement.value.id, record.orderKey, oldData);

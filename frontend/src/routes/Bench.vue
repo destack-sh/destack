@@ -98,7 +98,11 @@ const openIssues = provideAction({
 });
 
 // get project header
-const { error: projectError, result: projectResult } = useQuery(
+const {
+  error: projectError,
+  result: projectResult,
+  loading: projectLoading,
+} = useQuery(
   graphql(/* GraphQL */ `
     query projectBySlug($owner: String!, $project: String!) {
       projectBySlug(owner: $owner, project: $project) {
@@ -159,8 +163,13 @@ const { error: versionError, result: versionResult } = useQuery(
         committed
         committedAt
         files(filters: { isVisible: true }) {
-          id
-          ...FileHeader
+          totalCount
+          edges {
+            node {
+              id
+              ...FileHeader
+            }
+          }
         }
       }
     }
@@ -185,7 +194,8 @@ watch(versionError, () => {
 
 // filter deletedAt to increase responsiveness
 const files = computed(
-  () => version.value?.files.map((f) => useFragment(FileHeaderType, f)).filter((f) => f.deletedAt == null) || []
+  () =>
+    version.value?.files.edges.map((f) => useFragment(FileHeaderType, f.node)).filter((f) => f.deletedAt == null) || []
 );
 
 // actions (ensure global actions are available)
@@ -371,7 +381,10 @@ watchEffect(async () => {
         <!-- Home -->
         <HomeButton />
         <!-- Project menu -->
-        <div v-if="!projectError" class="ml-2.5 flex flex-row items-baseline gap-0.5 whitespace-nowrap">
+        <div
+          v-if="projectLoading || projectLoaded"
+          class="ml-2.5 flex flex-row items-baseline gap-0.5 whitespace-nowrap"
+        >
           <!-- Owner -->
           <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-50">
             {{ props.owner }}
@@ -565,7 +578,7 @@ watchEffect(async () => {
         </div>
       </main>
     </div>
-    <GenericNotFound v-if="projectError" class="pb-12" />
+    <GenericNotFound v-if="!projectLoading && !projectLoaded" class="pb-12" />
     <NotificationArea />
   </div>
 </template>

@@ -11,7 +11,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.api.auth import CanWriteProjectDirective
+from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
 from bench.msg import ZMessageType, send_message, zmq_ctx_sync
 from bench.msg.messages import ProjectVersionChangedPayload
@@ -46,7 +46,7 @@ def project_mutation(
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
     """
 
-    directives = directives or [CanWriteProjectDirective()]
+    directives = directives or [CanWriteProject()]
 
     def make_resolver(func):
         @functools.wraps(func)

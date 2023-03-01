@@ -89,8 +89,9 @@ class Project(gql.Node):
     created_at: auto
     updated_at: auto
     head: "ProjectVersion"
-    # TODO @Cleanup: use relay connections for (all?) relations
-    versions: list["ProjectVersion"] = gql.django.field(filters=ProjectVersionFilter)
+    versions: gql.relay.Connection["ProjectVersion"] = gql.django.connection(
+        filters=ProjectVersionFilter
+    )
     deployments: gql.relay.Connection[
         Annotated["Deployment", lazy(".deployment")]
     ] = gql.django.connection(filters=DeploymentFilter)
@@ -114,10 +115,7 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     dependencies: list["ProjectVersion"]
-    files: list["File"] = gql.django.field(filters=FileFilter)
-    statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
-        filters=StatementFilter
-    )
+    files: gql.relay.Connection["File"] = gql.django.connection(filters=FileFilter)
     deployments: gql.relay.Connection[
         Annotated["Deployment", lazy(".deployment")]
     ] = gql.django.connection(filters=DeploymentFilter)
@@ -148,6 +146,8 @@ class File(gql.Node):
     generated: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
+    # TODO @Cleanup: File.statements should be a connection (but strawberry errors)
+    #  There is an error with double-prefetching type_nodes when using a connection.
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )

@@ -1,11 +1,11 @@
 import posthog
 
-from bench.settings import TEST
+from bench.settings import DEBUG, TEST
 from bench.utils.analytics import init_sentry
 
 # Sentry
 
-if not TEST:
+if not (TEST or DEBUG):
     init_sentry()
 
 # Posthog

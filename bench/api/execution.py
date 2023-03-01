@@ -5,6 +5,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.api.auth import CanViewProject
 from bench.api.statement import Statement
 
 ExecutionStatus = gql.enum(models.ExecutionStatus)
@@ -43,7 +44,7 @@ class ModelInference(gql.Node):
 
 @gql.type
 class ExecutionQuery:
-    @gql.connection()
+    @gql.connection(directives=[CanViewProject()])
     def executions(
         self,
         project_version_id: Optional[GlobalID] = None,
