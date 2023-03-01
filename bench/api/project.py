@@ -2,13 +2,14 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 from django.core.exceptions import ValidationError
 from strawberry import UNSET, lazy
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import can_write_project
+from bench.api.auth import can_write_project, check_can_write
 from bench.api.sync import PMT, project_mutation
 from bench.api.util import safe_mutation
 from bench.models.project import RefDict
@@ -249,6 +250,7 @@ class ProjectVersionMutation:
         self, info, input: "UpdateProjectVersion"
     ) -> ProjectVersion | OperationInfo:
         project_v = models.ProjectVersion.objects.get(id=input.id.node_id)
+        check_can_write(info, project_v)
         project_v.name = input.name
         project_v.description = input.description
         project_v.tag = input.tag
@@ -256,10 +258,11 @@ class ProjectVersionMutation:
         return project_v
 
     @safe_mutation(atomic=True)
-    def commit(self, input: CommitInput) -> CommitPayload | OperationInfo:
+    def commit(self, info, input: CommitInput) -> CommitPayload | OperationInfo:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
+        check_can_write(info, project_v)
         project = project_v.project
         if project_v.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
@@ -278,10 +281,11 @@ class ProjectVersionMutation:
         )
 
     @safe_mutation(atomic=True)
-    def restore(self, input: RestoreInput) -> CommitPayload | OperationInfo:
+    def restore(self, info: Info, input: RestoreInput) -> CommitPayload | OperationInfo:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
+        check_can_write(info, project_v)
         project = project_v.project
         if project_v.id == project.head_id:
             raise ValueError("cannot restore version that's already the head")
