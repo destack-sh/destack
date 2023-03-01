@@ -506,13 +506,11 @@ watchEffect(async () => {
       <template v-slot:right>
         <!-- Current "main" statement controls -->
         <FadeTransition>
-          <div v-if="versionLoaded && !editor.readonly" class="flex h-full items-center space-x-2 px-3">
-            <MainSymbolControls />
-          </div>
+          <MainSymbolControls v-if="versionLoaded && !editor.readonly" />
         </FadeTransition>
         <!-- Bench-global controls -->
         <FadeTransition>
-          <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-3">
+          <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-4">
             <SharePopover />
             <DeployPopover :project="project" />
             <OmniCreate />
