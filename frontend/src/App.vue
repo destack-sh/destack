@@ -2,6 +2,7 @@
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
+import { useSystemVersioning } from "@/utils/system";
 import { onBeforeUnmount, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
 
@@ -20,6 +21,28 @@ function onError(operation: Operation<unknown>, error: unknown) {
 errorListeners.push(onError);
 onBeforeUnmount(() => {
   errorListeners.splice(errorListeners.indexOf(onError), 1);
+});
+
+// always track versioning
+const { systemInfo, outOfDate } = useSystemVersioning();
+watchEffect(() => {
+  if (outOfDate.value) {
+    if (notifications.activeNotifications.find((n) => n.type == "system.outOfDate")) {
+      // already prompted
+      return;
+    }
+    notifications.show({
+      type: "system.outOfDate",
+      kind: "notice",
+      message: "Get a better Bench",
+      description: `Bench version ${systemInfo.value.version} is now available.`,
+      actionText: "Refresh",
+      action: () => {
+        window.location.reload();
+      },
+      showTimeMs: 365 * 24 * 60 * 60 * 1000, // 1 year
+    });
+  }
 });
 
 // auto-redirect to complete signup if not completed

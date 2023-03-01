@@ -34,3 +34,18 @@ export function bumpSemVer(version: SemVer, type: "major" | "minor" | "patch"): 
       return { major: version.major, minor: version.minor, patch: version.patch + 1 };
   }
 }
+
+export function isSemVerNewer(a: SemVer, b: SemVer): boolean {
+  if (a.major > b.major) {
+    return true;
+  } else if (a.major == b.major) {
+    if (a.minor > b.minor) {
+      return true;
+    } else if (a.minor == b.minor) {
+      if (a.patch > b.patch) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

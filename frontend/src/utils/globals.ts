@@ -1,5 +1,8 @@
 import { ref } from "vue";
 
+export const VERSION = VITE_APP_VERSION;
+export const COMMIT = VITE_APP_GIT_COMMIT || "dev";
+
 export const API_BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "127.0.0.1:8000";
 // only use SSL if not localhost
 export const HTTP_API_BASE_URL = API_BASE_URL.includes("127.0.0.1")

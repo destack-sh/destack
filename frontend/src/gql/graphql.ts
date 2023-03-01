@@ -845,6 +845,7 @@ export type Query = {
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionBySlug?: Maybe<ProjectVersion>;
+  systemInfo: SystemInfo;
   user?: Maybe<User>;
 };
 
@@ -1180,6 +1181,12 @@ export enum SymbolType {
   Type = "TYPE",
   Value = "VALUE",
 }
+
+export type SystemInfo = {
+  __typename?: "SystemInfo";
+  gitCommit: Scalars["String"];
+  version: Scalars["String"];
+};
 
 export type Type = {
   __typename?: "Type";
@@ -2509,6 +2516,13 @@ export type ModuleRuntimeChangedSubscription = {
       { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
     >;
   };
+};
+
+export type SystemInfoQueryVariables = Exact<{ [key: string]: never }>;
+
+export type SystemInfoQuery = {
+  __typename?: "Query";
+  systemInfo: { __typename?: "SystemInfo"; version: string; gitCommit: string };
 };
 
 export const ExecutionContentFragmentDoc = {
@@ -6935,3 +6949,29 @@ export const ModuleRuntimeChangedDocument = {
     ...InterpErrorContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleRuntimeChangedSubscription, ModuleRuntimeChangedSubscriptionVariables>;
+export const SystemInfoDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "systemInfo" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "systemInfo" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "version" } },
+                { kind: "Field", name: { kind: "Name", value: "gitCommit" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<SystemInfoQuery, SystemInfoQueryVariables>;

@@ -715,6 +715,7 @@ type Query {
     rootId: GlobalID = null
     rootIdNull: Boolean! = false
   ): ExecutionConnection! @canViewProject(atRoot: true)
+  systemInfo: SystemInfo!
   me: User
   user(
     """The ID of the object."""
@@ -1015,6 +1016,11 @@ enum SymbolType {
   REQUIREMENT
   BUILD
   RUNCONFIG
+}
+
+type SystemInfo {
+  version: String!
+  gitCommit: String!
 }
 
 type Type {
