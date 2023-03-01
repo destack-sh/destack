@@ -10,6 +10,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
+from bench.api.auth import CanViewProject
 from bench.api.owner import Owner
 from bench.api.util import safe_mutation
 
@@ -26,8 +27,12 @@ class User(gql.relay.Node, Owner):
     updated_at: auto
     completed_signup: auto
     bot: auto
-    organizations: list[Annotated["Organization", lazy(".organization")]]
-    projects: list[Annotated["Project", lazy(".project")]]
+    organizations: gql.relay.Connection[
+        Annotated["Organization", lazy(".organization")]
+    ] = gql.django.connection()
+    projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
+        directives=[CanViewProject()]
+    )
 
     @gql.django.field(only=["first_name"])
     def name(self) -> str:

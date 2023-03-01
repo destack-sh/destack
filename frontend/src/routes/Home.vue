@@ -4,13 +4,12 @@ import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
-import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
+import { ProjectVisibility } from "@/gql/graphql";
+import { GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed } from "vue";
-import { ProjectVisibility } from "@/gql/graphql";
-import { GlobeAltIcon, LockClosedIcon, PlusIcon } from "@heroicons/vue/24/outline";
 
 const title = useTitle();
 title.value = "Home";
@@ -21,28 +20,38 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
       me {
         slug
         projects {
-          id
-          name
-          slug
-          path
-          createdAt
-          type
-          visibility
-          createdAt
+          totalCount
+          edges {
+            node {
+              id
+              name
+              slug
+              path
+              createdAt
+              type
+              visibility
+              createdAt
+            }
+          }
         }
         organizations {
-          projects {
-            id
-            name
-            path
-            slug
-            createdAt
-            type
-            visibility
-            createdAt
-            head {
-              name
-              createdAt
+          edges {
+            node {
+              projects {
+                totalCount
+                edges {
+                  node {
+                    id
+                    name
+                    slug
+                    path
+                    createdAt
+                    type
+                    visibility
+                    createdAt
+                  }
+                }
+              }
             }
           }
         }
@@ -52,8 +61,9 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
 );
 
 const benches = computed(() => {
-  return myBenchesResult.value?.me?.projects
-    .concat(myBenchesResult.value?.me?.organizations.flatMap((org) => org.projects))
+  return myBenchesResult.value?.me?.projects.edges
+    .map((e) => e.node)
+    .concat(myBenchesResult.value?.me?.organizations.edges.flatMap((org) => org.node.projects.edges.map((e) => e.node)))
     .sort((a, b) => (b.createdAt < a.createdAt ? -1 : 1));
 });
 </script>
@@ -81,7 +91,11 @@ const benches = computed(() => {
       <!-- Benches grid -->
       <div class="mt-4 grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <!-- Empty state -->
-        <router-link :to="{ name: 'CreateProject' }" v-if="benches?.length == 0" class="col-span-full text-gray-900">
+        <router-link
+          :to="{ name: 'CreateProject' }"
+          v-if="benches == null || benches?.length == 0"
+          class="col-span-full text-gray-900"
+        >
           <div>Nothing here yet.</div>
           <div class="text-gray text-gray-700">
             <span class="underline decoration-dotted underline-offset-4 hover:decoration-solid">Create a Bench</span> to

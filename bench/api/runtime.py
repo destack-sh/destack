@@ -183,6 +183,7 @@ class RunState:
 class ModuleRuntimeMutation:
     @gql.mutation
     async def build(self, input: BuildInput) -> BuildState | OperationInfo:
+        # TODO @Auth: check if user has write access to project
         # TODO @Cleanup @Performance: keep worker sockets across requests
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
@@ -204,6 +205,7 @@ class ModuleRuntimeMutation:
 
     @gql.mutation
     async def run(self, input: RunInput) -> RunState | OperationInfo:
+        # TODO @Auth: check if user has write access to project
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
@@ -237,6 +239,7 @@ class ModuleRuntimeSubscription:
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
+        # TODO @Auth: check if user has view access to project
         log = logger.bind(
             project_version_id=project_version_id,
             worker_rep_addr=ZMQ_WORKER_REP_ADDR,
@@ -298,6 +301,8 @@ class ModuleRuntimeSubscription:
         root_id_null: bool = False,
     ) -> AsyncGenerator[Execution, None]:
         project_version_id = UUID(project_version_id.node_id)
+
+        # TODO @Auth: check if user has view access to project
 
         log = logger.bind(
             project_version_id=project_version_id,

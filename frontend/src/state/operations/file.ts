@@ -86,8 +86,8 @@ export function useFileOps() {
         cache.modify({
           id: cache.identify(createFile.createFile?.projectVersion),
           fields: {
-            files(currentFiles = []) {
-              return [...currentFiles, { __ref: cache.identify(createFile?.createFile) }];
+            files(currentFiles = { edges: [] }) {
+              return { edges: [...currentFiles.edges, { node: { __ref: cache.identify(createFile?.createFile) } }] };
             },
           },
           optimistic: true,

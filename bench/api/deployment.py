@@ -3,6 +3,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
+from bench.api.auth import CanWriteProject
 from bench.api.organization import Organization
 from bench.api.project import Project, ProjectVersion
 from bench.api.statement import Statement
@@ -48,7 +49,7 @@ class DeployInput(gql.NodeInput):
 
 @gql.type
 class DeploymentMutation:
-    @safe_mutation
+    @safe_mutation(directives=[CanWriteProject()])
     def set_deploy_all_statements(
         self, info, input: DeploymentSetDeployAllStatementsInput
     ) -> Deployment | OperationInfo:
@@ -57,7 +58,7 @@ class DeploymentMutation:
         deployment.save()
         return deployment
 
-    @safe_mutation
+    @safe_mutation(directives=[CanWriteProject()])
     def add_deployed_statement(
         self, info, input: DeploymentAddStatementInput
     ) -> Deployment | OperationInfo:
@@ -68,7 +69,7 @@ class DeploymentMutation:
         )
         return models.Deployment.objects.get(id=input.id)
 
-    @safe_mutation
+    @safe_mutation(directives=[CanWriteProject()])
     def remove_deployed_statement(
         self, info, input: DeploymentRemoveStatementInput
     ) -> Deployment | OperationInfo:
@@ -78,7 +79,7 @@ class DeploymentMutation:
         ).delete()
         return models.Deployment.objects.get(id=input.id)
 
-    @safe_mutation
+    @safe_mutation(directives=[CanWriteProject()])
     def update_deployment(self, info, input: DeployInput) -> Deployment | OperationInfo:
         deployment = models.Deployment.objects.get(id=input.id.node_id)
         deployment.type = DeploymentType.MANUAL

@@ -101,6 +101,8 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     project_version, deployment = await sync_to_async(get_deployment)(
         owner=owner, project=project, tag=data["version"]
     )
+    # TODO @Auth: check if user has write access to project
+
     worker_req_sock = zmq_ctx.socket(zmq.REQ)
     worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
     # :BlockingWorkerMessages

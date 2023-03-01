@@ -143,9 +143,14 @@ export function useSymbolContentOps() {
             orderKey
             revision
             records {
-              id
-              orderKey
-              data
+              totalCount
+              edges {
+                node {
+                  id
+                  orderKey
+                  data
+                }
+              }
             }
           }
           ...OperationInfoContent
@@ -163,9 +168,14 @@ export function useSymbolContentOps() {
             orderKey
             revision
             records {
-              id
-              orderKey
-              data
+              totalCount
+              edges {
+                node {
+                  id
+                  orderKey
+                  data
+                }
+              }
             }
           }
           ...OperationInfoContent
@@ -183,9 +193,14 @@ export function useSymbolContentOps() {
             orderKey
             revision
             records {
-              id
-              orderKey
-              data
+              totalCount
+              edges {
+                node {
+                  id
+                  orderKey
+                  data
+                }
+              }
             }
           }
           ...OperationInfoContent

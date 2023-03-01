@@ -106,7 +106,7 @@ class Statement(gql.Node, SimplyTyped):
     descendants: list["Statement"]
     order_key: auto
     reference: Optional["Statement"]
-    referenced_by: list["Statement"]
+    referenced_by: gql.relay.Connection["Statement"] = gql.django.connection()
     symbol_type: Optional[SymbolType]
     # symbol contents
     root_type_tag: Optional[TypeTag]
@@ -116,10 +116,7 @@ class Statement(gql.Node, SimplyTyped):
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
-    records: list[DatasetRecord]
-    generated_mappings: list[SourceMapping]
-    source_mappings: list[SourceMapping]
-    target_mappings: list[SourceMapping]
+    records: gql.relay.Connection[DatasetRecord] = gql.django.connection()
 
     @gql.field
     def import_path(self) -> Optional[str]:

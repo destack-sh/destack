@@ -12,7 +12,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.auth import CanViewProjectDirective
+from bench.api.auth import CanViewProject
 from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery
 from bench.api.organization import Organization
@@ -57,17 +57,15 @@ class Query(ExecutionQuery):
     owner_by_slug: Optional[Union[User, Organization]] = gql.django.field(
         resolver=get_user_or_organization_by_slug
     )
-    project: Optional[Project] = gql.relay.node(directives=[CanViewProjectDirective()])
+    project: Optional[Project] = gql.relay.node(directives=[CanViewProject()])
     project_by_slug: Optional[Project] = gql.django.field(
-        resolver=models.Project.objects.get_by_slug, directives=[CanViewProjectDirective()]
+        resolver=models.Project.objects.get_by_slug, directives=[CanViewProject()]
     )
-    project_version: Optional[ProjectVersion] = gql.relay.node(
-        directives=[CanViewProjectDirective()]
-    )
+    project_version: Optional[ProjectVersion] = gql.relay.node(directives=[CanViewProject()])
     project_version_by_slug: Optional[ProjectVersion] = gql.django.field(
-        resolver=models.ProjectVersion.objects.get_by_slug, directives=[CanViewProjectDirective()]
+        resolver=models.ProjectVersion.objects.get_by_slug, directives=[CanViewProject()]
     )
-    file: Optional[File] = gql.relay.node()
+    file: Optional[File] = gql.relay.node(directives=[CanViewProject()])
 
 
 @strawberry.type

@@ -21,26 +21,6 @@ export const OperationInfoContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export const UserContentType = graphql(/* GraphQL */ `
-  fragment UserContent on User {
-    id
-    username
-    slug
-    email
-    name
-    createdAt
-    updatedAt
-    completedSignup
-    organizations {
-      id
-      name
-      slug
-      createdAt
-      updatedAt
-    }
-  }
-`);
-
 export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     id
@@ -182,9 +162,14 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ...SimpleTypeNodeContent
     }
     records {
-      id
-      orderKey
-      data
+      totalCount
+      edges {
+        node {
+          id
+          orderKey
+          data
+        }
+      }
     }
   }
 `);

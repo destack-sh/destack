@@ -16,4 +16,4 @@ class Owner:
     name: str
     created_at: datetime
     updated_at: datetime
-    projects: list[Annotated["Project", lazy(".project")]]
+    projects: gql.relay.Connection[Annotated["Project", lazy(".project")]]
