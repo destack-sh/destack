@@ -31,7 +31,7 @@ class User(gql.relay.Node, Owner):
         Annotated["Organization", lazy(".organization")]
     ] = gql.django.connection()
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
-        directives=[CanViewProject()]
+        directives=[CanViewProject(at_root=False)]
     )
 
     @gql.django.field(only=["first_name"])

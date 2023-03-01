@@ -1,8 +1,8 @@
 """Can only be resolved by user with project view permission"""
-directive @canViewProject on FIELD_DEFINITION
+directive @canViewProject(atRoot: Boolean! = true) on FIELD_DEFINITION
 
 """Can only be resolved by user with project write permission"""
-directive @canWriteProject on FIELD_DEFINITION
+directive @canWriteProject(atRoot: Boolean! = true) on FIELD_DEFINITION
 
 input BuildInput {
   projectVersionId: GlobalID!
@@ -370,36 +370,36 @@ type Mutation {
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
-  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject
-  morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProject
-  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProject
-  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo! @canWriteProject
-  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo! @canWriteProject
-  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo! @canWriteProject
-  commentStatement(input: StatementCommentedInput!): StatementOperationInfo! @canWriteProject
-  moveStatement(input: StatementMoveInput!): StatementOperationInfo! @canWriteProject
-  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject
-  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject
-  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject
-  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject
-  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProject
-  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo! @canWriteProject
-  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo! @canWriteProject
-  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo! @canWriteProject
-  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo! @canWriteProject
-  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo! @canWriteProject
-  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo! @canWriteProject
-  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo! @canWriteProject
-  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo! @canWriteProject
-  createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProject
-  softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProject
-  restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProject
-  moveFile(input: FileMoveInput!): FileOperationInfo! @canWriteProject
-  renameFile(input: FileRenameInput!): FileOperationInfo! @canWriteProject
-  setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo! @canWriteProject
-  addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo! @canWriteProject
-  removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo! @canWriteProject
-  updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject
+  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  restoreStatement(input: StatementRestoreInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  commentStatement(input: StatementCommentedInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  moveStatement(input: StatementMoveInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  moveFile(input: FileMoveInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  renameFile(input: FileRenameInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
+  addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
+  removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
+  updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
 }
@@ -467,7 +467,7 @@ type Organization implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-  ): ProjectConnection! @canViewProject
+  ): ProjectConnection! @canViewProject(atRoot: false)
   members(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -713,7 +713,7 @@ type Query {
     codeId: GlobalID = null
     rootId: GlobalID = null
     rootIdNull: Boolean! = false
-  ): ExecutionConnection! @canViewProject
+  ): ExecutionConnection! @canViewProject(atRoot: true)
   me: User
   user(
     """The ID of the object."""
@@ -727,17 +727,17 @@ type Query {
   project(
     """The ID of the object."""
     id: GlobalID!
-  ): Project @canViewProject
-  projectBySlug(owner: String!, project: String!): Project @canViewProject
+  ): Project @canViewProject(atRoot: true)
+  projectBySlug(owner: String!, project: String!): Project @canViewProject(atRoot: true)
   projectVersion(
     """The ID of the object."""
     id: GlobalID!
-  ): ProjectVersion @canViewProject
-  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProject
+  ): ProjectVersion @canViewProject(atRoot: true)
+  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
   file(
     """The ID of the object."""
     id: GlobalID!
-  ): File @canViewProject
+  ): File @canViewProject(atRoot: true)
 }
 
 input RecordCreateInput {
@@ -1107,7 +1107,7 @@ type User implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-  ): ProjectConnection! @canViewProject
+  ): ProjectConnection! @canViewProject(atRoot: false)
 
   """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
   username: String!
