@@ -179,6 +179,48 @@ field.filter_with_perms = filter_with_perms
 resolvers.filter_with_perms = filter_with_perms
 
 
+def can_view_project(user: User, obj: Any) -> bool:
+    """Whether the given user can view the project-related object."""
+    if user.is_authenticated and user.is_staff:
+        return True
+    # TODO @Performance: prefetch project or check condition entirely in SQL
+    # normalize to project instance
+    if isinstance(obj, (models.File, models.Statement)):
+        obj = obj.project_version.project
+    elif isinstance(obj, models.ProjectVersion):
+        obj = obj.project
+    if not isinstance(obj, models.Project):
+        raise ValueError(f"CanViewProject cannot be used on {obj}")
+    # is public or user is owner or user is member of owning organization
+    return (
+        obj.visibility == models.ProjectVisibility.PUBLIC
+        or obj.user_id == user.id
+        or obj.organization_id is not None
+        and obj.organization.members.filter(user=user).exists()
+    )
+
+
+def can_write_project(user: User, obj: Any) -> bool:
+    """Whether the given user can write to the project-related object."""
+    if user.is_authenticated and user.is_staff:
+        return True
+    if user.is_anonymous:
+        return False
+    # TODO @Performance: prefetch project or check condition entirely in SQL
+    # normalize to project instance
+    if isinstance(obj, (models.File, models.Statement)):
+        obj = obj.project_version.project
+    elif isinstance(obj, models.ProjectVersion):
+        obj = obj.project
+    if not isinstance(obj, models.Project):
+        raise ValueError(f"CanWriteProject cannot be used on {obj}")
+    return (
+        obj.user_id == user.id
+        or obj.organization_id is not None
+        and obj.organization.members.filter(user=user).exists()
+    )
+
+
 @strawberry.schema_directive(
     locations=[Location.FIELD_DEFINITION],
     description="Can only be resolved by user with project view permission",
@@ -189,23 +231,7 @@ class CanViewProject(HasCustomPermDirective):
 
     @resolvers.async_safe
     def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
-        if user.is_authenticated and user.is_staff:
-            return True
-        # TODO @Performance: prefetch project or check condition entirely in SQL
-        # normalize to project instance
-        if isinstance(obj, (models.File, models.Statement)):
-            obj = obj.project_version.project
-        elif isinstance(obj, models.ProjectVersion):
-            obj = obj.project
-        if not isinstance(obj, models.Project):
-            raise ValueError(f"CanViewProject cannot be used on {obj}")
-        # is public or user is owner or user is member of owning organization
-        return (
-            obj.visibility == models.ProjectVisibility.PUBLIC
-            or obj.user_id == user.id
-            or obj.organization_id is not None
-            and obj.organization.members.filter(user=user).exists()
-        )
+        return can_view_project(user, obj)
 
     def filter_for_user(self, qs: QuerySet, user: User) -> QuerySet:
         if not user.is_authenticated:
@@ -230,23 +256,7 @@ class CanWriteProject(CanViewProject):
 
     @resolvers.async_safe
     def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
-        if user.is_authenticated and user.is_staff:
-            return True
-        if user.is_anonymous:
-            return False
-        # TODO @Performance: prefetch project or check condition entirely in SQL
-        # normalize to project instance
-        if isinstance(obj, (models.File, models.Statement)):
-            obj = obj.project_version.project
-        elif isinstance(obj, models.ProjectVersion):
-            obj = obj.project
-        if not isinstance(obj, models.Project):
-            raise ValueError(f"CanWriteProject cannot be used on {obj}")
-        return (
-            obj.user_id == user.id
-            or obj.organization_id is not None
-            and obj.organization.members.filter(user=user).exists()
-        )
+        return can_write_project(user, obj)
 
 
 def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *args, **kwargs):

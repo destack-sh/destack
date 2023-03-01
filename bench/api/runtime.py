@@ -1,10 +1,12 @@
 from datetime import datetime
 from itertools import chain
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, cast
 from uuid import UUID
 
 import structlog
 import zmq
+from asgiref.sync import sync_to_async
+from django.core.exceptions import PermissionDenied
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -12,11 +14,12 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
+from bench.api.auth import can_view_project, can_write_project
 from bench.api.execution import Execution
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.language import wire
 from bench.language.type import StatementModifier
-from bench.models import mapper
+from bench.models import ProjectVersion, User, mapper
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import (
     ExecutionChangedPayload,
@@ -179,15 +182,37 @@ class RunState:
     success: bool
 
 
+def check_can_write(user: User, project_version_id: UUID):
+    project_version = (
+        ProjectVersion.objects.all()
+        .prefetch_related("project", "project__user", "project__organization")
+        .get(id=project_version_id)
+    )
+    if not can_write_project(user, project_version.project):
+        raise PermissionDenied("You don't have permission to write to this project.")
+
+
+def check_can_view(user: User, project_version_id: UUID):
+    project_version = (
+        ProjectVersion.objects.all()
+        .prefetch_related("project", "project__user", "project__organization")
+        .get(id=project_version_id)
+    )
+    if not can_view_project(user, project_version.project):
+        raise PermissionDenied("You don't have permission to view this project.")
+
+
 @gql.type
 class ModuleRuntimeMutation:
     @gql.mutation
-    async def build(self, input: BuildInput) -> BuildState | OperationInfo:
-        # TODO @Auth: check if user has write access to project
-        # TODO @Cleanup @Performance: keep worker sockets across requests
+    async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
+        # TODO @Cleanup @Performance: keep worker sockets across requests?
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
+        user = cast(User, info.context.request.scope["user"]._wrapped)
+        await sync_to_async(check_can_write)(user, project_version_id)
+
         # :BlockingWorkerMessages
         send_message(
             worker_req_sock,
@@ -204,11 +229,14 @@ class ModuleRuntimeMutation:
         )
 
     @gql.mutation
-    async def run(self, input: RunInput) -> RunState | OperationInfo:
+    async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         # TODO @Auth: check if user has write access to project
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
+        user = cast(User, info.context.request.scope["user"]._wrapped)
+        await sync_to_async(check_can_write)(user, project_version_id)
+
         # :BlockingWorkerMessages
         send_message(
             worker_req_sock,
@@ -239,7 +267,9 @@ class ModuleRuntimeSubscription:
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
-        # TODO @Auth: check if user has view access to project
+        user = cast(User, info.context.request.scope["user"]._wrapped)
+        await sync_to_async(check_can_view)(user, project_version_id)
+
         log = logger.bind(
             project_version_id=project_version_id,
             worker_rep_addr=ZMQ_WORKER_REP_ADDR,
@@ -301,8 +331,8 @@ class ModuleRuntimeSubscription:
         root_id_null: bool = False,
     ) -> AsyncGenerator[Execution, None]:
         project_version_id = UUID(project_version_id.node_id)
-
-        # TODO @Auth: check if user has view access to project
+        user = cast(User, info.context.request.scope["user"]._wrapped)
+        await sync_to_async(check_can_view)(user, project_version_id)
 
         log = logger.bind(
             project_version_id=project_version_id,
