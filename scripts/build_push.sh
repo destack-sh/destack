@@ -15,13 +15,14 @@ VERSION=$(cat version)
 docker build . \
   -f Dockerfile \
   -t symbolx/bench-api:latest \
-  -t symbolx/bench-api:GIT_COMMIT \
+  -t symbolx/bench-api:$GIT_COMMIT \
   -t ghcr.io/symbolx/bench-api:latest \
-  -t ghcr.io/symbolx/bench-api:GIT_COMMIT \
-  --build-arg GIT_COMMIT=GIT_COMMIT \
-  --build-arg VERSION=VERSION
+  -t ghcr.io/symbolx/bench-api:$GIT_COMMIT \
+  -t ghcr.io/symbolx/bench-api:$VERSION \
+  --build-arg GIT_COMMIT=$GIT_COMMIT \
+  --build-arg VERSION=$VERSION
 
 # push to GHCR
 docker push ghcr.io/symbolx/bench-api:latest
-docker push ghcr.io/symbolx/bench-api:GIT_COMMIT
-docker push ghcr.io/symbolx/bench-api:VERSION
+docker push ghcr.io/symbolx/bench-api:$GIT_COMMIT
+docker push ghcr.io/symbolx/bench-api:$VERSION
