@@ -6,8 +6,8 @@ import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
-import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { CheckBadgeIcon, ChevronUpDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
+import { CheckBadgeIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
 
 // statement selection
@@ -120,84 +120,89 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
 }
 </script>
 <template>
-  <!-- Select main statement -->
-  <Combobox
-    as="div"
-    class="relative"
-    :model-value="mainSymbol"
-    @update:model-value="(stmt) => editor.setMainSymbol(stmt)"
-    nullable
-  >
-    <ComboboxInput
-      class="max-w-fit rounded-sm border-none py-1 pl-3 pr-6 text-right text-sm font-bold text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-500 focus:ring-0"
-      :class="{
-        'font-mono tracking-tighter': editor.fontMono,
-        'text-sm': editor.textSmall,
-        'text-md': !editor.textSmall,
-      }"
-      @change="query = $event.target.value"
-      :display-value="(stmt) => symbolDeclr(stmt)"
-      :placeholder="mainSymbolMissing ? '???' : 'main'"
-      :disabled="!runtime.connected.value"
-    />
-    <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-1 focus:outline-none">
-      <ChevronUpDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
-    </ComboboxButton>
-
-    <FadeTransition>
-      <ComboboxOptions
-        v-show="runtime.connected.value"
-        class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-40 focus:outline-none sm:text-sm"
-        :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+  <!-- Wrapper -->
+  <div class="flex items-center space-x-1 rounded-sm bg-orange-100 pr-2">
+    <!-- Select main statement -->
+    <Listbox
+      as="div"
+      class="relative"
+      :model-value="mainSymbol"
+      @update:model-value="(stmt) => editor.setMainSymbol(stmt)"
+      nullable
+      v-slot="{ open }"
+    >
+      <ListboxButton
+        class="flex w-fit max-w-fit flex-row items-center gap-1 rounded-sm border-none py-1.5 pl-4 pr-2 text-right text-sm outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-200 focus:border-orange-500 focus:ring-0"
+        :class="{
+          'font-mono tracking-tighter': editor.fontMono,
+          'text-sm': editor.textSmall,
+          'text-md': !editor.textSmall,
+          'text-gray-900': mainSymbol != null,
+          'text-gray-700': mainSymbol == null,
+          'bg-orange-200': open,
+        }"
+        @change="query = $event.target.value"
+        :disabled="!runtime.connected.value"
       >
-        <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">no runnable symbols</div>
-        <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">no matching symbols</div>
-        <ComboboxOption
-          v-for="stmt in filteredSymbols"
-          :key="stmt.id"
-          :value="stmt"
-          as="template"
-          v-slot="{ active, selected }"
+        {{ mainSymbolMissing ? "???" : symbolDeclr(mainSymbol) ?? "Select" }}
+        <ChevronDownIcon class="h-3 w-3 text-gray-400" aria-hidden="true" />
+      </ListboxButton>
+
+      <FadeTransition>
+        <ListboxOptions
+          v-show="runtime.connected.value"
+          class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-40 sm:text-sm"
+          :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
         >
-          <li
-            :class="[
-              'relative cursor-default select-none py-0.5 px-2',
-              active ? 'bg-orange-600 text-white' : 'text-gray-900',
-              selected && !active ? 'text-orange-600' : '',
-            ]"
+          <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">No runnable symbols.</div>
+          <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">No matching symbols.</div>
+          <ListboxOption
+            v-for="stmt in filteredSymbols"
+            :key="stmt.id"
+            :value="stmt"
+            as="template"
+            v-slot="{ active, selected }"
           >
-            <div class="flex items-baseline justify-between">
-              <span :class="['truncate']">
-                {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
-                {{ stmt.name }}
-              </span>
-              <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
-                {{ fileOf(stmt)?.path }}
-              </span>
-            </div>
-          </li>
-        </ComboboxOption>
-      </ComboboxOptions>
-    </FadeTransition>
-  </Combobox>
-  <button
-    v-for="action in mainActions"
-    :key="action.label"
-    class="rounded-sm p-1 text-sm"
-    :class="{
-      'hover:bg-orange-50': action.enabled.value,
-      'animate-pulse ': action.active.value,
-    }"
-    :disabled="!action.enabled.value || action.active.value"
-    @click="action.action"
-  >
-    <component
-      :is="action.icon"
-      class="h-5 w-5"
+            <li
+              :class="[
+                'relative cursor-default select-none py-0.5 px-2',
+                active ? 'bg-orange-600 text-white' : 'text-gray-900',
+                selected && !active ? 'text-orange-600' : '',
+              ]"
+            >
+              <div class="flex items-baseline justify-between">
+                <span :class="['truncate']">
+                  {{ SYMBOL_TYPE_KEYWORD[stmt.symbolType] }}
+                  {{ stmt.name }}
+                </span>
+                <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
+                  {{ fileOf(stmt)?.path }}
+                </span>
+              </div>
+            </li>
+          </ListboxOption>
+        </ListboxOptions>
+      </FadeTransition>
+    </Listbox>
+    <button
+      v-for="action in mainActions"
+      :key="action.label"
+      class="rounded-sm p-1.5 text-sm"
       :class="{
-        'text-orange-500  ': action.enabled.value,
-        'text-gray-500': !action.enabled.value,
+        'hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
+        'animate-pulse ': action.active.value,
       }"
-    />
-  </button>
+      :disabled="!action.enabled.value || action.active.value"
+      @click="action.action"
+    >
+      <component
+        :is="action.icon"
+        class="h-5 w-5"
+        :class="{
+          'text-orange-500  ': action.enabled.value,
+          'text-gray-500': !action.enabled.value,
+        }"
+      />
+    </button>
+  </div>
 </template>
