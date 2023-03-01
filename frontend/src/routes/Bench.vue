@@ -442,7 +442,7 @@ watchEffect(async () => {
           </div>
           <!-- Read-only project info -->
           <div
-            v-if="project != null && !project.value?.canWrite"
+            v-if="project != null && !project?.canWrite"
             class="ml-2 flex flex-row gap-2 rounded-sm bg-orange-100 py-1 px-2 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">

@@ -15,7 +15,7 @@ import { useLazyQuery } from "@vue/apollo-composable";
 import { defineStore } from "pinia";
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
-export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "createdAt" | "updatedAt">;
+export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "canWrite" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
   ProjectVersion,
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"

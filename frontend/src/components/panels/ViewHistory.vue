@@ -2,7 +2,7 @@
 import { useTimeFromNow } from "@/composables/useNow";
 import { getRandomName } from "@/composables/useRandomName";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { provideGlobalAction, useActions } from "@/state/actions";
+import { provideGlobalAction } from "@/state/actions";
 import { useEditorState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
@@ -78,7 +78,10 @@ const commit = provideGlobalAction({
   label: "Commit...",
   shortcuts: ["ctrl+k"],
   enabled: computed(
-    () => editor.currentProjectVersionId != null && !ops.state.hasInflightLike({ types: ["version.commit"] })
+    () =>
+      props.project.canWrite &&
+      editor.currentProjectVersionId != null &&
+      !ops.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: async () => {
     // TODO @Feature: open commit menu instead of auto-name & tag
@@ -101,7 +104,7 @@ const restore = provideGlobalAction({
   id: "version.restore",
   label: "Restore",
   shortcuts: [],
-  enabled: computed(() => !isAtHead.value),
+  enabled: computed(() => props.project.canWrite && !isAtHead.value),
   apply: async () => {
     ops.state.reset();
     const ret = await ops.version.restore(editor.currentProjectVersionId as string);
@@ -121,13 +124,13 @@ const globalActions: Action[] = [
   {
     icon: PlusIcon,
     label: "Snapshot",
-    enabled: computed(() => isAtHead.value && !ops.state.hasInflightLike({ types: ["version.commit"] })),
+    enabled: computed(() => commit.value.enabled),
     action: () => commit.value.apply(),
   },
   {
     icon: BackwardIcon,
     label: "Restore",
-    enabled: computed(() => !isAtHead.value),
+    enabled: computed(() => restore.value.enabled),
     action: () => restore.value.apply(),
   },
 ];
@@ -197,6 +200,7 @@ const globalActions: Action[] = [
                       {{ version.name || "Autosave" }}
                     </router-link>
                     <button
+                      v-if="project.canWrite"
                       class="invisible p-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
                     >
                       <PencilIcon class="h-3 w-3" />
@@ -211,9 +215,11 @@ const globalActions: Action[] = [
                   </p>
                   <button
                     class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs"
-                    :class="
-                      version.tag == null ? 'text-gray-300 hover:bg-orange-50 hover:text-gray-700' : 'text-gray-700'
-                    "
+                    :class="[
+                      version.tag == null ? 'text-gray-300 ' : 'text-gray-700',
+                      project.canWrite ? 'hover:bg-orange-50 hover:text-gray-700' : '',
+                    ]"
+                    :disabled="!project.canWrite"
                   >
                     <TagIcon class="h-4 w-4" />
                     <span :class="version.tag == null ? 'invisible group-hover:visible' : ''">
