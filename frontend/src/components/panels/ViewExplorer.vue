@@ -4,7 +4,7 @@ import SymbolExplorer from "@/components/panels/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
 import type { FileHeader } from "@/state/editor";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import type { Component } from "vue";
+import { computed, type Component, type Ref } from "vue";
 
 const props = defineProps<{ files: FileHeader[] }>();
 
@@ -19,9 +19,10 @@ type Action = {
   icon: Component;
   label: string;
   action: (symbol: Symbol) => void;
+  enabled: boolean;
 };
 
-const panels: Panel[] = [
+const panels: Ref<Panel[]> = computed(() => [
   {
     title: "Files",
     actions: [
@@ -29,14 +30,15 @@ const panels: Panel[] = [
         icon: PlusIcon,
         label: "File",
         action: () => actions.file.create.value.apply(),
+        enabled: actions.file.create.value.enabled,
       },
     ],
-  },
+  } as Panel,
   {
     title: "Symbols",
     actions: [],
-  },
-];
+  } as Panel,
+]);
 </script>
 <template>
   <div ref="container">
@@ -55,7 +57,7 @@ const panels: Panel[] = [
           <!-- Panel actions -->
           <span class="inline-flex flex-row gap-1">
             <button
-              v-for="action in panel.actions"
+              v-for="action in panel.actions.filter((action) => action.enabled)"
               :key="action.label"
               class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
               @click.prevent="action.action"
