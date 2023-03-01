@@ -19,7 +19,7 @@ class Organization(gql.relay.Node, Owner):
     updated_at: auto
     members: gql.relay.Connection[Annotated["User", lazy(".user")]] = gql.django.connection()
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
-        directives=[CanViewProject()]
+        directives=[CanViewProject(at_root=False)]
     )
 
     @gql.django.field(only=["owner_slug_id"])
