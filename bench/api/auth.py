@@ -25,6 +25,7 @@ from strawberry_django_plus.permissions import (
     set_perm_safe,
 )
 from strawberry_django_plus.relay import Connection
+from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
@@ -109,7 +110,7 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
             init_checker(self)  # type:ignore
 
             ret = resolver()
-            if not ret:
+            if not ret or isinstance(ret, OperationInfo):
                 return ret  # just return that
 
             # Avoid is_awaitable as much as we can
@@ -127,9 +128,12 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
         info: GraphQLResolveInfo,
         user: User,
         obj: Any,
-    ) -> User:
+    ) -> Any:
         if is_perm_safe():
             return self.resolve_retval(helper, root, info, obj, True)
+
+        if not obj or isinstance(obj, OperationInfo):
+            return obj  # just return that
 
         if isinstance(obj, Iterable):
             # not needed so far, see _resolve_iterable_perms_safe once necessary

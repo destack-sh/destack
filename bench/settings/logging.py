@@ -11,10 +11,10 @@ LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "DEBUG")
 LOG_PATH: str = get_from_env("DJANGO_LOG_PATH", "logs")
 
 FORMATTERS = {
-    # "json_formatter": {
-    #     "()": structlog.stdlib.ProcessorFormatter,
-    #     "processor": structlog.processors.JSONRenderer(),
-    # },
+    "json_formatter": {
+        "()": structlog.stdlib.ProcessorFormatter,
+        "processor": structlog.processors.JSONRenderer(),
+    },
     "plain_console": {
         "()": structlog.stdlib.ProcessorFormatter,
         "processor": structlog.dev.ConsoleRenderer(pad_event=0),

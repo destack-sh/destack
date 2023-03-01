@@ -188,16 +188,16 @@ const globalActions: Action[] = [
                 <!-- Name, tag, description -->
                 <div class="pt-0.5">
                   <!-- Past version -->
-                  <p v-if="versionIdx > 0" class="flex flex-row items-start gap-0.5 text-xs font-bold">
+                  <p class="flex flex-row items-start gap-0.5 text-xs font-bold">
                     <router-link
                       :to="{
-                        query: { version: version.id },
+                        query: versionIdx == 0 ? undefined : { version: version.id },
                         hash: router.currentRoute.value.hash,
                       }"
                       class="hover:underline"
                       :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-900'"
                     >
-                      {{ version.name || "Autosave" }}
+                      {{ version.name || (versionIdx == 0 ? "(Working)" : "Autosave") }}
                     </router-link>
                     <button
                       v-if="project.canWrite"
@@ -205,13 +205,6 @@ const globalActions: Action[] = [
                     >
                       <PencilIcon class="h-3 w-3" />
                     </button>
-                  </p>
-                  <!-- Head version -->
-                  <p v-else class="text-xs font-bold" :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'">
-                    <router-link :to="{ hash: router.currentRoute.value.hash }" class="hover:underline">
-                      (Working)
-                    </router-link>
-                    <!-- Save button here? -->
                   </p>
                   <button
                     class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs"
