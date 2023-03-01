@@ -237,6 +237,7 @@ defineExpose({
     <!-- Insert button -->
   </div>
   <button
+    v-if="!context.readonly.value"
     tabindex="-1"
     ref="addRecordRef"
     class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
@@ -250,6 +251,7 @@ defineExpose({
   </button>
   <!-- Add field button -->
   <button
+    v-if="!context.readonly.value"
     tabindex="-1"
     ref="addFieldRef"
     class="ml-1 w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
