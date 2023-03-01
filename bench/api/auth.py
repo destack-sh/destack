@@ -196,7 +196,7 @@ def can_view_project(user: User, obj: Any) -> bool:
         obj.visibility == models.ProjectVisibility.PUBLIC
         or obj.user_id == user.id
         or obj.organization_id is not None
-        and obj.organization.members.filter(user=user).exists()
+        and obj.organization.members.filter(id=user.id).exists()
     )
 
 
@@ -217,7 +217,7 @@ def can_write_project(user: User, obj: Any) -> bool:
     return (
         obj.user_id == user.id
         or obj.organization_id is not None
-        and obj.organization.members.filter(user=user).exists()
+        and obj.organization.members.filter(id=user.id).exists()
     )
 
 

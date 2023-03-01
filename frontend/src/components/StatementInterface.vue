@@ -194,11 +194,8 @@ const actions = useActions();
 <template>
   <div
     ref="containerRef"
-    class="group/statement relative min-h-[30px] border-x-0 border-gray-200 transition-colors"
+    class="group/statement relative min-h-[30px] transition-colors duration-75"
     :class="{
-      // 'border-gray-200 ': !isFocused,
-      // 'border-l-orange-500': isFamilyFocused,
-      'hover:border-l-orange-300': !isFocused,
       'pb-0.5': true,
       'font-mono': editor.fontMono && !isComment, // not sure if everything should be mono, but it's more consistent..
       'text-gray-700': isCommented,
@@ -237,9 +234,10 @@ const actions = useActions();
     </span>
     <!-- Statement focus indicator (left side if not editing) -->
     <div
-      class="duration-50 absolute -left-0.5 top-0 h-full w-1.5 transition-colors"
+      class="absolute -left-0.5 top-0 h-full w-1.5 transition-colors duration-75"
       :class="{
-        'group-hover/statement:bg-orange-50': !isFocused,
+        'group-hover/statement:bg-orange-50': !isFocused && !isCommentish,
+        'group-hover/statement:bg-gray-50': !isFocused && isCommentish,
         'bg-orange-100': isFocused && !isEditing && !isCommentish,
         'bg-gray-100': isFocused && !isEditing && isCommentish,
       }"

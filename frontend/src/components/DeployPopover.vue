@@ -49,7 +49,9 @@ const operations = useOperations();
 const notifications = useNotifications();
 
 const runtime = useCurrentModuleRuntime();
-const canDeploy = computed(() => runtime.errors?.value != null && runtime.errors.value.length == 0);
+const canDeploy = computed(
+  () => project.value.canWrite && runtime.errors?.value != null && runtime.errors.value.length == 0
+);
 const deploy = provideGlobalAction({
   id: "version.deploy",
   label: "Deploy",
@@ -168,7 +170,8 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
           >
             Deploy
           </button>
-          <p v-if="!canDeploy" class="pt-1 text-xs text-red-600">There are errors. Fix them to deploy.</p>
+          <p v-if="!project.canWrite" class="pt-1 text-xs text-yellow-600">You cannot deploy other's Benches yet.</p>
+          <p v-else-if="!canDeploy" class="pt-1 text-xs text-red-600">There are errors. Fix them to deploy.</p>
           <p v-else-if="endpoints.length == 0" class="text-yellow-600">There's nothing to deploy, but you could.</p>
         </div>
       </PopoverPanel>

@@ -73,6 +73,8 @@ def project_mutation(
             if not is_new:
                 thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
 
+            # TODO @Robustness: trigger pub_project_mutation after resolver is complete
+            #  Currently this is also triggered even if permission check (on ret) fails.
             # publish change
             pub_project_mutation(type, thing)
 
