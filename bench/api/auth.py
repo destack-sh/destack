@@ -24,6 +24,7 @@ from strawberry_django_plus.permissions import (
     running_checks,
     set_perm_safe,
 )
+from strawberry_django_plus.relay import Connection
 from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
@@ -133,12 +134,16 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
         if isinstance(obj, Iterable):
             # not needed so far, see _resolve_iterable_perms_safe once necessary
             raise NotImplementedError
+        elif isinstance(obj, Connection):
+            obj_key = f"{info.field_name}_{obj.page_info.start_cursor}_{obj.page_info.end_cursor}"
+        else:
+            obj_key = obj  # models are hashable
 
         cache = self.get_cache(info, user)
-        has_perm = cache.get(obj)
+        has_perm = cache.get(obj_key)
         if has_perm is None:
             has_perm = self.has_perm_safe(root, info, user, obj)
-            cache[obj] = has_perm
+            cache[obj_key] = has_perm
         return self.resolve_retval(helper, root, info, obj, has_perm)
 
     def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
@@ -190,6 +195,10 @@ def can_view_project(user: User, obj: Any) -> bool:
         obj = obj.project_version.project
     elif isinstance(obj, models.ProjectVersion):
         obj = obj.project
+    elif isinstance(obj, Connection):
+        return all(can_view_project(user, edge.node) for edge in obj.edges)
+    elif isinstance(obj, Iterable):
+        return all(can_view_project(user, item) for item in obj)
     if not isinstance(obj, models.Project):
         raise ValueError(f"CanViewProject cannot be used on {obj}")
     # is public or user is owner or user is member of owning organization
@@ -269,7 +278,11 @@ class CanViewProject(HasCustomPermDirective):
             prefix = ""
         if prefix:
             filters = [Q(**{prefix + f"{k}": v}) for f in filters for k, v in f.children]
-        return qs.filter(Q(*filters, _connector=Q.OR))
+        combined_filter = Q(*filters, _connector=Q.OR)
+        qs = qs.filter(combined_filter)
+        # distinct because of organization joins
+        # there's probably better way to do this
+        return qs.distinct()
 
 
 @strawberry.schema_directive(

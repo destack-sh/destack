@@ -69,7 +69,9 @@ class User(AbstractUser, UUIDModel):
         self.save()
 
     def join_organization(
-        self, organization: Organization, level: OrganizationMembership.Level
+        self,
+        organization: Organization,
+        level: OrganizationMembership.Level = OrganizationMembership.Level.Member,
     ) -> OrganizationMembership:
         membership = OrganizationMembership.objects.create(
             user=self, organization=organization, level=level
