@@ -21,7 +21,10 @@ export function useProjectOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      refetchQueries: ["home", "profileHome"],
+    }
   );
 
   async function create(ownerId: string, name: string, slug: string, type: ProjectType, visibility: ProjectVisibility) {
@@ -92,5 +95,5 @@ export function useProjectOps() {
     }
   );
 
-  return { create, updateVisibility };
+  return { create, updateVisibility, updateName: updateNameMut };
 }

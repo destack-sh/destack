@@ -78,7 +78,10 @@ class OrganizationMembership(UUIDModel):
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.Level(self.level)
+        return f"{self.organization} -> {self.user} ({self.level})"
+
+    def __repr__(self):
+        return f"<OrganizationMembership {self}>"
 
     class Meta:
         constraints = [

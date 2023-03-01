@@ -110,7 +110,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       </template>
     </FatHeader>
     <main
-      class="mx-auto mt-8 flex w-full max-w-[1000px] flex-grow flex-col px-8 md:gap-8 md:py-4 lg:flex-row"
+      class="mx-auto mt-8 flex w-full max-w-[1000px] flex-grow flex-col px-8 md:gap-8 md:py-4 lg:flex-row lg:items-baseline"
       v-if="profile != null"
     >
       <!-- Profile info -->
