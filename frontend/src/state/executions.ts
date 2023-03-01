@@ -110,12 +110,6 @@ export function useExecutions(
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
         const execution = useFragment(ExecutionContentType, subscriptionData.data.moduleExecutionChanged);
-        const index = prev.executions.edges.findIndex((edge) => edge.node.id === execution.id);
-        if (index >= 0) {
-          // update is automatic in Apollo cache
-          return prev;
-        }
-        // insert into edges if it's new, update count and page info
         // cursor is base64-encoded ExecutionConnection:{nodeId}
         const newEdge = {
           __typename: "ExecutionEdge",
@@ -124,6 +118,30 @@ export function useExecutions(
           cursor: btoa(`arrayconnection:0`),
           node: { ...execution, descendants: [] },
         };
+
+        if (prev?.executions == null) {
+          // first execution, return directly
+          return {
+            executions: {
+              totalCount: 1,
+              edges: [newEdge],
+              pageInfo: {
+                hasNextPage: false,
+                hasPreviousPage: false,
+                startCursor: newEdge.cursor,
+                endCursor: newEdge.cursor,
+              },
+            },
+          };
+        }
+
+        const index = prev.executions.edges.findIndex((edge) => edge.node.id === execution.id);
+        if (index >= 0) {
+          // update is automatic in Apollo cache
+          return prev;
+        }
+        // insert into edges if it's new, update count and page info
+
         const pageInfo = {
           ...prev.executions.pageInfo,
           startCursor: newEdge.cursor,

@@ -144,7 +144,7 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
         """Checks whether the user has the permission for the given object. Async safe."""
         raise NotImplementedError
 
-    def filter_for_user(self, qs: QuerySet, user: User) -> QuerySet:
+    def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
         """Filters the queryset for access by the given user."""
         raise NotImplementedError
 
@@ -165,7 +165,7 @@ def filter_with_perms(qs: QuerySet, info: Info) -> QuerySet:
     for check in checks:
         if not isinstance(check, HasCustomPermDirective):
             raise ValueError("filter_with_perms only supports HasCustomPermDirective")
-        qs = check.filter_for_user(qs, user)
+        qs = check.filter_for_user(qs, info, user)
 
     set_perm_safe(True)
     return qs
@@ -185,7 +185,7 @@ def can_view_project(user: User, obj: Any) -> bool:
         return True
     # TODO @Performance: prefetch project or check condition entirely in SQL
     # normalize to project instance
-    if isinstance(obj, (models.File, models.Statement)):
+    if isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
     elif isinstance(obj, models.ProjectVersion):
         obj = obj.project
@@ -208,7 +208,7 @@ def can_write_project(user: User, obj: Any) -> bool:
         return False
     # TODO @Performance: prefetch project or check condition entirely in SQL
     # normalize to project instance
-    if isinstance(obj, (models.File, models.Statement)):
+    if isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
     elif isinstance(obj, models.ProjectVersion):
         obj = obj.project
@@ -233,17 +233,28 @@ class CanViewProject(HasCustomPermDirective):
     def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
         return can_view_project(user, obj)
 
-    def filter_for_user(self, qs: QuerySet, user: User) -> QuerySet:
-        if not user.is_authenticated:
-            return qs.filter(visibility=models.ProjectVisibility.PUBLIC)
-        if user.is_staff:
+    def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
+        if user.is_authenticated and user.is_staff:
             return qs
-        # is public or user is owner or user is member of owning organization
-        return qs.filter(
-            Q(visibility=models.ProjectVisibility.PUBLIC)
-            | Q(user=user)
-            | Q(organization__members=user),
-        )
+        if not user.is_authenticated:
+            filters = (Q(visibility=models.ProjectVisibility.PUBLIC),)
+        else:
+            # is public or user is owner or user is member of owning organization
+            filters = (
+                Q(visibility=models.ProjectVisibility.PUBLIC),
+                Q(user=user),
+                Q(organization__members=user),
+            )
+        # normalize filters to project instance (prefix with paths)
+        if issubclass(qs.model, (models.File, models.Statement, models.Execution)):
+            prefix = "project_version__project__"
+        elif issubclass(qs.model, models.ProjectVersion):
+            prefix = "project__"
+        else:
+            prefix = ""
+        if prefix:
+            filters = [Q(**{prefix + f"{k}": v}) for f in filters for k, v in f.children]
+        return qs.filter(Q(*filters, _connector=Q.OR))
 
 
 @strawberry.schema_directive(
