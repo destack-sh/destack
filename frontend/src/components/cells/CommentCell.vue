@@ -4,10 +4,12 @@ import { useStatementContext } from "@/components/statement";
 import { useEditorState } from "@/state/editor";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
+import { useRouter } from "vue-router";
 
 const context = useStatementContext();
 const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
+const renderedRef = ref<HTMLDivElement | null>(null);
 const content: Ref<string> = ref(context.statement.value.code ?? "");
 context.syncText(content);
 
@@ -26,6 +28,28 @@ function focus() {
 watch(content, () => {
   if (content.value.trim().length == 0) {
     context.morphToBlank();
+  }
+});
+
+// handle clicks on links in rendered div
+const router = useRouter();
+watchEffect(() => {
+  if (!context.readonly.value && renderedRef.value) {
+    renderedRef.value.querySelectorAll("a").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.altKey) {
+          // :AltKeyEditing
+          // don't start editing, actually go there
+          router.push(a.href);
+          console.log("click");
+        } else {
+          // start editing
+          focus();
+        }
+      });
+    });
   }
 });
 
@@ -58,6 +82,7 @@ defineExpose({
   />
   <!-- Show rendered markdown if not editing -->
   <div
+    ref="renderedRef"
     v-if="!context.editing.value"
     class="prose mt-[-1px] prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-700"
     :class="{
