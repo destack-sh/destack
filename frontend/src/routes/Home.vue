@@ -107,7 +107,7 @@ const benches = computed(() => {
           v-for="project of benches"
           :key="project.id"
           class="duration-50 group flex h-28 flex-col justify-between rounded-sm border border-white bg-white p-3 shadow-sm ring-1 ring-orange-900 ring-opacity-5 transition-colors hover:border-orange-600"
-          :to="`/${myBenchesResult?.me?.slug}/${project.slug}`"
+          :to="`/${project.path.replace('.', '/')}`"
         >
           <div class="flex max-w-full flex-row items-center justify-between gap-2">
             <h3 class="flex max-w-full flex-row items-center font-bold text-gray-900">
