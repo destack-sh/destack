@@ -34,16 +34,21 @@ watch(content, () => {
 // handle clicks on links in rendered div
 const router = useRouter();
 watchEffect(() => {
-  if (!context.readonly.value && renderedRef.value) {
+  if (renderedRef.value) {
     renderedRef.value.querySelectorAll("a").forEach((a) => {
       a.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (e.altKey) {
-          // :AltKeyEditing
-          // don't start editing, actually go there
-          router.push(a.href);
-          console.log("click");
+        if (context.readonly.value || e.altKey) {
+          // don't start editing, actually go there :AltKeyEditing
+          // if it it's a bench site then open in this window
+          if (a.href.startsWith("http://127.0.0.1") || a.href.startsWith("https://bench.symbolx.com")) {
+            const url = new URL(a.href);
+            router.push(url.pathname);
+          } else {
+            // otherwise open external links in new window
+            window.open(a.href, "_blank");
+          }
         } else {
           // start editing
           focus();

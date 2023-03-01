@@ -167,7 +167,7 @@ defineExpose({
     <button
       ref="addInputRef"
       tabindex="-1"
-      v-if="context.focused.value"
+      v-if="!context.readonly.value && context.focused.value"
       @keydown.left.exact.prevent="focusLastInputOrNavigateLeft"
       @keydown.right.exact.prevent="outputRef?.focus()"
       @keydown.up.exact.prevent="emit('navigateUp')"
@@ -181,7 +181,7 @@ defineExpose({
     <!-- Add output button (if no outputs) -->
     <button
       ref="outputRef"
-      v-if="!hasOutput && context.focused.value"
+      v-if="!context.readonly.value && !hasOutput && context.focused.value"
       @keydown.left.exact.prevent="addInputRef?.focus()"
       @keydown.right.exact.prevent="outputRef?.focus()"
       @keydown.up.exact.prevent="emit('navigateUp')"

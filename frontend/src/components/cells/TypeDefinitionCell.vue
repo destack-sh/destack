@@ -154,7 +154,7 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="description.length == 0"
+    v-if="description.length == 0 && !context.readonly.value"
     @click="descriptionRef?.focus()"
     class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
@@ -205,6 +205,7 @@ defineExpose({
     </template>
     <!-- Add a member -->
     <button
+      v-show="!context.readonly.value"
       tabindex="-1"
       ref="addMemberRef"
       class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
