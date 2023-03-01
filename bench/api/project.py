@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 from django.core.exceptions import ValidationError
 from strawberry import UNSET, lazy
@@ -8,6 +8,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
+from bench.api.auth import can_write_project
 from bench.api.sync import PMT, project_mutation
 from bench.api.util import safe_mutation
 from bench.models.project import RefDict
@@ -95,6 +96,12 @@ class Project(gql.Node):
     deployments: gql.relay.Connection[
         Annotated["Deployment", lazy(".deployment")]
     ] = gql.django.connection(filters=DeploymentFilter)
+
+    # TODO @Performance: specify only/select_related for can_write field
+    @gql.field
+    def can_write(self, info: OperationInfo) -> bool:
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        return can_write_project(user, self)
 
 
 @gql.type

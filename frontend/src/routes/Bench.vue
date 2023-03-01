@@ -8,7 +8,7 @@ import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
-import GlobalControls from "@/components/GlobalControls.vue";
+import SharePopover from "@/components/SharePopover.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
@@ -28,10 +28,12 @@ import { useCurrentModuleRuntime } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import {
+  BookOpenIcon,
   ClipboardDocumentIcon,
   ClockIcon,
   Cog8ToothIcon,
   ExclamationTriangleIcon,
+  EyeIcon,
   GlobeAltIcon,
   LockClosedIcon,
   QuestionMarkCircleIcon,
@@ -341,7 +343,11 @@ const { migrateTo, migrating } = useEditorMigrations();
 
 // manage read/write access
 watchEffect(() => {
-  editor.readonly = !versionLoaded.value || migrating.value || versionToViewId.value != project.value?.head.id;
+  editor.readonly =
+    !versionLoaded.value ||
+    migrating.value ||
+    versionToViewId.value != project.value?.head.id ||
+    !project.value?.canWrite;
 });
 
 // prepare editor state for project whenever project (head) changes
@@ -411,7 +417,8 @@ watchEffect(async () => {
           <span v-else class="animate-pulse truncate p-1 text-sm font-bold">
             {{ props.project }}
           </span>
-          <!-- Version/branch info -->
+          <!-- Branch info (not yet) -->
+          <!-- Version info (if not at head) -->
           <div
             v-if="versionToViewId != project?.head?.id && versionLoaded"
             class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
@@ -433,10 +440,20 @@ watchEffect(async () => {
               Back
             </router-link>
           </div>
+          <!-- Read-only project info -->
+          <div
+            v-if="project != null && !project.value?.canWrite"
+            class="ml-2 flex flex-row gap-2 rounded-sm bg-orange-100 py-1 px-2 text-sm"
+          >
+            <span class="relative flex flex-row gap-1 text-gray-900">
+              <EyeIcon class="absolute top-0.5 h-4 w-4" />
+              <span class="ml-5">Viewer</span>
+            </span>
+            <!-- <button>fork</button> -->
+          </div>
         </div>
         <!-- Status -->
         <div v-if="versionLoaded" class="ml-2 flex items-center">
-          <!-- should use nicer icons here -->
           <!-- Operations status -->
           <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
             <svg
@@ -486,15 +503,19 @@ watchEffect(async () => {
       <!-- Right side: controls & profile -->
       <template v-slot:right>
         <!-- Current "main" statement controls -->
-        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 px-3">
-          <MainSymbolControls />
-        </div>
+        <FadeTransition>
+          <div v-if="versionLoaded && !editor.readonly" class="flex h-full items-center space-x-2 px-3">
+            <MainSymbolControls />
+          </div>
+        </FadeTransition>
         <!-- Bench-global controls -->
-        <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-3">
-          <GlobalControls />
-          <DeployPopover :project="project" />
-          <OmniCreate />
-        </div>
+        <FadeTransition>
+          <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-3">
+            <SharePopover />
+            <DeployPopover :project="project" />
+            <OmniCreate />
+          </div>
+        </FadeTransition>
         <ProfileButton class="" />
       </template>
     </FatHeader>

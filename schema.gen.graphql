@@ -569,6 +569,7 @@ type Project implements Node {
     last: Int = null
     filters: DeploymentFilter
   ): DeploymentConnection!
+  canWrite: Boolean!
 }
 
 """A connection to a list of items."""

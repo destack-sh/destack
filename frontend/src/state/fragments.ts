@@ -45,6 +45,7 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
     slug
     createdAt
     updatedAt
+    canWrite
     head {
       ...ProjectVersionHeader
     }

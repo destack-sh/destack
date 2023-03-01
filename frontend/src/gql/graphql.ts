@@ -691,6 +691,7 @@ export type PageInfo = {
 
 export type Project = Node & {
   __typename?: "Project";
+  canWrite: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   deployments: DeploymentConnection;
   head: ProjectVersion;
@@ -1719,6 +1720,7 @@ export type ProjectHeaderFragment = {
   slug: string;
   createdAt: any;
   updatedAt: any;
+  canWrite: boolean;
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
   };
@@ -2683,6 +2685,7 @@ export const ProjectHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "canWrite" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "head" },
