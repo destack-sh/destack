@@ -10,10 +10,10 @@ import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { localErrorsOf, symbolOf } from "@/state/runtime";
-import { onClickOutside, useFocusWithin, whenever } from "@vueuse/core";
+import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
@@ -148,7 +148,12 @@ onClickOutside(containerRef, () => {
 });
 
 // if anything inside the container becomes focused, enable editing mode
+// (unless alt is pressed) :AltKeyEditing
+const altKeyState = useKeyModifier("Alt");
 whenever(containerFocused, () => {
+  if (altKeyState.value) {
+    return;
+  }
   if (!isFocused.value) {
     focusInEditor();
   }
@@ -158,16 +163,20 @@ whenever(containerFocused, () => {
 });
 
 function focusInEditor() {
-  editor.focusFile(file.value);
+  editor.focusFile(file.value as any);
   editor.focusElement(statement.value as StatementHeader);
 }
 
-function onClickContainer() {
+function onClickContainer(e: MouseEvent) {
+  // ignore if alt was pressed :AltKeyEditing
+  if (e.altKey) {
+    return;
+  }
   if (!isFocused.value) {
     focusInEditor();
-    if (!editor.readonly) {
-      editor.editElement(statement.value as StatementHeader);
-    }
+  }
+  if (!editor.readonly) {
+    editor.editElement(statement.value as StatementHeader);
   }
   if (!containerFocused.value) {
     rootCellRef.value?.focus();
@@ -188,8 +197,6 @@ watch(
 // errors
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
-
-const actions = useActions();
 </script>
 <template>
   <div
