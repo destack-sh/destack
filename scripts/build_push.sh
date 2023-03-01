@@ -7,17 +7,21 @@ if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
 fi
 
 # Get current commit hash
-COMMIT_HASH=$(git rev-parse --short HEAD)
+GIT_COMMIT=$(git rev-parse --short HEAD)
+# Get version from 'version' file
+VERSION=$(cat version)
 
 # Build the Docker API image and tag properly (with commit hash)
 docker build . \
   -f Dockerfile \
   -t symbolx/bench-api:latest \
-  -t symbolx/bench-api:$COMMIT_HASH \
+  -t symbolx/bench-api:GIT_COMMIT \
   -t ghcr.io/symbolx/bench-api:latest \
-  -t ghcr.io/symbolx/bench-api:$COMMIT_HASH \
-  --build-arg COMMIT_HASH=$COMMIT_HASH
+  -t ghcr.io/symbolx/bench-api:GIT_COMMIT \
+  --build-arg GIT_COMMIT=GIT_COMMIT \
+  --build-arg VERSION=VERSION
 
 # push to GHCR
 docker push ghcr.io/symbolx/bench-api:latest
-docker push ghcr.io/symbolx/bench-api:$COMMIT_HASH
+docker push ghcr.io/symbolx/bench-api:GIT_COMMIT
+docker push ghcr.io/symbolx/bench-api:VERSION

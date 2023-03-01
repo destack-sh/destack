@@ -4,7 +4,7 @@ import { RetryLink } from "@apollo/client/link/retry";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createApp, h, provide } from "vue";
 
-import { API_BASE_URL, HTTP_API_BASE_URL, WS_API_BASE_URL, WS_CONNECTED } from "@/utils/globals";
+import { API_BASE_URL, COMMIT, HTTP_API_BASE_URL, VERSION, WS_API_BASE_URL, WS_CONNECTED } from "@/utils/globals";
 import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
@@ -19,8 +19,8 @@ import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
 import posthog from "posthog-js";
+import { useSystemVersioning } from "@/utils/system";
 
-const VERSION = import.meta.env.VITE_APP_VERSION || "dev";
 const MAX_RETRY_TIME_MS = 10000;
 function createApolloClient() {
   // split requests between http and ws
@@ -99,11 +99,8 @@ async function init() {
 
   app.mount("#app");
 
-  console.group(`%cBench Build`, "color:orangered"); // groupCollapsed
-
-  if (import.meta.env.DEV) {
-    console.info(`%cVersion: ${VERSION}`, "color:orangered");
-  }
+  console.group(`%cBench Build`, "color:orangered");
+  console.info(`%cVersion: ${VERSION} (${COMMIT})`, "color:orangered");
 
   console.info(`%cAPI: ${API_BASE_URL}`, "color:orangered");
   console.info(`%cEnvironment: ${import.meta.env.MODE}`, "color:orangered");

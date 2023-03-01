@@ -9,8 +9,9 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
     define: {
-      __APP_ENV__: env.APP_ENV,
-      __APP_VERSION__: env.APP_VERSION,
+      VITE_APP_ENV: env.APP_ENV,
+      VITE_APP_VERSION: JSON.stringify(process.env.npm_package_version),
+      VITE_APP_GIT_COMMIT: JSON.stringify(process.env.GIT_COMMIT),
       // I'm not sure why process.env is required suddenly, but it fixes an error in babel (?).
       "process.env": {},
     },

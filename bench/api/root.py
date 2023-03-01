@@ -1,3 +1,4 @@
+import os
 import typing
 from typing import Optional, Union
 
@@ -33,6 +34,17 @@ from bench.settings import DEBUG, TEST
 PyType = typing.Type
 
 
+@strawberry.type
+class SystemInfo:
+    version: str
+    git_commit: str
+
+
+SYSTEM_INFO = SystemInfo(
+    version=os.environ["VERSION"], git_commit=os.environ.get("GIT_COMMIT", "dev")
+)
+
+
 @sync_to_async
 def get_user_or_organization_by_slug(
     self, info: Info, slug: str
@@ -51,6 +63,7 @@ def get_me(self, info: Info) -> Optional[User]:
 
 @strawberry.type
 class Query(ExecutionQuery):
+    system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
     organization: Optional[Organization] = gql.relay.node()

@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY bench/ bench/
 COPY manage.py .
 COPY pyproject.toml .
+COPY version .
+
+ARG GIT_COMMIT
+ENV GIT_COMMIT $GIT_COMMIT
 
 # Expose port 80
 EXPOSE 80

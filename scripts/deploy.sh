@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# copy text from version file into package.json 'version' key
+python ./scripts/copy_version.py
+
 # check that the repo is clean
 if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
     echo "Repo is not clean. Aborting."
