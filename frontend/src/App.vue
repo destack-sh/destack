@@ -3,7 +3,7 @@ import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
 import { useSystemVersioning } from "@/utils/system";
-import { onBeforeUnmount, watchEffect } from "vue";
+import { onBeforeUnmount, ref, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
 
 // handle errors in operations with notification
@@ -25,12 +25,14 @@ onBeforeUnmount(() => {
 
 // always track versioning
 const { systemInfo, outOfDate } = useSystemVersioning();
+const promptedUpdate = ref(false);
 watchEffect(() => {
   if (outOfDate.value) {
-    if (notifications.activeNotifications.find((n) => n.type == "system.outOfDate")) {
+    if (promptedUpdate.value) {
       // already prompted
       return;
     }
+    promptedUpdate.value = true;
     notifications.show({
       type: "system.outOfDate",
       kind: "notice",

@@ -4,7 +4,15 @@ import { RetryLink } from "@apollo/client/link/retry";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createApp, h, provide } from "vue";
 
-import { API_BASE_URL, COMMIT, HTTP_API_BASE_URL, VERSION, WS_API_BASE_URL, WS_CONNECTED } from "@/utils/globals";
+import {
+  API_BASE_URL,
+  COMMIT,
+  HTTP_API_BASE_URL,
+  IS_LOCALHOST,
+  VERSION,
+  WS_API_BASE_URL,
+  WS_CONNECTED,
+} from "@/utils/globals";
 import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
 import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
@@ -15,11 +23,10 @@ import * as Sentry from "@sentry/vue";
 import { DefaultApolloClient } from "@vue/apollo-composable";
 import { createClient } from "graphql-ws";
 import { createPinia } from "pinia";
+import posthog from "posthog-js";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
-import posthog from "posthog-js";
-import { useSystemVersioning } from "@/utils/system";
 
 const MAX_RETRY_TIME_MS = 10000;
 function createApolloClient() {
@@ -75,7 +82,8 @@ async function init() {
     render: () => h(App),
   });
 
-  if (import.meta.env.VITE_APP_SENTRY_DSN) {
+  // only set in staging/prod
+  if (!IS_LOCALHOST) {
     Sentry.init({
       app,
       dsn: import.meta.env.VITE_APP_SENTRY_DSN,
@@ -91,7 +99,13 @@ async function init() {
   }
 
   // this is the public key, it's fine to put it here
+  // always init posthog since it errors otherwise
   posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", { api_host: "https://eu.posthog.com" });
+  if (IS_LOCALHOST) {
+    posthog.opt_out_capturing();
+  } else {
+    posthog.opt_in_capturing();
+  }
 
   app.use(router);
   app.use(pinia);
