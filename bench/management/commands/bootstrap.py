@@ -30,6 +30,7 @@ providers: list[Provider] = [
         name="OpenAI",
         slug="openai",
         models=[
+            "gpt-3.5-turbo",
             "text-davinci-003",
             "text-davinci-002",
             "text-curie-001",

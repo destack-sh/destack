@@ -189,20 +189,14 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       :key="action.label"
       class="rounded-sm p-1.5 text-sm"
       :class="{
-        'hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
-        'animate-pulse ': action.active.value,
+        'text-orange-500 hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
+        'text-gray-500': !action.enabled.value,
+        'animate-pulse': action.active.value,
       }"
       :disabled="!action.enabled.value || action.active.value"
       @click="action.action"
     >
-      <component
-        :is="action.icon"
-        class="h-5 w-5"
-        :class="{
-          'text-orange-500  ': action.enabled.value,
-          'text-gray-500': !action.enabled.value,
-        }"
-      />
+      <component :is="action.icon" class="h-5 w-5" />
     </button>
   </div>
 </template>

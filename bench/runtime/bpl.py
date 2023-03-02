@@ -368,7 +368,7 @@ class GenerationError(ValueError):
         message_detail: str | None = None,
         cause: Exception | None = None,
     ):
-        super().__init__(_t.message, cause)
+        super().__init__(_t.message + f" ({message_detail})" if message_detail else "", cause)
         self.type = _t
         self.part = part
         self.cause = cause
