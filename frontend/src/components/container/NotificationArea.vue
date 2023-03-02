@@ -1,8 +1,21 @@
 <script lang="ts" setup>
-import { useNotifications } from "@/state/notifications";
-import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
+import { useNotifications, type Notification } from "@/state/notifications";
+import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { ArrowUpCircleIcon } from "@heroicons/vue/20/solid";
 
 const notifications = useNotifications();
+
+function getIcon(notification: Notification) {
+  if (notification.type == "system.upgradeAvailable") {
+    return ArrowUpCircleIcon;
+  }
+  return {
+    error: XCircleIcon,
+    notice: InformationCircleIcon,
+    warning: ExclamationCircleIcon,
+    success: CheckCircleIcon,
+  }[notification.kind];
+}
 </script>
 
 <template>
@@ -34,14 +47,7 @@ const notifications = useNotifications();
             <!-- Icon -->
             <div class="-mt-[1px]">
               <component
-                :is="
-                  {
-                    error: XCircleIcon,
-                    notice: InformationCircleIcon,
-                    warning: ExclamationCircleIcon,
-                    success: CheckCircleIcon,
-                  }[notification.kind]
-                "
+                :is="getIcon(notification)"
                 class="h-5 w-5"
                 :class="{
                   'text-orange-600': notification.kind === 'notice',

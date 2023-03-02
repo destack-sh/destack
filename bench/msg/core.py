@@ -3,7 +3,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, AsyncIterator, Optional, Type, TypeVar
 from uuid import UUID
 
 import structlog
@@ -136,14 +136,13 @@ async def recv_message_with(
     return msg, payload
 
 
-async def recv_message_poll(poller: zmq.asyncio.Poller, timeout: int | None = None) -> ZMessage:
+async def recv_message_poll(
+    poller: zmq.asyncio.Poller, timeout: int | None = None
+) -> AsyncIterator[ZMessage]:
     events = dict(await poller.poll(timeout))
     pollin_events = {sock: msg for sock, msg in events.items() if msg & zmq.POLLIN}
-    if len(pollin_events) != 1:
-        # TODO @Robustness: handle multiple simultaneous zmq pollin messages
-        raise RuntimeError("expected exactly one event on poller")
     for sock, event in pollin_events.items():
-        return await recv_message(sock)
+        yield await recv_message(sock)
 
 
 zmq_ctx_sync = zmq.Context()

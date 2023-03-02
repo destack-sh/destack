@@ -36,8 +36,9 @@ watchEffect(() => {
       return;
     }
     promptedUpdate.value = true;
+    // note that there's a special icon for 'system.upgradeAvailable' in NotificationsArea
     notifications.show({
-      type: "system.outOfDate",
+      type: "system.upgradeAvailable",
       kind: "notice",
       message: "Get a better Bench",
       description: `Bench version ${systemInfo.value.version} is now available.`,

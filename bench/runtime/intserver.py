@@ -58,8 +58,8 @@ class InternalServer:
         poller.register(self.sub_sock, zmq.POLLIN)
 
         while True:
-            msg = await recv_message_poll(poller)
-            await self.process_message(msg)
+            async for msg in recv_message_poll(poller):
+                await self.process_message(msg)
 
     async def process_message(self, msg: ZMessage) -> None:
         logger.debug("process_message", request=msg)

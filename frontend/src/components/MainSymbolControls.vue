@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { CheckBadgeIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
+import { CheckCircleIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
 
 // statement selection
@@ -16,6 +16,22 @@ const editor = useEditorState();
 const runtime = useCurrentModuleRuntime();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
+
+// TODO @Cleanup: stale & active state for current main symbol are global, not specific
+const mainSymbolStale = computed(() => {
+  if (runtime.staleSymbols.value == null) {
+    return undefined;
+  } else {
+    return runtime.staleSymbols.value.length > 0;
+  }
+});
+const buildRunning = computed(
+  () => runtime.jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Build) != null
+);
+const evaluateRunning = computed(
+  () => runtime.jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Evaluate) != null
+);
+
 const canBuild = computed(
   () =>
     runtime.connected &&
@@ -90,19 +106,21 @@ const mainActions = [
     label: "Build",
     icon: WrenchIcon,
     enabled: canBuild,
-    active: computed(() => operations.state.hasInflightLike({ types: ["runtime.build"] })),
+    stale: mainSymbolStale,
+    active: computed(() => buildRunning.value || operations.state.hasInflightLike({ types: ["runtime.build"] })),
     action: () => buildMain.value.apply(),
   },
   {
     label: "Run",
     icon: PlayIcon,
     enabled: canRun,
+    stale: computed(() => false),
     active: computed(() => operations.state.hasInflightLike({ types: ["runtime.run"] })),
     action: () => runMain.value.apply(),
   },
   {
     label: "Test",
-    icon: CheckBadgeIcon,
+    icon: CheckCircleIcon,
     enabled: computed(() => testMain.value.enabled),
     active: ref(false),
     action: () => testMain.value.apply(),
@@ -142,6 +160,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           'bg-orange-200': open,
         }"
         @change="query = $event.target.value"
+        @contextmenu.prevent="$event.target.click()"
         :disabled="!runtime.connected.value"
       >
         {{ mainSymbolMissing ? "???" : symbolDeclr(mainSymbol) ?? "Select" }}
@@ -187,9 +206,9 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
     <button
       v-for="action in mainActions"
       :key="action.label"
-      class="rounded-sm p-1.5 text-sm"
+      class="relative rounded-sm p-1.5 text-sm"
       :class="{
-        'text-orange-500 hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
+        'text-orange-600 hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
         'text-gray-500': !action.enabled.value,
         '': action.active.value,
       }"
@@ -197,6 +216,20 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       @click="action.action"
     >
       <component :is="action.icon" class="h-5 w-5" />
+      <!-- little svg circle to indicate action status -->
+      <svg
+        v-if="action.active.value || action.stale?.value"
+        class="absolute right-2 bottom-2 h-1 w-1"
+        :class="{
+          'animate-bounce text-orange-600': action.active.value,
+          'text-gray-500': !action.active.value && action.stale?.value,
+          'text-orange-600': !action.active.value && !action.stale?.value,
+        }"
+        viewBox="0 0 12 12"
+        fill="none"
+      >
+        <circle cx="6" cy="6" r="6" fill="currentColor" />
+      </svg>
     </button>
   </div>
 </template>

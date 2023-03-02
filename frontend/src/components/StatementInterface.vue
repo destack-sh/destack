@@ -12,7 +12,7 @@ import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { localErrorsOf, symbolOf } from "@/state/runtime";
+import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
@@ -194,9 +194,10 @@ watch(
   }
 );
 
-// errors
+// runtime
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
+const isStale = isSymbolStale(statement);
 </script>
 <template>
   <div
@@ -286,6 +287,7 @@ const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
       <template v-if="isFirstInGroup">[</template>
       <template v-if="isLastInGroup">]</template>
       <template v-if="isCommented">#</template>
+      <template v-if="isStale">S</template>
       <span class="lowercase">
         {{ statement.modifier }}
         {{ statement.type }}

@@ -130,9 +130,9 @@ const documents = {
     types.InterpModuleContentFragmentDoc,
   "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n":
     types.InterpErrorContentFragmentDoc,
-  "\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n":
+  "\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      id\n      name\n      type\n      symbolType\n      modifier\n      parentId\n      rootTypeTag\n      generated\n    }\n  }\n":
     types.InterpJobContentFragmentDoc,
-  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n        }\n      }\n    ":
+  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n          staleSymbols {\n            id\n            name\n            type\n            symbolType\n            modifier\n            parentId\n            rootTypeTag\n            generated\n          }\n        }\n      }\n    ":
     types.ModuleRuntimeChangedDocument,
   "\n      query systemInfo {\n        systemInfo {\n          version\n          gitCommit\n        }\n      }\n    ":
     types.SystemInfoDocument,
@@ -510,14 +510,14 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"];
+  source: "\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      id\n      name\n      type\n      symbolType\n      modifier\n      parentId\n      rootTypeTag\n      generated\n    }\n  }\n"
+): typeof documents["\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      id\n      name\n      type\n      symbolType\n      modifier\n      parentId\n      rootTypeTag\n      generated\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n        }\n      }\n    "
-): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n        }\n      }\n    "];
+  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n          staleSymbols {\n            id\n            name\n            type\n            symbolType\n            modifier\n            parentId\n            rootTypeTag\n            generated\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n          staleSymbols {\n            id\n            name\n            type\n            symbolType\n            modifier\n            parentId\n            rootTypeTag\n            generated\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
