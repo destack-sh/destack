@@ -51,6 +51,7 @@ class ModuleData:
     id: UUID
     name: str
     files: list["FileData"]
+    committed: bool = False
 
     def __str__(self):
         return f"{self.name}@{self.id} ({len(self.files)} files)"
@@ -441,13 +442,14 @@ class ModuleMutation:
 #
 
 
-class JobType(enum.Enum):
+class JobType(enum.StrEnum):
+    INTERP = "interp"
     BUILD = "build"
     GENERATE = "generate"
     EVALUATE = "evaluate"
 
 
-class JobStatus(enum.Enum):
+class JobStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -463,7 +465,7 @@ class JobData:
     terminated_at: Optional[datetime] = None
     error: Optional[typing.Any] = None
     # Job-specific data
-    buildable_id: Optional[UUID] = None
+    statement_id: Optional[UUID] = None
 
     def __str__(self):
         return f"{self.type} {self.id} ({self.status})"

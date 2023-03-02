@@ -2,6 +2,7 @@
 # options are major, minor, patch
 
 import pathlib
+import subprocess
 import sys
 
 version = pathlib.Path("version").read_text().strip()
@@ -27,3 +28,6 @@ else:
 version = f"{major}.{minor}.{patch}"
 pathlib.Path("version").write_text(version)
 print(f"bump {sys.argv[1]} version to {version}")
+
+# also run copy_version.py
+subprocess.run(["python", "scripts/copy_version.py"])

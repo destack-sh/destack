@@ -27,7 +27,6 @@ export type BuildInput = {
 
 export type BuildState = {
   __typename?: "BuildState";
-  buildIds: Array<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   success: Scalars["Boolean"];
 };
@@ -322,6 +321,16 @@ export type InterpFile = {
   symbols: Array<InterpSymbol>;
 };
 
+export type InterpJob = {
+  __typename?: "InterpJob";
+  id: Scalars["GlobalID"];
+  startedAt?: Maybe<Scalars["DateTime"]>;
+  status: JobStatus;
+  symbol?: Maybe<InterpSymbol>;
+  terminatedAt?: Maybe<Scalars["DateTime"]>;
+  type: JobType;
+};
+
 export type InterpModule = {
   __typename?: "InterpModule";
   files: Array<InterpFile>;
@@ -367,10 +376,25 @@ export type InterpSymbol = SimplyTyped & {
   typeNodes?: Maybe<Array<InterpSimpleType>>;
 };
 
+export enum JobStatus {
+  Completed = "COMPLETED",
+  Failed = "FAILED",
+  Queued = "QUEUED",
+  Running = "RUNNING",
+}
+
+export enum JobType {
+  Build = "BUILD",
+  Evaluate = "EVALUATE",
+  Generate = "GENERATE",
+  Interp = "INTERP",
+}
+
 export type ModuleRuntime = {
   __typename?: "ModuleRuntime";
   dependencies: Array<InterpModule>;
   errors: Array<InterpError>;
+  jobs: Array<InterpJob>;
   module: InterpModule;
   updatedAt: Scalars["DateTime"];
 };
@@ -1951,9 +1975,7 @@ export type BuildMutationVariables = Exact<{
 
 export type BuildMutation = {
   __typename?: "Mutation";
-  build:
-    | { __typename?: "BuildState"; projectVersionId: any; success: boolean; buildIds: Array<any> }
-    | { __typename?: "OperationInfo" };
+  build: { __typename?: "BuildState"; projectVersionId: any; success: boolean } | { __typename?: "OperationInfo" };
 };
 
 export type RunMutationVariables = Exact<{
@@ -2495,6 +2517,20 @@ export type InterpErrorContentFragment = {
     | null;
 } & { " $fragmentName"?: "InterpErrorContentFragment" };
 
+export type InterpJobContentFragment = {
+  __typename?: "InterpJob";
+  id: any;
+  type: JobType;
+  status: JobStatus;
+  startedAt?: any | null;
+  terminatedAt?: any | null;
+  symbol?:
+    | ({ __typename?: "InterpSymbol" } & {
+        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
+      })
+    | null;
+} & { " $fragmentName"?: "InterpJobContentFragment" };
+
 export type ModuleRuntimeChangedSubscriptionVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
@@ -2514,6 +2550,9 @@ export type ModuleRuntimeChangedSubscription = {
     >;
     errors: Array<
       { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
+    >;
+    jobs: Array<
+      { __typename?: "InterpJob" } & { " $fragmentRefs"?: { InterpJobContentFragment: InterpJobContentFragment } }
     >;
   };
 };
@@ -3081,6 +3120,34 @@ export const InterpErrorContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpErrorContentFragment, unknown>;
+export const InterpJobContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpJobContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpJob" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbol" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InterpJobContentFragment, unknown>;
 export const ProjectDeploymentsDocument = {
   kind: "Document",
   definitions: [
@@ -4921,7 +4988,6 @@ export const BuildDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
                       { kind: "Field", name: { kind: "Name", value: "success" } },
-                      { kind: "Field", name: { kind: "Name", value: "buildIds" } },
                     ],
                   },
                 },
@@ -6938,6 +7004,14 @@ export const ModuleRuntimeChangedDocument = {
                     selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpErrorContent" } }],
                   },
                 },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "jobs" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpJobContent" } }],
+                  },
+                },
               ],
             },
           },
@@ -6947,6 +7021,7 @@ export const ModuleRuntimeChangedDocument = {
     ...InterpModuleContentFragmentDoc.definitions,
     ...InterpSymbolContentFragmentDoc.definitions,
     ...InterpErrorContentFragmentDoc.definitions,
+    ...InterpJobContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleRuntimeChangedSubscription, ModuleRuntimeChangedSubscriptionVariables>;
 export const SystemInfoDocument = {

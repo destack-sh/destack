@@ -14,7 +14,6 @@ export function useRuntimeOps() {
           ... on BuildState {
             projectVersionId
             success
-            buildIds
           }
         }
       }

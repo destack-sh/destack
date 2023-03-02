@@ -62,7 +62,9 @@ def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
 @transaction.atomic(savepoint=False)  # read-only
 def read_module(project_v: ProjectVersion, path: StatementPath | None = None) -> wire.ModuleData:
     """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
-    wire_module = wire.ModuleData(id=project_v.id, name=project_v.project.path, files=[])
+    wire_module = wire.ModuleData(
+        id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
+    )
     wire_files: dict[UUID, wire.FileData] = {}
     wire_statements: dict[UUID, wire.StatementData] = {}
 

@@ -26,7 +26,7 @@ PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
 
 class Execution(UUIDTModel):
     """
-    The execution of (hierarchical) code.
+    The execution of (nested) code.
     """
 
     project_version = models.ForeignKey(
