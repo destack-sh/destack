@@ -66,17 +66,23 @@ class OpenAIInference(Inference):
     async def generate(self, prompt: str, settings: DecoderSettings) -> TextGeneration:
         request = {
             "model": self.model.external_name,
-            "prompt": prompt,
             "max_tokens": settings.max_tokens,
             "temperature": settings.temperature,
             "stop": settings.stop,
-            "logprobs": 4,
         }
+        is_chat = "gpt-3.5-turbo" in self.model.external_name
+        if is_chat:
+            # annoyingly, chat and non-chat models have slightly different structures right now
+            request["messages"] = [{"role": "user", "content": prompt}]
+            # also chat doesn't support logprobs right now
+            api_url = "https://api.openai.com/v1/chat/completions"
+        else:
+            request["prompt"] = prompt
+            request["logprobs"] = 4
+            api_url = "https://api.openai.com/v1/completions"
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
-            async with session.post(
-                "https://api.openai.com/v1/completions", json=request
-            ) as response:
+            async with session.post(api_url, json=request) as response:
                 if response.status != 200:
                     raise RuntimeError(await response.text())
                 response_json = await response.json()
@@ -84,6 +90,7 @@ class OpenAIInference(Inference):
         logger.debug(
             "inference.openai.generate",
             prompt=len(prompt),
+            model=self.model.external_name,
             usage_tokens=response_json["usage"]["total_tokens"],
         )
 
@@ -95,9 +102,15 @@ class OpenAIInference(Inference):
             elif output["finish_reason"] == "length":
                 finish_reason = FinishReason.MAX_TOKENS
             else:
-                raise RuntimeError(f"unexpected finish_reason: {output['finish_reason']}")
+                finish_reason = FinishReason.STOP
+                logger.warning(f"unexpected finish_reason: {output['finish_reason']}")
+
+            if is_chat:
+                text = outputs[-1]["message"]["content"]
+            else:
+                text = output["text"]
             generation = TextGeneration(
-                text=output["text"],
+                text=text,
                 tokens=output.get("logprobs", {}).get("tokens", None),
                 logits=output.get("logprobs", {}).get("token_logprobs", None),
                 finish_reason=finish_reason,

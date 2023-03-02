@@ -48,6 +48,8 @@ logger = structlog.get_logger(__name__)
 # Implementing build entails optimization problems, we'll see...
 #
 
+LITERAL_DELIMITER = "___"
+
 
 class BuildErrorType(enum.Enum):
     INTERNAL = 0, "Internal error"
@@ -283,11 +285,11 @@ class PromptBuilder:
         """Emits BPL to show the given dataset."""
         element_type_str = render_type_node(dataset.type_node, None, ignore_description=True)
         self.emit(f"data '{dataset.name}' :: ({element_type_str}):\n")
-        self.emit("```jsonl\n")
+        self.emit(LITERAL_DELIMITER + "jsonl\n")
         with self.block(f"for record in context['{dataset.name}']:"):
             self.append("_record_as_json = json.dumps(record, indent=2)")
             self.emit("|{_record_as_json}|\n")
-        self.emit("```\n")
+        self.emit(LITERAL_DELIMITER + "\n")
         self.blank()
 
     def emit_show_value(self, value: Any, type: TypeNode, name: str = "example"):
@@ -295,9 +297,9 @@ class PromptBuilder:
         check_type(value, type)
         record_type_str = render_type_node_struct(type, None, seperator=", ")
         self.emit(f"value {name} :: ({record_type_str}):\n")
-        self.emit("```json\n")
+        self.emit(LITERAL_DELIMITER + "json\n")
         self.emit_split(json.dumps(value, indent=2))
-        self.emit("```\n")
+        self.emit(LITERAL_DELIMITER + "\n")
         self.blank()
 
     def emit_get_record(
@@ -311,7 +313,7 @@ class PromptBuilder:
         combined_type = TypeNode(name=None, tag=TypeTag.STRUCT, children=inputs + [output])
         combined_type_str = render_type_node_struct(combined_type, None, seperator=", ")
         self.emit(f"value :: ({combined_type_str}):\n")
-        self.emit("```json\n")
+        self.emit(LITERAL_DELIMITER + "json\n")
         self.emit("{\n")
         # render input fields as BPL variables like |{var_name}|
         for input in inputs:
@@ -320,7 +322,7 @@ class PromptBuilder:
         output_type_str = render_type_node(output, None, ignore_name=True, ignore_description=True)
         self.emit(f'  "{output.name}": |[{output_var}: {output_type_str}]|\n')
         self.emit("}\n")
-        self.emit("```")
+        self.emit(LITERAL_DELIMITER)
         self.blank()
 
 
@@ -423,7 +425,9 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     # task type example stub
     # (basically an example that is properly formatted but has obviously fake values)
     target_code.comment("Task type example stub")
-    target_code.emit("The data should look like this (with real values obviously):\n")
+    target_code.emit(
+        "The data should look like this (with real values, but the exact same format including final ```):\n"
+    )
     fake_data = fabricate(examples_type)
     target_code.emit_show_value(fake_data, examples_type)
     target_code.blank()
@@ -442,7 +446,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     #  2. Get max_tokens from emitted size..? Set max_new_tokens instead?
     target_code.pragma(
         temperature=0.5,
-        max_tokens=2048,
+        max_tokens=4096,
         max_generated_tokens=1024,
         model=f'context["{state.model.name}"]',
     )

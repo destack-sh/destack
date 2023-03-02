@@ -248,7 +248,7 @@ class FinishReason(enum.StrEnum):
 class TextGeneration:
     text: str
     tokens: list[str]
-    logits: list[float]
+    logits: Optional[list[float]]
     finish_reason: FinishReason
 
 

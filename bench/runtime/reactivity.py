@@ -8,25 +8,26 @@ from uuid import UUID
 from bench.language import ModuleIndex, SourceMapping
 
 
-class TrackedObjectType(enum.Enum):
+class TrackedNodeType(enum.Enum):
     MODULE = "module"
     FILE = "file"
     STATEMENT = "statement"
 
 
 @dataclass
-class TrackedObject:
+class TrackedNode:
     id: UUID
     revision: int
     parent_id: UUID
+    reference_id: UUID
     order_key: Optional[str]
-    type: str  # opaque?
+    type: TrackedNodeType  # opaque?
 
 
 @dataclass
 class TrackedTree:
-    root: TrackedObject
-    objects_by_id: dict[UUID, list[TrackedObject]]
+    root: TrackedNode
+    objects_by_id: dict[UUID, list[TrackedNode]]
 
 
 def tree_from_mappings(mappings: list[SourceMapping]) -> TrackedTree:
@@ -37,7 +38,7 @@ def tree_from_module(module: ModuleIndex) -> TrackedTree:
     raise NotImplementedError
 
 
-def diff_trees(old: TrackedTree, new: TrackedTree) -> list[TrackedObject]:
+def diff_trees(old: TrackedTree, new: TrackedTree) -> list[TrackedNode]:
     raise NotImplementedError
 
 
@@ -46,7 +47,7 @@ class Reaction:
     pass
 
 
-def react_to_diff(diff: list[TrackedObject], barriers: list[ReactivityBarrier]) -> list[Reaction]:
+def react_to_diff(diff: list[TrackedNode], barriers: list[ReactivityBarrier]) -> list[Reaction]:
     raise NotImplementedError
 
 
