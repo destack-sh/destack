@@ -74,7 +74,7 @@ const documents = {
     types.UpdateProjectVisibilityDocument,
   "\n      mutation updateProjectName($id: GlobalID!, $name: String!) {\n        updateProjectName(input: { id: $id, name: $name }) {\n          ... on Project {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateProjectNameDocument,
-  "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n            buildIds\n          }\n        }\n      }\n    ":
+  "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    ":
     types.BuildDocument,
   "\n      mutation run($projectVersionId: GlobalID!, $runnableId: GlobalID, $buildId: GlobalID, $arguments: JSON!) {\n        run(\n          input: {\n            projectVersionId: $projectVersionId\n            runnableId: $runnableId\n            buildId: $buildId\n            arguments: $arguments\n          }\n        ) {\n          ... on RunState {\n            projectVersionId\n            runnableId\n            buildId\n            output\n            success\n          }\n        }\n      }\n    ":
     types.RunDocument,
@@ -130,7 +130,9 @@ const documents = {
     types.InterpModuleContentFragmentDoc,
   "\n  fragment InterpErrorContent on InterpError {\n    type\n    message\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n":
     types.InterpErrorContentFragmentDoc,
-  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    ":
+  "\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n":
+    types.InterpJobContentFragmentDoc,
+  "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n        }\n      }\n    ":
     types.ModuleRuntimeChangedDocument,
   "\n      query systemInfo {\n        systemInfo {\n          version\n          gitCommit\n        }\n      }\n    ":
     types.SystemInfoDocument,
@@ -340,8 +342,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n            buildIds\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n            buildIds\n          }\n        }\n      }\n    "];
+  source: "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -508,8 +510,14 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "
-): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n        }\n      }\n    "];
+  source: "\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"
+): typeof documents["\n  fragment InterpJobContent on InterpJob {\n    id\n    type\n    status\n    startedAt\n    terminatedAt\n    symbol {\n      ...InterpSymbolContent\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {\n        moduleRuntimeChanged(projectVersionId: $projectVersionId) {\n          updatedAt\n          module {\n            ...InterpModuleContent\n          }\n          dependencies {\n            ...InterpModuleContent\n          }\n          errors {\n            ...InterpErrorContent\n          }\n          jobs {\n            ...InterpJobContent\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -60,6 +60,19 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
   }
 `);
 
+export const InterpJobContentType = graphql(/* GraphQL */ `
+  fragment InterpJobContent on InterpJob {
+    id
+    type
+    status
+    startedAt
+    terminatedAt
+    symbol {
+      ...InterpSymbolContent
+    }
+  }
+`);
+
 type ModuleIndex = {
   id: string;
   module: InterpModule;
@@ -101,6 +114,9 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
           }
           errors {
             ...InterpErrorContent
+          }
+          jobs {
+            ...InterpJobContent
           }
         }
       }

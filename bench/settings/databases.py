@@ -7,7 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 from bench.settings import get_from_env
 from bench.settings.base import BASE_DIR, DEBUG, TEST
 
-logger = structlog.stdlib.get_logger()
+logger = structlog.stdlib.get_logger(__name__)
 
 # Django Database settings
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases

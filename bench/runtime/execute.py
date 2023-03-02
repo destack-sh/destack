@@ -56,7 +56,7 @@ from bench.runtime.type import (
 )
 from bench.utils.record import RecordList
 
-logger = structlog.stdlib.get_logger()
+logger = structlog.stdlib.get_logger(__name__)
 
 
 class ProviderKey(models.TextChoices):

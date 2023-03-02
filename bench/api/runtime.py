@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from itertools import chain
 from typing import AsyncGenerator, Optional, cast
@@ -62,7 +64,8 @@ class InterpJob:
     type: JobType
     status: JobStatus
     started_at: Optional[datetime]
-    finished_at: Optional[datetime]
+    terminated_at: Optional[datetime]
+    symbol: Optional[InterpSymbol]
 
 
 @gql.type
@@ -152,18 +155,35 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
     return interp_module
 
 
+def _get_symbol_from_module(module: InterpModule, symbol_id: UUID) -> Optional[InterpSymbol]:
+    symbol_id_str = str(symbol_id)
+    for symbol in chain.from_iterable(file.symbols for file in module.files):
+        if symbol.id.node_id == symbol_id_str:
+            return symbol
+    return None
+
+
 def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list[InterpError]:
     """Maps a wire error into a GQL error"""
-    symbols_by_id = {}
-    for symbol in chain.from_iterable(file.symbols for file in module.files):
-        symbols_by_id[UUID(symbol.id.node_id)] = symbol
-
     errors = []
     for error in wire_errors:
-        symbol = symbols_by_id[error.statement_id] if error.statement_id else None
+        symbol = _get_symbol_from_module(module, error.statement_id)
         error = InterpError(type=InterpErrorType(error.type), message=error.message, symbol=symbol)
         errors.append(error)
     return errors
+
+
+def rmap_job(wire_job: wire.JobData, module: InterpModule) -> InterpJob:
+    """Maps a wire job into a GQL job"""
+    symbol = _get_symbol_from_module(module, wire_job.statement_id)
+    return InterpJob(
+        id=GlobalID("Job", str(wire_job.id)),
+        type=wire_job.type,
+        status=wire_job.status,
+        started_at=wire_job.started_at,
+        terminated_at=wire_job.terminated_at,
+        symbol=symbol,
+    )
 
 
 @gql.input
@@ -304,11 +324,14 @@ class ModuleRuntimeSubscription:
         )
         _, payload = await recv_message_with(worker_req_sock, RepModuleRuntimePayload)
         module = rmap_module(payload.module)
-        dependencies = [rmap_module(dep) for dep in payload.dependencies]
-        errors = rmap_errors(payload.errors, module)
-        yield ModuleRuntime(
-            updated_at=payload.updated_at, module=module, dependencies=dependencies, errors=errors
+        runtime = ModuleRuntime(
+            updated_at=payload.updated_at,
+            module=(module),
+            dependencies=[rmap_module(dep) for dep in payload.dependencies],
+            errors=(rmap_errors(payload.errors, module)),
+            jobs=[rmap_job(job, module) for job in payload.jobs],
         )
+        yield runtime
 
         # get runtime changes
         try:
@@ -316,16 +339,18 @@ class ModuleRuntimeSubscription:
             while True:
                 _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
                 log.debug("runtime.update", updated_at=update.updated_at)
+                # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
                 # :PartialModuleUpdates
-                module = rmap_module(update.module)
-                dependencies = [rmap_module(dep) for dep in update.dependencies]
-                errors = rmap_errors(update.errors, module)
-                yield ModuleRuntime(
-                    updated_at=payload.updated_at,
-                    module=module,
-                    dependencies=dependencies,
-                    errors=errors,
-                )
+                if update.module is not None:
+                    runtime.module = rmap_module(update.module)
+                if update.dependencies is not None:
+                    runtime.dependencies = [rmap_module(dep) for dep in update.dependencies]
+                if update.errors is not None:
+                    runtime.errors = rmap_errors(update.errors, runtime.module)
+                if update.jobs is not None:
+                    runtime.jobs = [rmap_job(job, runtime.module) for job in update.jobs]
+                runtime.updated_at = update.updated_at
+                yield runtime
         finally:
             log.info("runtime.close")
             worker_req_sock.close()

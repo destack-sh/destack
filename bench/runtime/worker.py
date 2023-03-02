@@ -34,6 +34,7 @@ from bench.msg.messages import (
     ModuleRuntimeChangedPayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
+    RepModuleRuntimePayload,
     RepReadModulePayload,
     RepWriteModulePayload,
     ReqModuleBuildPayload,
@@ -60,14 +61,25 @@ InterpModule = NamedTuple(
 )
 
 
-class JobType(enum.Enum):
-    RUN = "run"
-    BUILD = "build"
+class JobType(enum.StrEnum):
+    INTERP = "interp"
     GENERATE = "generate"
+    BUILD = "build"
     EVALUATE = "evaluate"
+    RUN = "run"
 
 
-class JobStatus(enum.Enum):
+# lower is higher
+JOB_PRIORITY = {
+    JobType.INTERP: 0,
+    JobType.RUN: 0,
+    JobType.GENERATE: 1,
+    JobType.BUILD: 2,
+    JobType.EVALUATE: 3,
+}
+
+
+class JobStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -83,6 +95,21 @@ class Job:
     terminated_at: Optional[datetime] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
 
+    @property
+    def success(self) -> bool:
+        raise NotImplementedError
+
+    @property
+    def default_priority(self) -> int:
+        return JOB_PRIORITY[self.type]
+
+
+@dataclass
+class InterpJob(Job):
+    type: ClassVar[JobType] = JobType.INTERP
+    new_source: wire.ModuleData = None
+    success: bool = False
+
 
 @dataclass
 class BuildJob(Job):
@@ -90,6 +117,10 @@ class BuildJob(Job):
     buildable_id: UUID = None
     builds: list[Build] = None
     build_results: list[BuildResult] = None
+
+    @property
+    def success(self) -> bool:
+        return self.build_results is not None
 
 
 @dataclass
@@ -100,6 +131,10 @@ class RunJob(Job):
     error: Optional[ModuleRunErrorType] = None
     error_details: Optional[Any] = None
     output: Optional[LiteralValue] = None
+
+    @property
+    def success(self) -> bool:
+        return self.error is None
 
 
 def rmap_job(job: Job) -> wire.JobData:
@@ -112,8 +147,9 @@ def rmap_job(job: Job) -> wire.JobData:
     )
     if isinstance(job, RunJob):
         data.error = job.error
+        data.statement_id = job.runnable.id
     elif isinstance(job, BuildJob):
-        data.buildable_id = job.buildable_id
+        data.statement_id = job.buildable_id
     return data
 
 
@@ -165,20 +201,23 @@ RECENT_JOBS_BUFFER_SIZE = 64
 
 @dataclass
 class ModuleWorker:
+    """A worker that processes all jobs for a single module (incl. to maintain its state)"""
+
     def __init__(self, module_id: UUID, master: Worker):
         self.master = master
         self.module_id = module_id
         self.ready = asyncio.Event()
         self.source: wire.ModuleData | None = None
+        self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
 
         self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
-        self.stateful_jobs: asyncio.Queue[Job] = field(default_factory=asyncio.Queue)
+        self.stateful_jobs: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
         self.recent_jobs: list[Job] = []
-        self.run_jobs: asyncio.Queue[RunJob] = field(default_factory=asyncio.Queue)
+        self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
 
         self.wire_module: wire.ModuleData | None = None
         self.wire_errors: list[wire.ErrorData] | None = None
-        self.wire_dependencies: dict[UUID, wire.ModuleData] = {}
+        self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
 
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
 
@@ -201,21 +240,53 @@ class ModuleWorker:
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
 
-    def _on_new_job(self, job: Job) -> None:
+    def _queue_job(self, job: Job, priority: int = None):
+        priority = priority or job.default_priority
+        if isinstance(job, RunJob):
+            self.run_jobs.put_nowait((priority, job))
+        else:
+            self.stateful_jobs.put_nowait((priority, job))
+
+        # track recent jobs in a buffer
         self.recent_jobs.append(job)
         if len(self.recent_jobs) > RECENT_JOBS_BUFFER_SIZE:
             self.recent_jobs.pop(0)
 
-    def on_module_changed(self, source: wire.ModuleData):
-        self.source = source
-        # re-fetch dependencies as needed (recursively)
+    def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
+        job = InterpJob(new_source=source)
+        self._queue_job(job)
+        return job
+
+    async def _interp_requirement_rec(self, module_id: UUID) -> InterpModule:
+        """Fetch and interpret the requirement module (incl. transitive deps)"""
+        if module_id in self.interp_dependencies_cached:
+            return self.interp_dependencies_cached[module_id]
+        self.log.info("interp_requirement", module_id=module_id)
+        source = await self.master.get_module(module_id)
         requirements = get_requirements(source)
+        dependencies = await asyncio.gather(
+            *[self._interp_requirement_rec(req.id) for req in requirements]
+        )
+        interp = interp_module(source, [m.module_idx for m in dependencies])
+        if interp.errors:
+            # not good, but we can still try to use the module?
+            self.log.warn("interp_requirement_failed", interp=interp)
+        self.interp_dependencies_cached[module_id] = interp
+        return interp
 
-        if self.stateful_jobs.qsize() > 0:
-            # not sure what to do here?
-            pass
+    async def run_interp(self, new_source: wire.ModuleData) -> None:
+        """Interprets the new module source, fetching deps and firing reactivity jobs"""
+        requirements = get_requirements(new_source)
+        dependencies = await asyncio.gather(
+            *[self._interp_requirement_rec(req.id) for req in requirements]
+        )
 
-        raise NotImplementedError
+        self.source = new_source
+        self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
+        self._derive_wire()
+
+        # reactively trigger build jobs for all affected builds (and other reactors)
+        # TODO @Incomplete: implement this
 
     def queue_build(self, buildable_id: UUID) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
@@ -236,17 +307,21 @@ class ModuleWorker:
             return ModuleBuildErrorType.INVALID_BUILDABLE
 
         job = BuildJob(buildable_id=buildable_id, builds=builds)
-        self.stateful_jobs.put_nowait(job)
-        self.on_new_job(job)
+        self._queue_job(job)
         return job
 
     async def do_build(self, builds: list[language.Build]):
+        self.log("build", builds=builds)
         build_processes = [make_build(build) for build in builds]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         return cast(list[BuildResult], build_results)
 
     def queue_run(
-        self, runnable: str | UUID, runnable_type: str | None, build: str | UUID
+        self,
+        runnable: str | UUID,
+        runnable_type: str | None,
+        build: str | UUID,
+        arguments: dict[str, Any],
     ) -> RunJob | ModuleRunErrorType:
         if not self.interpreted:
             return ModuleRunErrorType.NOT_READY
@@ -260,7 +335,7 @@ class ModuleWorker:
                 runnable_type = None
             runnable = self.idx.symbol(runnable, symbol_t=runnable_type)
         except (TypeError, KeyError) as e:
-            logger.exception("run_fail", exc_info=e)
+            self.log.exception("make_run_fail", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
         # instantiate
@@ -275,12 +350,11 @@ class ModuleWorker:
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
         except Exception as e:
-            logger.exception("queue_run_fail_instantiate", exc_info=e)
+            self.log.exception("queue_run_fail_instantiate", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
-        job = RunJob(id=root_id, runnable=runnable_instance)
-        self.run_jobs.put_nowait(job)
-        self._on_new_job(job)
+        job = RunJob(id=root_id, runnable=runnable_instance, arguments=arguments)
+        self._queue_job(job)
         return job
 
     async def do_run(self, runnable: CodeInstance, arguments: dict[str, LiteralValue]):
@@ -289,28 +363,32 @@ class ModuleWorker:
                 code_instance = runnable.code
             else:
                 code_instance = runnable
-            logger.info("run", code_instance=code_instance)
+            self.log.info("run", code_instance=code_instance)
             ret = await run(code_instance, arguments)
             return None, ret
         except RunError as e:
-            logger.exception("run_failed", exc_info=e)
+            self.log.exception("run_failed", exc_info=e)
             details = dict(type=e.type.name, symbol=str(e.symbol), message=str(e.cause))
             return ModuleRunErrorType.RUNTIME_ERROR, details
         except Exception as e:
-            logger.exception("run_failed", exc_info=e)
+            self.log.exception("run_failed", exc_info=e)
             return ModuleRunErrorType.INTERNAL_ERROR, None
 
-    async def _run_queue(self, queue: asyncio.Queue[Job]) -> None:
+    async def _run_queue(self, queue: asyncio.Queue[tuple[int, Job]]) -> None:
         """Process module jobs sequentially"""
         while True:
-            job = await queue.get()
+            _, job = await queue.get()
             try:
                 job.status = JobStatus.RUNNING
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                self.log.info("module_worker_job_start", job=job)
+                self.log.info("module_worker_job_started", job=job)
                 self.master.notify_job_status(self, job)
 
-                if isinstance(job, RunJob):
+                if isinstance(job, InterpJob):
+                    await self.run_interp(job.new_source)
+                    job.success = True
+
+                elif isinstance(job, RunJob):
                     error, ret = await self.do_run(job.runnable, job.arguments)
                     if error is None:
                         job.output = ret
@@ -329,7 +407,7 @@ class ModuleWorker:
                 job.error = str(e)
                 self.log.exception("module_worker_job_failed", job=job)
             finally:
-                job.status = JobStatus.COMPLETED if job.error is None else JobStatus.FAILED
+                job.status = JobStatus.COMPLETED if job.success else JobStatus.FAILED
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 job.terminated.set()
                 self.master.notify_job_status(self, job)
@@ -341,22 +419,37 @@ class ModuleWorker:
         # first get the source
         self.log.info("module_worker_start")
         source = await self.master.get_module(self.module_id)
-        self.on_module_changed(source)
-        self.ready.set()
+        interp_job = self.on_module_changed(source)
 
         # start running both queues (for stateful and run)
-        await asyncio.gather(self._run_queue(self.stateful_jobs), self._run_queue(self.run_jobs))
-        # (this will never return)
+        main = asyncio.gather(
+            wrap_task(self._run_queue(self.stateful_jobs), f"worker_run_stateful_{self.module_id}"),
+            wrap_task(self._run_queue(self.run_jobs), f"worker_run_{self.module_id}"),
+        )
+        # wait for the first interp job to complete
+        await interp_job.terminated.wait()
+        self.ready.set()
+        # wait for the main loop to complete
+        await main  # (this will never return)
 
 
-def module_worker_to_rep(module_worker: ModuleWorker) -> ModuleRuntimeChangedPayload:
-    # don't need to report run jobs since they're only for internal bookkeeping
-    relevant_jobs = [job for job in module_worker.recent_jobs if job.type != JobType.RUN]
-    return ModuleRuntimeChangedPayload(
+def make_full_change_msg(module_worker: ModuleWorker, cls):
+    """Builds a complete runtime change message from the module worker's state"""
+    relevant_jobs = [
+        job
+        for job in module_worker.recent_jobs
+        if job.type in (JobType.INTERP, JobType.BUILD, JobType.GENERATE, JobType.EVALUATE)
+    ]
+    dependencies = (
+        list(module_worker.wire_dependencies.values())
+        if module_worker.wire_dependencies is not None
+        else None
+    )
+    return cls(
         module_id=module_worker.module_id,
         updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
         module=module_worker.wire_module,
-        dependencies=list(module_worker.wire_dependencies.values()),
+        dependencies=dependencies,
         errors=module_worker.wire_errors,
         jobs=[rmap_job(job) for job in relevant_jobs],
     )
@@ -371,7 +464,6 @@ class Worker:
         self.pub_sock = zmq_ctx.socket(zmq.PUB)
 
         self.module_workers: dict[UUID, ModuleWorker] = {}
-        self.interp_module_cache: dict[UUID, InterpModule] = {}
 
     async def run(
         self,
@@ -406,11 +498,11 @@ class Worker:
 
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:
+            # start module worker if not already started
             worker = ModuleWorker(module_id, self)
             self.module_workers[module_id] = worker
-            # init worker
             asyncio.get_running_loop().create_task(
-                wrap_task(worker.run(), "worker_" + str(module_id))
+                wrap_task(worker.run(), "worker_run_" + str(module_id))
             )
         return self.module_workers[module_id]
 
@@ -421,14 +513,16 @@ class Worker:
             module_worker = self._get_module_worker(payload.module_id)
             await module_worker.ready.wait()
             send_message(
-                self.rep_sock, ZMessageType.REP_MODULE_RUNTIME, module_worker_to_rep(module_worker)
+                self.rep_sock,
+                ZMessageType.REP_MODULE_RUNTIME,
+                make_full_change_msg(module_worker, RepModuleRuntimePayload),
             )
 
         elif msg.type == ZMessageType.MODULE_CHANGED:
             payload: ModuleChangedPayload = msg.payload_as(ModuleChangedPayload)
             module_worker = self._get_module_worker(payload.module_id)
             module_worker.on_module_changed(payload.module)
-            # worker will trigger any follow-up messages
+            # worker will trigger any follow-up messages (no reply necessary)
 
         elif msg.type == ZMessageType.REQ_MODULE_BUILD:
             payload: ReqModuleBuildPayload = msg.payload_as(ReqModuleBuildPayload)
@@ -441,13 +535,16 @@ class Worker:
             payload: ReqModuleRunPayload = msg.payload_as(ReqModuleRunPayload)
             module_worker = self._get_module_worker(payload.module_id)
             run_job = module_worker.queue_run(
-                payload.runnable, payload.runnable_type, payload.build
+                payload.runnable, payload.runnable_type, payload.build, payload.arguments
             )
-            if payload.blocking:
-                await run_job.terminated.wait()
-            rep = RepModuleRunPayload(
-                run_job.id, run_job.error, run_job.error_details, run_job.output
-            )
+            if isinstance(run_job, ModuleRunErrorType):
+                rep = RepModuleRunPayload(None, run_job, None, None)
+            else:
+                if payload.blocking:
+                    await run_job.terminated.wait()
+                rep = RepModuleRunPayload(
+                    run_job.id, run_job.error, run_job.error_details, run_job.output
+                )
             send_message(self.rep_sock, ZMessageType.REP_MODULE_RUN, rep)
 
         else:
@@ -459,35 +556,50 @@ class Worker:
         send_message(
             self.pub_sock,
             ZMessageType.MODULE_RUNTIME_CHANGED,
-            module_worker_to_rep(module_worker),
+            make_full_change_msg(module_worker, ModuleRuntimeChangedPayload),
         )
-
         # write back build results to internal server
         if isinstance(job, BuildJob) and job.status == JobStatus.COMPLETED:
-            for build_result in job.build_results:
-                generated_file = build_result.to_file(module=module_worker.idx.module)
-                write = ReqWriteModulePayload(
-                    module_id=module_worker.module_id,
-                    files=[wire.rmap_file(generated_file)],
-                    generated_mappings=[(build_result.build.id, build_result.source_mappings)],
-                )
-                send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
-                _, write_result = await recv_message_with(
-                    self.intserver_req_sock, RepWriteModulePayload
-                )
-                if not write_result.success:
-                    # TODO @Robustness: panic if we can't write back builds?
-                    logger.error("write_module_failed", write=write, write_result=write_result)
+            asyncio.get_running_loop().create_task(
+                wrap_task(self.write_build_job_results(module_worker, job))
+            )
+
+    # TODO @Cleanup: switch to async client/server ZMQ flow to avoid sequential locking
+    _intserver_rep_lock = asyncio.Lock()
+
+    async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
+        """Writes the build job results back to the internal server"""
+        generated_files = []
+        generated_mappings = []
+        for build_result in job.build_results:
+            generated_file = build_result.to_file(module=module_worker.idx.module)
+            generated_files.append(wire.rmap_file(generated_file))
+            generated_mappings.append((build_result.build.id, build_result.source_mappings))
+        await self._intserver_rep_lock.acquire()
+        write = ReqWriteModulePayload(
+            module_id=module_worker.module_id,
+            files=generated_files,
+            generated_mappings=generated_mappings,
+        )
+        send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
+        self._intserver_rep_lock.release()
+        _, write_result = await recv_message_with(self.intserver_req_sock, RepWriteModulePayload)
+        if not write_result.success:
+            # TODO @Robustness: panic if we can't write back builds?
+            logger.error("write_module_failed", write=write, write_result=write_result)
 
     async def get_module(self, module_id: UUID) -> wire.ModuleData:
         """Gets a modules wire data"""
         logger.debug("fetch_wire_module", module_id=module_id)
+        await self._intserver_rep_lock.acquire()
         send_message(
             self.intserver_req_sock,
             ZMessageType.REQ_READ_MODULE,
             ReqReadModulePayload(module_id),
         )
         _, payload = await recv_message_with(self.intserver_req_sock, RepReadModulePayload)
+        self._intserver_rep_lock.release()
+        # TODO @Performance: cache committed modules
         return payload.module
 
     async def stop(self):

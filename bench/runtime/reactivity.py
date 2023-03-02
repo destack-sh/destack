@@ -49,7 +49,9 @@ class Reaction:
     pass
 
 
-def react_to_diff(diff: list[TrackedNode], barriers: list[ReactivityBarrier]) -> list[Reaction]:
+def react_to_diff(
+    new: TrackedTree, diff: list[TrackedNode], barriers: list[ReactivityBarrier]
+) -> list[Reaction]:
     raise NotImplementedError
 
 
