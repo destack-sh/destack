@@ -34,8 +34,8 @@ class SourceMapping:
     statement_id: GlobalID
     source_id: GlobalID
     source_revision: int
-    target_id: GlobalID
-    target_revision: int
+    target_id: Optional[GlobalID]
+    target_revision: Optional[int]
 
 
 @gql.django.type(models.DatasetRecord)
@@ -474,6 +474,7 @@ class SymbolMutation:
     #  But we encapsulate them in Statement for unified save & revision updates (and auth checks).
     #  Maybe they they should have their own revisions (additionally?), though that may complicate syncing.
     #  Right now they're nested inside Statement so we need to run updates as atomic (inefficient).
+    #  :SubSymbolRevisions
 
     @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
     def update_statement_record(self, input: RecordUpdateInput) -> Statement | OperationInfo:

@@ -468,7 +468,7 @@ export function useStatementOps() {
     });
   }
 
-  // TODO @Performance: mutate type nodes optimistically
+  // TODO @Performance: mutate type nodes optimistically  :SubSymbolRevisions
   const { mutate: createTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createTypeNode($typeNode: TypeNodeCreateInput!) {

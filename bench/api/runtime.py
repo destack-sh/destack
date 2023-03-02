@@ -52,6 +52,19 @@ class InterpFile:
     symbols: list["InterpSymbol"]
 
 
+JobType = gql.enum(wire.JobType)
+JobStatus = gql.enum(wire.JobStatus)
+
+
+@gql.type
+class InterpJob:
+    id: GlobalID
+    type: JobType
+    status: JobStatus
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+
+
 @gql.type
 class InterpSimpleType(SimpleTypeNode):
     """
@@ -96,6 +109,7 @@ class InterpError:
 class ModuleRuntime:
     updated_at: datetime
     module: InterpModule
+    jobs: list[InterpJob]
     dependencies: list[InterpModule]
     errors: list["InterpError"]
 
@@ -161,7 +175,6 @@ class BuildInput:
 @gql.type
 class BuildState:
     project_version_id: GlobalID
-    build_ids: list[GlobalID]
     success: bool
 
 
@@ -224,7 +237,6 @@ class ModuleRuntimeMutation:
         _, rep = await recv_message_with(worker_req_sock, RepModuleBuildPayload)
         return BuildState(
             project_version_id=input.project_version_id,
-            build_ids=rep.build_ids,
             success=rep.error is None,
         )
 

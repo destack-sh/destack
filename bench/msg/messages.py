@@ -97,7 +97,6 @@ class ModuleBuildErrorType(enum.Enum):
 
 @_register_payload(ZMessageType.REP_MODULE_BUILD)
 class RepModuleBuildPayload:
-    build_ids: list[UUID]
     error: Optional[ModuleBuildErrorType] = None
 
 
@@ -161,20 +160,18 @@ class ReqModuleRuntimePayload:
 
 @_register_payload(ZMessageType.REP_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
+    module_id: UUID
     updated_at: datetime
+    jobs: list[wire.JobData]
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
 
 
 @_register_payload(ZMessageType.MODULE_RUNTIME_CHANGED)
-class ModuleRuntimeChangedPayload:
-    module_id: UUID
-    updated_at: datetime
-    #  :PartialModuleUpdates
-    module: wire.ModuleData
-    dependencies: list[wire.ModuleData]
-    errors: list[wire.ErrorData]
+class ModuleRuntimeChangedPayload(RepModuleRuntimePayload):
+    # exact same as RepModuleRuntimePayload :PartialModuleUpdates
+    pass
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS
