@@ -88,10 +88,10 @@ if RUN_INTSERVER:
 if RUN_WORKER:
     if not DEBUG or TEST:
         raise RuntimeError("worker should be run via isolated runworker in prod")
-    from bench.runtime.worker import RuntimeWorker
+    from bench.runtime.worker import Worker
 
-    local_id = random.randint(0, 2 ** 32)  # just some random number
-    worker = RuntimeWorker(worker_id=f"local.{hex(local_id)[2:]}")
+    local_id = random.randint(0, 2**32)  # just some random number
+    worker = Worker(worker_id=f"local.{hex(local_id)[2:]}")
     coro = worker.run(
         worker_rep_addr=ZMQ_WORKER_REP_ADDR,
         worker_pub_addr=ZMQ_WORKER_PUB_ADDR,

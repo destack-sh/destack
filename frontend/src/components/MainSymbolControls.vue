@@ -191,7 +191,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       :class="{
         'text-orange-500 hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
         'text-gray-500': !action.enabled.value,
-        'animate-pulse': action.active.value,
+        '': action.active.value,
       }"
       :disabled="!action.enabled.value || action.active.value"
       @click="action.action"

@@ -12,16 +12,18 @@ class TrackedNodeType(enum.Enum):
     MODULE = "module"
     FILE = "file"
     STATEMENT = "statement"
+    # not tracking TypeNode / Record level
+    # (yet, since they're folded into Statement revisions :SubSymbolRevisions)
 
 
 @dataclass
 class TrackedNode:
+    type: TrackedNodeType
     id: UUID
     revision: int
-    parent_id: UUID
-    reference_id: UUID
-    order_key: Optional[str]
-    type: TrackedNodeType  # opaque?
+    parent_id: Optional[UUID] = None
+    reference_id: Optional[UUID] = None
+    order_key: Optional[str] = None
 
 
 @dataclass
@@ -54,3 +56,11 @@ def react_to_diff(diff: list[TrackedNode], barriers: list[ReactivityBarrier]) ->
 @dataclass
 class ReactivityBarrier:
     blocked_id: UUID
+
+
+@dataclass
+class RevisionMap:
+    revisions: dict[UUID, int]
+
+    def get(self, id: UUID) -> int:
+        return self.revisions.get(id, 0)

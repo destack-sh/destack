@@ -719,10 +719,8 @@ class SourceMapping:
 
     source_id: UUID
     source_revision: int
-    source_path: Optional[dict]
-    target_id: UUID
-    target_revision: int
-    target_path: Optional[dict]
+    target_id: Optional[UUID]
+    target_revision: Optional[int]
 
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {

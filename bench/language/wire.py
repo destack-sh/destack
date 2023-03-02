@@ -2,6 +2,7 @@ import enum
 import typing
 from collections import OrderedDict
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Union
 from uuid import UUID
 
@@ -64,6 +65,7 @@ class FileData:
     module_id: UUID
     path: str
     statements: list["StatementData"]
+    revision: int
     generated: bool
 
     def __str__(self):
@@ -130,6 +132,12 @@ class ErrorData:
     statement_id: Optional[UUID]
     message: str
     verbose_message: Optional[str]
+
+    def __str__(self):
+        return f"{self.type.name}: {self.message}"
+
+    def __repr__(self):
+        return f"<Error {str(self)}>"
 
 
 def rmap_error(error: language.Error) -> ErrorData:
@@ -198,6 +206,7 @@ def rmap_file(file: language.File) -> FileData:
         path=file.path,
         generated=file.generated,
         statements=[rmap_statement(statement) for statement in file.statements],
+        revision=1,
     )
 
 
@@ -425,3 +434,39 @@ class ModuleMutation:
     type: ModuleMutationType
     file: Optional[FileData]
     statement: Optional[StatementData]
+
+
+#
+# Jobs
+#
+
+
+class JobType(enum.Enum):
+    BUILD = "build"
+    GENERATE = "generate"
+    EVALUATE = "evaluate"
+
+
+class JobStatus(enum.Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass(repr=False)
+class JobData:
+    id: UUID
+    type: JobType
+    status: JobStatus
+    started_at: Optional[datetime] = None
+    terminated_at: Optional[datetime] = None
+    error: Optional[typing.Any] = None
+    # Job-specific data
+    buildable_id: Optional[UUID] = None
+
+    def __str__(self):
+        return f"{self.type} {self.id} ({self.status})"
+
+    def __repr__(self):
+        return f"<JobData {self}>"

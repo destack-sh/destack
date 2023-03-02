@@ -133,7 +133,7 @@ export function useSymbolContentOps() {
 
   // record mutations
 
-  // TODO @Performance: mutate records optimistically
+  // TODO @Performance: mutate records optimistically :SubSymbolRevisions
   const { mutate: createRecordMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {

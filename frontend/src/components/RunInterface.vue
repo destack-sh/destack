@@ -173,7 +173,7 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
                   'text-green-600': execution.status == ExecutionStatus.Completed,
                   'text-red-600':
                     execution.status == ExecutionStatus.Failed || execution.status == ExecutionStatus.Aborted,
-                  'animate-pulse text-gray-500':
+                  'text-gray-500':
                     execution.status == ExecutionStatus.Created ||
                     execution.status == ExecutionStatus.Scheduled ||
                     execution.status == ExecutionStatus.Running,

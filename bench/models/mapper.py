@@ -74,6 +74,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
             path=file.path,
             statements=[],
             generated=file.generated,
+            revision=file.revision,
         )
         wire_files[file.id] = wire_file
         wire_module.files.append(wire_file)
@@ -99,7 +100,12 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
     if wire_module.name in ("symbolx.std", "openai.std"):
         return  # only add to user modules
     implicit_file = wire.FileData(
-        id=uuid4(), module_id=wire_module.id, path="__implicit__", generated=True, statements=[]
+        id=uuid4(),
+        module_id=wire_module.id,
+        path="__implicit__",
+        generated=True,
+        statements=[],
+        revision=1,
     )
     for (module, version, ok) in (("symbolx.std", "latest", "a0"), ("openai.std", "latest", "a1")):
         reference_module = wire.ModuleReference(
@@ -269,10 +275,8 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         data.generated_mappings = [
             wire.SourceMapping(
                 source_id=m.source_id,
-                source_path=m.source_path,
                 source_revision=m.source_revision,
                 target_id=m.target_id,
-                target_path=m.target_path,
                 target_revision=m.target_revision,
             )
             for m in statement.generated_mappings.all()
@@ -330,10 +334,8 @@ def wmap_source_mappings(
         models.SourceMapping(
             statement_id=statement_id,
             source_id=m.source_id,
-            source_path=m.source_path,
             source_revision=m.source_revision,
             target_id=m.target_id,
-            target_path=m.target_path,
             target_revision=m.target_revision,
         )
         for m in source_mappings

@@ -415,33 +415,36 @@ watchEffect(async () => {
             </template>
           </ProjectPopover>
           <!-- While loading, imitate project button -->
-          <span v-else class="animate-pulse truncate p-1 text-sm font-bold">
+          <span v-else class="truncate p-1 text-sm font-bold">
             {{ props.project }}
           </span>
-          <!-- Branch info (not yet) -->
+          <!-- Branch info -->
+          <!-- not yet -->
           <!-- Version info (if not at head) -->
-          <div
-            v-if="versionToViewId != project?.head?.id && versionLoaded"
-            class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
-          >
-            <span class="relative">
-              <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
-              <span class="ml-5 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
-            </span>
-            <button
-              v-if="project.canWrite"
-              class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
-              @click="actions.apply('version.restore')"
+          <FadeTransition>
+            <div
+              v-if="versionToViewId != project?.head?.id && versionLoaded"
+              class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
             >
-              Restore
-            </button>
-            <router-link
-              :to="{ hash: router.currentRoute.value.hash }"
-              class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
-            >
-              Back
-            </router-link>
-          </div>
+              <span class="relative">
+                <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
+                <span class="ml-5 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
+              </span>
+              <button
+                v-if="project.canWrite"
+                class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
+                @click="actions.apply('version.restore')"
+              >
+                Restore
+              </button>
+              <router-link
+                :to="{ hash: router.currentRoute.value.hash }"
+                class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
+              >
+                Back
+              </router-link>
+            </div>
+          </FadeTransition>
           <!-- Read-only project info -->
           <div
             v-if="project != null && !project?.canWrite"

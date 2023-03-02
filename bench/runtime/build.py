@@ -33,6 +33,7 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.language.typer import check_type, fabricate
+from bench.runtime.reactivity import TrackedNode
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
@@ -48,7 +49,8 @@ logger = structlog.get_logger(__name__)
 # Implementing build entails optimization problems, we'll see...
 #
 
-LITERAL_DELIMITER = "___"
+LITERAL_DELIMITER_START = "<BENCH_LITERAL>"
+LITERAL_DELIMITER_END = "</BENCH_LITERAL>"
 
 
 class BuildErrorType(enum.Enum):
@@ -90,6 +92,7 @@ class BuildCandidate:
     model: Model
     candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
+    dependencies: list[TrackedNode] = field(default_factory=list)
     source_mappings: list[SourceMapping] = field(default_factory=list)
     # weak references are references to symbols outside the build that are not "strong" references
     # for e.g. string references in code that don't have a foreign key
@@ -98,9 +101,7 @@ class BuildCandidate:
     weak_references: list[InterpSymbol] = field(default_factory=list)
 
     def use_weak_ref(self, symbol: InterpSymbol):
-        if symbol.source is None:
-            raise ValueError("weakly references symbol must have a source")
-
+        self.track_source(symbol)
         existing_symbol = next((s for s in self.weak_references if s.name == symbol.name), None)
         if existing_symbol is not None and existing_symbol.name == symbol.name:
             # This fragile since it means we can't use the same name for different symbols
@@ -141,25 +142,41 @@ class BuildCandidate:
         self.target_symbols.append(code)
         return code
 
+    def track_source(self, source: InterpSymbol):
+        """Tracks a source symbol and all its references (recursively)."""
+        if source.source is None:
+            raise ValueError(f"source symbol must have a source: {source}")
+        raise NotImplementedError
+        # self.dependencies.append(...)
+
     def map_source(self, source: InterpSymbol, target: InterpSymbol):
-        # very primitive source mapping
-        # TODO @Cleanup: track source mappings with build steps during build (incl. revisions)
+        """Map the source symbol to the generated target symbol."""
+        self.track_source(source)
         self.source_mappings.append(
             SourceMapping(
                 source_id=source.id,
-                source_revision=1,
-                source_path=None,
+                source_revision=source.source.revision,
                 target_id=target.id,
                 target_revision=1,
-                target_path=None,
             )
         )
 
     def to_result(self) -> BuildResult:
+        # Convert dependencies into source mappings without a target
+        combined_mappings = [*self.source_mappings]
+        for dependency in self.dependencies:
+            combined_mappings.append(
+                SourceMapping(
+                    source_id=dependency.id,
+                    source_revision=dependency.revision,
+                    target_id=None,
+                    target_revision=None,
+                )
+            )
         return BuildResult(
             build=self.build,
             target_symbols=self.target_symbols,
-            source_mappings=self.source_mappings,
+            source_mappings=combined_mappings,
             weak_references=self.weak_references,
         )
 
@@ -271,10 +288,10 @@ class PromptBuilder:
                 )
             type_str = render_type_node(node, None, ignore_name=True, ignore_reference=True)
             if node.tag == TypeTag.STRUCT:
-                self.emit(f"type {node.source_reference.name}:")
+                self.emit(f"type {node.source_reference.name}:\n")
                 self.emit_split(type_str)
             elif node.tag == TypeTag.ENUM:
-                self.emit(f"enum {node.source_reference.name}:")
+                self.emit(f"enum {node.source_reference.name}:\n")
                 self.emit_split(type_str)
             else:
                 self.emit(f"type {node.source_reference.name} = {type_str}")
@@ -284,22 +301,22 @@ class PromptBuilder:
     def emit_show_dataset(self, dataset: Dataset | DataBuilder):
         """Emits BPL to show the given dataset."""
         element_type_str = render_type_node(dataset.type_node, None, ignore_description=True)
-        self.emit(f"data '{dataset.name}' :: ({element_type_str}):\n")
-        self.emit(LITERAL_DELIMITER + "jsonl\n")
+        self.emit(f"\ndata '{dataset.name}' :: ({element_type_str}):\n")
+        self.emit(LITERAL_DELIMITER_START + "jsonl\n")
         with self.block(f"for record in context['{dataset.name}']:"):
             self.append("_record_as_json = json.dumps(record, indent=2)")
             self.emit("|{_record_as_json}|\n")
-        self.emit(LITERAL_DELIMITER + "\n")
+        self.emit(LITERAL_DELIMITER_END + "\n")
         self.blank()
 
     def emit_show_value(self, value: Any, type: TypeNode, name: str = "example"):
         """Emits BPL to show the given example."""
         check_type(value, type)
         record_type_str = render_type_node_struct(type, None, seperator=", ")
-        self.emit(f"value {name} :: ({record_type_str}):\n")
-        self.emit(LITERAL_DELIMITER + "json\n")
+        self.emit(f"\nvalue {name} :: ({record_type_str}):\n")
+        self.emit(LITERAL_DELIMITER_START + "json\n")
         self.emit_split(json.dumps(value, indent=2))
-        self.emit(LITERAL_DELIMITER + "\n")
+        self.emit(LITERAL_DELIMITER_END + "\n")
         self.blank()
 
     def emit_get_record(
@@ -312,8 +329,8 @@ class PromptBuilder:
         # combine inputs and outputs into single example struct
         combined_type = TypeNode(name=None, tag=TypeTag.STRUCT, children=inputs + [output])
         combined_type_str = render_type_node_struct(combined_type, None, seperator=", ")
-        self.emit(f"value :: ({combined_type_str}):\n")
-        self.emit(LITERAL_DELIMITER + "json\n")
+        self.emit(f"\nvalue :: ({combined_type_str}):\n")
+        self.emit(LITERAL_DELIMITER_START + "json\n")
         self.emit("{\n")
         # render input fields as BPL variables like |{var_name}|
         for input in inputs:
@@ -322,7 +339,7 @@ class PromptBuilder:
         output_type_str = render_type_node(output, None, ignore_name=True, ignore_description=True)
         self.emit(f'  "{output.name}": |[{output_var}: {output_type_str}]|\n')
         self.emit("}\n")
-        self.emit(LITERAL_DELIMITER)
+        self.emit(LITERAL_DELIMITER_END)
         self.blank()
 
 
@@ -412,7 +429,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     # task inference
     target_code.comment("Task inference")
     target_code.emit(
-        f"Perform the task {task.name} as described above to complete the output with the correct types."
+        f"\nPerform the task {task.name} as described above to complete the output with the correct types."
         f" Consider the instructions carefully:\n"
     )
     if task.description:
@@ -425,9 +442,7 @@ async def _build_task(state: BuildCandidate, task: Task) -> None:
     # task type example stub
     # (basically an example that is properly formatted but has obviously fake values)
     target_code.comment("Task type example stub")
-    target_code.emit(
-        "The data should look like this (with real values, but the exact same format including final ```):\n"
-    )
+    target_code.emit(f"\nThe data format (must include the final {LITERAL_DELIMITER_END}):\n")
     fake_data = fabricate(examples_type)
     target_code.emit_show_value(fake_data, examples_type)
     target_code.blank()
