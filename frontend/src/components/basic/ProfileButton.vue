@@ -34,7 +34,7 @@ const userNavigation = computed(() => [
     </div>
     <Menu v-else as="div" class="relative h-full flex-shrink-0" v-slot="{ open }">
       <MenuButton
-        class="flex h-full items-center px-4 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
+        class="ml-2 flex h-full items-center px-3 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
         :class="{ 'bg-orange-50': open }"
       >
         <div class="flex flex-col">

@@ -1078,6 +1078,10 @@ class Scope:
     def __repr__(self):
         return f"<Scope {self.name}>"
 
+    @property
+    def module_id(self):
+        return self.file.module.id
+
     def lookup_statement(self, name: str, exclude: Statement | None = None) -> Statement | None:
         """Lookup the statement recursively in this scope and its parents."""
         if name in self.statements and self.statements[name] is not exclude:
@@ -1130,8 +1134,10 @@ class ModuleIndex:
             self.scopes_by_name[scope.name] = scope
 
     def import_scope(self, scope: Scope) -> None:
-        # only make imported scopes available by id (to avoid name collisions)
+        # only make imported scopes and their contents available by id (to avoid name collisions)
         self.scopes[scope.id] = scope
+        if scope.statement is not None:
+            self.statements[scope.statement.id] = scope.statement
 
     def get_statement(self, path: StatementPath | str) -> Statement | None:
         if isinstance(path, str):
@@ -1227,8 +1233,12 @@ def resolve(
 
     idx = index_module(module, on_error=on_error)
 
+    # During resolution external scopes and their statements will be imported,
+    # so we copy the statements to avoid concurrent modification.
+    # (we only need to resolve our own statements, not the imported ones)
+    statements = list(idx.statements.values())
     # resolve references to other statements
-    for statement in idx.statements.values():
+    for statement in statements:
         if isinstance(statement.reference, Statement) or not statement.has_reference:
             continue  # need not be resolved
         statement.reference = resolve_statement_reference(
@@ -1241,7 +1251,7 @@ def resolve(
         )
 
     # resolve type references
-    for statement in idx.statements.values():
+    for statement in statements:
         type_node = None
         if isinstance(statement.content, TypeNode):
             type_node = statement.content
@@ -1338,7 +1348,7 @@ def resolve_statement_reference(
             _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
             return
 
-        # import resolved scope into index
+        # import resolved scope (and contents) into index
         idx.import_scope(resolved_scope)
 
     # check if the reference has the correct type
@@ -1494,13 +1504,14 @@ def interp(
         on_error(SemanticError(_t, subject, cause, **error_args))
 
     # create symbol shells for proper statements (without symbol-specific fields)
-    for statement in idx.statements.values():
-        if not statement.is_proper:
+    # include imported scopes (we want their symbols too, and they may be abstract)
+    for scope in idx.scopes.values():
+        if scope.statement is None or not scope.statement.is_real:
             continue
+        statement = scope.statement
 
         # TODO @Incomplete: implement abstraction/variable templating :Variables
         abstract = False
-        scope = idx.scopes[statement.id]
         if scope.parameters or scope.arguments:
             _error(ET.UNEXPECTED_PARAMETERS, statement)
             continue
@@ -1546,13 +1557,15 @@ def interp(
         scope.parent.symbols[symbol.name] = symbol
         idx.symbols[statement.id] = symbol
 
-    # set symbol definition sites
+    # set symbol reference and definition sites
     for symbol in idx.symbols.values():
-        # definition site is the last non-abstract reference or definition
+        # reference symbol is just the symbol that was directly referenced as a statement
+        if symbol.source.has_reference:
+            symbol.reference = idx.symbols[symbol.source.reference.id]
+
+        # definition site is the first non-abstract reference or definition
         #  excluding plain references without parameters
         definition_stmt = symbol.source.underlying_definition
-        if definition_stmt.id not in idx.symbols:
-            continue  # symbol is not part of this module
         symbol.definition = idx.symbols[definition_stmt.id]
         if symbol.definition.abstract:
             raise NotImplementedError("TODO @Incomplete: implement abstraction :Variables")

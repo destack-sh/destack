@@ -23,7 +23,6 @@ from bench.language.type import (
     LiteralValue,
     Model,
     Module,
-    SourceMapping,
     Statement,
     StatementModifier,
     StatementType,
@@ -33,7 +32,13 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.language.typer import check_type, fabricate
-from bench.runtime.reactivity import TrackedNode
+from bench.runtime.reactivity import (
+    RawMapping,
+    RawNode,
+    RevisionMap,
+    TrackedNodeType,
+    walk_interp_symbol,
+)
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
@@ -43,10 +48,10 @@ logger = structlog.get_logger(__name__)
 # Build
 #
 # On a high level, build is a meta-program that takes a build and produces optimal
-# artifacts and executable code (and any other symbols) for tasks/artifacts given constraints.
+# executable symbols executable code (and any other symbols) given constraints (e.g. expectations).
 #
 # More formally: build is a function of task to executable code given a build.
-# Implementing build entails optimization problems, we'll see...
+# Implementing build entails interesting optimization problems, we'll see...
 #
 
 LITERAL_DELIMITER_START = "<BENCH_LITERAL>"
@@ -92,8 +97,8 @@ class BuildCandidate:
     model: Model
     candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
-    dependencies: list[TrackedNode] = field(default_factory=list)
-    source_mappings: list[SourceMapping] = field(default_factory=list)
+    dependencies: list[RawNode] = field(default_factory=list)
+    source_mappings: list[RawMapping] = field(default_factory=list)
     # weak references are references to symbols outside the build that are not "strong" references
     # for e.g. string references in code that don't have a foreign key
     # later/soon we'll want this strongly linked inside the symbol content probably
@@ -101,7 +106,7 @@ class BuildCandidate:
     weak_references: list[InterpSymbol] = field(default_factory=list)
 
     def use_weak_ref(self, symbol: InterpSymbol):
-        self.track_source(symbol)
+        self.track_dependency(symbol)
         existing_symbol = next((s for s in self.weak_references if s.name == symbol.name), None)
         if existing_symbol is not None and existing_symbol.name == symbol.name:
             # This fragile since it means we can't use the same name for different symbols
@@ -142,37 +147,30 @@ class BuildCandidate:
         self.target_symbols.append(code)
         return code
 
-    def track_source(self, source: InterpSymbol):
-        """Tracks a source symbol and all its references (recursively)."""
+    def track_dependency(self, source: InterpSymbol):
+        """
+        Tracks a source symbol and all its context/references (recursively).
+        We could do this as part of the build, but it feels simpler to do it in one place
+         to ensure we really have tracked all dependencies.
+        """
         if source.source is None:
             raise ValueError(f"source symbol must have a source: {source}")
-        raise NotImplementedError
-        # self.dependencies.append(...)
+
+        for symbol in walk_interp_symbol(source):
+            dependency = RawNode(TrackedNodeType.STATEMENT, symbol.id)
+            if dependency not in self.dependencies:
+                self.dependencies.append(dependency)
 
     def map_source(self, source: InterpSymbol, target: InterpSymbol):
         """Map the source symbol to the generated target symbol."""
-        self.track_source(source)
-        self.source_mappings.append(
-            SourceMapping(
-                source_id=source.id,
-                source_revision=source.source.revision,
-                target_id=target.id,
-                target_revision=1,
-            )
-        )
+        self.track_dependency(source)
+        self.source_mappings.append(RawMapping(source_id=source.id, target_id=target.id))
 
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
         combined_mappings = [*self.source_mappings]
         for dependency in self.dependencies:
-            combined_mappings.append(
-                SourceMapping(
-                    source_id=dependency.id,
-                    source_revision=dependency.revision,
-                    target_id=None,
-                    target_revision=None,
-                )
-            )
+            combined_mappings.append(RawMapping(source_id=dependency.id, target_id=None))
         return BuildResult(
             build=self.build,
             target_symbols=self.target_symbols,
@@ -185,10 +183,10 @@ class BuildCandidate:
 class BuildResult:
     build: Build
     target_symbols: list[InterpSymbol]
-    source_mappings: list[SourceMapping]
+    source_mappings: list[RawMapping]
     weak_references: list[InterpSymbol]
 
-    def to_file(self, module: Module | None = None) -> File:
+    def to_file(self, revmap: RevisionMap, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
         file = File(path=self.build.id.hex[:8], generated=True, module=module)
