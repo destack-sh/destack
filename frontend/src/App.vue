@@ -2,6 +2,7 @@
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
+import { IS_LOCALHOST } from "@/utils/globals";
 import { useSystemVersioning } from "@/utils/system";
 import { onBeforeUnmount, ref, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
@@ -27,7 +28,9 @@ onBeforeUnmount(() => {
 const { systemInfo, outOfDate } = useSystemVersioning();
 const promptedUpdate = ref(false);
 watchEffect(() => {
-  if (outOfDate.value) {
+  // don't prompt when developing locally because we hot-reload automatically
+  // but the 'version' constant reload requires a vite server restart, which is annoying
+  if (outOfDate.value && !IS_LOCALHOST) {
     if (promptedUpdate.value) {
       // already prompted
       return;
