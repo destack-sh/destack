@@ -16,15 +16,15 @@ import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
-import { useTimeFromNow } from "@/composables/useNow";
+import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import { ProjectVisibility } from "@/gql/graphql";
+import { JobStatus, JobType, ProjectVisibility, type InterpJob, type InterpSymbol } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useEditorMigrations, useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { useCurrentModuleRuntime } from "@/state/runtime";
+import { symbolOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import {
@@ -44,6 +44,7 @@ import Mousetrap from "mousetrap";
 import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
+import { DateTime } from "luxon";
 
 const props = defineProps<{
   owner: string;
@@ -207,6 +208,37 @@ const operationsStore = useOperationsStore();
 const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurrentModuleRuntime();
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
+
+// get currently running jobs
+const now = useNow(100);
+const { jobs } = useCurrentModuleRuntime();
+const activeJobs = computed(() =>
+  jobs.value?.filter(
+    (job) =>
+      job.status == JobStatus.Running &&
+      job.startedAt != null &&
+      now.value.diff(DateTime.fromISO(job.startedAt)).as("milliseconds") > 500
+  )
+);
+
+function getJobTitle(job: InterpJob) {
+  if (job.type == JobType.Interp) {
+    return "Analyzing";
+  } else if (job.type == JobType.Build) {
+    return "Building";
+  } else if (job.type == JobType.Generate) {
+    return "Generating";
+  } else if (job.type == JobType.Evaluate) {
+    return "Evaluating";
+  }
+}
+function getJobSubject(job: InterpJob): InterpSymbol | undefined {
+  if (job.symbol?.id == null) {
+    return undefined;
+  } else {
+    return symbolOf(job.symbol?.id);
+  }
+}
 
 // sync editor paths
 watchEffect(() => {
@@ -501,8 +533,18 @@ watchEffect(async () => {
             <span class="text-sm text-gray-700">{{ runtime.errors.value?.length }}</span>
           </button>
         </div>
-        <!-- Current worker tasks -->
-        <!-- ... -->
+        <!-- Current worker jobs -->
+        <div v-if="versionLoaded" class="ml-2 flex items-center gap-2">
+          <FadeTransition>
+            <span v-for="job in activeJobs" :key="job.id" class="text-sm text-gray-500">
+              {{ getJobTitle(job as InterpJob) }}
+              <span v-if="getJobSubject(job as InterpJob) != null">
+                {{ getJobSubject(job as InterpJob)?.name }}
+              </span>
+              ...
+            </span>
+          </FadeTransition>
+        </div>
       </template>
 
       <!-- Right side: controls & profile -->

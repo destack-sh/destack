@@ -68,7 +68,14 @@ export const InterpJobContentType = graphql(/* GraphQL */ `
     startedAt
     terminatedAt
     symbol {
-      ...InterpSymbolContent
+      id
+      name
+      type
+      symbolType
+      modifier
+      parentId
+      rootTypeTag
+      generated
     }
   }
 `);
@@ -118,6 +125,16 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
           jobs {
             ...InterpJobContent
           }
+          staleSymbols {
+            id
+            name
+            type
+            symbolType
+            modifier
+            parentId
+            rootTypeTag
+            generated
+          }
         }
       }
     `),
@@ -150,6 +167,10 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   const errors = computed(() =>
     runtime.value?.moduleRuntimeChanged.errors.map((e) => useFragment(InterpErrorContentType, e))
   );
+  const jobs = computed(() =>
+    runtime.value?.moduleRuntimeChanged.jobs.map((j) => useFragment(InterpJobContentType, j))
+  );
+  const staleSymbols = computed(() => runtime.value?.moduleRuntimeChanged.staleSymbols);
 
   const moduleIndex: Ref<ModuleIndex | null> = computed(() => {
     if (module.value) {
@@ -167,6 +188,8 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     module,
     dependencies,
     errors,
+    jobs,
+    staleSymbols,
     moduleIndex,
     dependenciesIndex,
   };
@@ -224,6 +247,11 @@ export function relativePath(from_: InterpSymbol, to_: InterpSymbol) {
 export function localErrorsOf(symbol: Ref<{ id: string }>) {
   const { errors } = useCurrentModuleRuntime();
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
+}
+
+export function isSymbolStale(symbol: Ref<{ id: string }>) {
+  const { staleSymbols } = useCurrentModuleRuntime();
+  return computed(() => staleSymbols.value?.some((s) => s.id == symbol.value.id));
 }
 
 export type SymbolFilter = {

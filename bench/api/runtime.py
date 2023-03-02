@@ -115,6 +115,7 @@ class ModuleRuntime:
     jobs: list[InterpJob]
     dependencies: list[InterpModule]
     errors: list["InterpError"]
+    stale_symbols: list[InterpSymbol]
 
 
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
@@ -326,10 +327,13 @@ class ModuleRuntimeSubscription:
         module = rmap_module(payload.module)
         runtime = ModuleRuntime(
             updated_at=payload.updated_at,
-            module=(module),
+            module=module,
             dependencies=[rmap_module(dep) for dep in payload.dependencies],
             errors=(rmap_errors(payload.errors, module)),
             jobs=[rmap_job(job, module) for job in payload.jobs],
+            stale_symbols=[
+                _get_symbol_from_module(module, symbol_id) for symbol_id in payload.stale_symbols
+            ],
         )
         yield runtime
 
@@ -341,6 +345,7 @@ class ModuleRuntimeSubscription:
                 log.debug("runtime.update", updated_at=update.updated_at)
                 # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
                 # :PartialModuleUpdates
+                # also the mapping duplication is a bit ugly
                 if update.module is not None:
                     runtime.module = rmap_module(update.module)
                 if update.dependencies is not None:
@@ -349,6 +354,11 @@ class ModuleRuntimeSubscription:
                     runtime.errors = rmap_errors(update.errors, runtime.module)
                 if update.jobs is not None:
                     runtime.jobs = [rmap_job(job, runtime.module) for job in update.jobs]
+                if update.stale_symbols is not None:
+                    runtime.stale_symbols = [
+                        _get_symbol_from_module(runtime.module, symbol_id)
+                        for symbol_id in update.stale_symbols
+                    ]
                 runtime.updated_at = update.updated_at
                 yield runtime
         finally:

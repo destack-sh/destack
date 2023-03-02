@@ -421,6 +421,14 @@ class InterpSymbol:
     def symbol_type(self) -> SymbolType:
         return SYMBOL_TYPE_BY_CLASS[self.__class__]
 
+    @property
+    def is_generator(self):
+        return self.symbol_type == SymbolType.BUILD
+
+    @property
+    def is_generated(self):
+        return self.source is None or self.source.generated
+
     def __str__(self):
         modifier_str = f"{self.modifier} " if self.modifier else ""
         return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source or '<unknown>'})"

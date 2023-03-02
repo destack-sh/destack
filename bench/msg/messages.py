@@ -162,10 +162,11 @@ class ReqModuleRuntimePayload:
 class RepModuleRuntimePayload:
     module_id: UUID
     updated_at: datetime
-    jobs: list[wire.JobData]
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
+    jobs: list[wire.JobData]
+    stale_symbols: list[UUID]
 
 
 @_register_payload(ZMessageType.MODULE_RUNTIME_CHANGED)
@@ -173,10 +174,11 @@ class ModuleRuntimeChangedPayload:
     # unfortunately full data :PartialModuleUpdates
     module_id: UUID
     updated_at: datetime
-    jobs: Optional[list[wire.JobData]]
     module: Optional[wire.ModuleData | None]
     dependencies: Optional[list[wire.ModuleData]]
     errors: Optional[list[wire.ErrorData]]
+    jobs: Optional[list[wire.JobData]]
+    stale_symbols: Optional[list[UUID]]
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS

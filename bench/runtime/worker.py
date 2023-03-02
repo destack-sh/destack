@@ -46,7 +46,7 @@ from bench.msg.messages import (
 )
 from bench.runtime.build import BuildResult, make_build
 from bench.runtime.execute import Proxy, RunError, instantiate, run
-from bench.runtime.reactivity import RevisionMap
+from bench.runtime.reactivity import RevisionMap, diff_trees, tree_from_mappings, tree_from_module
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.func import wrap_task
@@ -103,6 +103,9 @@ class Job:
 
     def __repr__(self):
         return f"<Job {self}>"
+
+    def __lt__(self, other):
+        return self.default_priority < other.default_priority
 
     @property
     def success(self) -> bool:
@@ -206,6 +209,44 @@ def interp_module(
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
 
 
+def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:
+    """Gets the stale generated or generator symbols in the given module"""
+
+    # A generated/generator symbol is stale if
+    #  1) one of its dependencies has changed
+    #  2) one of its dependencies is affected by another change
+    # These are because 1) checks for changes in known dependencies,
+    # while 2) checks for new symbols that affect the dependencies.
+
+    new_tree = tree_from_module(revmap, idx)
+
+    stale_symbols = []
+    for symbol in idx.symbols.values():
+        if not symbol.is_generator:
+            continue
+        if isinstance(symbol, Build):
+            source_mappings = symbol.source_mappings
+        else:
+            raise ValueError(f"unexpected generator symbol: {symbol}")
+
+        # rebuild old tree for this generator
+        old_tree = tree_from_mappings(source_mappings)
+        diff_nodes = list(diff_trees(old_tree, new_tree))
+        if not diff_nodes:
+            # nothing relevant changed
+            continue
+
+        # assemble generated statements for this generator (that are still around)
+        for source_mapping in source_mappings:
+            if source_mapping.target_id is None:
+                continue
+            generated = idx.get_symbol_by_id(source_mapping.target_id).source
+            if generated is not None:
+                stale_symbols.append(generated)
+
+    return stale_symbols
+
+
 RECENT_JOBS_BUFFER_SIZE = 64
 
 
@@ -223,6 +264,7 @@ class ModuleWorker:
         self.source: wire.ModuleData | None = None
         self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
         self.revmap: RevisionMap | None = None
+        self.stale_symbols: list[language.Statement] | None = None
         self.wire_module: wire.ModuleData | None = None
         self.wire_errors: list[wire.ErrorData] | None = None
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
@@ -274,7 +316,7 @@ class ModuleWorker:
         self.interp_dependencies_cached[module_id] = interp
         return interp
 
-    async def run_interp(self, new_source: wire.ModuleData) -> None:
+    async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         requirements = get_requirements(new_source)
         dependencies = await asyncio.gather(
@@ -284,6 +326,7 @@ class ModuleWorker:
         self.source = new_source
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
         self.revmap = RevisionMap.from_module(self.source)
+        self.stale_symbols = get_stale_symbols(self.revmap, self.interp.module_idx)
         if self.interp.module_idx:
             self.wire_module = wire.rmap_module(self.interp.module_idx.module)
         else:  # re-use source (if failed to parse or not yet parsed)
@@ -294,7 +337,7 @@ class ModuleWorker:
         }
 
         # reactively trigger build jobs for all affected builds (and other reactors)
-        # TODO @Incomplete: implement this
+        # TODO @Incomplete: implement reactive job trigger on stale symbol
 
     def queue_build(self, buildable_id: UUID) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
@@ -393,7 +436,7 @@ class ModuleWorker:
                 self.master.notify_job_status(self, job)
 
                 if isinstance(job, InterpJob):
-                    await self.run_interp(job.new_source)
+                    await self.do_interp(job.new_source)
                     job.success = True
 
                 elif isinstance(job, RunJob):
@@ -453,6 +496,11 @@ def make_full_change_msg(module_worker: ModuleWorker, cls):
         if module_worker.wire_dependencies is not None
         else None
     )
+    stale_symbols = (
+        [s.id for s in module_worker.stale_symbols]
+        if module_worker.stale_symbols is not None
+        else None
+    )
     return cls(
         module_id=module_worker.module_id,
         updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
@@ -460,6 +508,7 @@ def make_full_change_msg(module_worker: ModuleWorker, cls):
         dependencies=dependencies,
         errors=module_worker.wire_errors,
         jobs=[rmap_job(job) for job in relevant_jobs],
+        stale_symbols=stale_symbols,
     )
 
 
@@ -498,11 +547,11 @@ class Worker:
         poller.register(self.sub_sock, zmq.POLLIN)
 
         while True:
-            msg = await recv_message_poll(poller)
-            try:
-                await self.process_message(msg)
-            except Exception as e:
-                logger.exception("worker.process_message", exc_info=e, msg=msg)
+            async for msg in recv_message_poll(poller):
+                try:
+                    await self.process_message(msg)
+                except Exception as e:
+                    logger.exception("worker.process_message", exc_info=e, msg=msg)
 
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:

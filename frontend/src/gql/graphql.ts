@@ -396,6 +396,7 @@ export type ModuleRuntime = {
   errors: Array<InterpError>;
   jobs: Array<InterpJob>;
   module: InterpModule;
+  staleSymbols: Array<InterpSymbol>;
   updatedAt: Scalars["DateTime"];
 };
 
@@ -2524,11 +2525,17 @@ export type InterpJobContentFragment = {
   status: JobStatus;
   startedAt?: any | null;
   terminatedAt?: any | null;
-  symbol?:
-    | ({ __typename?: "InterpSymbol" } & {
-        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
-      })
-    | null;
+  symbol?: {
+    __typename?: "InterpSymbol";
+    id: any;
+    name?: string | null;
+    type: StatementType;
+    symbolType?: SymbolType | null;
+    modifier?: StatementModifier | null;
+    parentId?: any | null;
+    rootTypeTag?: TypeTag | null;
+    generated: boolean;
+  } | null;
 } & { " $fragmentName"?: "InterpJobContentFragment" };
 
 export type ModuleRuntimeChangedSubscriptionVariables = Exact<{
@@ -2554,6 +2561,17 @@ export type ModuleRuntimeChangedSubscription = {
     jobs: Array<
       { __typename?: "InterpJob" } & { " $fragmentRefs"?: { InterpJobContentFragment: InterpJobContentFragment } }
     >;
+    staleSymbols: Array<{
+      __typename?: "InterpSymbol";
+      id: any;
+      name?: string | null;
+      type: StatementType;
+      symbolType?: SymbolType | null;
+      modifier?: StatementModifier | null;
+      parentId?: any | null;
+      rootTypeTag?: TypeTag | null;
+      generated: boolean;
+    }>;
   };
 };
 
@@ -3140,7 +3158,16 @@ export const InterpJobContentFragmentDoc = {
             name: { kind: "Name", value: "symbol" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                { kind: "Field", name: { kind: "Name", value: "modifier" } },
+                { kind: "Field", name: { kind: "Name", value: "parentId" } },
+                { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                { kind: "Field", name: { kind: "Name", value: "generated" } },
+              ],
             },
           },
         ],
@@ -7010,6 +7037,23 @@ export const ModuleRuntimeChangedDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpJobContent" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "staleSymbols" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
+                      { kind: "Field", name: { kind: "Name", value: "parentId" } },
+                      { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                      { kind: "Field", name: { kind: "Name", value: "generated" } },
+                    ],
                   },
                 },
               ],

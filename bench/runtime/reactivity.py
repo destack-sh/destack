@@ -6,7 +6,7 @@ from typing import Iterable, Optional
 from uuid import UUID
 
 from bench.language import ModuleIndex, SourceMapping
-from bench.language.type import Code, Dataset, InterpSymbol, Task, Type
+from bench.language.type import Code, Dataset, Expectation, InterpSymbol, Task, Type
 from bench.language.wire import ModuleData
 
 
@@ -82,36 +82,56 @@ class TrackedNode:
 
 @dataclass
 class TrackedTree:
-    root: TrackedNode
-    objects_by_id: dict[UUID, list[TrackedNode]]
+    nodes: dict[UUID, TrackedNode]
 
 
 def tree_from_mappings(mappings: list[SourceMapping]) -> TrackedTree:
-    raise NotImplementedError
+    tree = TrackedTree(nodes={})
+    for mapping in mappings:
+        # we only care about source nodes since they are the dependencies
+        if mapping.source_id not in tree.nodes:
+            tree.nodes[mapping.source_id] = TrackedNode(
+                type=TrackedNodeType.STATEMENT,
+                id=mapping.source_id,
+                revision=mapping.source_revision,
+            )
+    return tree
 
 
-def tree_from_module(module: ModuleIndex) -> TrackedTree:
-    raise NotImplementedError
+def tree_from_module(revmap: RevisionMap, idx: ModuleIndex) -> TrackedTree:
+    tree = TrackedTree(nodes={})
+    for symbol in idx.symbols.values():
+        tree.nodes[symbol.id] = TrackedNode(
+            type=TrackedNodeType.STATEMENT,
+            id=symbol.id,
+            revision=revmap.get(symbol.id),
+            parent_id=symbol.source.parent_id,
+            reference_id=symbol.source.reference_id,
+            order_key=symbol.source.order_key,
+        )
+    return tree
 
 
 def diff_trees(old: TrackedTree, new: TrackedTree) -> list[TrackedNode]:
-    raise NotImplementedError
+    """
+    Semantic difference between an old dependency tree and a new one (not symmetric).
 
+    A node is considered different if
+     1) it is present in the old tree and its revision changed
+     2) if it was present in the old tree and is no longer present in the new tree
+     3) if it is new and has an old tree node as a parent.
 
-@dataclass
-class Reaction:
-    pass
-
-
-def react_to_diff(
-    new: TrackedTree, diff: list[TrackedNode], barriers: list[ReactivityBarrier]
-) -> list[Reaction]:
-    raise NotImplementedError
-
-
-@dataclass
-class ReactivityBarrier:
-    blocked_id: UUID
+    Reference & order keys are not considered here because
+     they factor into the tree & its revisions (respectively).
+    """
+    for node in old.nodes.values():
+        if node.id not in new.nodes:
+            yield node
+        elif node.revision != new.nodes[node.id].revision:
+            yield node
+    for node in new.nodes.values():
+        if node.id not in old.nodes and node.parent_id is not None and node.parent_id in old.nodes:
+            yield node
 
 
 def walk_interp_symbol(
@@ -121,9 +141,13 @@ def walk_interp_symbol(
     Walks all referenced symbols in an InterpSymbol.
 
     Note that this is not the same as walking parent/child relationships, since not all
-    child statements are meaningful symbols.
+    child statements are meaningful 'child' symbols.
     Note also that doesn't touch type_nodes/records individually because of missing :SubSymbolRevisions
+
+    TODO @Cleanup: it seems easy to forget adding new symbol references here
     """
+
+    # path breaks cycles (which are allowed)
     if path is not None and symbol in path:
         return
     elif path is None:
@@ -149,3 +173,15 @@ def walk_interp_symbol(
         for type_node in symbol.walk():
             if isinstance(type_node, InterpSymbol):
                 yield from walk_interp_symbol(type_node, path)
+
+    # walk expectations
+    if isinstance(symbol, (Task, Expectation, Type)):
+        for expectation in symbol.expectations:
+            yield from walk_interp_symbol(expectation, path)
+
+    # walk task steps & implementation
+    if isinstance(symbol, Task):
+        for step in symbol.steps:
+            yield from walk_interp_symbol(step, path)
+        if symbol.implementation is not None:
+            yield from walk_interp_symbol(symbol.implementation, path)

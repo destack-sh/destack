@@ -382,6 +382,7 @@ type ModuleRuntime {
   jobs: [InterpJob!]!
   dependencies: [InterpModule!]!
   errors: [InterpError!]!
+  staleSymbols: [InterpSymbol!]!
 }
 
 type Mutation {
