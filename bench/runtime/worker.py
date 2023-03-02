@@ -46,6 +46,7 @@ from bench.msg.messages import (
 )
 from bench.runtime.build import BuildResult, make_build
 from bench.runtime.execute import Proxy, RunError, instantiate, run
+from bench.runtime.reactivity import RevisionMap
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.func import wrap_task
@@ -66,6 +67,7 @@ class JobType(enum.StrEnum):
     GENERATE = "generate"
     BUILD = "build"
     EVALUATE = "evaluate"
+    LINT = "lint"
     RUN = "run"
 
 
@@ -76,6 +78,7 @@ JOB_PRIORITY = {
     JobType.GENERATE: 1,
     JobType.BUILD: 2,
     JobType.EVALUATE: 3,
+    JobType.LINT: 4,
 }
 
 
@@ -86,7 +89,7 @@ class JobStatus(enum.StrEnum):
     FAILED = "failed"
 
 
-@dataclass
+@dataclass(repr=False)
 class Job:
     type: ClassVar[JobType]
     id: UUID = field(default_factory=UUIDT)
@@ -94,6 +97,12 @@ class Job:
     started_at: Optional[datetime] = None
     terminated_at: Optional[datetime] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def __str__(self):
+        return f"{self.type} {self.id} ({self.status})"
+
+    def __repr__(self):
+        return f"<Job {self}>"
 
     @property
     def success(self) -> bool:
@@ -104,18 +113,19 @@ class Job:
         return JOB_PRIORITY[self.type]
 
 
-@dataclass
+@dataclass(repr=False)
 class InterpJob(Job):
     type: ClassVar[JobType] = JobType.INTERP
     new_source: wire.ModuleData = None
     success: bool = False
 
 
-@dataclass
+@dataclass(repr=False)
 class BuildJob(Job):
     type: ClassVar[JobType] = JobType.BUILD
     buildable_id: UUID = None
     builds: list[Build] = None
+    revmap: RevisionMap = None
     build_results: list[BuildResult] = None
 
     @property
@@ -123,7 +133,7 @@ class BuildJob(Job):
         return self.build_results is not None
 
 
-@dataclass
+@dataclass(repr=False)
 class RunJob(Job):
     type: ClassVar[JobType] = JobType.RUN
     runnable: TaskInstance | CodeInstance = None
@@ -207,18 +217,19 @@ class ModuleWorker:
         self.master = master
         self.module_id = module_id
         self.ready = asyncio.Event()
-        self.source: wire.ModuleData | None = None
         self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
 
+        # module-specific state that must be synchronized
+        self.source: wire.ModuleData | None = None
         self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
-        self.stateful_jobs: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
-        self.recent_jobs: list[Job] = []
-        self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
-
+        self.revmap: RevisionMap | None = None
         self.wire_module: wire.ModuleData | None = None
         self.wire_errors: list[wire.ErrorData] | None = None
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
 
+        self.stateful_jobs: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
+        self.recent_jobs: list[Job] = []
+        self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
 
     @property
@@ -228,17 +239,6 @@ class ModuleWorker:
     @property
     def idx(self) -> language.ModuleIndex:
         return self.interp.module_idx
-
-    def _derive_wire(self):
-        """Re-derives wire state from interpreted state"""
-        if self.interp.module_idx:
-            self.wire_module = wire.rmap_module(self.interp.module_idx.module)
-        else:  # re-use source (if failed to parse or not yet parsed)
-            self.wire_module = self.source
-        self.wire_errors = [wire.rmap_error(e) for e in self.interp.errors]
-        self.wire_dependencies = {
-            m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
-        }
 
     def _queue_job(self, job: Job, priority: int = None):
         priority = priority or job.default_priority
@@ -283,7 +283,15 @@ class ModuleWorker:
 
         self.source = new_source
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
-        self._derive_wire()
+        self.revmap = RevisionMap.from_module(self.source)
+        if self.interp.module_idx:
+            self.wire_module = wire.rmap_module(self.interp.module_idx.module)
+        else:  # re-use source (if failed to parse or not yet parsed)
+            self.wire_module = self.source
+        self.wire_errors = [wire.rmap_error(e) for e in self.interp.errors]
+        self.wire_dependencies = {
+            m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
+        }
 
         # reactively trigger build jobs for all affected builds (and other reactors)
         # TODO @Incomplete: implement this
@@ -306,13 +314,13 @@ class ModuleWorker:
         else:
             return ModuleBuildErrorType.INVALID_BUILDABLE
 
-        job = BuildJob(buildable_id=buildable_id, builds=builds)
+        job = BuildJob(revmap=self.revmap, buildable_id=buildable_id, builds=builds)
         self._queue_job(job)
         return job
 
-    async def do_build(self, builds: list[language.Build]):
-        self.log("build", builds=builds)
-        build_processes = [make_build(build) for build in builds]
+    async def do_build(self, revmap: RevisionMap, builds: list[language.Build]):
+        self.log.info("build", builds=builds)
+        build_processes = [wrap_task(make_build(build), f"build_{build.id}") for build in builds]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         return cast(list[BuildResult], build_results)
 
@@ -397,7 +405,7 @@ class ModuleWorker:
                         job.error_details = ret
 
                 elif isinstance(job, BuildJob):
-                    build_results = await self.do_build(job.builds)
+                    build_results = await self.do_build(job.revmap, job.builds)
                     job.build_results = build_results
 
                 else:
@@ -569,12 +577,17 @@ class Worker:
 
     async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
         """Writes the build job results back to the internal server"""
+
+        # convert build results into writes with the revisions that were used
         generated_files = []
         generated_mappings = []
         for build_result in job.build_results:
-            generated_file = build_result.to_file(module=module_worker.idx.module)
+            generated_file = build_result.to_file(job.revmap, module_worker.idx.module)
             generated_files.append(wire.rmap_file(generated_file))
-            generated_mappings.append((build_result.build.id, build_result.source_mappings))
+            mappings = [job.revmap.map_mapping(m) for m in build_result.source_mappings]
+            generated_mappings.append((build_result.build.id, mappings))
+
+        # actually write to the internal server
         await self._intserver_rep_lock.acquire()
         write = ReqWriteModulePayload(
             module_id=module_worker.module_id,

@@ -362,7 +362,7 @@ class Statement(Generic[SymbolContentT]):
             StatementModifier.UNLIKE,
             StatementModifier.CHECK,
         )
-        return self.is_proper and (
+        return self.is_real and (
             self.symbol_type == SymbolType.EXPECTATION or (expectable_symbol and has_expect_intent)
         )
 
@@ -379,7 +379,7 @@ class Statement(Generic[SymbolContentT]):
         return self.modifier == StatementModifier.WITH
 
     @property
-    def is_proper(self):
+    def is_real(self):
         return not self.is_argument and not self.is_parameter
 
     @property
@@ -404,6 +404,7 @@ class InterpSymbol:
     name: str = required_field()
     abstract: bool = field(default=False)
     modifier: Optional[StatementModifier] = None
+    reference: Optional[InterpSymbol] = None
     definition: Optional[InterpSymbol] = None
     context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
     source: Optional[Statement] = None
