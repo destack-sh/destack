@@ -145,9 +145,9 @@ watchEffect(() => {
     title.value = "Page not found";
   } else {
     if (editor.focusedEditor != null) {
-      title.value = editor.focusedEditor.path + " - " + `${props.owner}/${props.project}`;
+      title.value = editor.focusedEditor.path + " • " + `${props.owner}/${props.project}`;
     } else {
-      title.value = `${props.owner}/${props.project}${project.value ? ": " + project.value.name : ""}`;
+      title.value = `${props.owner}/${props.project}${project.value ? " • " + project.value.name : ""}`;
     }
   }
 });
