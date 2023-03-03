@@ -5,8 +5,6 @@ from typing import Coroutine, Iterable, Type, TypeVar, cast
 import sentry_sdk
 import structlog
 
-from bench.settings import DEBUG, TEST
-
 
 def get_first(obj: dict, keys: Iterable[str]):
     """Gets the first non-None value out of a dict given a list of keys"""
@@ -58,6 +56,6 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
         raise
     except Exception as e:
         logger.exception("errored_task", task_id=task_id, exc_info=e)
-        if not (TEST or DEBUG):
+        if sentry_sdk.Hub.current is not None:
             sentry_sdk.capture_exception(e)
         raise
