@@ -224,11 +224,11 @@ const globalActions: Action[] = [
                 <div class="whitespace-nowrap text-right text-xs">
                   <svg
                     v-if="versionIdx == 0"
-                    viewBox="0 0 100 100"
-                    class="mb-0.5 h-1 w-1"
+                    viewBox="0 0 10 10"
+                    class="mr-1 h-1 w-1"
                     :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'"
                   >
-                    <circle cx="50" cy="50" r="40" fill="currentColor" />
+                    <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
                   </svg>
                   <time v-else class="text-gray-500" :datetime="version.committedAt">
                     {{ getTimeFromNowString(version.committedAt) }}

@@ -2,7 +2,7 @@
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
-import { formatDiffSeconds, humanizeNumber, useNow, useTimeFromNow } from "@/composables/useNow";
+import { formatDiffSeconds, humanizeNumber, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";

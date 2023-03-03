@@ -38,6 +38,33 @@ def safe_mutation(
     return wrapper(func)
 
 
+def asafe_mutation(
+    func: Optional = None,
+    directives: Optional[Sequence[object]] = (),
+    atomic: bool = False,
+    **kwargs,
+):
+    """Wraps an async resolver to make it atomic and wrap exceptions into OperationInfo."""
+
+    def wrapper(func):
+        func = wrap_exceptions(func)
+        if atomic:
+
+            @functools.wraps(func)
+            async def wrapped_atomic(*args, **kwargs):
+                async with transaction.atomic():
+                    return await func(*args, **kwargs)
+
+            wrapped_func = wrapped_atomic
+        else:
+            wrapped_func = func
+        return gql.mutation(wrapped_func, directives=directives, **kwargs)
+
+    if func is None:
+        return wrapper
+    return wrapper(func)
+
+
 def wrap_exceptions(func):
     """Wraps a mutation resolver to map exceptions to OperationInfo."""
 
@@ -47,7 +74,7 @@ def wrap_exceptions(func):
         raise TypeError(f"return type annotation required: {func}")
     return_type_args = typing.get_args(return_type)
     if OperationInfo not in return_type_args:
-        raise TypeError(f"return must union with OperationInfo: {func}")
+        raise TypeError(f"return must union with OperationInfo: {func} -> {return_type_args}")
 
     @functools.wraps(func)
     def wrapped(*args, **kwargs):

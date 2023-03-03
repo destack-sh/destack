@@ -234,7 +234,11 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
       <!-- Add statement to start -->
       <StatementAddArea class="mx-auto max-w-[850px]" @click="editor.readonly || insertStatementStart()" />
       <!-- File's statements -->
-      <template v-for="positioned in positionedStatements" :key="positioned.statement.id">
+      <div
+        v-for="positioned in positionedStatements"
+        :key="positioned.statement.id"
+        class="mx-auto w-full max-w-[800px]"
+      >
         <StatementInterface
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
@@ -243,9 +247,9 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
           :isFirstInGroup="positioned.isFirstInGroup"
           :isLastInGroup="positioned.isLastInGroup"
           :lineNumberBase="positioned.lineNumberBase"
-          class="mx-auto w-full max-w-[800px]"
+          class="w-full"
         />
-      </template>
+      </div>
       <!-- Add statement to end -->
       <StatementAddArea
         class="mx-auto max-w-[850px] flex-1 pb-60"

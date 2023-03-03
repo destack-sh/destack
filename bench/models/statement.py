@@ -141,8 +141,12 @@ class StatementManager(models.Manager["Statement"]):
                     for mapping in statement.generated_mappings.all():
                         mapping.pk = None
                         mapping.statement_id = new_statements_ids[mapping.statement_id]
-                        mapping.source_id = new_statements_ids[mapping.source_id]
-                        mapping.target_id = new_statements_ids[mapping.target_id]
+                        mapping.source_id = new_statements_ids.get(
+                            mapping.source_id, mapping.source_id
+                        )
+                        mapping.target_id = new_statements_ids.get(
+                            mapping.target_id, mapping.target_id
+                        )
                         mapping.source_revision = 0
                         mapping.target_revision = 0
                         new_mappings.append(mapping)

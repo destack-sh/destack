@@ -204,6 +204,7 @@ class ProjectMutation:
         self, info, input: "ProjectUpdateVisibilityInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
+        check_can_write(info, project)
         project.visibility = input.visibility
         project.save()
         return project
@@ -211,6 +212,7 @@ class ProjectMutation:
     @safe_mutation
     def update_project_name(self, info, input: "ProjectUpdateNameInput") -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
+        check_can_write(info, project)
         project.name = input.name
         project.save()
         return project
