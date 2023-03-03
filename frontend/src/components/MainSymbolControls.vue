@@ -113,7 +113,6 @@ const mainActions = [
     label: "Run",
     icon: PlayIcon,
     enabled: canRun,
-    stale: computed(() => false),
     active: computed(() => operations.state.hasInflightLike({ types: ["runtime.run"] })),
     action: () => runMain.value.apply(),
   },
@@ -122,6 +121,7 @@ const mainActions = [
     icon: CheckCircleIcon,
     enabled: computed(() => testMain.value.enabled),
     active: ref(false),
+    stale: mainSymbolStale,
     action: () => testMain.value.apply(),
   },
 ];
@@ -207,7 +207,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       :key="action.label"
       class="relative rounded-sm p-1.5 text-sm"
       :class="{
-        'text-orange-600 hover:bg-orange-200 hover:text-orange-900': action.enabled.value,
+        'text-gray-700 hover:bg-orange-200': action.enabled.value,
         'text-gray-500': !action.enabled.value,
         '': action.active.value,
       }"

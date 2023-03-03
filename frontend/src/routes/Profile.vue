@@ -88,7 +88,7 @@ watchEffect(() => {
   if (profile.value == null && loading.value) {
     title.value = props.owner;
   } else if (profile.value != null) {
-    title.value = `${props.owner} - ${profile.value.name}`;
+    title.value = `${props.owner} • ${profile.value.name}`;
   } else {
     // not found
     title.value = "Page not found";
