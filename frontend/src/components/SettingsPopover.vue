@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel, Switch } from "@headlessui/vue";
+import { BellSlashIcon, BellSnoozeIcon, CalculatorIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
 
 const editor = useEditorState();
 const actions = useActions();
@@ -14,11 +15,11 @@ const actions = useActions();
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-0 left-14 z-10 flex w-60 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-1 left-14 z-10 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Font style -->
-        <div class="pb-1">
-          <span class="text-xs text-gray-500">Style</span>
+        <div class="px-2 pb-1">
+          <!-- <span class="text-xs text-gray-500">Style</span> -->
           <div class="flex flex-row justify-center">
             <button
               class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-50"
@@ -37,8 +38,11 @@ const actions = useActions();
           </div>
         </div>
         <!-- Font size -->
-        <div class="flex flex-row items-center justify-between">
-          <span class="text-sm text-gray-900">Small text</span>
+        <div class="flex flex-row items-center justify-between px-2">
+          <span class="flex flex-row items-center gap-2">
+            <MinusCircleIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Small text</span>
+          </span>
           <Switch
             v-model="editor.textSmall"
             :class="[
@@ -56,8 +60,11 @@ const actions = useActions();
           </Switch>
         </div>
         <!-- Line numbers -->
-        <div class="flex flex-row items-center justify-between">
-          <span class="text-sm text-gray-900">Line numbers</span>
+        <div class="flex flex-row items-center justify-between px-2 py-1">
+          <span class="flex flex-row items-center gap-2">
+            <CalculatorIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Line numbers</span>
+          </span>
           <Switch
             v-model="editor.showLineNumbers"
             :class="[
@@ -75,8 +82,11 @@ const actions = useActions();
           </Switch>
         </div>
         <!-- Dark mode -->
-        <div class="flex flex-row items-center justify-between">
-          <span class="class text-sm text-gray-700">Dark mode - soon!</span>
+        <div class="py--1 flex flex-row items-center justify-between px-2">
+          <span class="flex flex-row items-center gap-2">
+            <MoonIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Dark mode (soon)</span>
+          </span>
           <Switch
             disabled
             v-model="editor.darkMode"
@@ -95,8 +105,11 @@ const actions = useActions();
           </Switch>
         </div>
         <!-- Zen mode -->
-        <div class="flex flex-row items-center justify-between">
-          <span class="text-sm text-gray-900">Zen mode</span>
+        <div class="flex flex-row items-center justify-between px-2 py-1">
+          <span class="flex flex-row items-center gap-2">
+            <BellSlashIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Zen mode</span>
+          </span>
           <Switch
             :model-value="editor.zenMode"
             @update:model-value="actions.apply('editor.zenMode')"

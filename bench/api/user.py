@@ -10,7 +10,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CanViewProject
+from bench.api.auth import CanViewProject, CanWriteUser
 from bench.api.owner import Owner
 from bench.api.util import safe_mutation
 
@@ -36,7 +36,7 @@ class User(gql.relay.Node, Owner):
     )
     access_tokens: gql.relay.Connection[
         Annotated["AccessToken", lazy(".auth")]
-    ] = gql.django.connection()
+    ] = gql.django.connection(directives=[CanWriteUser(at_root=False)])
 
     @gql.django.field(only=["first_name"])
     def name(self) -> str:

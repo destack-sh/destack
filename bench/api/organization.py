@@ -4,7 +4,7 @@ from strawberry import auto, lazy
 from strawberry_django_plus import gql
 
 from bench import models
-from bench.api.auth import CanViewProject
+from bench.api.auth import CanViewProject, CanWriteOrganization
 from bench.api.owner import Owner
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class Organization(gql.relay.Node, Owner):
     )
     access_tokens: gql.relay.Connection[
         Annotated["AccessToken", lazy(".auth")]
-    ] = gql.django.connection()
+    ] = gql.django.connection(directives=[CanWriteOrganization(at_root=False)])
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:

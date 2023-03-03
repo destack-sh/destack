@@ -594,8 +594,8 @@ watchEffect(async () => {
           <HelpPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
-                :class="open ? 'bg-orange-50 text-orange-900' : ''"
+                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
+                :class="open ? 'border-orange-600 text-orange-600' : ''"
               >
                 <span class="sr-only">Help</span>
                 <QuestionMarkCircleIcon class="h-6 w-6" aria-hidden="true" />
@@ -605,8 +605,8 @@ watchEffect(async () => {
           <SettingsPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
-                :class="open ? 'bg-orange-50 text-orange-900' : ''"
+                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
+                :class="open ? 'border-orange-600 text-orange-600' : ''"
               >
                 <span class="sr-only">Settings</span>
                 <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />

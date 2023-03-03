@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
+import { ArrowLeftOnRectangleIcon, Cog8ToothIcon, UserCircleIcon } from "@heroicons/vue/24/outline";
 import { useBrowserLocation } from "@vueuse/core";
 import { computed } from "vue";
 
@@ -11,9 +12,9 @@ const location = useBrowserLocation();
 const actions = useActions();
 
 const userNavigation = computed(() => [
-  { name: "Profile", to: "/" + auth.me.value?.username },
-  { name: "Settings", to: "/settings/profile" },
-  { name: "Log out", action: () => actions.user.logout.value.apply() },
+  { name: "Profile", icon: UserCircleIcon, to: "/" + auth.me.value?.username },
+  { name: "Settings", icon: Cog8ToothIcon, to: "/settings/" + auth.me.value?.username },
+  { name: "Log out", icon: ArrowLeftOnRectangleIcon, action: () => actions.user.logout.value.apply() },
 ]);
 </script>
 <template>
@@ -50,15 +51,19 @@ const userNavigation = computed(() => [
             <router-link
               v-if="item.to"
               :to="item.to"
-              :class="[active ? 'bg-orange-50' : '', 'block py-2 px-4 text-sm text-gray-900']"
+              class="flex flex-row items-center gap-2"
+              :class="[active ? 'bg-orange-50' : '', 'block py-2 px-2 text-sm text-gray-900']"
             >
+              <component :is="item.icon" class="h-5 w-5 text-gray-700" />
               {{ item.name }}
             </router-link>
             <button
               v-else
-              :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-4 text-left text-sm text-gray-900']"
+              class="flex flex-row items-center gap-2"
+              :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
               @click="item.action"
             >
+              <component :is="item.icon" class="h-5 w-5 text-gray-700" />
               {{ item.name }}
             </button>
           </MenuItem>

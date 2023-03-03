@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime
 from hashlib import sha256
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
@@ -33,9 +33,11 @@ class AccessTokenManager(models.Manager["AccessToken"]):
     ) -> tuple[AccessToken, str]:
         """Creates a new access token for the owner, returning the ephemeral raw token (not saved)."""
         # generate secure random string for token key (base64 encoded)
-        raw_token = ACCESS_TOKEN_PREFIX + secrets.token_hex(ACCESS_TOKEN_DIGEST_LENGTH // 2)
-        token_key = raw_token[:-ACCESS_TOKEN_KEY_LENGTH]
+        raw_token = ACCESS_TOKEN_PREFIX + secrets.token_hex(ACCESS_TOKEN_DIGEST_LENGTH // 8)
+        token_key = raw_token[-ACCESS_TOKEN_KEY_LENGTH:]
         digest = digest_raw_token(raw_token)
+
+        from bench.models import Organization, User  # prevent circular import
 
         access_token = self.create(
             digest=digest,
@@ -43,7 +45,7 @@ class AccessTokenManager(models.Manager["AccessToken"]):
             name=name,
             scopes=scopes,
             expires_at=expires_at,
-            organization=owner if isinstance(owner, Organization) else owner,
+            organization=owner if isinstance(owner, Organization) else None,
             user=owner if isinstance(owner, User) else None,
         )
         return access_token, raw_token
@@ -71,10 +73,10 @@ class AccessToken(UUIDModel):
     revoked_at = models.DateTimeField(null=True)
 
     organization: models.ForeignKey = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, null=True, related_name="ACCESS_TOKENs"
+        "Organization", on_delete=models.CASCADE, null=True, related_name="access_tokens"
     )
     user = models.ForeignKey(
-        "User", on_delete=models.CASCADE, null=True, related_name="ACCESS_TOKENs"
+        "User", on_delete=models.CASCADE, null=True, related_name="access_tokens"
     )
 
     def __str__(self):
@@ -86,11 +88,6 @@ class AccessToken(UUIDModel):
     def revoke(self):
         self.revoked_at = datetime.utcnow()
         self.save()
-
-    @property
-    def token(self) -> Optional[str]:
-        # we set this during creation, but it's not saved
-        return None
 
     @property
     def status(self) -> AccessTokenStatus:
@@ -116,6 +113,8 @@ class AccessToken(UUIDModel):
     @property
     def owner(self) -> Organization | User:
         return self.organization or self.user
+
+    objects = AccessTokenManager()
 
     class Meta:
         constraints = [
