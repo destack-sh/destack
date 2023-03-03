@@ -296,7 +296,7 @@ Mousetrap.bind(["ctrl+s"], () => {
       kind: "notice",
       message: "Saving is automatic",
       description: "All changes are synced automatically.",
-      actionText: "Commit",
+      actionText: "Snapshot",
       action: () => actions.apply("version.commit"),
     },
     { lastActiveMs: 60000 }
@@ -484,7 +484,7 @@ watchEffect(async () => {
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIcon class="absolute top-0.5 h-4 w-4" />
-              <span class="ml-5">Viewer</span>
+              <span class="ml-5 select-none">Viewer</span>
             </span>
             <!-- <button>fork</button> -->
           </div>
@@ -494,22 +494,22 @@ watchEffect(async () => {
           <!-- Operations status -->
           <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
             <svg
-              viewBox="0 0 100 100"
+              viewBox="0 0 10 10"
               class="h-1 w-1"
               :class="{ 'text-orange-600': !hasStaleInflightStateOps, 'text-gray-400': hasStaleInflightStateOps }"
             >
-              <circle cx="50" cy="50" r="40" fill="currentColor" />
+              <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
             </svg>
             <span class="text-sm text-gray-500">saving</span>
           </span>
           <!-- Runtime status -->
           <span class="flex items-center gap-1 p-1 transition-all">
             <svg
-              viewBox="0 0 100 100"
+              viewBox="0 0 10 10"
               class="h-1 w-1"
               :class="{ 'text-orange-600': runtimeConnected, 'text-gray-400': !runtimeConnected }"
             >
-              <circle cx="50" cy="50" r="40" fill="currentColor" />
+              <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
             </svg>
             <Transition appear>
               <span class="text-sm text-gray-500" v-show="!runtimeConnected">

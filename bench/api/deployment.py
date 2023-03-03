@@ -49,7 +49,7 @@ class DeployInput(gql.NodeInput):
 
 @gql.type
 class DeploymentMutation:
-    @safe_mutation(directives=[CanWriteProject()])
+    @safe_mutation(directives=[CanWriteProject()], atomic=True)
     def set_deploy_all_statements(
         self, info, input: DeploymentSetDeployAllStatementsInput
     ) -> Deployment | OperationInfo:
@@ -58,7 +58,7 @@ class DeploymentMutation:
         deployment.save()
         return deployment
 
-    @safe_mutation(directives=[CanWriteProject()])
+    @safe_mutation(directives=[CanWriteProject()], atomic=True)
     def add_deployed_statement(
         self, info, input: DeploymentAddStatementInput
     ) -> Deployment | OperationInfo:
@@ -69,7 +69,7 @@ class DeploymentMutation:
         )
         return models.Deployment.objects.get(id=input.id)
 
-    @safe_mutation(directives=[CanWriteProject()])
+    @safe_mutation(directives=[CanWriteProject()], atomic=True)
     def remove_deployed_statement(
         self, info, input: DeploymentRemoveStatementInput
     ) -> Deployment | OperationInfo:
@@ -79,7 +79,7 @@ class DeploymentMutation:
         ).delete()
         return models.Deployment.objects.get(id=input.id)
 
-    @safe_mutation(directives=[CanWriteProject()])
+    @safe_mutation(directives=[CanWriteProject()], atomic=True)
     def update_deployment(self, info, input: DeployInput) -> Deployment | OperationInfo:
         deployment = models.Deployment.objects.get(id=input.id.node_id)
         deployment.type = DeploymentType.MANUAL

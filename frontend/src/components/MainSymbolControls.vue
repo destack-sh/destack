@@ -34,6 +34,7 @@ const evaluateRunning = computed(
 
 const canBuild = computed(
   () =>
+    !buildRunning.value &&
     runtime.connected &&
     (mainSymbol.value?.symbolType == SymbolType.Task ||
       mainSymbol.value?.symbolType == SymbolType.Build ||
@@ -63,10 +64,9 @@ const notifications = useNotifications();
 const buildMain = provideGlobalAction({
   id: "symbol.buildMain",
   label: computed(() => "Build " + mainSymbol.value?.name),
-  shortcuts: ["F6"],
+  shortcuts: ["f8"],
   enabled: canBuild,
   apply: async () => {
-    console.log("build " + mainSymbol.value?.name);
     const ret = await operations.runtime.build(mainSymbol.value?.id);
     if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
       notifications.show({
@@ -82,10 +82,9 @@ const buildMain = provideGlobalAction({
 const runMain = provideGlobalAction({
   id: "symbol.runMain",
   label: computed(() => "Run " + mainSymbol.value?.name),
-  shortcuts: ["F7"],
+  shortcuts: ["f9"],
   enabled: canRun,
   apply: async () => {
-    console.log("run " + mainSymbol.value?.name);
     const runEditor = editor.openRun(mainSymbol.value as any);
     editor.focusEditor(runEditor);
   },
@@ -94,7 +93,7 @@ const runMain = provideGlobalAction({
 const testMain = provideGlobalAction({
   id: "symbol.testMain",
   label: computed(() => "Test " + mainSymbol.value?.name),
-  shortcuts: ["F8"],
+  shortcuts: ["f10"],
   enabled: computed(() => false),
   apply: async () => {
     console.log("test");
@@ -216,19 +215,19 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       @click="action.action"
     >
       <component :is="action.icon" class="h-5 w-5" />
-      <!-- little svg circle to indicate action status -->
+      <!-- little svg rectangle -->
       <svg
-        v-if="action.active.value || action.stale?.value"
-        class="absolute right-2 bottom-2 h-1 w-1"
+        v-if="action.active.value || action.stale != null"
+        class="absolute right-1.5 bottom-1.5 h-1 w-1"
         :class="{
-          'animate-bounce text-orange-600': action.active.value,
+          'animate-ping text-gray-600': action.active.value,
           'text-gray-500': !action.active.value && action.stale?.value,
           'text-orange-600': !action.active.value && !action.stale?.value,
         }"
-        viewBox="0 0 12 12"
+        viewBox="0 0 10 10"
         fill="none"
       >
-        <circle cx="6" cy="6" r="6" fill="currentColor" />
+        <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
       </svg>
     </button>
   </div>

@@ -208,7 +208,7 @@ const isStale = isSymbolStale(statement);
       'font-mono': editor.fontMono && !isComment, // not sure if everything should be mono, but it's more consistent..
       'text-gray-700': isCommented,
     }"
-    :style="{ paddingLeft: depthOffsetX + 'px' }"
+    :style="{ marginLeft: depthOffsetX + 'px' }"
     @click="onClickContainer"
   >
     <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
@@ -218,7 +218,7 @@ const isStale = isSymbolStale(statement);
     <span
       v-if="editor.showLineNumbers"
       class="duration-50 absolute top-[3px] w-6 select-none text-right not-italic transition-colors"
-      :style="{ left: -30 + 'px' }"
+      :style="{ left: -30 - depthOffsetX + 'px' }"
       :class="{
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,

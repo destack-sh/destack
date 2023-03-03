@@ -127,6 +127,7 @@ defineExpose({
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.enter.exact.prevent="edit"
     @click="edit"
+    :disabled="readonly"
     class="text-left outline-none"
   >
     {{ renderSimpleType(value) }}

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 from itertools import chain
 from typing import AsyncGenerator, Optional, cast
@@ -19,6 +17,7 @@ from bench import language, models
 from bench.api.auth import can_view_project, can_write_project
 from bench.api.execution import Execution
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
+from bench.api.util import asafe_mutation
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import ProjectVersion, User, mapper
@@ -65,7 +64,7 @@ class InterpJob:
     status: JobStatus
     started_at: Optional[datetime]
     terminated_at: Optional[datetime]
-    symbol: Optional[InterpSymbol]
+    symbol: Optional["InterpSymbol"]
 
 
 @gql.type
@@ -238,7 +237,7 @@ def check_can_view(user: User, project_version_id: UUID):
 
 @gql.type
 class ModuleRuntimeMutation:
-    @gql.mutation
+    @asafe_mutation
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
         # TODO @Cleanup @Performance: keep worker sockets across requests?
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
@@ -261,7 +260,7 @@ class ModuleRuntimeMutation:
             success=rep.error is None,
         )
 
-    @gql.mutation
+    @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         # TODO @Auth: check if user has write access to project
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
@@ -301,13 +300,18 @@ class ModuleRuntimeSubscription:
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
-        await sync_to_async(check_can_view)(user, project_version_id)
-
         log = logger.bind(
             project_version_id=project_version_id,
             worker_rep_addr=ZMQ_WORKER_REP_ADDR,
             worker_pub_addr=ZMQ_WORKER_PUB_ADDR,
+            user=user,
         )
+        try:
+            await sync_to_async(check_can_view)(user, project_version_id)
+        except PermissionDenied:
+            log.debug("runtime.subscribe_denied", project_version_id=project_version_id)
+            return
+
         log.info("runtime.subscribe")
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
@@ -379,8 +383,6 @@ class ModuleRuntimeSubscription:
     ) -> AsyncGenerator[Execution, None]:
         project_version_id = UUID(project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
-        await sync_to_async(check_can_view)(user, project_version_id)
-
         log = logger.bind(
             project_version_id=project_version_id,
             build_id=build_id,
@@ -389,7 +391,15 @@ class ModuleRuntimeSubscription:
             root_id=root_id,
             root_id_null=root_id_null,
             worker_rep_addr=ZMQ_WORKER_REP_ADDR,
+            user=user,
         )
+
+        try:
+            await sync_to_async(check_can_view)(user, project_version_id)
+        except PermissionDenied:
+            log.debug("executions.subscribe_denied", project_version_id=project_version_id)
+            return
+
         log.info("executions.subscribe")
 
         worker_sub_sock = zmq_ctx.socket(zmq.SUB)

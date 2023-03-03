@@ -206,12 +206,11 @@ def can_view_project(user: User, obj: Any) -> bool:
     if not isinstance(obj, models.Project):
         raise ValueError(f"CanViewProject cannot be used on {obj}")
     # is public or user is owner or user is member of owning organization
-    return (
-        obj.visibility == models.ProjectVisibility.PUBLIC
-        or obj.user_id == user.id
-        or obj.organization_id is not None
-        and obj.organization.members.filter(id=user.id).exists()
+    is_org_member = (
+        obj.organization_id is not None and obj.organization.members.filter(id=user.id).exists()
     )
+    is_owner = obj.user_id is not None and obj.user_id == user.id
+    return obj.visibility == models.ProjectVisibility.PUBLIC or is_owner or is_org_member
 
 
 def can_write_project(user: User, obj: Any) -> bool:
@@ -228,11 +227,11 @@ def can_write_project(user: User, obj: Any) -> bool:
         obj = obj.project
     if not isinstance(obj, models.Project):
         raise ValueError(f"CanWriteProject cannot be used on {obj}")
-    return (
-        obj.user_id == user.id
-        or obj.organization_id is not None
-        and obj.organization.members.filter(id=user.id).exists()
+    is_org_member = (
+        obj.organization_id is not None and obj.organization.members.filter(id=user.id).exists()
     )
+    is_owner = obj.user_id is not None and obj.user_id == user.id
+    return is_owner or is_org_member
 
 
 def check_can_view(info: Info, obj: Any) -> None:
