@@ -4,6 +4,59 @@ directive @canViewProject(atRoot: Boolean! = true) on FIELD_DEFINITION
 """Can only be resolved by user with project write permission"""
 directive @canWriteProject(atRoot: Boolean! = true) on FIELD_DEFINITION
 
+type AccessToken implements Node {
+  id: GlobalID!
+  token: String
+  tokenKey: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  expiresAt: DateTime
+  revokedAt: DateTime
+  status: AccessTokenStatus!
+  scopes: [AccessTokenScope!]!
+  owner: UserOrganization!
+}
+
+"""A connection to a list of items."""
+type AccessTokenConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [AccessTokenEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+input AccessTokenCreateInput {
+  ownerId: GlobalID!
+  scopes: [AccessTokenScope!]!
+  expiresAt: DateTime = null
+  name: String = null
+}
+
+"""An edge in a connection."""
+type AccessTokenEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: AccessToken!
+}
+
+union AccessTokenOperationInfo = AccessToken | OperationInfo
+
+enum AccessTokenScope {
+  RUN
+}
+
+enum AccessTokenStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
 input BuildInput {
   projectVersionId: GlobalID!
   buildableId: GlobalID = null
@@ -388,6 +441,8 @@ type ModuleRuntime {
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   logout: OperationInfo
+  createAccessToken(input: AccessTokenCreateInput!): AccessTokenOperationInfo!
+  revokeAccessToken(id: GlobalID!): AccessTokenOperationInfo!
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
   updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
@@ -505,6 +560,19 @@ type Organization implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): UserConnection!
+  accessTokens(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): AccessTokenConnection!
 }
 
 """A connection to a list of items."""
@@ -903,7 +971,6 @@ type Statement implements Node & SimplyTyped {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): DatasetRecordConnection!
-  importPath: String
 }
 
 input StatementCommentedInput {
@@ -1158,6 +1225,19 @@ type User implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): OrganizationConnection!
+  accessTokens(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): AccessTokenConnection!
 }
 
 input UserCompleteSignupInput {

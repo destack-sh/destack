@@ -61,9 +61,6 @@ class RecordList(RecordBatch):
         ...
 
     def __getitem__(self, index: Union[int, slice, str]) -> Union[Record, RecordBatch, list]:
-        # TODO @Performance: improve RecordList __getitem__.
-        #  There are probably a thousand better ways of doing this,
-        #  see e.g. numpy views, Activeloop Datasets, HuggingFace Datasets, etc.
         if isinstance(index, int):
             return self._records[index]
         elif isinstance(index, slice):

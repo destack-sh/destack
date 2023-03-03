@@ -102,6 +102,7 @@ class RepModuleBuildPayload:
 
 @_register_payload(ZMessageType.REQ_MODULE_RUN)
 class ReqModuleRunPayload:
+    deployment_id: UUID
     module_id: UUID
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]

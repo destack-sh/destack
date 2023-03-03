@@ -35,11 +35,14 @@ from bench.utils.fractional import generate_n_keys_between
 def lookup_in_db_module(
     requirement: language.RequirementContent, path: StatementPath
 ) -> language.Scope:
+    """
+    Lookup a module in the DB.
+    This actually loads and is slow, but we don't care because it's only for testing.
+    """
     version = lookup_module(requirement.module_name, requirement.version)
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
-    # TODO @Performance: cache indexed module for lookup by version
     wire_module: wire.ModuleData = read_module(version, path)
     module = wire.wmap_module(wire_module)
     idx = index_module(module)

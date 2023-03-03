@@ -239,7 +239,7 @@ def check_can_view(user: User, project_version_id: UUID):
 class ModuleRuntimeMutation:
     @asafe_mutation
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
-        # TODO @Cleanup @Performance: keep worker sockets across requests?
+        # TODO @Cleanup: keep worker sockets across requests?
         worker_req_sock = zmq_ctx.socket(zmq.REQ)
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
