@@ -217,7 +217,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       <component :is="action.icon" class="h-5 w-5" />
       <!-- little svg rectangle -->
       <svg
-        v-if="action.active.value || action.stale != null"
+        v-if="mainSymbol != null && (action.active.value || action.stale != null)"
         class="absolute right-1.5 bottom-1.5 h-1 w-1"
         :class="{
           'animate-ping text-gray-600': action.active.value,
