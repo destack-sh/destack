@@ -250,14 +250,14 @@ def can_write_project(user: User, obj: Any) -> bool:
     return is_owner or is_org_member
 
 
-def check_can_view(info: Info, obj: Any) -> None:
+def check_can_view_project(info: Info, obj: Any) -> None:
     """Raises a PermissionDenied error if the user cannot view the given object."""
     user = cast(User, info.context.request.scope["user"]._wrapped)
     if not can_view_project(user, obj):
         raise PermissionDenied("User cannot view this.")
 
 
-def check_can_write(info: Info, obj: Any) -> None:
+def check_can_write_project(info: Info, obj: Any) -> None:
     """Raises a PermissionDenied error if the user cannot write to the given object."""
     user = cast(User, info.context.request.scope["user"]._wrapped)
     if not can_write_project(user, obj):
@@ -317,6 +317,50 @@ class CanWriteProject(CanViewProject):
         return can_write_project(user, obj)
 
 
+def can_write_organization(user: User, obj: "Organization") -> bool:
+    if user.is_authenticated and user.is_staff:
+        return True
+    return obj.members.filter(id=user.id).exists()
+
+
+def can_write_user(user: User, obj: User) -> bool:
+    if user.is_authenticated and user.is_staff:
+        return True
+    return user.id == obj.id
+
+
+@strawberry.schema_directive(
+    locations=[Location.FIELD_DEFINITION],
+    description="Can only be resolved by user with organization write permission",
+)
+class CanWriteOrganization(HasCustomPermDirective):
+    at_root: bool = dataclasses.field(default=True)
+    message: Private[str] = dataclasses.field(default="User cannot write to this.")
+
+    @resolvers.async_safe
+    def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
+        return can_write_organization(user, obj)
+
+    def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
+        return qs.filter(organization__members=user)
+
+
+@strawberry.schema_directive(
+    locations=[Location.FIELD_DEFINITION],
+    description="Can only be resolved by user with user write permission",
+)
+class CanWriteUser(HasCustomPermDirective):
+    at_root: bool = dataclasses.field(default=True)
+    message: Private[str] = dataclasses.field(default="User cannot write to this.")
+
+    @resolvers.async_safe
+    def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
+        return can_write_user(user, obj)
+
+    def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
+        return qs.filter(user__id=user.id)
+
+
 def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *args, **kwargs):
     if user:
         return {"is_new": False}
@@ -351,6 +395,7 @@ AccessTokenStatus = gql.enum(models.AccessTokenStatus)
 @gql.django.type(models.AccessToken)
 class AccessToken(gql.Node):
     token: Optional[str]
+    name: auto
     token_key: str
     created_at: auto
     updated_at: auto
@@ -370,11 +415,17 @@ class AccessTokenCreateInput:
 
 
 @gql.type
+class AccessTokenCreatePayload:
+    access_token: AccessToken
+    token: str
+
+
+@gql.type
 class AccessTokenMutation:
     @safe_mutation
     def create_access_token(
         self, info, input: AccessTokenCreateInput
-    ) -> AccessToken | OperationInfo:
+    ) -> AccessTokenCreatePayload | OperationInfo:
         requesting_user = info.context.request.scope["user"]
         owner = input.owner_id.resolve_node(info, required=True)
         if not is_owner_or_member(requesting_user, owner):
@@ -382,8 +433,7 @@ class AccessTokenMutation:
         access_token, raw_token = models.AccessToken.objects.create_token(
             owner=owner, scopes=input.scopes, expires_at=input.expires_at, name=input.name
         )
-        access_token.token = raw_token
-        return access_token
+        return AccessTokenCreatePayload(access_token=access_token, token=raw_token)
 
     @safe_mutation
     def revoke_access_token(self, info, id: GlobalID) -> AccessToken | OperationInfo:

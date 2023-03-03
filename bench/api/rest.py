@@ -63,7 +63,7 @@ def async_api_view(methods: list[str] = None):
 
 
 def get_deployment(
-    owner: str, project: str, tag: str, token_digest: str
+    owner: str, project: str, tag: str, token_digest: str, scope=AccessTokenScope.RUN
 ) -> tuple[ProjectVersion, Deployment]:
     # TODO @Feature: implement semver range tags? https://devhints.io/semver
     # TODO @Performance: cache get_deployment
@@ -74,7 +74,7 @@ def get_deployment(
     else:
         project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
     if not project_version.project.owner.access_tokens.filter(
-        digest=token_digest, scopes__contains=AccessTokenScope.RUN
+        digest=token_digest, scopes__contains=scope
     ).exists():
         raise PermissionDenied("cannot access this deployment")
     deployment = project_version.deployments.get(owned=True)  # should only be one for now

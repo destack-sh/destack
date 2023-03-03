@@ -9,7 +9,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import can_write_project, check_can_write, is_owner_or_member
+from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import PMT, project_mutation
 from bench.api.util import safe_mutation
 from bench.models.project import RefDict
@@ -204,7 +204,7 @@ class ProjectMutation:
         self, info, input: "ProjectUpdateVisibilityInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_can_write(info, project)
+        check_can_write_project(info, project)
         project.visibility = input.visibility
         project.save()
         return project
@@ -212,7 +212,7 @@ class ProjectMutation:
     @safe_mutation
     def update_project_name(self, info, input: "ProjectUpdateNameInput") -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_can_write(info, project)
+        check_can_write_project(info, project)
         project.name = input.name
         project.save()
         return project
@@ -252,7 +252,7 @@ class ProjectVersionMutation:
         self, info, input: "UpdateProjectVersion"
     ) -> ProjectVersion | OperationInfo:
         project_v = models.ProjectVersion.objects.get(id=input.id.node_id)
-        check_can_write(info, project_v)
+        check_can_write_project(info, project_v)
         project_v.name = input.name
         project_v.description = input.description
         project_v.tag = input.tag
@@ -264,7 +264,7 @@ class ProjectVersionMutation:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
-        check_can_write(info, project_v)
+        check_can_write_project(info, project_v)
         project = project_v.project
         if project_v.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
@@ -287,7 +287,7 @@ class ProjectVersionMutation:
         project_v = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
-        check_can_write(info, project_v)
+        check_can_write_project(info, project_v)
         project = project_v.project
         if project_v.id == project.head_id:
             raise ValueError("cannot restore version that's already the head")

@@ -48,6 +48,9 @@ export function useTimeFromNow(updateInterval = 60000) {
     // format as long relative like just now, 1 week ago or last year
     // or absolute if more than 1 year
     if (delta.as("years") < 1) {
+      if (delta.as("seconds") < 60) {
+        return "just now";
+      }
       return dt.toRelative();
     } else {
       // format as e.g., Nov 4, 2021

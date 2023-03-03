@@ -1,12 +1,19 @@
+"""Can only be resolved by user with organization write permission"""
+directive @canWriteOrganization(atRoot: Boolean! = true) on FIELD_DEFINITION
+
 """Can only be resolved by user with project view permission"""
 directive @canViewProject(atRoot: Boolean! = true) on FIELD_DEFINITION
 
 """Can only be resolved by user with project write permission"""
 directive @canWriteProject(atRoot: Boolean! = true) on FIELD_DEFINITION
 
+"""Can only be resolved by user with user write permission"""
+directive @canWriteUser(atRoot: Boolean! = true) on FIELD_DEFINITION
+
 type AccessToken implements Node {
   id: GlobalID!
   token: String
+  name: String
   tokenKey: String!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -35,6 +42,13 @@ input AccessTokenCreateInput {
   expiresAt: DateTime = null
   name: String = null
 }
+
+type AccessTokenCreatePayload {
+  accessToken: AccessToken!
+  token: String!
+}
+
+union AccessTokenCreatePayloadOperationInfo = AccessTokenCreatePayload | OperationInfo
 
 """An edge in a connection."""
 type AccessTokenEdge {
@@ -441,7 +455,7 @@ type ModuleRuntime {
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   logout: OperationInfo
-  createAccessToken(input: AccessTokenCreateInput!): AccessTokenOperationInfo!
+  createAccessToken(input: AccessTokenCreateInput!): AccessTokenCreatePayloadOperationInfo!
   revokeAccessToken(id: GlobalID!): AccessTokenOperationInfo!
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
@@ -547,6 +561,19 @@ type Organization implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ProjectConnection! @canViewProject(atRoot: false)
+  accessTokens(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): AccessTokenConnection! @canWriteOrganization(atRoot: false)
   members(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -560,19 +587,6 @@ type Organization implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): UserConnection!
-  accessTokens(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): AccessTokenConnection!
 }
 
 """A connection to a list of items."""
@@ -605,6 +619,7 @@ interface Owner {
   createdAt: DateTime!
   updatedAt: DateTime!
   projects: ProjectConnection!
+  accessTokens: AccessTokenConnection!
 }
 
 """Information to aid in pagination."""
@@ -1206,6 +1221,19 @@ type User implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ProjectConnection! @canViewProject(atRoot: false)
+  accessTokens(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): AccessTokenConnection! @canWriteUser(atRoot: false)
 
   """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
   username: String!
@@ -1225,19 +1253,6 @@ type User implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): OrganizationConnection!
-  accessTokens(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): AccessTokenConnection!
 }
 
 input UserCompleteSignupInput {

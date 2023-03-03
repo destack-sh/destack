@@ -138,7 +138,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       </div>
       <!-- Benches / contributions / activity -->
       <div class="mt-8 flex flex-1 flex-grow flex-col md:mt-0">
-        <h3 class="text-xl font-bold text-gray-900">Benches</h3>
+        <h3 class="text-2xl font-bold text-gray-900">Benches</h3>
         <div class="mt-4 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Empty state -->
           <div v-if="benches?.length == 0">Nothing here yet.</div>
