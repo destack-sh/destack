@@ -13,7 +13,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.auth import CanViewProject
+from bench.api.auth import AccessTokenMutation, CanViewProject
 from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery
 from bench.api.organization import Organization
@@ -84,6 +84,7 @@ class Query(ExecutionQuery):
 @strawberry.type
 class Mutation(
     UserMutation,
+    AccessTokenMutation,
     ProjectMutation,
     ProjectVersionMutation,
     StatementMutation,

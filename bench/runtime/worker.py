@@ -674,7 +674,6 @@ class Worker:
 
 def forward_execution_capture(root_id: UUID, pub_sock: zmq.Socket):
     def _do_track(frame: ExecutionFrame):
-        # TODO @Performance: batch execution frame updates
         if frame.root is None:
             frame.id = root_id  # set root to fixed id (in-place)
         frame_data = ExecutionFrameData.from_frame(frame)

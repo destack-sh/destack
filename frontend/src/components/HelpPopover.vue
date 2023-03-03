@@ -35,9 +35,9 @@ const helpActions = [
     href: "https://discord.gg/BUaeEn8FHN",
   },
   {
-    name: "Get support",
+    name: "Get help",
     icon: LifebuoyIcon,
-    href: "mailto:support@symbolx.com?subject=" + encodeURIComponent("Help with " + route.path),
+    href: "mailto:florian@symbolx.com?subject=" + encodeURIComponent("Help with " + route.path),
   },
 ];
 </script>

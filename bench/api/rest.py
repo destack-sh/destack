@@ -9,6 +9,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
 from bench.models import Deployment, Project, ProjectVersion
+from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
 from bench.settings import ZMQ_WORKER_REP_ADDR
@@ -61,15 +62,23 @@ def async_api_view(methods: list[str] = None):
     return make_view
 
 
-def get_deployment(owner: str, project: str, tag: str) -> tuple[ProjectVersion, Deployment]:
+def get_deployment(
+    owner: str, project: str, tag: str, token_digest: str
+) -> tuple[ProjectVersion, Deployment]:
     # TODO @Feature: implement semver range tags? https://devhints.io/semver
+    # TODO @Performance: cache get_deployment
+    # TODO @Performance: do get_deployment in one SQL query (incl. access token check)
     if tag in ("*", "^", "x"):
         # use latest version
         project_version = Project.objects.get_by_slug(owner, project).head
     else:
         project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
+    if not project_version.project.owner.access_tokens.filter(
+        digest=token_digest, scopes__contains=AccessTokenScope.RUN
+    ).exists():
+        raise PermissionDenied("cannot access this deployment")
     deployment = project_version.deployments.get(owned=True)  # should only be one for now
-    return project_version, deployment
+    return project_version.id, deployment.id
 
 
 @csrf_exempt_async
@@ -98,10 +107,15 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     else:
         raise serializers.ValidationError("Either task or code must be set")
 
-    project_version, deployment = await sync_to_async(get_deployment)(
-        owner=owner, project=project, tag=data["version"]
+    access_token = request.headers.get("Authorization", "").split(" ", 1)[-1]
+    if not access_token:
+        raise PermissionDenied("no access token provided")
+    token_digest = digest_raw_token(access_token)
+    del access_token
+
+    project_version_id, deployment_id = await sync_to_async(get_deployment)(
+        owner=owner, project=project, tag=data["version"], token_digest=token_digest
     )
-    # TODO @Auth: check if user has write access to project
 
     worker_req_sock = zmq_ctx.socket(zmq.REQ)
     worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
@@ -110,7 +124,8 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
         worker_req_sock,
         ZMessageType.REQ_MODULE_RUN,
         ReqModuleRunPayload(
-            module_id=project_version.id,
+            deployment_id=deployment_id,
+            module_id=project_version_id,
             runnable=runnable,
             runnable_type=runnable_type,
             build=data["build"],

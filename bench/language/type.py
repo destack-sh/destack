@@ -706,7 +706,6 @@ class BuildContent(SymbolContent):
     source_mappings: list["SourceMapping"]
 
     def get_target(self, source_id: UUID) -> Optional[UUID]:
-        # TODO @Performance: use a dict to map source/target ids
         for mapping in self.source_mappings:
             if mapping.source_id == source_id:
                 return mapping.target_id

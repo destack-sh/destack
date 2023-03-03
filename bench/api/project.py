@@ -9,7 +9,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import can_write_project, check_can_write
+from bench.api.auth import can_write_project, check_can_write, is_owner_or_member
 from bench.api.sync import PMT, project_mutation
 from bench.api.util import safe_mutation
 from bench.models.project import RefDict
@@ -186,8 +186,8 @@ class ProjectMutation:
     def create_project(self, info, input: "ProjectCreateInput") -> Project | OperationInfo:
         requesting_user = info.context.request.scope["user"]
         owner = input.owner_id.resolve_node(info, required=True)
-        if not requesting_user.is_authenticated or requesting_user.id != owner.id:
-            raise PermissionError("cannot create project for anyone else")
+        if not is_owner_or_member(requesting_user, owner):
+            raise PermissionError("cannot create project for this owner")
         project = models.Project.objects.create_project(
             owner=owner,
             name=input.name,

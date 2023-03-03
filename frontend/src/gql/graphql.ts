@@ -20,6 +20,59 @@ export type Scalars = {
   JSON: any;
 };
 
+export type AccessToken = Node & {
+  __typename?: "AccessToken";
+  createdAt: Scalars["DateTime"];
+  expiresAt?: Maybe<Scalars["DateTime"]>;
+  id: Scalars["GlobalID"];
+  owner: UserOrganization;
+  revokedAt?: Maybe<Scalars["DateTime"]>;
+  scopes: Array<AccessTokenScope>;
+  status: AccessTokenStatus;
+  token?: Maybe<Scalars["String"]>;
+  tokenKey: Scalars["String"];
+  updatedAt: Scalars["DateTime"];
+};
+
+/** A connection to a list of items. */
+export type AccessTokenConnection = {
+  __typename?: "AccessTokenConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<AccessTokenEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+export type AccessTokenCreateInput = {
+  expiresAt?: InputMaybe<Scalars["DateTime"]>;
+  name?: InputMaybe<Scalars["String"]>;
+  ownerId: Scalars["GlobalID"];
+  scopes: Array<AccessTokenScope>;
+};
+
+/** An edge in a connection. */
+export type AccessTokenEdge = {
+  __typename?: "AccessTokenEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: AccessToken;
+};
+
+export type AccessTokenOperationInfo = AccessToken | OperationInfo;
+
+export enum AccessTokenScope {
+  Run = "RUN",
+}
+
+export enum AccessTokenStatus {
+  Active = "ACTIVE",
+  Expired = "EXPIRED",
+  Revoked = "REVOKED",
+}
+
 export type BuildInput = {
   buildableId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -407,6 +460,7 @@ export type Mutation = {
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
+  createAccessToken: AccessTokenOperationInfo;
   createFile: FileOperationInfo;
   createProject: ProjectOperationInfo;
   createStatement: StatementOperationInfo;
@@ -426,6 +480,7 @@ export type Mutation = {
   restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
   restoreStatement: StatementOperationInfo;
+  revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   setDeployAllStatements: DeploymentOperationInfo;
   softDeleteFile: FileOperationInfo;
@@ -462,6 +517,10 @@ export type MutationCommitArgs = {
 
 export type MutationCompleteSignupArgs = {
   input: UserCompleteSignupInput;
+};
+
+export type MutationCreateAccessTokenArgs = {
+  input: AccessTokenCreateInput;
 };
 
 export type MutationCreateFileArgs = {
@@ -534,6 +593,10 @@ export type MutationRestoreFileArgs = {
 
 export type MutationRestoreStatementArgs = {
   input: StatementRestoreInput;
+};
+
+export type MutationRevokeAccessTokenArgs = {
+  id: Scalars["GlobalID"];
 };
 
 export type MutationRunArgs = {
@@ -647,6 +710,7 @@ export enum OperationMessageKind {
 export type Organization = Node &
   Owner & {
     __typename?: "Organization";
+    accessTokens: AccessTokenConnection;
     createdAt: Scalars["DateTime"];
     id: Scalars["GlobalID"];
     members: UserConnection;
@@ -655,6 +719,13 @@ export type Organization = Node &
     slug: Scalars["String"];
     updatedAt: Scalars["DateTime"];
   };
+
+export type OrganizationAccessTokensArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
 
 export type OrganizationMembersArgs = {
   after?: InputMaybe<Scalars["String"]>;
@@ -1024,7 +1095,6 @@ export type Statement = Node &
     file: File;
     generated: Scalars["Boolean"];
     id: Scalars["GlobalID"];
-    importPath?: Maybe<Scalars["String"]>;
     lang?: Maybe<Scalars["String"]>;
     modifier?: Maybe<StatementModifier>;
     name?: Maybe<Scalars["String"]>;
@@ -1290,6 +1360,7 @@ export type UpdateProjectVersion = {
 export type User = Node &
   Owner & {
     __typename?: "User";
+    accessTokens: AccessTokenConnection;
     bot: Scalars["Boolean"];
     completedSignup: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
@@ -1303,6 +1374,13 @@ export type User = Node &
     /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
     username: Scalars["String"];
   };
+
+export type UserAccessTokensArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
 
 export type UserOrganizationsArgs = {
   after?: InputMaybe<Scalars["String"]>;

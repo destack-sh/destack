@@ -15,6 +15,7 @@ from bench.api.owner import Owner
 from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
+    from bench.api.auth import AccessToken
     from bench.api.organization import Organization
     from bench.api.project import Project
 
@@ -33,6 +34,9 @@ class User(gql.relay.Node, Owner):
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
         directives=[CanViewProject(at_root=False)]
     )
+    access_tokens: gql.relay.Connection[
+        Annotated["AccessToken", lazy(".auth")]
+    ] = gql.django.connection()
 
     @gql.django.field(only=["first_name"])
     def name(self) -> str:

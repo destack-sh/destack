@@ -1,7 +1,18 @@
 import abc
 import dataclasses
 import functools
-from typing import Any, Callable, Iterable, Self, Union, cast
+from datetime import datetime
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Callable,
+    Iterable,
+    Optional,
+    Self,
+    Union,
+    cast,
+)
 
 import strawberry
 import structlog
@@ -9,12 +20,13 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Model, Q, QuerySet
 from graphql import GraphQLResolveInfo
 from social_django.strategy import DjangoStrategy
-from strawberry import Private
+from strawberry import Private, lazy
 from strawberry.channels import StrawberryChannelsContext
 from strawberry.schema_directive import Location
 from strawberry.types import Info
-from strawberry_django_plus import field, permissions
+from strawberry_django_plus import field, gql, permissions
 from strawberry_django_plus.directives import SchemaDirectiveHelper
+from strawberry_django_plus.gql import auto
 from strawberry_django_plus.permissions import (
     AuthDirective,
     _user_ensured_attr,
@@ -24,14 +36,18 @@ from strawberry_django_plus.permissions import (
     running_checks,
     set_perm_safe,
 )
-from strawberry_django_plus.relay import Connection
+from strawberry_django_plus.relay import Connection, GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
+from bench.api.util import safe_mutation
 from bench.models import User
 
 logger = structlog.get_logger(__name__)
+
+if TYPE_CHECKING:
+    from bench.models import Organization
 
 
 @dataclasses.dataclass
@@ -318,3 +334,62 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
 
     logger.info("social_create_user", user=user)
     return {"is_new": True, "user": user}
+
+
+def is_owner_or_member(user: User, owner: Union["User", "Organization"]) -> bool:
+    return owner.id == user.id or (
+        user.id is not None
+        and isinstance(owner, Organization)
+        and owner.members.filter(id=user.id).exists()
+    )
+
+
+AccessTokenScope = gql.enum(models.AccessTokenScope)
+AccessTokenStatus = gql.enum(models.AccessTokenStatus)
+
+
+@gql.django.type(models.AccessToken)
+class AccessToken(gql.Node):
+    token: Optional[str]
+    token_key: str
+    created_at: auto
+    updated_at: auto
+    expires_at: auto
+    revoked_at: auto
+    status: AccessTokenStatus
+    scopes: list[AccessTokenScope]
+    owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
+
+
+@gql.input
+class AccessTokenCreateInput:
+    owner_id: GlobalID
+    scopes: list[AccessTokenScope]
+    expires_at: Optional[datetime] = None
+    name: Optional[str] = None
+
+
+@gql.type
+class AccessTokenMutation:
+    @safe_mutation
+    def create_access_token(
+        self, info, input: AccessTokenCreateInput
+    ) -> AccessToken | OperationInfo:
+        requesting_user = info.context.request.scope["user"]
+        owner = input.owner_id.resolve_node(info, required=True)
+        if not is_owner_or_member(requesting_user, owner):
+            raise PermissionDenied("cannot create access token for this owner")
+        access_token, raw_token = models.AccessToken.objects.create_token(
+            owner=owner, scopes=input.scopes, expires_at=input.expires_at, name=input.name
+        )
+        access_token.token = raw_token
+        return access_token
+
+    @safe_mutation
+    def revoke_access_token(self, info, id: GlobalID) -> AccessToken | OperationInfo:
+        requesting_user = info.context.request.scope["user"]
+        access_token = models.AccessToken.objects.get(id=id.node_id)
+        if not is_owner_or_member(requesting_user, access_token.owner):
+            raise PermissionDenied("cannot revoke access token for this owner")
+        access_token.revoke()
+        return access_token

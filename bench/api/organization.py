@@ -8,6 +8,7 @@ from bench.api.auth import CanViewProject
 from bench.api.owner import Owner
 
 if TYPE_CHECKING:
+    from bench.api.auth import AccessToken
     from bench.api.project import Project
     from bench.api.user import User
 
@@ -21,6 +22,9 @@ class Organization(gql.relay.Node, Owner):
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
         directives=[CanViewProject(at_root=False)]
     )
+    access_tokens: gql.relay.Connection[
+        Annotated["AccessToken", lazy(".auth")]
+    ] = gql.django.connection()
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
