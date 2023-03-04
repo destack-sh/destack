@@ -77,10 +77,10 @@ def get_deployment(
         project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
     if (
         not project_version.project.owner.access_tokens.filter(
-            revoked_at__isnull=True,
             digest=token_digest,
             scopes__contains=[scope],
         )
+        .filter(Q(revoked_at__isnull=True))
         .filter(Q(expires_at__gte=datetime.utcnow()) | Q(expires_at__isnull=True))
         .exists()
     ):

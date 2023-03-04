@@ -13,7 +13,7 @@ from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.auth import AccessTokenMutation, CanViewProject
+from bench.api.auth import CanViewProject
 from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery
 from bench.api.organization import Organization, OrganizationMutation
@@ -27,6 +27,7 @@ from bench.api.project import (
 )
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
 from bench.api.statement import StatementMutation, SymbolMutation, Type
+from bench.api.token import AccessTokenMutation
 from bench.api.user import User, UserMutation
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST

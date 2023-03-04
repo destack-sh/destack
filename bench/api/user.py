@@ -10,14 +10,14 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CanViewProject, CanWriteUser
-from bench.api.owner import Owner
+from bench.api.auth import CanViewProject, CanWriteUser, check_can_write_user
+from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
-    from bench.api.auth import AccessToken
     from bench.api.organization import Organization
     from bench.api.project import Project
+    from bench.api.token import AccessToken
 
 
 @gql.django.type(models.User)
@@ -28,6 +28,7 @@ class User(gql.relay.Node, Owner):
     updated_at: auto
     completed_signup: auto
     bot: auto
+    description: auto
     organizations: gql.relay.Connection[
         Annotated["Organization", lazy(".organization")]
     ] = gql.django.connection()
@@ -35,8 +36,8 @@ class User(gql.relay.Node, Owner):
         directives=[CanViewProject(at_root=False)]
     )
     access_tokens: gql.relay.Connection[
-        Annotated["AccessToken", lazy(".auth")]
-    ] = gql.django.connection(directives=[CanWriteUser(at_root=False)])
+        Annotated["AccessToken", lazy(".token")]
+    ] = gql.django.connection(filters=AccessTokenFilter, directives=[CanWriteUser(at_root=False)])
 
     @gql.django.field(only=["first_name"])
     def name(self) -> str:
@@ -53,8 +54,21 @@ class UserCompleteSignupInput(gql.NodeInput):
     full_name: str
 
 
+@gql.input
+class UserUpdateInput(gql.NodeInput):
+    name: str
+    description: str
+
+
+@gql.input
+class UserRenameInput(gql.NodeInput):
+    slug: str
+
+
 @gql.type
 class UserMutation:
+    # there's no create user mutation here because we only support social auth for now
+
     @safe_mutation(atomic=True)
     def complete_signup(self, info, input: UserCompleteSignupInput) -> User | OperationInfo:
         user = models.User.objects.get(id=input.id.node_id)
@@ -64,6 +78,15 @@ class UserMutation:
         user.change_username(input.username)
         user.first_name = input.full_name
         user.completed_signup = True
+        user.save()
+        return user
+
+    @safe_mutation
+    def update_user(self, info, input: UserUpdateInput) -> User | OperationInfo:
+        user = models.User.objects.get(id=input.id.node_id)
+        check_can_write_user(info, user)
+        user.first_name = input.name
+        user.description = input.description
         user.save()
         return user
 

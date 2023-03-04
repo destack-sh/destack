@@ -59,6 +59,10 @@ type AccessTokenEdge {
   node: AccessToken!
 }
 
+input AccessTokenFilter {
+  includeInactive: Boolean = false
+}
+
 union AccessTokenOperationInfo = AccessToken | OperationInfo
 
 enum AccessTokenScope {
@@ -454,7 +458,9 @@ type ModuleRuntime {
 
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
+  updateUser(input: UserUpdateInput!): UserOperationInfo!
   logout: OperationInfo
+  updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
   createAccessToken(input: AccessTokenCreateInput!): AccessTokenCreatePayloadOperationInfo!
   revokeAccessToken(id: GlobalID!): AccessTokenOperationInfo!
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
@@ -573,7 +579,9 @@ type Organization implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
+    filters: AccessTokenFilter
   ): AccessTokenConnection! @canWriteOrganization(atRoot: false)
+  description: String
   members(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -608,6 +616,14 @@ type OrganizationEdge {
 
   """The item at the end of the edge"""
   node: Organization!
+}
+
+union OrganizationOperationInfo = Organization | OperationInfo
+
+input OrganizationUpdateInput {
+  id: GlobalID!
+  name: String!
+  description: String!
 }
 
 union OrganizationUser = Organization | User
@@ -1233,6 +1249,7 @@ type User implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
+    filters: AccessTokenFilter
   ): AccessTokenConnection! @canWriteUser(atRoot: false)
 
   """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
@@ -1240,6 +1257,7 @@ type User implements Node & Owner {
   email: String!
   completedSignup: Boolean!
   bot: Boolean!
+  description: String
   organizations(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -1285,3 +1303,9 @@ type UserEdge {
 union UserOperationInfo = User | OperationInfo
 
 union UserOrganization = User | Organization
+
+input UserUpdateInput {
+  id: GlobalID!
+  name: String!
+  description: String!
+}

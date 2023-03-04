@@ -7,16 +7,19 @@ import { useOperationsStore } from "@/state/operations";
 import { PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { useClipboard } from "@vueuse/core";
+import { computed, ref } from "vue";
 
 const props = defineProps<{ slug: string }>();
 
+const showInactive = ref(false);
+
 const { result: accessTokensResult } = useQuery(
   graphql(/* GraphQL */ `
-    query profileAccessTokens($slug: String!) {
+    query profileAccessTokens($slug: String!, $includeInactive: Boolean!) {
       ownerBySlug(slug: $slug) {
         ... on User {
           id
-          accessTokens {
+          accessTokens(filters: { includeInactive: $includeInactive }) {
             totalCount
             edges {
               node {
@@ -35,7 +38,7 @@ const { result: accessTokensResult } = useQuery(
         }
         ... on Organization {
           id
-          accessTokens {
+          accessTokens(filters: { includeInactive: $includeInactive }) {
             totalCount
             edges {
               node {
@@ -55,9 +58,10 @@ const { result: accessTokensResult } = useQuery(
       }
     }
   `),
-  {
+  computed(() => ({
     slug: props.slug,
-  }
+    includeInactive: showInactive.value,
+  }))
 );
 
 const { mutate: createAccessTokenMut, loading: creating } = useMutation(
