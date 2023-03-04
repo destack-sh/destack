@@ -3,7 +3,6 @@ import dataclasses
 import functools
 from datetime import datetime
 from typing import (
-    TYPE_CHECKING,
     Annotated,
     Any,
     Callable,
@@ -42,12 +41,9 @@ from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
 from bench.api.util import safe_mutation
-from bench.models import User
+from bench.models import Organization, User
 
 logger = structlog.get_logger(__name__)
-
-if TYPE_CHECKING:
-    from bench.models import Organization
 
 
 @dataclasses.dataclass

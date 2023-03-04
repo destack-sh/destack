@@ -1,10 +1,12 @@
 import json
+from datetime import datetime
 from functools import wraps
 
 import structlog
 import zmq
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
@@ -73,9 +75,15 @@ def get_deployment(
         project_version = Project.objects.get_by_slug(owner, project).head
     else:
         project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
-    if not project_version.project.owner.access_tokens.filter(
-        digest=token_digest, scopes__contains=scope
-    ).exists():
+    if (
+        not project_version.project.owner.access_tokens.filter(
+            revoked_at__isnull=True,
+            digest=token_digest,
+            scopes__contains=[scope],
+        )
+        .filter(Q(expires_at__gte=datetime.utcnow()) | Q(expires_at__isnull=True))
+        .exists()
+    ):
         raise PermissionDenied("cannot access this deployment")
     deployment = project_version.deployments.get(owned=True)  # should only be one for now
     return project_version.id, deployment.id

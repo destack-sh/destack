@@ -16,7 +16,7 @@ from bench import models
 from bench.api.auth import AccessTokenMutation, CanViewProject
 from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery
-from bench.api.organization import Organization
+from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
     File,
     FileMutation,
@@ -84,6 +84,7 @@ class Query(ExecutionQuery):
 @strawberry.type
 class Mutation(
     UserMutation,
+    OrganizationMutation,
     AccessTokenMutation,
     ProjectMutation,
     ProjectVersionMutation,

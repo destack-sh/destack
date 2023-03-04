@@ -29,3 +29,8 @@ class Organization(gql.relay.Node, Owner):
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
         return self.owner_slug_id
+
+
+@gql.type
+class OrganizationMutation:
+    pass
