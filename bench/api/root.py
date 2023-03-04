@@ -71,6 +71,9 @@ class Query(ExecutionQuery):
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
     organization: Optional[Organization] = gql.relay.node()
+    organization_by_slug: Optional[Organization] = gql.django.field(
+        resolver=models.Organization.objects.get_by_slug
+    )
     owner_by_slug: Optional[Union[User, Organization]] = gql.django.field(
         resolver=get_user_or_organization_by_slug
     )

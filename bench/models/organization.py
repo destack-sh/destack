@@ -1,10 +1,13 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from django.db import models, transaction
 
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
+
+if TYPE_CHECKING:
+    from bench.models import User
 
 
 class OrganizationManager(models.Manager["Organization"]):
@@ -51,6 +54,26 @@ class Organization(UUIDModel):
     invites: models.QuerySet["OrganizationInvite"]  # noqa via OrganizationInvite.organization
 
     objects = OrganizationManager()
+
+    def create_invite(
+        self,
+        email: str,
+        level: "OrganizationMembership.Level",
+        message: str = None,
+        created_by: "User" = None,
+    ) -> "OrganizationInvite":
+        from bench.models import User
+
+        user = User.objects.filter(email=email).first()
+        invite = OrganizationInvite.objects.create(
+            organization=self,
+            email=email,
+            level=level,
+            message=message,
+            created_by=created_by,
+            user=user,
+        )
+        return invite
 
     @property
     def slug(self) -> str:
@@ -102,7 +125,7 @@ class OrganizationMembership(UUIDModel):
 
 class OrganizationInvite(UUIDModel):
     """
-    An invite to join an organization.
+    An invitation to join an organization (for existing or not yet existing users).
     """
 
     organization: models.ForeignKey = models.ForeignKey(
@@ -116,7 +139,7 @@ class OrganizationInvite(UUIDModel):
         choices=OrganizationMembership.Level.choices
     )
     message: models.TextField = models.TextField(blank=True, null=True)
-    email_sent: models.BooleanField = models.BooleanField(default=False)
+    email_sent_at: models.DateTimeField = models.DateTimeField(blank=True, null=True)
 
     created_by: models.ForeignKey = models.ForeignKey("User", on_delete=models.CASCADE)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)

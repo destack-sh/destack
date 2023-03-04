@@ -1,10 +1,10 @@
 <script lang="ts" setup>
+import Switch from "@/components/basic/Switch.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { AccessTokenScope, AccessTokenStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { Switch } from "@headlessui/vue";
 import { PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { useClipboard } from "@vueuse/core";
@@ -98,8 +98,8 @@ const { mutate: createAccessTokenMut, loading: creating } = useMutation(
 );
 
 const operations = useOperationsStore();
-const clipboard = useClipboard();
 const notifications = useNotifications();
+const clipboard = useClipboard();
 
 async function createAccessToken() {
   const result = await operations.perform({
@@ -165,21 +165,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       <p class="text-gray-900">Access tokens let you connect to Bench from other applications.</p>
       <span class="text-gray-500">
         Show inactive
-        <Switch
-          v-model="showInactive"
-          :class="[
-            showInactive ? 'bg-orange-600' : 'bg-gray-200',
-            'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
-          ]"
-        >
-          <span
-            aria-hidden="true"
-            :class="[
-              showInactive ? 'translate-x-5' : 'translate-x-0',
-              'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
-            ]"
-          />
-        </Switch>
+        <Switch class="ml-1" v-model="showInactive" />
       </span>
     </div>
 
