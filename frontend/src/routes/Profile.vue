@@ -128,6 +128,9 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           <h2 class="text-xl text-gray-700">
             {{ profile.slug }}
           </h2>
+          <p class="mt-2 text-gray-900" v-if="profile.description">
+            {{ profile.description }}
+          </p>
         </div>
         <!-- Details -->
         <div class="w-full">
