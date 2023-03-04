@@ -50,8 +50,11 @@ SYSTEM_INFO = SystemInfo(
 def get_user_or_organization_by_slug(
     self, info: Info, slug: str
 ) -> Optional[Union[User, Organization]]:
-    slug = OwnerSlug.objects.get(slug=slug)
-    return slug.owner
+    try:
+        slug = OwnerSlug.objects.get(slug=slug)
+        return slug.owner
+    except OwnerSlug.DoesNotExist:
+        return None
 
 
 def get_me(self, info: Info) -> Optional[User]:

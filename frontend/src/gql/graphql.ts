@@ -734,6 +734,8 @@ export type Organization = Node &
   Owner & {
     __typename?: "Organization";
     accessTokens: AccessTokenConnection;
+    canViewFull: Scalars["Boolean"];
+    canWrite: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
@@ -798,6 +800,8 @@ export type OrganizationUser = Organization | User;
 
 export type Owner = {
   accessTokens: AccessTokenConnection;
+  canViewFull: Scalars["Boolean"];
+  canWrite: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   name: Scalars["String"];
@@ -1396,6 +1400,8 @@ export type User = Node &
     __typename?: "User";
     accessTokens: AccessTokenConnection;
     bot: Scalars["Boolean"];
+    canViewFull: Scalars["Boolean"];
+    canWrite: Scalars["Boolean"];
     completedSignup: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
@@ -1682,11 +1688,11 @@ export type UpdateUserMutation = {
     | { __typename?: "User"; id: any; name: string; description?: string | null };
 };
 
-export type OwnerBySlugQueryVariables = Exact<{
+export type CheckOwnerBySlugQueryVariables = Exact<{
   slug: Scalars["String"];
 }>;
 
-export type OwnerBySlugQuery = {
+export type CheckOwnerBySlugQuery = {
   __typename?: "Query";
   ownerBySlug?: { __typename?: "Organization"; id: any } | { __typename?: "User"; id: any } | null;
 };
@@ -1806,6 +1812,8 @@ export type ProfileHomeQuery = {
         name: string;
         description?: string | null;
         createdAt: any;
+        canViewFull: boolean;
+        canWrite: boolean;
         projects: {
           __typename?: "ProjectConnection";
           totalCount?: number | null;
@@ -1834,6 +1842,8 @@ export type ProfileHomeQuery = {
         bot: boolean;
         description?: string | null;
         createdAt: any;
+        canViewFull: boolean;
+        canWrite: boolean;
         projects: {
           __typename?: "ProjectConnection";
           totalCount?: number | null;
@@ -1870,6 +1880,8 @@ export type SettingsQuery = {
         name: string;
         createdAt: any;
         updatedAt: any;
+        canViewFull: boolean;
+        canWrite: boolean;
         members: { __typename?: "UserConnection"; totalCount?: number | null };
         accessTokens: { __typename?: "AccessTokenConnection"; totalCount?: number | null };
       }
@@ -1882,6 +1894,8 @@ export type SettingsQuery = {
         bot: boolean;
         createdAt: any;
         updatedAt: any;
+        canViewFull: boolean;
+        canWrite: boolean;
         accessTokens: { __typename?: "AccessTokenConnection"; totalCount?: number | null };
       }
     | null;
@@ -4276,13 +4290,13 @@ export const UpdateUserDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
-export const OwnerBySlugDocument = {
+export const CheckOwnerBySlugDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "ownerBySlug" },
+      name: { kind: "Name", value: "checkOwnerBySlug" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -4329,7 +4343,7 @@ export const OwnerBySlugDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<OwnerBySlugQuery, OwnerBySlugQueryVariables>;
+} as unknown as DocumentNode<CheckOwnerBySlugQuery, CheckOwnerBySlugQueryVariables>;
 export const ProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -4689,6 +4703,8 @@ export const ProfileHomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "bot" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "projects" },
@@ -4750,6 +4766,8 @@ export const ProfileHomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "projects" },
@@ -4851,6 +4869,8 @@ export const SettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "bot" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "accessTokens" },
@@ -4889,6 +4909,8 @@ export const SettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "members" },

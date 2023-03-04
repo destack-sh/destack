@@ -8,7 +8,7 @@ import NotificationArea from "@/components/container/NotificationArea.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
-import { CakeIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
+import { CakeIcon, Cog8ToothIcon, GlobeAltIcon, LockClosedIcon, PencilIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, watchEffect } from "vue";
@@ -27,6 +27,8 @@ const { result: profileResult, loading } = useQuery(
           bot
           description
           createdAt
+          canViewFull
+          canWrite
           projects {
             totalCount
             edges {
@@ -53,6 +55,8 @@ const { result: profileResult, loading } = useQuery(
           name
           description
           createdAt
+          canViewFull
+          canWrite
           projects {
             totalCount
             edges {
@@ -119,11 +123,16 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       <div class="flex w-80 flex-col gap-2">
         <!-- Name / username -->
         <div class="border-b-2 border-gray-200 pb-2">
-          <h1 class="flex max-w-full flex-row items-baseline gap-2 text-gray-900">
-            <span class="truncate text-2xl font-bold">{{ user?.name || organization?.name }}</span>
-            <span class="rounded-md bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900">
-              {{ profile.__typename == "User" ? (user?.bot ? "AI" : "Human") : "Organization" }}
+          <h1 class="flex max-w-full flex-row items-center gap-2 text-gray-900">
+            <span class="flex flex-row items-baseline gap-2">
+              <span class="truncate text-2xl font-bold">{{ user?.name || organization?.name }}</span>
+              <span class="rounded-md bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900">
+                {{ profile.__typename == "User" ? (user?.bot ? "AI" : "Human") : "Organization" }}
+              </span>
             </span>
+            <router-link :to="`/settings/${profile.slug}`" v-if="profile.canViewFull">
+              <Cog8ToothIcon class="h-6 w-6 text-gray-400 hover:text-gray-700" />
+            </router-link>
           </h1>
           <h2 class="text-xl text-gray-700">
             {{ profile.slug }}
