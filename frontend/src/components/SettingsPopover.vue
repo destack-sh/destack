@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel, Switch } from "@headlessui/vue";
-import { BellSlashIcon, BellSnoozeIcon, CalculatorIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
+import { BellSlashIcon, CalculatorIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
 
 const editor = useEditorState();
 const actions = useActions();
@@ -47,14 +47,14 @@ const actions = useActions();
             v-model="editor.textSmall"
             :class="[
               editor.textSmall ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
+              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
             ]"
           >
             <span
               aria-hidden="true"
               :class="[
                 editor.textSmall ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out',
+                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
               ]"
             />
           </Switch>
@@ -69,14 +69,14 @@ const actions = useActions();
             v-model="editor.showLineNumbers"
             :class="[
               editor.showLineNumbers ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
+              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
             ]"
           >
             <span
               aria-hidden="true"
               :class="[
                 editor.showLineNumbers ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out',
+                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
               ]"
             />
           </Switch>
@@ -92,14 +92,14 @@ const actions = useActions();
             v-model="editor.darkMode"
             :class="[
               editor.darkMode ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
+              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
             ]"
           >
             <span
               aria-hidden="true"
               :class="[
                 editor.darkMode ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out',
+                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
               ]"
             />
           </Switch>
@@ -115,14 +115,14 @@ const actions = useActions();
             @update:model-value="actions.apply('editor.zenMode')"
             :class="[
               editor.zenMode ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
+              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
             ]"
           >
             <span
               aria-hidden="true"
               :class="[
                 editor.zenMode ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out',
+                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
               ]"
             />
           </Switch>

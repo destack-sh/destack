@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
-import { AccessTokenScope } from "@/gql/graphql";
+import { AccessTokenScope, AccessTokenStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
+import { Switch } from "@headlessui/vue";
 import { PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { useClipboard } from "@vueuse/core";
@@ -156,12 +157,31 @@ async function revokeAccessToken(token: { id: string }) {
     });
   }
 }
-
 const { getTimeFromNowLongString } = useTimeFromNow();
 </script>
 <template>
   <div class="h-full w-full">
-    <p class="text-gray-900">Access tokens let you connect to Bench from other applications.</p>
+    <div class="flex flex-row items-baseline justify-between">
+      <p class="text-gray-900">Access tokens let you connect to Bench from other applications.</p>
+      <span class="text-gray-500">
+        Show inactive
+        <Switch
+          v-model="showInactive"
+          :class="[
+            showInactive ? 'bg-orange-600' : 'bg-gray-200',
+            'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
+          ]"
+        >
+          <span
+            aria-hidden="true"
+            :class="[
+              showInactive ? 'translate-x-5' : 'translate-x-0',
+              'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
+            ]"
+          />
+        </Switch>
+      </span>
+    </div>
 
     <table class="mt-3 min-w-full divide-y divide-gray-300 rounded-sm border border-gray-200 bg-white">
       <thead>
@@ -206,7 +226,11 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           </td>
           <td class="px-3 text-gray-900">{{ getTimeFromNowLongString(token.createdAt) }}</td>
           <td>
-            <button class="text-gray-300 group-hover:text-gray-500" @click="revokeAccessToken(token)">
+            <button
+              v-if="token.status == AccessTokenStatus.Active"
+              class="text-gray-300 group-hover:text-gray-500"
+              @click="revokeAccessToken(token)"
+            >
               <TrashIcon class="h-4 w-4 hover:text-red-600" />
             </button>
           </td>
