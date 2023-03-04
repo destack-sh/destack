@@ -5,7 +5,11 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 
-from bench.models.organization import Organization, OrganizationMembership
+from bench.models.organization import (
+    Organization,
+    OrganizationMembership,
+    OrganizationMembershipLevel,
+)
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
@@ -77,7 +81,7 @@ class User(AbstractUser, UUIDModel):
     def join_organization(
         self,
         organization: Organization,
-        level: OrganizationMembership.Level = OrganizationMembership.Level.Member,
+        level: OrganizationMembershipLevel = OrganizationMembershipLevel.Member,
     ) -> OrganizationMembership:
         membership = OrganizationMembership.objects.create(
             user=self, organization=organization, level=level

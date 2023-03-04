@@ -228,12 +228,12 @@ def can_write_project(user: User, obj: Any) -> bool:
         obj = obj.project
     if not isinstance(obj, models.Project):
         raise ValueError(f"CanWriteProject cannot be used on {obj}")
-    from bench.models import OrganizationMembership  # avoid circular import
+    from bench.models import OrganizationMembershipLevel  # avoid circular import
 
     is_org_member = (
         obj.organization_id is not None
         and obj.organization.memberships.filter(
-            user_id=user.id, level__gte=OrganizationMembership.Level.Member
+            user_id=user.id, level__gte=OrganizationMembershipLevel.Member
         ).exists()
     )
     is_owner = obj.user_id is not None and obj.user_id == user.id
@@ -308,13 +308,13 @@ class CanWriteProject(CanViewProject):
 
 
 def is_owner_or_member(user: User, owner: Union["User", "Organization"]) -> bool:
-    from bench.models import OrganizationMembership  # avoid circular import
+    from bench.models import OrganizationMembershipLevel  # avoid circular import
 
     return owner.id == user.id or (
         user.id is not None
         and isinstance(owner, Organization)
         and owner.memberships.filter(
-            user_id=user.id, level__gte=OrganizationMembership.Level.Member
+            user_id=user.id, level__gte=OrganizationMembershipLevel.Member
         ).exists()
     )
 
@@ -332,12 +332,12 @@ def check_can_view_full_organization(info: Info, obj: "Organization") -> None:
 
 
 def can_write_organization(user: User, obj: "Organization") -> bool:
-    from bench.models import OrganizationMembership  # avoid circular import
+    from bench.models import OrganizationMembershipLevel  # avoid circular import
 
     if user.is_authenticated and user.is_staff:
         return True
     return obj.memberships.filter(
-        user_id=user.id, level__gte=OrganizationMembership.Level.Administrator
+        user_id=user.id, level__gte=OrganizationMembershipLevel.Administrator
     ).exists()
 
 

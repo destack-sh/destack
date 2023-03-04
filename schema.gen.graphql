@@ -447,14 +447,6 @@ enum JobType {
   EVALUATE
 }
 
-enum Level {
-  Guest
-  Member
-  Author
-  Administrator
-  Owner
-}
-
 type ModuleRuntime {
   updatedAt: DateTime!
   module: InterpModule!
@@ -668,7 +660,7 @@ type OrganizationInvite implements Node {
   organization: Organization!
   user: User!
   email: String!
-  level: Level!
+  level: OrganizationMembershipLevel!
   createdAt: DateTime!
   updatedAt: DateTime!
   emailSentAt: DateTime
@@ -698,7 +690,7 @@ type OrganizationInviteEdge {
 input OrganizationInviteInput {
   id: GlobalID!
   emails: [String!]!
-  level: Level!
+  level: OrganizationMembershipLevel!
   message: String!
 }
 
@@ -706,7 +698,7 @@ type OrganizationMembership implements Node {
   id: GlobalID!
   organization: NodeType!
   user: User!
-  level: Level!
+  level: OrganizationMembershipLevel!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -732,6 +724,14 @@ type OrganizationMembershipEdge {
   node: OrganizationMembership!
 }
 
+enum OrganizationMembershipLevel {
+  Guest
+  Member
+  Author
+  Administrator
+  Owner
+}
+
 union OrganizationMembershipOperationInfo = OrganizationMembership | OperationInfo
 
 union OrganizationOperationInfo = Organization | OperationInfo
@@ -750,7 +750,7 @@ input OrganizationUpdateInput {
 input OrganizationUpdateMembershipInput {
   id: GlobalID!
   userId: GlobalID!
-  level: Level!
+  level: OrganizationMembershipLevel!
 }
 
 union OrganizationUser = Organization | User
@@ -973,10 +973,38 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): User
+  users(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: UserFilter
+  ): UserConnection!
+  userBySlug(username: String!): User
   organization(
     """The ID of the object."""
     id: GlobalID!
   ): Organization
+  organizations(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): OrganizationConnection!
   organizationBySlug(organization: String!): Organization
   ownerBySlug(slug: String!): UserOrganization
   project(
@@ -1430,6 +1458,11 @@ type UserEdge {
 
   """The item at the end of the edge"""
   node: User!
+}
+
+input UserFilter {
+  slugPrefix: String
+  emailEquals: String
 }
 
 union UserOperationInfo = User | OperationInfo
