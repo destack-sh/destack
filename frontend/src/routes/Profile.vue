@@ -25,6 +25,7 @@ const { result: profileResult, loading } = useQuery(
           name
           username
           bot
+          description
           createdAt
           projects {
             totalCount
@@ -50,6 +51,7 @@ const { result: profileResult, loading } = useQuery(
           id
           slug
           name
+          description
           createdAt
           projects {
             totalCount

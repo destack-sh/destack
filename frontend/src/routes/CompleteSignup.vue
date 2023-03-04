@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
+import { useValidName, useValidSlug } from "@/composables/useValidation";
 import { graphql } from "@/gql";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useOperations } from "@/state/operations";
@@ -20,23 +21,23 @@ const router = useRouter();
 
 useRedirectIfNotLoggedIn({ name: "Home" });
 
-const name: Ref<string | null> = ref(auth.me.value?.firstName || null);
+const name: Ref<string | null> = ref(auth.me.value?.name || null);
 const username: Ref<string | null> = ref(auth.me.value?.username || null);
 // set name/username once when is loaded (can only get here if logged in)
 watchEffect(() => {
   if (auth.me.value != null && name.value == null) {
     username.value = auth.me.value.username;
-    name.value = auth.me.value.firstName;
+    name.value = auth.me.value.name;
   }
 });
 
 // auto-fill on tab
 function autofillName(event: KeyboardEvent) {
   if (
-    name.value != auth.me.value?.firstName &&
-    (name.value?.length == 0 || auth.me.value?.firstName.startsWith(name.value ?? ""))
+    name.value != auth.me.value?.name &&
+    (name.value?.length == 0 || auth.me.value?.name.startsWith(name.value ?? ""))
   ) {
-    name.value = auth.me.value?.firstName as string;
+    name.value = auth.me.value?.name as string;
     event.stopPropagation();
     event.preventDefault();
   }
@@ -53,27 +54,8 @@ function autofillUsername(event: KeyboardEvent) {
 }
 
 // valid names just need to be >= 2 characters
-const isValidName = computed(() => (name.value?.length ?? 0) >= 2);
-const isValidSlug = computed(() => /^[a-z0-9_-]{3,}$/.test(username.value ?? "") && (username.value?.length ?? 0 >= 4));
-const isAvailableSlug = computed(() => slugOwner.value == null || slugOwner.value.ownerBySlug?.id == auth.me.value?.id);
-
-const { result: slugOwner, loading: slugOwnerLoading } = useQuery(
-  graphql(/* GraphQL */ `
-    query ownerBySlug($slug: String!) {
-      ownerBySlug(slug: $slug) {
-        ... on Organization {
-          id
-        }
-        ... on User {
-          id
-        }
-      }
-    }
-  `),
-  computed(() => ({
-    slug: username.value || "",
-  }))
-);
+const nameValidation = useValidName(name);
+const slugValidation = useValidSlug(username, auth.me);
 
 // auto-focus name on load
 const nameRef: Ref<HTMLInputElement | null> = ref(null);
@@ -85,7 +67,12 @@ onMounted(() => {
 
 const completing = ref(false);
 const canComplete = computed(
-  () => !completing.value && isValidName.value && isValidSlug.value && !slugOwnerLoading.value && isAvailableSlug.value
+  () =>
+    !completing.value &&
+    nameValidation.valid.value &&
+    slugValidation.valid.value &&
+    !slugValidation.loading.value &&
+    slugValidation.available.value
 );
 
 const ops = useOperations();
@@ -129,14 +116,16 @@ async function completeSignup() {
             type="text"
             minlength="3"
             maxlength="128"
-            :placeholder="auth.me.value?.firstName || 'Yatima'"
+            :placeholder="auth.me.value?.name || 'Yatima'"
             v-model="name"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
             @keydown.tab.exact="autofillName"
             spellcheck="false"
           />
           <FadeTransition mode="out-in">
-            <span class="mt-1 text-sm text-yellow-500" v-if="!isValidName">That's not a name we can print.</span>
+            <span class="mt-1 text-sm text-yellow-500" v-if="!nameValidation.valid.value"
+              >The bots don't like this name.</span
+            >
             <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>
           </FadeTransition>
         </div>
@@ -156,11 +145,11 @@ async function completeSignup() {
             spellcheck="false"
           />
           <FadeTransition mode="out-in">
-            <span v-if="!isValidSlug" class="mt-1 text-sm text-orange-600">
+            <span v-if="!slugValidation.valid.value" class="mt-1 text-sm text-orange-600">
               Invalid username. <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
             </span>
-            <span v-else-if="slugOwnerLoading" class="mt-1">&nbsp;</span>
-            <span v-else-if="!isAvailableSlug" class="mt-1 text-sm text-red-600">
+            <span v-else-if="slugValidation.loading.value" class="mt-1">&nbsp;</span>
+            <span v-else-if="!slugValidation.available.value" class="mt-1 text-sm text-red-600">
               That username is
               <router-link
                 :to="`/${username}`"

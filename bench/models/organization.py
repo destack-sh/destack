@@ -4,6 +4,7 @@ from django.db import models, transaction
 
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
+from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 
 class OrganizationManager(models.Manager["Organization"]):
@@ -31,6 +32,9 @@ class Organization(UUIDModel):
         related_name="organization",
     )
     owner_slug_id: Optional[str]  # noqa via Statement.reference
+    description: models.CharField = models.CharField(
+        max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
+    )
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 

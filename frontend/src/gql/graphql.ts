@@ -70,6 +70,10 @@ export type AccessTokenEdge = {
   node: AccessToken;
 };
 
+export type AccessTokenFilter = {
+  includeInactive?: InputMaybe<Scalars["Boolean"]>;
+};
+
 export type AccessTokenOperationInfo = AccessToken | OperationInfo;
 
 export enum AccessTokenScope {
@@ -495,6 +499,7 @@ export type Mutation = {
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   updateDeployment: DeploymentOperationInfo;
+  updateOrganization: OrganizationOperationInfo;
   updateProjectName: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
@@ -506,6 +511,7 @@ export type Mutation = {
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
+  updateUser: UserOperationInfo;
 };
 
 export type MutationAddDeployedStatementArgs = {
@@ -628,6 +634,10 @@ export type MutationUpdateDeploymentArgs = {
   input: DeployInput;
 };
 
+export type MutationUpdateOrganizationArgs = {
+  input: OrganizationUpdateInput;
+};
+
 export type MutationUpdateProjectNameArgs = {
   input: ProjectUpdateNameInput;
 };
@@ -670,6 +680,10 @@ export type MutationUpdateStatementTextArgs = {
 
 export type MutationUpdateStatementTypeNodeArgs = {
   input: TypeNodeUpdateInput;
+};
+
+export type MutationUpdateUserArgs = {
+  input: UserUpdateInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -721,6 +735,7 @@ export type Organization = Node &
     __typename?: "Organization";
     accessTokens: AccessTokenConnection;
     createdAt: Scalars["DateTime"];
+    description?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
     members: UserConnection;
     name: Scalars["String"];
@@ -732,6 +747,7 @@ export type Organization = Node &
 export type OrganizationAccessTokensArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<AccessTokenFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -768,6 +784,14 @@ export type OrganizationEdge = {
   cursor: Scalars["String"];
   /** The item at the end of the edge */
   node: Organization;
+};
+
+export type OrganizationOperationInfo = OperationInfo | Organization;
+
+export type OrganizationUpdateInput = {
+  description: Scalars["String"];
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
 };
 
 export type OrganizationUser = Organization | User;
@@ -1374,6 +1398,7 @@ export type User = Node &
     bot: Scalars["Boolean"];
     completedSignup: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
+    description?: Maybe<Scalars["String"]>;
     email: Scalars["String"];
     id: Scalars["GlobalID"];
     name: Scalars["String"];
@@ -1388,6 +1413,7 @@ export type User = Node &
 export type UserAccessTokensArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<AccessTokenFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -1435,6 +1461,12 @@ export type UserEdge = {
 export type UserOperationInfo = OperationInfo | User;
 
 export type UserOrganization = Organization | User;
+
+export type UserUpdateInput = {
+  description: Scalars["String"];
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+};
 
 export type ProjectDeploymentsQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
@@ -1509,6 +1541,7 @@ export type ProjectVersionsQuery = {
 
 export type ProfileAccessTokensQueryVariables = Exact<{
   slug: Scalars["String"];
+  includeInactive: Scalars["Boolean"];
 }>;
 
 export type ProfileAccessTokensQuery = {
@@ -1607,6 +1640,57 @@ export type RevokeAccessTokenMutation = {
       });
 };
 
+export type ProfileSettingsQueryVariables = Exact<{
+  slug: Scalars["String"];
+}>;
+
+export type ProfileSettingsQuery = {
+  __typename?: "Query";
+  ownerBySlug?:
+    | { __typename?: "Organization"; id: any; slug: string; name: string; description?: string | null }
+    | { __typename?: "User"; id: any; slug: string; name: string; username: string; description?: string | null }
+    | null;
+};
+
+export type UpdateOrganizationMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  description: Scalars["String"];
+}>;
+
+export type UpdateOrganizationMutation = {
+  __typename?: "Mutation";
+  updateOrganization:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Organization"; id: any; name: string; description?: string | null };
+};
+
+export type UpdateUserMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  description: Scalars["String"];
+}>;
+
+export type UpdateUserMutation = {
+  __typename?: "Mutation";
+  updateUser:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "User"; id: any; name: string; description?: string | null };
+};
+
+export type OwnerBySlugQueryVariables = Exact<{
+  slug: Scalars["String"];
+}>;
+
+export type OwnerBySlugQuery = {
+  __typename?: "Query";
+  ownerBySlug?: { __typename?: "Organization"; id: any } | { __typename?: "User"; id: any } | null;
+};
+
 export type ProjectBySlugQueryVariables = Exact<{
   owner: Scalars["String"];
   project: Scalars["String"];
@@ -1643,15 +1727,6 @@ export type ProjectVersionContentQuery = {
       }>;
     };
   } | null;
-};
-
-export type OwnerBySlugQueryVariables = Exact<{
-  slug: Scalars["String"];
-}>;
-
-export type OwnerBySlugQuery = {
-  __typename?: "Query";
-  ownerBySlug?: { __typename?: "Organization"; id: any } | { __typename?: "User"; id: any } | null;
 };
 
 export type ExistingProjectBySlugQueryVariables = Exact<{
@@ -1729,6 +1804,7 @@ export type ProfileHomeQuery = {
         id: any;
         slug: string;
         name: string;
+        description?: string | null;
         createdAt: any;
         projects: {
           __typename?: "ProjectConnection";
@@ -1756,6 +1832,7 @@ export type ProfileHomeQuery = {
         name: string;
         username: string;
         bot: boolean;
+        description?: string | null;
         createdAt: any;
         projects: {
           __typename?: "ProjectConnection";
@@ -1779,11 +1856,11 @@ export type ProfileHomeQuery = {
     | null;
 };
 
-export type ProfileSettingsQueryVariables = Exact<{
+export type SettingsQueryVariables = Exact<{
   slug: Scalars["String"];
 }>;
 
-export type ProfileSettingsQuery = {
+export type SettingsQuery = {
   __typename?: "Query";
   ownerBySlug?:
     | {
@@ -3648,6 +3725,11 @@ export const ProfileAccessTokensDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "includeInactive" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -3675,6 +3757,22 @@ export const ProfileAccessTokensDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "accessTokens" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "includeInactive" },
+                                  value: { kind: "Variable", name: { kind: "Name", value: "includeInactive" } },
+                                },
+                              ],
+                            },
+                          },
+                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
@@ -3722,6 +3820,22 @@ export const ProfileAccessTokensDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "accessTokens" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "includeInactive" },
+                                  value: { kind: "Variable", name: { kind: "Name", value: "includeInactive" } },
+                                },
+                              ],
+                            },
+                          },
+                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
@@ -3935,6 +4049,287 @@ export const RevokeAccessTokenDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RevokeAccessTokenMutation, RevokeAccessTokenMutationVariables>;
+export const ProfileSettingsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "profileSettings" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "ownerBySlug" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "slug" },
+                value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProfileSettingsQuery, ProfileSettingsQueryVariables>;
+export const UpdateOrganizationDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateOrganization" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateOrganization" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateOrganizationMutation, UpdateOrganizationMutationVariables>;
+export const UpdateUserDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateUser" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateUser" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
+export const OwnerBySlugDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "ownerBySlug" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "ownerBySlug" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "slug" },
+                value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<OwnerBySlugQuery, OwnerBySlugQueryVariables>;
 export const ProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -4077,60 +4472,6 @@ export const ProjectVersionContentDocument = {
     ...FileHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
-export const OwnerBySlugDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "ownerBySlug" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "ownerBySlug" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "slug" },
-                value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<OwnerBySlugQuery, OwnerBySlugQueryVariables>;
 export const ExistingProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -4346,6 +4687,7 @@ export const ProfileHomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "username" } },
                       { kind: "Field", name: { kind: "Name", value: "bot" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       {
                         kind: "Field",
@@ -4406,6 +4748,7 @@ export const ProfileHomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "slug" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       {
                         kind: "Field",
@@ -4465,13 +4808,13 @@ export const ProfileHomeDocument = {
     },
   ],
 } as unknown as DocumentNode<ProfileHomeQuery, ProfileHomeQueryVariables>;
-export const ProfileSettingsDocument = {
+export const SettingsDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "profileSettings" },
+      name: { kind: "Name", value: "settings" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -4511,6 +4854,22 @@ export const ProfileSettingsDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "accessTokens" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "includeInactive" },
+                                  value: { kind: "BooleanValue", value: false },
+                                },
+                              ],
+                            },
+                          },
+                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "totalCount" } }],
@@ -4541,6 +4900,22 @@ export const ProfileSettingsDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "accessTokens" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "includeInactive" },
+                                  value: { kind: "BooleanValue", value: false },
+                                },
+                              ],
+                            },
+                          },
+                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "totalCount" } }],
@@ -4556,7 +4931,7 @@ export const ProfileSettingsDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<ProfileSettingsQuery, ProfileSettingsQueryVariables>;
+} as unknown as DocumentNode<SettingsQuery, SettingsQueryVariables>;
 export const MeDocument = {
   kind: "Document",
   definitions: [

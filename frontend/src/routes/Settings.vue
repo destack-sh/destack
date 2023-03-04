@@ -6,6 +6,7 @@ import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import SettingsAccessTokens from "@/components/settings/SettingsAccessTokens.vue";
+import SettingsProfile from "@/components/settings/SettingsProfile.vue";
 import { graphql } from "@/gql";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import {
@@ -26,9 +27,9 @@ import { useRouter } from "vue-router";
 
 const props = defineProps<{ owner: string }>();
 
-const { result: profileResult, loading } = useQuery(
+const { result: settingsResult, loading } = useQuery(
   graphql(/* GraphQL */ `
-    query profileSettings($slug: String!) {
+    query settings($slug: String!) {
       ownerBySlug(slug: $slug) {
         ... on User {
           id
@@ -38,7 +39,7 @@ const { result: profileResult, loading } = useQuery(
           bot
           createdAt
           updatedAt
-          accessTokens {
+          accessTokens(filters: { includeInactive: false }) {
             totalCount
           }
         }
@@ -51,7 +52,7 @@ const { result: profileResult, loading } = useQuery(
           members {
             totalCount
           }
-          accessTokens {
+          accessTokens(filters: { includeInactive: false }) {
             totalCount
           }
         }
@@ -60,7 +61,7 @@ const { result: profileResult, loading } = useQuery(
   `),
   computed(() => ({ slug: props.owner }))
 );
-const profile = computed(() => profileResult.value?.ownerBySlug);
+const profile = computed(() => settingsResult.value?.ownerBySlug);
 const user = computed(() => (profile.value?.__typename === "User" ? profile.value : null));
 const organization = computed(() => (profile.value?.__typename === "Organization" ? profile.value : null));
 
@@ -91,6 +92,7 @@ const tabs = computed(() => {
       id: "profile",
       name: "Profile",
       icon: UserCircleIcon,
+      component: SettingsProfile,
     },
   ];
   if (user.value != null) {
@@ -98,11 +100,6 @@ const tabs = computed(() => {
       id: "account",
       name: "Account",
       icon: CogIcon,
-    });
-    tabs.push({
-      id: "notifications",
-      name: "Notifications",
-      icon: BellIcon,
       disabled: true,
     });
   } else {
@@ -115,6 +112,12 @@ const tabs = computed(() => {
       count: organization.value?.members.totalCount ?? 0,
     });
   }
+  tabs.push({
+    id: "notifications",
+    name: "Notifications",
+    icon: BellIcon,
+    disabled: true,
+  });
   tabs.push({
     id: "access-tokens",
     name: "Access tokens",
@@ -134,6 +137,7 @@ const tabs = computed(() => {
     name: "Integrations",
     icon: LinkIcon,
     disabled: true,
+    count: 0,
   });
   tabs.push({
     id: "plan",

@@ -2,14 +2,16 @@ from typing import TYPE_CHECKING, Annotated
 
 from strawberry import auto, lazy
 from strawberry_django_plus import gql
+from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CanViewProject, CanWriteOrganization
-from bench.api.owner import Owner
+from bench.api.auth import CanViewProject, CanWriteOrganization, check_can_write_organization
+from bench.api.owner import AccessTokenFilter, Owner
+from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
-    from bench.api.auth import AccessToken
     from bench.api.project import Project
+    from bench.api.token import AccessToken
     from bench.api.user import User
 
 
@@ -18,19 +20,42 @@ class Organization(gql.relay.Node, Owner):
     name: auto
     created_at: auto
     updated_at: auto
+    description: auto
     members: gql.relay.Connection[Annotated["User", lazy(".user")]] = gql.django.connection()
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
         directives=[CanViewProject(at_root=False)]
     )
     access_tokens: gql.relay.Connection[
-        Annotated["AccessToken", lazy(".auth")]
-    ] = gql.django.connection(directives=[CanWriteOrganization(at_root=False)])
+        Annotated["AccessToken", lazy(".token")]
+    ] = gql.django.connection(
+        filters=AccessTokenFilter, directives=[CanWriteOrganization(at_root=False)]
+    )
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
         return self.owner_slug_id
 
 
+@gql.input
+class OrganizationUpdateInput(gql.NodeInput):
+    name: str
+    description: str
+
+
+@gql.input
+class OrganizationRenameInput(gql.NodeInput):
+    slug: str
+
+
 @gql.type
 class OrganizationMutation:
-    pass
+    @safe_mutation
+    def update_organization(
+        self, info, input: OrganizationUpdateInput
+    ) -> Organization | OperationInfo:
+        organization = models.Organization.objects.get(id=input.id.node_id)
+        check_can_write_organization(info, organization)
+        organization.name = input.name
+        organization.description = input.description
+        organization.save()
+        return organization

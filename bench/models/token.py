@@ -117,6 +117,7 @@ class AccessToken(UUIDModel):
     objects = AccessTokenManager()
 
     class Meta:
+        ordering = ["-created_at"]
         constraints = [
             # at least one of organization or user must be set
             models.CheckConstraint(

@@ -8,6 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from bench.models.organization import Organization, OrganizationMembership
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
+from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 
 class UserManager(BaseUserManager["User"]):
@@ -42,6 +43,9 @@ class User(AbstractUser, UUIDModel):
     owner_slug_id: Optional[str]  # noqa via Statement.reference
     completed_signup: models.BooleanField = models.BooleanField(default=False)
     bot: models.BooleanField = models.BooleanField(default=False)
+    description: models.CharField = models.CharField(
+        max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
+    )
 
     projects: models.QuerySet["Project"]  # noqa via Project.user
 

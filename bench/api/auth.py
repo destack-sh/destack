@@ -1,17 +1,7 @@
 import abc
 import dataclasses
 import functools
-from datetime import datetime
-from typing import (
-    Annotated,
-    Any,
-    Callable,
-    Iterable,
-    Optional,
-    Self,
-    Union,
-    cast,
-)
+from typing import Any, Callable, Iterable, Self, Union, cast
 
 import strawberry
 import structlog
@@ -19,13 +9,12 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Model, Q, QuerySet
 from graphql import GraphQLResolveInfo
 from social_django.strategy import DjangoStrategy
-from strawberry import Private, lazy
+from strawberry import Private
 from strawberry.channels import StrawberryChannelsContext
 from strawberry.schema_directive import Location
 from strawberry.types import Info
-from strawberry_django_plus import field, gql, permissions
+from strawberry_django_plus import field, permissions
 from strawberry_django_plus.directives import SchemaDirectiveHelper
-from strawberry_django_plus.gql import auto
 from strawberry_django_plus.permissions import (
     AuthDirective,
     _user_ensured_attr,
@@ -35,12 +24,11 @@ from strawberry_django_plus.permissions import (
     running_checks,
     set_perm_safe,
 )
-from strawberry_django_plus.relay import Connection, GlobalID
+from strawberry_django_plus.relay import Connection
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
-from bench.api.util import safe_mutation
 from bench.models import Organization, User
 
 logger = structlog.get_logger(__name__)
@@ -319,10 +307,22 @@ def can_write_organization(user: User, obj: "Organization") -> bool:
     return obj.members.filter(id=user.id).exists()
 
 
+def check_can_write_organization(info: Info, obj: "Organization") -> None:
+    user = cast(User, info.context.request.scope["user"]._wrapped)
+    if not can_write_organization(user, obj):
+        raise PermissionDenied("User cannot write to this.")
+
+
 def can_write_user(user: User, obj: User) -> bool:
     if user.is_authenticated and user.is_staff:
         return True
     return user.id == obj.id
+
+
+def check_can_write_user(info: Info, obj: User) -> None:
+    user = cast(User, info.context.request.scope["user"]._wrapped)
+    if not can_write_user(user, obj):
+        raise PermissionDenied("User cannot write to this.")
 
 
 @strawberry.schema_directive(
@@ -382,60 +382,3 @@ def is_owner_or_member(user: User, owner: Union["User", "Organization"]) -> bool
         and isinstance(owner, Organization)
         and owner.members.filter(id=user.id).exists()
     )
-
-
-AccessTokenScope = gql.enum(models.AccessTokenScope)
-AccessTokenStatus = gql.enum(models.AccessTokenStatus)
-
-
-@gql.django.type(models.AccessToken)
-class AccessToken(gql.Node):
-    token: Optional[str]
-    name: auto
-    token_key: str
-    created_at: auto
-    updated_at: auto
-    expires_at: auto
-    revoked_at: auto
-    status: AccessTokenStatus
-    scopes: list[AccessTokenScope]
-    owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
-
-
-@gql.input
-class AccessTokenCreateInput:
-    owner_id: GlobalID
-    scopes: list[AccessTokenScope]
-    expires_at: Optional[datetime] = None
-    name: Optional[str] = None
-
-
-@gql.type
-class AccessTokenCreatePayload:
-    access_token: AccessToken
-    token: str
-
-
-@gql.type
-class AccessTokenMutation:
-    @safe_mutation
-    def create_access_token(
-        self, info, input: AccessTokenCreateInput
-    ) -> AccessTokenCreatePayload | OperationInfo:
-        requesting_user = info.context.request.scope["user"]
-        owner = input.owner_id.resolve_node(info, required=True)
-        if not is_owner_or_member(requesting_user, owner):
-            raise PermissionDenied("cannot create access token for this owner")
-        access_token, raw_token = models.AccessToken.objects.create_token(
-            owner=owner, scopes=input.scopes, expires_at=input.expires_at, name=input.name
-        )
-        return AccessTokenCreatePayload(access_token=access_token, token=raw_token)
-
-    @safe_mutation
-    def revoke_access_token(self, info, id: GlobalID) -> AccessToken | OperationInfo:
-        requesting_user = info.context.request.scope["user"]
-        access_token = models.AccessToken.objects.get(id=id.node_id)
-        if not is_owner_or_member(requesting_user, access_token.owner):
-            raise PermissionDenied("cannot revoke access token for this owner")
-        access_token.revoke()
-        return access_token
