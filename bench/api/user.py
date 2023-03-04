@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 from asgiref.sync import async_to_sync
 from channels.auth import logout as channels_logout
@@ -10,7 +10,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CanViewProject, CanWriteUser, check_can_write_user
+from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_can_write_user
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
 
@@ -38,6 +38,16 @@ class User(gql.relay.Node, Owner):
     access_tokens: gql.relay.Connection[
         Annotated["AccessToken", lazy(".token")]
     ] = gql.django.connection(filters=AccessTokenFilter, directives=[CanWriteUser(at_root=False)])
+
+    @gql.field
+    def can_view_full(self, info: OperationInfo):
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        return can_write_user(user, self)
+
+    @gql.field
+    def can_write(self, info: OperationInfo):
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        return can_write_user(user, self)
 
     @gql.django.field(only=["first_name"])
     def name(self) -> str:

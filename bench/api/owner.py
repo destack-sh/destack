@@ -34,3 +34,5 @@ class Owner:
     updated_at: datetime
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]]
     access_tokens: gql.relay.Connection[Annotated["AccessToken", lazy(".token")]]
+    can_view_full: bool
+    can_write: bool

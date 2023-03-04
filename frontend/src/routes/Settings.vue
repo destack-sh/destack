@@ -8,6 +8,7 @@ import NotificationArea from "@/components/container/NotificationArea.vue";
 import SettingsAccessTokens from "@/components/settings/SettingsAccessTokens.vue";
 import SettingsProfile from "@/components/settings/SettingsProfile.vue";
 import { graphql } from "@/gql";
+import { useNotifications } from "@/state/notifications";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import {
   BellIcon,
@@ -39,6 +40,8 @@ const { result: settingsResult, loading } = useQuery(
           bot
           createdAt
           updatedAt
+          canViewFull
+          canWrite
           accessTokens(filters: { includeInactive: false }) {
             totalCount
           }
@@ -49,6 +52,8 @@ const { result: settingsResult, loading } = useQuery(
           name
           createdAt
           updatedAt
+          canViewFull
+          canWrite
           members {
             totalCount
           }
@@ -65,6 +70,7 @@ const profile = computed(() => settingsResult.value?.ownerBySlug);
 const user = computed(() => (profile.value?.__typename === "User" ? profile.value : null));
 const organization = computed(() => (profile.value?.__typename === "Organization" ? profile.value : null));
 
+// sync title
 const title = useTitle();
 watchEffect(() => {
   if (profile.value == null && loading.value) {
@@ -148,8 +154,9 @@ const tabs = computed(() => {
   return tabs;
 });
 
-// sync selected settings tab with router hash
 const router = useRouter();
+
+// sync selected settings tab with router hash
 const selectedTab = ref(router.currentRoute.value.hash.replace("#", ""));
 const selectedIndex = computed(() => tabs.value.findIndex((tab) => tab.id === selectedTab.value));
 function selectTab(index: number) {
@@ -160,6 +167,20 @@ function selectTab(index: number) {
 if (selectedIndex.value < 0) {
   selectTab(0);
 }
+
+// redirect to public profile page if can't view full
+const notifications = useNotifications();
+watchEffect(() => {
+  if (profile.value != null && !profile.value.canViewFull) {
+    router.push(`/${props.owner}`);
+    notifications.show({
+      kind: "notice",
+      type: "auth.cantView",
+      message: "Can't view this",
+      description: "The robots have decreed you're not allowed there.",
+    });
+  }
+});
 </script>
 
 <template>

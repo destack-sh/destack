@@ -11,7 +11,7 @@ export function useValidSlug(slug: Ref<string | null>, me: Ref<{ id: string } | 
   const available = computed(() => owner.value == null || owner.value.ownerBySlug?.id == me.value?.id);
   const { result: owner, loading } = useQuery(
     graphql(/* GraphQL */ `
-      query ownerBySlug($slug: String!) {
+      query checkOwnerBySlug($slug: String!) {
         ownerBySlug(slug: $slug) {
           ... on Organization {
             id

@@ -338,6 +338,8 @@ class CanWriteOrganization(HasCustomPermDirective):
         return can_write_organization(user, obj)
 
     def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
+        if not user.is_authenticated:
+            return qs.none()
         return qs.filter(organization__members=user)
 
 
@@ -354,6 +356,8 @@ class CanWriteUser(HasCustomPermDirective):
         return can_write_user(user, obj)
 
     def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
+        if not user.is_authenticated:
+            return qs.none()
         return qs.filter(user__id=user.id)
 
 

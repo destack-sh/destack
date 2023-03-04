@@ -1,11 +1,16 @@
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 from strawberry import auto, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CanViewProject, CanWriteOrganization, check_can_write_organization
+from bench.api.auth import (
+    CanViewProject,
+    CanWriteOrganization,
+    can_write_organization,
+    check_can_write_organization,
+)
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
 
@@ -30,6 +35,16 @@ class Organization(gql.relay.Node, Owner):
     ] = gql.django.connection(
         filters=AccessTokenFilter, directives=[CanWriteOrganization(at_root=False)]
     )
+
+    @gql.field
+    def can_view_full(self, info: OperationInfo):
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        return can_write_organization(user, self)
+
+    @gql.field
+    def can_write(self, info: OperationInfo):
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        return can_write_organization(user, self)
 
     @gql.django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
