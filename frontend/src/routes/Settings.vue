@@ -6,6 +6,7 @@ import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import SettingsAccessTokens from "@/components/settings/SettingsAccessTokens.vue";
+import SettingsMembers from "@/components/settings/SettingsMembers.vue";
 import SettingsProfile from "@/components/settings/SettingsProfile.vue";
 import { graphql } from "@/gql";
 import { useNotifications } from "@/state/notifications";
@@ -114,8 +115,8 @@ const tabs = computed(() => {
       id: "members",
       name: "Members",
       icon: UsersIcon,
-      disabled: true,
       count: organization.value?.members.totalCount ?? 0,
+      component: SettingsMembers,
     });
   }
   tabs.push({

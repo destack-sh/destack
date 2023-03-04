@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Annotated, cast
 from django.core.exceptions import PermissionDenied
 from strawberry import auto, lazy
 from strawberry_django_plus import gql
+from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
@@ -14,7 +15,6 @@ from bench.api.auth import (
 )
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
-from bench.models import OrganizationMembership
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -29,6 +29,8 @@ class Organization(gql.relay.Node, Owner):
     updated_at: auto
     description: auto
     members: gql.relay.Connection[Annotated["User", lazy(".user")]] = gql.django.connection()
+    memberships: gql.relay.Connection["OrganizationMembership"] = gql.django.connection()
+    invites: gql.relay.Connection["OrganizationInvite"] = gql.django.connection()
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
         directives=[CanViewProject(at_root=False)]
     )
@@ -53,6 +55,29 @@ class Organization(gql.relay.Node, Owner):
         return self.owner_slug_id
 
 
+OrganizationMembershipLevel = gql.enum(models.OrganizationMembership.Level)
+
+
+@gql.django.type(models.OrganizationMembership)
+class OrganizationMembership(gql.Node):
+    organization: auto
+    user: Annotated["User", lazy(".user")]
+    level: OrganizationMembershipLevel
+    created_at: auto
+    updated_at: auto
+
+
+@gql.django.type(models.OrganizationInvite)
+class OrganizationInvite(gql.Node):
+    organization: Organization
+    user: Annotated["User", lazy(".user")]
+    email: auto
+    level: OrganizationMembershipLevel
+    created_at: auto
+    updated_at: auto
+    email_sent_at: auto
+
+
 @gql.input
 class OrganizationCreateInput:
     name: str
@@ -68,6 +93,24 @@ class OrganizationUpdateInput(gql.NodeInput):
 @gql.input
 class OrganizationRenameInput(gql.NodeInput):
     slug: str
+
+
+@gql.input
+class OrganizationInviteInput(gql.NodeInput):
+    emails: list[str]
+    level: OrganizationMembershipLevel
+    message: str
+
+
+@gql.input
+class OrganizationUpdateMembershipInput(gql.NodeInput):
+    user_id: GlobalID
+    level: OrganizationMembershipLevel
+
+
+@gql.input
+class OrganizationRemoveMembershipInput(gql.NodeInput):
+    user_id: GlobalID
 
 
 @gql.type
@@ -94,4 +137,35 @@ class OrganizationMutation:
         organization.name = input.name
         organization.description = input.description
         organization.save()
+        return organization
+
+    @safe_mutation
+    def create_organization_invites(
+        self, info, input: OrganizationInviteInput
+    ) -> Organization | OperationInfo:
+        organization = models.Organization.objects.get(id=input.id.node_id)
+        check_can_write_organization(info, organization)
+        for email in input.emails:
+            organization.create_invite(email, input.level, input.message)
+        return organization
+
+    @safe_mutation
+    def update_organization_membership(
+        self, info, input: OrganizationUpdateMembershipInput
+    ) -> OrganizationMembership | OperationInfo:
+        organization = models.Organization.objects.get(id=input.id.node_id)
+        check_can_write_organization(info, organization)
+        membership = organization.memberships.get(user_id=input.user_id.node_id)
+        membership.level = input.level
+        membership.save()
+        return membership
+
+    @safe_mutation
+    def remove_organization_membership(
+        self, info, input: OrganizationRemoveMembershipInput
+    ) -> Organization | OperationInfo:
+        organization = models.Organization.objects.get(id=input.id.node_id)
+        check_can_write_organization(info, organization)
+        membership = organization.memberships.get(user_id=input.user_id.node_id)
+        membership.delete()
         return organization

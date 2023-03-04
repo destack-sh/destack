@@ -447,6 +447,14 @@ enum JobType {
   EVALUATE
 }
 
+enum Level {
+  Guest
+  Member
+  Author
+  Administrator
+  Owner
+}
+
 type ModuleRuntime {
   updatedAt: DateTime!
   module: InterpModule!
@@ -462,6 +470,9 @@ type Mutation {
   logout: OperationInfo
   createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
+  createOrganizationInvites(input: OrganizationInviteInput!): OrganizationOperationInfo!
+  updateOrganizationMembership(input: OrganizationUpdateMembershipInput!): OrganizationMembershipOperationInfo!
+  removeOrganizationMembership(input: OrganizationRemoveMembershipInput!): OrganizationOperationInfo!
   createAccessToken(input: AccessTokenCreateInput!): AccessTokenCreatePayloadOperationInfo!
   revokeAccessToken(id: GlobalID!): AccessTokenOperationInfo!
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
@@ -598,6 +609,32 @@ type Organization implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): UserConnection!
+  memberships(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): OrganizationMembershipConnection!
+  invites(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): OrganizationInviteConnection!
 }
 
 """A connection to a list of items."""
@@ -626,12 +663,94 @@ type OrganizationEdge {
   node: Organization!
 }
 
+type OrganizationInvite implements Node {
+  id: GlobalID!
+  organization: Organization!
+  user: User!
+  email: String!
+  level: Level!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  emailSentAt: DateTime
+}
+
+"""A connection to a list of items."""
+type OrganizationInviteConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [OrganizationInviteEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type OrganizationInviteEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: OrganizationInvite!
+}
+
+input OrganizationInviteInput {
+  id: GlobalID!
+  emails: [String!]!
+  level: Level!
+  message: String!
+}
+
+type OrganizationMembership implements Node {
+  id: GlobalID!
+  organization: NodeType!
+  user: User!
+  level: Level!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type OrganizationMembershipConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [OrganizationMembershipEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type OrganizationMembershipEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: OrganizationMembership!
+}
+
+union OrganizationMembershipOperationInfo = OrganizationMembership | OperationInfo
+
 union OrganizationOperationInfo = Organization | OperationInfo
+
+input OrganizationRemoveMembershipInput {
+  id: GlobalID!
+  userId: GlobalID!
+}
 
 input OrganizationUpdateInput {
   id: GlobalID!
   name: String!
   description: String!
+}
+
+input OrganizationUpdateMembershipInput {
+  id: GlobalID!
+  userId: GlobalID!
+  level: Level!
 }
 
 union OrganizationUser = Organization | User
@@ -858,6 +977,7 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): Organization
+  organizationBySlug(organization: String!): Organization
   ownerBySlug(slug: String!): UserOrganization
   project(
     """The ID of the object."""

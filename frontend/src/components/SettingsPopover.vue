@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import Switch from "@/components/basic/Switch.vue";
 import { useActions } from "@/state/actions";
 import { useEditorState } from "@/state/editor";
-import { Popover, PopoverPanel, Switch } from "@headlessui/vue";
+import { Popover, PopoverPanel } from "@headlessui/vue";
 import { BellSlashIcon, CalculatorIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
 
 const editor = useEditorState();
@@ -43,21 +44,7 @@ const actions = useActions();
             <MinusCircleIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Small text</span>
           </span>
-          <Switch
-            v-model="editor.textSmall"
-            :class="[
-              editor.textSmall ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
-            ]"
-          >
-            <span
-              aria-hidden="true"
-              :class="[
-                editor.textSmall ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
-              ]"
-            />
-          </Switch>
+          <Switch v-model="editor.textSmall" />
         </div>
         <!-- Line numbers -->
         <div class="flex flex-row items-center justify-between px-2 py-1">
@@ -65,21 +52,7 @@ const actions = useActions();
             <CalculatorIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Line numbers</span>
           </span>
-          <Switch
-            v-model="editor.showLineNumbers"
-            :class="[
-              editor.showLineNumbers ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
-            ]"
-          >
-            <span
-              aria-hidden="true"
-              :class="[
-                editor.showLineNumbers ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
-              ]"
-            />
-          </Switch>
+          <Switch v-model="editor.showLineNumbers" />
         </div>
         <!-- Dark mode -->
         <div class="py--1 flex flex-row items-center justify-between px-2">
@@ -87,22 +60,7 @@ const actions = useActions();
             <MoonIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Dark mode (soon)</span>
           </span>
-          <Switch
-            disabled
-            v-model="editor.darkMode"
-            :class="[
-              editor.darkMode ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
-            ]"
-          >
-            <span
-              aria-hidden="true"
-              :class="[
-                editor.darkMode ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
-              ]"
-            />
-          </Switch>
+          <Switch disabled v-model="editor.darkMode" />
         </div>
         <!-- Zen mode -->
         <div class="flex flex-row items-center justify-between px-2 py-1">
@@ -110,22 +68,7 @@ const actions = useActions();
             <BellSlashIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Zen mode</span>
           </span>
-          <Switch
-            :model-value="editor.zenMode"
-            @update:model-value="actions.apply('editor.zenMode')"
-            :class="[
-              editor.zenMode ? 'bg-orange-600' : 'bg-gray-200',
-              'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out focus:outline-none',
-            ]"
-          >
-            <span
-              aria-hidden="true"
-              :class="[
-                editor.zenMode ? 'translate-x-5' : 'translate-x-0',
-                'pointer-events-none inline-block h-3 w-3 transform rounded-sm bg-white shadow ring-0 transition duration-100 ease-in-out',
-              ]"
-            />
-          </Switch>
+          <Switch :model-value="editor.zenMode" @update:model-value="actions.apply('editor.zenMode')" />
         </div>
       </PopoverPanel>
     </FadeTransition>
