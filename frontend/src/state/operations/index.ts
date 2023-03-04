@@ -1,5 +1,6 @@
 import { useDeploymentOps } from "@/state/operations/deployment";
 import { useFileOps } from "@/state/operations/file";
+import { useOrganizationOps } from "@/state/operations/organization";
 import { useProjectOps } from "@/state/operations/project";
 import { useRuntimeOps } from "@/state/operations/runtime";
 import { useStatementOps } from "@/state/operations/statement";
@@ -157,6 +158,7 @@ export function _useOperations() {
   const state = useOperationsStore();
   return {
     user: useUserOps(),
+    organization: useOrganizationOps(),
     project: useProjectOps(),
     file: useFileOps(),
     content: useSymbolContentOps(),

@@ -2,58 +2,51 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/container/NotificationArea.vue";
 import { useValidName, useValidSlug } from "@/composables/useValidation";
-import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
+import { useRedirectIfNotLoggedIn } from "@/state/auth";
+import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { useTitle } from "@vueuse/core";
-import { computed, onMounted, ref, watchEffect, type Ref } from "vue";
+import { computed, onMounted, ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
-defineProps<{ next?: string }>();
 const title = useTitle();
-title.value = "Bench - Sign up";
+title.value = "Start an organization";
 
-const auth = useAuth();
-const router = useRouter();
+useRedirectIfNotLoggedIn();
 
-useRedirectIfNotLoggedIn({ name: "Home" });
+useRedirectIfNotLoggedIn({ name: "Signup" });
 
-const name: Ref<string | null> = ref(auth.me.value?.name || null);
-const username: Ref<string | null> = ref(auth.me.value?.username || null);
-// set name/username once when is loaded (can only get here if logged in)
-watchEffect(() => {
-  if (auth.me.value != null && name.value == null) {
-    username.value = auth.me.value.username;
-    name.value = auth.me.value.name;
-  }
-});
+const name: Ref<string> = ref("Hooli, Inc.");
+const slug: Ref<string> = ref("hooli");
+const slugModified = ref(false);
 
-// auto-fill on tab
-function autofillName(event: KeyboardEvent) {
-  if (
-    name.value != auth.me.value?.name &&
-    (name.value?.length == 0 || auth.me.value?.name.startsWith(name.value ?? ""))
-  ) {
-    name.value = auth.me.value?.name as string;
-    event.stopPropagation();
-    event.preventDefault();
-  }
-}
-function autofillUsername(event: KeyboardEvent) {
-  if (
-    username.value != auth.me.value?.username &&
-    (username.value?.length == 0 || auth.me.value?.username.startsWith(username.value ?? ""))
-  ) {
-    username.value = auth.me.value?.username as string;
-    event.stopPropagation();
-    event.preventDefault();
+function syncSlugIfUnmodified() {
+  if (!slugModified.value) {
+    let nameTrimmed = name.value.toLowerCase();
+    if (nameTrimmed.includes(",")) {
+      nameTrimmed = nameTrimmed.split(",")[0];
+    }
+    if (nameTrimmed.includes("-")) {
+      nameTrimmed = nameTrimmed.split("-")[0];
+    }
+    slug.value = nameTrimmed.replace(/[^a-z0-9_-]/g, "-");
   }
 }
 
-// valid names just need to be >= 2 characters
-const nameValidation = useValidName(name);
-const slugValidation = useValidSlug(username, auth.me);
+const validName = useValidName(name);
+const validSlug = useValidSlug(slug);
+
+const canComplete = computed(
+  () =>
+    !creating.value &&
+    !validSlug.loading.value &&
+    validSlug.available.value &&
+    validSlug.valid.value &&
+    validName.valid.value
+);
 
 // auto-focus name on load
 const nameRef: Ref<HTMLInputElement | null> = ref(null);
@@ -63,25 +56,24 @@ onMounted(() => {
   nameRef.value?.setSelectionRange(0, nameRef.value?.value?.length ?? 0);
 });
 
-const completing = ref(false);
-const canComplete = computed(
-  () =>
-    !completing.value &&
-    nameValidation.valid.value &&
-    slugValidation.valid.value &&
-    !slugValidation.loading.value &&
-    slugValidation.available.value
-);
+const creating: Ref<boolean> = ref(false);
 
 const ops = useOperations();
-async function completeSignup() {
-  if (auth.me.value == null || username.value == null || name.value == null) {
-    throw new Error("cannot complete with missing data");
+const router = useRouter();
+const notifications = useNotifications();
+async function createOrganization() {
+  creating.value = true;
+  const create = await ops.organization.create(name.value, slug.value);
+  creating.value = false;
+  if (create?.data?.createOrganization.__typename == "Organization") {
+    router.push(`/settings/${slug.value}#members`);
+    notifications.show({
+      kind: "success",
+      type: "organization.created",
+      message: "Organization created",
+      description: `It's official: ${name.value} is ready to take over the world.`,
+    });
   }
-  completing.value = true;
-  await ops.user.completeSignup(auth.me.value?.id as string, username.value as string, name.value as string);
-  // redirect to home
-  router.push({ name: "Home" });
 }
 </script>
 <template>
@@ -90,7 +82,9 @@ async function completeSignup() {
       <template v-slot:left>
         <HomeButton />
       </template>
-      <template v-slot:right> </template>
+      <template v-slot:right>
+        <ProfileButton />
+      </template>
     </FatHeader>
     <div class="mx-auto mt-20 w-72 text-center lg:mt-32">
       <div class="flex flex-row items-baseline justify-center gap-1">
@@ -101,56 +95,56 @@ async function completeSignup() {
         </div>
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
-      <h1 class="mt-4 text-5xl font-bold">Welcome</h1>
-      <p class="mt-4 text-lg text-orange-700">AI is yours for the making.</p>
-
+      <h1 class="-mx-24 mt-4 text-5xl font-bold">Start an organization</h1>
+      <p class="-mx-4 mt-4 text-lg text-orange-700">Make the future of AI yours - together.</p>
+      <!-- <p class="mt-1 text-sm text-gray-700">(Think big: not just a single feature/task)</p> -->
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
+        <!-- TODO @Incomplete: select owner -->
+
         <!-- Full name -->
         <div class="text-left">
-          <span class="text-md text-gray-700">Your name</span>
+          <span class="text-md text-gray-700">Bench name</span>
           <input
             ref="nameRef"
             type="text"
             minlength="3"
             maxlength="128"
-            :placeholder="auth.me.value?.name || 'Yatima'"
             v-model="name"
+            @input="syncSlugIfUnmodified"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
-            @keydown.tab.exact="autofillName"
             spellcheck="false"
           />
           <FadeTransition mode="out-in">
-            <span class="mt-1 text-sm text-yellow-500" v-if="!nameValidation.valid.value"
+            <span class="mt-1 text-sm text-yellow-500" v-if="!validName.valid.value"
               >The bots don't like this name.</span
             >
             <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>
           </FadeTransition>
         </div>
 
-        <!-- Username -->
+        <!-- slug -->
         <div class="text-left">
-          <span class="text-md text-gray-700">Pick a username</span>
+          <span class="text-md text-gray-700">A robot-friendly name</span>
           <input
             type="text"
             minlength="3"
             maxlength="128"
             pattern="[a-z0-9_-]+"
-            :placeholder="auth.me.value?.username || 'yatima'"
-            v-model="username"
+            :value="slug"
+            @input="(event) => ((slug = event.target?.value), (slugModified = true))"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
-            @keydown.tab.exact="autofillUsername"
             spellcheck="false"
           />
           <FadeTransition mode="out-in">
-            <span v-if="!slugValidation.valid.value" class="mt-1 text-sm text-orange-600">
-              Invalid username. <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
+            <span v-if="!validSlug.valid.value" class="mt-1 text-sm text-orange-600">
+              The bots want a name like <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
             </span>
-            <span v-else-if="slugValidation.loading.value" class="mt-1">&nbsp;</span>
-            <span v-else-if="!slugValidation.available.value" class="mt-1 text-sm text-red-600">
-              That username is
+            <span v-else-if="validSlug.loading.value" class="mt-1">&nbsp;</span>
+            <span v-else-if="!validSlug.available.value" class="mt-1 text-sm text-red-600">
+              That name is
               <router-link
-                :to="`/${username}`"
+                :to="`/${slug}`"
                 class="underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
                 >taken</router-link
               >.
@@ -163,9 +157,9 @@ async function completeSignup() {
           :disabled="!canComplete"
           class="mt-6 w-fit self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
           :class="{ 'pointer-events-none opacity-50': !canComplete }"
-          @click="completeSignup"
+          @click="createOrganization"
         >
-          Enter &rarr;
+          Start &rarr;
         </button>
       </div>
     </div>

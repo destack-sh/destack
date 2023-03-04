@@ -45,6 +45,9 @@ class Organization(UUIDModel):
         related_name="organizations",
         related_query_name="organization",
     )
+    memberships: models.QuerySet[
+        "OrganizationMembership"
+    ]  # noqa via OrganizationMembership.organization
     invites: models.QuerySet["OrganizationInvite"]  # noqa via OrganizationInvite.organization
 
     objects = OrganizationManager()
@@ -89,6 +92,7 @@ class OrganizationMembership(UUIDModel):
         return f"<OrganizationMembership {self}>"
 
     class Meta:
+        ordering = ["created_at"]
         constraints = [
             models.UniqueConstraint(
                 name="bench_organization_membership_ak", fields=["organization_id", "user_id"]
@@ -125,6 +129,7 @@ class OrganizationInvite(UUIDModel):
         return f"<OrganizationInvite {self}>"
 
     class Meta:
+        ordering = ["created_at"]
         constraints = [
             models.UniqueConstraint(
                 name="bench_organization_invite_ak", fields=["organization_id", "email"]

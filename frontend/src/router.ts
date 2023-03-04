@@ -10,6 +10,7 @@ import Settings from "@/routes/Settings.vue";
 
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
+import CreateOrganization from "@/routes/CreateOrganization.vue";
 
 const forwardQueryAndParams = (route: RouteLocationNormalized) => ({
   ...route.query,
@@ -22,6 +23,12 @@ const routes = [
   { path: "/signup/complete", name: "CompleteSignup", component: CompleteSignup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
   { path: "/new", name: "CreateProject", component: CreateProject, props: forwardQueryAndParams },
+  {
+    path: "/organizations/new",
+    name: "CreateOrganization",
+    component: CreateOrganization,
+    props: forwardQueryAndParams,
+  },
   { path: "/settings/:owner", name: "Settings", component: Settings, props: forwardQueryAndParams },
   { path: "/:owner", name: "Profile", component: Profile, props: forwardQueryAndParams },
   { path: "/:owner/:project", component: Bench, props: forwardQueryAndParams },

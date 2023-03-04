@@ -205,9 +205,10 @@ def can_view_project(user: User, obj: Any) -> bool:
         return all(can_view_project(user, item) for item in obj)
     if not isinstance(obj, models.Project):
         raise ValueError(f"CanViewProject cannot be used on {obj}")
-    # is public or user is owner or user is member of owning organization
+    # is public or user is owner or user is member (any level) of owning organization
     is_org_member = (
-        obj.organization_id is not None and obj.organization.members.filter(id=user.id).exists()
+        obj.organization_id is not None
+        and obj.organization.memberships.filter(user_id=user.id).exists()
     )
     is_owner = obj.user_id is not None and obj.user_id == user.id
     return obj.visibility == models.ProjectVisibility.PUBLIC or is_owner or is_org_member
@@ -227,8 +228,13 @@ def can_write_project(user: User, obj: Any) -> bool:
         obj = obj.project
     if not isinstance(obj, models.Project):
         raise ValueError(f"CanWriteProject cannot be used on {obj}")
+    from bench.models import OrganizationMembership  # avoid circular import
+
     is_org_member = (
-        obj.organization_id is not None and obj.organization.members.filter(id=user.id).exists()
+        obj.organization_id is not None
+        and obj.organization.memberships.filter(
+            user_id=user.id, level__gte=OrganizationMembership.Level.Member
+        ).exists()
     )
     is_owner = obj.user_id is not None and obj.user_id == user.id
     return is_owner or is_org_member
@@ -301,10 +307,38 @@ class CanWriteProject(CanViewProject):
         return can_write_project(user, obj)
 
 
-def can_write_organization(user: User, obj: "Organization") -> bool:
+def is_owner_or_member(user: User, owner: Union["User", "Organization"]) -> bool:
+    from bench.models import OrganizationMembership  # avoid circular import
+
+    return owner.id == user.id or (
+        user.id is not None
+        and isinstance(owner, Organization)
+        and owner.memberships.filter(
+            user_id=user.id, level__gte=OrganizationMembership.Level.Member
+        ).exists()
+    )
+
+
+def can_view_full_organization(user: User, obj: "Organization") -> bool:
     if user.is_authenticated and user.is_staff:
         return True
     return obj.members.filter(id=user.id).exists()
+
+
+def check_can_view_full_organization(info: Info, obj: "Organization") -> None:
+    user = cast(User, info.context.request.scope["user"]._wrapped)
+    if not can_view_full_organization(user, obj):
+        raise PermissionDenied("User cannot view this.")
+
+
+def can_write_organization(user: User, obj: "Organization") -> bool:
+    from bench.models import OrganizationMembership  # avoid circular import
+
+    if user.is_authenticated and user.is_staff:
+        return True
+    return obj.memberships.filter(
+        user_id=user.id, level__gte=OrganizationMembership.Level.Administrator
+    ).exists()
 
 
 def check_can_write_organization(info: Info, obj: "Organization") -> None:
@@ -378,11 +412,3 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
 
     logger.info("social_create_user", user=user)
     return {"is_new": True, "user": user}
-
-
-def is_owner_or_member(user: User, owner: Union["User", "Organization"]) -> bool:
-    return owner.id == user.id or (
-        user.id is not None
-        and isinstance(owner, Organization)
-        and owner.members.filter(id=user.id).exists()
-    )

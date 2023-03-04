@@ -8,7 +8,7 @@ import NotificationArea from "@/components/container/NotificationArea.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
-import { CakeIcon, Cog8ToothIcon, GlobeAltIcon, LockClosedIcon, PencilIcon } from "@heroicons/vue/24/outline";
+import { CakeIcon, Cog8ToothIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, watchEffect } from "vue";

@@ -54,7 +54,7 @@ class Organization(gql.relay.Node, Owner):
 
 
 @gql.input
-class OrganizationCreateInput(gql.NodeInput):
+class OrganizationCreateInput:
     name: str
     slug: str
 
@@ -79,8 +79,8 @@ class OrganizationMutation:
         user = info.context.request.scope["user"]._wrapped
         if not user.is_authenticated:
             raise PermissionDenied("you must be logged in to create an organization")
-        organization = models.Organization.objects.create(
-            name=input.name, owner=user, owner_slug_id=input.slug
+        organization = models.Organization.objects.create_organization(
+            name=input.name, slug=input.slug
         )
         user.join_organization(organization, OrganizationMembership.Level.Owner)
         return organization
