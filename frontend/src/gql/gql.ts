@@ -17,6 +17,8 @@ const documents = {
     types.ProjectDeploymentsDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
+  "\n    query matchingUsers($slug: String, $email: String) {\n      users(first: 10, filters: { slugPrefix: $slug, emailEquals: $email }) {\n        totalCount\n        edges {\n          node {\n            id\n            slug\n            username\n            email\n          }\n        }\n      }\n    }\n  ":
+    types.MatchingUsersDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        head {\n          ...ProjectVersionHeader\n        }\n        versions {\n          totalCount\n          edges {\n            node {\n              ...ProjectVersionHeader\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
   "\n    query profileAccessTokens($slug: String!, $includeInactive: Boolean!) {\n      ownerBySlug(slug: $slug) {\n        ... on User {\n          id\n          accessTokens(filters: { includeInactive: $includeInactive }) {\n            totalCount\n            edges {\n              node {\n                id\n                name\n                tokenKey\n                createdAt\n                updatedAt\n                expiresAt\n                revokedAt\n                status\n                scopes\n              }\n            }\n          }\n        }\n        ... on Organization {\n          id\n          accessTokens(filters: { includeInactive: $includeInactive }) {\n            totalCount\n            edges {\n              node {\n                id\n                name\n                tokenKey\n                createdAt\n                updatedAt\n                expiresAt\n                revokedAt\n                status\n                scopes\n              }\n            }\n          }\n        }\n      }\n    }\n  ":
@@ -182,6 +184,12 @@ export function graphql(
 export function graphql(
   source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query matchingUsers($slug: String, $email: String) {\n      users(first: 10, filters: { slugPrefix: $slug, emailEquals: $email }) {\n        totalCount\n        edges {\n          node {\n            id\n            slug\n            username\n            email\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query matchingUsers($slug: String, $email: String) {\n      users(first: 10, filters: { slugPrefix: $slug, emailEquals: $email }) {\n        totalCount\n        edges {\n          node {\n            id\n            slug\n            username\n            email\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

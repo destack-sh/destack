@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 from django.core.exceptions import PermissionDenied
 from strawberry import auto, lazy
@@ -20,6 +20,16 @@ if TYPE_CHECKING:
     from bench.api.project import Project
     from bench.api.token import AccessToken
     from bench.api.user import User
+
+
+@gql.django.filter(models.Organization)
+class OrganizationFilter:
+    slug_prefix: Optional[str]
+
+    def filter(self, queryset):
+        if self.slug_prefix:
+            queryset = queryset.filter(slug__startswith=self.slug_prefix)
+        return queryset
 
 
 @gql.django.type(models.Organization)
@@ -55,7 +65,7 @@ class Organization(gql.relay.Node, Owner):
         return self.owner_slug_id
 
 
-OrganizationMembershipLevel = gql.enum(models.OrganizationMembership.Level)
+OrganizationMembershipLevel = gql.enum(models.OrganizationMembershipLevel)
 
 
 @gql.django.type(models.OrganizationMembership)
@@ -125,7 +135,7 @@ class OrganizationMutation:
         organization = models.Organization.objects.create_organization(
             name=input.name, slug=input.slug
         )
-        user.join_organization(organization, OrganizationMembership.Level.Owner)
+        user.join_organization(organization, OrganizationMembershipLevel.Owner)
         return organization
 
     @safe_mutation

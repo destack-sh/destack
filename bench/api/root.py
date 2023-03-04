@@ -28,7 +28,7 @@ from bench.api.project import (
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.token import AccessTokenMutation
-from bench.api.user import User, UserMutation
+from bench.api.user import User, UserFilter, UserMutation
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 
@@ -70,7 +70,10 @@ class Query(ExecutionQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
+    users: gql.relay.Connection[User] = gql.django.connection(filters=UserFilter)
+    user_by_slug: Optional[User] = gql.django.field(resolver=models.User.objects.get_by_slug)
     organization: Optional[Organization] = gql.relay.node()
+    organizations: gql.relay.Connection[Organization] = gql.django.connection()
     organization_by_slug: Optional[Organization] = gql.django.field(
         resolver=models.Organization.objects.get_by_slug
     )

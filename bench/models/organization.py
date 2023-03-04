@@ -58,7 +58,7 @@ class Organization(UUIDModel):
     def create_invite(
         self,
         email: str,
-        level: "OrganizationMembership.Level",
+        level: "OrganizationMembershipLevel",
         message: str = None,
         created_by: "User" = None,
     ) -> "OrganizationInvite":
@@ -89,13 +89,15 @@ class Organization(UUIDModel):
         default_manager_name = "objects"
 
 
+class OrganizationMembershipLevel(models.IntegerChoices):
+    Guest = 1
+    Member = 4
+    Author = 8
+    Administrator = 12
+    Owner = 16
+
+
 class OrganizationMembership(UUIDModel):
-    class Level(models.IntegerChoices):
-        Guest = 1
-        Member = 4
-        Author = 8
-        Administrator = 12
-        Owner = 16
 
     organization: models.ForeignKey = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="memberships"
@@ -103,7 +105,9 @@ class OrganizationMembership(UUIDModel):
     user: models.ForeignKey = models.ForeignKey(
         "bench.User", on_delete=models.CASCADE, related_name="organization_memberships+"
     )
-    level: models.SmallIntegerField = models.SmallIntegerField(choices=Level.choices)
+    level: models.SmallIntegerField = models.SmallIntegerField(
+        choices=OrganizationMembershipLevel.choices
+    )
 
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
@@ -136,7 +140,7 @@ class OrganizationInvite(UUIDModel):
         "User", on_delete=models.CASCADE, null=True, related_name="invites"
     )
     level: models.SmallIntegerField = models.SmallIntegerField(
-        choices=OrganizationMembership.Level.choices
+        choices=OrganizationMembershipLevel.choices
     )
     message: models.TextField = models.TextField(blank=True, null=True)
     email_sent_at: models.DateTimeField = models.DateTimeField(blank=True, null=True)

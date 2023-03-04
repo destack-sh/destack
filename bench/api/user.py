@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 from asgiref.sync import async_to_sync
 from channels.auth import logout as channels_logout
@@ -18,6 +18,19 @@ if TYPE_CHECKING:
     from bench.api.organization import Organization
     from bench.api.project import Project
     from bench.api.token import AccessToken
+
+
+@gql.django.filter(models.User)
+class UserFilter:
+    slug_prefix: Optional[str]
+    email_equals: Optional[str]
+
+    def filter(self, queryset):
+        if self.slug_prefix:
+            queryset = queryset.filter(username__startswith=self.slug_prefix)
+        if self.email_equals:
+            queryset = queryset.filter(email=self.email_equals)
+        return queryset
 
 
 @gql.django.type(models.User)

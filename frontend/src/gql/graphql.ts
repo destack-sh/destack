@@ -456,14 +456,6 @@ export enum JobType {
   Interp = "INTERP",
 }
 
-export enum Level {
-  Administrator = "Administrator",
-  Author = "Author",
-  Guest = "Guest",
-  Member = "Member",
-  Owner = "Owner",
-}
-
 export type ModuleRuntime = {
   __typename?: "ModuleRuntime";
   dependencies: Array<InterpModule>;
@@ -843,7 +835,7 @@ export type OrganizationInvite = Node & {
   email: Scalars["String"];
   emailSentAt?: Maybe<Scalars["DateTime"]>;
   id: Scalars["GlobalID"];
-  level: Level;
+  level: OrganizationMembershipLevel;
   organization: Organization;
   updatedAt: Scalars["DateTime"];
   user: User;
@@ -872,7 +864,7 @@ export type OrganizationInviteEdge = {
 export type OrganizationInviteInput = {
   emails: Array<Scalars["String"]>;
   id: Scalars["GlobalID"];
-  level: Level;
+  level: OrganizationMembershipLevel;
   message: Scalars["String"];
 };
 
@@ -880,7 +872,7 @@ export type OrganizationMembership = Node & {
   __typename?: "OrganizationMembership";
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
-  level: Level;
+  level: OrganizationMembershipLevel;
   organization: NodeType;
   updatedAt: Scalars["DateTime"];
   user: User;
@@ -906,6 +898,14 @@ export type OrganizationMembershipEdge = {
   node: OrganizationMembership;
 };
 
+export enum OrganizationMembershipLevel {
+  Administrator = "Administrator",
+  Author = "Author",
+  Guest = "Guest",
+  Member = "Member",
+  Owner = "Owner",
+}
+
 export type OrganizationMembershipOperationInfo = OperationInfo | OrganizationMembership;
 
 export type OrganizationOperationInfo = OperationInfo | Organization;
@@ -923,7 +923,7 @@ export type OrganizationUpdateInput = {
 
 export type OrganizationUpdateMembershipInput = {
   id: Scalars["GlobalID"];
-  level: Level;
+  level: OrganizationMembershipLevel;
   userId: Scalars["GlobalID"];
 };
 
@@ -1106,6 +1106,7 @@ export type Query = {
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
+  organizations: OrganizationConnection;
   ownerBySlug?: Maybe<UserOrganization>;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
@@ -1113,6 +1114,8 @@ export type Query = {
   projectVersionBySlug?: Maybe<ProjectVersion>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
+  userBySlug?: Maybe<User>;
+  users: UserConnection;
 };
 
 export type QueryExecutionsArgs = {
@@ -1140,6 +1143,13 @@ export type QueryOrganizationBySlugArgs = {
   organization: Scalars["String"];
 };
 
+export type QueryOrganizationsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
 export type QueryOwnerBySlugArgs = {
   slug: Scalars["String"];
 };
@@ -1165,6 +1175,18 @@ export type QueryProjectVersionBySlugArgs = {
 
 export type QueryUserArgs = {
   id: Scalars["GlobalID"];
+};
+
+export type QueryUserBySlugArgs = {
+  username: Scalars["String"];
+};
+
+export type QueryUsersArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<UserFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type RecordCreateInput = {
@@ -1600,6 +1622,11 @@ export type UserEdge = {
   node: User;
 };
 
+export type UserFilter = {
+  emailEquals?: InputMaybe<Scalars["String"]>;
+  slugPrefix?: InputMaybe<Scalars["String"]>;
+};
+
 export type UserOperationInfo = OperationInfo | User;
 
 export type UserOrganization = Organization | User;
@@ -1654,6 +1681,23 @@ export type FileContentByIdQuery = {
         >;
       } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | null;
+};
+
+export type MatchingUsersQueryVariables = Exact<{
+  slug?: InputMaybe<Scalars["String"]>;
+  email?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type MatchingUsersQuery = {
+  __typename?: "Query";
+  users: {
+    __typename?: "UserConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "UserEdge";
+      node: { __typename?: "User"; id: any; slug: string; username: string; email: string };
+    }>;
+  };
 };
 
 export type ProjectVersionsQueryVariables = Exact<{
@@ -1801,7 +1845,7 @@ export type OrganizationMembersQuery = {
           __typename?: "OrganizationMembership";
           id: any;
           createdAt: any;
-          level: Level;
+          level: OrganizationMembershipLevel;
           user: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string };
         };
       }>;
@@ -1815,7 +1859,7 @@ export type OrganizationMembersQuery = {
           __typename?: "OrganizationInvite";
           id: any;
           createdAt: any;
-          level: Level;
+          level: OrganizationMembershipLevel;
           emailSentAt?: any | null;
           user: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string };
         };
@@ -3841,6 +3885,87 @@ export const FileContentByIdDocument = {
     ...SimpleTypeNodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
+export const MatchingUsersDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "matchingUsers" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "email" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "users" },
+            arguments: [
+              { kind: "Argument", name: { kind: "Name", value: "first" }, value: { kind: "IntValue", value: "10" } },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "slugPrefix" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "emailEquals" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "email" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "slug" } },
+                            { kind: "Field", name: { kind: "Name", value: "username" } },
+                            { kind: "Field", name: { kind: "Name", value: "email" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<MatchingUsersQuery, MatchingUsersQueryVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
