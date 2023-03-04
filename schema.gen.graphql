@@ -613,7 +613,6 @@ type OrganizationConnection {
 }
 
 input OrganizationCreateInput {
-  id: GlobalID!
   name: String!
   slug: String!
 }

@@ -267,6 +267,7 @@ class ModuleRuntimeMutation:
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
+        # TODO @Auth: should run be a guest-level permission for projects?
         await sync_to_async(check_can_write)(user, project_version_id)
 
         # :BlockingWorkerMessages

@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { DocumentPlusIcon, PlusIcon, SparklesIcon, UsersIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const actions = useActions();
@@ -11,6 +11,7 @@ const addables = computed(() =>
     {
       name: "New Bench",
       to: { name: "CreateProject" },
+      icon: SparklesIcon,
     },
     {
       name: "New file",
@@ -18,11 +19,12 @@ const addables = computed(() =>
         actions.file.create.value.apply();
       },
       enabled: actions.file.create.value.enabled,
+      icon: DocumentPlusIcon,
     },
     {
       name: "New organization",
       to: { name: "CreateOrganization" },
-      enabled: false,
+      icon: UsersIcon,
     },
   ].filter((item) => item.enabled !== false)
 );
@@ -47,15 +49,19 @@ const addables = computed(() =>
           <router-link
             v-if="item.to"
             :to="item.to"
-            :class="[active ? 'bg-orange-50' : '', 'block py-2 px-4 text-sm text-gray-900']"
+            class="flex flex-row items-center gap-2"
+            :class="[active ? 'bg-orange-50' : '', 'block py-2 px-2 text-sm text-gray-900']"
           >
+            <component :is="item.icon" class="h-5 w-5 text-gray-700" />
             {{ item.name }}
           </router-link>
           <button
             v-else
-            :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-4 text-left text-sm text-gray-900']"
+            class="flex flex-row items-center gap-2"
+            :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
             @click="item.action"
           >
+            <component :is="item.icon" class="h-5 w-5 text-gray-700" />
             {{ item.name }}
           </button>
         </MenuItem>

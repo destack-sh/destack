@@ -785,7 +785,6 @@ export type OrganizationConnection = {
 };
 
 export type OrganizationCreateInput = {
-  id: Scalars["GlobalID"];
   name: Scalars["String"];
   slug: Scalars["String"];
 };
@@ -2247,6 +2246,20 @@ export type RenameFileMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type CreateOrganizationMutationVariables = Exact<{
+  name: Scalars["String"];
+  slug: Scalars["String"];
+}>;
+
+export type CreateOrganizationMutation = {
+  __typename?: "Mutation";
+  createOrganization:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Organization"; id: any; name: string; slug: string };
 };
 
 export type CreateProjectMutationVariables = Exact<{
@@ -5781,6 +5794,77 @@ export const RenameFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
+export const CreateOrganizationDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createOrganization" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createOrganization" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "slug" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateOrganizationMutation, CreateOrganizationMutationVariables>;
 export const CreateProjectDocument = {
   kind: "Document",
   definitions: [

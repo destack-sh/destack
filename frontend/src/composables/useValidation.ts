@@ -6,9 +6,9 @@ export function useValidName(name: Ref<string | null>) {
   return { valid: computed(() => (name.value?.length ?? 0) >= 2) };
 }
 
-export function useValidSlug(slug: Ref<string | null>, me: Ref<{ id: string } | null>) {
+export function useValidSlug(slug: Ref<string | null>, me?: Ref<{ id: string } | null>) {
   const valid = computed(() => /^[a-z0-9_-]{3,}$/.test(slug.value ?? "") && (slug.value?.length ?? 0 >= 4));
-  const available = computed(() => owner.value == null || owner.value.ownerBySlug?.id == me.value?.id);
+  const available = computed(() => owner.value == null || owner.value.ownerBySlug?.id == me?.value?.id);
   const { result: owner, loading } = useQuery(
     graphql(/* GraphQL */ `
       query checkOwnerBySlug($slug: String!) {
@@ -27,6 +27,9 @@ export function useValidSlug(slug: Ref<string | null>, me: Ref<{ id: string } | 
     })),
     {
       enabled: valid,
+      // we don't want to cache this to (almost) guarantee that the slug is valid,
+      // and to definitely re-fetch ownerBySlug when a slug is created/changed
+      fetchPolicy: "no-cache",
     }
   );
 
