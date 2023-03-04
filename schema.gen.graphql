@@ -460,6 +460,7 @@ type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   updateUser(input: UserUpdateInput!): UserOperationInfo!
   logout: OperationInfo
+  createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
   createAccessToken(input: AccessTokenCreateInput!): AccessTokenCreatePayloadOperationInfo!
   revokeAccessToken(id: GlobalID!): AccessTokenOperationInfo!
@@ -609,6 +610,12 @@ type OrganizationConnection {
 
   """Total quantity of existing nodes"""
   totalCount: Int
+}
+
+input OrganizationCreateInput {
+  id: GlobalID!
+  name: String!
+  slug: String!
 }
 
 """An edge in a connection."""

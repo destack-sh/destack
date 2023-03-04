@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Annotated, cast
 
+from django.core.exceptions import PermissionDenied
 from strawberry import auto, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.types import OperationInfo
@@ -13,6 +14,7 @@ from bench.api.auth import (
 )
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
+from bench.models import OrganizationMembership
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -52,6 +54,12 @@ class Organization(gql.relay.Node, Owner):
 
 
 @gql.input
+class OrganizationCreateInput(gql.NodeInput):
+    name: str
+    slug: str
+
+
+@gql.input
 class OrganizationUpdateInput(gql.NodeInput):
     name: str
     description: str
@@ -64,6 +72,19 @@ class OrganizationRenameInput(gql.NodeInput):
 
 @gql.type
 class OrganizationMutation:
+    @safe_mutation(atomic=True)
+    def create_organization(
+        self, info, input: OrganizationCreateInput
+    ) -> Organization | OperationInfo:
+        user = info.context.request.scope["user"]._wrapped
+        if not user.is_authenticated:
+            raise PermissionDenied("you must be logged in to create an organization")
+        organization = models.Organization.objects.create(
+            name=input.name, owner=user, owner_slug_id=input.slug
+        )
+        user.join_organization(organization, OrganizationMembership.Level.Owner)
+        return organization
+
     @safe_mutation
     def update_organization(
         self, info, input: OrganizationUpdateInput

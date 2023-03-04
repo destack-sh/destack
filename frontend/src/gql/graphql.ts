@@ -475,6 +475,7 @@ export type Mutation = {
   completeSignup: UserOperationInfo;
   createAccessToken: AccessTokenCreatePayloadOperationInfo;
   createFile: FileOperationInfo;
+  createOrganization: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementRecord: StatementOperationInfo;
@@ -540,6 +541,10 @@ export type MutationCreateAccessTokenArgs = {
 
 export type MutationCreateFileArgs = {
   input: FileCreateInput;
+};
+
+export type MutationCreateOrganizationArgs = {
+  input: OrganizationCreateInput;
 };
 
 export type MutationCreateProjectArgs = {
@@ -777,6 +782,12 @@ export type OrganizationConnection = {
   pageInfo: PageInfo;
   /** Total quantity of existing nodes */
   totalCount?: Maybe<Scalars["Int"]>;
+};
+
+export type OrganizationCreateInput = {
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  slug: Scalars["String"];
 };
 
 /** An edge in a connection. */

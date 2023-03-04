@@ -45,6 +45,7 @@ class Organization(UUIDModel):
         related_name="organizations",
         related_query_name="organization",
     )
+    invites: models.QuerySet["OrganizationInvite"]  # noqa via OrganizationInvite.organization
 
     objects = OrganizationManager()
 
@@ -63,10 +64,10 @@ class Organization(UUIDModel):
 
 
 class OrganizationMembership(UUIDModel):
-    # kept in sync with TeamMembership.Level
     class Level(models.IntegerChoices):
-        Member = 1
-        Author = 6
+        Guest = 1
+        Member = 4
+        Author = 8
         Administrator = 12
         Owner = 16
 
@@ -91,5 +92,41 @@ class OrganizationMembership(UUIDModel):
         constraints = [
             models.UniqueConstraint(
                 name="bench_organization_membership_ak", fields=["organization_id", "user_id"]
+            )
+        ]
+
+
+class OrganizationInvite(UUIDModel):
+    """
+    An invite to join an organization.
+    """
+
+    organization: models.ForeignKey = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="invites"
+    )
+    email: models.EmailField = models.EmailField()
+    user: models.ForeignKey = models.ForeignKey(
+        "User", on_delete=models.CASCADE, null=True, related_name="invites"
+    )
+    level: models.SmallIntegerField = models.SmallIntegerField(
+        choices=OrganizationMembership.Level.choices
+    )
+    message: models.TextField = models.TextField(blank=True, null=True)
+    email_sent: models.BooleanField = models.BooleanField(default=False)
+
+    created_by: models.ForeignKey = models.ForeignKey("User", on_delete=models.CASCADE)
+    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
+    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.organization} -> {self.email} ({self.level})"
+
+    def __repr__(self):
+        return f"<OrganizationInvite {self}>"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                name="bench_organization_invite_ak", fields=["organization_id", "email"]
             )
         ]
