@@ -15,7 +15,7 @@ from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
-    from bench.api.organization import Organization
+    from bench.api.organization import Organization, OrganizationMembership
     from bench.api.project import Project
     from bench.api.token import AccessToken
 
@@ -44,6 +44,9 @@ class User(gql.relay.Node, Owner):
     description: auto
     organizations: gql.relay.Connection[
         Annotated["Organization", lazy(".organization")]
+    ] = gql.django.connection()
+    organization_memberships: gql.relay.Connection[
+        Annotated["OrganizationMembership", lazy(".organization")]
     ] = gql.django.connection()
     projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
         directives=[CanViewProject(at_root=False)]

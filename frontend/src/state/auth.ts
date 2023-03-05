@@ -29,15 +29,18 @@ function _useAuth() {
           createdAt
           updatedAt
           completedSignup
-          organizations {
+          organizationMemberships {
             totalCount
             edges {
               node {
                 id
-                name
-                slug
                 createdAt
-                updatedAt
+                level
+                organization {
+                  id
+                  name
+                  slug
+                }
               }
             }
           }
@@ -47,7 +50,8 @@ function _useAuth() {
   );
 
   const me = computed(() => meResult.value?.me);
-  const organizations = computed(() => me.value?.organizations?.edges.map((e) => e.node));
+  const memberships = computed(() => meResult.value?.me?.organizationMemberships?.edges.map((e) => e.node));
+  const organizations = computed(() => me.value?.organizationMemberships?.edges.map((e) => e.node.organization));
 
   // identify user for posthog
   watchEffect(() => {
@@ -62,7 +66,7 @@ function _useAuth() {
     }
   });
 
-  return { loggedIn: computed(() => !!me.value), me, organizations, loading: meLoading };
+  return { loggedIn: computed(() => !!me.value), me, memberships, organizations, loading: meLoading };
 }
 
 export const useAuth = createSharedComposable(_useAuth);

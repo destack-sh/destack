@@ -873,7 +873,7 @@ export type OrganizationMembership = Node & {
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   level: OrganizationMembershipLevel;
-  organization: NodeType;
+  organization: Organization;
   updatedAt: Scalars["DateTime"];
   user: User;
 };
@@ -1566,6 +1566,7 @@ export type User = Node &
     email: Scalars["String"];
     id: Scalars["GlobalID"];
     name: Scalars["String"];
+    organizationMemberships: OrganizationMembershipConnection;
     organizations: OrganizationConnection;
     projects: ProjectConnection;
     slug: Scalars["String"];
@@ -1578,6 +1579,13 @@ export type UserAccessTokensArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<AccessTokenFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type UserOrganizationMembershipsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -2153,12 +2161,18 @@ export type MeQuery = {
     createdAt: any;
     updatedAt: any;
     completedSignup: boolean;
-    organizations: {
-      __typename?: "OrganizationConnection";
+    organizationMemberships: {
+      __typename?: "OrganizationMembershipConnection";
       totalCount?: number | null;
       edges: Array<{
-        __typename?: "OrganizationEdge";
-        node: { __typename?: "Organization"; id: any; name: string; slug: string; createdAt: any; updatedAt: any };
+        __typename?: "OrganizationMembershipEdge";
+        node: {
+          __typename?: "OrganizationMembership";
+          id: any;
+          createdAt: any;
+          level: OrganizationMembershipLevel;
+          organization: { __typename?: "Organization"; id: any; name: string; slug: string };
+        };
       }>;
     };
   } | null;
@@ -5480,7 +5494,7 @@ export const MeDocument = {
                 { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "organizations" },
+                  name: { kind: "Name", value: "organizationMemberships" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -5498,10 +5512,20 @@ export const MeDocument = {
                                 kind: "SelectionSet",
                                 selections: [
                                   { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "slug" } },
                                   { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "level" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "organization" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "name" } },
+                                        { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                      ],
+                                    },
+                                  },
                                 ],
                               },
                             },

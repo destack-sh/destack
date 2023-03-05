@@ -1,7 +1,7 @@
 import abc
 import dataclasses
 import functools
-from typing import Any, Callable, Iterable, Self, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Self, Union, cast
 
 import strawberry
 import structlog
@@ -30,6 +30,9 @@ from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
 from bench.models import Organization, User
+
+if TYPE_CHECKING:
+    from bench.models.organization import OrganizationMembershipLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -307,14 +310,16 @@ class CanWriteProject(CanViewProject):
         return can_write_project(user, obj)
 
 
-def is_owner_or_member(user: User, owner: Union["User", "Organization"]) -> bool:
+def is_owner_or_member(
+    user: User, owner: Union["User", "Organization"], level: "OrganizationMembershipLevel" = None
+) -> bool:
     from bench.models import OrganizationMembershipLevel  # avoid circular import
 
     return owner.id == user.id or (
         user.id is not None
         and isinstance(owner, Organization)
         and owner.memberships.filter(
-            user_id=user.id, level__gte=OrganizationMembershipLevel.Member
+            user_id=user.id, level__gte=level or OrganizationMembershipLevel.Member
         ).exists()
     )
 

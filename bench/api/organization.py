@@ -70,7 +70,7 @@ OrganizationMembershipLevel = gql.enum(models.OrganizationMembershipLevel)
 
 @gql.django.type(models.OrganizationMembership)
 class OrganizationMembership(gql.Node):
-    organization: auto
+    organization: Organization
     user: Annotated["User", lazy(".user")]
     level: OrganizationMembershipLevel
     created_at: auto

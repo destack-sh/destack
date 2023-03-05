@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { DocumentPlusIcon, PlusIcon, SparklesIcon, UsersIcon } from "@heroicons/vue/24/outline";
+import { DocumentPlusIcon, PlusIcon, SparklesIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const actions = useActions();
@@ -24,7 +24,7 @@ const addables = computed(() =>
     {
       name: "New organization",
       to: { name: "CreateOrganization" },
-      icon: UsersIcon,
+      icon: UserGroupIcon,
     },
   ].filter((item) => item.enabled !== false)
 );
