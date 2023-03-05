@@ -89,7 +89,7 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
     <PopoverButton
       class="rounded-sm p-1 text-sm focus:outline-none"
       :class="{
-        'text-gray-500': !canDeploy,
+        'text-gray-500 hover:bg-orange-50': !canDeploy,
         'text-orange-600 hover:bg-orange-50': canDeploy,
         'bg-orange-50': open,
       }"

@@ -4,7 +4,7 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OwnerSelect from "@/components/basic/OwnerSelect.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/container/NotificationArea.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import { graphql } from "@/gql";
 import { ProjectType, ProjectVisibility } from "@/gql/graphql";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";

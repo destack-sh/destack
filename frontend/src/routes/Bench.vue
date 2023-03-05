@@ -5,7 +5,7 @@ import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/container/NotificationArea.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import SharePopover from "@/components/SharePopover.vue";
@@ -45,6 +45,7 @@ import { computed, ref, watch, watchEffect, type Component, type ComputedRef } f
 import { useRouter } from "vue-router";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import { DateTime } from "luxon";
+import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -559,9 +560,10 @@ watchEffect(async () => {
             <SharePopover />
             <DeployPopover :project="project" />
             <OmniCreate />
+            <NotificationPopover />
           </div>
         </FadeTransition>
-        <ProfileButton class="" />
+        <ProfileButton class="ml-2" />
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->

@@ -3,7 +3,8 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/container/NotificationArea.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import { graphql } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
 import { GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
@@ -75,7 +76,8 @@ const benches = computed(() => {
       </template>
       <template v-slot:right>
         <OmniCreate />
-        <ProfileButton />
+        <NotificationPopover class="ml-2" />
+        <ProfileButton class="ml-2" />
       </template>
     </FatHeader>
     <!-- My Benches -->

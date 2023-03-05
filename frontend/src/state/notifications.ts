@@ -1,8 +1,12 @@
+import { graphql } from "@/gql";
+import { useAuth } from "@/state/auth";
+import { useQuery } from "@vue/apollo-composable";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
 
-export type Notification = {
-  id: string;
+export type DisplayNotification = {
+  id?: string; // if from the server, this is the id of the notification
+  localId: string;
   type: string;
   kind: "success" | "warning" | "notice" | "error";
   message: string;
@@ -11,32 +15,32 @@ export type Notification = {
   action?: () => void;
   shownAt?: DateTime;
   showTimeMs?: number;
-  source: "editor";
 };
 
-export const useNotifications = defineStore("notifications", {
+export const useNotificationsStore = defineStore("notifications", {
   state: () => {
     return {
-      pastNotifications: [] as Notification[],
-      activeNotifications: [] as Notification[],
+      pastNotifications: [] as DisplayNotification[],
+      shownNotifications: [] as DisplayNotification[],
     };
   },
   actions: {
-    show(notificationData: Partial<Notification> & Pick<Notification, "type" | "kind" | "message">): void {
-      const notification: Notification = {
-        id: notificationData.id ?? Math.random().toString(36).slice(2, 9),
+    show(
+      notificationData: Partial<DisplayNotification> & Pick<DisplayNotification, "type" | "kind" | "message">
+    ): void {
+      const notification: DisplayNotification = {
+        localId: notificationData.localId ?? Math.random().toString(36).slice(2, 9),
         showTimeMs: notificationData.showTimeMs ?? 7000,
         shownAt: DateTime.now(),
-        source: notificationData.source ?? "editor",
         ...notificationData,
       };
       notification.shownAt = DateTime.now();
       this.pastNotifications.push(notification);
-      this.activeNotifications.push(notification);
-      setTimeout(() => this.dismiss(notification.id), notification.showTimeMs);
+      this.shownNotifications.push(notification);
+      setTimeout(() => this.dismiss(notification.localId), notification.showTimeMs);
     },
     showIf(
-      notificationData: Partial<Notification> & Pick<Notification, "type" | "kind" | "message">,
+      notificationData: Partial<DisplayNotification> & Pick<DisplayNotification, "type" | "kind" | "message">,
       condition: { lastActiveMs?: number }
     ): void {
       if (condition.lastActiveMs != null) {
@@ -53,10 +57,46 @@ export const useNotifications = defineStore("notifications", {
       this.show(notificationData);
     },
     dismiss(notificationId: string): void {
-      this.activeNotifications = this.activeNotifications.filter((n) => n.id !== notificationId);
+      this.shownNotifications = this.shownNotifications.filter((n) => n.localId !== notificationId);
     },
     dismissIf(filters: { type?: string }): void {
-      this.activeNotifications = this.activeNotifications.filter((n) => n.type !== filters.type);
+      this.shownNotifications = this.shownNotifications.filter((n) => n.type !== filters.type);
     },
   },
 });
+
+export function useNotifications() {
+  const store = useNotificationsStore();
+
+  const auth = useAuth();
+
+  // auto-refresh notifications from DB
+  const { result: newNotificationsResult } = useQuery(
+    graphql(/* GraphQL */ `
+      query newNotifications($after: String, $status: NotificationStatus) {
+        me {
+          notifications(after: $after, filters: { status: $status }) {
+            edges {
+              node {
+                id
+                type
+                createdAt
+                status
+              }
+            }
+          }
+        }
+      }
+    `)
+  );
+
+  return store;
+  // I wanted to do this but the methods seemed to no-op:
+  // return {
+  //   store,
+  //   show: store.show,
+  //   showIf: store.showIf,
+  //   dismiss: store.dismiss,
+  //   dismissIf: store.dismissIf,
+  // };
+}

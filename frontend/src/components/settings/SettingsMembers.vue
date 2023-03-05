@@ -82,7 +82,6 @@ const operations = useOperations();
 const notifications = useNotifications();
 
 async function createInvites() {
-  console.log("invite user", invitingUser.value);
   // right now this is a primitive menuwith only one user to select
   if (invitingUser.value == null) {
     return;
@@ -178,14 +177,18 @@ async function removeMembership(membership: OrganizationMembership) {
             <span class="text-gray-900">{{ membership.level }}</span>
           </td>
           <!-- Action -->
-          <td class="px-3 py-3" v-if="canWrite">
-            <button v-if="auth.me.value?.id != membership.user.id" @click="removeMembership(membership as any)">
-              <MinusCircleIcon class="h-4 w-4 text-gray-400 hover:text-gray-700" />
+          <td class="px-3 py-3 text-center text-gray-400 group-hover:text-gray-700" v-if="canWrite">
+            <button
+              class="hover:text-red-600"
+              v-if="auth.me.value?.id != membership.user.id"
+              @click="removeMembership(membership as any)"
+            >
+              <MinusCircleIcon class="h-4 w-4" />
             </button>
           </td>
         </tr>
         <!-- Invites (if shown) -->
-        <tr v-for="invite in showInvites ? invites : []" :key="invite.id" class="roup" g>
+        <tr v-for="invite in showInvites ? invites : []" :key="invite.id" class="group">
           <!-- User -->
           <td class="whitespace-nowrap px-3 py-3">
             <div class="flex flex-col">
