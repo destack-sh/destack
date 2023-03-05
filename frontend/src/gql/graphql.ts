@@ -723,6 +723,55 @@ export type NodeType = Node & {
   id: Scalars["GlobalID"];
 };
 
+export type Notification = Node & {
+  __typename?: "Notification";
+  archivedAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"];
+  expiresAt?: Maybe<Scalars["DateTime"]>;
+  id: Scalars["GlobalID"];
+  invite: OrganizationInvite;
+  readAt?: Maybe<Scalars["DateTime"]>;
+  status: NotificationStatus;
+  type: NotificationType;
+  user: User;
+};
+
+/** A connection to a list of items. */
+export type NotificationConnection = {
+  __typename?: "NotificationConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<NotificationEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type NotificationEdge = {
+  __typename?: "NotificationEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Notification;
+};
+
+export type NotificationFilter = {
+  createdAt_Gte?: InputMaybe<Scalars["DateTime"]>;
+  status?: InputMaybe<NotificationStatus>;
+};
+
+export enum NotificationStatus {
+  Active = "ACTIVE",
+  Archived = "ARCHIVED",
+  Expired = "EXPIRED",
+  Read = "READ",
+}
+
+export enum NotificationType {
+  OrganizationInvite = "ORGANIZATION_INVITE",
+}
+
 /** Multiple messages returned by an operation. */
 export type OperationInfo = {
   __typename?: "OperationInfo";
@@ -1566,6 +1615,7 @@ export type User = Node &
     email: Scalars["String"];
     id: Scalars["GlobalID"];
     name: Scalars["String"];
+    notifications: NotificationConnection;
     organizationMemberships: OrganizationMembershipConnection;
     organizations: OrganizationConnection;
     projects: ProjectConnection;
@@ -1579,6 +1629,14 @@ export type UserAccessTokensArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<AccessTokenFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type UserNotificationsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<NotificationFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -2409,6 +2467,31 @@ export type StatementContentFragment = {
     }>;
   };
 } & { " $fragmentName"?: "StatementContentFragment" };
+
+export type NewNotificationsQueryVariables = Exact<{
+  after?: InputMaybe<Scalars["String"]>;
+  status?: InputMaybe<NotificationStatus>;
+}>;
+
+export type NewNotificationsQuery = {
+  __typename?: "Query";
+  me?: {
+    __typename?: "User";
+    notifications: {
+      __typename?: "NotificationConnection";
+      edges: Array<{
+        __typename?: "NotificationEdge";
+        node: {
+          __typename?: "Notification";
+          id: any;
+          type: NotificationType;
+          createdAt: any;
+          status: NotificationStatus;
+        };
+      }>;
+    };
+  } | null;
+};
 
 export type UpdateDeploymentMutationVariables = Exact<{
   id: Scalars["GlobalID"];
@@ -5876,6 +5959,94 @@ export const ModuleExecutionChangedDocument = {
     ...ExecutionContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleExecutionChangedSubscription, ModuleExecutionChangedSubscriptionVariables>;
+export const NewNotificationsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "newNotifications" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "NotificationStatus" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "me" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "notifications" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "after" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "after" } },
+                    },
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "status" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "status" } },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "status" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<NewNotificationsQuery, NewNotificationsQueryVariables>;
 export const UpdateDeploymentDocument = {
   kind: "Document",
   definitions: [

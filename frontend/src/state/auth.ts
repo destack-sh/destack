@@ -1,22 +1,15 @@
-import { graphql, useFragment } from "@/gql";
+import { graphql } from "@/gql";
 import { useNotifications } from "@/state/notifications";
 import { HTTP_API_BASE_URL, IS_LOCALHOST } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/shared";
-import { defineStore } from "pinia";
+import posthog from "posthog-js";
 import { computed, watchEffect } from "vue";
 import { useRouter } from "vue-router";
-import posthog from "posthog-js";
 
 export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
 
-export const useAuthStore = defineStore("auth", {
-  state: () => ({}),
-  actions: {},
-});
-
 function _useAuth() {
-  const state = useAuthStore();
   const { result: meResult, loading: meLoading } = useQuery(
     graphql(/* GraphQL */ `
       query me {

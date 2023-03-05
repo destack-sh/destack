@@ -11,6 +11,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_can_write_user
+from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
 
@@ -42,6 +43,7 @@ class User(gql.relay.Node, Owner):
     completed_signup: auto
     bot: auto
     description: auto
+
     organizations: gql.relay.Connection[
         Annotated["Organization", lazy(".organization")]
     ] = gql.django.connection()
@@ -54,6 +56,9 @@ class User(gql.relay.Node, Owner):
     access_tokens: gql.relay.Connection[
         Annotated["AccessToken", lazy(".token")]
     ] = gql.django.connection(filters=AccessTokenFilter, directives=[CanWriteUser(at_root=False)])
+    notifications: gql.relay.Connection["Notification"] = gql.django.connection(
+        filters=NotificationFilter, directives=[CanWriteUser(at_root=False)]
+    )
 
     @gql.field
     def can_view_full(self, info: OperationInfo):

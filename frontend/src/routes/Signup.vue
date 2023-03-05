@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import NotificationArea from "@/components/container/NotificationArea.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import { SOCIAL_AUTH_PROVIDERS, encodeProviderUrl } from "@/state/auth";
 import { useTitle } from "@vueuse/core";
 

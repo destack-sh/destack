@@ -523,6 +523,55 @@ type NodeType implements Node {
   id: GlobalID!
 }
 
+type Notification implements Node {
+  id: GlobalID!
+  type: NotificationType!
+  status: NotificationStatus!
+  user: User!
+  createdAt: DateTime!
+  readAt: DateTime
+  expiresAt: DateTime
+  archivedAt: DateTime
+  invite: OrganizationInvite!
+}
+
+"""A connection to a list of items."""
+type NotificationConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [NotificationEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type NotificationEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Notification!
+}
+
+input NotificationFilter {
+  status: NotificationStatus = null
+  createdAt_Gte: DateTime = null
+}
+
+enum NotificationStatus {
+  ACTIVE
+  READ
+  EXPIRED
+  ARCHIVED
+}
+
+enum NotificationType {
+  ORGANIZATION_INVITE
+}
+
 """Multiple messages returned by an operation."""
 type OperationInfo {
   """List of messages returned by the operation."""
@@ -1444,6 +1493,20 @@ type User implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): OrganizationMembershipConnection!
+  notifications(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: NotificationFilter
+  ): NotificationConnection! @canWriteUser(atRoot: false)
 }
 
 input UserCompleteSignupInput {

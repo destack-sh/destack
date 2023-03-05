@@ -4,7 +4,8 @@ import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/container/NotificationArea.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
@@ -112,7 +113,8 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       </template>
       <template v-slot:right>
         <OmniCreate />
-        <ProfileButton />
+        <NotificationPopover class="ml-2" />
+        <ProfileButton class="ml-2" />
       </template>
     </FatHeader>
     <main

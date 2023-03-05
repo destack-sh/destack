@@ -4,7 +4,8 @@ import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/container/NotificationArea.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import SettingsAccessTokens from "@/components/settings/SettingsAccessTokens.vue";
 import SettingsMembers from "@/components/settings/SettingsMembers.vue";
 import SettingsProfile from "@/components/settings/SettingsProfile.vue";
@@ -193,7 +194,8 @@ watchEffect(() => {
       </template>
       <template v-slot:right>
         <OmniCreate />
-        <ProfileButton />
+        <NotificationPopover class="ml-2" />
+        <ProfileButton class="ml-2" />
       </template>
     </FatHeader>
     <main
@@ -202,7 +204,7 @@ watchEffect(() => {
     >
       <TabGroup :selected-index="selectedIndex" @change="selectTab" as="template">
         <!-- Profile info -->
-        <div class="flex w-64 flex-col gap-2">
+        <div class="flex w-80 flex-col gap-2">
           <!-- Name / username -->
           <div class="border-b-2 border-gray-200 pb-2">
             <h1 class="flex max-w-full flex-row items-center gap-2 text-gray-900">
