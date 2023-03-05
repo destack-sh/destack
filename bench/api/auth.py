@@ -142,9 +142,12 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
             # not needed so far, see _resolve_iterable_perms_safe once necessary
             raise NotImplementedError
         elif isinstance(obj, Connection):
-            obj_key = f"{info.field_name}_{obj.page_info.start_cursor}_{obj.page_info.end_cursor}"
+            obj_key = (
+                root,
+                f"{info.field_name}_{obj.page_info.start_cursor}_{obj.page_info.end_cursor}",
+            )
         else:
-            obj_key = obj  # models are hashable
+            obj_key = (root, obj)  # models are hashable
 
         cache = self.get_cache(info, user)
         has_perm = cache.get(obj_key)
