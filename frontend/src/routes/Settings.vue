@@ -20,6 +20,7 @@ import {
   LinkIcon,
   LockClosedIcon,
   UserCircleIcon,
+  UserGroupIcon,
   UsersIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -114,7 +115,7 @@ const tabs = computed(() => {
     tabs.push({
       id: "members",
       name: "Members",
-      icon: UsersIcon,
+      icon: UserGroupIcon,
       count: organization.value?.members.totalCount ?? 0,
       component: SettingsMembers,
     });

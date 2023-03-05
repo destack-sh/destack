@@ -838,7 +838,7 @@ export type OrganizationInvite = Node & {
   level: OrganizationMembershipLevel;
   organization: Organization;
   updatedAt: Scalars["DateTime"];
-  user: User;
+  user?: Maybe<User>;
 };
 
 /** A connection to a list of items. */
@@ -865,7 +865,7 @@ export type OrganizationInviteInput = {
   emails: Array<Scalars["String"]>;
   id: Scalars["GlobalID"];
   level: OrganizationMembershipLevel;
-  message: Scalars["String"];
+  message?: InputMaybe<Scalars["String"]>;
 };
 
 export type OrganizationMembership = Node & {
@@ -1860,8 +1860,9 @@ export type OrganizationMembersQuery = {
           id: any;
           createdAt: any;
           level: OrganizationMembershipLevel;
+          email: string;
           emailSentAt?: any | null;
-          user: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string };
+          user?: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string } | null;
         };
       }>;
     };
@@ -1875,8 +1876,23 @@ export type ProfileSettingsQueryVariables = Exact<{
 export type ProfileSettingsQuery = {
   __typename?: "Query";
   ownerBySlug?:
-    | { __typename?: "Organization"; id: any; slug: string; name: string; description?: string | null }
-    | { __typename?: "User"; id: any; slug: string; name: string; username: string; description?: string | null }
+    | {
+        __typename?: "Organization";
+        id: any;
+        slug: string;
+        name: string;
+        description?: string | null;
+        canWrite: boolean;
+      }
+    | {
+        __typename?: "User";
+        id: any;
+        slug: string;
+        name: string;
+        username: string;
+        description?: string | null;
+        canWrite: boolean;
+      }
     | null;
 };
 
@@ -2472,6 +2488,30 @@ export type CreateOrganizationMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Organization"; id: any; name: string; slug: string };
+};
+
+export type CreateInvitesMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  emails: Array<Scalars["String"]> | Scalars["String"];
+  level: OrganizationMembershipLevel;
+  message?: InputMaybe<Scalars["String"]>;
+}>;
+
+export type CreateInvitesMutation = {
+  __typename?: "Mutation";
+  createOrganizationInvites:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Organization";
+        id: any;
+        invites: {
+          __typename?: "OrganizationInviteConnection";
+          totalCount?: number | null;
+          edges: Array<{ __typename?: "OrganizationInviteEdge"; node: { __typename?: "OrganizationInvite"; id: any } }>;
+        };
+      };
 };
 
 export type CreateProjectMutationVariables = Exact<{
@@ -4485,6 +4525,7 @@ export const OrganizationMembersDocument = {
                                         { kind: "Field", name: { kind: "Name", value: "id" } },
                                         { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                                         { kind: "Field", name: { kind: "Name", value: "level" } },
+                                        { kind: "Field", name: { kind: "Name", value: "email" } },
                                         { kind: "Field", name: { kind: "Name", value: "emailSentAt" } },
                                         {
                                           kind: "Field",
@@ -4561,6 +4602,7 @@ export const ProfileSettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "username" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                     ],
                   },
                 },
@@ -4574,6 +4616,7 @@ export const ProfileSettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "slug" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                     ],
                   },
                 },
@@ -6298,6 +6341,131 @@ export const CreateOrganizationDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateOrganizationMutation, CreateOrganizationMutationVariables>;
+export const CreateInvitesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createInvites" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "emails" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+            },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "level" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "OrganizationMembershipLevel" } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "message" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createOrganizationInvites" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "emails" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "emails" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "level" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "level" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "message" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "message" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "invites" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateInvitesMutation, CreateInvitesMutationVariables>;
 export const CreateProjectDocument = {
   kind: "Document",
   definitions: [

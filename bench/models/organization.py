@@ -145,7 +145,7 @@ class OrganizationInvite(UUIDModel):
     message: models.TextField = models.TextField(blank=True, null=True)
     email_sent_at: models.DateTimeField = models.DateTimeField(blank=True, null=True)
 
-    created_by: models.ForeignKey = models.ForeignKey("User", on_delete=models.CASCADE)
+    created_by: models.ForeignKey = models.ForeignKey("User", null=True, on_delete=models.SET_NULL)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 

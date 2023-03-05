@@ -1,4 +1,5 @@
 import { graphql } from "@/gql";
+import type { OrganizationMembershipLevel } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -30,5 +31,41 @@ export function useOrganizationOps() {
     });
   }
 
-  return { create };
+  const { mutate: createInvitesMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation createInvites(
+        $id: GlobalID!
+        $emails: [String!]!
+        $level: OrganizationMembershipLevel!
+        $message: String
+      ) {
+        createOrganizationInvites(input: { id: $id, emails: $emails, level: $level, message: $message }) {
+          ... on Organization {
+            id
+            invites {
+              totalCount
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function createInvites(id: string, emails: string[], level: OrganizationMembershipLevel, message?: string) {
+    return await operations.perform({
+      type: "organization.createInvites",
+      stateless: true,
+      do: async () => {
+        return await createInvitesMut({ id, emails, level, message });
+      },
+    });
+  }
+
+  return { create, createInvites };
 }

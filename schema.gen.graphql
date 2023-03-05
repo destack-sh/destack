@@ -658,7 +658,7 @@ type OrganizationEdge {
 type OrganizationInvite implements Node {
   id: GlobalID!
   organization: Organization!
-  user: User!
+  user: User
   email: String!
   level: OrganizationMembershipLevel!
   createdAt: DateTime!
@@ -691,7 +691,7 @@ input OrganizationInviteInput {
   id: GlobalID!
   emails: [String!]!
   level: OrganizationMembershipLevel!
-  message: String!
+  message: String = null
 }
 
 type OrganizationMembership implements Node {

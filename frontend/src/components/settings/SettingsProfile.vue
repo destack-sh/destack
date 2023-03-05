@@ -19,12 +19,14 @@ const { result: profileResult } = useQuery(
           name
           username
           description
+          canWrite
         }
         ... on Organization {
           id
           slug
           name
           description
+          canWrite
         }
       }
     }
@@ -33,6 +35,7 @@ const { result: profileResult } = useQuery(
 );
 
 const isOrganization = computed(() => profileResult.value?.ownerBySlug?.__typename === "Organization");
+const canWrite = computed(() => profileResult.value?.ownerBySlug?.canWrite);
 
 const name: Ref<string | null> = ref(null);
 const description: Ref<string | null> = ref(null);
@@ -126,7 +129,7 @@ watchEffect(() => {
           maxlength="128"
           :placeholder="isOrganization ? 'E Corp' : 'Yatima'"
           v-model="name"
-          class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+          class="mt-1 w-full rounded-sm border border-gray-200 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
           spellcheck="false"
         />
         <FadeTransition mode="out-in">
@@ -141,7 +144,7 @@ watchEffect(() => {
       <div class="flex w-96 flex-col text-left">
         <span class="text-md text-gray-700">Bot-friendly name</span>
         <div class="flex flex-row items-baseline">
-          <span class="mt-1 rounded-l-sm border border-r-0 border-orange-600 bg-white px-3 py-1 text-gray-500"
+          <span class="mt-1 rounded-l-sm border border-r-0 border-gray-200 bg-white px-3 py-1 text-gray-500"
             >symbolx.com/</span
           >
           <input
@@ -151,7 +154,7 @@ watchEffect(() => {
             maxlength="128"
             :placeholder="isOrganization ? 'e-corp' : 'yatima'"
             v-model="slug"
-            class="mt-1 flex-1 rounded-r-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="mt-1 flex-1 rounded-r-sm border border-gray-200 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
             spellcheck="false"
             disabled
           />
@@ -175,7 +178,7 @@ watchEffect(() => {
           maxlength="128"
           :placeholder="isOrganization ? 'The best multinational conglomerate.' : 'The best user.'"
           v-model="description"
-          class="mt-1 w-full resize-none rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+          class="mt-1 w-full resize-none rounded-sm border border-gray-200 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
           spellcheck="false"
         />
       </div>

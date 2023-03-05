@@ -80,7 +80,7 @@ class OrganizationMembership(gql.Node):
 @gql.django.type(models.OrganizationInvite)
 class OrganizationInvite(gql.Node):
     organization: Organization
-    user: Annotated["User", lazy(".user")]
+    user: Optional[Annotated["User", lazy(".user")]]
     email: auto
     level: OrganizationMembershipLevel
     created_at: auto
@@ -109,7 +109,7 @@ class OrganizationRenameInput(gql.NodeInput):
 class OrganizationInviteInput(gql.NodeInput):
     emails: list[str]
     level: OrganizationMembershipLevel
-    message: str
+    message: Optional[str] = None
 
 
 @gql.input
@@ -156,7 +156,9 @@ class OrganizationMutation:
         organization = models.Organization.objects.get(id=input.id.node_id)
         check_can_write_organization(info, organization)
         for email in input.emails:
-            organization.create_invite(email, input.level, input.message)
+            organization.create_invite(
+                email, input.level, input.message, created_by=info.context.request.scope["user"]
+            )
         return organization
 
     @safe_mutation
