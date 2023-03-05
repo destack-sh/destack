@@ -696,7 +696,7 @@ input OrganizationInviteInput {
 
 type OrganizationMembership implements Node {
   id: GlobalID!
-  organization: NodeType!
+  organization: Organization!
   user: User!
   level: OrganizationMembershipLevel!
   createdAt: DateTime!
@@ -1431,6 +1431,19 @@ type User implements Node & Owner {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): OrganizationConnection!
+  organizationMemberships(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): OrganizationMembershipConnection!
 }
 
 input UserCompleteSignupInput {

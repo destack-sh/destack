@@ -103,7 +103,7 @@ class OrganizationMembership(UUIDModel):
         Organization, on_delete=models.CASCADE, related_name="memberships"
     )
     user: models.ForeignKey = models.ForeignKey(
-        "bench.User", on_delete=models.CASCADE, related_name="organization_memberships+"
+        "bench.User", on_delete=models.CASCADE, related_name="organization_memberships"
     )
     level: models.SmallIntegerField = models.SmallIntegerField(
         choices=OrganizationMembershipLevel.choices

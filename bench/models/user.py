@@ -54,6 +54,7 @@ class User(AbstractUser, UUIDModel):
     projects: models.QuerySet["Project"]  # noqa via Project.user
     invites: models.QuerySet["ProjectInvite"]  # noqa via OrganizationInvite.user
     organizations: models.QuerySet["Organization"]  # noqa via Organization.members
+    memberships: models.QuerySet["OrganizationMembership"]  # noqa via OrganizationMembership.user
 
     objects: UserManager = UserManager()  # type: ignore
 
