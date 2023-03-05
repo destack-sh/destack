@@ -54,7 +54,7 @@ const selected = computed(() => {
   >
     <slot name="button">
       <ListboxButton
-        class="flex flex-row items-center gap-1 py-1 hover:bg-orange-50 focus:outline-none"
+        class="flex flex-row items-center gap-1 py-1 hover:bg-orange-50 focus:bg-orange-50 focus:outline-none"
         :class="open ? 'bg-orange-50' : ''"
       >
         <p class="text-sm">{{ selected?.label }}</p>

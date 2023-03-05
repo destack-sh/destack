@@ -4,10 +4,10 @@ import Switch from "@/components/basic/Switch.vue";
 import UserCombobox from "@/components/basic/UserCombobox.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
-import { OrganizationMembershipLevel } from "@/gql/graphql";
+import { OrganizationMembershipLevel, type OrganizationInvite, type OrganizationMembership } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
-import { useOperationsStore } from "@/state/operations";
+import { useOperations } from "@/state/operations";
 import { MinusCircleIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
@@ -44,6 +44,7 @@ const { result: membersResult, loading } = useQuery(
                 id
                 createdAt
                 level
+                email
                 emailSentAt
                 user {
                   id
@@ -69,9 +70,6 @@ const memberships = computed(() => membersResult.value?.organizationBySlug?.memb
 const invites = computed(() => membersResult.value?.organizationBySlug?.invites.edges.map((e) => e.node));
 const canWrite = computed(() => membersResult.value?.organizationBySlug?.canWrite ?? false);
 
-const operations = useOperationsStore();
-const notifications = useNotifications();
-
 const showInvites = ref(true);
 const { getTimeFromNowLongString } = useTimeFromNow();
 
@@ -79,6 +77,48 @@ const addMemberRef = ref<HTMLButtonElement | null>(null);
 
 const invitingUser: Ref<{ id?: string; email: string } | null> = ref(null);
 const invitingLevel: Ref<OrganizationMembershipLevel> = ref(OrganizationMembershipLevel.Member);
+
+const operations = useOperations();
+const notifications = useNotifications();
+
+async function createInvites() {
+  console.log("invite user", invitingUser.value);
+  // right now this is a primitive menuwith only one user to select
+  if (invitingUser.value == null) {
+    return;
+  }
+  // we also don't do any validation on which user can be added yet
+
+  const organizationId = membersResult.value?.organizationBySlug?.id;
+  const ret = await operations.organization.createInvites(
+    organizationId,
+    [invitingUser.value?.email],
+    invitingLevel.value
+  );
+  if (ret?.data?.createOrganizationInvites?.__typename == "Organization") {
+    // success
+    notifications.show({
+      type: "organization.createdInvite",
+      kind: "success",
+      message: "Invite sent",
+      description: `${invitingUser.value.email} may now join ${props.slug}.`,
+    });
+
+    // do the next one
+    invitingUser.value = null;
+    addMemberRef.value?.focus();
+  }
+}
+
+async function cancelInvite(invite: OrganizationInvite) {
+  // not implemented
+  console.log("cancel invite", invite);
+}
+
+async function removeMembership(membership: OrganizationMembership) {
+  // not implemented
+  console.log("remove membership", membership);
+}
 </script>
 <template>
   <div class="h-full w-full">
@@ -89,16 +129,18 @@ const invitingLevel: Ref<OrganizationMembershipLevel> = ref(OrganizationMembersh
         <Switch class="ml-1" v-model="showInvites" />
       </span>
     </div>
-    <table class="mt-3 min-w-full divide-y divide-gray-300 rounded-sm border border-gray-200 bg-white text-sm">
+    <table
+      class="mt-3 min-w-full divide-y divide-gray-300 rounded-sm border border-gray-200 bg-white text-sm"
+      v-show="membersResult?.organizationBySlug != null"
+    >
       <thead>
         <tr>
           <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">User</th>
           <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Status</th>
           <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Role</th>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900" v-if="canWrite"></th>
-          <th scope="col" class="py-2 pr-1 text-left text-sm font-semibold text-gray-900">
+          <th scope="col" class="py-2 px-3 text-center text-sm font-semibold text-gray-900" v-if="canWrite">
             <button
-              class="focuus:bg-gray-100 mt-1 text-orange-600 hover:bg-orange-50 focus:outline-none"
+              class="mt-1 text-center text-orange-600 hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
               @click="addMemberRef?.focus"
             >
               <PlusIcon class="h-5 w-5" />
@@ -108,7 +150,8 @@ const invitingLevel: Ref<OrganizationMembershipLevel> = ref(OrganizationMembersh
       </thead>
       <tbody>
         <!-- Members -->
-        <tr v-for="membership in memberships" :key="membership.id">
+        <tr v-for="membership in memberships" :key="membership.id" class="group">
+          <!-- User -->
           <td class="whitespace-nowrap px-3 py-3">
             <div class="flex flex-col">
               <span
@@ -123,57 +166,82 @@ const invitingLevel: Ref<OrganizationMembershipLevel> = ref(OrganizationMembersh
               <span class="text-xs text-gray-500">{{ membership.user.email }}</span>
             </div>
           </td>
+          <!-- Status -->
           <td class="px-3 py-3">
             <div class="flex flex-col">
               <span class="w-fit rounded-sm bg-orange-100 py-0.5 px-1 text-xs text-orange-900">Active</span>
               <span class="text-xs text-gray-500">joined {{ getTimeFromNowLongString(membership.createdAt) }}</span>
             </div>
           </td>
+          <!-- Role -->
           <td class="px-3 py-3">
             <span class="text-gray-900">{{ membership.level }}</span>
           </td>
+          <!-- Action -->
           <td class="px-3 py-3" v-if="canWrite">
-            <button v-if="auth.me.value?.id != membership.user.id">
+            <button v-if="auth.me.value?.id != membership.user.id" @click="removeMembership(membership as any)">
               <MinusCircleIcon class="h-4 w-4 text-gray-400 hover:text-gray-700" />
             </button>
           </td>
         </tr>
         <!-- Invites (if shown) -->
-        <tr v-for="invite in showInvites ? invites : []" :key="invite.id">
+        <tr v-for="invite in showInvites ? invites : []" :key="invite.id" class="roup" g>
+          <!-- User -->
           <td class="whitespace-nowrap px-3 py-3">
             <div class="flex flex-col">
               <span class="text-gray-900">
-                {{ invite.user.username ?? "Not signed up" }}
+                {{ invite.user?.username ?? "(Not signed up)" }}
               </span>
-              <span class="text-xs text-gray-500">{{ invite.user.email }}</span>
+              <span class="text-xs text-gray-500">{{ invite.email }}</span>
             </div>
           </td>
+          <!-- Status -->
           <td class="px-3 py-3">
             <div class="flex flex-col">
-              <span class="w-fit rounded-sm bg-yellow-100 py-0.5 px-1 text-xs text-yellow-900">Pending</span>
+              <span class="w-fit rounded-sm bg-yellow-100 py-0.5 px-1 text-xs text-yellow-900">Invited</span>
               <span class="text-xs text-gray-500">invited {{ getTimeFromNowLongString(invite.createdAt) }}</span>
             </div>
           </td>
+          <!-- Role -->
           <td class="px-3 py-3">
             <span class="text-gray-900">{{ invite.level }}</span>
           </td>
-          <td class="px-3 py-3" v-if="canWrite">
-            <button>
-              <MinusCircleIcon class="h-4 w-4 text-gray-400 hover:text-gray-700" />
+          <!-- Action -->
+          <td class="px-3 py-3 text-center" v-if="canWrite">
+            <button class="p-1 text-gray-400 group-hover:text-gray-700" @click="cancelInvite(invite as any)">
+              <MinusCircleIcon class="h-4 w-4 hover:text-red-600" />
             </button>
           </td>
         </tr>
         <!-- Create invite -->
+        <tr class="border-t border-gray-200">
+          <th colspan="5" scope="colgroup" class="px-3 pt-3 pb-0 text-left text-gray-900">Grow the team</th>
+        </tr>
         <tr v-if="canWrite">
+          <!-- User -->
           <td class="whitespace-nowrap px-3 py-3">
-            <UserCombobox v-model="invitingUser" placeholder="New member" />
+            <UserCombobox ref="addMemberRef" v-model="invitingUser" placeholder="New member email" />
           </td>
-          <td class="px-3 py-3"></td>
+          <!-- Status -->
+          <td class="px-3 py-3">
+            <div class="flex flex-col" v-if="invitingUser != null">
+              <span class="w-fit rounded-sm bg-yellow-100 py-0.5 px-1 text-xs text-yellow-900">Excited</span>
+              <span class="text-xs text-gray-500">joining soon</span>
+            </div>
+          </td>
+          <!-- Role -->
           <td class="px-3 py-3">
             <MembershipLevelSelect v-if="invitingUser != null" v-model="invitingLevel" />
           </td>
-          <td>
-            <button class="" :class="invitingUser == null ? 'text-transparent' : ''">Invite</button>
+          <!-- Action -->
+          <td class="px-1 py-3 text-center">
+            <button
+              v-if="invitingUser"
+              class="focus rounded-sm border border-orange-600 bg-white px-3 py-1 text-gray-900 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
+              @click="createInvites"
+            >
+              Invite
+            </button>
           </td>
         </tr>
       </tbody>

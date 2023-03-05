@@ -3,7 +3,8 @@ import { isValidEmail, isValidSlug } from "@/composables/useValidation";
 import { graphql } from "@/gql";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref } from "vue";
+import { useFocus } from "@vueuse/core";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{ modelValue: { id?: string; email: string } | null; placeholder?: string }>();
 const emit = defineEmits<{
@@ -44,22 +45,28 @@ const { result: matchingUsersResult } = useQuery(
 );
 const matchingUsers = computed(() => matchingUsersResult.value?.users.edges.map((e) => e.node));
 const matchesCount = computed(() => matchingUsers.value?.length);
+
+const inputRef: Ref<HTMLInputElement | null> = ref(null);
+const inputRefFocused = useFocus(inputRef);
+defineExpose({
+  focus: () => (inputRefFocused.focused.value = true),
+});
 </script>
 <template>
   <Combobox
     as="div"
     class="relative"
     :model-value="props.modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:model-value="emit('update:modelValue', $event ?? { email: query })"
     nullable
   >
     <slot name="input">
       <ComboboxInput
         as="input"
         ref="inputRef"
-        class="w-auto min-w-fit rounded-sm border-0 px-0 underline-offset-4 placeholder-gray-400 outline-none ring-0 focus:underline focus:ring-0"
+        class="w-fit min-w-fit rounded-sm border-0 px-0 text-sm underline-offset-4 placeholder-gray-400 outline-none ring-0 focus:bg-orange-50 focus:underline focus:ring-0"
         @change="query = $event.target.value"
-        :display-value="(stmt: any) => stmt?.username"
+        :display-value="(stmt: any) => stmt?.username ?? query"
         :placeholder="placeholder"
       />
     </slot>
@@ -68,13 +75,27 @@ const matchesCount = computed(() => matchingUsers.value?.length);
       ref="optionsRef"
       class="absolute left-0 top-8 z-10 mt-0 w-56 rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
     >
-      <ComboboxOption v-if="query.length > 0 && validEmail" :key="0" :value="{ email: query }">
-        {{ query }}
+      <!-- Note that for some reason we can't use { email: query } as the value, so we use null to indicate new -->
+      <!-- Invite non-existing user option -->
+      <ComboboxOption v-if="query.length > 0 && validEmail && matchesCount == 0" :key="1" :value="null">
+        <div class="flex flex-col px-2 py-1 hover:cursor-pointer hover:bg-orange-50">
+          <span class="text-gray-900">(Invite to sign up)</span>
+          <span class="text-gray-500">{{ query }}</span>
+        </div>
       </ComboboxOption>
-      <div v-else-if="validSlug && matchesCount == 0">no matches</div>
-      <ComboboxOption :key="user.id" :value="user" v-for="user in matchingUsers">
-        <div class="flex flex-col">
-          <span class="text-gray-900">{{ user.username }}</span>
+      <!-- Not found -->
+      <div v-else-if="validSlug && matchesCount == 0" class="px-2 py-1">
+        <span class="text-gray-500"
+          >The bots can't find <span class="underline decoration-dotted underline-offset-4"> {{ query }} </span>.
+        </span>
+      </div>
+      <!-- Matches -->
+      <ComboboxOption v-for="user in matchingUsers" v-slot="{ active, selected }" :key="user.id" :value="user">
+        <div
+          class="flex flex-col px-2 py-1 hover:cursor-pointer hover:bg-orange-50"
+          :class="[active ? 'bg-orange-50' : '', selected ? 'text-orange-600' : 'text-gray-900']"
+        >
+          <span class="">{{ user.username }}</span>
           <span class="text-gray-500">{{ user.email }}</span>
         </div>
       </ComboboxOption>
