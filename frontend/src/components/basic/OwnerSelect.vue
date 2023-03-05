@@ -43,7 +43,7 @@ const possibleOwners = computed(() => {
       </slot>
       <FadeTransition>
         <ListboxOptions
-          class="absolute left-0 top-8 z-10 mt-0 max-h-64 w-56 overflow-y-scroll rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
+          class="absolute left-0 top-8 z-10 mt-0 max-h-64 w-56 overflow-y-auto rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
         >
           <ListboxOption
             v-for="owner in possibleOwners"
