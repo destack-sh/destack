@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { NotificationStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
@@ -8,11 +9,11 @@ import { BellIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
 
-const { activeCount } = useNotifications();
+const { activeCount, render, mark } = useNotifications();
 const hasUnreadNotifications = computed(() => activeCount.value > 0);
 
-const filterStatus: Ref<NotificationStatus> = ref(NotificationStatus.Active);
-const open = ref(true); // TODO @Broken: sync this
+const showingArchive: Ref<boolean> = ref(false);
+const open = ref(true); // TODO @Incomplete: sync open with popover open, refetch whenever open
 
 const {
   result: notificationsResult,
@@ -20,9 +21,10 @@ const {
   refetch,
 } = useQuery(
   graphql(/* GraphQL */ `
-    query notifications($status: NotificationStatus, $first: Int) {
+    query notifications($status: NotificationStatus, $notArchived: Boolean, $first: Int) {
       me {
-        notifications(filters: { status: $status }, first: $first) {
+        id
+        notifications(filters: { status: $status, notArchived: $notArchived }, first: $first) {
           totalCount
           edges {
             node {
@@ -49,7 +51,8 @@ const {
     }
   `),
   computed(() => ({
-    status: filterStatus.value,
+    status: showingArchive.value ? NotificationStatus.Archived : undefined,
+    notArchived: !showingArchive.value,
     first: 10,
   })) as any,
   {
@@ -57,6 +60,34 @@ const {
   }
 );
 const notifications = computed(() => notificationsResult.value?.me?.notifications.edges.map((e) => e.node) ?? []);
+const renderedNotifications = computed(() =>
+  notifications.value.map((notification) => ({
+    ...notification,
+    ...render(notification as any),
+  }))
+);
+
+async function markRead(notification: { id: string }) {
+  await mark(notification.id, NotificationStatus.Read);
+}
+
+async function markUnread(notification: { id: string }) {
+  await mark(notification.id, NotificationStatus.Active);
+}
+
+async function toggleRead(notification: { id: string; status: NotificationStatus }) {
+  if (notification.status != NotificationStatus.Active) {
+    await mark(notification.id, NotificationStatus.Active);
+  } else {
+    await mark(notification.id, NotificationStatus.Read);
+  }
+}
+
+async function markArchived(notification: { id: string }) {
+  await mark(notification.id, NotificationStatus.Archived);
+}
+
+const { getTimeFromNowString } = useTimeFromNow();
 </script>
 <template>
   <Popover v-slot="{ open }" as="div" class="relative">
@@ -73,23 +104,62 @@ const notifications = computed(() => notificationsResult.value?.me?.notification
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute right-0 top-10 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute right-0 top-10 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-2 pt-2 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Header -->
-        <div>
+        <div class="">
           <h2 class="font-bold text-gray-900">Notifications</h2>
           <!-- Unread / archived toggle -->
-          <!-- Dismiss all button -->
+          <!-- Dismiss all button etc. -->
         </div>
         <!-- Empty state -->
         <p class="text-gray-500" v-if="loading"></p>
-        <p class="text-gray-500" v-else-if="notifications.length == 0">Nothing here.</p>
+        <p class="text-gray-500" v-else-if="notifications.length == 0">All caught up.</p>
         <!-- Notifications -->
-        <ul v-else class="flex flex-col">
-          <li v-for="notification in notifications" :key="notification.id">
-            {{ notification.type }}
-          </li>
-        </ul>
+        <div v-else class="flex w-full flex-col items-center gap-y-4 transition">
+          <transition-group
+            move-class="transition-all"
+            enter-active-class="transition-opacity duration-100 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity duration-75 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+          >
+            <div
+              v-for="notification in renderedNotifications"
+              :key="notification.id"
+              class="flex w-full flex-row items-baseline justify-between overflow-hidden rounded-sm border-l-2 py-1.5 pl-1.5 pr-2 hover:cursor-pointer hover:bg-orange-50"
+              :class="{
+                'border-orange-600': notification.status === NotificationStatus.Active,
+                'border-gray-200': notification.status === NotificationStatus.Read,
+                'border-gray-400': notification.status === NotificationStatus.Archived,
+              }"
+              @click="toggleRead(notification)"
+            >
+              <!-- Main message -->
+              <div class="ml-1 flex flex-col">
+                <h3 class="relative flex flex-row items-center gap-1 text-sm font-bold text-gray-900">
+                  <component :is="notification.icon" v-if="notification.icon" class="absolute h-4 w-4 text-gray-700" />
+                  <span class="ml-5">{{ notification.message }}</span>
+                </h3>
+                <p v-if="notification.description" class="text-xs text-gray-500">{{ notification.description }}</p>
+              </div>
+              <!-- Actions & Time -->
+              <div class="flex flex-row items-baseline">
+                <button
+                  v-if="notification.actionText"
+                  type="button"
+                  class="h-fit flex-shrink-0 rounded-sm px-3 text-sm font-medium text-gray-900 underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-gray-900 hover:decoration-solid focus:outline-none"
+                  @click="() => notification.action?.()"
+                >
+                  {{ notification.actionText }}
+                </button>
+                <span class="text-gray-500">{{ getTimeFromNowString(notification.createdAt) }}</span>
+              </div>
+            </div>
+          </transition-group>
+        </div>
       </PopoverPanel>
     </FadeTransition>
   </Popover>

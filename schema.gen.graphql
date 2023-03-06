@@ -459,6 +459,7 @@ type ModuleRuntime {
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   updateUser(input: UserUpdateInput!): UserOperationInfo!
+  acceptOrganizationInvite(id: GlobalID!): UserOperationInfo!
   logout: OperationInfo
   createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
@@ -467,6 +468,7 @@ type Mutation {
   removeOrganizationMembership(input: OrganizationRemoveMembershipInput!): OrganizationOperationInfo!
   createAccessToken(input: AccessTokenCreateInput!): AccessTokenCreatePayloadOperationInfo!
   revokeAccessToken(id: GlobalID!): AccessTokenOperationInfo!
+  markNotification(input: NotificationMarkInput!): NotificationOperationInfo!
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
   updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
@@ -558,8 +560,16 @@ type NotificationEdge {
 
 input NotificationFilter {
   status: NotificationStatus = null
+  notArchived: Boolean = null
   createdAt_Gte: DateTime = null
 }
+
+input NotificationMarkInput {
+  id: GlobalID!
+  status: NotificationStatus!
+}
+
+union NotificationOperationInfo = Notification | OperationInfo
 
 enum NotificationStatus {
   ACTIVE

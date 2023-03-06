@@ -59,5 +59,50 @@ export function useUserOps() {
     });
   }
 
-  return { logout, completeSignup };
+  const { mutate: acceptOrganizationInviteMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation acceptOrganizationInvite($id: GlobalID!) {
+        acceptOrganizationInvite(id: $id) {
+          ... on User {
+            id
+            username
+            slug
+            email
+            name
+            createdAt
+            updatedAt
+            completedSignup
+            # refetch memberships
+            organizationMemberships {
+              totalCount
+              edges {
+                node {
+                  id
+                  level
+                  organization {
+                    id
+                    name
+                    slug
+                  }
+                }
+              }
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function acceptOrganizationInvite(id: string) {
+    return await operations.perform({
+      type: "user.acceptOrganizationInvite",
+      stateless: true,
+      do: async () => {
+        return await acceptOrganizationInviteMut({ id });
+      },
+    });
+  }
+
+  return { logout, completeSignup, acceptOrganizationInvite };
 }

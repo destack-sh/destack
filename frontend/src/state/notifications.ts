@@ -1,25 +1,48 @@
 import { graphql } from "@/gql";
-import { NotificationStatus, type Notification } from "@/gql/graphql";
+import { NotificationStatus, NotificationType, type Notification } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
-import { useQuery } from "@vue/apollo-composable";
+import { useOperations } from "@/state/operations";
+import { UserPlusIcon } from "@heroicons/vue/24/outline";
+import { useMutation, useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
-import { computed, toRef, watchEffect } from "vue";
+import { computed, shallowRef, toRef, watch } from "vue";
 
 export type DisplayNotification = {
   id?: string; // if from the server, this is the id of the notification
-  notification?: Notification;
+  notification?: Notification; // if server notification
   localId: string;
   type: string;
   kind: "success" | "warning" | "notice" | "error";
+  icon?: any;
   message: string;
   description?: string;
   actionText?: string;
   action?: () => void;
   shownAt?: DateTime;
   showTimeMs?: number;
+  initialShowTimeMs?: number;
 };
+
+function getTimeShownMs(notification: DisplayNotification): number {
+  return DateTime.now()
+    .diff(notification.shownAt as DateTime)
+    .as("milliseconds");
+}
+
+function dismissNotificationWhenExpired(dismiss: () => void, notification: DisplayNotification) {
+  setTimeout(() => {
+    // check if time has really elapsed (e.g. if freezing while hovering)
+    const timeShownMs = getTimeShownMs(notification);
+    if (timeShownMs > (notification.showTimeMs as number)) {
+      dismiss();
+    } else {
+      // try again
+      dismissNotificationWhenExpired(dismiss, notification);
+    }
+  }, notification.showTimeMs);
+}
 
 export const useNotificationsStore = defineStore("notifications", {
   state: () => {
@@ -33,15 +56,17 @@ export const useNotificationsStore = defineStore("notifications", {
       notificationData: Partial<DisplayNotification> & Pick<DisplayNotification, "type" | "kind" | "message">
     ): void {
       const notification: DisplayNotification = {
-        localId: notificationData.localId ?? Math.random().toString(36).slice(2, 9),
+        localId: notificationData.localId ?? notificationData.id ?? Math.random().toString(36).slice(2, 9),
         showTimeMs: notificationData.showTimeMs ?? 7000,
         shownAt: DateTime.now(),
+        icon: notificationData.icon ? shallowRef(notificationData.icon) : undefined,
         ...notificationData,
       };
+      notification.initialShowTimeMs = notification.showTimeMs;
       notification.shownAt = DateTime.now();
       this.pastNotifications.push(notification);
       this.shownNotifications.push(notification);
-      setTimeout(() => this.dismiss(notification.localId), notification.showTimeMs);
+      dismissNotificationWhenExpired(() => this.dismiss(notification.localId), notification);
     },
     showIf(
       notificationData: Partial<DisplayNotification> & Pick<DisplayNotification, "type" | "kind" | "message">,
@@ -59,6 +84,13 @@ export const useNotificationsStore = defineStore("notifications", {
         }
       }
       this.show(notificationData);
+    },
+    freeze(notificationId: string): void {
+      // reset the notifications show time
+      const notification = this.shownNotifications.find((n) => n.localId == notificationId);
+      if (notification != null) {
+        notification.showTimeMs = getTimeShownMs(notification) + (notification.initialShowTimeMs as number);
+      }
     },
     dismiss(notificationId: string): void {
       this.shownNotifications = this.shownNotifications.filter((n) => n.localId !== notificationId);
@@ -125,8 +157,9 @@ function _useNotifications() {
     () => newNotificationsResult.value?.me?.notifications?.edges.map((e) => e.node) ?? []
   );
 
-  // watch for new server-side notifications
-  watchEffect(() => {
+  // watch and show new server-side notifications
+  const handler = _useNotificationHandler();
+  watch(serverNotifications, () => {
     if (serverNotifications.value == null) {
       return;
     }
@@ -138,19 +171,26 @@ function _useNotifications() {
         // already shown
         continue;
       }
+      const rendered = handler.render(notification as Notification);
+      if (rendered == null) {
+        console.warn("received notification that could not be rendered: ", notification);
+        continue;
+      }
       store.show({
         id: notification.id,
         showTimeMs: 15000,
-        ...renderNotification(notification as Notification),
+        ...rendered,
       });
     }
   });
 
   return {
     store,
-    pastNotifications: store.pastNotifications,
-    shownNotifications: store.shownNotifications,
+    pastNotifications: computed(() => store.pastNotifications),
+    shownNotifications: computed(() => store.shownNotifications),
     activeCount,
+    mark: handler.mark,
+    render: handler.render,
     refetchFromServer,
     show: store.show,
     showIf: store.showIf,
@@ -159,14 +199,83 @@ function _useNotifications() {
   };
 }
 
-export const useNotifications = createSharedComposable(_useNotifications);
+function _useNotificationHandler() {
+  const notifications = useNotificationsStore();
+  const operations = useOperations();
 
-export function renderNotification(
-  notification: Notification
-): Pick<DisplayNotification, "type" | "kind" | "message" | "description"> {
+  const { mutate: markNotificationMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {
+        markNotification(input: { id: $id, status: $status }) {
+          ... on Notification {
+            id
+            status
+            readAt
+            archivedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; status: NotificationStatus }) =>
+        ({
+          __typename: "Mutation",
+          markNotification: {
+            __typename: "Notification",
+            id: vars.id,
+            status: vars.status,
+            readAt: vars.status == NotificationStatus.Read ? DateTime.now().toISO() : null,
+            archivedAt: vars.status == NotificationStatus.Archived ? DateTime.now().toISO() : null,
+          },
+        } as any),
+    }
+  );
+
+  async function mark(notificationId: string, status: NotificationStatus) {
+    await operations.state.perform({
+      type: "user.markNotification",
+      stateless: true,
+      do: async () => {
+        await markNotificationMut({ id: notificationId, status: status });
+      },
+    });
+  }
+
+  function render(
+    notification: Notification
+  ):
+    | Pick<DisplayNotification, "type" | "kind" | "message" | "description" | "icon" | "actionText" | "action">
+    | undefined {
+    if (notification.type == NotificationType.OrganizationInvite) {
+      return {
+        type: "user.receivedOrganizationInvite",
+        kind: "notice",
+        message: `${notification.invite.organization.slug} invited you`,
+        description: `Join them to work on AI together.`,
+        icon: UserPlusIcon,
+        actionText: "Accept",
+        action: async () => {
+          const ret = await operations.user.acceptOrganizationInvite(notification.invite.id);
+          if (ret?.data?.acceptOrganizationInvite?.__typename == "User") {
+            // success
+            notifications.show({
+              type: "user.acceptedOrganizationInvite",
+              kind: "success",
+              message: `Joined ${notification.invite.organization.slug}`,
+              description: `You are now a part of ${notification.invite.organization.name}!`,
+            });
+          }
+        },
+      };
+    }
+    return undefined;
+  }
+
   return {
-    type: notification.type,
-    kind: "notice",
-    message: notification.type,
+    mark,
+    render,
   };
 }
+
+export const useNotifications = createSharedComposable(_useNotifications);

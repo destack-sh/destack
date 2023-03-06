@@ -4,6 +4,13 @@ const useIncoming = {
 };
 
 export const TYPE_POLICIES = {
+  User: {
+    fields: {
+      notifications: {
+        edges: useIncoming,
+      },
+    },
+  },
   File: {
     fields: {
       statements: useIncoming,

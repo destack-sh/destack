@@ -108,7 +108,7 @@ const benches = computed(() => {
         <router-link
           v-for="project of benches"
           :key="project.id"
-          class="duration-50 group flex h-28 flex-col justify-between rounded-sm border border-white bg-white p-3 shadow-sm ring-1 ring-orange-900 ring-opacity-5 transition-colors hover:border-orange-600"
+          class="group flex h-28 flex-col justify-between rounded-sm border border-gray-200 bg-white p-3 shadow-sm ring-0 ring-orange-900 ring-opacity-5 transition-colors duration-75 hover:border-orange-600"
           :to="`/${project.path.replace('.', '/')}`"
         >
           <div class="flex max-w-full flex-row items-center justify-between gap-2">

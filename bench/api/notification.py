@@ -22,9 +22,16 @@ NotificationStatus = gql.enum(models.NotificationStatus)
 @gql.django.filter(models.Notification)
 class NotificationFilter:
     status: Optional[NotificationStatus] = None
+    not_archived: Optional[bool] = None
     created_at__gte: Optional[datetime] = None
 
     def filter(self, queryset):
+        if self.not_archived:
+            queryset = queryset.filter(
+                Q(archived_at__isnull=True)
+                & (Q(expires_at__isnull=True) | Q(expires_at__gte=datetime.utcnow()))
+            )
+
         if self.status == NotificationStatus.ACTIVE:
             queryset = queryset.filter(
                 Q(read_at__isnull=True)
@@ -35,6 +42,7 @@ class NotificationFilter:
             queryset = queryset.filter(read_at__isnull=False)
         elif self.status is not None:
             raise NotImplementedError(f"filtering by status {self.status} is not implemented")
+
         if self.created_at__gte:
             queryset = queryset.filter(created_at__gte=self.created_at__gte)
         return queryset
@@ -59,12 +67,13 @@ class NotificationMarkInput(gql.NodeInput):
     status: NotificationStatus
 
 
+@gql.type
 class NotificationMutation:
     @safe_mutation
     def mark_notification(
         self, info: Info, input: NotificationMarkInput
     ) -> Notification | OperationInfo:
-        notification = models.Notification.objects.get(pk=input.id)
+        notification = models.Notification.objects.get(pk=input.id.node_id)
         check_can_write_user(info, notification)
         notification.mark_as(input.status)
         return notification

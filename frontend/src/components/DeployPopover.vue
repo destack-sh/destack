@@ -102,7 +102,7 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
         class="absolute top-10 right-0 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Header -->
-        <div>
+        <div class="">
           <h2 class="font-bold text-gray-900">Deployment</h2>
           <p class="pt-2 text-gray-900">
             Access
