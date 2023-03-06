@@ -1077,6 +1077,7 @@ type Query {
     id: GlobalID!
   ): ProjectVersion @canViewProject(atRoot: true)
   projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
+  projectVersionByTag(projectId: GlobalID!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
   file(
     """The ID of the object."""
     id: GlobalID!

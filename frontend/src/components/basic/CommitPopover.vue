@@ -1,27 +1,58 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { getRandomName } from "@/composables/useRandomName";
+import { graphql } from "@/gql";
 import type { ProjectVersion } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer, type SemVer } from "@/utils/semver";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { TagIcon } from "@heroicons/vue/24/outline";
+import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
 
-const props = defineProps<{ version: ProjectVersion; prevSemVerTag?: SemVer }>();
+const props = defineProps<{ version: ProjectVersion; projectId: string; prevSemVerTag?: SemVer }>();
 const emit = defineEmits<{ (e: "commit", id: string, name?: string, tag?: string): void }>();
 
+// use reference to element inside PopoverPanel to determine if it's open
+const panelHeaderRef = ref<HTMLDivElement | null>(null);
+
 const committed = computed(() => props.version != null && props.version.committed);
-const canCommit = computed(() => !committed.value);
-// if we can't commit, we're editing an already committed version
 
 const suggestedName = getRandomName();
 const name: Ref<string> = ref(props.version?.name ?? suggestedName);
 const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "minor"));
 const tag: Ref<string> = ref(props.version?.tag ?? suggestedTag);
 const description: Ref<string> = ref(props.version?.description ?? "");
-const validTag = computed(() => parseSemVer(tag.value) != null);
 
+const validTag = computed(() => parseSemVer(tag.value) != null);
+// check whether the entered tag is available
+const { result: existingTagResult, loading: tagLoading } = useQuery(
+  graphql(/* GraphQL */ `
+    query existingProjectVersionTag($projectId: GlobalID!, $tag: String!) {
+      projectVersionByTag(projectId: $projectId, tag: $tag) {
+        id
+        tag
+      }
+    }
+  `),
+  computed(() => ({
+    projectId: props.projectId,
+    tag: tag.value,
+  })) as any,
+  {
+    fetchPolicy: "no-cache",
+    // only check if we're open
+    enabled: computed(() => panelHeaderRef.value != null && tag.value.length > 0),
+  }
+);
+const availableTag = computed(
+  () =>
+    existingTagResult.value?.projectVersionByTag == null ||
+    existingTagResult.value?.projectVersionByTag?.id == props.version?.id
+);
+const canCommit = computed(() => !tagLoading.value && availableTag.value);
+
+// if we can't commit, we're editing an already committed version
 const operations = useOperations();
 </script>
 
@@ -35,9 +66,9 @@ const operations = useOperations();
         unmount
       >
         <!-- Header -->
-        <div class="">
+        <div class="" ref="panelHeaderRef">
           <h2 class="font-bold text-gray-900">{{ committed ? "Update snapshot" : "Create a snapshot" }}</h2>
-          <p class="mt-1 text-sm text-gray-700">Snapshots are named versions of your Bench.</p>
+          <p v-if="!committed" class="mt-1 text-sm text-gray-700">Snapshots are named versions of your Bench.</p>
         </div>
 
         <!-- Commit name & tag -->
@@ -55,7 +86,10 @@ const operations = useOperations();
               spellcheck="false"
             />
             <div class="relative flex flex-row">
-              <TagIcon class="absolute top-1.5 left-2.5 h-4 w-4 text-gray-700" />
+              <TagIcon
+                class="absolute top-1.5 left-2.5 h-4 w-4"
+                :class="tag.length > 0 ? 'text-gray-700' : 'text-gray-400'"
+              />
               <input
                 ref="slugRef"
                 type="text"
@@ -63,17 +97,11 @@ const operations = useOperations();
                 maxlength="32"
                 :placeholder="suggestedTag"
                 v-model="tag"
-                class="w-24 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-50 focus:outline-none focus:ring-0"
+                class="w-28 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-50 focus:outline-none focus:ring-0"
+                :class="{ 'text-yellow-600': !validTag, 'text-red-600': !availableTag }"
                 spellcheck="false"
               />
             </div>
-          </div>
-          <!-- Validation messages -->
-          <div class="text-left">
-            <FadeTransition mode="out-in">
-              <span class="mt-1 text-sm text-yellow-500" v-if="!validTag">That's not a SemVer tag.</span>
-            </FadeTransition>
-            <p></p>
           </div>
         </div>
         <!-- Commit description -->
@@ -88,10 +116,22 @@ const operations = useOperations();
             placeholder="Optional details for future you."
           />
         </div>
+        <!-- Validation messages -->
+        <div class="text-left">
+          <FadeTransition mode="out-in">
+            <span class="mt-1 text-sm text-red-600" v-if="!availableTag">That tag is already used.</span>
+            <span class="mt-1 text-sm text-yellow-600" v-else-if="tag.length > 0 && !validTag"
+              >We recommend SemVer tags - they play nicely.</span
+            >
+            <span v-else>&nbsp;</span>
+          </FadeTransition>
+          <p></p>
+        </div>
 
         <!-- Commit / update action -->
-        <div class="mt-4 text-right" v-if="canCommit">
+        <div class="mt-4 text-right" v-if="!committed">
           <button
+            :disabled="!canCommit"
             class="w-fit self-end border border-orange-600 px-3 py-1 text-sm hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
             :class="{ 'pointer-events-none opacity-50': !canCommit }"
             @click="

@@ -11,6 +11,7 @@ from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
+from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.auth import CanViewProject
@@ -66,6 +67,13 @@ def get_me(self, info: Info) -> Optional[User]:
     return user
 
 
+def get_project_version_by_tag(project_id: GlobalID, tag: str):
+    try:
+        return models.ProjectVersion.objects.get_by_tag(project_id.node_id, tag)
+    except models.ProjectVersion.DoesNotExist:
+        return None
+
+
 @strawberry.type
 class Query(ExecutionQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
@@ -88,6 +96,9 @@ class Query(ExecutionQuery):
     project_version: Optional[ProjectVersion] = gql.relay.node(directives=[CanViewProject()])
     project_version_by_slug: Optional[ProjectVersion] = gql.django.field(
         resolver=models.ProjectVersion.objects.get_by_slug, directives=[CanViewProject()]
+    )
+    project_version_by_tag: Optional[ProjectVersion] = gql.django.field(
+        resolver=get_project_version_by_tag, directives=[CanViewProject()]
     )
     file: Optional[File] = gql.relay.node(directives=[CanViewProject()])
 

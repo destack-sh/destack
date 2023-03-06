@@ -1184,6 +1184,7 @@ export type Query = {
   projectBySlug?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionBySlug?: Maybe<ProjectVersion>;
+  projectVersionByTag?: Maybe<ProjectVersion>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
   userBySlug?: Maybe<User>;
@@ -1242,6 +1243,11 @@ export type QueryProjectVersionArgs = {
 export type QueryProjectVersionBySlugArgs = {
   owner: Scalars["String"];
   project: Scalars["String"];
+  tag: Scalars["String"];
+};
+
+export type QueryProjectVersionByTagArgs = {
+  projectId: Scalars["GlobalID"];
   tag: Scalars["String"];
 };
 
@@ -1770,6 +1776,16 @@ export type FileContentByIdQuery = {
         >;
       } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | null;
+};
+
+export type ExistingProjectVersionTagQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  tag: Scalars["String"];
+}>;
+
+export type ExistingProjectVersionTagQuery = {
+  __typename?: "Query";
+  projectVersionByTag?: { __typename?: "ProjectVersion"; id: any; tag?: string | null } | null;
 };
 
 export type MatchingUsersQueryVariables = Exact<{
@@ -4164,6 +4180,56 @@ export const FileContentByIdDocument = {
     ...SimpleTypeNodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
+export const ExistingProjectVersionTagDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "existingProjectVersionTag" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersionByTag" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "tag" },
+                value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
 export const MatchingUsersDocument = {
   kind: "Document",
   definitions: [

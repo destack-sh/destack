@@ -232,6 +232,9 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             .get()
         )
 
+    def get_by_tag(self, project_id: UUID, tag: str):
+        return self.filter(project_id=project_id, tag=tag).get()
+
     def copy_files(
         self,
         source: ProjectVersion,
