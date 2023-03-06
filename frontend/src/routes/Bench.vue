@@ -357,20 +357,6 @@ provideAction({
   },
 });
 
-// sync fullscreen
-const { isFullscreen, enter, exit } = useFullscreen();
-watch(
-  () => editor.fullscreen,
-  () => {
-    if (editor.fullscreen && !isFullscreen.value) {
-      enter().catch(() => (editor.fullscreen = false));
-    } else if (isFullscreen.value) {
-      exit();
-    }
-  }
-);
-watch(isFullscreen, () => (editor.fullscreen = isFullscreen.value));
-
 const { load } = useEditorPersistence();
 const { migrateTo, migrating } = useEditorMigrations();
 

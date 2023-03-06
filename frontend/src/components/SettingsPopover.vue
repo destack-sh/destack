@@ -2,10 +2,12 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
 import { useActions } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { BellSlashIcon, CalculatorIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
 
+const appearance = useAppearance();
 const editor = useEditorState();
 const actions = useActions();
 </script>
@@ -24,14 +26,14 @@ const actions = useActions();
           <div class="flex flex-row justify-center">
             <button
               class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-50"
-              @click="editor.fontMono = false"
+              @click="appearance.fontMono = false"
             >
               <span class="font-sans text-2xl" :class="{ 'text-orange-600': !editor.fontMono }">Ag</span>
               <span class="text-xs text-gray-500">Default</span>
             </button>
             <button
               class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-50"
-              @click="editor.fontMono = true"
+              @click="appearance.fontMono = true"
             >
               <span class="font-mono text-2xl" :class="{ 'text-orange-600': editor.fontMono }">Ag</span>
               <span class="text-xs text-gray-500">Mono</span>
@@ -44,7 +46,7 @@ const actions = useActions();
             <MinusCircleIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Small text</span>
           </span>
-          <Switch v-model="editor.textSmall" />
+          <Switch v-model="appearance.textSmall" />
         </div>
         <!-- Line numbers -->
         <div class="flex flex-row items-center justify-between px-2 py-1">
@@ -60,7 +62,10 @@ const actions = useActions();
             <MoonIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Dark mode (soon)</span>
           </span>
-          <Switch disabled v-model="editor.darkMode" />
+          <Switch
+            :model-value="appearance.theme != 'light'"
+            @update:model-value="appearance.theme = $event ? 'dark' : 'light'"
+          />
         </div>
         <!-- Zen mode -->
         <div class="flex flex-row items-center justify-between px-2 py-1">

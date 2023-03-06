@@ -9,6 +9,7 @@ import {
   type RefMapping,
   type Statement,
 } from "@/gql/graphql";
+import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { reverseRecord } from "@/utils/functools";
 import { useLazyQuery } from "@vue/apollo-composable";
@@ -164,17 +165,13 @@ export const useEditorState = defineStore("editor", {
       editingElement: false,
       readonly: false,
       debug: false,
-      fullscreen: false,
       showGenerated: false,
       showLineNumbers: true,
       showEditorGroupHeader: true,
       showGlobalHeader: true,
       showViewSelection: true,
       showViewContent: false,
-      darkMode: false,
       zenMode: false,
-      fontMono: false,
-      textSmall: true,
     };
   },
   getters: {
@@ -203,6 +200,22 @@ export const useEditorState = defineStore("editor", {
     focusedGroup(): EditorGroup | undefined {
       if (this.focusedEditor?.groupId == null) return undefined;
       return this.editorGroup(this.focusedEditor?.groupId);
+    },
+    theme(): Theme {
+      const appearance = useAppearanceState();
+      return appearance.theme;
+    },
+    textSmall(): boolean {
+      const appearance = useAppearanceState();
+      return appearance.textSmall;
+    },
+    fullscreen(): boolean {
+      const appearance = useAppearanceState();
+      return appearance.fullscreen;
+    },
+    fontMono(): boolean {
+      const appearance = useAppearanceState();
+      return appearance.fontMono;
     },
   },
   actions: {
@@ -353,12 +366,13 @@ export const useEditorState = defineStore("editor", {
     },
 
     setZenMode(zenMode: boolean) {
+      const appearance = useAppearanceState();
       this.zenMode = zenMode;
       this.showGlobalHeader = !zenMode;
       this.showEditorGroupHeader = !zenMode;
       this.showLineNumbers = !zenMode;
       this.showViewSelection = !zenMode;
-      this.fullscreen = zenMode;
+      appearance.fullscreen = zenMode;
     },
 
     async _doMigrateTo(versionId: string, intermediateRefs: RefMapping[][]): Promise<void> {

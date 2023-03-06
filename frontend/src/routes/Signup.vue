@@ -2,12 +2,29 @@
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/notifications/NotificationArea.vue";
-import { SOCIAL_AUTH_PROVIDERS, encodeProviderUrl } from "@/state/auth";
+import { SOCIAL_AUTH_PROVIDERS, encodeProviderUrl, useAuth } from "@/state/auth";
 import { useTitle } from "@vueuse/core";
+import { watchEffect } from "vue";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{ next?: string }>();
 const title = useTitle();
 title.value = "Bench - Sign up";
+
+// auto-redirect to next (or home) if logged in
+const router = useRouter();
+const auth = useAuth();
+watchEffect(() => {
+  if (auth.loggedIn) {
+    // assume next is on the same host, so trim to get path
+    if (props.next) {
+      const url = new URL(props.next);
+      router.push(url.pathname);
+    } else {
+      router.push({ name: "Home" });
+    }
+  }
+});
 </script>
 <template>
   <div class="flex h-full flex-col bg-white pb-12">
