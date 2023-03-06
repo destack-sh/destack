@@ -12,7 +12,7 @@ export function useFileActions() {
   const create = provideGlobalAction({
     id: "file.new",
     label: "New file...",
-    enabled: computed(() => !editor.readonly),
+    enabled: computed(() => editor.currentProjectVersionId != null && !editor.readonly),
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async (name: string = getRandomName()) => {
       const fileId = newFileId();
