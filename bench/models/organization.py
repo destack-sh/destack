@@ -85,6 +85,13 @@ class Organization(UUIDModel):
 
         return invite
 
+    @transaction.atomic
+    def accept_invite(self, invite: "OrganizationInvite"):
+        if invite.user is None:
+            raise ValueError("cannot accept invite without registered user")
+        invite.user.join_organization(invite.organization, invite.level)
+        invite.delete()
+
     @property
     def slug(self) -> str:
         return self.owner_slug_id
@@ -163,6 +170,9 @@ class OrganizationInvite(UUIDModel):
 
     def __repr__(self):
         return f"<OrganizationInvite {self}>"
+
+    def accept(self):
+        self.organization.accept_invite(self)
 
     class Meta:
         ordering = ["created_at"]

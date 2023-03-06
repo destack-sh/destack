@@ -7,6 +7,7 @@ from strawberry import lazy
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
+from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
@@ -120,6 +121,13 @@ class UserMutation:
         user.description = input.description
         user.save()
         return user
+
+    @safe_mutation
+    def accept_organization_invite(self, info, id: GlobalID) -> User | OperationInfo:
+        invite = models.OrganizationInvite.objects.get(id=id.node_id)
+        check_can_write_user(info, invite.user)
+        invite.accept()
+        return invite.user
 
     @safe_mutation
     def logout(self, info: Info) -> None | OperationInfo:

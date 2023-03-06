@@ -468,6 +468,7 @@ export type ModuleRuntime = {
 
 export type Mutation = {
   __typename?: "Mutation";
+  acceptOrganizationInvite: UserOperationInfo;
   addDeployedStatement: DeploymentOperationInfo;
   build: BuildStateOperationInfo;
   commentStatement: StatementOperationInfo;
@@ -484,6 +485,7 @@ export type Mutation = {
   deleteStatementRecord: StatementOperationInfo;
   deleteStatementTypeNode: StatementOperationInfo;
   logout?: Maybe<OperationInfo>;
+  markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
   moveStatement: StatementOperationInfo;
@@ -516,6 +518,10 @@ export type Mutation = {
   updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: StatementOperationInfo;
   updateUser: UserOperationInfo;
+};
+
+export type MutationAcceptOrganizationInviteArgs = {
+  id: Scalars["GlobalID"];
 };
 
 export type MutationAddDeployedStatementArgs = {
@@ -576,6 +582,10 @@ export type MutationDeleteStatementRecordArgs = {
 
 export type MutationDeleteStatementTypeNodeArgs = {
   input: TypeNodeDeleteInput;
+};
+
+export type MutationMarkNotificationArgs = {
+  input: NotificationMarkInput;
 };
 
 export type MutationMorphStatementArgs = {
@@ -758,8 +768,16 @@ export type NotificationEdge = {
 
 export type NotificationFilter = {
   createdAt_Gte?: InputMaybe<Scalars["DateTime"]>;
+  notArchived?: InputMaybe<Scalars["Boolean"]>;
   status?: InputMaybe<NotificationStatus>;
 };
+
+export type NotificationMarkInput = {
+  id: Scalars["GlobalID"];
+  status: NotificationStatus;
+};
+
+export type NotificationOperationInfo = Notification | OperationInfo;
 
 export enum NotificationStatus {
   Active = "ACTIVE",
@@ -1768,6 +1786,7 @@ export type MatchingUsersQuery = {
 
 export type NotificationsQueryVariables = Exact<{
   status?: InputMaybe<NotificationStatus>;
+  notArchived?: InputMaybe<Scalars["Boolean"]>;
   first?: InputMaybe<Scalars["Int"]>;
 }>;
 
@@ -1775,6 +1794,7 @@ export type NotificationsQuery = {
   __typename?: "Query";
   me?: {
     __typename?: "User";
+    id: any;
     notifications: {
       __typename?: "NotificationConnection";
       totalCount?: number | null;
@@ -2538,6 +2558,20 @@ export type NewNotificationsQuery = {
   } | null;
 };
 
+export type MarkNotificationMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  status: NotificationStatus;
+}>;
+
+export type MarkNotificationMutation = {
+  __typename?: "Mutation";
+  markNotification:
+    | { __typename?: "Notification"; id: any; status: NotificationStatus; readAt?: any | null; archivedAt?: any | null }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
 export type UpdateDeploymentMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   status: DeploymentStatus;
@@ -3127,6 +3161,42 @@ export type CompleteSignupMutation = {
         createdAt: any;
         updatedAt: any;
         completedSignup: boolean;
+      };
+};
+
+export type AcceptOrganizationInviteMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type AcceptOrganizationInviteMutation = {
+  __typename?: "Mutation";
+  acceptOrganizationInvite:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "User";
+        id: any;
+        username: string;
+        slug: string;
+        email: string;
+        name: string;
+        createdAt: any;
+        updatedAt: any;
+        completedSignup: boolean;
+        organizationMemberships: {
+          __typename?: "OrganizationMembershipConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "OrganizationMembershipEdge";
+            node: {
+              __typename?: "OrganizationMembership";
+              id: any;
+              level: OrganizationMembershipLevel;
+              organization: { __typename?: "Organization"; id: any; name: string; slug: string };
+            };
+          }>;
+        };
       };
 };
 
@@ -4163,6 +4233,11 @@ export const NotificationsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "notArchived" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
@@ -4176,6 +4251,7 @@ export const NotificationsDocument = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "notifications" },
@@ -4190,6 +4266,11 @@ export const NotificationsDocument = {
                             kind: "ObjectField",
                             name: { kind: "Name", value: "status" },
                             value: { kind: "Variable", name: { kind: "Name", value: "status" } },
+                          },
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "notArchived" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "notArchived" } },
                           },
                         ],
                       },
@@ -6234,6 +6315,81 @@ export const NewNotificationsDocument = {
     },
   ],
 } as unknown as DocumentNode<NewNotificationsQuery, NewNotificationsQueryVariables>;
+export const MarkNotificationDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "markNotification" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "NotificationStatus" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "markNotification" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "status" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "status" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Notification" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "readAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "archivedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<MarkNotificationMutation, MarkNotificationMutationVariables>;
 export const UpdateDeploymentDocument = {
   kind: "Document",
   definitions: [
@@ -8770,6 +8926,105 @@ export const CompleteSignupDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CompleteSignupMutation, CompleteSignupMutationVariables>;
+export const AcceptOrganizationInviteDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "acceptOrganizationInvite" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "acceptOrganizationInvite" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "email" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "organizationMemberships" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        { kind: "Field", name: { kind: "Name", value: "level" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "organization" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "id" } },
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                            ],
+                                          },
+                                        },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<AcceptOrganizationInviteMutation, AcceptOrganizationInviteMutationVariables>;
 export const UpdateVersionDocument = {
   kind: "Document",
   definitions: [

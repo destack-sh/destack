@@ -35,7 +35,7 @@ const visibilities = computed(() => [
     value: ProjectVisibility.Private,
     label: "Private",
     icon: LockClosedIcon,
-    description: `Only ${owner.value?.name} can see this Bench`,
+    description: `Only ${owner.value?.id == auth.me.value?.id ? "you" : owner.value?.name} can see this Bench`,
   },
   {
     value: ProjectVisibility.Public,

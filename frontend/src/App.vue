@@ -6,6 +6,7 @@ import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
 import { IS_LOCALHOST } from "@/utils/globals";
 import { useSystemVersioning } from "@/utils/system";
+import ArrowUpCircleIcon from "@heroicons/vue/24/outline/ArrowUpCircleIcon";
 import { useFullscreen } from "@vueuse/core";
 import { onBeforeUnmount, ref, watch, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
@@ -39,17 +40,17 @@ watchEffect(() => {
       return;
     }
     promptedUpdate.value = true;
-    // note that there's a special icon for 'system.upgradeAvailable' in NotificationsArea
     notifications.show({
       type: "system.upgradeAvailable",
       kind: "notice",
+      icon: ArrowUpCircleIcon,
       message: "Get a better Bench",
       description: `Bench version ${systemInfo.value.version} is now available.`,
       actionText: "Refresh",
       action: () => {
         window.location.reload();
       },
-      showTimeMs: 365 * 24 * 60 * 60 * 1000, // 1 year
+      showTimeMs: 365 * 24 * 60 * 60 * 1000, // 1 year (user should upgrade)
     });
   }
 });

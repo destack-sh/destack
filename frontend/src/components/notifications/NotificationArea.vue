@@ -1,20 +1,25 @@
 <script lang="ts" setup>
 import { useNotifications, type DisplayNotification } from "@/state/notifications";
 import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/24/outline";
-import { ArrowUpCircleIcon } from "@heroicons/vue/20/solid";
 
 const notifications = useNotifications();
 
 function getIcon(notification: DisplayNotification) {
-  if (notification.type == "system.upgradeAvailable") {
-    return ArrowUpCircleIcon;
+  if (notification.icon) {
+    return notification.icon;
   }
-  return {
+  // default to icons by level
+  const iconByKind = {
     error: XCircleIcon,
     notice: InformationCircleIcon,
     warning: ExclamationCircleIcon,
     success: CheckCircleIcon,
-  }[notification.kind];
+  };
+  return iconByKind[notification.kind];
+}
+
+function freezeNotification(notification: DisplayNotification) {
+  notifications.store.freeze(notification.localId);
 }
 </script>
 
@@ -26,34 +31,34 @@ function getIcon(notification: DisplayNotification) {
         enter-active-class="transition duration-100 ease-out transform"
         enter-from-class="translate-y-0 translate-y-2 opacity-0"
         enter-to-class="translate-y-0 opacity-100"
-        leave-active-class="absolute transition ease-in duration-50"
+        leave-active-class="absolute transition duration-75 ease-in"
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
         appear
       >
         <div
-          v-for="notification in notifications.shownNotifications"
+          v-for="notification in notifications.shownNotifications.value"
           :key="notification.localId"
-          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm border-l-2 bg-white p-3 shadow-md ring-1 ring-black ring-opacity-5"
+          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm border-l-2 bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
           :class="{
             'border-l-white': notification.kind === 'notice',
             'border-red-500': notification.kind === 'error',
             'border-yellow-500': notification.kind === 'warning',
-            'border-green-500': notification.kind === 'success',
+            'border-orange-500': notification.kind === 'success',
           }"
+          @mouseenter="freezeNotification(notification)"
         >
           <!-- Message body-->
-          <div class="flex flex-1 justify-between">
+          <div class="flex flex-1 flex-row justify-between">
             <!-- Icon -->
             <div class="-mt-[1px]">
               <component
                 :is="getIcon(notification)"
                 class="h-5 w-5"
                 :class="{
-                  'text-orange-600': notification.kind === 'notice',
+                  'text-orange-600': notification.kind === 'notice' || notification.kind === 'success',
                   'text-red-500': notification.kind === 'error',
                   'text-yellow-500': notification.kind === 'warning',
-                  'text-green-500': notification.kind === 'success',
                 }"
               />
             </div>
