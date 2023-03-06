@@ -41,7 +41,7 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import { useFullscreen, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import { computed, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { computed, onBeforeUnmount, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import { DateTime } from "luxon";
@@ -393,6 +393,13 @@ watchEffect(async () => {
       console.log(`reset editor state for project ${project.value.id}`);
       // (happens in state.setProject)
     }
+  }
+});
+
+// clear editor state when exiting view
+onBeforeUnmount(() => {
+  if (editor.currentProjectId == project.value?.id) {
+    editor.$reset();
   }
 });
 </script>
