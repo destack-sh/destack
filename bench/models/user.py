@@ -27,6 +27,12 @@ class UserManager(BaseUserManager["User"]):
         user = self.create(
             username=username, email=email, first_name=full_name, owner_slug=owner_slug, **kwargs
         )
+
+        # recover invites that were sent to this email address
+        from bench.models.organization import OrganizationInvite
+
+        OrganizationInvite.objects.filter(email=email).update(user=user)
+
         return user
 
 

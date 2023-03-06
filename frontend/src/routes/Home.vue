@@ -69,7 +69,7 @@ const benches = computed(() => {
 });
 </script>
 <template>
-  <div class="h-full w-full">
+  <div class="h-full w-full bg-gray-50">
     <FatHeader>
       <template v-slot:left>
         <HomeButton />

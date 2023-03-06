@@ -215,7 +215,7 @@ class RunState:
     success: bool
 
 
-def check_can_write(user: User, project_version_id: UUID):
+def check_can_write_project(user: User, project_version_id: UUID):
     project_version = (
         ProjectVersion.objects.all()
         .prefetch_related("project", "project__user", "project__organization")
@@ -225,7 +225,7 @@ def check_can_write(user: User, project_version_id: UUID):
         raise PermissionDenied("You don't have permission to write to this project.")
 
 
-def check_can_view(user: User, project_version_id: UUID):
+def check_can_view_project(user: User, project_version_id: UUID):
     project_version = (
         ProjectVersion.objects.all()
         .prefetch_related("project", "project__user", "project__organization")
@@ -244,7 +244,7 @@ class ModuleRuntimeMutation:
         worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
-        await sync_to_async(check_can_write)(user, project_version_id)
+        await sync_to_async(check_can_write_project)(user, project_version_id)
 
         # :BlockingWorkerMessages
         send_message(
@@ -268,7 +268,7 @@ class ModuleRuntimeMutation:
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
         # TODO @Auth: should run be a guest-level permission for projects?
-        await sync_to_async(check_can_write)(user, project_version_id)
+        await sync_to_async(check_can_write_project)(user, project_version_id)
 
         # :BlockingWorkerMessages
         send_message(
@@ -308,7 +308,7 @@ class ModuleRuntimeSubscription:
             user=user,
         )
         try:
-            await sync_to_async(check_can_view)(user, project_version_id)
+            await sync_to_async(check_can_view_project)(user, project_version_id)
         except PermissionDenied:
             log.debug("runtime.subscribe_denied", project_version_id=project_version_id)
             return
@@ -396,7 +396,7 @@ class ModuleRuntimeSubscription:
         )
 
         try:
-            await sync_to_async(check_can_view)(user, project_version_id)
+            await sync_to_async(check_can_view_project)(user, project_version_id)
         except PermissionDenied:
             log.debug("executions.subscribe_denied", project_version_id=project_version_id)
             return

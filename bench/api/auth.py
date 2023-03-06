@@ -29,7 +29,8 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
-from bench.models import Organization, User
+from bench.models import Notification, Organization, User
+from bench.models.notification import create_notifications_on_signup
 
 if TYPE_CHECKING:
     from bench.models.organization import OrganizationMembershipLevel
@@ -233,7 +234,7 @@ def can_write_project(user: User, obj: Any) -> bool:
     elif isinstance(obj, models.ProjectVersion):
         obj = obj.project
     if not isinstance(obj, models.Project):
-        raise ValueError(f"CanWriteProject cannot be used on {obj}")
+        raise ValueError(f"can_write_project cannot be used on {obj}")
     from bench.models import OrganizationMembershipLevel  # avoid circular import
 
     is_org_member = (
@@ -355,10 +356,15 @@ def check_can_write_organization(info: Info, obj: "Organization") -> None:
         raise PermissionDenied("User cannot write to this.")
 
 
-def can_write_user(user: User, obj: User) -> bool:
+def can_write_user(user: User, obj: Any) -> bool:
     if user.is_authenticated and user.is_staff:
         return True
-    return user.id == obj.id
+    if isinstance(obj, Notification):
+        return user.id == obj.user_id
+    elif isinstance(obj, User):
+        return user.id == obj.id
+    else:
+        raise ValueError(f"can_write_user cannot be used on {obj}")
 
 
 def check_can_write_user(info: Info, obj: User) -> None:
@@ -414,9 +420,11 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
         or f"{details.get('first_name') or ''} {details.get('last_name') or ''}".strip()
         or details.get("username")
     )
-    # incomplete signup, need to set more properties (like username)
+    # incomplete signup, need to set/confirm properties manually (name/username/description, etc.)
     user = User.objects.create_user(username, email, full_name, completed_signup=False)
+    logger.info("social_create_user", user=user)
     strategy.session_set("backend", backend.name)
 
-    logger.info("social_create_user", user=user)
+    create_notifications_on_signup(user)
+
     return {"is_new": True, "user": user}

@@ -1766,6 +1766,41 @@ export type MatchingUsersQuery = {
   };
 };
 
+export type NotificationsQueryVariables = Exact<{
+  status?: InputMaybe<NotificationStatus>;
+  first?: InputMaybe<Scalars["Int"]>;
+}>;
+
+export type NotificationsQuery = {
+  __typename?: "Query";
+  me?: {
+    __typename?: "User";
+    notifications: {
+      __typename?: "NotificationConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "NotificationEdge";
+        node: {
+          __typename?: "Notification";
+          id: any;
+          type: NotificationType;
+          createdAt: any;
+          readAt?: any | null;
+          archivedAt?: any | null;
+          expiresAt?: any | null;
+          status: NotificationStatus;
+          invite: {
+            __typename?: "OrganizationInvite";
+            id: any;
+            level: OrganizationMembershipLevel;
+            organization: { __typename?: "Organization"; id: any; slug: string; name: string };
+          };
+        };
+      }>;
+    };
+  } | null;
+};
+
 export type ProjectVersionsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
 }>;
@@ -2479,6 +2514,7 @@ export type NewNotificationsQuery = {
     __typename?: "User";
     notifications: {
       __typename?: "NotificationConnection";
+      totalCount?: number | null;
       edges: Array<{
         __typename?: "NotificationEdge";
         node: {
@@ -2486,7 +2522,16 @@ export type NewNotificationsQuery = {
           id: any;
           type: NotificationType;
           createdAt: any;
+          readAt?: any | null;
+          archivedAt?: any | null;
+          expiresAt?: any | null;
           status: NotificationStatus;
+          invite: {
+            __typename?: "OrganizationInvite";
+            id: any;
+            level: OrganizationMembershipLevel;
+            organization: { __typename?: "Organization"; id: any; slug: string; name: string };
+          };
         };
       }>;
     };
@@ -4103,6 +4148,121 @@ export const MatchingUsersDocument = {
     },
   ],
 } as unknown as DocumentNode<MatchingUsersQuery, MatchingUsersQueryVariables>;
+export const NotificationsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "notifications" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "NotificationStatus" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "me" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "notifications" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "status" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "status" } },
+                          },
+                        ],
+                      },
+                    },
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "first" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "first" } },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "readAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "archivedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "expiresAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "status" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "invite" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "organization" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "id" } },
+                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                            ],
+                                          },
+                                        },
+                                        { kind: "Field", name: { kind: "Name", value: "level" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<NotificationsQuery, NotificationsQueryVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
@@ -6014,6 +6174,7 @@ export const NewNotificationsDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "edges" },
@@ -6029,7 +6190,33 @@ export const NewNotificationsDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "id" } },
                                   { kind: "Field", name: { kind: "Name", value: "type" } },
                                   { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "readAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "archivedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "expiresAt" } },
                                   { kind: "Field", name: { kind: "Name", value: "status" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "invite" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "organization" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "id" } },
+                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                            ],
+                                          },
+                                        },
+                                        { kind: "Field", name: { kind: "Name", value: "level" } },
+                                      ],
+                                    },
+                                  },
                                 ],
                               },
                             },

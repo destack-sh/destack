@@ -3,9 +3,13 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 from django.db.models import Q
 from strawberry import auto, lazy
+from strawberry.types import Info
 from strawberry_django_plus import gql
+from strawberry_django_plus.types import OperationInfo
 
 from bench import models
+from bench.api.auth import check_can_write_user
+from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.organization import OrganizationInvite
@@ -29,7 +33,7 @@ class NotificationFilter:
             )
         elif self.status == NotificationStatus.READ:
             queryset = queryset.filter(read_at__isnull=False)
-        else:
+        elif self.status is not None:
             raise NotImplementedError(f"filtering by status {self.status} is not implemented")
         if self.created_at__gte:
             queryset = queryset.filter(created_at__gte=self.created_at__gte)
@@ -48,3 +52,19 @@ class Notification(gql.Node):
     archived_at: auto
 
     invite: Annotated["OrganizationInvite", lazy(".organization")]
+
+
+@gql.input
+class NotificationMarkInput(gql.NodeInput):
+    status: NotificationStatus
+
+
+class NotificationMutation:
+    @safe_mutation
+    def mark_notification(
+        self, info: Info, input: NotificationMarkInput
+    ) -> Notification | OperationInfo:
+        notification = models.Notification.objects.get(pk=input.id)
+        check_can_write_user(info, notification)
+        notification.mark_as(input.status)
+        return notification

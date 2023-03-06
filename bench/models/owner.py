@@ -24,9 +24,18 @@ class OwnerSlug(models.Model):
 
     objects = OwnerSlugManager()
 
+    def __str__(self):
+        return self.slug
+
+    def __repr__(self):
+        return f"<OwnerSlug {self.slug}>"
+
     @property
     def owner(self) -> Union["User", "Organization"]:
         try:
             return self.user
         except AttributeError:
-            return self.organization
+            try:
+                return self.organization
+            except AttributeError:
+                raise RuntimeError(f"{self} has no owner")

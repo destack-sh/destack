@@ -406,7 +406,7 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- Root -->
-  <div class="relative flex h-full flex-col">
+  <div class="relative flex h-full flex-col bg-gray-50">
     <!-- Header with controls and auth -->
     <FatHeader v-show="editor.showGlobalHeader">
       <!-- Left side: organizational & status -->

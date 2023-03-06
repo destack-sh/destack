@@ -3,6 +3,7 @@ from datetime import datetime
 from django.db import models
 from django_choices_field import TextChoicesField
 
+from bench.models.user import User
 from bench.models.utils import UUIDModel
 
 
@@ -36,6 +37,18 @@ class Notification(UUIDModel):
     def __repr__(self):
         return f"<Notification {self}>"
 
+    def mark_as(self, status: NotificationStatus):
+        if status == NotificationStatus.ACTIVE:
+            self.read_at = None
+            self.archived_at = None
+        elif status == NotificationStatus.READ:
+            self.read_at = datetime.utcnow()
+        elif status == NotificationStatus.ARCHIVED:
+            self.archived_at = datetime.utcnow()
+        else:
+            raise NotImplementedError(f"marking as {status} is not implemented")
+        self.save()
+
     @property
     def status(self) -> NotificationStatus:
         if self.read_at:
@@ -49,3 +62,20 @@ class Notification(UUIDModel):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+def create_notifications_on_signup(user: User):
+    """Create onboarding notifications, recover invite notifications sent before signup"""
+
+    # recover invite notifications
+    notifications: list[Notification] = []
+    for invite in user.invites.all():
+        notification = Notification(
+            type=NotificationType.ORGANIZATION_INVITE,
+            user=user,
+            invite=invite,
+        )
+        notifications.append(notification)
+
+    # bulk create notifications
+    Notification.objects.bulk_create(notifications)
