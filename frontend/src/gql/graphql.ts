@@ -3253,7 +3253,9 @@ export type UpdateVersionMutationVariables = Exact<{
 export type UpdateVersionMutation = {
   __typename?: "Mutation";
   updateProjectVersion:
-    | { __typename?: "OperationInfo" }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
     | ({ __typename?: "ProjectVersion" } & {
         " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
       });
@@ -9273,6 +9275,7 @@ export const UpdateVersionDocument = {
                     selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
                   },
                 },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
               ],
             },
           },
@@ -9280,6 +9283,7 @@ export const UpdateVersionDocument = {
       },
     },
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateVersionMutation, UpdateVersionMutationVariables>;
 export const CommitDocument = {
