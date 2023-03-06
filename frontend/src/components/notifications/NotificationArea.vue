@@ -31,7 +31,7 @@ function freezeNotification(notification: DisplayNotification) {
         enter-active-class="transition duration-100 ease-out transform"
         enter-from-class="translate-y-0 translate-y-2 opacity-0"
         enter-to-class="translate-y-0 opacity-100"
-        leave-active-class="absolute transition duration-75 ease-in"
+        leave-active-class="absolute transition duration-100 ease-in"
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
         appear
@@ -39,13 +39,7 @@ function freezeNotification(notification: DisplayNotification) {
         <div
           v-for="notification in notifications.shownNotifications.value"
           :key="notification.localId"
-          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm border-l-2 bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-          :class="{
-            'border-l-white': notification.kind === 'notice',
-            'border-red-500': notification.kind === 'error',
-            'border-yellow-500': notification.kind === 'warning',
-            'border-orange-500': notification.kind === 'success',
-          }"
+          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
           @mouseenter="freezeNotification(notification)"
         >
           <!-- Message body-->

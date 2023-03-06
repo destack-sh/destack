@@ -66,6 +66,9 @@ class Organization(UUIDModel):
         from bench.models.user import User
 
         user = User.objects.filter(email=email).first()
+        if user is not None and self.members.filter(id=user.id).exists():
+            raise ValueError("user already a member of organization")
+
         invite = OrganizationInvite.objects.create(
             organization=self,
             email=email,
@@ -153,7 +156,7 @@ class OrganizationInvite(UUIDModel):
     )
     email: models.EmailField = models.EmailField()
     user: models.ForeignKey = models.ForeignKey(
-        "User", on_delete=models.CASCADE, null=True, related_name="invites"
+        "User", on_delete=models.CASCADE, null=True, blank=True, related_name="invites"
     )
     level: models.SmallIntegerField = models.SmallIntegerField(
         choices=OrganizationMembershipLevel.choices

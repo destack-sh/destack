@@ -7,13 +7,25 @@ import { useNotifications } from "@/state/notifications";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { BellIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 const { activeCount, render, mark } = useNotifications();
 const hasUnreadNotifications = computed(() => activeCount.value > 0);
 
 const showingArchive: Ref<boolean> = ref(false);
-const open = ref(true); // TODO @Incomplete: sync open with popover open, refetch whenever open
+
+// use reference to element inside PopoverPanel to determine if it's open
+// once it's open we enable & refetch
+const panelHeaderRef = ref<HTMLDivElement | null>(null);
+watch(
+  panelHeaderRef,
+  () => {
+    if (panelHeaderRef.value != null) {
+      refetch();
+    }
+  },
+  { deep: false }
+);
 
 const {
   result: notificationsResult,
@@ -56,7 +68,8 @@ const {
     first: 10,
   })) as any,
   {
-    enabled: open,
+    // only enable if open
+    enabled: computed(() => panelHeaderRef.value != null),
   }
 );
 const notifications = computed(() => notificationsResult.value?.me?.notifications.edges.map((e) => e.node) ?? []);
@@ -92,7 +105,7 @@ const { getTimeFromNowString } = useTimeFromNow();
 <template>
   <Popover v-slot="{ open }" as="div" class="relative">
     <PopoverButton
-      class="rounded-sm p-1 text-sm focus:outline-none"
+      class="rounded-sm p-1 text-sm outline-none transition-colors"
       :class="{
         'text-gray-500 hover:bg-orange-50': !hasUnreadNotifications,
         'text-orange-600 hover:bg-orange-50': hasUnreadNotifications,
@@ -105,9 +118,10 @@ const { getTimeFromNowString } = useTimeFromNow();
     <FadeTransition>
       <PopoverPanel
         class="absolute right-0 top-10 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-2 pt-2 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        unmount
       >
         <!-- Header -->
-        <div class="">
+        <div class="" ref="panelHeaderRef">
           <h2 class="font-bold text-gray-900">Notifications</h2>
           <!-- Unread / archived toggle -->
           <!-- Dismiss all button etc. -->
@@ -139,8 +153,16 @@ const { getTimeFromNowString } = useTimeFromNow();
             >
               <!-- Main message -->
               <div class="ml-1 flex flex-col">
-                <h3 class="relative flex flex-row items-center gap-1 text-sm font-bold text-gray-900">
-                  <component :is="notification.icon" v-if="notification.icon" class="absolute h-4 w-4 text-gray-700" />
+                <h3
+                  class="relative flex flex-row items-center gap-1 text-sm text-gray-900"
+                  :class="{ 'font-bold': notification.status == NotificationStatus.Active }"
+                >
+                  <component
+                    :is="notification.icon"
+                    v-if="notification.icon"
+                    class="absolute h-4 w-4"
+                    :class="notification.status == NotificationStatus.Active ? 'text-gray-900' : 'text-gray-500'"
+                  />
                   <span class="ml-5">{{ notification.message }}</span>
                 </h3>
                 <p v-if="notification.description" class="text-xs text-gray-500">{{ notification.description }}</p>
@@ -150,7 +172,7 @@ const { getTimeFromNowString } = useTimeFromNow();
                 <button
                   v-if="notification.actionText"
                   type="button"
-                  class="h-fit flex-shrink-0 rounded-sm px-3 text-sm font-medium text-gray-900 underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-gray-900 hover:decoration-solid focus:outline-none"
+                  class="h-fit flex-shrink-0 rounded-sm px-3 text-sm font-medium text-gray-900 decoration-gray-500 decoration-dashed underline-offset-4 hover:underline hover:decoration-gray-900 hover:decoration-solid focus:outline-none"
                   @click="() => notification.action?.()"
                 >
                   {{ notification.actionText }}

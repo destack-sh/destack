@@ -67,5 +67,36 @@ export function useOrganizationOps() {
     });
   }
 
-  return { create, createInvites };
+  const { mutate: cancelInviteMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation cancelInvite($id: GlobalID!) {
+        cancelOrganizationInvite(id: $id) {
+          ... on Organization {
+            id
+            invites {
+              totalCount
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function cancelInvite(id: string) {
+    return await operations.perform({
+      type: "organization.cancelInvite",
+      stateless: true,
+      do: async () => {
+        return await cancelInviteMut({ id });
+      },
+    });
+  }
+
+  return { create, createInvites, cancelInvite };
 }

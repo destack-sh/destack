@@ -57,7 +57,7 @@ defineExpose({
     as="div"
     class="relative"
     :model-value="props.modelValue"
-    @update:model-value="emit('update:modelValue', $event ?? { email: query })"
+    @update:model-value="emit('update:modelValue', $event ?? (validEmail ? { email: query } : null))"
     nullable
   >
     <slot name="input">

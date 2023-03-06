@@ -149,17 +149,25 @@ class OrganizationMutation:
         organization.save()
         return organization
 
-    @safe_mutation
+    @safe_mutation(atomic=True)
     def create_organization_invites(
         self, info, input: OrganizationInviteInput
     ) -> Organization | OperationInfo:
         organization = models.Organization.objects.get(id=input.id.node_id)
         check_can_write_organization(info, organization)
         for email in input.emails:
-            organization.create_invite(
+            invite = organization.create_invite(
                 email, input.level, input.message, created_by=info.context.request.scope["user"]
             )
+            invite.full_clean()
         return organization
+
+    @safe_mutation
+    def cancel_organization_invite(self, info, id: GlobalID) -> Organization | OperationInfo:
+        invite = models.OrganizationInvite.objects.get(id=id.node_id)
+        check_can_write_organization(info, invite.organization)
+        invite.delete()
+        return invite.organization
 
     @safe_mutation
     def update_organization_membership(

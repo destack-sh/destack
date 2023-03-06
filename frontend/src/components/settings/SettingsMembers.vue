@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import ConfirmPopover from "@/components/basic/ConfirmPopover.vue";
 import MembershipLevelSelect from "@/components/basic/MembershipLevelSelect.vue";
 import Switch from "@/components/basic/Switch.vue";
 import UserCombobox from "@/components/basic/UserCombobox.vue";
@@ -8,6 +9,7 @@ import { OrganizationMembershipLevel, type OrganizationInvite, type Organization
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
+import { PopoverButton } from "@headlessui/vue";
 import { MinusCircleIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
@@ -103,7 +105,7 @@ async function createInvites() {
       description: `${invitingUser.value.email} may now join ${props.slug}.`,
     });
 
-    // do the next one
+    // do the next one (select everything)
     invitingUser.value = null;
     addMemberRef.value?.focus();
   }
@@ -111,12 +113,21 @@ async function createInvites() {
 
 async function cancelInvite(invite: OrganizationInvite) {
   // not implemented
-  console.log("cancel invite", invite);
+  const ret = await operations.organization.cancelInvite(invite.id);
+  if (ret?.data?.cancelOrganizationInvite?.__typename == "Organization") {
+    // success
+    notifications.show({
+      type: "organization.cancelledInvite",
+      kind: "success",
+      message: "Invite cancelled",
+      description: `That invite has been silently disappeared.`,
+    });
+  }
 }
 
 async function removeMembership(membership: OrganizationMembership) {
   // not implemented
-  console.log("remove membership", membership);
+  console.log("remove membership not implemented yet", membership);
 }
 </script>
 <template>
@@ -134,10 +145,10 @@ async function removeMembership(membership: OrganizationMembership) {
     >
       <thead>
         <tr>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">User</th>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Status</th>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Role</th>
-          <th scope="col" class="py-2 px-3 text-center text-sm font-semibold text-gray-900" v-if="canWrite">
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">User</th>
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Status</th>
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Role</th>
+          <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900" v-if="canWrite">
             <button
               class="mt-1 text-center text-orange-600 hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
               @click="addMemberRef?.focus"
@@ -178,13 +189,19 @@ async function removeMembership(membership: OrganizationMembership) {
           </td>
           <!-- Action -->
           <td class="px-3 py-3 text-center text-gray-400 group-hover:text-gray-700" v-if="canWrite">
-            <button
-              class="hover:text-red-600"
+            <ConfirmPopover
               v-if="auth.me.value?.id != membership.user.id"
-              @click="removeMembership(membership as any)"
+              @action="removeMembership(membership as any)"
+              title="Remove member"
+              :description="`You are about to remove ${membership.user.username} from ${props.slug}.`"
+              confirmText="Remove member"
+              cancelText="Keep"
+              v-slot="{ open }"
             >
-              <MinusCircleIcon class="h-4 w-4" />
-            </button>
+              <PopoverButton class="hover:text-red-600" :class="open ? 'bg-orange-50 text-red-600' : ''">
+                <MinusCircleIcon class="h-4 w-4" />
+              </PopoverButton>
+            </ConfirmPopover>
           </td>
         </tr>
         <!-- Invites (if shown) -->
@@ -211,9 +228,18 @@ async function removeMembership(membership: OrganizationMembership) {
           </td>
           <!-- Action -->
           <td class="px-3 py-3 text-center" v-if="canWrite">
-            <button class="p-1 text-gray-400 group-hover:text-gray-700" @click="cancelInvite(invite as any)">
-              <MinusCircleIcon class="h-4 w-4 hover:text-red-600" />
-            </button>
+            <ConfirmPopover
+              @action="cancelInvite(invite as any)"
+              title="Cancel invite"
+              :description="`You are about to cancel the invite to ${invite.email}.`"
+              confirmText="Cancel invite"
+              cancelText="Keep"
+              v-slot="{ open }"
+            >
+              <PopoverButton class="hover:text-red-600" :class="open ? 'bg-orange-50 text-red-600' : ''">
+                <MinusCircleIcon class="h-4 w-4" />
+              </PopoverButton>
+            </ConfirmPopover>
           </td>
         </tr>
         <!-- Create invite -->
