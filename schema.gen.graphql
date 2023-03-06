@@ -89,7 +89,7 @@ union BuildStateOperationInfo = BuildState | OperationInfo
 
 input CommitInput {
   projectVersionId: GlobalID!
-  name: String!
+  name: String = null
   tag: String = null
   description: String = null
 }

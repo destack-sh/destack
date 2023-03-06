@@ -101,7 +101,7 @@ export type BuildStateOperationInfo = BuildState | OperationInfo;
 
 export type CommitInput = {
   description?: InputMaybe<Scalars["String"]>;
-  name: Scalars["String"];
+  name?: InputMaybe<Scalars["String"]>;
   projectVersionId: Scalars["GlobalID"];
   tag?: InputMaybe<Scalars["String"]>;
 };
@@ -3245,7 +3245,7 @@ export type UpdateVersionMutation = {
 
 export type CommitMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  name: Scalars["String"];
+  name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
 }>;
@@ -9232,7 +9232,7 @@ export const CommitDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
         {
           kind: "VariableDefinition",

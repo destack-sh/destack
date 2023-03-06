@@ -28,7 +28,7 @@ export function useProjectVersionOps() {
 
   const { mutate: commitMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation commit($projectVersionId: GlobalID!, $name: String!, $tag: String, $description: String) {
+      mutation commit($projectVersionId: GlobalID!, $name: String, $tag: String, $description: String) {
         commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {
           ... on CommitPayload {
             project {
@@ -48,7 +48,7 @@ export function useProjectVersionOps() {
     { refetchQueries: ["projectVersions", "projectBySlug"] }
   );
 
-  async function commit(projectVersionId: string, name: string, tag?: string, description?: string) {
+  async function commit(projectVersionId: string, name?: string, tag?: string, description?: string) {
     return await operations.perform({
       type: "version.commit",
       stateless: true,
