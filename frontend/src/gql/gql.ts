@@ -152,7 +152,7 @@ const documents = {
     types.CompleteSignupDocument,
   "\n      mutation acceptOrganizationInvite($id: GlobalID!) {\n        acceptOrganizationInvite(id: $id) {\n          ... on User {\n            id\n            username\n            slug\n            email\n            name\n            createdAt\n            updatedAt\n            completedSignup\n            # refetch memberships\n            organizationMemberships {\n              totalCount\n              edges {\n                node {\n                  id\n                  level\n                  organization {\n                    id\n                    name\n                    slug\n                  }\n                }\n              }\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.AcceptOrganizationInviteDocument,
-  "\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    ":
+  "\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateVersionDocument,
   "\n      mutation commit($projectVersionId: GlobalID!, $name: String, $tag: String, $description: String) {\n        commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {\n          ... on CommitPayload {\n            project {\n              ...ProjectHeader\n            }\n            committedVersion {\n              ...ProjectVersionHeader\n            }\n            newWorkingVersion {\n              ...ProjectVersionHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CommitDocument,
@@ -610,8 +610,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n        }\n      }\n    "];
+  source: "\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateVersion($id: GlobalID!, $name: String!, $tag: String, $description: String) {\n        updateProjectVersion(input: { id: $id, name: $name, tag: $tag, description: $description }) {\n          ... on ProjectVersion {\n            ...ProjectVersionHeader\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

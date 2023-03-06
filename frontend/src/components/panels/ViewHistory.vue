@@ -7,7 +7,7 @@ import { useEditorState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { parseSemVer } from "@/utils/semver";
+import { parseSemVer, type SemVer } from "@/utils/semver";
 import { PopoverButton } from "@headlessui/vue";
 import { BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -73,6 +73,7 @@ const lastSemVerTag = computed(() => {
   }
   return tag;
 });
+
 const snapshotButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const commit = provideGlobalAction({
@@ -146,27 +147,28 @@ const restore = provideGlobalAction({
     <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
       <span class="text-xs font-bold uppercase">History</span>
       <!-- Version controls -->
+      <!-- Note that this commit popover duplicates the one from the main version list -->
+      <!-- This is because it's easier to open the right popover in the right place that way -->
       <CommitPopover
         v-if="head != null"
         :version="head"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
         @commit="(id, name, tag) => doCommit(id, name, tag)"
+        v-slot="{ open }"
       >
-        <template v-slot:button="{ open }">
-          <PopoverButton
-            ref="snapshotButtonRef"
-            :disabled="!commit.enabled"
-            class="inline-flex flex-row rounded-sm p-0.5 outline-none"
-            :class="{
-              'text-gray-300': !commit.enabled,
-              'text-gray-400 hover:bg-orange-100 hover:text-gray-700': commit.enabled,
-              'bg-orange-100': open,
-            }"
-          >
-            <BookmarkIcon class="h-4 w-4" />
-          </PopoverButton>
-        </template>
+        <PopoverButton
+          ref="snapshotButtonRef"
+          :disabled="!commit.enabled"
+          class="inline-flex flex-row rounded-sm p-0.5 outline-none"
+          :class="{
+            'text-gray-300': !commit.enabled,
+            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': commit.enabled,
+            'bg-orange-100': open,
+          }"
+        >
+          <BookmarkIcon class="h-4 w-4" />
+        </PopoverButton>
       </CommitPopover>
     </div>
     <!-- View versions -->
@@ -196,7 +198,14 @@ const restore = provideGlobalAction({
                 />
               </span>
               <!-- Version info -->
-              <div class="flex min-w-0 flex-1 items-baseline justify-between space-x-4">
+              <CommitPopover
+                :version="version"
+                :projectId="props.project.id"
+                :prev-sem-ver-tag="versionIdx == 0 ? lastSemVerTag ?? undefined : undefined"
+                as="div"
+                class="flex min-w-0 flex-1 items-baseline justify-between space-x-4"
+                @commit="(id, name, tag) => doCommit(id, name, tag)"
+              >
                 <!-- Name, tag, description -->
                 <div class="pt-0.5">
                   <p class="flex flex-row items-start gap-0.5 text-xs font-bold">
@@ -212,15 +221,15 @@ const restore = provideGlobalAction({
                       {{ version.name || (versionIdx == 0 ? "(Working)" : "Autosave") }}
                     </router-link>
                     <!-- Edit button -->
-                    <button
+                    <PopoverButton
                       v-if="project.canWrite"
                       class="invisible p-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
                     >
                       <PencilIcon class="h-3 w-3" />
-                    </button>
+                    </PopoverButton>
                   </p>
                   <!-- Tag button -->
-                  <button
+                  <PopoverButton
                     class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs"
                     :class="[
                       version.tag == null ? 'text-gray-300 ' : 'text-gray-700',
@@ -232,7 +241,7 @@ const restore = provideGlobalAction({
                     <span :class="version.tag == null ? 'invisible group-hover:visible' : ''">
                       {{ version.tag || "Tag" }}
                     </span>
-                  </button>
+                  </PopoverButton>
                 </div>
                 <!-- Time -->
                 <div class="whitespace-nowrap text-right text-xs">
@@ -248,7 +257,7 @@ const restore = provideGlobalAction({
                     {{ getTimeFromNowString(version.committedAt) }}
                   </time>
                 </div>
-              </div>
+              </CommitPopover>
             </div>
           </div>
         </li>

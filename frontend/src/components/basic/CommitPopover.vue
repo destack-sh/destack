@@ -8,7 +8,8 @@ import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer, type SemVer } from
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, type Ref } from "vue";
+import { useDebounceFn } from "@vueuse/shared";
+import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ version: ProjectVersion; projectId: string; prevSemVerTag?: SemVer }>();
 const emit = defineEmits<{ (e: "commit", id: string, name?: string, tag?: string): void }>();
@@ -19,7 +20,7 @@ const panelHeaderRef = ref<HTMLDivElement | null>(null);
 const committed = computed(() => props.version != null && props.version.committed);
 
 const suggestedName = getRandomName();
-const name: Ref<string> = ref(props.version?.name ?? suggestedName);
+const name: Ref<string> = ref(props.version?.name ?? (committed.value ? "" : suggestedName));
 const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "minor"));
 const tag: Ref<string> = ref(props.version?.tag ?? suggestedTag);
 const description: Ref<string> = ref(props.version?.description ?? "");
@@ -53,16 +54,26 @@ const availableTag = computed(
 const canCommit = computed(() => !tagLoading.value && availableTag.value);
 
 // if we can't commit, we're editing an already committed version
+// so auto-sync name, description and tag (debounced as usual)
 const operations = useOperations();
+function updateVersion() {
+  operations.version.update(props.version.id, name.value, tag.value, description.value);
+}
+const updateVersionDebounced = useDebounceFn(updateVersion, 500);
+watch([name, description, tag, availableTag], () => {
+  if (availableTag.value) {
+    updateVersionDebounced();
+  }
+});
 </script>
 
 <template>
   <Popover v-slot="{ open, close }" class="relative text-sm">
-    <slot name="button" :open="open" />
+    <slot :open="open" />
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute top-6 left-1 z-10 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute top-9 left-1 z-10 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
         unmount
       >
         <!-- Header -->
