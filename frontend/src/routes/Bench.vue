@@ -611,16 +611,15 @@ onBeforeUnmount(() => {
         </div>
         <!-- View content -->
         <div class="relative flex-1 flex-col border-r border-gray-200" v-show="editor.showViewContent">
-          <div class="absolute top-0 left-0 h-full w-full overflow-y-hidden">
-            <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
-            <ViewHistory
-              v-show="activeView.id == 'history'"
-              v-if="project != null && version != null"
-              :project="project as any"
-              :current-version="version as any"
-            />
-            <ViewIssues v-show="activeView.id == 'issues'" />
-          </div>
+          <!-- These must be v-show, not v-if, see note above -->
+          <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
+          <ViewHistory
+            v-show="activeView.id == 'history'"
+            v-if="project != null && version != null"
+            :project="project as any"
+            :current-version="version as any"
+          />
+          <ViewIssues v-show="activeView.id == 'issues'" />
         </div>
       </aside>
       <!-- Main editor area -->

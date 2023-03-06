@@ -228,7 +228,7 @@ class UpdateProjectVersion(gql.NodeInput):
 @gql.input
 class CommitInput:
     project_version_id: GlobalID
-    name: str
+    name: Optional[str] = None
     tag: Optional[str] = None  # :ProjectVersionTags
     description: Optional[str] = None
 
