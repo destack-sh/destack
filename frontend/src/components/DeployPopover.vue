@@ -1,15 +1,16 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { DeploymentStatus, StatementType, SymbolType } from "@/gql/graphql";
-import { provideGlobalAction, useActions } from "@/state/actions";
+import { DeploymentStatus, DeploymentType, StatementType, SymbolType } from "@/gql/graphql";
+import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { symbolsLike, useCurrentModuleRuntime, fileOf } from "@/state/runtime";
+import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { CloudArrowUpIcon } from "@heroicons/vue/24/outline";
+import { CheckIcon } from "@heroicons/vue/20/solid";
+import { CloudArrowUpIcon, CloudIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
@@ -22,6 +23,8 @@ const { result: deploymentsResult } = useQuery(
     query projectDeployments($projectVersionId: GlobalID!) {
       projectVersion(id: $projectVersionId) {
         id
+        committed
+        tag
         deployments(filters: { isOwned: true }) {
           totalCount
           edges {
@@ -42,9 +45,11 @@ const { result: deploymentsResult } = useQuery(
     projectVersionId: editor.currentProjectVersionId,
   })
 );
+const committed = computed(() => deploymentsResult.value?.projectVersion?.committed);
+const tag = computed(() => deploymentsResult.value?.projectVersion?.tag);
 const deployments = computed(() => deploymentsResult.value?.projectVersion?.deployments.edges.map((x) => x.node) || []);
+const isDeployed = computed(() => deployments.value.find((d) => d.type == DeploymentType.Manual));
 
-const actions = useActions();
 const operations = useOperations();
 const notifications = useNotifications();
 
@@ -58,7 +63,6 @@ const deploy = provideGlobalAction({
   shortcuts: [],
   apply: async () => {
     // re-use random name/tagging logic from action for now, will be done inline here later
-    await actions.apply("version.commit");
     await Promise.all(
       deployments.value.map(async (deployment) => {
         operations.deployment.update(deployment.id, DeploymentStatus.Active);
@@ -87,14 +91,19 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
 <template>
   <Popover v-slot="{ open }" class="relative">
     <PopoverButton
-      class="rounded-sm p-1 text-sm focus:outline-none"
+      class="relative rounded-sm p-1 text-sm focus:outline-none"
       :class="{
         'text-gray-500 hover:bg-orange-50': !canDeploy,
         'text-orange-600 hover:bg-orange-50': canDeploy,
         'bg-orange-50': open,
       }"
     >
-      <CloudArrowUpIcon class="h-5 w-5" />
+      <CloudArrowUpIcon v-if="!isDeployed" class="h-5 w-5" />
+      <template v-else>
+        <!-- Already deployed (yes this is ugly :c) -->
+        <CloudIcon class="h-5 w-5" />
+        <CheckIcon class="absolute top-[9px] left-2 h-3 w-3" />
+      </template>
     </PopoverButton>
 
     <FadeTransition>
@@ -103,7 +112,7 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
       >
         <!-- Header -->
         <div class="">
-          <h2 class="font-bold text-gray-900">Deployment</h2>
+          <h2 class="font-bold text-gray-900">{{ isDeployed ? "Update deployment" : "Create deployment" }}</h2>
           <p class="pt-2 text-gray-900">
             Access
             <router-link
@@ -112,7 +121,7 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
               class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
               >deployed</router-link
             >
-            endpoints
+            endpoints to
             <button
               target="_blank"
               class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
@@ -129,7 +138,6 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
               api.symbolx.com/{{ project.owner.slug }}/{{ project.slug }}/run
             </a>
           </p>
-          <p class="mt-1 text-xs text-gray-500">Hint: 'x' refers to the live working version.</p>
         </div>
 
         <!-- Endpoints -->
@@ -164,6 +172,7 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
         <!-- Deploy action -->
         <div class="mt-4 text-right">
           <button
+            v-if="!isDeployed"
             class="w-fit self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
             :class="{ 'pointer-events-none opacity-50': !canDeploy }"
             @click="deploy.apply"
@@ -173,6 +182,9 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
           <p v-if="!project.canWrite" class="pt-1 text-xs text-yellow-600">You cannot deploy other's Benches yet.</p>
           <p v-else-if="!canDeploy" class="pt-1 text-xs text-red-600">There are errors. Fix them to deploy.</p>
           <p v-else-if="endpoints.length == 0" class="text-yellow-600">There's nothing to deploy, but you could.</p>
+          <p class="mt-1 text-xs text-gray-500" v-if="!committed && !isDeployed">
+            The latest working version (tagged 'x') is always live.
+          </p>
         </div>
       </PopoverPanel>
     </FadeTransition>
