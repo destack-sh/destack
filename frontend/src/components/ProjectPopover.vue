@@ -6,7 +6,7 @@ import { ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import { GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
+import { ArrowRightOnRectangleIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
@@ -15,11 +15,7 @@ const project = computed(() => useFragment(ProjectHeaderType, props.project));
 const projectActions = computed(() => [
   {
     name: "Move",
-    enabled: false,
-    action: () => ({}),
-  },
-  {
-    name: "Rename",
+    icon: ArrowRightOnRectangleIcon,
     enabled: false,
     action: () => ({}),
   },
@@ -57,7 +53,6 @@ async function updateVisibility(visibility: ProjectVisibility) {
         </div>
         <!-- Visibility -->
         <div class="px-2">
-          <span class="text-xs text-gray-500">Visibility</span>
           <div class="flex flex-row justify-center py-1 text-sm">
             <button
               class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-50"
@@ -81,11 +76,14 @@ async function updateVisibility(visibility: ProjectVisibility) {
         <button
           v-for="action in projectActions"
           :key="action.name"
-          class="py-1 px-2 text-left text-sm"
+          class="flex flex-row items-center gap-1.5 py-1 px-2 text-left text-sm"
           :class="{ 'cursor-not-allowed text-gray-500': !action.enabled, 'hover:bg-orange-50': action.enabled }"
           :disabled="!action.enabled"
         >
-          {{ action.name }}
+          <component :is="action.icon" class="h-4 w-4 text-gray-700" />
+          <span>
+            {{ action.name }}
+          </span>
         </button>
       </PopoverPanel>
     </FadeTransition>

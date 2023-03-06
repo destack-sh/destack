@@ -456,6 +456,12 @@ onBeforeUnmount(() => {
                 <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
                 <span class="ml-5 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
               </span>
+              <router-link
+                :to="{ hash: router.currentRoute.value.hash }"
+                class="font-bold underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
+              >
+                Back
+              </router-link>
               <button
                 v-if="project.canWrite"
                 class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
@@ -463,12 +469,6 @@ onBeforeUnmount(() => {
               >
                 Restore
               </button>
-              <router-link
-                :to="{ hash: router.currentRoute.value.hash }"
-                class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
-              >
-                Back
-              </router-link>
             </div>
           </FadeTransition>
           <!-- Read-only project info -->
