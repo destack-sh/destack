@@ -471,6 +471,7 @@ export type Mutation = {
   acceptOrganizationInvite: UserOperationInfo;
   addDeployedStatement: DeploymentOperationInfo;
   build: BuildStateOperationInfo;
+  cancelOrganizationInvite: OrganizationOperationInfo;
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
@@ -530,6 +531,10 @@ export type MutationAddDeployedStatementArgs = {
 
 export type MutationBuildArgs = {
   input: BuildInput;
+};
+
+export type MutationCancelOrganizationInviteArgs = {
+  id: Scalars["GlobalID"];
 };
 
 export type MutationCommentStatementArgs = {
@@ -2532,6 +2537,7 @@ export type NewNotificationsQuery = {
   __typename?: "Query";
   me?: {
     __typename?: "User";
+    id: any;
     notifications: {
       __typename?: "NotificationConnection";
       totalCount?: number | null;
@@ -2676,6 +2682,27 @@ export type CreateInvitesMutationVariables = Exact<{
 export type CreateInvitesMutation = {
   __typename?: "Mutation";
   createOrganizationInvites:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Organization";
+        id: any;
+        invites: {
+          __typename?: "OrganizationInviteConnection";
+          totalCount?: number | null;
+          edges: Array<{ __typename?: "OrganizationInviteEdge"; node: { __typename?: "OrganizationInvite"; id: any } }>;
+        };
+      };
+};
+
+export type CancelInviteMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type CancelInviteMutation = {
+  __typename?: "Mutation";
+  cancelOrganizationInvite:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -6228,6 +6255,7 @@ export const NewNotificationsDocument = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "notifications" },
@@ -7004,6 +7032,83 @@ export const CreateInvitesDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateInvitesMutation, CreateInvitesMutationVariables>;
+export const CancelInviteDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "cancelInvite" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "cancelOrganizationInvite" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "invites" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CancelInviteMutation, CancelInviteMutationVariables>;
 export const CreateProjectDocument = {
   kind: "Document",
   definitions: [

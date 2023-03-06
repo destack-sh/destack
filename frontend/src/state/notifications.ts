@@ -111,6 +111,7 @@ function _useNotifications() {
     graphql(/* GraphQL */ `
       query newNotifications($after: String, $status: NotificationStatus) {
         me {
+          id
           notifications(after: $after, filters: { status: $status }) {
             totalCount
             edges {
@@ -229,6 +230,7 @@ function _useNotificationHandler() {
             archivedAt: vars.status == NotificationStatus.Archived ? DateTime.now().toISO() : null,
           },
         } as any),
+      refetchQueries: ["newNotifications"],
     }
   );
 
