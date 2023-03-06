@@ -147,7 +147,9 @@ const restore = provideGlobalAction({
       <span class="text-xs font-bold uppercase">History</span>
       <!-- Version controls -->
       <CommitPopover
+        v-if="head != null"
         :version="head"
+        :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
         @commit="(id, name, tag) => doCommit(id, name, tag)"
       >

@@ -7,11 +7,16 @@ export type SemVer = {
 export function parseSemVer(version: string): SemVer | undefined {
   try {
     const [major, minor, patch] = version.split(".");
-    return {
+    const semVer = {
       major: parseInt(major),
       minor: parseInt(minor),
       patch: parseInt(patch),
     };
+    // check if they're all valid integers
+    if (isNaN(semVer.major) || isNaN(semVer.minor) || isNaN(semVer.patch)) {
+      return undefined;
+    }
+    return semVer;
   } catch (e) {
     return undefined;
   }
